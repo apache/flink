@@ -1,14 +1,18 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.tree;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.util.JsonUtil2;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 
 public class InnerNode extends AbstractNode {
@@ -30,6 +34,7 @@ public class InnerNode extends AbstractNode {
 		private Point getPoint() {
 			return subnode.getRepresentantive();
 		}
+
 	}
 	
 	private Entry[] entries;
@@ -296,27 +301,60 @@ public class InnerNode extends AbstractNode {
 		return result;
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#read(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		representative.write(out);
-		List<Entry> setEntries = collectSetEntries();
-		out.writeByte(setEntries.size());
-		for (Entry entry : setEntries) {
-			out.writeInt(entry.rowsum);
-			writeWithType(out, entry.subnode);
+	public void read(IJsonNode node) {
+		representative = new Point();
+		representative.read(JsonUtil2.getField(node, "representative", ObjectNode.class));
+		int i = 0;
+		for (IJsonNode member : JsonUtil2.getField(node, "children", IArrayNode.class)) {
+			entries[i++] = readEntry(member);
 		}
+	}
+	
+	private Entry readEntry(IJsonNode node) {
+		int rowsum = JsonUtil2.getField(node, "rowsum", IntNode.class).getIntValue();
+		INode subnode;
+		if (JsonUtil2.getField(node, "containsLeaf", BooleanNode.class).getBooleanValue()) {
+			subnode = tree.createLeaf(null, null);
+		} else {
+			subnode = tree.createInnerNode();
+		}
+		subnode.read(JsonUtil2.getField(node, "child", IJsonNode.class));
+		return new Entry(subnode, rowsum);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#write(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
+	@Override
+	public IJsonNode write(IJsonNode node) {
+		ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
+		objectNode.put("representative", representative.write(null));
+		objectNode.put("children", writeEntries());
+		return objectNode;
 	}
 
-	@Override
-	public void read(DataInput in) throws IOException {
-		representative = new Point();
-		representative.read(in);
-		int entrySize = in.readByte();
-		for (int i = 0; i < entrySize; i++) {
-			int rowsum = in.readInt();
-			INode subnode = readWithType(in, tree);
-			entries[i] = new Entry(subnode, rowsum);
+	/**
+	 * @return
+	 */
+	private IJsonNode writeEntries() {
+		ArrayNode array = new ArrayNode();
+		for (Entry entry : collectSetEntries()) {
+			array.add(writeEntry(entry, null));
 		}
+		return array;
 	}
+	
+	private IJsonNode writeEntry(Entry entry, IJsonNode node) {
+		ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
+		objectNode.put("rowsum", new IntNode(entry.rowsum));
+		objectNode.put("containsLeaf", BooleanNode.valueOf(entry.subnode instanceof Leaf));
+		objectNode.put("child", entry.subnode.write(null));
+		return objectNode;
+	}
+	
 	
 }

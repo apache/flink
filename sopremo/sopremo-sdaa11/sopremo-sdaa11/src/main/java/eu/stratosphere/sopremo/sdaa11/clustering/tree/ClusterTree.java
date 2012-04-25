@@ -1,17 +1,18 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.tree;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.util.JsonUtil2;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
-public class ClusterTree implements Serializable, Value {
+public class ClusterTree implements Serializable, JsonSerializable {
 	
 	private static final long serialVersionUID = -2054155381249234100L;
 
@@ -115,17 +116,26 @@ public class ClusterTree implements Serializable, Value {
 		return sb.toString();
 	}
 
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#write(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		out.writeInt(degree);
-		root.write(out);
+	public IJsonNode write(IJsonNode node) {
+		ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
+		objectNode.put("degree", new IntNode(degree));
+		objectNode.put("root", root.write(null));
+		return objectNode;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#read(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
-		degree = in.readInt();
+	public void read(IJsonNode node) {
+		degree = JsonUtil2.getField(node, "degree", IntNode.class).getIntValue();
 		root = createInnerNode();
-		root.read(in);
+		root.read(JsonUtil2.getField(node, "root", ObjectNode.class));
 	}
 
 }

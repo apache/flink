@@ -1,12 +1,13 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.tree;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.util.JsonUtil2;
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 public class Leaf extends AbstractNode {
 	
@@ -65,17 +66,26 @@ public class Leaf extends AbstractNode {
 		return this;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#write(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		out.writeUTF(clusterId);
-		clustroid.write(out);
+	public IJsonNode write(IJsonNode node) {
+		ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
+		objectNode.put("id", new TextNode(clusterId));
+		objectNode.put("clustroid", clustroid.write(null));
+		return objectNode;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#read(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
 	@Override
-	public void read(DataInput in) throws IOException {
-		clusterId = in.readUTF();
+	public void read(IJsonNode node) {
+		ObjectNode objectNode = (ObjectNode) node;
+		clusterId = ((TextNode) objectNode.get("id")).getTextValue();
 		clustroid = new Point();
-		clustroid.read(in);
+		clustroid.read(objectNode.get("clustroid"));
 	}
 
 }

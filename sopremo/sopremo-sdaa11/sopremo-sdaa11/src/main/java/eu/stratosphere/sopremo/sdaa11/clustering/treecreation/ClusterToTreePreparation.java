@@ -21,6 +21,11 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
+ * This operator simply takes clusters, strips off all of its points
+ * except for the clustroid and additionally adds a dummy reduce key.
+ * 
+ * @see TreeCreator
+ * @see TreeAssembler
  * @author skruse
  *
  */

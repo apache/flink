@@ -1,14 +1,10 @@
 package eu.stratosphere.sopremo.sdaa11.clustering;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
 import eu.stratosphere.sopremo.sdaa11.clustering.util.SortedJaccardDistance;
 import eu.stratosphere.sopremo.sdaa11.util.FastStringComparator;
@@ -18,7 +14,7 @@ import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
-public class Point implements Value, Serializable, Cloneable, Comparable<Point>, JsonSerializable {
+public class Point implements Serializable, Cloneable, Comparable<Point>, JsonSerializable {
 
 	private static final long serialVersionUID = 8916618314991854207L;
 
@@ -80,32 +76,6 @@ public class Point implements Value, Serializable, Cloneable, Comparable<Point>,
 	public int getDistance(final Point point) {
 		return SortedJaccardDistance.distance(this.getValues(),
 				point.getValues(), FastStringComparator.INSTANCE);
-	}
-
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		out.writeUTF(this.key);
-
-		out.writeInt(this.values.size());
-		for (final String value : this.values)
-			out.writeUTF(value);
-
-		out.writeInt(this.rowsum);
-	}
-
-	@Override
-	public void read(final DataInput in) throws IOException {
-		this.key = in.readUTF();
-
-		final int valuesSize = in.readInt();
-		if (this.values == null)
-			this.values = new ArrayList<String>(valuesSize);
-		else
-			this.values.clear();
-		for (int i = 0; i < valuesSize; i++)
-			this.values.add(in.readUTF());
-
-		this.rowsum = in.readInt();
 	}
 
 	@Override

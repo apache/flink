@@ -4,9 +4,10 @@ import java.io.Serializable;
 import java.util.Collection;
 
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 
-public interface INode extends Serializable, Value {
+public interface INode extends Serializable, JsonSerializable {
 	
 	/**
 	 * Searches itself and children for the leaf that is closest to the given point.

@@ -17,6 +17,7 @@ package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 import java.util.Arrays;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -100,7 +101,7 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 			
 			TextNode serialization = new TextNode(SopremoUtil.objectToString(tree));
 			ObjectNode output = new ObjectNode();
-			output.put("tree", serialization);
+			output.put("tree", tree.write(null));
 			out.collect(output);		
 		}
 		
