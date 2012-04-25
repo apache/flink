@@ -15,9 +15,7 @@
 package eu.stratosphere.util;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -28,14 +26,14 @@ import java.util.List;
  */
 public class ConcatenatingIterable<T> extends AbstractIterable<T> {
 
-	private Iterable<Iterable<? extends T>> inputs;
+	private Iterable<? extends Iterable<? extends T>> inputs;
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ConcatenatingIterable(final Iterable<T>... iterables) {
 		this.inputs = (List) Arrays.asList(iterables);
 	}
 
-	public ConcatenatingIterable(final Iterable<Iterable<? extends T>> iterables) {
+	public ConcatenatingIterable(final Iterable<? extends Iterable<? extends T>> iterables) {
 		this.inputs = iterables;
 	}
 

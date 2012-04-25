@@ -1,9 +1,6 @@
 package eu.stratosphere.sopremo;
 
-import it.unimi.dsi.fastutil.Function;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Represents all evaluable entities such as {@link EvaluationExpression}s or {@link Function}s.

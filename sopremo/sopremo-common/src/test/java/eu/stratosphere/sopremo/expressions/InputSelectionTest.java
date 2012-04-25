@@ -5,8 +5,8 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
 
 public class InputSelectionTest extends EvaluableExpressionTest<InputSelection> {
 

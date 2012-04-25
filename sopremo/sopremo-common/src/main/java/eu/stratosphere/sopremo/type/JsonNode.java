@@ -29,6 +29,7 @@ public abstract class JsonNode implements IJsonNode {
 		TextNode(TextNode.class, false),
 		BooleanNode(BooleanNode.class, false),
 		NullNode(NullNode.class, false),
+		MissingNode(MissingNode.class, false),
 		CustomNode(JsonNode.class, false);
 
 		private final Class<? extends JsonNode> clazz;

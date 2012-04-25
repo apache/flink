@@ -114,7 +114,7 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	 * 
 	 * @return the inputSchemas
 	 */
-	public Schema getInputSchema(final int index) {
+	public Schema getInputSchema(@SuppressWarnings("unused") final int index) {
 		return this.schema;
 		// return this.inputSchemas[index];
 	}
@@ -124,7 +124,7 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	 * 
 	 * @return the outputSchemas
 	 */
-	public Schema getOutputSchema(final int index) {
+	public Schema getOutputSchema(@SuppressWarnings("unused") final int index) {
 		return this.schema;
 		// return this.outputSchemas[index];
 	}

@@ -12,10 +12,10 @@ import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JavaToJsonMapper;
-import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
@@ -88,7 +88,7 @@ public class JsonUtil {
 	 *        true if the the array node needs to be resettable
 	 * @return the node wrapping the stream
 	 */
-	public static ArrayNode wrapWithNode(final boolean resettable, final Iterator<IJsonNode> objectIterator) {
+	public static ArrayNode wrapWithNode(@SuppressWarnings("unused") final boolean resettable, final Iterator<IJsonNode> objectIterator) {
 		return ArrayNode.valueOf(objectIterator/* , resettable */);
 	}
 

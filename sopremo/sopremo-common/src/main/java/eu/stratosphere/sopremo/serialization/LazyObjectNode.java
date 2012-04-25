@@ -41,8 +41,8 @@ import eu.stratosphere.util.ConcatenatingIterator;
  */
 public class LazyObjectNode extends JsonNode implements IObjectNode {
 
-	/**.
-	 * 
+	/**
+	 * .
 	 */
 	private static final long serialVersionUID = 5777496928208571589L;
 
@@ -149,21 +149,16 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public IObjectNode put(String fieldName, IJsonNode value) {
 		int index = this.schema.hasMapping(fieldName);
-		if (fieldInSchema(index)) {
-			if (value.isMissing()) {
+		if (this.fieldInSchema(index)) {
+			if (value.isMissing())
 				this.record.setNull(index);
-			} else {
+			else
 				this.record.setField(index, value);
-			}
 
-		} else {
-			if (value.isMissing()) {
-				this.getOtherField().remove(fieldName);
-			} else {
-				this.getOtherField().put(fieldName, value);
-			}
-
-		}
+		} else if (value.isMissing())
+			this.getOtherField().remove(fieldName);
+		else
+			this.getOtherField().put(fieldName, value);
 		return this;
 	}
 
@@ -171,7 +166,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 * @return
 	 */
 	private IObjectNode getOtherField() {
-		return (IObjectNode)SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize(),
+		return (IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize(),
 			JsonNodeWrapper.class));
 	}
 
@@ -182,19 +177,17 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public IJsonNode get(String fieldName) {
 		int index = this.schema.hasMapping(fieldName);
-		if (fieldInSchema(index)) {
+		if (this.fieldInSchema(index)) {
 			IJsonNode node;
-			if (this.record.isNull(index)) {
+			if (this.record.isNull(index))
 				node = MissingNode.getInstance();
-			} else {
+			else
 				node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
-			}
 			return node;
-			
-			//return SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
-		} else {
-			return this.getOtherField().get(fieldName);
+
+			// return SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
 		}
+		return this.getOtherField().get(fieldName);
 	}
 
 	/**
@@ -212,18 +205,17 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public IJsonNode remove(String fieldName) {
 		int index = this.schema.hasMapping(fieldName);
-		if (fieldInSchema(index)) {
+		if (this.fieldInSchema(index)) {
 			IJsonNode node;
-			if (this.record.isNull(index)) {
+			if (this.record.isNull(index))
 				node = MissingNode.getInstance();
-			} else {
+			else {
 				node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
 				this.record.setNull(index);
 			}
 			return node;
-		} else {
-			return this.getOtherField().remove(fieldName);
 		}
+		return this.getOtherField().remove(fieldName);
 	}
 
 	/*
@@ -232,9 +224,8 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 */
 	@Override
 	public IObjectNode removeAll() {
-		for (int i = 0; i < this.schema.getMappingSize(); i++) {
+		for (int i = 0; i < this.schema.getMappingSize(); i++)
 			this.record.setNull(i);
-		}
 		this.getOtherField().removeAll();
 		return this;
 	}
@@ -265,9 +256,8 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 */
 	@Override
 	public IObjectNode putAll(IObjectNode jsonNode) {
-		for (Entry<String, IJsonNode> entry : jsonNode) {
+		for (Entry<String, IJsonNode> entry : jsonNode)
 			this.put(entry.getKey(), entry.getValue());
-		}
 		return this;
 	}
 
@@ -275,6 +265,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#getFieldNames()
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public Iterator<String> getFieldNames() {
 		return new ConcatenatingIterator<String>(this.schema.getMappings().iterator(),
@@ -285,6 +276,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#iterator()
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public Iterator<Entry<String, IJsonNode>> iterator() {
 
@@ -297,7 +289,7 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 			protected Entry<String, IJsonNode> loadNext() {
 				while (this.lastIndex < LazyObjectNode.this.schema.getMappingSize()) {
 					String key = LazyObjectNode.this.schema.getMappings().get(this.lastIndex);
-					if (!LazyObjectNode.this.record.isNull(lastIndex)) {
+					if (!LazyObjectNode.this.record.isNull(this.lastIndex)) {
 						IJsonNode value = SopremoUtil.unwrap(LazyObjectNode.this.record.getField(this.lastIndex,
 							JsonNodeWrapper.class));
 						this.lastIndex++;
@@ -306,10 +298,9 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 
 					this.lastIndex++;
 
-					
 				}
-				return noMoreElements();
-				
+				return this.noMoreElements();
+
 			}
 		};
 
@@ -323,15 +314,13 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	 */
 	@Override
 	public int size() {
-		final IObjectNode others = (IObjectNode) getOtherField();
+		final IObjectNode others = this.getOtherField();
 		// we have to manually iterate over our record to get his size
 		// because there is a difference between NullNode and MissingNode
 		int count = 0;
-		for (int i = 0; i < this.schema.getMappingSize(); i++) {
-			if (!this.record.isNull(i)) {
+		for (int i = 0; i < this.schema.getMappingSize(); i++)
+			if (!this.record.isNull(i))
 				count++;
-			}
-		}
 		return count + others.size();
 	}
 }

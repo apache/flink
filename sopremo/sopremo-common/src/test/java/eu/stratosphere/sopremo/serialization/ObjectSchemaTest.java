@@ -8,7 +8,6 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.testing.PactRecordEqualer;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -34,9 +33,9 @@ public class ObjectSchemaTest {
 
 		PactRecord result = this.schema.jsonToRecord(object, null);
 		PactRecord expected = new PactRecord();
-		expected.setField(0, SopremoUtil.wrap(TextNode.valueOf("testfn")));
-		expected.setField(1, SopremoUtil.wrap(TextNode.valueOf("testln")));
-		expected.setField(2, SopremoUtil.wrap(new ObjectNode()));
+		expected.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
+		expected.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
+		expected.setField(2, new JsonNodeWrapper(new ObjectNode()));
 
 		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, this.schema.getPactSchema()));
 	}
@@ -46,9 +45,9 @@ public class ObjectSchemaTest {
 		this.schema.setMappings("firstname", "lastname");
 
 		PactRecord record = new PactRecord();
-		record.setField(0, SopremoUtil.wrap(TextNode.valueOf("testfn")));
-		record.setField(1, SopremoUtil.wrap(TextNode.valueOf("testln")));
-		record.setField(2, SopremoUtil.wrap(new ObjectNode()));
+		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
+		record.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
+		record.setField(2, new JsonNodeWrapper(new ObjectNode()));
 
 		IJsonNode result = this.schema.recordToJson(record, null);
 		IJsonNode expected = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
@@ -64,8 +63,7 @@ public class ObjectSchemaTest {
 		ObjectNode object = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
 			.put("lastname", TextNode.valueOf("testln"));
 
-		PactRecord target = new PactRecord();
-		target.setField(2, SopremoUtil.wrap(new ObjectNode()));
+		PactRecord target = this.schema.jsonToRecord(object, null);
 		PactRecord result = this.schema.jsonToRecord(object, target);
 
 		Assert.assertSame(target, result);
@@ -76,9 +74,9 @@ public class ObjectSchemaTest {
 		this.schema.setMappings("firstname", "lastname");
 
 		PactRecord record = new PactRecord();
-		record.setField(0, SopremoUtil.wrap(TextNode.valueOf("testfn")));
-		record.setField(1, SopremoUtil.wrap(TextNode.valueOf("testln")));
-		record.setField(2, SopremoUtil.wrap(new ObjectNode()));
+		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
+		record.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
+		record.setField(2, new JsonNodeWrapper(new ObjectNode()));
 
 
 		IJsonNode target = new ObjectNode();
@@ -97,7 +95,7 @@ public class ObjectSchemaTest {
 		PactRecord result = this.schema.jsonToRecord(object, null);
 
 		PactRecord expected = new PactRecord();
-		expected.setField(0, SopremoUtil.wrap(object));
+		expected.setField(0, new JsonNodeWrapper(object));
 
 		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, new Class[]{ JsonNodeWrapper.class}));
 	}
@@ -109,7 +107,7 @@ public class ObjectSchemaTest {
 			.put("lastName", TextNode.valueOf("Maier")).put("age", IntNode.valueOf(23));
 		record.setField(
 			0,
-			SopremoUtil.wrap(object));
+			new JsonNodeWrapper(object));
 		IJsonNode result = this.schema.recordToJson(record, null);
 		Assert.assertEquals(object, result);
 	}
@@ -119,7 +117,7 @@ public class ObjectSchemaTest {
 		this.schema.setMappings("firstname", "lastname");
 
 		PactRecord record = new PactRecord();
-		record.setField(0, SopremoUtil.wrap(TextNode.valueOf("testfn")));
+		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
 		this.schema.recordToJson(record, null);
 	}
 	

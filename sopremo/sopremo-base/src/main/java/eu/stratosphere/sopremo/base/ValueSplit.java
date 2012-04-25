@@ -7,7 +7,7 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * Splits a tuple explicitly into multiple outgoing tuples.<br>
@@ -29,13 +29,13 @@ public class ValueSplit extends ElementaryOperator<ValueSplit> {
 		return this;
 	}
 
-	public static class Implementation extends SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+	public static class Implementation extends SopremoMap {
 		private List<EvaluationExpression> projections = new ArrayList<EvaluationExpression>();
 
 		@Override
-		protected void map(JsonNode key, JsonNode value, JsonCollector out) {
+		protected void map(IJsonNode value, JsonCollector out) {
 			for (EvaluationExpression projection : this.projections)
-				out.collect(key, projection.evaluate(value, this.getContext()));
+				out.collect(projection.evaluate(value, this.getContext()));
 		}
 	}
 }

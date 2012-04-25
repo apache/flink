@@ -6,6 +6,7 @@ import java.io.IOException;
 
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.MissingNode;
 
 public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 
@@ -17,17 +18,18 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 	private IJsonNode value;
 
 	public JsonNodeWrapper() {
-	};
+		this.value = MissingNode.getInstance();
+	}
 
 	/**
 	 * Initializes JsonNodeWrapper.
 	 * 
-	 * @param iJsonNode
+	 * @param value
 	 */
-	public JsonNodeWrapper(final IJsonNode iJsonNode) {
+	public JsonNodeWrapper(final IJsonNode value) {
 		super();
-		
-		this.value = iJsonNode;
+
+		this.value = value;
 	}
 
 	@Override
@@ -50,6 +52,11 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 
 	public IJsonNode getValue() {
 		return this.value;
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T extends IJsonNode> T getValue(@SuppressWarnings("unused") Class<T> klass) {
+		return (T) this.value;
 	}
 
 	/**

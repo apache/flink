@@ -1,55 +1,47 @@
 package eu.stratosphere.sopremo.base;
 
-import eu.stratosphere.sopremo.Name;
-import eu.stratosphere.sopremo.Property;
+import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
-public abstract class SetOperation<Op extends SetOperation<Op>> extends MultiSourceOperator<Op> {
+public abstract class SetOperation<Op extends SetOperation<Op>> extends CompositeOperator<Op> {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -5431211249370548419L;
 
 	public SetOperation() {
-		this.setDefaultKeyProjection(EvaluationExpression.VALUE);
-	}
-
-	@Property(input = true)
-	@Name(preposition = "on")
-	public void setIdentityKey(int inputIndex, EvaluationExpression keyProjection) {
-		super.setKeyProjection(inputIndex, keyProjection);
-	}
-
-	public EvaluationExpression getIdentityKey(int inputIndex) {
-		return this.getKeyProjection(inputIndex);
-	}
-
-	public Op withIdentityKey(int inputIndex, EvaluationExpression identityKey) {
-		this.setIdentityKey(inputIndex, identityKey);
-		return this.self();
 	}
 
 	@Override
-	public void setValueProjection(int inputIndex, EvaluationExpression valueProjection) {
-		super.setValueProjection(inputIndex, valueProjection);
+	public SopremoModule asElementaryOperators() {
+		final int numInputs = this.getInputOperators().size();
+		final SopremoModule module = new SopremoModule(this.getName(), numInputs, 1);
+
+		// successively connect binary operators
+		// connect the result of one binary operator with each new input
+		Operator<?> leftInput = module.getInput(0);
+		for (int index = 1; index < numInputs; index++)
+			leftInput = createBinaryOperations(leftInput, module.getInput(index));
+
+		module.getOutput(0).setInput(0, leftInput);
+
+		return module;
 	}
 
-	@Override
-	public EvaluationExpression getValueProjection(int index) {
-		return super.getValueProjection(index);
-	}
+	/**
+	 * Creates a binary operator for two streams.
+	 */
+	protected abstract Operator<?> createBinaryOperations(JsonStream leftInput, JsonStream rightInput);
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.CompositeOperator#getKeyExpressions()
+	 */
 	@Override
-	public Op withValueProjection(int inputIndex, EvaluationExpression valueProjection) {
-		return super.withValueProjection(inputIndex, valueProjection);
-	}
-
-	@Override
-	public String toString() {
-		StringBuilder builder = new StringBuilder(super.toString());
-		builder.append(" on ").append(this.getKeyProjection(0));
-		for (int index = 1; index < this.getInputs().size(); index++)
-			builder.append(", ").append(this.getKeyProjection(index));
-		return builder.toString();
+	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
+		return ALL_KEYS;
 	}
 }

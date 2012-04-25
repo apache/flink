@@ -35,7 +35,8 @@ public abstract class SopremoReduce extends ReduceStub {
 	protected EvaluationContext getContext() {
 		return this.context;
 	}
-
+	
+	@SuppressWarnings("unused") 
 	protected boolean needsResettableIterator(final Iterator<IJsonNode> values) {
 		return false;
 	}
@@ -58,7 +59,7 @@ public abstract class SopremoReduce extends ReduceStub {
 			while (this.cachedIterator.hasNext())
 				cached.add(this.cachedIterator.next());
 			values = cached.iterator();
-			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), values));
+			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), cached));
 		}
 
 		final ArrayNode array = JsonUtil.wrapWithNode(this.needsResettableIterator(values), values);

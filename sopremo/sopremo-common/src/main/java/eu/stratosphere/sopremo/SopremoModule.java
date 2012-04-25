@@ -346,8 +346,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				 * @see eu.stratosphere.util.ConversionIterable#convert(java.lang.Object)
 				 */
 				@Override
-				protected Iterable<? extends EvaluationExpression> convert(Operator<?> inputObject) {
-					return inputObject.getKeyExpressions();
+				protected Iterable<? extends EvaluationExpression> convert(Operator<?> operator) {
+					return operator.getKeyExpressions();
 				}
 			});
 		return schemaFactory.create(keyExpressions);

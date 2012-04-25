@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-public class MissingNode extends JsonNode implements IPrimitiveNode{
+public class MissingNode extends JsonNode implements IPrimitiveNode {
 
 	/**
 	 * 
@@ -40,20 +40,19 @@ public class MissingNode extends JsonNode implements IPrimitiveNode{
 
 	@Override
 	public void read(final DataInput in) throws IOException {
-		throw new UnsupportedOperationException("MissingNode");
 	}
 
 	@Override
 	public void write(final DataOutput out) throws IOException {
-		throw new UnsupportedOperationException("MissingNode");
 	}
 
 	@Override
 	public boolean isNull() {
 		return true;
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonNode#isMissing()
 	 */
 	@Override
@@ -63,11 +62,11 @@ public class MissingNode extends JsonNode implements IPrimitiveNode{
 
 	@Override
 	public Type getType() {
-		throw new UnsupportedOperationException("MissingNode");
+		return Type.MissingNode;
 	}
 
 	private Object readResolve() {
-		throw new UnsupportedOperationException("MissingNode");
+		return getInstance();
 	}
 
 	@Override
@@ -82,15 +81,15 @@ public class MissingNode extends JsonNode implements IPrimitiveNode{
 
 	@Override
 	public int compareToSameType(final IJsonNode other) {
-		throw new UnsupportedOperationException("MissingNode");
+		return 0;
 	}
 
-	private void writeObject(final ObjectOutputStream out) throws IOException {
-		throw new UnsupportedOperationException("MissingNode");
+	@SuppressWarnings("unused")
+	private void writeObject(ObjectOutputStream oos) throws IOException {
 	}
 
+	@SuppressWarnings("unused")
 	private void readObject(final ObjectInputStream in) throws IOException {
-		throw new UnsupportedOperationException("MissingNode");
 	}
 
 	@Override

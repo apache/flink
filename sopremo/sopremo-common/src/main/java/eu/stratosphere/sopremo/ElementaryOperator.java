@@ -6,7 +6,6 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -28,7 +27,6 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.util.FilteringIterable;
@@ -214,15 +212,15 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 					getKeyClasses(globalSchema, keyIndices), keyIndices, this.toString());
 			}
 			else if (contractClass == CoGroupContract.class) {
-				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressionForInput(0));
-				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressionForInput(1));
+				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressionsForInput(0));
+				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressionsForInput(1));
 				return new CoGroupContract((Class<? extends CoGroupStub>) stubClass,
 					getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
 					keyIndices1, keyIndices2, this.toString());
 			}
 			else if (contractClass == MatchContract.class) {
-				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressionForInput(0));
-				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressionForInput(1));
+				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressionsForInput(0));
+				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressionsForInput(1));
 				return new MatchContract((Class<? extends MatchStub>) stubClass,
 					getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
 					keyIndices1, keyIndices2, this.toString());
@@ -243,8 +241,12 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		return keyClasses1;
 	}
 
-	private Iterable<? extends EvaluationExpression> getKeyExpressionForInput(final int index) {
-		return new FilteringIterable<EvaluationExpression>(this.getKeyExpressions(), new Predicate<EvaluationExpression>() {
+	protected Iterable<? extends EvaluationExpression> getKeyExpressionsForInput(final int index) {
+		final Iterable<? extends EvaluationExpression> keyExpressions = this.getKeyExpressions();
+		if(keyExpressions == ALL_KEYS) 
+			return keyExpressions;
+		return new FilteringIterable<EvaluationExpression>(keyExpressions, new Predicate<EvaluationExpression>() {
+			@Override
 			public boolean isTrue(EvaluationExpression expression) {
 				return SopremoUtil.getInputIndex(expression) == index;
 			};
@@ -252,7 +254,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	}
 
 	@SuppressWarnings("unchecked")
-	protected Class<? extends Key>[] getKeyClasses(final Schema globalSchema, int[] keyIndices) {
+	private Class<? extends Key>[] getKeyClasses(final Schema globalSchema, int[] keyIndices) {
 		Class<? extends Value>[] pactSchema = globalSchema.getPactSchema();
 		Class<? extends Key>[] keyClasses = new Class[keyIndices.length];
 		for (int index = 0; index < keyIndices.length; index++) {
@@ -264,7 +266,13 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		return keyClasses;
 	}
 
-	protected int[] getKeyIndices(final Schema globalSchema, Iterable<? extends EvaluationExpression> keyExpressions) {
+	private int[] getKeyIndices(final Schema globalSchema, Iterable<? extends EvaluationExpression> keyExpressions) {
+		if(keyExpressions == ALL_KEYS) {
+			final int[] allSchema = new int[globalSchema.getPactSchema().length];
+			for (int index = 0; index < allSchema.length; index++) 
+				allSchema[index] = index;
+			return allSchema;
+		}
 		IntList keyIndices = new IntArrayList();
 		for (EvaluationExpression expression : keyExpressions)
 			for (int index : globalSchema.indicesOf(expression))

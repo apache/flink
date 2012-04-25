@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.base;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,7 +10,11 @@ import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.util.CollectionUtil;
+import eu.stratosphere.util.ConversionIterable;
 
 public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>> extends CompositeOperator<Self> {
 
@@ -18,15 +23,16 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 	 */
 	private static final long serialVersionUID = -4054964985762240025L;
 
-	private final Map<Operator<?>.Output, EvaluationExpression>
-			keyProjections = new IdentityHashMap<Operator<?>.Output, EvaluationExpression>(),
-			valueProjections = new IdentityHashMap<Operator<?>.Output, EvaluationExpression>();
+	private final Map<Operator<?>.Output, EvaluationExpression> valueProjections =
+		new IdentityHashMap<Operator<?>.Output, EvaluationExpression>();
 
-	private EvaluationExpression defaultKeyProjection = EvaluationExpression.NULL;
+	private final Map<Operator<?>.Output, List<? extends EvaluationExpression>> keyExpressions =
+		new IdentityHashMap<Operator<?>.Output, List<? extends EvaluationExpression>>();
 
 	private EvaluationExpression defaultValueProjection = EvaluationExpression.VALUE;
 
-	private boolean resetKey = true;
+	private List<? extends EvaluationExpression> defaultKeyExpressions = Arrays.asList(new ConstantExpression(
+		NullNode.getInstance()));
 
 	@Override
 	public SopremoModule asElementaryOperators() {
@@ -36,33 +42,12 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 		final List<Operator<?>> inputs = new ArrayList<Operator<?>>();
 		for (int index = 0; index < numInputs; index++)
 			inputs.add(new Projection().
-				withKeyTransformation(this.getKeyProjection(index)).
-				withValueTransformation(this.getValueProjection(index)).
+				withTransformation(this.getValueProjection(index)).
 				withInputs(module.getInput(index)));
 
-		Operator<?> lastOperator = this.createElementaryOperations(inputs);
-
-		if (this.resetKey)
-			lastOperator = new Projection().
-				withKeyTransformation(EvaluationExpression.NULL).
-				withInputs(lastOperator);
-		module.getOutput(0).setInput(0, lastOperator);
+		module.getOutput(0).setInput(0, this.createElementaryOperations(inputs));
 
 		return module;
-	}
-
-	public boolean isResetKey() {
-		return this.resetKey;
-	}
-
-	public void setResetKey(boolean resetKey) {
-		this.resetKey = resetKey;
-	}
-
-	@SuppressWarnings("unchecked")
-	public Self withResetKey(boolean resetKey) {
-		this.setResetKey(resetKey);
-		return (Self) this;
 	}
 
 	protected abstract Operator<?> createElementaryOperations(List<Operator<?>> inputs);
@@ -82,16 +67,10 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 			return false;
 
 		for (int index = 0; index < size; index++)
-			if (!getKeyProjection(index).equals(other.getKeyProjection(index))
-				|| !getValueProjection(index).equals(other.getValueProjection(index)))
+			if (!getValueProjection(index).equals(other.getValueProjection(index)))
 				return false;
-		
-		return true;
-	}
 
-	@SuppressWarnings("unused")
-	protected EvaluationExpression getDefaultKeyProjection(final JsonStream input) {
-		return this.defaultKeyProjection;
+		return true;
 	}
 
 	@SuppressWarnings("unused")
@@ -99,16 +78,27 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 		return this.defaultValueProjection;
 	}
 
-	protected EvaluationExpression getKeyProjection(final int index) {
-		return this.getKeyProjection(this.getInput(index));
+	protected List<? extends EvaluationExpression> getKeyExpressions(final int index) {
+		return this.getKeyExpressions(this.getInput(index));
 	}
 
-	protected EvaluationExpression getKeyProjection(final JsonStream input) {
+	protected List<? extends EvaluationExpression> getKeyExpressions(final JsonStream input) {
 		final Operator<?>.Output source = input == null ? null : input.getSource();
-		EvaluationExpression keyProjection = this.keyProjections.get(source);
-		if (keyProjection == null)
-			keyProjection = this.getDefaultKeyProjection(source);
-		return keyProjection;
+		List<? extends EvaluationExpression> keyExpressions = this.keyExpressions.get(source);
+		if (keyExpressions == null)
+			keyExpressions = this.getDefaultKeyExpressions();
+		return keyExpressions;
+	}
+
+	public List<? extends EvaluationExpression> getDefaultKeyExpressions() {
+		return this.defaultKeyExpressions;
+	}
+
+	public void setDefaultKeyExpressions(List<? extends EvaluationExpression> defaultKeyExpressions) {
+		if (defaultKeyExpressions == null)
+			throw new NullPointerException("defaultKeyExpressions must not be null");
+
+		this.defaultKeyExpressions = defaultKeyExpressions;
 	}
 
 	protected EvaluationExpression getValueProjection(final int index) {
@@ -123,32 +113,43 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 		return valueProjection;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.CompositeOperator#getKeyExpressions()
+	 */
+	@Override
+	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
+		return CollectionUtil.mergeUnique(new ConversionIterable<JsonStream, List<? extends EvaluationExpression>>(
+			getInputs()) {
+			@Override
+			protected List<? extends EvaluationExpression> convert(JsonStream stream) {
+				return getKeyExpressions(stream);
+			};
+		});
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + this.keyProjections.hashCode();
+		result = prime * result + this.keyExpressions.hashCode();
 		result = prime * result + this.valueProjections.hashCode();
 		return result;
-	}
-
-	protected void setDefaultKeyProjection(final EvaluationExpression defaultKeyProjection) {
-		this.defaultKeyProjection = defaultKeyProjection;
 	}
 
 	protected void setDefaultValueProjection(final EvaluationExpression defaultValueProjection) {
 		this.defaultValueProjection = defaultValueProjection;
 	}
 
-	protected void setKeyProjection(final int inputIndex, final EvaluationExpression keyProjection) {
-		this.setKeyProjection(getSafeInput(inputIndex), keyProjection);
+	protected void setKeyExpressions(final int inputIndex, final List<? extends EvaluationExpression> keyExpressions) {
+		this.setKeyExpressions(getSafeInput(inputIndex), keyExpressions);
 	}
 
-	protected void setKeyProjection(final JsonStream input, final EvaluationExpression keyProjection) {
-		if (keyProjection == null)
-			throw new NullPointerException("keyProjection must not be null");
+	protected void setKeyExpressions(final JsonStream input, final List<? extends EvaluationExpression> keyExpressions) {
+		if (keyExpressions == null)
+			throw new NullPointerException("keyExpression must not be null");
 
-		this.keyProjections.put(input.getSource(), keyProjection);
+		this.keyExpressions.put(input.getSource(), keyExpressions);
 	}
 
 	protected void setValueProjection(final int inputIndex, final EvaluationExpression valueProjection) {
@@ -168,8 +169,8 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 		return (Self) this;
 	}
 
-	protected Self withKeyProjection(final int inputIndex, final EvaluationExpression valueProjection) {
-		this.setKeyProjection(inputIndex, valueProjection);
+	protected Self withKeyExpressions(final int inputIndex, final List<? extends EvaluationExpression> keyExpressions) {
+		this.setKeyExpressions(inputIndex, keyExpressions);
 		return this.self();
 	}
 
@@ -178,17 +179,13 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 		return this.self();
 	}
 
-	protected Self withKeyProjection(final EvaluationExpression valueProjection) {
-		this.setDefaultKeyProjection(valueProjection);
-		return this.self();
-	}
 	// @Override
 	// public String toString() {
 	// StringBuilder builder = new StringBuilder(this.getName()).append(" on ");
 	// List<Output> inputs = this.getInputs();
-	// builder.append(this.getKeyProjection(0)).append("/").append(this.getValueProjection(0));
+	// builder.append(this.getKeyExpression(0)).append("/").append(this.getValueProjection(0));
 	// for (int index = 1; index < inputs.size(); index++)
-	// builder.append(", ").append(this.getKeyProjection(index)).append("/")
+	// builder.append(", ").append(this.getKeyExpression(index)).append("/")
 	// .append(this.getValueProjection(index));
 	// return builder.toString();
 	// }

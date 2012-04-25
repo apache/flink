@@ -32,6 +32,7 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 		this.schema = schema;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Iterator<IJsonNode> iterator() {
 		Iterator<IJsonNode> iterator2 = this.getOtherField().iterator();
@@ -42,16 +43,16 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 			@Override
 			protected IJsonNode loadNext() {
 				while (this.lastIndex < LazyArrayNode.this.schema.getHeadSize()) {
-					if (!LazyArrayNode.this.record.isNull(lastIndex)) {
+					if (!LazyArrayNode.this.record.isNull(this.lastIndex)) {
 						IJsonNode value = SopremoUtil.unwrap(LazyArrayNode.this.record.getField(this.lastIndex,
 							JsonNodeWrapper.class));
 						this.lastIndex++;
 						return value;
 					}
 
-					return noMoreElements();
+					return this.noMoreElements();
 				}
-				return noMoreElements();
+				return this.noMoreElements();
 			}
 
 		};
@@ -126,27 +127,33 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 		// we have to manually iterate over our record to get his size
 		// because there is a difference between NullNode and MissingNode
 		int count = 0;
-		for (int i = 0; i < this.schema.getHeadSize(); i++) {
-			if (!this.record.isNull(i)) {
+		for (int i = 0; i < this.schema.getHeadSize(); i++)
+			if (!this.record.isNull(i))
 				count++;
-			} else
+			else
 				return count;
-		}
 		return count + others.size();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IArrayNode#isEmpty()
+	 */
+	@Override
+	public boolean isEmpty() {
+		return this.schema.getHeadSize() == 0 ? getOtherField().isEmpty() : this.record.isNull(0);
 	}
 
 	@Override
 	public IArrayNode add(IJsonNode node) {
-		if (node == null) {
+		if (node == null)
 			throw new NullPointerException();
-		}
 
-		for (int i = 0; i < this.schema.getHeadSize(); i++) {
+		for (int i = 0; i < this.schema.getHeadSize(); i++)
 			if (this.record.isNull(i) && !node.isMissing()) {
 				this.record.setField(i, SopremoUtil.wrap(node));
 				return this;
 			}
-		}
 
 		this.getOtherField().add(node);
 		return this;
@@ -154,28 +161,22 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IArrayNode add(int index, IJsonNode element) {
-		if (element == null) {
+		if (element == null)
 			throw new NullPointerException();
-		}
 
-		if (element.isMissing()) {
+		if (element.isMissing())
 			this.remove(index);
-		}
 
-		if(index < 0 || index > this.size()){
+		if (index < 0 || index > this.size())
 			throw new IndexOutOfBoundsException();
-		}
-		
+
 		if (index < this.schema.getHeadSize()) {
-			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
-				if (!this.record.isNull(i)) {
-					if (i == this.schema.getHeadSize() - 1) {
+			for (int i = this.schema.getHeadSize() - 1; i >= index; i--)
+				if (!this.record.isNull(i))
+					if (i == this.schema.getHeadSize() - 1)
 						this.getOtherField().add(0, SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class)));
-					} else {
+					else
 						this.record.setField(i + 1, this.record.getField(i, JsonNodeWrapper.class));
-					}
-				}
-			}
 			this.record.setField(index, SopremoUtil.wrap(element));
 		}
 
@@ -196,54 +197,45 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IJsonNode get(int index) {
-		if (index < 0 || index >= this.size()) {
+		if (index < 0 || index >= this.size())
 			return MissingNode.getInstance();
-		}
 
-		if (index < this.schema.getHeadSize()) {
+		if (index < this.schema.getHeadSize())
 			return SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
-		} else {
-			return this.getOtherField().get(index - this.schema.getHeadSize());
-		}
+		return this.getOtherField().get(index - this.schema.getHeadSize());
 	}
 
 	@Override
 	public IJsonNode set(int index, IJsonNode node) {
-		if (node == null) {
+		if (node == null)
 			throw new NullPointerException();
-		}
 
-		if (node.isMissing()) {
+		if (node.isMissing())
 			return this.remove(index);
-		}
 
 		if (index < 0 || index >= this.size()) {
 			if (index == this.size()) {
 				this.add(node);
 				return MissingNode.getInstance();
-			} else {
-				throw new IndexOutOfBoundsException();
 			}
+			throw new IndexOutOfBoundsException();
 		}
 
 		if (index < this.schema.getHeadSize()) {
-			for (int i = 0; i < index; i++) {
+			for (int i = 0; i < index; i++)
 				if (this.record.isNull(i))
 					throw new IndexOutOfBoundsException();
-			}
 			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
 			this.record.setField(index, node);
 			return oldNode;
-		} else {
-			return this.getOtherField().set(index - this.schema.getHeadSize(), node);
 		}
+		return this.getOtherField().set(index - this.schema.getHeadSize(), node);
 	}
 
 	@Override
 	public IJsonNode remove(int index) {
-		if (index < 0 || index >= this.size()) {
+		if (index < 0 || index >= this.size())
 			return MissingNode.getInstance();
-		}
 
 		if (index < this.schema.getHeadSize()) {
 			IJsonNode oldNode = SopremoUtil.wrap(this.getOtherField().remove(0));
@@ -251,46 +243,40 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 
 			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
 				buffer = this.record.getField(i, JsonNodeWrapper.class);
-				if(buffer == null){
+				if (buffer == null)
 					buffer = MissingNode.getInstance();
-				}
-				if(oldNode.isMissing()){
+				if (oldNode.isMissing())
 					this.record.setNull(i);
-				} else {
+				else
 					this.record.setField(i, oldNode);
-				}
 				oldNode = buffer;
 			}
 			return SopremoUtil.unwrap(oldNode);
 
-		} else {
-			return this.getOtherField().remove(index - this.schema.getHeadSize());
 		}
+		return this.getOtherField().remove(index - this.schema.getHeadSize());
 	}
 
 	@Override
 	public void clear() {
-		for (int i = 0; i < this.schema.getHeadSize(); i++) {
+		for (int i = 0; i < this.schema.getHeadSize(); i++)
 			this.record.setNull(i);
-		}
 
 		this.getOtherField().clear();
 	}
 
 	@Override
 	public IArrayNode addAll(Collection<? extends IJsonNode> c) {
-		for (IJsonNode node : c) {
+		for (IJsonNode node : c)
 			this.add(node);
-		}
 
 		return this;
 	}
 
 	@Override
 	public IArrayNode addAll(IArrayNode arraynode) {
-		for (IJsonNode node : arraynode) {
+		for (IJsonNode node : arraynode)
 			this.add(node);
-		}
 
 		return this;
 	}
@@ -299,9 +285,8 @@ public class LazyArrayNode extends JsonNode implements IArrayNode {
 	public IJsonNode[] toArray() {
 		IJsonNode[] result = new IJsonNode[this.size()];
 		int i = 0;
-		for (IJsonNode node : this) {
+		for (IJsonNode node : this)
 			result[i++] = node;
-		}
 
 		return result;
 	}

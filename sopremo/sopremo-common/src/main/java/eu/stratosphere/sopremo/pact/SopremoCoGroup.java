@@ -30,6 +30,7 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 	@Override
 	public void coGroup(final Iterator<PactRecord> records1, final Iterator<PactRecord> records2, final Collector out) {
 		this.context.increaseInputCounter();
+		this.collector.setCollector(out);
 		this.cachedIterator1.setIterator(records1);
 		this.cachedIterator2.setIterator(records2);
 		Iterator<IJsonNode> values1 = this.cachedIterator1;
@@ -47,7 +48,7 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 		}
 
 		final ArrayNode array1 = JsonUtil.wrapWithNode(this.needsResettableIterator(0, values1), values1);
-		final ArrayNode array2 = JsonUtil.wrapWithNode(this.needsResettableIterator(0, values1), values1);
+		final ArrayNode array2 = JsonUtil.wrapWithNode(this.needsResettableIterator(0, values2), values2);
 		try {
 			this.coGroup(array1, array2, this.collector);
 		} catch (final RuntimeException e) {
@@ -73,7 +74,8 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 	protected EvaluationContext getContext() {
 		return this.context;
 	}
-
+	
+	@SuppressWarnings("unused") 
 	protected boolean needsResettableIterator(final int input, final Iterator<IJsonNode> values) {
 		return false;
 	}

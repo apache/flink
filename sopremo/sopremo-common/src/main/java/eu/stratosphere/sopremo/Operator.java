@@ -98,7 +98,8 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		}
 	}
 
-	protected final static List<EvaluationExpression> NO_KEYS = Collections.emptyList();
+	protected final static List<EvaluationExpression> NO_KEYS = Collections.unmodifiableList(new ArrayList<EvaluationExpression>()),
+			ALL_KEYS = Collections.unmodifiableList(new ArrayList<EvaluationExpression>());
 
 	public abstract Iterable<? extends EvaluationExpression> getKeyExpressions();
 

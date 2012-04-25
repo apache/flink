@@ -1,4 +1,5 @@
 package eu.stratosphere.sopremo.base;
+
 import static eu.stratosphere.sopremo.JsonUtil.createPath;
 
 import org.junit.Test;
@@ -14,7 +15,17 @@ public class ProjectionTest extends SopremoTest<Projection> {
 	protected Projection createDefaultInstance(final int index) {
 		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("field", createPath(String.valueOf(index)));
-		return new Projection().withValueTransformation(transformation);
+		return new Projection().withTransformation(transformation);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoTest#shouldComplyEqualsContract()
+	 */
+	@Override
+	@Test
+	public void shouldComplyEqualsContract() {
+		super.shouldComplyEqualsContract();
 	}
 
 	@Test
@@ -26,7 +37,7 @@ public class ProjectionTest extends SopremoTest<Projection> {
 			ArithmeticOperator.ADDITION, createPath("b")));
 		sopremoPlan.getOutputOperator(0).setInputs(
 			new Projection().
-				withValueTransformation(transformation).
+				withTransformation(transformation).
 				withInputs(sopremoPlan.getInputOperator(0)));
 		sopremoPlan.getInput(0).
 			addObject("a", 1, "b", 4).

@@ -54,6 +54,7 @@ public interface IJsonNode extends Serializable, Value, Key, Cloneable{
 	 * @param {@link DataInput} in
 	 * @exception {@link IOException} 
 	 */
+	@Override
 	public abstract void read(DataInput in) throws IOException;
 
 	/**
@@ -61,6 +62,7 @@ public interface IJsonNode extends Serializable, Value, Key, Cloneable{
 	 * @param {@link DataOutput} out
 	 * @exception {@link IOException} 
 	 */
+	@Override
 	public abstract void write(DataOutput out) throws IOException;
 
 	/**
@@ -96,6 +98,7 @@ public interface IJsonNode extends Serializable, Value, Key, Cloneable{
 	 * 	the node this node should be compared with
 	 * @return result of the comparison
 	 */
+	@Override
 	public abstract int compareTo(final Key other);
 
 	/**

@@ -35,6 +35,7 @@ import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
@@ -99,7 +100,7 @@ public class Join extends CompositeOperator<Join> {
 			Arrays.fill(elements, EvaluationExpression.NULL);
 			elements[index] = EvaluationExpression.VALUE;
 			inputs.add(new Projection().
-				withValueTransformation(new ArrayCreation(elements)).
+				withTransformation(new ArrayCreation(elements)).
 				withInputs(module.getInput(index)));
 		}
 
@@ -194,11 +195,12 @@ public class Join extends CompositeOperator<Join> {
 		 */
 		private static final long serialVersionUID = 2672827253341673832L;
 
-		public static class Implementation extends
-				SopremoCoGroup<JsonNode, JsonNode, JsonNode, JsonNode, JsonNode> {
+		public static class Implementation extends SopremoCoGroup {
+			/* (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.pact.SopremoCoGroup#coGroup(eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 */
 			@Override
-			protected void coGroup(final JsonNode key, final ArrayNode values1, final ArrayNode values2,
-					final JsonCollector out) {
+			protected void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out) {
 				if (values2.isEmpty())
 					for (final JsonNode value : values1)
 						out.collect(key, JsonUtil.asArray(value));

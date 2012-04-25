@@ -5,13 +5,9 @@ import java.util.Iterator;
 import java.util.Set;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.ExpressionTag;
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.util.IdentitySet;
 
@@ -25,39 +21,6 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	 * Used for secondary information during plan creation only.
 	 */
 	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
-
-	public final static EvaluationExpression KEY = new EvaluationExpression() {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 9192628786637605317L;
-
-		@Override
-		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-			throw new EvaluationException();
-		}
-
-		protected Object readResolve() {
-			return EvaluationExpression.KEY;
-		}
-	};
-
-	public final static EvaluationExpression AS_KEY = new SingletonExpression("-><key>") {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 9192628786637605317L;
-
-		@Override
-		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-			throw new EvaluationException();
-		}
-
-		@Override
-		protected Object readResolve() {
-			return EvaluationExpression.AS_KEY;
-		}
-	};
 
 	/**
 	 * Represents an expression that returns the input node without any modifications. The constant is mostly used for
@@ -175,6 +138,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		return this.tags.contains(tag);
 	}
 
+	@SuppressWarnings("unused")
 	public void inferSchema(final JsonSchema requiredInput, final JsonSchema output, final EvaluationContext context) {
 
 	}

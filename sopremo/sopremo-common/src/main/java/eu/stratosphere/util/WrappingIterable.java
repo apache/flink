@@ -61,13 +61,10 @@ public abstract class WrappingIterable<I, O> extends AbstractIterable<O> {
 		return toString(10);
 	}
 
-	/**
-	 * @param i
-	 * @return
-	 */
+	@Override
 	public String toString(int numberOfElements) {
 		StringBuilder builder = new StringBuilder(getClass().getName()).append(' ');
-		appendElements(builder, originalIterable, numberOfElements);
+		appendElements(builder, this.originalIterable, numberOfElements);
 		builder.append(" -> ");
 		appendElements(builder, this, numberOfElements);
 		return builder.toString();

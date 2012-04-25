@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.aggregation;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
 
 public abstract class TransitiveAggregationFunction extends AggregationFunction {
 	/**
