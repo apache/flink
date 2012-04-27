@@ -158,7 +158,7 @@ public class Source extends ElementaryOperator<Source> {
 	public IJsonNode getAdhocValues() {
 		if (!this.isAdhoc())
 			throw new IllegalStateException();
-		return this.getAdhocExpression().evaluate(NullNode.getInstance(),
+		return this.getAdhocExpression().evaluate(NullNode.getInstance(), null,
 				new EvaluationContext());
 	}
 

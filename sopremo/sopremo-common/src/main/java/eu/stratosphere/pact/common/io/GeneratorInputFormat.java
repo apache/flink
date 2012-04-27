@@ -40,6 +40,11 @@ import eu.stratosphere.sopremo.type.NullNode;
 public class GeneratorInputFormat extends GenericInputFormat {
 
 	/**
+	 * 
+	 */
+	private final EvaluationContext CONTEXT = new EvaluationContext();
+
+	/**
 	 * Config key which describes a separated list of values.
 	 */
 	public static final String VALUE_LIST_PARAMETER_KEY = "pact.input.generator.values";
@@ -96,8 +101,8 @@ public class GeneratorInputFormat extends GenericInputFormat {
 		final EvaluationExpression expression = SopremoUtil.deserialize(
 				parameters, ADHOC_EXPRESSION_PARAMETER_KEY,
 				EvaluationExpression.class);
-		final IJsonNode node = expression.evaluate(NullNode.getInstance(),
-				new EvaluationContext());
+		final IJsonNode node = expression.evaluate(NullNode.getInstance(), null,
+				CONTEXT);
 		final ArrayNode arrayNode = JsonUtil.asArray(node);
 
 		this.values = new ArrayList<IJsonNode>(arrayNode.size());
@@ -173,7 +178,7 @@ public class GeneratorInputFormat extends GenericInputFormat {
 			throw new IOException("End of input split is reached");
 
 		final IJsonNode value = this.values.get(this.index++);
-		this.schema.jsonToRecord(value, record);
+		this.schema.jsonToRecord(value, record, CONTEXT);
 
 		return true;
 	}
