@@ -26,5 +26,10 @@
     	<artifactId>sopremo-common</artifactId>
     	<version>0.2</version>
     </dependency>
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>sopremo-base</artifactId>
+    	<version>0.2</version>
+    </dependency>
   </dependencies>
 </project>

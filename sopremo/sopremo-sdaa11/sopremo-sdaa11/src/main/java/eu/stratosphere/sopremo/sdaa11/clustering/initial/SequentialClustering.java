@@ -22,6 +22,14 @@ public class SequentialClustering extends
 		ElementaryOperator<SequentialClustering> {
 
 	private static final long serialVersionUID = 5563265035325926095L;
+	
+	public static final String SCHEMA_ID = "id";
+
+	public static final String SCHEMA_POINTS = "points";
+
+	public static final String SCHEMA_CLUSTROID = "clustroid";
+
+	
 
 	/** The maximum radius of a cluster. */
 	private int maxRadius;
@@ -126,10 +134,10 @@ public class SequentialClustering extends
 					pointsNode.add(point.write((IJsonNode) null));
 
 				final ObjectNode clusterNode = new ObjectNode();
-				clusterNode.put("id", new TextNode(cluster.getId()));
-				clusterNode.put("clustroid",
+				clusterNode.put(SCHEMA_ID, new TextNode(cluster.getId()));
+				clusterNode.put(SCHEMA_CLUSTROID,
 						cluster.getClustroid().write((IJsonNode) null));
-				clusterNode.put("points", pointsNode);
+				clusterNode.put(SCHEMA_POINTS, pointsNode);
 
 				out.collect(clusterNode);
 			} else
