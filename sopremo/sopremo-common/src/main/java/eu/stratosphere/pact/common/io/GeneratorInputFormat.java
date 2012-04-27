@@ -45,26 +45,9 @@ public class GeneratorInputFormat extends GenericInputFormat {
 	private final EvaluationContext CONTEXT = new EvaluationContext();
 
 	/**
-	 * Config key which describes a separated list of values.
-	 */
-	public static final String VALUE_LIST_PARAMETER_KEY = "pact.input.generator.values";
-
-	/**
 	 * Config key which describes the adhoc expression.
 	 */
 	public static final String ADHOC_EXPRESSION_PARAMETER_KEY = "pact.input.generator.expression";
-
-	/**
-	 * Config key which describes the delimiter for
-	 * {@link #VALUE_LIST_PARAMETER_KEY}. Defaults to
-	 * {@value #DEFAULT_VALUE_LIST_DELIMITER}.
-	 */
-	public static final String VALUE_LIST_DELIMITER_PARAMETER_KEY = "pact.input.generator.delimiter";
-
-	/**
-	 * The default delimiter for the value list.
-	 */
-	public static final String DEFAULT_VALUE_LIST_DELIMITER = ",";
 
 	/**
 	 * Contains the values that are loaded from the configuration's value list.
@@ -85,24 +68,13 @@ public class GeneratorInputFormat extends GenericInputFormat {
 	public void configure(final Configuration parameters) {
 		super.configure(parameters);
 
-		// final String valueList =
-		// parameters.getString(VALUE_LIST_PARAMETER_KEY, "");
-		// final String delimiter =
-		// parameters.getString(VALUE_LIST_DELIMITER_PARAMETER_KEY,
-		// DEFAULT_VALUE_LIST_DELIMITER);
-		// final StringTokenizer tokenizer = new StringTokenizer(valueList,
-		// delimiter);
-		// this.values = new ArrayList<String>(tokenizer.countTokens());
-		// while (tokenizer.hasMoreTokens())
-		// this.values.add(tokenizer.nextToken());
-
 		this.schema = SopremoUtil.deserialize(parameters, IOConstants.SCHEMA,
 				Schema.class);
 		final EvaluationExpression expression = SopremoUtil.deserialize(
 				parameters, ADHOC_EXPRESSION_PARAMETER_KEY,
 				EvaluationExpression.class);
-		final IJsonNode node = expression.evaluate(NullNode.getInstance(), null,
-				CONTEXT);
+		final IJsonNode node = expression.evaluate(NullNode.getInstance(),
+				null, this.CONTEXT);
 		final ArrayNode arrayNode = JsonUtil.asArray(node);
 
 		this.values = new ArrayList<IJsonNode>(arrayNode.size());
@@ -178,7 +150,7 @@ public class GeneratorInputFormat extends GenericInputFormat {
 			throw new IOException("End of input split is reached");
 
 		final IJsonNode value = this.values.get(this.index++);
-		this.schema.jsonToRecord(value, record, CONTEXT);
+		this.schema.jsonToRecord(value, record, this.CONTEXT);
 
 		return true;
 	}
