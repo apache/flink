@@ -5,6 +5,9 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
+/**
+ * Represents all constants.
+ */
 @OptimizerHints(scope = Scope.ANY)
 public class ConstantExpression extends EvaluationExpression {
 	/**
@@ -15,14 +18,33 @@ public class ConstantExpression extends EvaluationExpression {
 	// TODO: adjust to json model
 	private final JsonNode constant;
 
+	/**
+	 * Initializes a ConstantExpression with the given JsonNode.
+	 * 
+	 * @param constant
+	 *        the node that should be represented by this ConstantExpression
+	 */
 	public ConstantExpression(final JsonNode constant) {
 		this.constant = constant;
+		this.expectedTarget = constant.getClass();
 	}
 
+	/**
+	 * Initializes a ConstantExpression. The given constant will be mapped to a JsonNode before initializing this
+	 * expression.
+	 * 
+	 * @param constant
+	 *        this Objects JsonNode representation should be represented by this ConstantExpression
+	 */
 	public ConstantExpression(final Object constant) {
 		this.constant = JsonUtil.OBJECT_MAPPER.valueToTree(constant);
 	}
 
+	/**
+	 * Returns the constant.
+	 * 
+	 * @return the constant
+	 */
 	public IJsonNode getConstant() {
 		return this.constant;
 	}
@@ -36,7 +58,8 @@ public class ConstantExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// we can ignore 'target' because no new Object is created
 		return this.constant;
 	}
 

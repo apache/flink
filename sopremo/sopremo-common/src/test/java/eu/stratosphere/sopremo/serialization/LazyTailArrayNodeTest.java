@@ -12,25 +12,34 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.sopremo.serialization;
 
-package eu.stratosphere.nephele.io;
+import org.junit.Ignore;
+
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.ArrayNodeBaseTest;
+import eu.stratosphere.sopremo.type.IntNode;
 
 /**
- * Represents a bipartite distribution pattern, i.e. given two distinct sets of vertices A and B, each vertex of set A
- * is wired to every vertex of set B and vice-versa.
- * 
- * @author warneke
+ * @author Michael Hopstock
+ *
  */
-public class BipartiteDistributionPattern implements DistributionPattern {
+@Ignore
+public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode>{
 
-	/**
-	 * {@inheritDoc}
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.ArrayNodeBaseTest#initArrayNode()
 	 */
 	@Override
-	public boolean createWire(final int nodeLowerStage, final int nodeUpperStage, final int sizeSetLowerStage,
-			final int sizeSetUpperStage) {
+	public void initArrayNode() {
+		TailArraySchema schema = new TailArraySchema();
+		schema.setTailSize(5);
+		PactRecord record = schema.jsonToRecord(
+			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
-		return true;
+		this.node = new LazyTailArrayNode(record, schema);
+		
 	}
 
 }

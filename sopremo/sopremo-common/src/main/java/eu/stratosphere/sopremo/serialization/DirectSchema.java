@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.serialization;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -55,7 +56,7 @@ public class DirectSchema implements Schema {
 	 * eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target) {
+	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
 		if (target == null || target.getNumFields() != 1) {
 			target = new PactRecord(new JsonNodeWrapper());
 		} 

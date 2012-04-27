@@ -5,15 +5,21 @@ import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Returns the element of an array which is saved at the specified index.
+ */
 @OptimizerHints(scope = Scope.ANY, minNodes = 1, maxNodes = OptimizerHints.UNBOUND)
 public class InputSelection extends EvaluationExpression {
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = -3767687525625180324L;
 
 	private final int index;
 
+	/**
+	 * Initializes an InputSelection with the given index.
+	 * 
+	 * @param index
+	 *        the index of the element that should be returned
+	 */
 	public InputSelection(final int index) {
 		this.index = index;
 	}
@@ -27,7 +33,8 @@ public class InputSelection extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target (problem: result could be any kind of JsonNode)
 		if (!node.isArray())
 			throw new EvaluationException("Cannot access index of non-array " + node.getClass().getSimpleName());
 		return ((IArrayNode) node).get(this.index);
@@ -49,6 +56,11 @@ public class InputSelection extends EvaluationExpression {
 	// return nodes[index];
 	// }
 
+	/**
+	 * Returns the index
+	 * 
+	 * @return the index
+	 */
 	public int getIndex() {
 		return this.index;
 	}

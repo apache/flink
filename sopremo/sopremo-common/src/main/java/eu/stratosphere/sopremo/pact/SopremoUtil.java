@@ -29,10 +29,23 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.type.BigIntegerNode;
+import eu.stratosphere.sopremo.type.BooleanNode;
+import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.JsonNode.Type;
 
 public class SopremoUtil {
+
+	public static final boolean DEBUG = true;
+
 	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
 
 	public static final String CONTEXT = "context";
@@ -236,4 +249,40 @@ public class SopremoUtil {
 		return new JsonNodeWrapper(node);
 	}
 
+	public static IJsonNode reuseTarget(IJsonNode target, Class<? extends JsonNode> clazz) {
+		if (target == null || !clazz.isInstance(target)) {
+			try {
+				target = clazz.newInstance();
+			} catch (InstantiationException e) {
+				throw new IllegalStateException("Expected type " + clazz.toString()
+					+ " has no public parameterless constructor.");
+			} catch (IllegalAccessException e) {
+				throw new IllegalStateException("Expected type " + clazz.toString()
+					+ " has no public parameterless constructor.");
+			}
+		} else {
+			target.clear();
+		}
+		return target;
+	}
+
+	public static IJsonNode reusePrimitive(IJsonNode source, IJsonNode target) {
+		Class<? extends IJsonNode> sourceClass = source.getClass();
+		if ((sourceClass != target.getClass()) || sourceClass.equals(BooleanNode.class) || source.isNull()) {
+			return source;
+		}
+
+		if (sourceClass.equals(IntNode.class)) {
+			((IntNode) target).setValue(((IntNode) source).getIntValue());
+		} else if (sourceClass.equals(DoubleNode.class)) {
+			((DoubleNode) target).setValue(((DoubleNode) source).getDoubleValue());
+		} else if (sourceClass.equals(LongNode.class)) {
+			((LongNode) target).setValue(((LongNode) source).getLongValue());
+		} else if (sourceClass.equals(DecimalNode.class)) {
+			((DecimalNode) target).setValue(((DecimalNode) source).getDecimalValue());
+		} else if (sourceClass.equals(BigIntegerNode.class)) {
+			((BigIntegerNode) target).setValue(((BigIntegerNode) source).getBigIntegerValue());
+		}
+		return target;
+	}
 }

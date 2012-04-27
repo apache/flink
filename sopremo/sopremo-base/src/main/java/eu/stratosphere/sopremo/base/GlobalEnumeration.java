@@ -12,6 +12,7 @@ import eu.stratosphere.sopremo.expressions.SingletonExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.LongNode;
@@ -28,10 +29,10 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		 * 
 		 */
 		private static final long serialVersionUID = -3340948936846733311L;
-		
+
 		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return TextNode.valueOf(String.format("%d_%d", ((ArrayNode)node).get(0), ((ArrayNode)node).get(1)));
+		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+			return TextNode.valueOf(String.format("%d_%d", ((ArrayNode) node).get(0), ((ArrayNode) node).get(1)));
 		}
 
 		@Override
@@ -50,10 +51,14 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		protected Object readResolve() {
 			return LONG_COMBINATION;
 		}
-
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#evaluate(eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
+		 */
 		@Override
-		public JsonNode evaluate(final JsonNode node, final EvaluationContext context) {
-			return LongNode.valueOf((((LongNode)((ArrayNode)node).get(0)).getLongValue() << 48) + ((LongNode)((ArrayNode)node).get(1)).getLongValue());
+		public IJsonNode evaluate(IJsonNode node, IJsonNode target, EvaluationContext context) {
+			return LongNode.valueOf((((LongNode) ((ArrayNode) node).get(0)).getLongValue() << 48)
+				+ ((LongNode) ((ArrayNode) node).get(1)).getLongValue());
 		}
 	};
 

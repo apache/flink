@@ -24,7 +24,7 @@ public class ObjectAccess extends EvaluationExpression {
 	private final boolean safeDereference;
 
 	/**
-	 * Initializes FieldAccess with the given field name.
+	 * Initializes ObjectAccess with the given field name.
 	 * 
 	 * @param field
 	 *        the name of the field
@@ -33,6 +33,14 @@ public class ObjectAccess extends EvaluationExpression {
 		this(field, false);
 	}
 
+	/**
+	 * Initializes ObjectAccess with the given field name and the given safeDereference flag.
+	 * 
+	 * @param field
+	 *        the name of the field
+	 * @param safeDereference
+	 *        determines either 'null' representing nodes should be evaluated or not
+	 */
 	public ObjectAccess(final String field, final boolean safeDereference) {
 		this.field = field;
 		this.safeDereference = safeDereference;
@@ -58,11 +66,12 @@ public class ObjectAccess extends EvaluationExpression {
 	/**
 	 * If the input node is an array, the evaluation of this array performs a spread operation. In that case, the
 	 * returned node is an array that contains the attribute value of each element node in the input array. In all other
-	 * cases, the return value is the node associated with the field name of this FieldAccess instance or null if no
-	 * such value exists.
+	 * cases, the return value is the node associated with the field name of this FieldAccess instance or
+	 * {@link NullNode} if no such value exists.
 	 */
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target
 		if (!node.isObject()) {
 			if (node.isNull() && this.safeDereference)
 				return node;

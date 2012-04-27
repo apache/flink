@@ -22,6 +22,8 @@ import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -46,7 +48,6 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
@@ -198,8 +199,7 @@ public class TestPlanTest {
 	}
 
 	/**
-	 * Converts a input string (a line) into a KeyValuePair with the string
-	 * being the key and the value being a zero Integer.
+	 * Converts a input string (a line) into a PactRecord.
 	 */
 	public static class IntegerInFormat extends TextInputFormat {
 		@Override
@@ -217,7 +217,32 @@ public class TestPlanTest {
 			target.setField(0, new PactInteger(Integer.valueOf(new String(line))));
 			return true;
 		}
+	}
 
+	/**
+	 * Converts a PactRecord to a string.
+	 */
+	public static class IntegerOutFormat extends FileOutputFormat {
+		private PrintWriter writer;
+		
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.io.FileOutputFormat#open(int)
+		 */
+		@Override
+		public void open(int taskNumber) throws IOException {
+			super.open(taskNumber);
+			this.writer = new PrintWriter(this.stream);
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.io.OutputFormat#writeRecord(eu.stratosphere.pact.common.type.PactRecord)
+		 */
+		@Override
+		public void writeRecord(PactRecord record) throws IOException {
+			this.writer.format("%d\n", record.getField(0, PactInteger.class).getValue());
+		}
 	}
 
 	/**
@@ -288,9 +313,7 @@ public class TestPlanTest {
 			"Map");
 		map.setInput(read);
 
-		FileDataSink output = createOutput(map, RecordOutputFormat.class);
-		output.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 1);
-		output.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
+		FileDataSink output = createOutput(map, IntegerOutFormat.class);
 
 		TestPlan testPlan = new TestPlan(output);
 		testPlan.getExpectedOutput(output, IntStringPair).fromFile(IntegerInFormat.class,

@@ -51,7 +51,7 @@ public abstract class SopremoReduce extends ReduceStub {
 	@Override
 	public void reduce(final Iterator<PactRecord> records, final Collector out) throws Exception {
 		this.context.increaseInputCounter();
-		this.collector.setCollector(out);
+		this.collector.configure(out, this.context);
 		this.cachedIterator.setIterator(records);
 		Iterator<IJsonNode> values = this.cachedIterator;
 		if (SopremoUtil.LOG.isTraceEnabled()) {

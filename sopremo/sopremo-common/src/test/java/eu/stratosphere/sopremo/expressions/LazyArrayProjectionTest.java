@@ -19,7 +19,7 @@ public class LazyArrayProjectionTest extends EvaluableExpressionTest<ArrayProjec
 		final IJsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
-			this.context);
+			null, this.context);
 		Assert.assertEquals(createArrayNode(1, 2, 3), result);
 	}
 
@@ -28,7 +28,7 @@ public class LazyArrayProjectionTest extends EvaluableExpressionTest<ArrayProjec
 		final IJsonNode result = new ArrayProjection(new ObjectAccess("fieldName")).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
 				createObjectNode("fieldName", 3)),
-			this.context);
+			null, this.context);
 		Assert.assertEquals(createArrayNode(1, 2, 3), result);
 	}
 

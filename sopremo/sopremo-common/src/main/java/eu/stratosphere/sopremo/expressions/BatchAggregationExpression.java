@@ -6,6 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -27,20 +28,49 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 	private transient int lastInputCounter = Integer.MIN_VALUE;
 
+	/**
+	 * Initializes a BatchAggregationExpression with the given {@link AggregationFunction}s.
+	 * 
+	 * @param functions
+	 *        all functions that should be used
+	 */
 	public BatchAggregationExpression(final AggregationFunction... functions) {
 		this(Arrays.asList(functions));
 	}
 
+	/**
+	 * Initializes a BatchAggregationExpression with the given {@link AggregationFunction}s.
+	 * 
+	 * @param functions
+	 *        a set of all functions that should be used
+	 */
 	public BatchAggregationExpression(final List<AggregationFunction> functions) {
 		this.partials = new ArrayList<Partial>(functions.size());
 		for (final AggregationFunction function : functions)
 			this.partials.add(new Partial(function, EvaluationExpression.VALUE, this.partials.size()));
+		this.expectedTarget = ArrayNode.class;
 	}
 
+	/**
+	 * Adds a new {@link AggregationFunction}.
+	 * 
+	 * @param function
+	 *        the function that should be added
+	 * @return the function which has been added as a {@link Partial}
+	 */
 	public EvaluationExpression add(final AggregationFunction function) {
 		return this.add(function, EvaluationExpression.VALUE);
 	}
 
+	/**
+	 * Adds a new {@link AggregationFunction} with the given preprocessing.
+	 * 
+	 * @param function
+	 *        the function that should be added
+	 * @param preprocessing
+	 *        the preprocessing that should be used for this function
+	 * @return the function which has been added as a {@link Partial}
+	 */
 	public EvaluationExpression add(final AggregationFunction function, final EvaluationExpression preprocessing) {
 		final Partial partial = new Partial(function, preprocessing, this.partials.size());
 		this.partials.add(partial);
@@ -48,7 +78,9 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
 		if (this.lastInputCounter == context.getInputCounter())
 			return this.lastResult;
 
@@ -58,13 +90,13 @@ public class BatchAggregationExpression extends EvaluationExpression {
 			partial.getFunction().initialize();
 		for (final IJsonNode input : (ArrayNode) node)
 			for (final Partial partial : this.partials)
-				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, context), context);
+				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, null, context), context);
 
 		final IJsonNode[] results = new IJsonNode[this.partials.size()];
 		for (int index = 0; index < results.length; index++)
 			results[index] = this.partials.get(index).getFunction().getFinalAggregate();
 
-		return this.lastResult = new ArrayNode(results);
+		return this.lastResult = ((IArrayNode) target).addAll(results);
 	}
 
 	private class Partial extends AggregationExpression {
@@ -75,14 +107,24 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 		private final int index;
 
+		/**
+		 * Initializes a Partial with the given function, preprocessing and index.
+		 * 
+		 * @param function
+		 *        an {@link AggregationFunction} that should be used by this Partial
+		 * @param preprocessing
+		 *        the preprocessing that should be used by this Partial
+		 * @param index
+		 *        the index of this Partial
+		 */
 		public Partial(final AggregationFunction function, final EvaluationExpression preprocessing, final int index) {
 			super(function, preprocessing);
 			this.index = index;
 		}
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-			return ((IArrayNode) BatchAggregationExpression.this.evaluate(node, context)).get(this.index);
+		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+			return ((IArrayNode) BatchAggregationExpression.this.evaluate(node, null, context)).get(this.index);
 		}
 	}
 

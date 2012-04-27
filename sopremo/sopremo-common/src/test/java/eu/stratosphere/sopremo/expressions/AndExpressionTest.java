@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 import junit.framework.Assert;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.type.BooleanNode;
@@ -23,7 +24,7 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 	public void shouldBeTrueIfAllExprAreTrue() {
 		final IJsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.TRUE,
 			BooleanExpressionTest.TRUE).evaluate(IntNode.valueOf(42),
-			this.context);
+			null, this.context);
 
 		Assert.assertEquals(BooleanNode.TRUE, result);
 	}
@@ -32,7 +33,7 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 	public void shouldBeFalseIfOneExprIsFalse() {
 		final IJsonNode result = new AndExpression(BooleanExpressionTest.TRUE, BooleanExpressionTest.FALSE,
 			BooleanExpressionTest.TRUE).evaluate(IntNode.valueOf(42),
-			this.context);
+			null, this.context);
 
 		Assert.assertEquals(BooleanNode.FALSE, result);
 	}

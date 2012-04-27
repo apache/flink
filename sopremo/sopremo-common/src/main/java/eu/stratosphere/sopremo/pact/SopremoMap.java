@@ -44,7 +44,7 @@ public abstract class SopremoMap extends MapStub {
 	@Override
 	public void map(final PactRecord record, final Collector out) throws Exception {
 		this.context.increaseInputCounter();
-		this.collector.setCollector(out);
+		this.collector.configure(out, this.context);
 		final IJsonNode input = this.inputSchema.recordToJson(record, this.cachedInput);
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), input));

@@ -36,10 +36,21 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 	private EvaluationExpression firstOperand, secondOperand;
 
+	/**
+	 * Returns the first operand.
+	 * 
+	 * @return the first operand
+	 */
 	public EvaluationExpression getFirstOperand() {
 		return this.firstOperand;
 	}
 
+	/**
+	 * Sets the first operand to the specified value.
+	 * 
+	 * @param firstOperand
+	 *        the operand to set
+	 */
 	public void setFirstOperand(final EvaluationExpression firstOperand) {
 		if (firstOperand == null)
 			throw new NullPointerException("firstOperand must not be null");
@@ -69,6 +80,11 @@ public class ArithmeticExpression extends EvaluationExpression {
 		return this.secondOperand;
 	}
 
+	/**
+	 * Returns the operator.
+	 * 
+	 * @return the operator
+	 */
 	public ArithmeticExpression.ArithmeticOperator getOperator() {
 		return this.operator;
 	}
@@ -89,6 +105,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		this.operator = operator;
 		this.firstOperand = op1;
 		this.secondOperand = op2;
+		this.expectedTarget = NumericNode.class;
 	}
 
 	@Override
@@ -102,9 +119,10 @@ public class ArithmeticExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		return this.operator.evaluate((NumericNode) this.firstOperand.evaluate(node, context),
-			(NumericNode) this.secondOperand.evaluate(node, context));
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target (problem: result could be any kind of NumericNode)
+		return this.operator.evaluate((NumericNode) this.firstOperand.evaluate(node, null, context),
+			(NumericNode) this.secondOperand.evaluate(node, null, context));
 	}
 
 	@Override

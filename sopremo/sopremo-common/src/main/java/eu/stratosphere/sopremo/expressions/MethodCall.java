@@ -8,6 +8,9 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Calls the specified function with the provided parameters and returns the result.
+ */
 @OptimizerHints(scope = Scope.ANY, minNodes = 0, maxNodes = OptimizerHints.UNBOUND)
 public class MethodCall extends ContainerExpression {
 
@@ -20,6 +23,14 @@ public class MethodCall extends ContainerExpression {
 
 	private EvaluationExpression[] paramExprs;
 
+	/**
+	 * Initializes a MethodCall with the given function name and expressions which evaluate to the method parameters.
+	 * 
+	 * @param function
+	 *        the name of the function that should be called
+	 * @param params
+	 *        expressions which evaluate to the method parameters
+	 */
 	public MethodCall(final String function, final EvaluationExpression... params) {
 		this.function = function;
 		this.paramExprs = params;
@@ -43,10 +54,11 @@ public class MethodCall extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target (problem: result could be any kind of JsonNode)
 		final IJsonNode[] params = new IJsonNode[this.paramExprs.length];
 		for (int index = 0; index < params.length; index++)
-			params[index] = this.paramExprs[index].evaluate(node, context);
+			params[index] = this.paramExprs[index].evaluate(node, null, context);
 
 		return context.getFunctionRegistry().evaluate(this.function, JsonUtil.asArray(params), context);
 	}

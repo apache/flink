@@ -9,16 +9,28 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
-public class LongNode extends NumericNode implements INumericNode{
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
+public class LongNode extends NumericNode implements INumericNode {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 8594695207002513755L;
 
-	protected transient PactLong value;
+	private transient PactLong value;
 
+	/**
+	 * Initializes a LongNode which represents the given <code>long</code>. To create new LongNodes please
+	 * use LongNode.valueOf(<code>long</code>) instead.
+	 * 
+	 * @param v
+	 *        the value that should be represented by this node
+	 */
 	public LongNode(final long value) {
 		this.value = new PactLong(value);
 	}
@@ -26,6 +38,10 @@ public class LongNode extends NumericNode implements INumericNode{
 	@Override
 	public Long getJavaValue() {
 		return this.value.getValue();
+	}
+
+	public void setValue(long value) {
+		this.value.setValue(value);
 	}
 
 	@Override
@@ -38,6 +54,13 @@ public class LongNode extends NumericNode implements INumericNode{
 		this.value.write(out);
 	}
 
+	/**
+	 * Creates a new instance of LongNode. This new instance represents the given value.
+	 * 
+	 * @param v
+	 *        the value that should be represented by the new instance
+	 * @return the newly created instance of LongNode
+	 */
 	public static LongNode valueOf(final long value) {
 		return new LongNode(value);
 	}
@@ -127,5 +150,11 @@ public class LongNode extends NumericNode implements INumericNode{
 	@Override
 	public int compareToSameType(final IJsonNode other) {
 		return Long.signum(this.value.getValue() - ((LongNode) other).value.getValue());
+	}
+
+	@Override
+	public void clear() {
+		if (SopremoUtil.DEBUG)
+			this.value.setValue(0);
 	}
 }

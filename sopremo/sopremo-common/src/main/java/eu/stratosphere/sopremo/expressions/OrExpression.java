@@ -7,6 +7,9 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Represents a logical OR.
+ */
 @OptimizerHints(scope = Scope.ANY)
 public class OrExpression extends BooleanExpression {
 	/**
@@ -16,12 +19,19 @@ public class OrExpression extends BooleanExpression {
 
 	private final EvaluationExpression[] expressions;
 
+	/**
+	 * Initializes an OrExpression with the given {@link EvaluationExpression}s.
+	 * 
+	 * @param expressions
+	 *        the expressions which evaluate to the input for this OrExpression
+	 */
 	public OrExpression(final EvaluationExpression... expressions) {
 		if (expressions.length == 0)
 			throw new IllegalArgumentException();
 		this.expressions = new EvaluationExpression[expressions.length];
 		for (int index = 0; index < expressions.length; index++)
 			this.expressions[index] = UnaryExpression.wrap(expressions[index]);
+		this.expectedTarget = BooleanNode.class;
 	}
 
 	@Override
@@ -33,13 +43,19 @@ public class OrExpression extends BooleanExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// we can ignore 'target' because no new Object is created
 		for (final EvaluationExpression booleanExpression : this.expressions)
-			if (booleanExpression.evaluate(node, context) == BooleanNode.TRUE)
+			if (booleanExpression.evaluate(node, null, context) == BooleanNode.TRUE)
 				return BooleanNode.TRUE;
 		return BooleanNode.FALSE;
 	}
 
+	/**
+	 * Returns the expressions.
+	 * 
+	 * @return the expressions
+	 */
 	public EvaluationExpression[] getExpressions() {
 		return this.expressions;
 	}
@@ -59,12 +75,26 @@ public class OrExpression extends BooleanExpression {
 			builder.append(" OR ").append(this.expressions[index]);
 	}
 
+	/**
+	 * Creates an OrExpression with the given {@link BooleanExpression}.
+	 * 
+	 * @param expression
+	 *        the expression that should be used as the condition
+	 * @return the created OrExpression
+	 */
 	public static OrExpression valueOf(final BooleanExpression expression) {
 		if (expression instanceof OrExpression)
 			return (OrExpression) expression;
 		return new OrExpression(expression);
 	}
 
+	/**
+	 * Creates an OrExpression with the given {@link BooleanExpression}s.
+	 * 
+	 * @param childConditions
+	 *        the expressions that should be used as conditions for the created OrExpression
+	 * @return the created OrExpression
+	 */
 	public static OrExpression valueOf(final List<BooleanExpression> childConditions) {
 		if (childConditions.size() == 1)
 			return valueOf(childConditions.get(0));

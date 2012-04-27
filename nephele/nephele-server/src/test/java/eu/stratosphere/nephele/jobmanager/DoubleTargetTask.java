@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
-import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
@@ -49,8 +47,8 @@ public class DoubleTargetTask extends AbstractTask {
 
 	@Override
 	public void registerInputOutput() {
-		this.input1 = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
-		this.input2 = new RecordReader<StringRecord>(this, StringRecord.class, new BipartiteDistributionPattern());
+		this.input1 = new RecordReader<StringRecord>(this, StringRecord.class);
+		this.input2 = new RecordReader<StringRecord>(this, StringRecord.class);
 		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
 

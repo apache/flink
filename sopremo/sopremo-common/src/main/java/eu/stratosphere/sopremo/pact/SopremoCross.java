@@ -40,7 +40,7 @@ public abstract class SopremoCross extends CrossStub {
 	@Override
 	public void cross(final PactRecord record1, final PactRecord record2, final Collector out) {
 		this.context.increaseInputCounter();
-		this.collector.setCollector(out);
+		this.collector.configure(out, this.context);
 		final IJsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);
 		final IJsonNode input2 = this.inputSchema2.recordToJson(record2, this.cachedInput2);
 		if (SopremoUtil.LOG.isTraceEnabled())

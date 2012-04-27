@@ -43,10 +43,10 @@ public abstract class AbstractRecordReader<T extends Record> {
 	private final Environment environment;
 
 	protected AbstractRecordReader(final AbstractInvokable invokable, final RecordDeserializer<T> deserializer,
-			final int inputGateID, final DistributionPattern distributionPattern) {
+			final int inputGateID) {
 
 		this.environment = invokable.getEnvironment();
-		connectInputGate(deserializer, inputGateID, distributionPattern);
+		connectInputGate(deserializer, inputGateID);
 	}
 
 	/**
@@ -59,15 +59,14 @@ public abstract class AbstractRecordReader<T extends Record> {
 	 */
 	// TODO: See if type safety can be improved here
 	@SuppressWarnings("unchecked")
-	private void connectInputGate(final RecordDeserializer<T> deserializer, final int inputGateID,
-			final DistributionPattern distributionPattern) {
+	private void connectInputGate(final RecordDeserializer<T> deserializer, final int inputGateID) {
 
 		GateID gateID = this.environment.getNextUnboundInputGateID();
 		if (gateID == null) {
 			gateID = new GateID();
 		}
 
-		this.inputGate = (InputGate<T>) this.environment.createInputGate(gateID, deserializer, distributionPattern);
+		this.inputGate = (InputGate<T>) this.environment.createInputGate(gateID, deserializer);
 		this.environment.registerInputGate(this.inputGate);
 	}
 

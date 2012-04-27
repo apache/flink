@@ -127,4 +127,9 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 		return this.value.isTextual();
 	}
 
+	@Override
+	public void clear() {
+		this.value.clear();
+	}
+
 }

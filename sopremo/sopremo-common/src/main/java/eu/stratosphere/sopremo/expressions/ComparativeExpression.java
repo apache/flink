@@ -6,6 +6,9 @@ import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NumericNode;
 
+/**
+ * Represents basic binary comparative expressions covering all operators specified in {@link BinaryOperator}.
+ */
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
 public class ComparativeExpression extends BooleanExpression {
 	/**
@@ -17,11 +20,22 @@ public class ComparativeExpression extends BooleanExpression {
 
 	private final BinaryOperator binaryOperator;
 
+	/**
+	 * Initializes a ComparativeExpression with the given binaryOperator and both expressions.
+	 * 
+	 * @param expr1
+	 *        the first expression for the comparison
+	 * @param binaryOperator
+	 *        the {@link BinaryOperator} that should be used for comparison
+	 * @param expr2
+	 *        the second expression for the comparison
+	 */
 	public ComparativeExpression(final EvaluationExpression expr1, final BinaryOperator binaryOperator,
 			final EvaluationExpression expr2) {
 		this.expr1 = expr1;
 		this.binaryOperator = binaryOperator;
 		this.expr2 = expr2;
+		this.expectedTarget = BooleanNode.class;
 	}
 
 	@Override
@@ -38,19 +52,35 @@ public class ComparativeExpression extends BooleanExpression {
 	// return binaryOperator.evaluate(expr1.evaluate(input), expr2.evaluate(input));
 	// }
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, context),
-			this.expr2.evaluate(node, context)));
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// // we can ignore 'target' because no new Object is created
+		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, null, context),
+			this.expr2.evaluate(node, null, context)));
 	}
 
+	/**
+	 * Returns the binaryOperator.
+	 * 
+	 * @return the binaryOperator
+	 */
 	public BinaryOperator getBinaryOperator() {
 		return this.binaryOperator;
 	}
 
+	/**
+	 * Returns the first expression.
+	 * 
+	 * @return the first expression
+	 */
 	public EvaluationExpression getExpr1() {
 		return this.expr1;
 	}
 
+	/**
+	 * Returns the second expression.
+	 * 
+	 * @return the second expression
+	 */
 	public EvaluationExpression getExpr2() {
 		return this.expr2;
 	}
@@ -70,6 +100,9 @@ public class ComparativeExpression extends BooleanExpression {
 		builder.append(this.expr1).append(this.binaryOperator).append(this.expr2);
 	}
 
+	/**
+	 * All supported binary operators.
+	 */
 	public static enum BinaryOperator {
 		EQUAL("=") {
 			@Override
@@ -134,6 +167,12 @@ public class ComparativeExpression extends BooleanExpression {
 
 		private final String sign;
 
+		/**
+		 * Initializes a BinaryOperator with the given sign.
+		 * 
+		 * @param sign
+		 *        the string representation of this operator
+		 */
 		BinaryOperator(final String sign) {
 			this.sign = sign;
 		}
@@ -161,9 +200,16 @@ public class ComparativeExpression extends BooleanExpression {
 			return this.sign;
 		}
 
-		public static BinaryOperator valueOfSymbol(final String name) {
+		/**
+		 * Returns the BinaryOperator for the given sign.
+		 * 
+		 * @param sign
+		 *        the sign of the operator that should be returned
+		 * @return the operator or null if no operator has been found for the given sign
+		 */
+		public static BinaryOperator valueOfSymbol(final String sign) {
 			for (final BinaryOperator operator : BinaryOperator.values())
-				if (operator.sign.equals(name))
+				if (operator.sign.equals(sign))
 					return operator;
 
 			return null;

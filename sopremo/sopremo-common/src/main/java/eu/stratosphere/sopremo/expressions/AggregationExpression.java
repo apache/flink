@@ -5,6 +5,10 @@ import eu.stratosphere.sopremo.aggregation.AggregationFunction;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Returns an aggregate of the elements of a {@link IArrayNode}.
+ * The result is calculated with help of the specified {@link AggregationExpression}.
+ */
 public class AggregationExpression extends EvaluationExpression {
 	/**
 	 * 
@@ -15,27 +19,53 @@ public class AggregationExpression extends EvaluationExpression {
 
 	private final EvaluationExpression preprocessing;
 
+	/**
+	 * Initializes an AggregationExpression with the given {@link AggregationFunction}.
+	 * 
+	 * @param function
+	 *        the function which will should be used for aggregation
+	 */
 	public AggregationExpression(final AggregationFunction function) {
 		this(function, EvaluationExpression.VALUE);
 	}
 
+	/**
+	 * Initializes an AggregationExpression with the given {@link AggregationFunction} and an additional preprocessing.
+	 * 
+	 * @param function
+	 *        the function which will should be used for aggregation
+	 * @param preprocessing
+	 *        an {@link EvaluationExpression} which evaluates each element of the input before they are used for
+	 *        aggregation.
+	 */
 	public AggregationExpression(final AggregationFunction function, final EvaluationExpression preprocessing) {
 		this.function = function.clone();
 		this.preprocessing = preprocessing;
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode nodes, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode nodes, IJsonNode target, final EvaluationContext context) {
+		// TODO reuse target (problem: required target could be any kind of JsonNode)
 		this.function.initialize();
 		for (final IJsonNode node : (IArrayNode) nodes)
-			this.function.aggregate(this.preprocessing.evaluate(node, context), context);
+			this.function.aggregate(this.preprocessing.evaluate(node, null, context), context);
 		return this.function.getFinalAggregate();
 	}
 
+	/**
+	 * Returns the function.
+	 * 
+	 * @return the function
+	 */
 	public AggregationFunction getFunction() {
 		return this.function;
 	}
 
+	/**
+	 * Returns the preprocessing.
+	 * 
+	 * @return the preprocessing
+	 */
 	public EvaluationExpression getPreprocessing() {
 		return this.preprocessing;
 	}

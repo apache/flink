@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
+import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 
@@ -71,6 +72,11 @@ public class ExecutionGroupEdge {
 	 * The index of the consuming task's input gate.
 	 */
 	private final int indexOfInputGate;
+	
+	/**
+	 * The distribution pattern used to connect the vertices within two groups.
+	 */
+	private final DistributionPattern distributionPattern;
 
 	/**
 	 * Constructs a new group edge.
@@ -97,7 +103,7 @@ public class ExecutionGroupEdge {
 	public ExecutionGroupEdge(final ExecutionGraph executionGraph, final ExecutionGroupVertex sourceVertex,
 			final int indexOfOutputGate, final ExecutionGroupVertex targetVertex, final int indexOfInputGate,
 			final ChannelType channelType, final boolean userDefinedChannelType,
-			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel) {
+			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel, final DistributionPattern distributionPattern) {
 		this.executionGraph = executionGraph;
 		this.sourceVertex = sourceVertex;
 		this.indexOfOutputGate = indexOfOutputGate;
@@ -107,6 +113,7 @@ public class ExecutionGroupEdge {
 		this.compressionLevel = compressionLevel;
 		this.userDefinedCompressionLevel = userDefinedCompressionLevel;
 		this.targetVertex = targetVertex;
+		this.distributionPattern = distributionPattern;
 	}
 
 	/**
@@ -221,5 +228,13 @@ public class ExecutionGroupEdge {
 	 */
 	public int getIndexOfOutputGate() {
 		return this.indexOfOutputGate;
+	}
+	
+	/**
+	 * Returns the distribution pattern associated with this group edge.
+	 * @return
+	 */
+	public DistributionPattern getDistributionPattern(){
+		return this.distributionPattern;
 	}
 }

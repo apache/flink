@@ -26,7 +26,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -37,7 +36,6 @@ import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -331,8 +329,7 @@ public class FailingJobITCase {
 		public void registerInputOutput() {
 
 			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
-			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this,
-				new BipartiteDistributionPattern());
+			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
 		/**
@@ -390,8 +387,7 @@ public class FailingJobITCase {
 		public void registerInputOutput() {
 
 			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
-			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this,
-				new BipartiteDistributionPattern());
+			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
 		/**
@@ -436,8 +432,7 @@ public class FailingJobITCase {
 		public void registerInputOutput() {
 
 			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
-			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this,
-				new BipartiteDistributionPattern());
+			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
 		/**
@@ -476,8 +471,7 @@ public class FailingJobITCase {
 		@Override
 		public void registerInputOutput() {
 
-			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this,
-				new BipartiteDistributionPattern());
+			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
 		/**
@@ -1010,22 +1004,6 @@ public class FailingJobITCase {
 				jobClient.close();
 			}
 		}
-
-	}
-
-	@After
-	public void cleanUp() {
-		File file = new File("/tmp/");
-		File[] files = file.listFiles();
-
-		for (int i = 0; i < files.length; i++) {
-			String name = files[i].getName();
-			if (name.startsWith("fb") || name.startsWith("checkpoint_")) {
-				files[i].delete();
-			}
-		}
-
-		System.out.println("deleted");
 
 	}
 

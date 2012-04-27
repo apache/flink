@@ -6,7 +6,13 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-public class DecimalNode extends NumericNode implements INumericNode{
+import eu.stratosphere.sopremo.pact.SopremoUtil;
+
+/**
+ * @author Michael Hopstock
+ * @author Tommy Neubert
+ */
+public class DecimalNode extends NumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -15,18 +21,39 @@ public class DecimalNode extends NumericNode implements INumericNode{
 
 	private BigDecimal value;
 
+	/**
+	 * Initializes a DecimalNode which represents 0.
+	 */
 	public DecimalNode() {
 		this.value = new BigDecimal(0);
 	}
 
+	/**
+	 * Initializes a DecimalNode which represents the given {@link BigDecimal}. To create new DecimalNodes please
+	 * use DecimalNode.valueOf(BigDecimal) instead.
+	 * 
+	 * @param v
+	 *        the value that should be represented by this node
+	 */
 	public DecimalNode(final BigDecimal v) {
 		this.value = v;
 	}
 
+	/**
+	 * Creates a new DecimalNode which represents the given {@link BigDecimal}.
+	 * 
+	 * @param v
+	 *        the value that should be represented by this node
+	 * @return the new DecimalNode
+	 */
 	public static DecimalNode valueOf(final BigDecimal v) {
 		if (v == null)
 			throw new NullPointerException();
 		return new DecimalNode(v);
+	}
+
+	public void setValue(BigDecimal value) {
+		this.value = value;
 	}
 
 	@Override
@@ -127,5 +154,11 @@ public class DecimalNode extends NumericNode implements INumericNode{
 	@Override
 	public int compareToSameType(final IJsonNode other) {
 		return this.value.compareTo(((DecimalNode) other).value);
+	}
+
+	@Override
+	public void clear() {
+		if (SopremoUtil.DEBUG)
+			this.value = BigDecimal.ZERO;
 	}
 }

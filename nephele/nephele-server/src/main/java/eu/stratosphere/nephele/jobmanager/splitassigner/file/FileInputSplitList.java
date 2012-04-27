@@ -47,21 +47,54 @@ public final class FileInputSplitList {
 	 */
 	private static final Log LOG = LogFactory.getLog(FileInputSplitList.class);
 
+	/**
+	 * The set containing all the file input splits that still must be consumed.
+	 */
 	private Set<FileInputSplit> masterSet = new HashSet<FileInputSplit>();
 
+	/**
+	 * The map caching the specific file input split lists for each {@link AbstractInstance}.
+	 */
 	private Map<AbstractInstance, Queue<QueueElem>> instanceMap = new HashMap<AbstractInstance, Queue<QueueElem>>();
 
+	/**
+	 * This is an auxiliary class to store the minimum distance between a file input split's storage locations and an
+	 * {@link AbstractInstance}.
+	 * 
+	 * @author warneke
+	 */
 	private final class QueueElem implements Comparable<QueueElem> {
 
+		/**
+		 * The file input split the distance applies to.
+		 */
 		final FileInputSplit inputSplit;
 
+		/**
+		 * The minimum distance between the file input split's storage locations and the instance this object has been
+		 * created for.
+		 */
 		final int distance;
 
+		/**
+		 * Creates a new queue element.
+		 * 
+		 * @param inputSplit
+		 *        the file input split to be stored
+		 * @param distance
+		 *        the minimum distance between the stored input split's storage locations and the instance this object
+		 *        has been created for
+		 */
 		private QueueElem(final FileInputSplit inputSplit, final int distance) {
 			this.inputSplit = inputSplit;
 			this.distance = distance;
 		}
 
+		/**
+		 * Returns the file input split stored within this object.
+		 * 
+		 * @return the file input split
+		 */
 		private FileInputSplit getInputSplit() {
 			return this.inputSplit;
 		}
@@ -70,18 +103,34 @@ public final class FileInputSplitList {
 		 * {@inheritDoc}
 		 */
 		@Override
-		public int compareTo(QueueElem o) {
+		public int compareTo(final QueueElem o) {
 
 			return (this.distance - o.distance);
 		}
 
 	}
 
+	/**
+	 * Adds the given file input split to the set of file input splits to be consumed.
+	 * 
+	 * @param fileInputSplit
+	 *        the file input split to be added
+	 */
 	synchronized void addSplit(final FileInputSplit fileInputSplit) {
 
 		this.masterSet.add(fileInputSplit);
 	}
 
+	/**
+	 * Returns the next file input split to be consumed by the given instance. The returned input split is selected in a
+	 * way that the distance between the split's storage location and the requesting {@link AbstractInstance} is as
+	 * short as possible.
+	 * 
+	 * @param instance
+	 *        the instance requesting the next file input split
+	 * @return the next input split to be consumed by the given instance or <code>null</code> if all input splits have
+	 *         already been consumed.
+	 */
 	synchronized FileInputSplit getNextInputSplit(final AbstractInstance instance) {
 
 		final Queue<QueueElem> instanceSplitList = getInstanceSplitList(instance);
@@ -94,8 +143,12 @@ public final class FileInputSplitList {
 			}
 
 			if (this.masterSet.remove(candidate.getInputSplit())) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug(instance + " receives input split with distance " + candidate.distance);
+				if (LOG.isInfoEnabled()) {
+					if (candidate.distance == 0) {
+						LOG.info(instance + " receives local file input split");
+					} else {
+						LOG.info(instance + " receives remote file input split (distance " + candidate.distance + ")");
+					}
 				}
 				return candidate.getInputSplit();
 			}
@@ -106,6 +159,15 @@ public final class FileInputSplitList {
 		}
 	}
 
+	/**
+	 * Returns a list of file input splits specifically ordered for the given {@link AbstractInstance}. When the list is
+	 * initially created, it contains all the unconsumed file input splits at that point in time, ascendingly ordered by
+	 * the minimum distance between the input splits' storage locations and the given {@link AbstractInstance}.
+	 * 
+	 * @param instance
+	 *        the instance for which the file input split list has been computed
+	 * @return the list of file input splits ordered specifically for the given instance
+	 */
 	private Queue<QueueElem> getInstanceSplitList(final AbstractInstance instance) {
 
 		Queue<QueueElem> instanceSplitList = this.instanceMap.get(instance);

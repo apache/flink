@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -20,22 +21,31 @@ public class ArrayMerger extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -6884623565349727369L;
 
+	/**
+	 * Initializes an ArrayMerger.
+	 */
+	public ArrayMerger() {
+		this.expectedTarget = ArrayNode.class;
+	}
+
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		final Iterator<IJsonNode> arrays = ((ArrayNode) node).iterator();
-		final IArrayNode mergedArray = new ArrayNode();
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		final Iterator<IJsonNode> arrays = ((IArrayNode) node).iterator();
+
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
 		IJsonNode nextNode;
 		while (arrays.hasNext())
 			if ((nextNode = arrays.next()) != NullNode.getInstance()) {
 
 				final IArrayNode array = (IArrayNode) nextNode;
 				for (int index = 0; index < array.size(); index++)
-					if (mergedArray.size() <= index)
-						mergedArray.add(array.get(index));
-					else if (this.isNull(mergedArray.get(index)) && !this.isNull(array.get(index)))
-						mergedArray.set(index, array.get(index));
+					if (((IArrayNode) target).size() <= index)
+						((IArrayNode) target).add(array.get(index));
+					else if (this.isNull(((IArrayNode) target).get(index)) && !this.isNull(array.get(index)))
+						((IArrayNode) target).set(index, array.get(index));
 			}
-		return mergedArray;
+		return target;
 	}
 
 	private boolean isNull(final IJsonNode value) {

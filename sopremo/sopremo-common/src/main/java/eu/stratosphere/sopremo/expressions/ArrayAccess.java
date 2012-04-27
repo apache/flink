@@ -1,9 +1,11 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 /**
@@ -63,6 +65,12 @@ public class ArrayAccess extends EvaluationExpression {
 		// throw new IllegalArgumentException("negative endIndex < negative startIndex");
 		this.startIndex = startIndex;
 		this.endIndex = endIndex;
+
+		if (startIndex != endIndex) {
+			this.expectedTarget = ArrayNode.class;
+		} else {
+			this.expectedTarget = JsonNode.class;
+		}
 	}
 
 	@Override
@@ -74,22 +82,32 @@ public class ArrayAccess extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		if (this.isSelectingAll())
-			return node;
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		if (this.isSelectingAll()) {
+			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+
+			((IArrayNode) target).clear();
+			((IArrayNode) target).addAll((IArrayNode) node);
+			return target;
+		}
 		final int size = ((IArrayNode) node).size();
 		if (this.isSelectingRange()) {
-			final ArrayNode arrayNode = new ArrayNode();
+
+			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+
+			((IArrayNode) target).clear();
 			int index = this.resolveIndex(this.startIndex, size);
 			final int endIndex = this.resolveIndex(this.endIndex, size);
 			final int increment = index < endIndex ? 1 : -1;
 
 			for (boolean moreElements = true; moreElements; index += increment) {
-				arrayNode.add(((IArrayNode) node).get(index));
+				((IArrayNode) target).add(((IArrayNode) node).get(index));
 				moreElements = index != endIndex;
 			}
-			return arrayNode;
+			return target;
 		}
+
+		// TODO Reuse target (problem: result could be any kind of JsonNode)
 		final IJsonNode value = ((IArrayNode) node).get(this.resolveIndex(this.startIndex, size));
 		return value == null ? NullNode.getInstance() : value;
 	}

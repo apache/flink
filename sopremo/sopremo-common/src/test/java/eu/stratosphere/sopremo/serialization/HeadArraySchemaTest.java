@@ -31,13 +31,13 @@ import eu.stratosphere.sopremo.type.IntNode;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class ArraySchemaTest {
+public class HeadArraySchemaTest {
 
-	private ArraySchema schema;
+	private HeadArraySchema schema;
 
 	@Before
 	public void setUp() {
-		this.schema = new ArraySchema();
+		this.schema = new HeadArraySchema();
 	}
 
 	@Test
@@ -45,7 +45,7 @@ public class ArraySchemaTest {
 		this.schema.setHeadSize(2);
 		IArrayNode array = new ArrayNode();
 		array.add(IntNode.valueOf(1));
-		PactRecord result = this.schema.jsonToRecord(array, null);
+		PactRecord result = this.schema.jsonToRecord(array, null, null);
 
 		PactRecord expected = new PactRecord(3);
 		expected.setField(0, SopremoUtil.wrap(IntNode.valueOf(1)));
@@ -79,7 +79,7 @@ public class ArraySchemaTest {
 		record.setField(5, SopremoUtil.wrap(new ArrayNode()));
 
 		IJsonNode node = this.schema.recordToJson(record, null);
-		PactRecord result = this.schema.jsonToRecord(node, null);
+		PactRecord result = this.schema.jsonToRecord(node, null, null);
 
 		Assert.assertTrue(PactRecordEqualer.recordsEqual(record, result, this.schema.getPactSchema()));
 	}

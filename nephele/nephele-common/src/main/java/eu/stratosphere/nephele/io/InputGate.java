@@ -108,12 +108,6 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 */
 	void close() throws IOException, InterruptedException;
 
-	/**
-	 * Returns the {@link DistributionPattern} associated with this input gate.
-	 * 
-	 * @return the {@link DistributionPattern} associated with this input gate
-	 */
-	DistributionPattern getDistributionPattern();
 
 	/**
 	 * Creates a new network input channel and assigns it to the given input gate.

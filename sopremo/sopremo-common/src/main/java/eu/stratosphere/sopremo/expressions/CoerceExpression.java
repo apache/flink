@@ -5,6 +5,9 @@ import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 
+/**
+ * Converts the result of an evaluation to a various number of node types.
+ */
 @OptimizerHints(scope = Scope.NUMBER)
 public class CoerceExpression extends EvaluationExpression {
 	/**
@@ -16,19 +19,45 @@ public class CoerceExpression extends EvaluationExpression {
 
 	private EvaluationExpression valueExpression;
 
+	/**
+	 * Initializes a CoerceExpression with the given value and the given type.
+	 * 
+	 * @param targetType
+	 *        the class of the node the result should be converted to
+	 * @param value
+	 *        the expression which evaluates to the result
+	 */
 	public CoerceExpression(final Class<? extends JsonNode> targetType, final EvaluationExpression value) {
 		this.targetType = targetType;
 		this.valueExpression = value;
+		this.expectedTarget = targetType;
 	}
 
+	/**
+	 * Initializes a CoerceExpression with the given type.
+	 * 
+	 * @param targetType
+	 *        the class of the node the result should be converted to
+	 */
 	public CoerceExpression(final Class<? extends JsonNode> targetType) {
 		this(targetType, EvaluationExpression.VALUE);
 	}
 
+	/**
+	 * Returns the valueExpression.
+	 * 
+	 * @return the valueExpression
+	 */
 	public EvaluationExpression getValueExpression() {
 		return this.valueExpression;
 	}
 
+	/**
+	 * Sets a new valueExpression.
+	 * 
+	 * @param valueExpression
+	 *        the {@link EvaluationExpression} that should be set as the new valueExpression
+	 */
 	public void setValueExpression(final EvaluationExpression valueExpression) {
 		if (valueExpression == null)
 			throw new NullPointerException("valueExpression must not be null");
@@ -37,8 +66,9 @@ public class CoerceExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, context), this.targetType);
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target
+		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, target, context), this.targetType);
 	}
 
 	@Override

@@ -23,14 +23,14 @@ public class CoerceExpressionTest extends EvaluableExpressionTest<CoerceExpressi
 
 	@Test
 	public void shouldChangeTypeOfIntToText() {
-		final IJsonNode result = new CoerceExpression(TextNode.class).evaluate(IntNode.valueOf(42), this.context);
+		final IJsonNode result = new CoerceExpression(TextNode.class).evaluate(IntNode.valueOf(42), null, this.context);
 
 		Assert.assertEquals(TextNode.valueOf("42"), result);
 	}
 
 	@Test
 	public void shouldChangeTypeOfTextInterpretedNumberToInt() {
-		final IJsonNode result = new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("42"), this.context);
+		final IJsonNode result = new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("42"), null, this.context);
 
 		Assert.assertEquals(IntNode.valueOf(42), result);
 	}
@@ -38,13 +38,13 @@ public class CoerceExpressionTest extends EvaluableExpressionTest<CoerceExpressi
 	@Test
 	public void shouldOnlyChangeOuterType() {
 		final IJsonNode result = new CoerceExpression(ArrayNode.class).evaluate(
-			createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), this.context);
+			createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), null, this.context);
 
 		Assert.assertEquals(createArrayNode(IntNode.valueOf(42), BooleanNode.TRUE), result);
 	}
 
 	@Test(expected = CoercionException.class)
 	public void shouldThrowExceptionWhenChangeingTextToInt() {
-		new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("testname"), this.context);
+		new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("testname"), null, this.context);
 	}
 }

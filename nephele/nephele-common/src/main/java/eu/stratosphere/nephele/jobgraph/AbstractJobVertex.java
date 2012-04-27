@@ -22,6 +22,7 @@ import java.util.ArrayList;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -91,7 +92,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	/**
 	 * Custom configuration passed to the assigned task at runtime.
 	 */
-	private final Configuration configuration = new Configuration();
+	private Configuration configuration = new Configuration();
 
 	/**
 	 * The class of the invokable.
@@ -124,7 +125,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex) throws JobGraphDefinitionException {
-		this.connectTo(vertex, null, null, -1, -1);
+		this.connectTo(vertex, null, null, -1, -1, DistributionPattern.BIPARTITE);
 	}
 
 	/**
@@ -143,7 +144,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final int indexOfOutputGate, final int indexOfInputGate)
 			throws JobGraphDefinitionException {
-		this.connectTo(vertex, null, null, indexOfOutputGate, indexOfInputGate);
+		this.connectTo(vertex, null, null, indexOfOutputGate, indexOfInputGate, DistributionPattern.BIPARTITE);
 	}
 
 	/**
@@ -160,7 +161,25 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
 			final CompressionLevel compressionLevel) throws JobGraphDefinitionException {
-		this.connectTo(vertex, channelType, compressionLevel, -1, -1);
+		this.connectTo(vertex, channelType, compressionLevel, -1, -1, DistributionPattern.BIPARTITE);
+	}
+
+	/**
+	 * Connects the job vertex to the specified job vertex.
+	 * 
+	 * @param vertex
+	 *        the vertex this vertex should connect to
+	 * @param channelType
+	 *        the channel type the two vertices should be connected by at runtime
+	 * @param compressionLevel
+	 *        the compression level the corresponding channel should have at runtime
+	 * @throws JobGraphDefinitionException
+	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
+	 */
+	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
+			final CompressionLevel compressionLevel, final DistributionPattern distributionPattern)
+			throws JobGraphDefinitionException {
+		this.connectTo(vertex, channelType, compressionLevel, -1, -1, distributionPattern);
 	}
 
 	/**
@@ -182,7 +201,8 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, int indexOfOutputGate, int indexOfInputGate)
+			final CompressionLevel compressionLevel, int indexOfOutputGate, int indexOfInputGate,
+			DistributionPattern distributionPattern)
 			throws JobGraphDefinitionException {
 
 		if (vertex == null) {
@@ -213,8 +233,10 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		}
 
 		// Add new edge
-		this.forwardEdges.set(indexOfOutputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfInputGate));
-		vertex.connectBacklink(this, channelType, compressionLevel, indexOfOutputGate, indexOfInputGate);
+		this.forwardEdges.set(indexOfOutputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfInputGate,
+			distributionPattern));
+		vertex.connectBacklink(this, channelType, compressionLevel, indexOfOutputGate, indexOfInputGate,
+			distributionPattern);
 	}
 
 	/**
@@ -266,14 +288,16 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        index of the consuming task's input gate to be used
 	 */
 	private void connectBacklink(final AbstractJobVertex vertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, final int indexOfOutputGate, final int indexOfInputGate) {
+			final CompressionLevel compressionLevel, final int indexOfOutputGate, final int indexOfInputGate,
+			DistributionPattern distributionPattern) {
 
 		// Make sure the array is big enough
 		for (int i = this.backwardEdges.size(); i <= indexOfInputGate; i++) {
 			this.backwardEdges.add(null);
 		}
 
-		this.backwardEdges.set(indexOfInputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfOutputGate));
+		this.backwardEdges.set(indexOfInputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfOutputGate,
+			distributionPattern));
 	}
 
 	/**
@@ -405,7 +429,14 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 			this.vertexToShareInstancesWith = vertexToShareInstancesWith;
 		}
 
-		// Read the configuration
+		// Find the class loader for the job
+		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
+		if (cl == null) {
+			throw new IOException("Cannot find class loader for vertex " + getID());
+		}
+
+		// Re-instantiate the configuration object with the correct class loader and read the configuration
+		this.configuration = new Configuration(cl);
 		this.configuration.read(in);
 
 		// Read number of forward edges
@@ -423,10 +454,11 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 
 				final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
 				final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
+				final DistributionPattern distributionPattern = EnumUtils.readEnum(in, DistributionPattern.class);
 				final int indexOfInputGate = in.readInt();
 
 				try {
-					this.connectTo(jv, channelType, compressionLevel, i, indexOfInputGate);
+					this.connectTo(jv, channelType, compressionLevel, i, indexOfInputGate, distributionPattern);
 				} catch (JobGraphDefinitionException e) {
 					throw new IOException(StringUtils.stringifyException(e));
 				}
@@ -439,13 +471,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		final boolean isNotNull = in.readBoolean();
 		if (!isNotNull) {
 			return;
-		}
-
-		// Read the name of the class and try to instantiate the class object
-
-		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
-		if (cl == null) {
-			throw new IOException("Cannot find class loader for vertex " + getID());
 		}
 
 		// Read the name of the expected class
@@ -502,6 +527,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 				edge.getConnectedVertex().getID().write(out);
 				EnumUtils.writeEnum(out, edge.getChannelType());
 				EnumUtils.writeEnum(out, edge.getCompressionLevel());
+				EnumUtils.writeEnum(out, edge.getDistributionPattern());
 				out.writeInt(edge.getIndexOfInputGate());
 			}
 		}

@@ -17,7 +17,6 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 	/**
 	 * @author Michael Hopstock
 	 * @author Tommy Neubert
-	 *
 	 */
 	private static final long serialVersionUID = 222657144282059523L;
 
@@ -36,7 +35,8 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		return this.children;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#put(java.lang.String, eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
@@ -51,7 +51,8 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		return this;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#get(java.lang.String)
 	 */
 	@Override
@@ -62,7 +63,8 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		return MissingNode.getInstance();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#remove(java.lang.String)
 	 */
 	@Override
@@ -73,7 +75,8 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		return MissingNode.getInstance();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#removeAll()
 	 */
 	@Override
@@ -129,7 +132,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		final int len = in.readInt();
 
 		for (int i = 0; i < len; i++) {
-			
+
 			final String key = in.readUTF();
 			IJsonNode node = SopremoUtil.deserializeNode(in);
 			this.put(key, node.canonicalize());
@@ -147,7 +150,8 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#getEntries()
 	 */
 	@Override
@@ -155,7 +159,8 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		return this.children.entrySet();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#putAll(eu.stratosphere.sopremo.type.JsonObject)
 	 */
 	@Override
@@ -170,7 +175,8 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		return true;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#getFieldNames()
 	 */
 	@Override
@@ -178,7 +184,8 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		return this.children.keySet().iterator();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#iterator()
 	 */
 	@Override
@@ -223,5 +230,10 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 		for (final Entry<String, IJsonNode> entry : clone.children.entrySet())
 			entry.setValue(entry.getValue().clone());
 		return clone;
+	}
+
+	@Override
+	public void clear() {
+		this.removeAll();
 	}
 }

@@ -5,6 +5,9 @@ import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Represents a if-then-else clause.
+ */
 public class TernaryExpression extends EvaluationExpression {
 
 	/**
@@ -14,6 +17,16 @@ public class TernaryExpression extends EvaluationExpression {
 
 	private EvaluationExpression ifClause, ifExpression, thenExpression;
 
+	/**
+	 * Initializes a TernaryExpression with the given {@link EvaluationExpression}s.
+	 * 
+	 * @param ifClause
+	 *        the expression that represents the condition of this {@link TernaryExpression}
+	 * @param ifExpression
+	 *        the expression that should be evaluated if the iFClause evaluation results in {@link BooleanNode.TRUE}
+	 * @param thenExpression
+	 *        the expression that should be evaluated if the iFClause evaluation results in {@link BooleanNode.FALSE}
+	 */
 	public TernaryExpression(final EvaluationExpression ifClause, final EvaluationExpression ifExpression,
 			final EvaluationExpression thenExpression) {
 		this.ifClause = ifClause;
@@ -21,14 +34,33 @@ public class TernaryExpression extends EvaluationExpression {
 		this.thenExpression = thenExpression;
 	}
 
+	/**
+	 * Initializes a TernaryExpression with the given {@link EvaluationExpression}s.
+	 * 
+	 * @param ifClause
+	 *        the expression that represents the condition of this {@link TernaryExpression}
+	 * @param ifExpression
+	 *        the expression that should be evaluated if the iFClause evaluation results in {@link BooleanNode.TRUE}
+	 */
 	public TernaryExpression(final EvaluationExpression ifClause, final EvaluationExpression ifExpression) {
 		this(ifClause, ifExpression, NULL);
 	}
 
+	/**
+	 * Returns the ifClause-expression
+	 * 
+	 * @return the ifClause-expression
+	 */
 	public EvaluationExpression getIfClause() {
 		return this.ifClause;
 	}
 
+	/**
+	 * Sets a new ifClausse-expression
+	 * 
+	 * @param ifClause
+	 *        the expression that should be set as the new ifClause
+	 */
 	public void setIfClause(final EvaluationExpression ifClause) {
 		if (ifClause == null)
 			throw new NullPointerException("ifClause must not be null");
@@ -36,10 +68,21 @@ public class TernaryExpression extends EvaluationExpression {
 		this.ifClause = ifClause;
 	}
 
+	/**
+	 * Returns the ifExpression
+	 * 
+	 * @return the ifExpression
+	 */
 	public EvaluationExpression getIfExpression() {
 		return this.ifExpression;
 	}
 
+	/**
+	 * Sets a new ifExpression
+	 * 
+	 * @param ifExpression
+	 *        the expression that should be set as the new ifExpression
+	 */
 	public void setIfExpression(final EvaluationExpression ifExpression) {
 		if (ifExpression == null)
 			throw new NullPointerException("ifExpression must not be null");
@@ -47,10 +90,21 @@ public class TernaryExpression extends EvaluationExpression {
 		this.ifExpression = ifExpression;
 	}
 
+	/**
+	 * Returns the thenExpression
+	 * 
+	 * @return the thenExpression
+	 */
 	public EvaluationExpression getThenExpression() {
 		return this.thenExpression;
 	}
 
+	/**
+	 * Sets a new thenExpression
+	 * 
+	 * @param thenExpression
+	 *        the expression that should be set as the new thenExpression
+	 */
 	public void setThenExpression(final EvaluationExpression thenExpression) {
 		if (thenExpression == null)
 			throw new NullPointerException("thenExpression must not be null");
@@ -59,10 +113,11 @@ public class TernaryExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, final EvaluationContext context) {
-		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, context), BooleanNode.class) == BooleanNode.TRUE)
-			return this.ifExpression.evaluate(node, context);
-		return this.thenExpression.evaluate(node, context);
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		// TODO Reuse target
+		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, null, context), BooleanNode.class) == BooleanNode.TRUE)
+			return this.ifExpression.evaluate(node, target, context);
+		return this.thenExpression.evaluate(node, target, context);
 	}
 
 	@Override
