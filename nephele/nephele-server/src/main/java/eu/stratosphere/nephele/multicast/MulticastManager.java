@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.multicast;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -57,15 +56,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
-	// Indicates whether topology information is available and will be used in order to construct
-	// the multicast overlay-tree.
-	private final boolean topologyaware;
-
-	private final String penaltyfilepath;
-
-	// Indicates whether penalties for the creation of the tree should be used or not.
-	private final boolean usepenalties;
-
 	// Indicates if the arrangement of nodes within the overlay-tree should be randomized or not.
 	// If set to false, arrangement of the same set of receiver nodes is guaranteed to be the same
 	private final boolean randomized;
@@ -93,9 +83,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 		this.randomized = GlobalConfiguration.getBoolean("multicast.randomize", false);
 		this.treebranching = GlobalConfiguration.getInteger("multicast.branching", 1);
-		this.topologyaware = GlobalConfiguration.getBoolean("multicast.topologyaware", false);
-		this.usepenalties = GlobalConfiguration.getBoolean("multicast.usepenalties", false);
-		this.penaltyfilepath = GlobalConfiguration.getString("multicast.penaltyfile", null);
 		this.usehardcodedtree = GlobalConfiguration.getBoolean("multicast.usehardcodedtree", false);
 		this.hardcodedtreefilepath = GlobalConfiguration.getString("multicast.hardcodedtreefile", null);
 	}
@@ -146,13 +133,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 				return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
 			}
 
-			// Do we want to use penalties from a penalty file?
-			if (this.usepenalties && this.penaltyfilepath != null) {
-				LOG.info("reading penalty file from: " + this.penaltyfilepath);
-				File f = new File(this.penaltyfilepath);
-				readPenalitesFromFile(f, treenodes);
-			}
-
+			// Otherwise we create a default tree and put it into the tree-cache
 			cachedTrees.put(sourceChannelID, createDefaultTree(treenodes, this.treebranching));
 			return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
 
@@ -187,32 +168,19 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 * @return
 	 */
 	private TreeNode getClosestNode(TreeNode indicator, LinkedList<TreeNode> nodes) {
-
-		if (indicator == null || !this.topologyaware && !this.usepenalties) {
+		
+		if (indicator == null) {
 			return nodes.getFirst();
 		}
 
 		TreeNode closestnode = null;
-
-		if (this.topologyaware) {
-			for (TreeNode n : nodes) {
-				if (closestnode == null || n.getDistance(indicator) < closestnode.getDistance(indicator)) {
-					closestnode = n;
-				}
-			}
-		} else if (this.usepenalties) {
-			System.out.println("polling node with lowest penalty...");
-			int actualpenalty = Integer.MAX_VALUE;
-			for (TreeNode n : nodes) {
-				if (closestnode == null || n.getProperty("penalty") < actualpenalty) {
-					actualpenalty = n.getProperty("penalty");
-					closestnode = n;
-				}
+		for (TreeNode n : nodes) {
+			if (closestnode == null || n.getDistance(indicator) < closestnode.getDistance(indicator)) {
+				closestnode = n;
 			}
 		}
-
+		
 		return closestnode;
-
 	}
 
 	/**
@@ -481,46 +449,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 		treenodes.addAll(receivernodes);
 		return treenodes;
 
-	}
-
-	/**
-	 * Auxiliary method that reads penalties for tree nodes from the given file. Expects penalties in format
-	 * <HOSTNAME> <PENALTY_AS_INTEGER>
-	 * and saves the penalty value in the corresponding TreeNode objects within the provided list.
-	 * 
-	 * @param f
-	 * @param nodes
-	 *        List with the nodes
-	 */
-	private void readPenalitesFromFile(File f, List<TreeNode> nodes) {
-		try {
-
-			FileInputStream fstream = new FileInputStream(f);
-			DataInputStream in = new DataInputStream(fstream);
-			BufferedReader br = new BufferedReader(new InputStreamReader(in));
-			String strLine;
-
-			while ((strLine = br.readLine()) != null) {
-
-				String[] values = strLine.split(" ");
-				String actualhostname = values[0];
-				int actualpenalty = Integer.valueOf(values[1]);
-
-				for (TreeNode n : nodes) {
-					if (n.toString().equals(actualhostname)) {
-						System.out.println("set penalty for node: " + n.toString() + " to " + actualpenalty);
-						n.setProperty("penalty", actualpenalty);
-					}
-				}
-
-			}
-
-			br.close();
-			in.close();
-			fstream.close();
-		} catch (Exception e) {
-			System.err.println("Error reading penalty file: " + e.getMessage());
-		}
 	}
 
 }

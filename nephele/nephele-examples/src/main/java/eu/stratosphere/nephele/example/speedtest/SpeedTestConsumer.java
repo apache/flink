@@ -13,43 +13,40 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.example.compression;
+package eu.stratosphere.nephele.example.speedtest;
 
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.nephele.types.FileRecord;
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
 
-public class CompressionTestTask extends AbstractTask {
+/**
+ * This class implements the consumer task of the speed test. The consumer task simply drops all received records.
+ * 
+ * @author warneke
+ */
+public class SpeedTestConsumer extends AbstractOutputTask {
 
-	private RecordReader<FileRecord> input = null;
+	/**
+	 * The record reader used to read the incoming records.
+	 */
+	private MutableRecordReader<SpeedTestRecord> input;
 
-	private RecordWriter<FileRecord> output = null;
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void registerInputOutput() {
 
+		this.input = new MutableRecordReader<SpeedTestRecord>(this);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void invoke() throws Exception {
 
-		while (this.input.hasNext()) {
-
-			// Simply forward the records
-			FileRecord f;
-			try {
-				f = this.input.next();
-				System.err.println("now processing file: " + f.getFileName());
-				this.output.emit(f);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
+		final SpeedTestRecord record = new SpeedTestRecord();
+		while (this.input.next(record)) {
 		}
-
 	}
-
-	@Override
-	public void registerInputOutput() {
-		this.input = new RecordReader<FileRecord>(this, FileRecord.class);
-		this.output = new RecordWriter<FileRecord>(this, FileRecord.class);
-	}
-
 }

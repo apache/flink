@@ -13,24 +13,42 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.util;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
 
 /**
- * Represents a bipartite distribution pattern, i.e. given two distinct sets of vertices A and B, each vertex of set A
- * is wired to every vertex of set B and vice-versa.
- * 
- * @author warneke
+ * @author Stephan Ewen 
  */
-public class BipartiteDistributionPattern implements DistributionPattern {
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean createWire(final int nodeLowerStage, final int nodeUpperStage, final int sizeSetLowerStage,
-			final int sizeSetUpperStage) {
-
-		return true;
+public class AtomicEnumerator<E>
+{
+	private final E[] values;
+	
+	private final AtomicInteger next;
+	
+	
+	public AtomicEnumerator(E[] values)
+	{
+		this.values = values;
+		this.next = new AtomicInteger(0);
 	}
-
+	
+	
+	public E getNext()
+	{
+		int n, nv;
+		do {
+			n = this.next.get();
+			nv = n+1; 
+		} while (!this.next.compareAndSet(n,  nv == this.values.length ? 0 : nv));
+		
+		return this.values[n];
+	}
+	
+	
+	public static final <T> AtomicEnumerator<T> get(T[] values)
+	{
+		return new AtomicEnumerator<T>(values);
+	}
 }

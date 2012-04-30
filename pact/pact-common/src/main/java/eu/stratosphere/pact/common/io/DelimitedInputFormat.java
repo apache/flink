@@ -71,6 +71,8 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	// --------------------------------------------------------------------------------------------
 	
 	private byte[] readBuffer;
+	
+	private byte[] targetBuffer;
 
 	private byte[] wrapBuffer;
 
@@ -110,7 +112,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	 */
 	public byte[] getDelimiter()
 	{
-		return delimiter;
+		return this.delimiter;
 	}
 	
 	/**
@@ -156,7 +158,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 		
 		// set the number of samples
 		this.numLineSamples = DEFAULT_NUM_SAMPLES;
-		String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
+		final String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
 		
 		if (samplesString != null) {
 			try {
@@ -339,6 +341,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
 		this.readBuffer = new byte[this.bufferSize];
 		this.wrapBuffer = new byte[256];
+		this.targetBuffer = new byte[128];
 
 		this.readPos = 0;
 		this.overLimit = false;
@@ -373,12 +376,12 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	@Override
 	public boolean nextRecord(PactRecord record) throws IOException
 	{
-		byte[] line = readLine();
-		if (line == null) {
+		int numBytes = readLine();
+		if (numBytes == -1) {
 			this.end = true;
 			return false;
 		} else {
-			return readRecord(record, line, line.length);
+			return readRecord(record, this.targetBuffer, numBytes);
 		}
 	}
 
@@ -398,9 +401,9 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 
 	// --------------------------------------------------------------------------------------------
 
-	private byte[] readLine() throws IOException {
+	private int readLine() throws IOException {
 		if (this.stream == null || this.overLimit) {
-			return null;
+			return -1;
 		}
 
 		int countInWrapBuffer = 0;
@@ -412,11 +415,11 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			if (this.readPos >= this.limit) {
 				if (!fillBuffer()) {
 					if (countInWrapBuffer > 0) {
-						byte[] tmp = new byte[countInWrapBuffer];
-						System.arraycopy(this.wrapBuffer, 0, tmp, 0, countInWrapBuffer);
-						return tmp;
+						ensureTargetBufferSize(countInWrapBuffer);
+						System.arraycopy(this.wrapBuffer, 0, this.targetBuffer, 0, countInWrapBuffer);
+						return countInWrapBuffer;
 					} else {
-						return null;
+						return -1;
 					}
 				}
 			}
@@ -440,20 +443,19 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 
 				// copy to byte array
 				if (countInWrapBuffer > 0) {
-					byte[] end = new byte[countInWrapBuffer + count];
+					ensureTargetBufferSize(countInWrapBuffer + count);
 					if (count >= 0) {
-						System.arraycopy(this.wrapBuffer, 0, end, 0, countInWrapBuffer);
-						System.arraycopy(this.readBuffer, 0, end, countInWrapBuffer, count);
-						return end;
+						System.arraycopy(this.wrapBuffer, 0, this.targetBuffer, 0, countInWrapBuffer);
+						System.arraycopy(this.readBuffer, 0, this.targetBuffer, countInWrapBuffer, count);
+						return countInWrapBuffer + count;
 					} else {
 						// count < 0
-						System.arraycopy(this.wrapBuffer, 0, end, 0, countInWrapBuffer + count);
-						return end;
+						System.arraycopy(this.wrapBuffer, 0, this.targetBuffer, 0, countInWrapBuffer + count);
+						return countInWrapBuffer + count;
 					}
 				} else {
-					byte[] end = new byte[count];
-					System.arraycopy(this.readBuffer, startPos, end, 0, count);
-					return end;
+					System.arraycopy(this.readBuffer, startPos, this.targetBuffer, 0, count);
+					return count;
 				}
 			} else {
 				count = this.limit - startPos;
@@ -490,6 +492,13 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			this.readPos = 0;
 			this.limit = read;
 			return true;
+		}
+	}
+	
+	private final void ensureTargetBufferSize(int minSize)
+	{
+		if (this.targetBuffer.length < minSize) {
+			this.targetBuffer = new byte[minSize];
 		}
 	}
 }

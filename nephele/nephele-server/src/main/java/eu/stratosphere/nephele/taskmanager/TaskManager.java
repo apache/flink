@@ -15,11 +15,13 @@
 
 package eu.stratosphere.nephele.taskmanager;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +29,9 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -101,6 +106,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	private final ChannelLookupProtocol lookupService;
 
 	private final PluginCommunicationProtocol pluginCommunicationService;
+
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 	private static final int handlerCount = 1;
 
@@ -273,7 +280,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Get the directory for storing temporary files
 		final String[] tmpDirPaths = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
+														ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
+		checkTempDirs(tmpDirPaths);
 
 		// Initialize the byte buffered channel manager
 		ByteBufferedChannelManager byteBufferedChannelManager = null;
@@ -412,8 +420,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			return taskCancelResult;
 		}
 
-		// Execute call in a new thread so IPC thread can return immediately
-		final Thread tmpThread = new Thread(new Runnable() {
+		// Pass call to executor service so IPC thread can return immediately
+		final Runnable r = new Runnable() {
 
 			@Override
 			public void run() {
@@ -421,8 +429,9 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 				// Finally, request user code to cancel
 				task.cancelExecution();
 			}
-		});
-		tmpThread.start();
+		};
+
+		this.executorService.execute(r);
 
 		return new TaskCancelResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
 	}
@@ -442,8 +451,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			return taskKillResult;
 		}
 
-		// Execute call in a new thread so IPC thread can return immediately
-		final Thread tmpThread = new Thread(new Runnable() {
+		// Pass call to executor service so IPC thread can return immediately
+		final Runnable r = new Runnable() {
 
 			@Override
 			public void run() {
@@ -451,8 +460,9 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 				// Finally, request user code to cancel
 				task.killExecution();
 			}
-		});
-		tmpThread.start();
+		};
+
+		this.executorService.execute(r);
 
 		return new TaskKillResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
 	}
@@ -804,6 +814,18 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			this.memoryManager.shutdown();
 		}
 
+		// Shut down the executor service
+		if (this.executorService != null) {
+			this.executorService.shutdown();
+			try {
+				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
+			} catch (InterruptedException e) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(StringUtils.stringifyException(e));
+				}
+			}
+		}
+
 		// Shut down the plugins
 		final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
 		while (it.hasNext()) {
@@ -847,12 +869,14 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	@Override
 	public void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException {
 
-		final Thread checkpointRemovalThread = new Thread("Checkpoint removal thread") {
+		final List<ExecutionVertexID> threadSafeList = Collections.unmodifiableList(listOfVertexIDs);
+
+		final Runnable r = new Runnable() {
 
 			@Override
 			public void run() {
 
-				final Iterator<ExecutionVertexID> it = listOfVertexIDs.iterator();
+				final Iterator<ExecutionVertexID> it = threadSafeList.iterator();
 				while (it.hasNext()) {
 
 					final ExecutionVertexID vertexID = it.next();
@@ -865,7 +889,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			}
 		};
 
-		checkpointRemovalThread.start();
+		this.executorService.execute(r);
 	}
 
 	/**
@@ -972,5 +996,33 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		}
 
 		return tmp.requestData(data);
+	}
+	
+	/**
+	 * Checks, whether the given strings describe existing directories that are writable. If that is not
+	 * the case, an exception is raised.
+	 * 
+	 * @param tempDirs An array of strings which are checked to be paths to writable directories.
+	 * @throws Exception Thrown, if any of the mentioned checks fails.
+	 */
+	private static final void checkTempDirs(String[] tempDirs) throws Exception
+	{
+		for (int i = 0; i < tempDirs.length; i++) {
+			final String dir = tempDirs[i];
+			if (dir == null) {
+				throw new Exception("Temporary file directory #" + (i+1) + " is null.");
+			}
+			
+			final File f = new File(dir);
+			if (!f.exists()) {
+				throw new Exception("Temporary file directory #" + (i+1) + " does not exist.");
+			}
+			if (!f.isDirectory()) {
+				throw new Exception("Temporary file directory #" + (i+1) + " is not a directory.");
+			}
+			if (!f.canWrite()) {
+				throw new Exception("Temporary file directory #" + (i+1) + " is not writable.");
+			}
+		}
 	}
 }

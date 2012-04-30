@@ -13,37 +13,56 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.example.speedtest;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import eu.stratosphere.nephele.types.Record;
 
 /**
- * Represents a point-wise distribution pattern, i.e. given two distinct equally-sized sets of vertices A and B, each
- * vertex of set A
- * is wired to exactly one vertex of set B. If one of the sets is larger than the other vertices from the smaller set
- * may receive more than
- * wire.
+ * This class implements the record type used for the speed test.
  * 
  * @author warneke
  */
-public class PointwiseDistributionPattern implements DistributionPattern {
+public final class SpeedTestRecord implements Record {
+
+	/**
+	 * The size of a single record in bytes.
+	 */
+	static final int RECORD_SIZE = 128;
+
+	/**
+	 * The byte buffer which actually stored the record's data.
+	 */
+	private final byte[] buf = new byte[RECORD_SIZE];
+
+	/**
+	 * Constructs a new record and initializes it.
+	 */
+	public SpeedTestRecord() {
+
+		for (int i = 0; i < RECORD_SIZE; ++i) {
+			this.buf[i] = (byte) (i % 128);
+		}
+	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean createWire(final int nodeLowerStage, final int nodeUpperStage, final int sizeSetLowerStage,
-			final int sizeSetUpperStage) {
+	public void write(final DataOutput out) throws IOException {
 
-		if (sizeSetLowerStage < sizeSetUpperStage) {
-			if (nodeLowerStage == (nodeUpperStage % sizeSetLowerStage)) {
-				return true;
-			}
-		} else {
-			if ((nodeLowerStage % sizeSetUpperStage) == nodeUpperStage) {
-				return true;
-			}
-		}
-
-		return false;
+		out.write(this.buf);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void read(final DataInput in) throws IOException {
+
+		in.readFully(this.buf);
+	}
 }

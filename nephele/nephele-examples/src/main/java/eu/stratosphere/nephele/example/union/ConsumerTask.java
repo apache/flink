@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.example.union;
 
-import eu.stratosphere.nephele.io.PointwiseDistributionPattern;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractFileOutputTask;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -27,7 +26,7 @@ public class ConsumerTask extends AbstractFileOutputTask {
 	@Override
 	public void registerInputOutput() {
 
-		this.input = new RecordReader<StringRecord>(this, StringRecord.class, new PointwiseDistributionPattern());
+		this.input = new RecordReader<StringRecord>(this, StringRecord.class);
 
 	}
 

@@ -19,7 +19,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 
-import eu.stratosphere.nephele.io.BipartiteDistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 
@@ -56,7 +55,7 @@ public class BroadcastConsumer extends AbstractOutputTask {
 	@Override
 	public void registerInputOutput() {
 
-		this.input = new MutableRecordReader<BroadcastRecord>(this, new BipartiteDistributionPattern());
+		this.input = new MutableRecordReader<BroadcastRecord>(this);
 	}
 
 	/**

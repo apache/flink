@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
-import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
@@ -92,8 +91,7 @@ public class MockEnvironment extends RuntimeEnvironment
 
 	@Override
 	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer,
-			final DistributionPattern distributionPattern) {
+			final RecordDeserializer<? extends Record> deserializer) {
 
 		return this.inputs.remove(0);
 	}
@@ -110,7 +108,7 @@ public class MockEnvironment extends RuntimeEnvironment
 		private MutableObjectIterator<PactRecord> it;
 
 		public MockInputGate(int id, MutableObjectIterator<PactRecord> it) {
-			super(new JobID(), new GateID(), new DefaultRecordDeserializer<PactRecord>(PactRecord.class), id, null);
+			super(new JobID(), new GateID(), new DefaultRecordDeserializer<PactRecord>(PactRecord.class), id);
 			this.it = it;
 		}
 

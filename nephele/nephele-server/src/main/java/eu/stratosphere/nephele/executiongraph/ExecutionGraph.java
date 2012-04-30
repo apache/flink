@@ -166,7 +166,8 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @throws GraphConversionException
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
-	public ExecutionGraph(final JobGraph job, final InstanceManager instanceManager) throws GraphConversionException {
+	public ExecutionGraph(final JobGraph job, final InstanceManager instanceManager)
+																					throws GraphConversionException {
 		this(job.getJobID(), job.getName(), job.getJobConfiguration());
 
 		// Start constructing the new execution graph from given job graph
@@ -363,7 +364,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 			// Connect the corresponding group vertices and copy the user settings from the job edge
 			ev.getGroupVertex().wireTo(executionTarget.getGroupVertex(), edge.getIndexOfInputGate(), j, channelType,
-				userDefinedChannelType, compressionLevel, userDefinedCompressionLevel);
+				userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, edge.getDistributionPattern());
 
 		}
 	}
@@ -411,8 +412,7 @@ public class ExecutionGraph implements ExecutionListener {
 		for (int i = 0; i < target.getCurrentNumberOfGroupMembers(); i++) {
 
 			final ExecutionVertex targetVertex = target.getGroupMember(i);
-			final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(
-				indexOfInputGate);
+			final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(indexOfInputGate);
 			if (inputGate == null) {
 				throw new GraphConversionException("unwire: " + targetVertex.getName()
 					+ " has no input gate with index " + indexOfInputGate);
@@ -462,8 +462,9 @@ public class ExecutionGraph implements ExecutionListener {
 				}
 
 				// Check if a wire is supposed to be created
-				if (inputGate.getDistributionPattern().createWire(i, j, source.getCurrentNumberOfGroupMembers(),
-					target.getCurrentNumberOfGroupMembers())) {
+				if (DistributionPatternProvider.createWire(source.getForwardEdge(indexOfOutputGate)
+					.getDistributionPattern(), i, j, source.getCurrentNumberOfGroupMembers(), target
+					.getCurrentNumberOfGroupMembers())) {
 					createChannel(sourceVertex, outputGate, targetVertex, inputGate, channelType, compressionLevel);
 				}
 
@@ -481,8 +482,8 @@ public class ExecutionGraph implements ExecutionListener {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void createChannel(final ExecutionVertex source, final OutputGate<? extends Record> outputGate,
-			final ExecutionVertex target, final InputGate<? extends Record> inputGate,
-			final ChannelType channelType, final CompressionLevel compressionLevel) throws GraphConversionException {
+			final ExecutionVertex target, final InputGate<? extends Record> inputGate, final ChannelType channelType,
+			final CompressionLevel compressionLevel) throws GraphConversionException {
 
 		AbstractOutputChannel<? extends Record> outputChannel;
 		AbstractInputChannel<? extends Record> inputChannel;
@@ -556,9 +557,9 @@ public class ExecutionGraph implements ExecutionListener {
 
 		// Create a group vertex for the job vertex
 		final ExecutionGroupVertex groupVertex = new ExecutionGroupVertex(jobVertex.getName(), jobVertex.getID(), this,
-			jobVertex.getNumberOfSubtasks(), instanceType, userDefinedInstanceType, jobVertex
-				.getNumberOfSubtasksPerInstance(), jobVertex.getVertexToShareInstancesWith() != null ? true : false,
-			jobVertex.getNumberOfExecutionRetries(), jobVertex.getConfiguration(), signature);
+			jobVertex.getNumberOfSubtasks(), instanceType, userDefinedInstanceType,
+			jobVertex.getNumberOfSubtasksPerInstance(), jobVertex.getVertexToShareInstancesWith() != null ? true
+				: false, jobVertex.getNumberOfExecutionRetries(), jobVertex.getConfiguration(), signature);
 		// Create an initial execution vertex for the job vertex
 		final Class<? extends AbstractInvokable> invokableClass = jobVertex.getInvokableClass();
 		if (invokableClass == null) {
@@ -571,8 +572,8 @@ public class ExecutionGraph implements ExecutionListener {
 
 		ExecutionVertex ev = null;
 		try {
-			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this,
-				groupVertex, jobConfiguration);
+			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this, groupVertex,
+				jobConfiguration);
 		} catch (Throwable t) {
 			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
@@ -627,12 +628,11 @@ public class ExecutionGraph implements ExecutionListener {
 			// let the task code compute the input splits
 			if (ev.getEnvironment().getInvokable() instanceof AbstractInputTask) {
 				try {
-					inputSplits = ((AbstractInputTask<?>) ev.getEnvironment().getInvokable()).
-						computeInputSplits(jobVertex.getNumberOfSubtasks());
+					inputSplits = ((AbstractInputTask<?>) ev.getEnvironment().getInvokable())
+						.computeInputSplits(jobVertex.getNumberOfSubtasks());
 				} catch (Exception e) {
 					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName()
-						+ ": "
-						+ StringUtils.stringifyException(e));
+						+ ": " + StringUtils.stringifyException(e));
 				}
 			} else {
 				throw new GraphConversionException(
