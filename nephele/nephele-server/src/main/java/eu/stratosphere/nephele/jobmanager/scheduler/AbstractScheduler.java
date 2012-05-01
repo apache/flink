@@ -36,6 +36,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionPipeline;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
@@ -194,9 +195,9 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 			if (instance instanceof DummyInstance) {
 				LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
-						+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
-						+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
-						+ ") is about to be deployed on a DummyInstance");
+					+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
+					+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
+					+ ") is about to be deployed on a DummyInstance");
 			}
 
 			List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
@@ -235,7 +236,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 				for (int j = 0; j < numberOfOutputChannels; ++j) {
 					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
 					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
-							outputChannel.getConnectedChannelID());
+						outputChannel.getConnectedChannelID());
 					findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed, alreadyVisited);
 				}
 			}
@@ -257,6 +258,39 @@ public abstract class AbstractScheduler implements InstanceListener {
 		final Set<ExecutionVertex> alreadyVisited = new HashSet<ExecutionVertex>();
 
 		findVerticesToBeDeployed(startVertex, verticesToBeDeployed, alreadyVisited);
+
+		if (!verticesToBeDeployed.isEmpty()) {
+
+			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
+				.entrySet()
+				.iterator();
+
+			while (it2.hasNext()) {
+
+				final Map.Entry<AbstractInstance, List<ExecutionVertex>> entry = it2.next();
+				this.deploymentManager.deploy(jobID, entry.getKey(), entry.getValue());
+			}
+		}
+	}
+
+	/**
+	 * Collects all execution vertices with the state ASSIGNED from the given pipeline and deploys them on the assigned
+	 * {@link AllocatedResource} objects.
+	 * 
+	 * @param pipeline
+	 *        the execution pipeline to be deployed
+	 */
+	public void deployAssignedPipeline(final ExecutionPipeline pipeline) {
+
+		final JobID jobID = null;
+
+		final Map<AbstractInstance, List<ExecutionVertex>> verticesToBeDeployed = new HashMap<AbstractInstance, List<ExecutionVertex>>();
+		final Set<ExecutionVertex> alreadyVisited = new HashSet<ExecutionVertex>();
+
+		final Iterator<ExecutionVertex> it = pipeline.iterator();
+		while (it.hasNext()) {
+			findVerticesToBeDeployed(it.next(), verticesToBeDeployed, alreadyVisited);
+		}
 
 		if (!verticesToBeDeployed.isEmpty()) {
 
@@ -298,8 +332,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 		if (!verticesToBeDeployed.isEmpty()) {
 
 			final Iterator<Map.Entry<AbstractInstance, List<ExecutionVertex>>> it2 = verticesToBeDeployed
-					.entrySet()
-					.iterator();
+				.entrySet()
+				.iterator();
 
 			while (it2.hasNext()) {
 
@@ -472,7 +506,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 		}
 
 		final List<ExecutionVertex> assignedVertices = executionGraph
-				.getVerticesAssignedToResource(allocatedResource);
+			.getVerticesAssignedToResource(allocatedResource);
 		if (assignedVertices.isEmpty()) {
 			return;
 		}
@@ -484,7 +518,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			final ExecutionState state = vertex.getExecutionState();
 
 			if (state != ExecutionState.CREATED && state != ExecutionState.FINISHED
-					&& state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
+				&& state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
 
 				resourceCanBeReleased = false;
 				break;
@@ -496,7 +530,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			LOG.info("Releasing instance " + allocatedResource.getInstance());
 			try {
 				getInstanceManager().releaseAllocatedResource(executionGraph.getJobID(), executionGraph
-						.getJobConfiguration(), allocatedResource);
+					.getJobConfiguration(), allocatedResource);
 			} catch (InstanceException e) {
 				LOG.error(StringUtils.stringifyException(e));
 			}
