@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.services.iomanager.BlockChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
+import eu.stratosphere.nephele.services.iomanager.Channel.ID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -101,7 +102,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	/**
 	 * The thread that handles spilling to secondary storage.
 	 */
-	private final SpillingThread spillThread;
+	private final ThreadBase<E> spillThread;
 	
 	// ------------------------------------------------------------------------
 	//                                   Memory
@@ -126,6 +127,16 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	// ------------------------------------------------------------------------
 	//                            Miscellaneous Fields
 	// ------------------------------------------------------------------------
+	
+	/**
+	 * Collection of all currently open channels, to be closed and deleted during cleanup.
+	 */
+	private final HashSet<BlockChannelAccess<?, ?>> openChannels;
+	
+	/**
+	 * Collection of all temporary files created and to be removed when closing the sorter.
+	 */
+	private final HashSet<Channel.ID> channelsToDeleteAtShutdown;
 	
 	/**
 	 * The monitor which guards the iterator field.
@@ -156,9 +167,6 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 * Creates a new sorter that reads the data from a given reader and provides an iterator returning that
 	 * data in a sorted manner. The memory is divided among sort buffers, write buffers and read buffers
 	 * automatically.
-	 * <p>
-	 * WARNING: The given comparator is used simultaneously in multiple threads (the sorting thread and the merging
-	 * thread). Make sure that the given comparator is stateless and does not make use of member variables.
 	 * 
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
@@ -189,9 +197,6 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 * Creates a new sorter that reads the data from a given reader and provides an iterator returning that
 	 * data in a sorted manner. The memory is divided among sort buffers, write buffers and read buffers
 	 * automatically.
-	 * <p>
-	 * WARNING: The given comparator is used simultaneously in multiple threads (the sorting thread and the merging
-	 * thread). Make sure that the given comparator is stateless and does not make use of member variables.
 	 * 
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
@@ -216,8 +221,40 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
+		this(memoryManager, ioManager, input, parentTask, serializer, comparator,
+			totalMemory, numSortBuffers, maxNumFileHandles, startSpillingFraction, false);
+	}
+	
+	/**
+	 * Internal constructor and constructor for subclasses that want to circumvent the spilling.
+	 * 
+	 * @param memoryManager The memory manager from which to allocate the memory.
+	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
+	 * @param input The input that is sorted by this sorter.
+	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param serializer The type serializer.
+	 * @param comparator The type comparator establishing the order relation.
+	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
+	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
+	 * @param maxNumFileHandles The maximum number of files to be merged at once.
+	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
+	 *                              actually begins spilling data to disk.
+	 * @param noSpilling When set to true, no memory will be allocated for writing and no spilling thread
+	 *                   will be spawned.
+	 * 
+	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
+	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
+	 *                                   perform the sort.
+	 */
+	protected UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
+			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
+			TypeSerializers<E> serializer, TypeComparator<E> comparator,
+			long totalMemory, int numSortBuffers, int maxNumFileHandles, 
+			float startSpillingFraction, boolean noSpillingMemory)
+	throws IOException, MemoryAllocationException
+	{
 		// sanity checks
-		if (memoryManager == null | ioManager == null | serializer == null | comparator == null) {
+		if (memoryManager == null | (ioManager == null && !noSpillingMemory) | serializer == null | comparator == null) {
 			throw new NullPointerException();
 		}
 		if (parentTask == null) {
@@ -238,30 +275,35 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				"Required are at least " + (MIN_NUM_WRITE_BUFFERS + MIN_NUM_SORT_MEM_SEGMENTS) + 
 				" pages. Current page size is " + memoryManager.getPageSize() + " bytes.");
 		}
-				
-		// determine how many buffers we have when we do a full mere with maximal fan-in 
-		final int minBuffers = MIN_NUM_WRITE_BUFFERS + maxNumFileHandles;
-		final int desiredBuffers = MIN_NUM_WRITE_BUFFERS + 2 * maxNumFileHandles;
-		final int numWriteBuffers;
 		
-		if (desiredBuffers > numPagesTotal) {
-			numWriteBuffers = MIN_NUM_WRITE_BUFFERS;
-			if (minBuffers > numPagesTotal) {
-				maxNumFileHandles = numPagesTotal - MIN_NUM_WRITE_BUFFERS;
-				if (LOG.isWarnEnabled()) {
-					LOG.warn("Reducing maximal merge fan-in to " + maxNumFileHandles + " due to limited memory availability during merge");
+		// determine how many buffers to use for writing
+		final int numWriteBuffers;
+		if (noSpillingMemory) {
+			numWriteBuffers = 0;
+		} else {
+			// determine how many buffers we have when we do a full mere with maximal fan-in 
+			final int minBuffers = MIN_NUM_WRITE_BUFFERS + maxNumFileHandles;
+			final int desiredBuffers = MIN_NUM_WRITE_BUFFERS + 2 * maxNumFileHandles;
+			
+			if (desiredBuffers > numPagesTotal) {
+				numWriteBuffers = MIN_NUM_WRITE_BUFFERS;
+				if (minBuffers > numPagesTotal) {
+					maxNumFileHandles = numPagesTotal - MIN_NUM_WRITE_BUFFERS;
+					if (LOG.isWarnEnabled()) {
+						LOG.warn("Reducing maximal merge fan-in to " + maxNumFileHandles + " due to limited memory availability during merge");
+					}
 				}
 			}
-		}
-		else {
-			// we are free to choose. make sure that we do not eat up too much memory for writing
-			final int designatedWriteBuffers = numPagesTotal / (maxNumFileHandles + 1);
-			final int fractional = numPagesTotal / 64;
-			final int maximal = numPagesTotal - MIN_NUM_SORT_MEM_SEGMENTS;
-			
-			numWriteBuffers = Math.max(MIN_NUM_WRITE_BUFFERS,	// at least the lower bound
-				Math.min(Math.min(MAX_NUM_WRITE_BUFFERS, maximal), 		// at most the lower of the upper bounds
-				Math.min(designatedWriteBuffers, fractional)));			// the lower of the average
+			else {
+				// we are free to choose. make sure that we do not eat up too much memory for writing
+				final int designatedWriteBuffers = numPagesTotal / (maxNumFileHandles + 1);
+				final int fractional = numPagesTotal / 64;
+				final int maximal = numPagesTotal - MIN_NUM_SORT_MEM_SEGMENTS;
+				
+				numWriteBuffers = Math.max(MIN_NUM_WRITE_BUFFERS,	// at least the lower bound
+					Math.min(Math.min(MAX_NUM_WRITE_BUFFERS, maximal), 		// at most the lower of the upper bounds
+					Math.min(designatedWriteBuffers, fractional)));			// the lower of the average
+			}
 		}
 		
 		final int sortMemPages = numPagesTotal - numWriteBuffers;
@@ -294,15 +336,21 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		
 		// allocate the memory
 		memoryManager.allocatePages(parentTask, this.writeMemory, numWriteBuffers);
-		memoryManager.allocatePages(parentTask, this.sortReadMemory, numSortBuffers);
+		memoryManager.allocatePages(parentTask, this.sortReadMemory, sortMemPages);
 		
 		// circular queues pass buffers between the threads
 		final CircularQueues<E> circularQueues = new CircularQueues<E>();
 		
 		// allocate the sort buffers and fill empty queue with them
+		final Iterator<MemorySegment> segments = this.sortReadMemory.iterator();
 		for (int i = 0; i < numSortBuffers; i++)
 		{
-			final List<MemorySegment> sortSegments = memoryManager.allocatePages(parentTask, numSegmentsPerSortBuffer);
+			// grab some memory
+			final List<MemorySegment> sortSegments = new ArrayList<MemorySegment>(numSegmentsPerSortBuffer);
+			for (int k = (i == numSortBuffers - 1 ? Integer.MAX_VALUE : numSegmentsPerSortBuffer); k > 0 && segments.hasNext(); k--) {
+				sortSegments.add(segments.next());
+			}
+			
 			final TypeComparator<E> comp = comparator.duplicate();
 			final NormalizedKeySorter<E> buffer = new NormalizedKeySorter<E>(serializer, comp, sortSegments);
 
@@ -321,6 +369,10 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				}
 			}
 		};
+		
+		// create sets that track the channels we need to clean up when closing the sorter
+		this.channelsToDeleteAtShutdown = new HashSet<Channel.ID>(64);
+		this.openChannels = new HashSet<BlockChannelAccess<?,?>>(64);
 
 		// start the thread that reads the input channels
 		this.readThread = getReadingThread(exceptionHandler, input, circularQueues, parentTask,
@@ -331,8 +383,8 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 
 		// start the thread that handles spilling to secondary storage
 		this.spillThread = getSpillingThread(exceptionHandler, circularQueues, parentTask, 
-			memoryManager, ioManager, serializer, comparator, this.sortReadMemory, this.writeMemory, 
-			maxNumFileHandles);
+				memoryManager, ioManager, serializer, comparator, this.sortReadMemory, this.writeMemory, 
+				maxNumFileHandles);
 		
 		startThreads();
 	}
@@ -342,10 +394,12 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 */
 	protected void startThreads()
 	{
-		// start threads
-		this.readThread.start();
-		this.sortThread.start();
-		this.spillThread.start();
+		if (this.readThread != null)
+			this.readThread.start();
+		if (this.sortThread != null)
+			this.sortThread.start();
+		if (this.spillThread != null)
+			this.spillThread.start();
 	}
 
 	/**
@@ -445,8 +499,33 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 			}
 			catch (Throwable t) {}
 			
-			if (this.spillThread != null) {
-				this.spillThread.closeAndDeleteAllChannels();
+			// we have to loop this, because it may fail with a concurrent modification exception
+			while (!this.openChannels.isEmpty()) {
+				try {
+					for (Iterator<BlockChannelAccess<?, ?>> channels = this.openChannels.iterator(); channels.hasNext(); ) {
+						final BlockChannelAccess<?, ?> channel = channels.next();
+						channels.remove();
+						channel.closeAndDelete();
+					}
+				}
+				catch (Throwable t) {}
+			}
+			
+			// we have to loop this, because it may fail with a concurrent modification exception
+			while (!this.channelsToDeleteAtShutdown.isEmpty()) {
+				try {
+					for (Iterator<Channel.ID> channels = this.channelsToDeleteAtShutdown.iterator(); channels.hasNext(); ) {
+						final Channel.ID channel = channels.next();
+						channels.remove();
+						try {
+							final File f = new File(channel.getPath());
+							if (f.exists()) {
+								f.delete();
+							}
+						} catch (Throwable t) {}
+					}
+				}
+				catch (Throwable t) {}
 			}
 		}
 	}
@@ -519,7 +598,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 * @param parentTask The task at which the thread registers itself (for profiling purposes).
 	 * @return The thread that does the spilling and pre-merging.
 	 */
-	protected SpillingThread getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
+	protected ThreadBase<E> getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 			AbstractInvokable parentTask, MemoryManager memoryManager, IOManager ioManager, 
 			TypeSerializers<E> serializer, TypeComparator<E> comparator,
 			List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxFileHandles)
@@ -606,7 +685,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 * 
 	 * @return The element that is passed as marker for the end of data.
 	 */
-	protected static <T> CircularElement<T> getEndMarker()
+	protected static <T> CircularElement<T> endMarker()
 	{
 		@SuppressWarnings("unchecked")
 		CircularElement<T> c = (CircularElement<T>) EOF_MARKER;
@@ -618,7 +697,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 * 
 	 * @return The element that is passed as marker for signal beginning of spilling.
 	 */
-	protected static <T> CircularElement<T> getSpillingMarker()
+	protected static <T> CircularElement<T> spillingMarker()
 	{
 		@SuppressWarnings("unchecked")
 		CircularElement<T> c = (CircularElement<T>) SPILLING_MARKER;
@@ -861,7 +940,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				bytesUntilSpilling = 0;
 				
 				// add the spilling marker
-				this.queues.sort.add(UnilateralSortMerger.<E>getSpillingMarker());
+				this.queues.sort.add(UnilateralSortMerger.<E>spillingMarker());
 			}
 
 			// now loop until all channels have no more input data
@@ -919,7 +998,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 							bytesUntilSpilling = 0;
 							
 							// send the spilling marker
-							final CircularElement<E> SPILLING_MARKER = getSpillingMarker();
+							final CircularElement<E> SPILLING_MARKER = spillingMarker();
 							this.queues.sort.add(SPILLING_MARKER);
 							
 							// we drop out of this loop and continue with the loop that
@@ -936,7 +1015,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 							if (bytesUntilSpilling <= 0) {
 								bytesUntilSpilling = 0;
 								// send the spilling marker
-								final CircularElement<E> SPILLING_MARKER = getSpillingMarker();
+								final CircularElement<E> SPILLING_MARKER = spillingMarker();
 								this.queues.sort.add(SPILLING_MARKER);
 							}
 						}
@@ -957,7 +1036,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 					if (bytesUntilSpilling <= 0) {
 						bytesUntilSpilling = 0;
 						// send the spilling marker
-						final CircularElement<E> SPILLING_MARKER = getSpillingMarker();
+						final CircularElement<E> SPILLING_MARKER = spillingMarker();
 						this.queues.sort.add(SPILLING_MARKER);
 					}
 				}
@@ -1002,7 +1081,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 
 			// add the sentinel to notify the receivers that the work is done
 			// send the EOF marker
-			final CircularElement<E> EOF_MARKER = getEndMarker();
+			final CircularElement<E> EOF_MARKER = endMarker();
 			this.queues.sort.add(EOF_MARKER);
 			LOG.debug("Reading thread done.");
 		}
@@ -1080,11 +1159,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 * channels until sufficiently few channels remain to perform the final streamed merge. 
 	 */
 	protected class SpillingThread extends ThreadBase<E>
-	{
-		private final HashSet<BlockChannelAccess<?, ?>> openChannels;
-		
-		private final HashSet<Channel.ID> channelsToDeleteAtShutdown;
-		
+	{		
 		protected final MemoryManager memManager;			// memory manager to release memory
 		
 		protected final IOManager ioManager;				// I/O manager to create channels
@@ -1126,9 +1201,6 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 			this.writeMemory = writeMemory;
 			this.maxNumFileHandles = maxNumFileHandles;
 			this.numWriteBuffersToCluster = writeMemory.size() >= 4 ? writeMemory.size() / 2 : 1;
-			
-			this.channelsToDeleteAtShutdown = new HashSet<Channel.ID>(64);
-			this.openChannels = new HashSet<BlockChannelAccess<?,?>>(64);
 		}
 
 		/**
@@ -1201,7 +1273,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 			// ------------------- Spilling Phase ------------------------
 			
 			final Channel.Enumerator enumerator = this.ioManager.createChannelEnumerator();			
-			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
+			List<ChannelWithBlockCount> channelIDs = new ArrayList<ChannelWithBlockCount>();
 
 			
 			// loop as long as the thread is marked alive and we do not see the final element
@@ -1229,7 +1301,6 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				
 				// open next channel
 				Channel.ID channel = enumerator.next();
-				channelIDs.add(channel);
 				registerChannelToBeRemovedAtShudown(channel);
 
 				// create writer
@@ -1248,6 +1319,8 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 
 				output.close();
 				unregisterOpenChannelToBeRemovedAtShudown(writer);
+				
+				channelIDs.add(new ChannelWithBlockCount(channel, output.getBlockCount()));
 
 				// pass empty sort-buffer to reading thread
 				element.buffer.reset();
@@ -1347,7 +1420,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		 * @return An iterator over the merged records of the input channels.
 		 * @throws IOException Thrown, if the readers encounter an I/O problem.
 		 */
-		protected final MergeIterator<E> getMergingIterator(final List<Channel.ID> channelIDs,
+		protected final MergeIterator<E> getMergingIterator(final List<ChannelWithBlockCount> channelIDs,
 			final List<List<MemorySegment>> inputSegments, List<BlockChannelAccess<?, ?>> readerList)
 		throws IOException
 		{
@@ -1358,20 +1431,21 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 			final List<MutableObjectIterator<E>> iterators = new ArrayList<MutableObjectIterator<E>>(channelIDs.size());
 			
 			for (int i = 0; i < channelIDs.size(); i++) {
-				final Channel.ID id = channelIDs.get(i);
+				final ChannelWithBlockCount channel = channelIDs.get(i);
 				final List<MemorySegment> segsForChannel = inputSegments.get(i);
 				
 				// create a reader. if there are multiple segments for the reader, issue multiple together per I/O request
 				final BlockChannelReader reader = segsForChannel.size() >= 4 ? 
-					this.ioManager.createBlockChannelReader(id, segsForChannel.size() / 2) :
-					this.ioManager.createBlockChannelReader(id);
+					this.ioManager.createBlockChannelReader(channel.getChannel(), segsForChannel.size() / 2) :
+					this.ioManager.createBlockChannelReader(channel.getChannel());
 					
 				readerList.add(reader);
 				registerOpenChannelToBeRemovedAtShudown(reader);
-				unregisterChannelToBeRemovedAtShudown(id);
+				unregisterChannelToBeRemovedAtShudown(channel.getChannel());
 				
 				// wrap channel reader as a view, to get block spanning record deserialization
-				final ChannelReaderInputView inView = new ChannelReaderInputView(reader, segsForChannel, false);
+				final ChannelReaderInputView inView = new ChannelReaderInputView(reader, segsForChannel, 
+																			channel.getBlockCount(), false);
 				iterators.add(new ChannelReaderInputViewIterator<E>(inView, null, this.serializer));
 			}
 
@@ -1390,7 +1464,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		 * @throws MemoryAllocationException Thrown, if the specified memory is insufficient to merge the channels
 		 *                                   or if the memory manager could not provide the requested memory.
 		 */
-		protected final List<Channel.ID> mergeChannelList(final List<Channel.ID> channelIDs,
+		protected final List<ChannelWithBlockCount> mergeChannelList(final List<ChannelWithBlockCount> channelIDs,
 					final List<MemorySegment> allReadBuffers, final List<MemorySegment> writeBuffers)
 		throws IOException, MemoryAllocationException
 		{
@@ -1402,9 +1476,9 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 			getSegmentsForReaders(readBuffers, allReadBuffers, channelsToMergePerStep);
 			
 			// the list containing the IDs of the merged channels
-			final ArrayList<Channel.ID> mergedChannelIDs = new ArrayList<Channel.ID>((int) (numMerges + 1));
+			final ArrayList<ChannelWithBlockCount> mergedChannelIDs = new ArrayList<ChannelWithBlockCount>((int) (numMerges + 1));
 
-			final ArrayList<Channel.ID> channelsToMergeThisStep = new ArrayList<Channel.ID>(channelsToMergePerStep);
+			final ArrayList<ChannelWithBlockCount> channelsToMergeThisStep = new ArrayList<ChannelWithBlockCount>(channelsToMergePerStep);
 			int channelNum = 0;
 			while (isRunning() && channelNum < channelIDs.size()) {
 				channelsToMergeThisStep.clear();
@@ -1432,14 +1506,14 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		 * @param channelIDs The IDs of the runs' channels.
 		 * @param readBuffers The buffers for the readers that read the sorted runs.
 		 * @param writeBuffers The buffers for the writer that writes the merged channel.
-		 * @return The ID of the channel that describes the merged run.
+		 * @return The ID and number of blocks of the channel that describes the merged run.
 		 */
-		protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, List<List<MemorySegment>> readBuffers,
+		protected ChannelWithBlockCount mergeChannels(List<ChannelWithBlockCount> channelIDs, List<List<MemorySegment>> readBuffers,
 				List<MemorySegment> writeBuffers)
 		throws IOException
 		{
 			// the list with the readers, to be closed at shutdown
-			List<BlockChannelAccess<?, ?>> channelAccesses = new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size());
+			final List<BlockChannelAccess<?, ?>> channelAccesses = new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size());
 
 			// the list with the target iterators
 			final MergeIterator<E> mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
@@ -1460,6 +1534,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				serializer.serialize(rec, output);
 			}
 			output.close();
+			final int numBlocksWritten = output.getBlockCount();
 			
 			// register merged result to be removed at shutdown
 			unregisterOpenChannelToBeRemovedAtShudown(writer);
@@ -1471,7 +1546,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				unregisterOpenChannelToBeRemovedAtShudown(access);
 			}
 
-			return mergedChannelID;
+			return new ChannelWithBlockCount(mergedChannelID, numBlocksWritten);
 		}
 		
 		/**
@@ -1523,7 +1598,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		 * @param s The channel id.
 		 */
 		protected void registerChannelToBeRemovedAtShudown(Channel.ID channel) {
-			this.channelsToDeleteAtShutdown.add(channel);
+			UnilateralSortMerger.this.channelsToDeleteAtShutdown.add(channel);
 		}
 
 		/**
@@ -1532,7 +1607,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		 * @param s The channel id.
 		 */
 		protected void unregisterChannelToBeRemovedAtShudown(Channel.ID channel) {
-			this.channelsToDeleteAtShutdown.remove(channel);
+			UnilateralSortMerger.this.channelsToDeleteAtShutdown.remove(channel);
 		}
 		
 		/**
@@ -1541,7 +1616,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		 * @param s The channel reader/writer.
 		 */
 		protected void registerOpenChannelToBeRemovedAtShudown(BlockChannelAccess<?, ?> channel) {
-			this.openChannels.add(channel);
+			UnilateralSortMerger.this.openChannels.add(channel);
 		}
 
 		/**
@@ -1550,39 +1625,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		 * @param s The channel reader/writer.
 		 */
 		protected void unregisterOpenChannelToBeRemovedAtShudown(BlockChannelAccess<?, ?> channel) {
-			this.openChannels.remove(channel);
-		}
-		
-		/**
-		 * Closes and deletes all open readers and files that have been created in the course of
-		 * spilling intermediate results.
-		 */
-		public void closeAndDeleteAllChannels()
-		{
-			// we have to loop this, because it may fail with a concurrent modification exception
-			while (!this.openChannels.isEmpty()) {
-				try {
-					for (BlockChannelAccess<?, ?> channel : this.openChannels) {
-						channel.closeAndDelete();
-					}
-				}
-				catch (Throwable t) {}
-			}
-			
-			// we have to loop this, because it may fail with a concurrent modification exception
-			while (!this.channelsToDeleteAtShutdown.isEmpty()) {
-				try {
-					for (Channel.ID channel : this.channelsToDeleteAtShutdown) {
-						try {
-							final File f = new File(channel.getPath());
-							if (f.exists()) {
-								f.delete();
-							}
-						} catch (Throwable t) {}
-					}
-				}
-				catch (Throwable t) {}
-			}
+			UnilateralSortMerger.this.openChannels.remove(channel);
 		}
 	}
 	
@@ -1653,7 +1696,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 						if (this.bytesUntilSpilling - this.currentBuffer.getOccupancy() <= 0) {
 							this.bytesUntilSpilling = 0;
 							// send the sentinel
-							this.queues.sort.add(UnilateralSortMerger.<E>getSpillingMarker());
+							this.queues.sort.add(UnilateralSortMerger.<E>spillingMarker());
 						}
 						return;
 					}
@@ -1669,7 +1712,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 					if (this.bytesUntilSpilling <= 0) {
 						this.bytesUntilSpilling = 0;
 						// send the sentinel
-						this.queues.sort.add(UnilateralSortMerger.<E>getSpillingMarker());
+						this.queues.sort.add(UnilateralSortMerger.<E>spillingMarker());
 					}
 				}
 				
@@ -1741,8 +1784,27 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 				this.currentBuffer = null;
 				this.currentElement = null;
 				
-				this.queues.sort.add(UnilateralSortMerger.<E>getEndMarker());
+				this.queues.sort.add(UnilateralSortMerger.<E>endMarker());
 			}
+		}
+	}
+	
+	protected static final class ChannelWithBlockCount
+	{
+		private final Channel.ID channel;
+		private final int blockCount;
+		
+		public ChannelWithBlockCount(ID channel, int blockCount) {
+			this.channel = channel;
+			this.blockCount = blockCount;
+		}
+
+		public Channel.ID getChannel() {
+			return channel;
+		}
+
+		public int getBlockCount() {
+			return blockCount;
 		}
 	}
 }

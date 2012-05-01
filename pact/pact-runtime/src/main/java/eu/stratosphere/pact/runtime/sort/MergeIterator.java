@@ -44,6 +44,8 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 {
 	private final PartialOrderPriorityQueue<HeadStream<E>> heap;	// heap over the head elements of the stream
 	
+	private final TypeSerializers<E> serializer;
+	
 	/**
 	 * @param iterators
 	 * @param accessors The accessors used to establish an order among the elements.
@@ -55,6 +57,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 	throws IOException
 	{
 		this.heap = new PartialOrderPriorityQueue<HeadStream<E>>(new HeadStreamComparator<E>(), iterators.size());
+		this.serializer = serializer;
 		
 		for (MutableObjectIterator<E> iterator : iterators) {
 			this.heap.add(new HeadStream<E>(iterator, serializer, comparator.duplicate()));
@@ -78,7 +81,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 		if (this.heap.size() > 0) {
 			// get the smallest element
 			final HeadStream<E> top = this.heap.peek();
-			top.serializer.copyTo(top.getHead(), target);
+			this.serializer.copyTo(top.getHead(), target);
 			
 			// read an element
 			if (!top.nextHead()) {
@@ -101,8 +104,6 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 	{
 		private final MutableObjectIterator<E> iterator;
 		
-		private final TypeSerializers<E> serializer;
-		
 		private final TypeComparator<E> comparator;
 		
 		private final E head;
@@ -111,7 +112,6 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 		throws IOException
 		{
 			this.iterator = iterator;
-			this.serializer = serializer;
 			this.comparator = comparator;
 			this.head = serializer.createInstance();
 			
