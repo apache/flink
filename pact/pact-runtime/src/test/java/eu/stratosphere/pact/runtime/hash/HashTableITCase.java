@@ -39,15 +39,18 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable.HashBucketIterator;
-import eu.stratosphere.pact.runtime.plugable.PactRecordAccessors;
-import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializers;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypePairComparator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.UniformIntPairGenerator;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPair;
-import eu.stratosphere.pact.runtime.test.util.types.IntPairAccessors;
+import eu.stratosphere.pact.runtime.test.util.types.IntPairComparator;
+import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -60,13 +63,17 @@ public class HashTableITCase
 {
 	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
 	
-	private TypeAccessors<PactRecord> recordBuildSideAccesssor;
-	private TypeAccessors<PactRecord> recordProbeSideAccesssor;
-	private TypeComparator<PactRecord, PactRecord> pactRecordComparator;
+	private TypeSerializers<PactRecord> recordBuildSideAccesssor;
+	private TypeSerializers<PactRecord> recordProbeSideAccesssor;
+	private TypeComparator<PactRecord> recordBuildSideComparator;
+	private TypeComparator<PactRecord> recordProbeSideComparator;
+	private TypePairComparator<PactRecord, PactRecord> pactRecordComparator;
 	
-	private TypeAccessors<IntPair> pairBuildSideAccesssor;
-	private TypeAccessors<IntPair> pairProbeSideAccesssor;
-	private TypeComparator<IntPair, IntPair> pairComparator;
+	private TypeSerializers<IntPair> pairBuildSideAccesssor;
+	private TypeSerializers<IntPair> pairProbeSideAccesssor;
+	private TypeComparator<IntPair> pairBuildSideComparator;
+	private TypeComparator<IntPair> pairProbeSideComparator;
+	private TypePairComparator<IntPair, IntPair> pairComparator;
 	
 	@Before
 	public void setup()
@@ -75,13 +82,17 @@ public class HashTableITCase
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyType = (Class<? extends Key>[]) new Class[] { PactInteger.class };
 		
-		this.recordBuildSideAccesssor = new PactRecordAccessors(keyPos, keyType);
-		this.recordProbeSideAccesssor = new PactRecordAccessors(keyPos, keyType);
-		this.pactRecordComparator = new PactRecordComparator();
+		this.recordBuildSideAccesssor = PactRecordSerializers.get();
+		this.recordProbeSideAccesssor = PactRecordSerializers.get();
+		this.recordBuildSideComparator = new PactRecordComparator(keyPos, keyType);
+		this.recordProbeSideComparator = new PactRecordComparator(keyPos, keyType);
+		this.pactRecordComparator = new PactRecordPairComparatorFirstInt();
 		
-		this.pairBuildSideAccesssor = new IntPairAccessors();
-		this.pairProbeSideAccesssor = new IntPairAccessors();
-		this.pairComparator = new IntPairComparator();
+		this.pairBuildSideAccesssor = new IntPairSerializer();
+		this.pairProbeSideAccesssor = new IntPairSerializer();
+		this.pairBuildSideComparator = new IntPairComparator();
+		this.pairProbeSideComparator = new IntPairComparator();
+		this.pairComparator = new IntPairPairComparator();
 	}
 	
 	@Test
@@ -140,7 +151,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
-			this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, this.pactRecordComparator,
+			this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+			this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
@@ -204,7 +216,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, this.pactRecordComparator,
+				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
@@ -270,7 +283,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, this.pactRecordComparator,
+				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
@@ -395,7 +409,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, this.pactRecordComparator,
+				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
@@ -521,7 +536,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, this.pactRecordComparator,
+				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
@@ -643,7 +659,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, this.pactRecordComparator,
+				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
@@ -714,7 +731,8 @@ public class HashTableITCase
 		IOManager ioManager = new IOManager();
 
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, this.pactRecordComparator,
+				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, new UniformPactRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
 
@@ -767,7 +785,8 @@ public class HashTableITCase
 		IOManager ioManager = new IOManager();
 				
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, this.pactRecordComparator,
+				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, new UniformPactRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
 		
@@ -825,7 +844,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, this.pairComparator,
+			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
@@ -889,7 +909,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, this.pairComparator,
+				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
@@ -955,7 +976,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, this.pairComparator,
+				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
@@ -1080,7 +1102,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, this.pairComparator,
+				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 	
@@ -1206,7 +1229,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, this.pairComparator,
+				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
@@ -1328,7 +1352,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, this.pairComparator,
+				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
@@ -1398,7 +1423,8 @@ public class HashTableITCase
 		IOManager ioManager = new IOManager();
 
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, this.pairComparator,
+				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, new UniformIntPairGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
 
@@ -1451,7 +1477,8 @@ public class HashTableITCase
 		IOManager ioManager = new IOManager();
 				
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, this.pairComparator,
+				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, new UniformIntPairGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
 		
@@ -1504,7 +1531,8 @@ public class HashTableITCase
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, this.pairComparator,
+				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
 		
@@ -1627,7 +1655,7 @@ public class HashTableITCase
 	
 	// ============================================================================================
 	
-	private static final class PactRecordComparator implements TypeComparator<PactRecord, PactRecord>
+	private static final class PactRecordPairComparatorFirstInt implements TypePairComparator<PactRecord, PactRecord>
 	{
 		private int key;
 
@@ -1659,7 +1687,7 @@ public class HashTableITCase
 	// ============================================================================================
 
 	
-	private static final class IntPairComparator implements TypeComparator<IntPair, IntPair>
+	private static final class IntPairPairComparator implements TypePairComparator<IntPair, IntPair>
 	{
 		private int key;
 		

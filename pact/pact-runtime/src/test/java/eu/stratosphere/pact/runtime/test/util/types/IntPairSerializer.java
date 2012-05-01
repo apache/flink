@@ -19,13 +19,11 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
-import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
 
 
-public class IntPairAccessors implements TypeAccessors<IntPair>
-{
-	private int reference;
-	
+public class IntPairSerializer implements TypeSerializers<IntPair>
+{	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#createInstance()
 	 */
@@ -92,102 +90,5 @@ public class IntPairAccessors implements TypeAccessors<IntPair>
 		for (int i = 0; i < 8; i++) {
 			target.writeByte(source.readUnsignedByte());
 		}
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#hash(java.lang.Object)
-	 */
-	@Override
-	public int hash(IntPair object) {
-		return object.getKey();
-	}
-	
-	public void setReferenceForEquality(IntPair reference) {
-		this.reference = reference.getKey();
-	}
-	
-	public boolean equalToReference(IntPair candidate) {
-		return candidate.getKey() == this.reference;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#compare(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataInputView)
-	 */
-	@Override
-	public int compare(DataInputViewV2 source1, DataInputViewV2 source2) throws IOException {
-		return source1.readInt() - source2.readInt();
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#supportsNormalizedKey()
-	 */
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#getNormalizeKeyLen()
-	 */
-	@Override
-	public int getNormalizeKeyLen() {
-		return 4;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#isNormalizedKeyPrefixOnly(int)
-	 */
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return false;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#putNormalizedKey(java.lang.Object, byte[], int, int)
-	 */
-	@Override
-	public void putNormalizedKey(IntPair record, byte[] target, int offset, int numBytes)
-	{
-		final int value = record.getKey();
-		
-		if (numBytes == 4) {
-			// default case, full normalized key
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
-			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
-			target[offset + 3] = (byte) ((value       ) & 0xff);
-		}
-		else if (numBytes <= 0) {
-		}
-		else if (numBytes < 4) {
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			numBytes--;
-			for (int i = 1; numBytes > 0; numBytes--, i++) {
-				target[offset + i] = (byte) ((value >>> ((3-i)<<3)) & 0xff);
-			}
-		}
-		else {
-			int highByte = ((value >>> 24) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target[offset    ] = (byte) highByte;
-			target[offset + 1] = (byte) ((value >>> 16) & 0xff);
-			target[offset + 2] = (byte) ((value >>>  8) & 0xff);
-			target[offset + 3] = (byte) ((value       ) & 0xff);
-			for (int i = 4; i < numBytes; i++) {
-				target[offset + i] = 0;
-			}
-		}
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#duplicate()
-	 */
-	@Override
-	public IntPairAccessors duplicate() {
-		return new IntPairAccessors();
 	}
 }

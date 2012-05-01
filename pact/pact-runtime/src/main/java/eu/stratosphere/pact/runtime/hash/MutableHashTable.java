@@ -37,8 +37,9 @@ import eu.stratosphere.pact.runtime.io.ChannelReaderInputView;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
 import eu.stratosphere.pact.runtime.io.HeaderlessChannelReaderInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
-import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypePairComparator;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 
 
@@ -198,19 +199,29 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	// ------------------------------------------------------------------------
 
 	/**
-	 * The utilities to handle the build side data types.
+	 * The utilities to serialize the build side data types.
 	 */
-	private final TypeAccessors<BT> buildSideAccessors;
+	private final TypeSerializers<BT> buildSideSerializer;
 
 	/**
-	 * The utilities to handle the probe side data types.
+	 * The utilities to serialize the probe side data types.
 	 */
-	private final TypeAccessors<PT> probeSideAccessors;
+	private final TypeSerializers<PT> probeSideSerializer;
+	
+	/**
+	 * The utilities to hash and compare the build side data types.
+	 */
+	private final TypeComparator<BT> buildSideComparator;
+
+	/**
+	 * The utilities to hash and compare the probe side data types.
+	 */
+	private final TypeComparator<PT> probeSideComparator;
 	
 	/**
 	 * The comparator used to determine (in)equality between probe side and build side records.
 	 */
-	private final TypeComparator<PT, BT> recordComparator;
+	private final TypePairComparator<PT, BT> recordComparator;
 	
 	/**
 	 * The free memory segments currently available to the hash join.
@@ -332,16 +343,17 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	//                         Construction and Teardown
 	// ------------------------------------------------------------------------
 	
-	public MutableHashTable(TypeAccessors<BT> buildSideAccessors, TypeAccessors<PT> probeSideAccessors,
-			TypeComparator<PT, BT> comparator, List<MemorySegment> memorySegments, IOManager ioManager)
+	public MutableHashTable(TypeSerializers<BT> buildSideSerializer, TypeSerializers<PT> probeSideSerializer,
+			TypeComparator<BT> buildSideComparator, TypeComparator<PT> probeSideComparator,
+			TypePairComparator<PT, BT> comparator, List<MemorySegment> memorySegments, IOManager ioManager)
 	{
-		this(buildSideAccessors, probeSideAccessors, comparator,
+		this(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, comparator,
 			memorySegments, ioManager, DEFAULT_RECORD_LEN);
 	}
 	
-	
-	public MutableHashTable(TypeAccessors<BT> buildSideAccessors, TypeAccessors<PT> probeSideAccessors,
-			TypeComparator<PT, BT> comparator, List<MemorySegment> memorySegments,
+	public MutableHashTable(TypeSerializers<BT> buildSideSerializer, TypeSerializers<PT> probeSideSerializer,
+			TypeComparator<BT> buildSideComparator, TypeComparator<PT> probeSideComparator,
+			TypePairComparator<PT, BT> comparator, List<MemorySegment> memorySegments,
 			IOManager ioManager, int avgRecordLen)
 	{
 		// some sanity checks first
@@ -354,14 +366,16 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		}
 		
 		// assign the members
-		this.buildSideAccessors = buildSideAccessors;
-		this.probeSideAccessors = probeSideAccessors;
+		this.buildSideSerializer = buildSideSerializer;
+		this.probeSideSerializer = probeSideSerializer;
+		this.buildSideComparator = buildSideComparator;
+		this.probeSideComparator = probeSideComparator;
 		this.recordComparator = comparator;
 		this.availableMemory = memorySegments;
 		this.ioManager = ioManager;
 		
 		this.avgRecordLen = avgRecordLen > 0 ? avgRecordLen : 
-					buildSideAccessors.getLength() == -1 ? DEFAULT_RECORD_LEN : buildSideAccessors.getLength();
+				buildSideSerializer.getLength() == -1 ? DEFAULT_RECORD_LEN : buildSideSerializer.getLength();
 		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
@@ -419,10 +433,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		buildInitialTable(buildSide);
 		
 		// the first prober is the probe-side input
-		this.probeIterator = new ProbeIterator<PT>(probeSide, this.probeSideAccessors.createInstance());
+		this.probeIterator = new ProbeIterator<PT>(probeSide, this.probeSideSerializer.createInstance());
 		
 		// the bucket iterator can remain constant over the time
-		this.bucketIterator = new HashBucketIterator<BT, PT>(this.buildSideAccessors.duplicate(), this.recordComparator);
+		this.bucketIterator = new HashBucketIterator<BT, PT>(this.buildSideSerializer, this.recordComparator);
 		this.lazyBucketIterator = new LazyHashBucketIterator<BT, PT>(this.recordComparator);
 	}
 	
@@ -433,7 +447,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	public boolean nextRecord() throws IOException
 	{
 		final ProbeIterator<PT> probeIter = this.probeIterator;
-		final TypeAccessors<PT> probeAccessors = this.probeSideAccessors;
+		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
 		
 		PT next;
 		while ((next = probeIter.next()) != null)
@@ -497,7 +511,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			memory.add(getNextBuffer());
 			
 			ChannelReaderInputViewIterator<PT> probeReader = new ChannelReaderInputViewIterator<PT>(this.currentSpilledProbeSide, 
-				returnQueue, memory, this.availableMemory, this.probeSideAccessors, p.getProbeSideBlockCount());
+				returnQueue, memory, this.availableMemory, this.probeSideSerializer, p.getProbeSideBlockCount());
 			this.probeIterator.set(probeReader);
 			
 			// unregister the pending partition
@@ -515,7 +529,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	
 	public HashBucketIterator<BT, PT> getMatchesFor(PT record) throws IOException
 	{
-		final TypeAccessors<PT> probeAccessors = this.probeSideAccessors;
+		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
 		final int hash = hash(probeAccessors.hash(record), this.currentRecursionDepth);
 		final int posHashCode = hash % this.numBuckets;
 		
@@ -541,7 +555,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	
 	public LazyHashBucketIterator<BT, PT> getLazyMatchesFor(PT record) throws IOException
 	{
-		final TypeAccessors<PT> probeAccessors = this.probeSideAccessors;
+		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
 		final int hash = hash(probeAccessors.hash(record), this.currentRecursionDepth);
 		final int posHashCode = hash % this.numBuckets;
 		
@@ -656,13 +670,13 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			partitionFanOut, this.avgRecordLen);
 		initTable(numBuckets, (byte) partitionFanOut);
 		
-		final TypeAccessors<BT> buildTypeAccessors = this.buildSideAccessors;
-		final BT record = buildTypeAccessors.createInstance();
+		final TypeComparator<BT> buildTypeComparator = this.buildSideComparator;
+		final BT record = this.buildSideSerializer.createInstance();
 		
 		// go over the complete input and insert every element into the hash table
 		while (input.next(record))
 		{
-			final int hashCode = hash(buildTypeAccessors.hash(record), 0);
+			final int hashCode = hash(buildTypeComparator.hash(record), 0);
 			insertIntoTable(record, hashCode);
 		}
 
@@ -715,7 +729,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 				this.availableMemory, p.getBuildSideBlockCount());
 			reader.closeAndDelete(); // call waits until all is read
 			final List<MemorySegment> partitionBuffers = reader.getFullSegments();
-			final HashPartition<BT, PT> newPart = new HashPartition<BT, PT>(this.buildSideAccessors, this.probeSideAccessors,
+			final HashPartition<BT, PT> newPart = new HashPartition<BT, PT>(this.buildSideSerializer, this.probeSideSerializer,
 					0, nextRecursionLevel, partitionBuffers, p.getBuildSideRecordCount(), this.segmentSize, p.getLastSegmentLimit());
 			
 			this.partitionsBeingBuilt.add(newPart);
@@ -724,8 +738,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			initTable((int) numBuckets, (byte) 1);
 			
 			// now, index the partition through a hash table
-			final HashPartition<BT, PT>.PartitionIterator pIter = newPart.getPartitionIterator();
-			final BT record = this.buildSideAccessors.createInstance();
+			final HashPartition<BT, PT>.PartitionIterator pIter = newPart.getPartitionIterator(this.buildSideComparator);
+			final BT record = this.buildSideSerializer.createInstance();
 			
 			while (pIter.next(record)) {
 				final int hashCode = hash(pIter.getCurrentHashCode(), nextRecursionLevel);
@@ -767,13 +781,13 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			final ChannelReaderInputView inView = new HeaderlessChannelReaderInputView(inReader, segments,
 						p.getBuildSideBlockCount(), p.getLastSegmentLimit(), false);
 			final ChannelReaderInputViewIterator<BT> inIter = new ChannelReaderInputViewIterator<BT>(inView, 
-					this.availableMemory, this.buildSideAccessors);
+					this.availableMemory, this.buildSideSerializer);
 			
-			final TypeAccessors<BT> btAccessor = this.buildSideAccessors;
-			final BT rec = btAccessor.createInstance();
+			final TypeComparator<BT> btComparator = this.buildSideComparator;
+			final BT rec = this.buildSideSerializer.createInstance();
 			while (inIter.next(rec))
 			{	
-				final int hashCode = hash(btAccessor.hash(rec), nextRecursionLevel);
+				final int hashCode = hash(btComparator.hash(rec), nextRecursionLevel);
 				insertIntoTable(rec, hashCode);
 			}
 
@@ -949,7 +963,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		
 		this.partitionsBeingBuilt.clear();
 		for (int i = 0; i < numPartitions; i++) {
-			HashPartition<BT, PT> p = new HashPartition<BT, PT>(this.buildSideAccessors, this.probeSideAccessors,
+			HashPartition<BT, PT> p = new HashPartition<BT, PT>(this.buildSideSerializer, this.probeSideSerializer,
 				i, recursionLevel, this.availableMemory.remove(this.availableMemory.size() - 1),
 				this, this.segmentSize);
 			this.partitionsBeingBuilt.add(p);
@@ -1270,9 +1284,9 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 */
 	public static class HashBucketIterator<BT, PT>
 	{
-		private final TypeAccessors<BT> accessor;
+		private final TypeSerializers<BT> accessor;
 		
-		private final TypeComparator<PT, BT> comparator;
+		private final TypePairComparator<PT, BT> comparator;
 		
 		private MemorySegment bucket;
 		
@@ -1297,7 +1311,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		private long lastPointer;
 		
 		
-		HashBucketIterator(TypeAccessors<BT> accessor, TypeComparator<PT, BT> comparator)
+		HashBucketIterator(TypeSerializers<BT> accessor, TypePairComparator<PT, BT> comparator)
 		{
 			this.accessor = accessor;
 			this.comparator = comparator;
@@ -1399,7 +1413,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 */
 	public static final class LazyHashBucketIterator<BT, PT>
 	{
-		private final TypeComparator<PT, BT> comparator;
+		private final TypePairComparator<PT, BT> comparator;
 		
 		private MemorySegment bucket;
 		
@@ -1417,7 +1431,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		
 		private int numInSegment;
 		
-		private LazyHashBucketIterator(TypeComparator<PT, BT> comparator)
+		private LazyHashBucketIterator(TypePairComparator<PT, BT> comparator)
 		{
 			this.comparator = comparator;
 		}

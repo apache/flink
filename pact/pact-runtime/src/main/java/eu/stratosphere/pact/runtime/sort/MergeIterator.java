@@ -20,7 +20,8 @@ import java.util.Comparator;
 import java.util.List;
 
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
 
 /**
  * An iterator that returns a sorted merge of the sequences of elements from a
@@ -29,12 +30,12 @@ import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
  * to the next smallest element logarithmic in complexity, with respect to the
  * number of streams to be merged.
  * The order among the elements is established using the methods from the
- * {@link TypeAccessors} class, specifically {@link TypeAccessors#setReference(Object)}
- * and {@link TypeAccessors#compareToReference(TypeAccessors)}.
+ * {@link TypeSerializers} class, specifically {@link TypeSerializers#setReference(Object)}
+ * and {@link TypeSerializers#compareToReference(TypeSerializers)}.
  * 
- * @see TypeAccessors
- * @see TypeAccessors#setReference(Object)
- * @see TypeAccessors#compareToReference(TypeAccessors)
+ * @see TypeSerializers
+ * @see TypeSerializers#setReference(Object)
+ * @see TypeSerializers#compareToReference(TypeSerializers)
  * 
  * @author Erik Nijkamp
  * @author Stephan Ewen
@@ -50,19 +51,19 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 	 * @throws IOException
 	 */
 	public MergeIterator(List<MutableObjectIterator<E>> iterators,
-			TypeAccessors<E> accessors)
+			TypeSerializers<E> serializer, TypeComparator<E> comparator)
 	throws IOException
 	{
 		this.heap = new PartialOrderPriorityQueue<HeadStream<E>>(new HeadStreamComparator<E>(), iterators.size());
 		
 		for (MutableObjectIterator<E> iterator : iterators) {
-			this.heap.add(new HeadStream<E>(iterator, accessors.duplicate()));
+			this.heap.add(new HeadStream<E>(iterator, serializer, comparator.duplicate()));
 		}
 	}
 
 	/**
 	 * Gets the next smallest element, with respect to the definition of order implied by
-	 * the {@link TypeAccessors} provided to this iterator.
+	 * the {@link TypeSerializers} provided to this iterator.
 	 * 
 	 * @param target The object into which the result is put. The contents of the target object
 	 *               is only valid after this method, if the method returned true. Otherwise
@@ -77,7 +78,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 		if (this.heap.size() > 0) {
 			// get the smallest element
 			final HeadStream<E> top = this.heap.peek();
-			top.accessors.copyTo(top.getHead(), target);
+			top.serializer.copyTo(top.getHead(), target);
 			
 			// read an element
 			if (!top.nextHead()) {
@@ -99,17 +100,20 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 	private static final class HeadStream<E>
 	{
 		private final MutableObjectIterator<E> iterator;
-
-		private final TypeAccessors<E> accessors;
+		
+		private final TypeSerializers<E> serializer;
+		
+		private final TypeComparator<E> comparator;
 		
 		private final E head;
 
-		public HeadStream(MutableObjectIterator<E> iterator, TypeAccessors<E> accessors)
+		public HeadStream(MutableObjectIterator<E> iterator, TypeSerializers<E> serializer, TypeComparator<E> comparator)
 		throws IOException
 		{
 			this.iterator = iterator;
-			this.accessors = accessors;
-			this.head = accessors.createInstance();
+			this.serializer = serializer;
+			this.comparator = comparator;
+			this.head = serializer.createInstance();
 			
 			if (!nextHead())
 				throw new IllegalStateException();
@@ -122,7 +126,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 		public boolean nextHead() throws IOException
 		{
 			if (this.iterator.next(this.head)) {
-				this.accessors.setReference(this.head);
+				this.comparator.setReference(this.head);
 				return true;
 			}
 			else {
@@ -138,7 +142,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 		@Override
 		public int compare(HeadStream<E> o1, HeadStream<E> o2)
 		{
-			return o2.accessors.compareToReference(o1.accessors);
+			return o2.comparator.compareToReference(o1.comparator);
 		}
 	}
 }

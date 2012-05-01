@@ -80,6 +80,23 @@ public final class MathUtils
 		return Integer.highestOneBit(value);
 	}
 	
+	/**
+	 * Casts the given value to a 32 bit integer, if it can be safely done. If the cast would change the numeric
+	 * value, this method raises an exception.
+	 * <p>
+	 * This method is a protection in places where one expects to be able to safely case, but where unexpected
+	 * situations could make the cast unsafe and would cause hidden problems that are hard to track down.
+	 * 
+	 * @param value The value to be cast to an integer.
+	 * @return The given value as an integer.
+	 */
+	public static final int checkedDownCast(long value) {
+		if (value > Integer.MAX_VALUE) {
+			throw new IllegalArgumentException("Cannot downcast long value " + value + " to integer.");
+		}
+		return (int) value;
+	}
+	
 	// ============================================================================================
 	
 	/**

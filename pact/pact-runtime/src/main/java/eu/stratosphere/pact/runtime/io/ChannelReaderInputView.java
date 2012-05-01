@@ -73,7 +73,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 	/**
 	 * Creates a new channel reader that reads from the given channel, expecting a specified
 	 * number of blocks in the channel.
-	 * 
+	 * <p>
 	 * WARNING: The reader will lock if the number of blocks given here is actually lower than
 	 * the actual number of blocks in the channel.
 	 * 
@@ -97,6 +97,27 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 		this(reader, memory, numBlocks, ChannelWriterOutputView.HEADER_LENGTH, waitForFirstBlock);
 	}
 		
+	/**
+	 * Non public constructor to allow subclasses to use this input view with different headers.
+	 * <p>
+	 * WARNING: The reader will lock if the number of blocks given here is actually lower than
+	 * the actual number of blocks in the channel.
+	 * 
+	 * @param reader The reader that reads the data from disk back into memory.
+	 * @param memory A list of memory segments that the reader uses for reading the data in. If the
+	 *               list contains more than one segment, the reader will asynchronously pre-fetch
+	 *               blocks ahead.
+	 * @param numBlocks The number of blocks this channel will read. If this value is
+	 *                  given, the reader avoids issuing pre-fetch requests for blocks
+	 *                  beyond the channel size.
+	 * @param headerLen The length of the header assumed at the beginning of the block. Note that the
+	 *                  {@link #nextSegment(MemorySegment)} method assumes the default header length,
+	 *                  so any subclass changing the header length should override that methods as well.
+	 * @param waitForFirstBlock A flag indicating weather this constructor call should block
+	 *                          until the first block has returned from the asynchronous I/O reader.
+	 * 
+	 * @throws IOException
+	 */
 	ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, 
 				int numBlocks, int headerLen, boolean waitForFirstBlock)
 	throws IOException

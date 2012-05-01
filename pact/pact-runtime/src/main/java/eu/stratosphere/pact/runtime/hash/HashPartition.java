@@ -33,7 +33,8 @@ import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
 import eu.stratosphere.pact.runtime.io.RandomAccessOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
-import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 
 
@@ -57,9 +58,9 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 
 	// -------------------------------------  Type Accessors --------------------------------------------
 	
-	private final TypeAccessors<BT> buildSideAccessors;
+	private final TypeSerializers<BT> buildSideSerializer;
 	
-	private final TypeAccessors<PT> probeSideAccessors;
+	private final TypeSerializers<PT> probeSideSerializer;
 	
 	// -------------------------------------- Record Buffers --------------------------------------------
 	
@@ -107,14 +108,14 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 	 * @param initialBuffer The initial buffer for this partition.
 	 * @param writeBehindBuffers The queue from which to pop buffers for writing, once the partition is spilled.
 	 */
-	HashPartition(TypeAccessors<BT> buildSideAccessors, TypeAccessors<PT> probeSideAccessors,
+	HashPartition(TypeSerializers<BT> buildSideAccessors, TypeSerializers<PT> probeSideAccessors,
 			int partitionNumber, int recursionLevel, MemorySegment initialBuffer, MemorySegmentSource memSource,
 			int segmentSize)
 	{
 		super(0);
 		
-		this.buildSideAccessors = buildSideAccessors;
-		this.probeSideAccessors = probeSideAccessors;
+		this.buildSideSerializer = buildSideAccessors;
+		this.probeSideSerializer = probeSideAccessors;
 		this.partitionNumber = partitionNumber;
 		this.recursionLevel = recursionLevel;
 		
@@ -140,14 +141,14 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 	 * @param buildSideRecordCounter The number of records in the buffers.
 	 * @param segmentSize The size of the memory segments.
 	 */
-	HashPartition(TypeAccessors<BT> buildSideAccessors, TypeAccessors<PT> probeSideAccessors,
+	HashPartition(TypeSerializers<BT> buildSideAccessors, TypeSerializers<PT> probeSideAccessors,
 			int partitionNumber, int recursionLevel, List<MemorySegment> buffers,
 			long buildSideRecordCounter, int segmentSize, int lastSegmentLimit)
 	{
 		super(0);
 		
-		this.buildSideAccessors = buildSideAccessors;
-		this.probeSideAccessors = probeSideAccessors;
+		this.buildSideSerializer = buildSideAccessors;
+		this.probeSideSerializer = probeSideAccessors;
 		this.partitionNumber = partitionNumber;
 		this.recursionLevel = recursionLevel;
 		
@@ -233,10 +234,10 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 		
 		if (isInMemory()) {
 			final long pointer = this.buildSideWriteBuffer.getCurrentPointer();
-			this.buildSideAccessors.serialize(record, this.buildSideWriteBuffer);
+			this.buildSideSerializer.serialize(record, this.buildSideWriteBuffer);
 			return isInMemory() ? pointer : -1;
 		} else {
-			this.buildSideAccessors.serialize(record, this.buildSideWriteBuffer);
+			this.buildSideSerializer.serialize(record, this.buildSideWriteBuffer);
 			return -1;
 		}
 	}
@@ -253,7 +254,7 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 	 */
 	public final void insertIntoProbeBuffer(PT record) throws IOException
 	{
-		this.probeSideAccessors.serialize(record, this.probeSideBuffer);
+		this.probeSideSerializer.serialize(record, this.probeSideBuffer);
 		this.probeSideRecordCounter++;
 	}
 	
@@ -420,9 +421,9 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 		}
 	}
 	
-	final PartitionIterator getPartitionIterator() throws IOException
+	final PartitionIterator getPartitionIterator(TypeComparator<BT> comparator) throws IOException
 	{
-		return new PartitionIterator();
+		return new PartitionIterator(comparator);
 	}
 	
 	final int getLastSegmentLimit() {
@@ -571,12 +572,15 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 	
 	final class PartitionIterator implements MutableObjectIterator<BT>
 	{
+		private final TypeComparator<BT> comparator;
+		
 		private long currentPointer;
 		
 		private int currentHashCode;
 		
-		private PartitionIterator() throws IOException
+		private PartitionIterator(final TypeComparator<BT> comparator) throws IOException
 		{
+			this.comparator = comparator;
 			setReadPosition(0);
 		}
 		
@@ -591,8 +595,8 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 				((long) buffer + 1) << HashPartition.this.segmentSizeBits;
 			
 			try {
-				HashPartition.this.buildSideAccessors.deserialize(record, HashPartition.this);
-				this.currentHashCode = HashPartition.this.buildSideAccessors.hash(record);
+				HashPartition.this.buildSideSerializer.deserialize(record, HashPartition.this);
+				this.currentHashCode = this.comparator.hash(record);
 				return true;
 			} catch (EOFException eofex) {
 				return false;

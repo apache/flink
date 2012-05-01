@@ -25,32 +25,32 @@ import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
 
 
 /**
+ * A simple iterator over the input read though an I/O channel.
  *
- *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public class ChannelReaderInputViewIterator<E> implements MutableObjectIterator<E>
 {
 	private final ChannelReaderInputView inView;
 	
-	private final TypeAccessors<E> accessors;
+	private final TypeSerializers<E> accessors;
 	
 	private final List<MemorySegment> freeMemTarget;
 	
 	
 	public ChannelReaderInputViewIterator(IOManager ioAccess, Channel.ID channel, List<MemorySegment> segments,
-			List<MemorySegment> freeMemTarget, TypeAccessors<E> accessors, int numBlocks)
+			List<MemorySegment> freeMemTarget, TypeSerializers<E> accessors, int numBlocks)
 	throws IOException
 	{
 		this(ioAccess, channel, new LinkedBlockingQueue<MemorySegment>(), segments, freeMemTarget, accessors, numBlocks);
 	}
 		
 	public ChannelReaderInputViewIterator(IOManager ioAccess, Channel.ID channel,  LinkedBlockingQueue<MemorySegment> returnQueue,
-			List<MemorySegment> segments, List<MemorySegment> freeMemTarget, TypeAccessors<E> accessors, int numBlocks)
+			List<MemorySegment> segments, List<MemorySegment> freeMemTarget, TypeSerializers<E> accessors, int numBlocks)
 	throws IOException
 	{
 		this(ioAccess.createBlockChannelReader(channel, returnQueue), returnQueue,
@@ -58,7 +58,7 @@ public class ChannelReaderInputViewIterator<E> implements MutableObjectIterator<
 	}
 		
 	public ChannelReaderInputViewIterator(BlockChannelReader reader, LinkedBlockingQueue<MemorySegment> returnQueue,
-			List<MemorySegment> segments, List<MemorySegment> freeMemTarget, TypeAccessors<E> accessors, int numBlocks)
+			List<MemorySegment> segments, List<MemorySegment> freeMemTarget, TypeSerializers<E> accessors, int numBlocks)
 	throws IOException
 	{
 		this.accessors = accessors;
@@ -66,7 +66,7 @@ public class ChannelReaderInputViewIterator<E> implements MutableObjectIterator<
 		this.inView = new ChannelReaderInputView(reader, segments, numBlocks, false);
 	}
 	
-	public ChannelReaderInputViewIterator(ChannelReaderInputView inView, List<MemorySegment> freeMemTarget, TypeAccessors<E> accessors)
+	public ChannelReaderInputViewIterator(ChannelReaderInputView inView, List<MemorySegment> freeMemTarget, TypeSerializers<E> accessors)
 	{
 		this.inView = inView;
 		this.freeMemTarget = freeMemTarget;

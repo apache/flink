@@ -19,28 +19,36 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 
 
-public class MergeIteratorTest {
-
-	@BeforeClass
-	public static void beforeClass() {
+public class MergeIteratorTest
+{
+	private TypeSerializers<PactRecord> serializer;
+	
+	private TypeComparator<PactRecord> comparator;
+	
+	
+	@SuppressWarnings("unchecked")
+	@Before
+	public void setup() {
+		this.serializer = PactRecordSerializers.get();
+		this.comparator = new PactRecordComparator(new int[] {0}, new Class[] { TestData.Key.class});
 	}
-
-	@AfterClass
-	public static void afterClass() {
-	}
-
+	
+	
 	private MutableObjectIterator<PactRecord> newIterator(final int[] keys, final String[] values)
 	{
 		return new MutableObjectIterator<PactRecord>()
@@ -71,22 +79,20 @@ public class MergeIteratorTest {
 	@Test
 	public void testMergeOfTwoStreams() throws Exception
 	{
-		// iterarors
+		// iterators
 		List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
 		iterators.add(newIterator(new int[] { 1, 2, 4, 5, 10 }, new String[] { "1", "2", "4", "5", "10" }));
 		iterators.add(newIterator(new int[] { 3, 6, 7, 10, 12 }, new String[] { "3", "6", "7", "10", "12" }));
 		
-		int[] expected = new int[] {1, 2, 3, 4, 5, 6, 7, 10, 10, 12};
+		final int[] expected = new int[] {1, 2, 3, 4, 5, 6, 7, 10, 10, 12};
 
 		// comparator
 		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
 
 		// merge iterator
-		@SuppressWarnings("unchecked")
-		MutableObjectIterator<PactRecord> iterator = new MergeIterator(iterators, 
-			new Comparator[]{comparator}, new int[]{0}, new Class[]{TestData.Key.class});
+		MutableObjectIterator<PactRecord> iterator = new MergeIterator<PactRecord>(iterators, this.serializer, this.comparator);
 
-		// check orderexpected
+		// check expected order
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		final Key k1 = new Key();
@@ -113,7 +119,7 @@ public class MergeIteratorTest {
 	@Test
 	public void testMergeOfTenStreams() throws Exception
 	{
-		// iterarors
+		// iterators
 		List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
 		iterators.add(newIterator(new int[] { 1, 2, 17, 23, 23 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 2, 6, 7, 8, 9 }, new String[] { "A", "B", "C", "D", "E" }));
@@ -130,12 +136,10 @@ public class MergeIteratorTest {
 		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
 
 		// merge iterator
-		@SuppressWarnings("unchecked")
-		MutableObjectIterator<PactRecord> iterator = new MergeIterator(iterators, 
-			new Comparator[]{comparator}, new int[]{0}, new Class[]{TestData.Key.class});
+		MutableObjectIterator<PactRecord> iterator = new MergeIterator<PactRecord>(iterators, this.serializer, this.comparator);
 
 		int elementsFound = 1;
-		// check orderexpected
+		// check expected order
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		final Key k1 = new Key();
@@ -159,7 +163,7 @@ public class MergeIteratorTest {
 	@Test
 	public void testInvalidMerge() throws Exception
 	{
-		// iterarors
+		// iterators
 		List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
 		iterators.add(newIterator(new int[] { 1, 2, 17, 23, 23 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 2, 6, 7, 8, 9 }, new String[] { "A", "B", "C", "D", "E" }));
@@ -176,13 +180,11 @@ public class MergeIteratorTest {
 		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
 
 		// merge iterator
-		@SuppressWarnings("unchecked")
-		MutableObjectIterator<PactRecord> iterator = new MergeIterator(iterators, 
-			new Comparator[]{comparator}, new int[]{0}, new Class[]{TestData.Key.class});
+		MutableObjectIterator<PactRecord> iterator = new MergeIterator<PactRecord>(iterators, this.serializer, this.comparator);
 
 		boolean violationFound = false;
 		
-		// check orderexpected
+		// check expected order
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		

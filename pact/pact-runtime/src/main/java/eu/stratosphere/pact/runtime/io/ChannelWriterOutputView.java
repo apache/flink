@@ -174,7 +174,7 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView
 	}
 	
 	/**
-	 * Gets the number of payload bytes already written. This excludes the number of bytes spent on headers
+	 * Gets the number of pay-load bytes already written. This excludes the number of bytes spent on headers
 	 * in the segments.
 	 * 
 	 * @return The number of bytes that have been written to this output view.

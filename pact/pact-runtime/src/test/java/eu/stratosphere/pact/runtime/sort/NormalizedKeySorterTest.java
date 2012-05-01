@@ -27,7 +27,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.plugable.PactRecordAccessors;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializers;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
@@ -75,8 +76,8 @@ public class NormalizedKeySorterTest
 	private NormalizedKeySorter<PactRecord> newSortBuffer(List<MemorySegment> memory) throws Exception
 	{
 		@SuppressWarnings("unchecked")
-		PactRecordAccessors accessors = new PactRecordAccessors(new int[] {0}, new Class[]{Key.class});
-		return new NormalizedKeySorter<PactRecord>(accessors, memory);
+		PactRecordComparator accessors = new PactRecordComparator(new int[] {0}, new Class[]{Key.class});
+		return new NormalizedKeySorter<PactRecord>(PactRecordSerializers.get(), accessors, memory);
 	}
 
 	@Test
@@ -365,8 +366,8 @@ public class NormalizedKeySorterTest
 		final List<MemorySegment> memory = this.memoryManager.allocate(new DummyInvokable(), numSegments, MEMORY_SEGMENT_SIZE);
 		
 		@SuppressWarnings("unchecked")
-		PactRecordAccessors accessors = new PactRecordAccessors(new int[] {1}, new Class[]{Value.class});
-		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(accessors, memory);
+		PactRecordComparator accessors = new PactRecordComparator(new int[] {1}, new Class[]{Value.class});
+		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(PactRecordSerializers.get(), accessors, memory);
 		
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, 5, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
@@ -413,8 +414,8 @@ public class NormalizedKeySorterTest
 		final List<MemorySegment> memory = this.memoryManager.allocate(new DummyInvokable(), numSegments, MEMORY_SEGMENT_SIZE);
 		
 		@SuppressWarnings("unchecked")
-		PactRecordAccessors accessors = new PactRecordAccessors(new int[] {1}, new Class[]{Value.class});
-		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(accessors, memory);
+		PactRecordComparator accessors = new PactRecordComparator(new int[] {1}, new Class[]{Value.class});
+		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(PactRecordSerializers.get(), accessors, memory);
 		
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);

@@ -32,8 +32,23 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * be assigned to other tasks.
  *
  * @author Alexander Alexandrov
+ * @author Stephan Ewen
  */
-public interface MemoryManager {
+public interface MemoryManager
+{
+	/**
+	 * Gets the size of the pages handled by the memory manager.
+	 * 
+	 * @return The size of the pages handled by the memory manager.
+	 */
+	int getPageSize();
+	
+	/**
+	 * Rounds the given value down to a multiple of the memory manager's page size.
+	 * 
+	 * @return The given value, rounded down to a multiple of the page size.
+	 */
+	long roundDownToPageSizeMultiple(long numBytes);
 	
 	/**
 	 * 
@@ -54,6 +69,10 @@ public interface MemoryManager {
 	
 	List<MemorySegment> allocateStrict(AbstractInvokable owner, int numSegments, int segmentSize)
 	throws MemoryAllocationException;
+	
+	List<MemorySegment> allocatePages(AbstractInvokable owner, int numPages) throws MemoryAllocationException;
+	
+	void allocatePages(AbstractInvokable owner, List<MemorySegment> target, int numPages) throws MemoryAllocationException;
 	
 	/**
 	 * Tries to release the memory for the specified segment. If the <code>segment</code> has already been released or

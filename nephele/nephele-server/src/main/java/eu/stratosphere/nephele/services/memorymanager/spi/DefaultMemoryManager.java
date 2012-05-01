@@ -118,6 +118,12 @@ public class DefaultMemoryManager implements MemoryManager
 	 * A boolean flag indicating whether the close() has already been invoked.
 	 */
 	private boolean isShutDown = false;
+	
+	private final long roundingMask;		// mask used to round down sizes to multiples of the page size
+	
+	private final int pageSize;				// the page size, in bytes
+	
+	
 
 	// ------------------------------------------------------------------------
 	// Constructors / Destructors
@@ -195,6 +201,14 @@ public class DefaultMemoryManager implements MemoryManager
 			this.memory[numberOfFullChunks] = new byte[lastChunkSize];
 			this.freeSegments.add(new FreeSegmentEntry(numberOfFullChunks, numberOfFullChunks * ((long) this.chunkSize), numberOfFullChunks * ((long) this.chunkSize) + lastChunkSize));
 		}
+		
+		final int pageSize = 32 * 1024;
+		if ((pageSize & (pageSize - 1)) != 0) {
+			// not a power of two
+			throw new IllegalArgumentException("The given page size is not a power of two.");
+		}
+		this.pageSize = pageSize;
+		this.roundingMask = ~((long) (pageSize - 1));
 	}
 
 
@@ -227,29 +241,20 @@ public class DefaultMemoryManager implements MemoryManager
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 	
-	/**
-	 * Gets the memory allocation strategy from this Memory Manager.
-	 * <p>
-	 * See {@link eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.AllocationStrategy} for
-	 * a description of the allocation strategies.
-	 * 
-	 * @return The the memory allocation strategy.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#getPageSize()
 	 */
-	public AllocationStrategy getStrategy() {
-		return strategy;
+	@Override
+	public int getPageSize() {
+		return this.pageSize;
 	}
 
-	
-	/**
-	 * Sets the memory allocation strategy for the Memory Manager.
-	 * <p>
-	 * See {@link eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager.AllocationStrategy} for
-	 * a description of the allocation strategies.
-	 *
-	 * @param strategy The memory allocation to set.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#roundDownToPageSizeMultiple(long)
 	 */
-	public void setStrategy(AllocationStrategy strategy) {
-		this.strategy = strategy;
+	@Override
+	public long roundDownToPageSizeMultiple(long numBytes) {
+		return numBytes & this.roundingMask;
 	}
 
 	// ------------------------------------------------------------------------
@@ -257,10 +262,29 @@ public class DefaultMemoryManager implements MemoryManager
 	// ------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocatePages(eu.stratosphere.nephele.template.AbstractInvokable, int)
+	 */
+	@Override
+	public ArrayList<MemorySegment> allocatePages(AbstractInvokable owner, int numPages) throws MemoryAllocationException {
+		return allocateStrict(owner, numPages, getPageSize());
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocatePages(eu.stratosphere.nephele.template.AbstractInvokable, java.util.List, int)
+	 */
+	@Override
+	public void allocatePages(AbstractInvokable owner, List<MemorySegment> target, int numPages)
+			throws MemoryAllocationException
+	{
+		final ArrayList<MemorySegment> mem = allocatePages(owner, numPages);
+		target.addAll(mem);
+	}
+	
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocate(eu.stratosphere.nephele.template.AbstractInvokable, long, int, int)
 	 */
 	@Override
-	public List<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
+	public ArrayList<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
 	throws MemoryAllocationException
 	{
 		if (owner == null) {
@@ -309,7 +333,7 @@ public class DefaultMemoryManager implements MemoryManager
 	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocateStrict(eu.stratosphere.nephele.template.AbstractInvokable, int, int)
 	 */
 	@Override
-	public List<MemorySegment> allocateStrict(AbstractInvokable owner, int numSegments, int segmentSize)
+	public ArrayList<MemorySegment> allocateStrict(AbstractInvokable owner, int numSegments, int segmentSize)
 			throws MemoryAllocationException
 	{
 		return this.allocate(owner, numSegments, segmentSize);
@@ -374,7 +398,7 @@ public class DefaultMemoryManager implements MemoryManager
 	 * 
 	 * @throws MemoryAllocationException Thrown, if the memory segments could not be allocated.
 	 */
-	public List<MemorySegment> allocate(AbstractInvokable owner, int numberOfSegments, int segmentSize)
+	public ArrayList<MemorySegment> allocate(AbstractInvokable owner, int numberOfSegments, int segmentSize)
 	throws MemoryAllocationException
 	{
 		if (owner == null) {

@@ -26,7 +26,8 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
 import eu.stratosphere.pact.runtime.io.RandomAccessInputView;
 import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
-import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
 
 /**
  * 
@@ -47,7 +48,9 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 
 	private final byte[] swapBuffer;
 	
-	private final TypeAccessors<T> accessors;
+	private final TypeSerializers<T> serializer;
+	
+	private final TypeComparator<T> comparator;
 	
 	private final SimpleCollectingOutputView recordCollector;
 	
@@ -90,19 +93,21 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
 
-	public NormalizedKeySorter(TypeAccessors<T> accessors, List<MemorySegment> memory)
+	public NormalizedKeySorter(TypeSerializers<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory)
 	{
-		this(accessors, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN);
+		this(serializer, comparator, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN);
 	}
 	
-	public NormalizedKeySorter(TypeAccessors<T> accessors, List<MemorySegment> memory, int maxNormalizedKeyBytes)
+	public NormalizedKeySorter(TypeSerializers<T> serializer, TypeComparator<T> comparator, 
+			List<MemorySegment> memory, int maxNormalizedKeyBytes)
 	{
-		if (accessors == null || memory == null)
+		if (serializer == null || comparator == null || memory == null)
 			throw new NullPointerException();
 		if (maxNormalizedKeyBytes < 0)
 			throw new IllegalArgumentException("Maximal number of normalized key bytes must not be negative.");
 		
-		this.accessors = accessors;
+		this.serializer = serializer;
+		this.comparator = comparator;
 		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
@@ -131,9 +136,9 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		this.recordBufferForComparison = new RandomAccessInputView(this.recordBufferSegments, this.segmentSize);
 		
 		// set up normalized key characteristics
-		if (this.accessors.supportsNormalizedKey()) {
-			this.numKeyBytes = Math.min(this.accessors.getNormalizeKeyLen(), maxNormalizedKeyBytes);
-			this.normalizedKeyFullyDetermines = !this.accessors.isNormalizedKeyPrefixOnly(this.numKeyBytes);
+		if (this.comparator.supportsNormalizedKey()) {
+			this.numKeyBytes = Math.min(this.comparator.getNormalizeKeyLen(), maxNormalizedKeyBytes);
+			this.normalizedKeyFullyDetermines = !this.comparator.isNormalizedKeyPrefixOnly(this.numKeyBytes);
 		}
 		else {
 			this.numKeyBytes = 0;
@@ -263,11 +268,11 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		
 		// add the pointer and the normalized key
 		this.currentSortIndexSegment.putLong(this.currentSortIndexOffset, this.currentDataBufferOffset);
-		this.accessors.putNormalizedKey(record, this.currentSortIndexSegment.getBackingArray(), this.currentSortIndexSegment.translateOffset(this.currentSortIndexOffset + OFFSET_LEN), this.numKeyBytes);
+		this.comparator.putNormalizedKey(record, this.currentSortIndexSegment.getBackingArray(), this.currentSortIndexSegment.translateOffset(this.currentSortIndexOffset + OFFSET_LEN), this.numKeyBytes);
 		
 		// serialize the record into the data buffers
 		try {
-			long bytes = this.accessors.serialize(record, this.recordCollector);
+			long bytes = this.serializer.serialize(record, this.recordCollector);
 			this.currentSortIndexOffset += this.indexEntrySize;
 			this.currentDataBufferOffset += bytes;
 			this.numRecords++;
@@ -296,7 +301,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	private final void getRecordFromBuffer(T target, long pointer) throws IOException
 	{
 		this.recordBuffer.setReadPosition(pointer);
-		this.accessors.deserialize(target, this.recordBuffer);
+		this.serializer.deserialize(target, this.recordBuffer);
 	}
 	
 	private final int compareRecords(long pointer1, long pointer2)
@@ -305,7 +310,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		this.recordBufferForComparison.setReadPosition(pointer2);
 		
 		try {
-			return this.accessors.compare(this.recordBuffer, this.recordBufferForComparison);
+			return this.comparator.compare(this.recordBuffer, this.recordBufferForComparison);
 		} catch (IOException ioex) {
 			throw new RuntimeException("Error comparing two records.", ioex);
 		}
@@ -455,7 +460,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
 					final long pointer = currentIndexSegment.getLong(offset);
 					this.recordBuffer.setReadPosition(pointer);
-					this.accessors.copy(this.recordBuffer, output);
+					this.serializer.copy(this.recordBuffer, output);
 					
 				}
 				recordsLeft -= this.indexEntriesPerSegment;
@@ -465,7 +470,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				{
 					final long pointer = currentIndexSegment.getLong(offset);
 					this.recordBuffer.setReadPosition(pointer);
-					this.accessors.copy(this.recordBuffer, output);
+					this.serializer.copy(this.recordBuffer, output);
 				}
 			}
 		}
@@ -493,7 +498,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
 					final long pointer = currentIndexSegment.getLong(offset);
 					this.recordBuffer.setReadPosition(pointer);
-					this.accessors.copy(this.recordBuffer, output);
+					this.serializer.copy(this.recordBuffer, output);
 				}
 				num -= this.indexEntriesPerSegment;
 			} else {
@@ -502,7 +507,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				{
 					final long pointer = currentIndexSegment.getLong(offset);
 					this.recordBuffer.setReadPosition(pointer);
-					this.accessors.copy(this.recordBuffer, output);
+					this.serializer.copy(this.recordBuffer, output);
 				}
 			}
 			offset = 0;
