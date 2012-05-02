@@ -42,7 +42,7 @@ public class L2 implements PlanAssembler
 		private final PactRecord rec = new PactRecord();
 
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
 		{
 			PactString str = record.getField(0, PactString.class);
 			if (str.length() > 0) {
@@ -60,7 +60,7 @@ public class L2 implements PlanAssembler
 		private final PactRecord rec = new PactRecord();
 		
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
 		{
 			PactString str = record.getField(0, PactString.class);
 			if (str.length() > 0) {
@@ -74,7 +74,7 @@ public class L2 implements PlanAssembler
 	
 	public static class Join extends MatchStub {
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out) throws Exception
+		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception
 		{
 			out.collect(value1);
 		}

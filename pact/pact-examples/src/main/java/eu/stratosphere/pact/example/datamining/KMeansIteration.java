@@ -368,7 +368,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		 * a Distance object is the value.
 		 */
 		@Override
-		public void cross(PactRecord dataPointRecord, PactRecord clusterCenterRecord, Collector out)
+		public void cross(PactRecord dataPointRecord, PactRecord clusterCenterRecord, Collector<PactRecord> out)
 		{
 			CoordVector dataPoint = dataPointRecord.getField(1, CoordVector.class);
 			
@@ -413,7 +413,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		 * the use of a Combiner for the second Reduce PACT.
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> pointsWithDistance, Collector out)
+		public void reduce(Iterator<PactRecord> pointsWithDistance, Collector<PactRecord> out)
 		{
 			double nearestDistance = Double.MAX_VALUE;
 			int nearestClusterId = 0;
@@ -453,7 +453,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		 * cluster centers.
 		 */
 		@Override
-		public void combine(Iterator<PactRecord> pointsWithDistance, Collector out)
+		public void combine(Iterator<PactRecord> pointsWithDistance, Collector<PactRecord> out)
 		{	
 			double nearestDistance = Double.MAX_VALUE;
 
@@ -498,7 +498,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		 * Compute the new position (coordinate vector) of a cluster center.
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> dataPoints, Collector out)
+		public void reduce(Iterator<PactRecord> dataPoints, Collector<PactRecord> out)
 		{
 			PactRecord next = null;
 				
@@ -546,7 +546,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		 * Computes a pre-aggregated average value of a coordinate vector.
 		 */
 		@Override
-		public void combine(Iterator<PactRecord> dataPoints, Collector out)
+		public void combine(Iterator<PactRecord> dataPoints, Collector<PactRecord> out)
 		{
 			PactRecord next = null;
 			

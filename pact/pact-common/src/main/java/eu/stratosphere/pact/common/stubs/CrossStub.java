@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.common.stubs;
 
+import eu.stratosphere.pact.common.generic.AbstractStub;
+import eu.stratosphere.pact.common.generic.GenericCrosser;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
@@ -27,7 +29,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * 
  * @author Fabian Hueske
  */
-public abstract class CrossStub extends Stub
+public abstract class CrossStub extends AbstractStub implements GenericCrosser<PactRecord, PactRecord, PactRecord>
 {
 	/**
 	 * This method must be implemented to provide a user implementation of a cross.
@@ -41,5 +43,6 @@ public abstract class CrossStub extends Stub
 	 *                   runtime catches an exception, it aborts the task and lets the fail-over logic
 	 *                   decide whether to retry the task execution.
 	 */
-	public abstract void cross(PactRecord record1, PactRecord record2, Collector out);
+	@Override
+	public abstract void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out);
 }

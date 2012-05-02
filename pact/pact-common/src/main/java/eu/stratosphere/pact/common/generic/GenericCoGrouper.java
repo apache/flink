@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,26 +13,14 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.stubs;
+package eu.stratosphere.pact.common.generic;
 
-/**
- * Collects the output of PACT first-order user function implemented as {@link Stub}.
- * The collected data is forwards to the next contract.
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske
- */
-public interface Collector<T>
-{	
-	/**
-	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
-	 * 
-	 * @param record The record to collect.
-	 */
-	void collect(T record);
-	
-	/**
-	 * Closes the collector, flushing any buffered data.
-	 */
-	void close();
+import java.util.Iterator;
+
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.Stub;
+
+public interface GenericCoGrouper<V1, V2, O> extends Stub
+{
+	public abstract void coGroup(Iterator<V1> records1, Iterator<V2> records2, Collector<O> out);
 }

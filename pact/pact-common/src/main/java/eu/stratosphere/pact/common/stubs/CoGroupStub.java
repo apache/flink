@@ -17,6 +17,8 @@ package eu.stratosphere.pact.common.stubs;
 
 import java.util.Iterator;
 
+import eu.stratosphere.pact.common.generic.AbstractStub;
+import eu.stratosphere.pact.common.generic.GenericCoGrouper;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
@@ -32,7 +34,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * 
  * @author Fabian Hueske
  */
-public abstract class CoGroupStub extends Stub
+public abstract class CoGroupStub extends AbstractStub implements GenericCoGrouper<PactRecord, PactRecord, PactRecord>
 {
 	/**
 	 * This method must be implemented to provide a user implementation of a
@@ -47,5 +49,6 @@ public abstract class CoGroupStub extends Stub
 	 *                   runtime catches an exception, it aborts the task and lets the fail-over logic
 	 *                   decide whether to retry the task execution.
 	 */
-	public abstract void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector out);
+	@Override
+	public abstract void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out);
 }

@@ -139,7 +139,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * Filters for documents that contain all of the given keywords and emit their keys.
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			this.string.setValue(record.getField(0, PactString.class));
 			String[] fields = this.string.getValue().split("\\|");
 			this.url.setValue(fields[0]);
@@ -184,7 +184,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * than the given threshold. The key is set to the URL of the record.
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			//PactInteger rank = record.getField(0, PactInteger.class);
 			String[] fields = record.getField(0, PactString.class).getValue().split("\\|");
 			this.rank.setValue(Integer.valueOf(fields[0]));
@@ -223,7 +223,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * specified value. The URL of all visit records passing the filter is emitted.
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			String[] fields = record.getField(0, PactString.class).getValue().split("\\|");
 			this.url.setValue(fields[1]);
 			
@@ -258,7 +258,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * the attributes of the ranks relation.
 		 */
 		@Override
-		public void match(PactRecord document, PactRecord rank, Collector out) throws Exception {
+		public void match(PactRecord document, PactRecord rank, Collector<PactRecord> out) throws Exception {
 			out.collect(rank);	
 		}
 	}
@@ -278,7 +278,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * Otherwise, no pair is emitted. 
 		 */
 		@Override
-		public void coGroup(Iterator<PactRecord> ranks, Iterator<PactRecord> visits, Collector out) {
+		public void coGroup(Iterator<PactRecord> ranks, Iterator<PactRecord> visits, Collector<PactRecord> out) {
 			// Check if there is a entry in the visits relation
 			if (!visits.hasNext()) {
 				while (ranks.hasNext()) {

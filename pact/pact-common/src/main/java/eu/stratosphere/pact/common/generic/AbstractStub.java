@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,26 +13,27 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.stubs;
+package eu.stratosphere.pact.common.generic;
+
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.stubs.Stub;
 
 /**
- * Collects the output of PACT first-order user function implemented as {@link Stub}.
- * The collected data is forwards to the next contract.
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske
+ * An abstract stub implementation that does nothing when opened or closed.
  */
-public interface Collector<T>
-{	
-	/**
-	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
-	 * 
-	 * @param record The record to collect.
+public abstract class AbstractStub implements Stub
+{
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
 	 */
-	void collect(T record);
-	
-	/**
-	 * Closes the collector, flushing any buffered data.
+	@Override
+	public void open(Configuration parameters) throws Exception
+	{}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.Stub#close()
 	 */
-	void close();
+	@Override
+	public void close() throws Exception
+	{}
 }

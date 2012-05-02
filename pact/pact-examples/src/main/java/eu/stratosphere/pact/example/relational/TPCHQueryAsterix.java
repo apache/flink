@@ -89,7 +89,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 *  Value: 0:PARTIAL_COUNT=1
 		 */
 		@Override
-		public void match(PactRecord order, PactRecord cust, Collector out)
+		public void match(PactRecord order, PactRecord cust, Collector<PactRecord> out)
 				throws Exception {
 			cust.setField(0, oneInteger);
 			out.collect(cust);
@@ -120,7 +120,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 *
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 
 			int count = 0;
@@ -138,7 +138,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		/**
 		 * Computes partial counts
 		 */
-		public void combine(Iterator<PactRecord> records, Collector out)
+		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			reduce(records, out);
 		}

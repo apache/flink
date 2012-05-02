@@ -18,7 +18,7 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.generic.AbstractStub;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -148,7 +148,7 @@ public class SinkJoiner extends TwoInputNode
 	//  Mock classes that represents a contract without behavior.
 	// ------------------------------------------------------------------------
 	
-	private static final class MockStub extends Stub {}
+	private static final class MockStub extends AbstractStub {}
 	
 	private static final class NoContract extends DualInputContract<MockStub>
 	{

@@ -148,7 +148,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		private final PactString endVertex2 = new PactString();
 		
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out) throws Exception {
+		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
 			
 			value1.getFieldInto(0, joinVertex);
 			value1.getFieldInto(1, endVertex1);
@@ -177,7 +177,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(CloseTriads.class);
 
 		@Override
-		public void match(PactRecord triad, PactRecord missingEdge, Collector out) throws Exception {
+		public void match(PactRecord triad, PactRecord missingEdge, Collector<PactRecord> out) throws Exception {
 			
 			LOG.debug("Emit: " + missingEdge);
 			
