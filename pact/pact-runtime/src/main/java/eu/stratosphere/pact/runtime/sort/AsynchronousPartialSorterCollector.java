@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 
 /**
  * The {@link AsynchronousPartialSorterCollector} is a simple sort implementation that sorts
@@ -57,7 +57,7 @@ public class AsynchronousPartialSorterCollector<E> extends AsynchronousPartialSo
 	 */
 	public AsynchronousPartialSorterCollector(MemoryManager memoryManager,
 			AbstractInvokable parentTask, 
-			TypeSerializers<E> serializer, TypeComparator<E> comparator,
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
 			long totalMemory)
 	throws IOException, MemoryAllocationException
 	{
@@ -81,7 +81,7 @@ public class AsynchronousPartialSorterCollector<E> extends AsynchronousPartialSo
 	@Override
 	protected ThreadBase<E> getReadingThread(ExceptionHandler<IOException> exceptionHandler,
 		MutableObjectIterator<E> reader, CircularQueues<E> queues, AbstractInvokable parentTask,
-		TypeSerializers<E> serializer, long startSpillingBytes)
+		TypeSerializer<E> serializer, long startSpillingBytes)
 	{
 		this.collector = new InputDataCollector<E>(queues, startSpillingBytes);
 		return null;

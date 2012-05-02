@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
  *
  * @author Stephan Ewen
  */
-public interface TypeSerializers<T>
+public interface TypeSerializer<T>
 {
 	/**
 	 * Creates a new instance of the data type.

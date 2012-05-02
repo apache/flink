@@ -32,9 +32,9 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializers;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
@@ -68,7 +68,7 @@ public class UnilateralSortMergerITCase
 
 	private MemoryManager memoryManager;
 	
-	private TypeSerializers<PactRecord> pactRecordSerializer;
+	private TypeSerializer<PactRecord> pactRecordSerializer;
 	
 	private TypeComparator<PactRecord> pactRecordComparator;
 
@@ -80,7 +80,7 @@ public class UnilateralSortMergerITCase
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 		this.ioManager = new IOManager();
 		
-		this.pactRecordSerializer = PactRecordSerializers.get();
+		this.pactRecordSerializer = PactRecordSerializer.get();
 		this.pactRecordComparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 	}
 

@@ -38,7 +38,7 @@ import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
 import eu.stratosphere.pact.runtime.io.HeaderlessChannelReaderInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.TypePairComparator;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 
@@ -201,12 +201,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	/**
 	 * The utilities to serialize the build side data types.
 	 */
-	private final TypeSerializers<BT> buildSideSerializer;
+	private final TypeSerializer<BT> buildSideSerializer;
 
 	/**
 	 * The utilities to serialize the probe side data types.
 	 */
-	private final TypeSerializers<PT> probeSideSerializer;
+	private final TypeSerializer<PT> probeSideSerializer;
 	
 	/**
 	 * The utilities to hash and compare the build side data types.
@@ -343,7 +343,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	//                         Construction and Teardown
 	// ------------------------------------------------------------------------
 	
-	public MutableHashTable(TypeSerializers<BT> buildSideSerializer, TypeSerializers<PT> probeSideSerializer,
+	public MutableHashTable(TypeSerializer<BT> buildSideSerializer, TypeSerializer<PT> probeSideSerializer,
 			TypeComparator<BT> buildSideComparator, TypeComparator<PT> probeSideComparator,
 			TypePairComparator<PT, BT> comparator, List<MemorySegment> memorySegments, IOManager ioManager)
 	{
@@ -351,7 +351,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			memorySegments, ioManager, DEFAULT_RECORD_LEN);
 	}
 	
-	public MutableHashTable(TypeSerializers<BT> buildSideSerializer, TypeSerializers<PT> probeSideSerializer,
+	public MutableHashTable(TypeSerializer<BT> buildSideSerializer, TypeSerializer<PT> probeSideSerializer,
 			TypeComparator<BT> buildSideComparator, TypeComparator<PT> probeSideComparator,
 			TypePairComparator<PT, BT> comparator, List<MemorySegment> memorySegments,
 			IOManager ioManager, int avgRecordLen)
@@ -1284,7 +1284,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	 */
 	public static class HashBucketIterator<BT, PT>
 	{
-		private final TypeSerializers<BT> accessor;
+		private final TypeSerializer<BT> accessor;
 		
 		private final TypePairComparator<PT, BT> comparator;
 		
@@ -1311,7 +1311,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		private long lastPointer;
 		
 		
-		HashBucketIterator(TypeSerializers<BT> accessor, TypePairComparator<PT, BT> comparator)
+		HashBucketIterator(TypeSerializer<BT> accessor, TypePairComparator<PT, BT> comparator)
 		{
 			this.accessor = accessor;
 			this.comparator = comparator;

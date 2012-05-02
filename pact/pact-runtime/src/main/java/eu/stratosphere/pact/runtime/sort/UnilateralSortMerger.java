@@ -40,13 +40,13 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.generic.Collector;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputView;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
 import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 
@@ -185,7 +185,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 */
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
-			TypeSerializers<E> serializer, TypeComparator<E> comparator,
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
 			long totalMemory, int maxNumFileHandles, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
@@ -216,7 +216,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 */
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
-			TypeSerializers<E> serializer, TypeComparator<E> comparator,
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
 			long totalMemory, int numSortBuffers, int maxNumFileHandles, 
 			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
@@ -248,7 +248,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 */
 	protected UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
-			TypeSerializers<E> serializer, TypeComparator<E> comparator,
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
 			long totalMemory, int numSortBuffers, int maxNumFileHandles, 
 			float startSpillingFraction, boolean noSpillingMemory)
 	throws IOException, MemoryAllocationException
@@ -335,8 +335,10 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		this.sortReadMemory = new ArrayList<MemorySegment>(sortMemPages);
 		
 		// allocate the memory
-		memoryManager.allocatePages(parentTask, this.writeMemory, numWriteBuffers);
 		memoryManager.allocatePages(parentTask, this.sortReadMemory, sortMemPages);
+		if (numWriteBuffers > 0) {
+			memoryManager.allocatePages(parentTask, this.writeMemory, numWriteBuffers);
+		}
 		
 		// circular queues pass buffers between the threads
 		final CircularQueues<E> circularQueues = new CircularQueues<E>();
@@ -559,7 +561,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 */
 	protected ThreadBase<E> getReadingThread(ExceptionHandler<IOException> exceptionHandler,
 			MutableObjectIterator<E> reader, CircularQueues<E> queues, AbstractInvokable parentTask,
-			TypeSerializers<E> serializer, long startSpillingBytes)
+			TypeSerializer<E> serializer, long startSpillingBytes)
 	{
 		return new ReadingThread<E>(exceptionHandler, reader, queues, serializer.createInstance(),
 			parentTask, startSpillingBytes);
@@ -600,7 +602,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 */
 	protected ThreadBase<E> getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 			AbstractInvokable parentTask, MemoryManager memoryManager, IOManager ioManager, 
-			TypeSerializers<E> serializer, TypeComparator<E> comparator,
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
 			List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxFileHandles)
 	{
 		return new SpillingThread(exceptionHandler, queues, parentTask,
@@ -1164,7 +1166,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		
 		protected final IOManager ioManager;				// I/O manager to create channels
 		
-		protected final TypeSerializers<E> serializer;		// The serializer for the data type
+		protected final TypeSerializer<E> serializer;		// The serializer for the data type
 		
 		protected final TypeComparator<E> comparator;		// The comparator that establishes the order relation.
 		
@@ -1189,7 +1191,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 		 */
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 				AbstractInvokable parentTask, MemoryManager memManager, IOManager ioManager, 
-				TypeSerializers<E> serializer, TypeComparator<E> comparator, 
+				TypeSerializer<E> serializer, TypeComparator<E> comparator, 
 				List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxNumFileHandles)
 		{
 			super(exceptionHandler, "SortMerger spilling thread", queues, parentTask);
@@ -1528,7 +1530,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 																			this.memManager.getPageSize());
 
 			// read the merged stream and write the data back
-			final TypeSerializers<E> serializer = this.serializer;
+			final TypeSerializer<E> serializer = this.serializer;
 			final E rec = serializer.createInstance();
 			while (mergeIterator.next(rec)) {
 				serializer.serialize(rec, output);

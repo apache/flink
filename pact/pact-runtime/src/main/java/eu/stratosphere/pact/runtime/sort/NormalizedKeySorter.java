@@ -27,7 +27,7 @@ import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
 import eu.stratosphere.pact.runtime.io.RandomAccessInputView;
 import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 
 /**
  * 
@@ -48,7 +48,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 
 	private final byte[] swapBuffer;
 	
-	private final TypeSerializers<T> serializer;
+	private final TypeSerializer<T> serializer;
 	
 	private final TypeComparator<T> comparator;
 	
@@ -93,12 +93,12 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
 
-	public NormalizedKeySorter(TypeSerializers<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory)
+	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory)
 	{
 		this(serializer, comparator, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN);
 	}
 	
-	public NormalizedKeySorter(TypeSerializers<T> serializer, TypeComparator<T> comparator, 
+	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
 			List<MemorySegment> memory, int maxNormalizedKeyBytes)
 	{
 		if (serializer == null || comparator == null || memory == null)

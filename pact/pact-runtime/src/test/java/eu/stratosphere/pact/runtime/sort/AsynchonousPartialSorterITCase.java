@@ -16,17 +16,13 @@
 package eu.stratosphere.pact.runtime.sort;
 
 import java.io.IOException;
-import java.util.Comparator;
 
 import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -35,9 +31,12 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
@@ -46,46 +45,10 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 
 /**
  * @author Erik Nijkamp
+ * @author Stephan Ewen
  */
-public class AsynchonousPartialSorterITCase {
-	
-	@SuppressWarnings("serial")
-	private class TriggeredException extends IOException {}
-	
-	private class ExceptionThrowingAsynchronousPartialSorter extends AsynchronousPartialSorter {
-		
-		protected class ExceptionThrowingSorterThread extends SortingThread {
-			
-			public ExceptionThrowingSorterThread(
-					ExceptionHandler<IOException> exceptionHandler,
-					eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.CircularQueues queues,
-					AbstractInvokable parentTask) {
-				super(exceptionHandler, queues, parentTask);
-			}
-
-			@Override
-			public void go() throws IOException {
-				throw new TriggeredException();
-			}
-		}
-
-		public ExceptionThrowingAsynchronousPartialSorter(MemoryManager memoryManager, IOManager ioManager, long totalMemory,
-				Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-				MutableObjectIterator<PactRecord> input, AbstractInvokable parentTask) throws IOException,
-				MemoryAllocationException {
-			super(memoryManager, ioManager, totalMemory, keyComparators, keyPositions, keyClasses, input, parentTask);
-		}
-
-
-		@Override
-		protected ThreadBase getSortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				AbstractInvokable parentTask)
-		{
-			return new ExceptionThrowingSorterThread(exceptionHandler, queues, parentTask);
-		}		
-	}
-	
-	
+public class AsynchonousPartialSorterITCase
+{
 	private static final Log LOG = LogFactory.getLog(AsynchonousPartialSorterITCase.class);
 
 	private static final long SEED = 649180756312423613L;
@@ -96,8 +59,6 @@ public class AsynchonousPartialSorterITCase {
 	
 	private static final int VALUE_LENGTH = 114;
 
-	private static final int NUM_PAIRS = 100;
-
 	public static final int MEMORY_SIZE = 1024 * 1024 * 32;
 	
 	private final AbstractTask parentTask = new DummyInvokable();
@@ -105,69 +66,165 @@ public class AsynchonousPartialSorterITCase {
 	private IOManager ioManager;
 
 	private MemoryManager memoryManager;
+	
+	private TypeSerializer<PactRecord> serializer;
+	
+	private TypeComparator<PactRecord> comparator;
 
-	@BeforeClass
-	public static void beforeClass() {
-		
-	}
 
-	@AfterClass
-	public static void afterClass() {
-	}
-
+	@SuppressWarnings("unchecked")
 	@Before
-	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
-		ioManager = new IOManager();
+	public void beforeTest()
+	{
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.ioManager = new IOManager();
+		this.serializer = PactRecordSerializer.get();
+		this.comparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 	}
 
 	@After
-	public void afterTest() {
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
+	public void afterTest()
+	{
+		this.ioManager.shutdown();
+		if (!this.ioManager.isProperlyShutDown()) {
 			Assert.fail("I/O Manager was not properly shut down.");
 		}
 		
-		if (memoryManager != null) {
+		if (this.memoryManager != null) {
 			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.", 
-				memoryManager.verifyEmpty());
-			memoryManager.shutdown();
-			memoryManager = null;
+				this.memoryManager.verifyEmpty());
+			this.memoryManager.shutdown();
+			this.memoryManager = null;
 		}
 	}
 
-	// TODO does not validate the partial order (transitions between windows) (en)
 	@Test
-	@Ignore
-	public void testSort() throws Exception {
-		// comparator
-		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
+	public void testSmallSortInOneWindow() throws Exception
+	{
+		try {
+			final int NUM_RECORDS = 1000;
+			
+			// reader
+			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+			final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
+			
+			// merge iterator
+			LOG.debug("Initializing sortmerger...");
+			Sorter<PactRecord> sorter = new AsynchronousPartialSorter<PactRecord>(this.memoryManager, source,
+				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+	
+			runPartialSorter(sorter, NUM_RECORDS, 0);
+		}
+		catch (Exception t) {
+			t.printStackTrace();
+			Assert.fail("Test failed due to an uncaught exception: " + t.getMessage());
+		}
+	}
+	
+	@Test
+	public void testLargeSortAcrossTwoWindows() throws Exception
+	{
+		try {
+			final int NUM_RECORDS = 100000;
+			
+			// reader
+			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+			final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
+			
+			// merge iterator
+			LOG.debug("Initializing sortmerger...");
+			Sorter<PactRecord> sorter = new AsynchronousPartialSorter<PactRecord>(this.memoryManager, source,
+				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+	
+			runPartialSorter(sorter, NUM_RECORDS, 2);
+		}
+		catch (Exception t) {
+			t.printStackTrace();
+			Assert.fail("Test failed due to an uncaught exception: " + t.getMessage());
+		}
+	}
+	
+	@Test
+	public void testLargeSortAcrossMultipleWindows() throws Exception
+	{
+		try {
+			final int NUM_RECORDS = 1000000;
+			
+			// reader
+			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+			final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
+			
+			// merge iterator
+			LOG.debug("Initializing sortmerger...");
+			Sorter<PactRecord> sorter = new AsynchronousPartialSorter<PactRecord>(this.memoryManager, source,
+				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+	
+			runPartialSorter(sorter, NUM_RECORDS, 28);
+		}
+		catch (Exception t) {
+			t.printStackTrace();
+			Assert.fail("Test failed due to an uncaught exception: " + t.getMessage());
+		}
+	}
+	
+	@Test
+	public void testExceptionForwarding() throws IOException
+	{
+		try {
+			Sorter<PactRecord> sorter = null;
+			try	{
+				final int NUM_RECORDS = 100;
 
-		// reader
-		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
-		final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
+				// reader
+				final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
+				final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_RECORDS);
+				
+				// merge iterator
+				LOG.debug("Initializing sortmerger...");
+				sorter = new ExceptionThrowingAsynchronousPartialSorter<PactRecord>(this.memoryManager, source,
+						this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
 		
-		// merge iterator
-		LOG.debug("Initializing sortmerger...");
-		@SuppressWarnings("unchecked")
-		Sorter merger = new AsynchronousPartialSorter(
-			memoryManager, ioManager, 32 * 1024 * 1024, new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class}, source, parentTask);
-
+				runPartialSorter(sorter, NUM_RECORDS, 0);
+				
+				Assert.fail("Expected Test Exception not thrown.");
+			} catch(Exception e) {
+				if (!containsTriggerException(e))
+					throw e;
+			} finally {
+				if (sorter != null)
+					sorter.close();
+			}
+		}
+		catch (Exception t) {
+			t.printStackTrace();
+			Assert.fail("Test failed due to an uncaught exception: " + t.getMessage());
+		}
+	}
+	
+	private static void runPartialSorter(Sorter<PactRecord> sorter, 
+								int expectedNumResultRecords, int expectedNumWindowTransitions)
+	throws Exception
+	{
 		// check order
-		MutableObjectIterator<PactRecord> iterator = merger.getIterator();
+		final MutableObjectIterator<PactRecord> iterator = sorter.getIterator();
 		int pairsEmitted = 1;
+		int windowTransitions = 0;
 		
 		PactRecord rec1 = new PactRecord();
 		PactRecord rec2 = new PactRecord();
 		
 		LOG.debug("Checking results...");
 		Assert.assertTrue(iterator.next(rec1));
-		while (iterator.next(rec2)) {
+		while (iterator.next(rec2))
+		{
 			final TestData.Key k1 = rec1.getField(0, TestData.Key.class);
 			final TestData.Key k2 = rec2.getField(0, TestData.Key.class);
 			pairsEmitted++;
 			
-			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
+			// if the next key is smaller again, we have a new window
+			if (k1.compareTo(k2) > 0) {
+				windowTransitions++;
+			}
 			
 			PactRecord tmp = rec1;
 			rec1 = rec2;
@@ -175,71 +232,71 @@ public class AsynchonousPartialSorterITCase {
 			
 			rec2 = tmp;
 		}
-		Assert.assertTrue(NUM_PAIRS == pairsEmitted);
-		merger.close();
-	}
-	
-	@SuppressWarnings("unchecked")
-	@Test
-	@Ignore
-	public void testExceptionForwarding() throws IOException {
-		Sorter merger = null;
-		try	{
-			// comparator
-			final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
-	
-			// reader
-			final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.CONSTANT, VAL);
-			final MutableObjectIterator<PactRecord> source = new TestData.GeneratorIterator(generator, NUM_PAIRS);
-			
-			// merge iterator
-			LOG.debug("Initializing sortmerger...");
-			merger = new ExceptionThrowingAsynchronousPartialSorter(
-				memoryManager, ioManager, 32 * 1024 * 1024, new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class}, source, parentTask);
-	
-			// check order
-			MutableObjectIterator<PactRecord> iterator = merger.getIterator();
-			int pairsEmitted = 1;
-			
-			PactRecord rec1 = new PactRecord();
-			PactRecord rec2 = new PactRecord();
-			
-			LOG.debug("Checking results...");
-			Assert.assertTrue(iterator.next(rec1));
-			while (iterator.next(rec2)) {
-				final TestData.Key k1 = rec1.getField(0, TestData.Key.class);
-				final TestData.Key k2 = rec2.getField(0, TestData.Key.class);
-				pairsEmitted++;
-				
-				Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
-				
-				PactRecord tmp = rec1;
-				rec1 = rec2;
-				k1.setKey(k2.getKey());
-				
-				rec2 = tmp;
-			}
-			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
-			
-		} catch(Exception e) {
-			Assert.assertTrue(containsTriggerException(e));
-			return;
-		} finally {
-			if(merger != null)
-				merger.close();
-		}
 		
-		Assert.fail("exception not thrown");
+		sorter.close();
+		
+		Assert.assertEquals("Sorter did not return the expected number of result records.",
+			expectedNumResultRecords, pairsEmitted);
+		Assert.assertEquals("The partial sorter made an unexpected number of window transitions.",
+			expectedNumWindowTransitions, windowTransitions); 
 	}
 	
-	private boolean containsTriggerException(Exception exception) {
-		Throwable cause = exception.getCause();
-		while(cause != null) {
-			if(cause.getClass().equals(TriggeredException.class)) {
+	private static boolean containsTriggerException(Throwable exception)
+	{
+		while (exception != null) {
+			if (exception.getClass().equals(TriggeredException.class)) {
 				return true;
 			}
-			cause = exception.getCause();
+			exception = exception.getCause();
 		}
 		return false;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//              					 Internal classes
+	// --------------------------------------------------------------------------------------------
+	
+	/*
+	 * Mock exception thrown on purpose.
+	 */
+	@SuppressWarnings("serial")
+	private static class TriggeredException extends IOException {}
+	
+	/*
+	 * Mocked sorter that throws an exception in the sorting thread.
+	 */
+	private static class ExceptionThrowingAsynchronousPartialSorter<E> extends AsynchronousPartialSorter<E>
+	{	
+		protected static class ExceptionThrowingSorterThread<E> extends SortingThread<E> {
+				
+			public ExceptionThrowingSorterThread(ExceptionHandler<IOException> exceptionHandler,
+						eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.CircularQueues<E> queues,
+						AbstractInvokable parentTask)
+			{
+				super(exceptionHandler, queues, parentTask);
+			}
+	
+			@Override
+			public void go() throws IOException {
+				throw new TriggeredException();
+			}
+		}
+
+		public ExceptionThrowingAsynchronousPartialSorter(MemoryManager memoryManager,
+				MutableObjectIterator<E> input, AbstractInvokable parentTask, 
+				TypeSerializer<E> serializer, TypeComparator<E> comparator,
+				long totalMemory)
+		throws IOException, MemoryAllocationException
+		{
+			super(memoryManager, input, parentTask, serializer, comparator, totalMemory);
+		}
+
+
+		@Override
+		protected ThreadBase<E> getSortingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
+				AbstractInvokable parentTask)
+		{
+			return new ExceptionThrowingSorterThread<E>(exceptionHandler, queues, parentTask);
+		}		
 	}
 }

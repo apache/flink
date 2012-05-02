@@ -19,10 +19,10 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 
 
-public class IntPairSerializer implements TypeSerializers<IntPair>
+public class IntPairSerializer implements TypeSerializer<IntPair>
 {	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#createInstance()

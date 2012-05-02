@@ -26,9 +26,9 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializers;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
 import eu.stratosphere.pact.runtime.test.util.TestData.Value;
@@ -36,7 +36,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 
 public class MergeIteratorTest
 {
-	private TypeSerializers<PactRecord> serializer;
+	private TypeSerializer<PactRecord> serializer;
 	
 	private TypeComparator<PactRecord> comparator;
 	
@@ -44,7 +44,7 @@ public class MergeIteratorTest
 	@SuppressWarnings("unchecked")
 	@Before
 	public void setup() {
-		this.serializer = PactRecordSerializers.get();
+		this.serializer = PactRecordSerializer.get();
 		this.comparator = new PactRecordComparator(new int[] {0}, new Class[] { TestData.Key.class});
 	}
 	

@@ -27,22 +27,22 @@ import eu.stratosphere.pact.common.type.PactRecord;
  *
  * @author Stephan Ewen
  */
-public final class PactRecordSerializers implements TypeSerializers<PactRecord>
+public final class PactRecordSerializer implements TypeSerializer<PactRecord>
 {
-	private static final PactRecordSerializers INSTANCE = new PactRecordSerializers(); // singleton instance
+	private static final PactRecordSerializer INSTANCE = new PactRecordSerializer(); // singleton instance
 	
 	private static final int MAX_BIT = 0x80;	// byte where only the most significant bit is set
 	
 	// --------------------------------------------------------------------------------------------
 
-	public static final PactRecordSerializers get() {
+	public static final PactRecordSerializer get() {
 		return INSTANCE;
 	}
 	
 	/**
 	 * Creates a new instance of the PactRecordSerializers. Private to prevent instantiation.
 	 */
-	private PactRecordSerializers()
+	private PactRecordSerializer()
 	{}
 
 	// --------------------------------------------------------------------------------------------

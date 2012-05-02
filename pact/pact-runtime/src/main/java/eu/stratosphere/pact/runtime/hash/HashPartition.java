@@ -34,7 +34,7 @@ import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
 import eu.stratosphere.pact.runtime.io.RandomAccessOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 
 
@@ -58,9 +58,9 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 
 	// -------------------------------------  Type Accessors --------------------------------------------
 	
-	private final TypeSerializers<BT> buildSideSerializer;
+	private final TypeSerializer<BT> buildSideSerializer;
 	
-	private final TypeSerializers<PT> probeSideSerializer;
+	private final TypeSerializer<PT> probeSideSerializer;
 	
 	// -------------------------------------- Record Buffers --------------------------------------------
 	
@@ -108,7 +108,7 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 	 * @param initialBuffer The initial buffer for this partition.
 	 * @param writeBehindBuffers The queue from which to pop buffers for writing, once the partition is spilled.
 	 */
-	HashPartition(TypeSerializers<BT> buildSideAccessors, TypeSerializers<PT> probeSideAccessors,
+	HashPartition(TypeSerializer<BT> buildSideAccessors, TypeSerializer<PT> probeSideAccessors,
 			int partitionNumber, int recursionLevel, MemorySegment initialBuffer, MemorySegmentSource memSource,
 			int segmentSize)
 	{
@@ -141,7 +141,7 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 	 * @param buildSideRecordCounter The number of records in the buffers.
 	 * @param segmentSize The size of the memory segments.
 	 */
-	HashPartition(TypeSerializers<BT> buildSideAccessors, TypeSerializers<PT> probeSideAccessors,
+	HashPartition(TypeSerializer<BT> buildSideAccessors, TypeSerializer<PT> probeSideAccessors,
 			int partitionNumber, int recursionLevel, List<MemorySegment> buffers,
 			long buildSideRecordCounter, int segmentSize, int lastSegmentLimit)
 	{

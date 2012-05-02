@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 
 
 /**
@@ -63,7 +63,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 	 */
 	public AsynchronousPartialSorter(MemoryManager memoryManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
-			TypeSerializers<E> serializer, TypeComparator<E> comparator,
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
 			long totalMemory)
 	throws IOException, MemoryAllocationException
 	{
@@ -99,7 +99,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 	@Override
 	protected ThreadBase<E> getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 			AbstractInvokable parentTask, MemoryManager memoryManager, IOManager ioManager, 
-			TypeSerializers<E> serializer, TypeComparator<E> comparator,
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
 			List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxFileHandles)
 	{
 		this.bufferIterator = new BufferQueueIterator(queues);

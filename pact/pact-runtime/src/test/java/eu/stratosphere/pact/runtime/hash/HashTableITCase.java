@@ -40,9 +40,9 @@ import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable.HashBucketIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializers;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializers;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.TypePairComparator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
@@ -63,14 +63,14 @@ public class HashTableITCase
 {
 	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
 	
-	private TypeSerializers<PactRecord> recordBuildSideAccesssor;
-	private TypeSerializers<PactRecord> recordProbeSideAccesssor;
+	private TypeSerializer<PactRecord> recordBuildSideAccesssor;
+	private TypeSerializer<PactRecord> recordProbeSideAccesssor;
 	private TypeComparator<PactRecord> recordBuildSideComparator;
 	private TypeComparator<PactRecord> recordProbeSideComparator;
 	private TypePairComparator<PactRecord, PactRecord> pactRecordComparator;
 	
-	private TypeSerializers<IntPair> pairBuildSideAccesssor;
-	private TypeSerializers<IntPair> pairProbeSideAccesssor;
+	private TypeSerializer<IntPair> pairBuildSideAccesssor;
+	private TypeSerializer<IntPair> pairProbeSideAccesssor;
 	private TypeComparator<IntPair> pairBuildSideComparator;
 	private TypeComparator<IntPair> pairProbeSideComparator;
 	private TypePairComparator<IntPair, IntPair> pairComparator;
@@ -82,8 +82,8 @@ public class HashTableITCase
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyType = (Class<? extends Key>[]) new Class[] { PactInteger.class };
 		
-		this.recordBuildSideAccesssor = PactRecordSerializers.get();
-		this.recordProbeSideAccesssor = PactRecordSerializers.get();
+		this.recordBuildSideAccesssor = PactRecordSerializer.get();
+		this.recordProbeSideAccesssor = PactRecordSerializer.get();
 		this.recordBuildSideComparator = new PactRecordComparator(keyPos, keyType);
 		this.recordProbeSideComparator = new PactRecordComparator(keyPos, keyType);
 		this.pactRecordComparator = new PactRecordPairComparatorFirstInt();

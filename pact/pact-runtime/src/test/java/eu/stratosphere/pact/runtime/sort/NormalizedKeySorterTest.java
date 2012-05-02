@@ -28,7 +28,7 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializers;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
@@ -77,7 +77,7 @@ public class NormalizedKeySorterTest
 	{
 		@SuppressWarnings("unchecked")
 		PactRecordComparator accessors = new PactRecordComparator(new int[] {0}, new Class[]{Key.class});
-		return new NormalizedKeySorter<PactRecord>(PactRecordSerializers.get(), accessors, memory);
+		return new NormalizedKeySorter<PactRecord>(PactRecordSerializer.get(), accessors, memory);
 	}
 
 	@Test
@@ -367,7 +367,7 @@ public class NormalizedKeySorterTest
 		
 		@SuppressWarnings("unchecked")
 		PactRecordComparator accessors = new PactRecordComparator(new int[] {1}, new Class[]{Value.class});
-		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(PactRecordSerializers.get(), accessors, memory);
+		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(PactRecordSerializer.get(), accessors, memory);
 		
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, 5, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
@@ -415,7 +415,7 @@ public class NormalizedKeySorterTest
 		
 		@SuppressWarnings("unchecked")
 		PactRecordComparator accessors = new PactRecordComparator(new int[] {1}, new Class[]{Value.class});
-		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(PactRecordSerializers.get(), accessors, memory);
+		NormalizedKeySorter<PactRecord> sorter = new NormalizedKeySorter<PactRecord>(PactRecordSerializer.get(), accessors, memory);
 		
 		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
