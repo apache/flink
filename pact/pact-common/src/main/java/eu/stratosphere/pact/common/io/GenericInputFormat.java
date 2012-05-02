@@ -71,7 +71,7 @@ public abstract class GenericInputFormat implements InputFormat<GenericInputSpli
 	 * @see eu.stratosphere.pact.common.io.InputFormat#getInputSplitType()
 	 */
 	@Override
-	public Class<GenericInputSplit> getInputSplitType()
+	public Class<? extends GenericInputSplit> getInputSplitType()
 	{
 		return GenericInputSplit.class;
 	}

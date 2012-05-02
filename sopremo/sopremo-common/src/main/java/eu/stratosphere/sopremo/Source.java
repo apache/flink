@@ -8,7 +8,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.GeneratorInputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -68,7 +70,8 @@ public class Source extends ElementaryOperator<Source> {
 		return this.inputFormat;
 	}
 
-	public void setInputFormat(final Class<? extends FileInputFormat> inputFormat) {
+	public void setInputFormat(
+			final Class<? extends FileInputFormat> inputFormat) {
 		if (inputFormat == null)
 			throw new NullPointerException("inputFormat must not be null");
 
@@ -89,28 +92,28 @@ public class Source extends ElementaryOperator<Source> {
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
-		String inputPath = this.inputPath, name = this.inputPath;
-		if (this.isAdhoc())
-			try {
-				final File tempFile = File.createTempFile("Adhoc", "source");
-				this.writeValues(tempFile);
-				inputPath = "file://localhost" + tempFile.getAbsolutePath();
-				SopremoUtil.LOG.info("temp file " + inputPath);
-				name = "Adhoc";
-			} catch (final IOException e) {
-				throw new IllegalStateException("Cannot create adhoc source", e);
-			}
+		final String inputPath = this.inputPath, name = this.inputPath;
+		GenericDataSource<?> contract;
+		if (this.isAdhoc()) {
+			contract = new GenericDataSource<GeneratorInputFormat>(
+					GeneratorInputFormat.class, name);
+			SopremoUtil.serialize(contract.getParameters(),
+					GeneratorInputFormat.ADHOC_EXPRESSION_PARAMETER_KEY,
+					this.adhocExpression);
+		} else
+			contract = new FileDataSource(this.inputFormat, inputPath, name);
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
-		final FileDataSource contract = new FileDataSource(this.inputFormat, inputPath, name);
-		
 		if (this.inputFormat == JsonInputFormat.class)
 			contract.setDegreeOfParallelism(1);
 
 		for (final Entry<String, Object> parameter : this.parameters.entrySet())
 			if (parameter.getValue() instanceof Serializable)
 				SopremoUtil
-					.serialize(contract.getParameters(), parameter.getKey(), (Serializable) parameter.getValue());
-		SopremoUtil.serialize(contract.getParameters(), IOConstants.SCHEMA, context.getOutputSchema(0));
+						.serialize(contract.getParameters(),
+								parameter.getKey(),
+								(Serializable) parameter.getValue());
+		SopremoUtil.serialize(contract.getParameters(), IOConstants.SCHEMA,
+				context.getOutputSchema(0));
 		pactModule.getOutput(0).setInput(contract);
 		// pactModule.setInput(0, contract);
 		return pactModule;
@@ -126,7 +129,8 @@ public class Source extends ElementaryOperator<Source> {
 		this.parameters.put(key, value);
 	}
 
-	private void writeValues(final File tempFile) throws IOException, JsonProcessingException {
+	private void writeValues(final File tempFile) throws IOException,
+			JsonProcessingException {
 		final JsonGenerator writer = new JsonGenerator(tempFile);
 		writer.writeTree(this.getAdhocValues());
 		writer.close();
@@ -141,9 +145,10 @@ public class Source extends ElementaryOperator<Source> {
 		if (this.getClass() != obj.getClass())
 			return false;
 		final Source other = (Source) obj;
-		return (this.inputPath == null ? other.inputFormat == null : this.inputPath.equals(other.inputPath))
-			&& (this.adhocExpression == null ? this.adhocExpression == null : this.adhocExpression
-				.equals(other.adhocExpression));
+		return (this.inputPath == null ? other.inputFormat == null
+				: this.inputPath.equals(other.inputPath))
+				&& (this.adhocExpression == null ? this.adhocExpression == null
+						: this.adhocExpression.equals(other.adhocExpression));
 	}
 
 	public EvaluationExpression getAdhocExpression() {
@@ -153,7 +158,8 @@ public class Source extends ElementaryOperator<Source> {
 	public IJsonNode getAdhocValues() {
 		if (!this.isAdhoc())
 			throw new IllegalStateException();
-		return this.getAdhocExpression().evaluate(NullNode.getInstance(), null, new EvaluationContext());
+		return this.getAdhocExpression().evaluate(NullNode.getInstance(), null,
+				new EvaluationContext());
 	}
 
 	public String getInputName() {
@@ -164,8 +170,12 @@ public class Source extends ElementaryOperator<Source> {
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + (this.adhocExpression == null ? 0 : this.adhocExpression.hashCode());
-		result = prime * result + (this.inputPath == null ? 0 : this.inputPath.hashCode());
+		result = prime
+				* result
+				+ (this.adhocExpression == null ? 0 : this.adhocExpression
+						.hashCode());
+		result = prime * result
+				+ (this.inputPath == null ? 0 : this.inputPath.hashCode());
 		return result;
 	}
 
