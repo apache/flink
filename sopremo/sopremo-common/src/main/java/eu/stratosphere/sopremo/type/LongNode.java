@@ -160,7 +160,7 @@ public class LongNode extends NumericNode implements INumericNode {
 
 	@Override
 	public int getMaxNormalizedKeyLen() {
-		return this.getMaxNormalizedKeyLen();
+		return this.value.getMaxNormalizedKeyLen();
 	}
 
 	@Override

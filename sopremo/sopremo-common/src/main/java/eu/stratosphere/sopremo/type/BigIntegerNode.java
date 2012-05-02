@@ -162,25 +162,4 @@ public class BigIntegerNode extends NumericNode implements INumericNode {
 			this.value = BigInteger.ZERO;
 	}
 
-	@Override
-	public int getMaxNormalizedKeyLen() {
-		return Integer.MAX_VALUE;
-	}
-
-	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
-		ByteArrayOutputStream stream = new ByteArrayOutputStream();
-		try {
-			this.write(new DataOutputStream(stream));
-			byte[] result = stream.toByteArray();
-			int resultLenght = result.length;
-			for (int i = 0; i < len; i++) {
-				target[offset + i] = (i >= resultLenght) ? (byte) 0 : result[i];
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-
-		}
-	}
-
 }

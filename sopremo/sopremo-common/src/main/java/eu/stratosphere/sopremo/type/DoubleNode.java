@@ -183,21 +183,11 @@ public class DoubleNode extends NumericNode implements INumericNode {
 
 	@Override
 	public int getMaxNormalizedKeyLen() {
-		return 0;
+		return 8;
 	}
 
 	@Override
 	public void copyNormalizedKey(byte[] target, int offset, int len) {
-		ByteArrayOutputStream stream = new ByteArrayOutputStream();
-		try {
-			this.write(new DataOutputStream(stream));
-			byte[] result = stream.toByteArray();
-			for (int i = 0; i < len; i++) {
-				target[offset + i] = result[i];
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		// TODO [IMPLEMENT] PactDouble doesn't support <copyNormalizedKeyLen> yet
 	}
-
 }

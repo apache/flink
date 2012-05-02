@@ -137,7 +137,7 @@ public class BooleanNode extends JsonNode implements IPrimitiveNode {
 			try {
 				this.write(new DataOutputStream(stream));
 				byte[] result = stream.toByteArray();
-				target[offset] = result[3];
+				target[offset] = result[result.length - 1];
 				for (int i = 1; i < len; i++) {
 					target[offset + i] = (byte) 0;
 				}
