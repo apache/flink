@@ -1,7 +1,9 @@
 package eu.stratosphere.sopremo.type;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -178,4 +180,24 @@ public class DoubleNode extends NumericNode implements INumericNode {
 		if (SopremoUtil.DEBUG)
 			this.value.setValue(0);
 	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 0;
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+		try {
+			this.write(new DataOutputStream(stream));
+			byte[] result = stream.toByteArray();
+			for (int i = 0; i < len; i++) {
+				target[offset + i] = result[i];
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 }

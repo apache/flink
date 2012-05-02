@@ -29,9 +29,14 @@ import org.junit.Test;
  * @author Michael Hopstock
  */
 @Ignore
-public abstract class ObjectNodeBaseTest<T extends IObjectNode> {
+public abstract class ObjectNodeBaseTest<T extends IObjectNode> extends JsonNodeTest<T> {
 
-	protected T node;
+//	protected T node;
+
+	@Override
+	@Before
+	public void setUp() {
+	}
 
 	@Before
 	public abstract void initObjectNode();

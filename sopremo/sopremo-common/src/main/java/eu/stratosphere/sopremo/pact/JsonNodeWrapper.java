@@ -132,4 +132,14 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 		this.value.clear();
 	}
 
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return this.value.getMaxNormalizedKeyLen();
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		this.value.copyNormalizedKey(target, offset, len);
+	}
+
 }

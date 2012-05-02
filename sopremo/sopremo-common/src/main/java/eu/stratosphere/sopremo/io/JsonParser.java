@@ -357,5 +357,14 @@ public class JsonParser {
 		@Override
 		public void clear() {
 		}
+
+		@Override
+		public int getMaxNormalizedKeyLen() {
+			return 0;
+		}
+
+		@Override
+		public void copyNormalizedKey(byte[] target, int offset, int len) {
+		}
 	}
 }

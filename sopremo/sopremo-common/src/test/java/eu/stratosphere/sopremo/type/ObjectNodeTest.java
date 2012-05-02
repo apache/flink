@@ -14,7 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.type;
 
-
 /**
  * @author Michael Hopstock
  * @author Tommy Neubert
@@ -31,4 +30,21 @@ public class ObjectNodeTest extends ObjectNodeBaseTest<ObjectNode> {
 			.put("gender", TextNode.valueOf("male"));
 
 	}
+
+	@Override
+	public void testValue() {
+	}
+
+	@Override
+	protected IJsonNode lowerNode() {
+		return new ObjectNode().put("fieldname 1", IntNode.valueOf(42)).put("fieldname 2",
+			TextNode.valueOf("1 lowerNode"));
+	}
+
+	@Override
+	protected IJsonNode higherNode() {
+		return new ObjectNode().put("fieldname 1", IntNode.valueOf(42)).put("fieldname 2",
+			TextNode.valueOf("2 higherNode"));
+	}
+
 }

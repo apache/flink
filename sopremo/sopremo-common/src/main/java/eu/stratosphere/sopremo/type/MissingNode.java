@@ -113,4 +113,19 @@ public class MissingNode extends JsonNode implements IPrimitiveNode {
 	public void clear() {
 		throw new UnsupportedOperationException("MissingNode");
 	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 1;
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		if (len >= this.getMaxNormalizedKeyLen()) {
+			for (int i = 0; i < len; i++) {
+				target[offset + i] = (byte) 0;
+			}
+		}
+	}
+
 }

@@ -1,7 +1,9 @@
 package eu.stratosphere.sopremo.type;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -91,19 +93,33 @@ public class DecimalNode extends NumericNode implements INumericNode {
 
 	@Override
 	public void read(final DataInput in) throws IOException {
-		final byte[] unscaledValue = new byte[in.readInt()];
+		// final byte[] unscaledValue = new byte[in.readInt()];
+		// in.readFully(unscaledValue);
+		//
+		// this.value = new BigDecimal(new BigInteger(unscaledValue), in.readInt());
+
+		final int unscaledMinusScale = in.readInt();
+		final int unscaledLenght = in.readInt();
+		final byte[] unscaledValue = new byte[unscaledLenght];
 		in.readFully(unscaledValue);
 
-		this.value = new BigDecimal(new BigInteger(unscaledValue), in.readInt());
+		this.value = new BigDecimal(new BigInteger(unscaledValue), unscaledLenght - unscaledMinusScale);
 	}
 
 	@Override
 	public void write(final DataOutput out) throws IOException {
-		final byte[] unscaledValue = this.value.unscaledValue().toByteArray();
-		out.writeInt(unscaledValue.length);
-		out.write(unscaledValue);
+		// final byte[] unscaledValue = this.value.unscaledValue().toByteArray();
+		// out.writeInt(unscaledValue.length);
+		// out.write(unscaledValue);
+		//
+		// out.writeInt(this.value.scale());
 
-		out.writeInt(this.value.scale());
+		final byte[] unscaledValue = this.value.unscaledValue().toByteArray();
+		final int unscaledValueLenght = unscaledValue.length;
+
+		out.writeInt(unscaledValueLenght - this.value.scale());
+		out.writeInt(unscaledValueLenght);
+		out.write(unscaledValue);
 	}
 
 	@Override
@@ -160,5 +176,26 @@ public class DecimalNode extends NumericNode implements INumericNode {
 	public void clear() {
 		if (SopremoUtil.DEBUG)
 			this.value = BigDecimal.ZERO;
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return Integer.MAX_VALUE;
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+		try {
+			this.write(new DataOutputStream(stream));
+			byte[] result = stream.toByteArray();
+			int resultLenght = result.length;
+			for (int i = 0; i < len; i++) {
+				target[offset + i] = (i >= resultLenght) ? (byte) 0 : result[i];
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+
+		}
 	}
 }

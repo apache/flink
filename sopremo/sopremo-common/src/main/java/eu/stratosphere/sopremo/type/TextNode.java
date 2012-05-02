@@ -164,4 +164,14 @@ public class TextNode extends JsonNode implements IPrimitiveNode {
 			this.value.setValue("");
 	}
 
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return this.value.getMaxNormalizedKeyLen();
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		this.value.copyNormalizedKey(target, offset, len);
+	}
+
 }

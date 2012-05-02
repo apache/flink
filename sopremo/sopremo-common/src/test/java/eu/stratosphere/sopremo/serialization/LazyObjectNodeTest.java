@@ -38,7 +38,7 @@ public class LazyObjectNodeTest extends ObjectNodeBaseTest<LazyObjectNode> {
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.ObjectNodeBaseTest#initObjectNode()
 	 */
-	
+
 	@Override
 	public void initObjectNode() {
 		ObjectSchema schema = new ObjectSchema();
@@ -46,7 +46,7 @@ public class LazyObjectNodeTest extends ObjectNodeBaseTest<LazyObjectNode> {
 		PactRecord record = schema.jsonToRecord(
 			new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
 				.put("gender", TextNode.valueOf("male")), null, null);
-		
+
 		this.node = new LazyObjectNode(record, schema);
 
 	}
@@ -56,14 +56,45 @@ public class LazyObjectNodeTest extends ObjectNodeBaseTest<LazyObjectNode> {
 		this.node.put("lastName", TextNode.valueOf("Wurst"));
 		this.node.put("profession", TextNode.valueOf("Butcher"));
 		PactRecord rec = this.node.getJavaValue();
-		
-		//the lastname is the second element in the mapping
+
+		// the lastname is the second element in the mapping
 		IJsonNode lastName = SopremoUtil.unwrap(rec.getField(1, JsonNodeWrapper.class));
 		Assert.assertEquals(TextNode.valueOf("Wurst"), lastName);
-		
-		//3 elements in the mapping -> others is the 4th field
-		IObjectNode others = (IObjectNode)SopremoUtil.unwrap(rec.getField(3, JsonNodeWrapper.class));
+
+		// 3 elements in the mapping -> others is the 4th field
+		IObjectNode others = (IObjectNode) SopremoUtil.unwrap(rec.getField(3, JsonNodeWrapper.class));
 		Assert.assertEquals(TextNode.valueOf("Butcher"), others.get("profession"));
 	}
 
+	@Override
+	public void testValue() {
+	}
+
+	@Override
+	protected IJsonNode lowerNode() {
+		ObjectSchema schema = new ObjectSchema();
+		schema.setMappings("firstName", "lastName", "age");
+		PactRecord record = schema.jsonToRecord(
+			new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
+				.put("gender", TextNode.valueOf("female")), null, null);
+
+		return new LazyObjectNode(record, schema);
+	}
+
+	@Override
+	protected IJsonNode higherNode() {
+		ObjectSchema schema = new ObjectSchema();
+		schema.setMappings("firstName", "lastName", "age");
+		PactRecord record = schema.jsonToRecord(
+			new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
+				.put("gender", TextNode.valueOf("male")), null, null);
+
+		return new LazyObjectNode(record, schema);
+	}
+
+	@Override
+	@Test(expected = UnsupportedOperationException.class)
+	public void shouldNormalizeKeys() {
+		super.shouldNormalizeKeys();
+	}
 }

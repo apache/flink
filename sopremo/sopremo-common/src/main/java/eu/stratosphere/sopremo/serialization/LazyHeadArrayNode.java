@@ -247,7 +247,7 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 				if (buffer == null) {
 					buffer = MissingNode.getInstance();
 				}
-				if (oldNode.isMissing()) 
+				if (oldNode.isMissing())
 					this.record.setNull(i);
 				else
 					this.record.setField(i, oldNode);
@@ -299,6 +299,16 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 			this.add(node);
 		}
 		return this;
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 0;
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
 	}
 
 }

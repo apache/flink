@@ -157,4 +157,14 @@ public class LongNode extends NumericNode implements INumericNode {
 		if (SopremoUtil.DEBUG)
 			this.value.setValue(0);
 	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return this.getMaxNormalizedKeyLen();
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		this.value.copyNormalizedKey(target, offset, len);
+	}
 }

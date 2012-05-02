@@ -14,9 +14,14 @@ import eu.stratosphere.pact.testing.AssertUtil;
 import eu.stratosphere.pact.testing.Equaler;
 
 @Ignore
-public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
+public abstract class ArrayNodeBaseTest<T extends IArrayNode> extends JsonNodeTest<T> {
 
-	protected T node;
+	// protected T node;
+
+	@Override
+	@Before
+	public void setUp() {
+	}
 
 	@Before
 	public abstract void initArrayNode();
@@ -26,8 +31,8 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 		this.node.add(TextNode.valueOf("firstname"));
 		this.node.add(TextNode.valueOf("lastname"));
 
-		Assert.assertEquals(TextNode.valueOf("firstname"), this.node.get(this.node.size()-2));
-		Assert.assertEquals(TextNode.valueOf("lastname"), this.node.get(this.node.size()-1));
+		Assert.assertEquals(TextNode.valueOf("firstname"), this.node.get(this.node.size() - 2));
+		Assert.assertEquals(TextNode.valueOf("lastname"), this.node.get(this.node.size() - 1));
 	}
 
 	@Test

@@ -158,7 +158,7 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 	public boolean isEmpty() {
 		return this.schema.getTailSize() == 0 ? getOtherField().isEmpty() : this.record.isNull(0);
 	}
-	
+
 	@Override
 	public IArrayNode add(IJsonNode node) {
 		// TODO implement new ArraySchema with tail
@@ -232,11 +232,12 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 		}
 
 		if (size <= this.schema.getTailSize()) {
-			return SopremoUtil.unwrap(this.record.getField(this.schema.getTailSize() -size + index + 1, JsonNodeWrapper.class));
-			
+			return SopremoUtil.unwrap(this.record.getField(this.schema.getTailSize() - size + index + 1,
+				JsonNodeWrapper.class));
+
 		} else {
 			return this.getOtherField().get(index);
-			
+
 		}
 	}
 
@@ -348,6 +349,16 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 			this.add(node);
 		}
 		return this;
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 0;
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
 	}
 
 }

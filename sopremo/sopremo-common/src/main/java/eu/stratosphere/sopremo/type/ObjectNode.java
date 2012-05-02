@@ -1,7 +1,9 @@
 package eu.stratosphere.sopremo.type;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -123,7 +125,7 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 
 		final ObjectNode other = (ObjectNode) obj;
 		// TODO: improve?
-		return this.compareTo(other) == 0 ? true : false;
+		return this.compareTo(other) == 0;
 	}
 
 	@Override
@@ -235,5 +237,26 @@ public class ObjectNode extends JsonNode implements IObjectNode {
 	@Override
 	public void clear() {
 		this.removeAll();
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return Integer.MAX_VALUE;
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+		try {
+			this.write(new DataOutputStream(stream));
+			byte[] result = stream.toByteArray();
+			int resultLenght = result.length;
+			for (int i = 0; i < len; i++) {
+				target[offset + i] = (i >= resultLenght) ? (byte) 0 : result[i];
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+
+		}
 	}
 }

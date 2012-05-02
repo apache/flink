@@ -12,30 +12,45 @@ public class ArrayNodeTest extends ArrayNodeBaseTest<ArrayNode> {
 	public void initArrayNode() {
 		this.node = new ArrayNode();
 		int numberOfNodes = 10;
-		
-		for(int i = 0; i < numberOfNodes; i++){
+
+		for (int i = 0; i < numberOfNodes; i++) {
 			this.node.add(i, IntNode.valueOf(i));
 		}
 	}
-	
+
 	@Test
-	public void shouldReturnCorrectSubarray(){
+	public void shouldReturnCorrectSubarray() {
 		int numberOfNodesInSubarray = 5;
 		int startIndex = 3;
 		IArrayNode result = new ArrayNode();
-		
-		for(int i = 0; i < numberOfNodesInSubarray; i++){
+
+		for (int i = 0; i < numberOfNodesInSubarray; i++) {
 			result.add(i, IntNode.valueOf(startIndex + i));
 		}
-		
+
 		Assert.assertEquals(result, this.node.subArray(startIndex, startIndex + numberOfNodesInSubarray));
 	}
-	
+
 	@Test
-	public void shouldCreateNewArrayNodeFromIterator(){
+	public void shouldCreateNewArrayNodeFromIterator() {
 		Iterator<IJsonNode> it = this.node.iterator();
 		ArrayNode newArray = ArrayNode.valueOf(it);
-		
+
 		Assert.assertEquals(this.node, newArray);
 	}
+
+	@Override
+	public void testValue() {
+	}
+
+	@Override
+	protected IJsonNode lowerNode() {
+		return new ArrayNode(IntNode.valueOf(42), TextNode.valueOf("1 lower Node"));
+	}
+
+	@Override
+	protected IJsonNode higherNode() {
+		return new ArrayNode(IntNode.valueOf(42), TextNode.valueOf("2 higher Node"));
+	}
+
 }

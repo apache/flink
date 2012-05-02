@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.Value;
 
 /**
@@ -28,7 +29,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public interface IJsonNode extends Serializable, Value, Key, Cloneable {
+public interface IJsonNode extends Serializable, Value, NormalizableKey, Cloneable {
 
 	public abstract void clear();
 	

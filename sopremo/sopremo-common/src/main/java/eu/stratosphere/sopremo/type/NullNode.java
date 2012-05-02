@@ -107,4 +107,14 @@ public class NullNode extends JsonNode implements IPrimitiveNode {
 	@Override
 	public void clear() {
 	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return PactNull.getInstance().getMaxNormalizedKeyLen();
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		PactNull.getInstance().copyNormalizedKey(target, offset, len);
+	}
 }

@@ -1,7 +1,9 @@
 package eu.stratosphere.sopremo.type;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -317,5 +319,26 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	public IArrayNode addAll(IJsonNode[] nodes) {
 		this.addAll(Arrays.asList(nodes));
 		return this;
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return Integer.MAX_VALUE;
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+		try {
+			this.write(new DataOutputStream(stream));
+			byte[] result = stream.toByteArray();
+			int resultLenght = result.length;
+			for (int i = 0; i < len; i++) {
+				target[offset + i] = (i >= resultLenght) ? (byte) 0 : result[i];
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+
+		}
 	}
 }

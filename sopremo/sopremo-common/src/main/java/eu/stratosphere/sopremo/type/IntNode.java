@@ -8,6 +8,7 @@ import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
@@ -15,7 +16,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class IntNode extends NumericNode implements INumericNode {
+public class IntNode extends NumericNode implements INumericNode, NormalizableKey {
 
 	/**
 	 * 
@@ -170,5 +171,15 @@ public class IntNode extends NumericNode implements INumericNode {
 	public void clear() {
 		if (SopremoUtil.DEBUG)
 			this.value.setValue(0);
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return this.value.getMaxNormalizedKeyLen();
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		this.value.copyNormalizedKey(target, offset, len);
 	}
 }

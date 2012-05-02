@@ -328,4 +328,14 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	public void clear() {
 		this.removeAll();
 	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 0;
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		throw new UnsupportedOperationException("Use other ObjectNode Implementation instead");
+	}
 }
