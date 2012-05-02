@@ -23,11 +23,12 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.pact.common.generic.GenericMatcher;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypePairComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 
 
@@ -35,39 +36,48 @@ import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
  * An implementation of the {@link eu.stratosphere.pact.runtime.task.util.MatchTaskIterator} that uses a hybrid-hash-join
  * internally to match the records with equal key. The build side of the hash is the first input of the match.  
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
-public final class BuildFirstHashMatchIterator implements MatchTaskIterator
-{
-	/**
-	 * Constant describing the size of the pages, used by the internal hash join, in bytes.
-	 */
-	public static final int HASH_JOIN_PAGE_SIZE = 0x1 << 15;
+public final class BuildFirstHashMatchIterator<V1, V2, O> implements MatchTaskIterator<V1, V2, O>
+{	
+	private final MutableHashTable<V1, V2> hashJoin;
 	
-	// --------------------------------------------------------------------------------------------
+	private final V1 nextBuildSideObject;
+	
+	private final V1 tempBuildSideRecord;
+	
+	private final V2 probeCopy;
+	
+	private final TypeSerializer<V2> probeSideSerializer;
 	
 	private final MemoryManager memManager;
 	
-	private final HashJoin hashJoin;
+	private final MutableObjectIterator<V1> firstInput;
 	
-	private PactRecord nextBuildSideObject; 
-	
-	private PactRecord probeCopy = new PactRecord();
+	private final MutableObjectIterator<V2> secondInput;
 	
 	private volatile boolean running = true;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public BuildFirstHashMatchIterator(MutableObjectIterator<PactRecord> firstInput, MutableObjectIterator<PactRecord> secondInput,
-			int[] buildSideKeyFields, int[] probeSideKeyFields, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
-			AbstractInvokable ownerTask, long totalMemory)
+	public BuildFirstHashMatchIterator(MutableObjectIterator<V1> firstInput, MutableObjectIterator<V2> secondInput,
+			TypeSerializer<V1> serializer1, TypeComparator<V1> comparator1,
+			TypeSerializer<V2> serializer2, TypeComparator<V2> comparator2,
+			TypePairComparator<V2, V1> pairComparator,
+			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
 	{		
 		this.memManager = memManager;
-		this.nextBuildSideObject = new PactRecord();
+		this.firstInput = firstInput;
+		this.secondInput = secondInput;
+		this.probeSideSerializer = serializer2;
 		
-		this.hashJoin = getHashJoin(firstInput, secondInput, buildSideKeyFields, probeSideKeyFields, keyClasses, memManager, ioManager,
-			ownerTask, totalMemory);
+		this.nextBuildSideObject = serializer1.createInstance();
+		this.tempBuildSideRecord = serializer1.createInstance();
+		this.probeCopy = serializer2.createInstance();
+		
+		this.hashJoin = getHashJoin(serializer1, comparator1, serializer2, comparator2, pairComparator,
+			memManager, ioManager, ownerTask, totalMemory);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -78,7 +88,7 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	@Override
 	public void open() throws IOException, MemoryAllocationException, InterruptedException
 	{
-		this.hashJoin.open();
+		this.hashJoin.open(this.firstInput, this.secondInput);
 	}
 
 	/* (non-Javadoc)
@@ -87,7 +97,11 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	@Override
 	public void close()
 	{
-		List<MemorySegment> segments = this.hashJoin.close();
+		// close the join
+		this.hashJoin.close();
+		
+		// free the memory
+		final List<MemorySegment> segments = this.hashJoin.getFreedMemory();
 		this.memManager.release(segments);
 	}
 
@@ -95,47 +109,43 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#callWithNextKey(eu.stratosphere.pact.common.stub.MatchStub, eu.stratosphere.pact.common.stub.Collector)
 	 */
 	@Override
-	public boolean callWithNextKey(MatchStub matchFunction, Collector collector)
+	public boolean callWithNextKey(GenericMatcher<V1, V2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		if (this.hashJoin.nextRecord())
 		{
 			// we have a next record, get the iterators to the probe and build side values
-			final HashJoin.HashBucketIterator buildSideIterator = this.hashJoin.getBuildSideIterator();
-			PactRecord probeRecord = this.hashJoin.getCurrentProbeRecord();
-			PactRecord nextBuildSidePair = this.nextBuildSideObject;
+			final MutableHashTable.HashBucketIterator<V1, V2> buildSideIterator = this.hashJoin.getBuildSideIterator();
+			final V1 nextBuildSideRecord = this.nextBuildSideObject;
 			
 			// get the first build side value
-			if (buildSideIterator.next(nextBuildSidePair)) {
-				PactRecord tmpPair = new PactRecord();
+			if (buildSideIterator.next(nextBuildSideRecord)) {
+				final V1 tmpRec = this.tempBuildSideRecord;
+				final V2 probeRecord = this.hashJoin.getCurrentProbeRecord();
 				
 				// check if there is another build-side value
-				if (buildSideIterator.next(tmpPair)) {
+				if (buildSideIterator.next(tmpRec)) {
 					// more than one build-side value --> copy the probe side
-					probeRecord.copyTo(this.probeCopy);
+					final V2 probeCopy = this.probeCopy;
+					this.probeSideSerializer.copyTo(probeRecord, probeCopy);
 					
 					// call match on the first pair
-					matchFunction.match(nextBuildSidePair, probeRecord, collector);
+					matchFunction.match(nextBuildSideRecord, probeCopy, collector);
 					
 					// call match on the second pair
-					probeRecord = new PactRecord();
-					this.probeCopy.copyTo(probeRecord);
-					matchFunction.match(tmpPair, probeRecord, collector);
+					this.probeSideSerializer.copyTo(probeRecord, probeCopy);
+					matchFunction.match(tmpRec, probeCopy, collector);
 					
-					tmpPair = new PactRecord();
-					while (this.running && buildSideIterator.next(tmpPair)) {
+					while (this.running && buildSideIterator.next(nextBuildSideRecord)) {
 						// call match on the next pair
-						probeRecord = new PactRecord();
-						this.probeCopy.copyTo(probeRecord);
-						matchFunction.match(tmpPair, probeRecord, collector);
-						tmpPair = new PactRecord();
+						// make sure we restore the value of the probe side record
+						this.probeSideSerializer.copyTo(probeRecord, probeCopy);
+						matchFunction.match(nextBuildSideRecord, probeCopy, collector);
 					}
-					this.nextBuildSideObject = tmpPair;
 				}
 				else {
 					// only single pair matches
-					this.nextBuildSideObject = tmpPair;
-					matchFunction.match(nextBuildSidePair, probeRecord, collector);
+					matchFunction.match(nextBuildSideRecord, probeRecord, collector);
 				}
 			}
 			return true;
@@ -151,25 +161,26 @@ public final class BuildFirstHashMatchIterator implements MatchTaskIterator
 	@Override
 	public void abort()
 	{
+		// close the join
 		this.running = false;
-		List<MemorySegment> segments = this.hashJoin.close();
+		this.hashJoin.close();
+		
+		// free the memory
+		final List<MemorySegment> segments = this.hashJoin.getFreedMemory();
 		this.memManager.release(segments);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static HashJoin getHashJoin(MutableObjectIterator<PactRecord> buildSideInput, MutableObjectIterator<PactRecord> probeSideInput,
-			int[] buildSideKeyFields, int[] probeSideKeyFields, Class<? extends Key>[] keyClasses,
+	public static <BT, PT> MutableHashTable<BT, PT> getHashJoin(TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
+			TypeSerializer<PT> probeSideSerializer, TypeComparator<PT> probeSideComparator,
+			TypePairComparator<PT, BT> pairComparator,
 			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
 	{
-		// adjust the memory for full page sizes
-		totalMemory &= ~(((long) HASH_JOIN_PAGE_SIZE) - 1);
-		// NOTE: This calculation is erroneous if the total memory is above 63 TiBytes. 
-		final int numPages = (int) (totalMemory / HASH_JOIN_PAGE_SIZE);
-		
-		final List<MemorySegment> memorySegments = memManager.allocateStrict(ownerTask, numPages, HASH_JOIN_PAGE_SIZE);
-		
-		return new HashJoin(buildSideInput, probeSideInput, buildSideKeyFields, probeSideKeyFields, keyClasses, memorySegments, ioManager);
+		totalMemory = memManager.roundDownToPageSizeMultiple(totalMemory);
+		final int numPages = (int) (totalMemory / memManager.getPageSize());
+		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
+		return new MutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, ioManager);
 	}
 }

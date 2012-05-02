@@ -35,12 +35,14 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.generic.GenericReducer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
@@ -66,7 +68,7 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * @author Fabian Hueske
  * @author Stephan Ewen
  */
-public class CombiningUnilateralSortMerger extends UnilateralSortMerger
+public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E>
 {
 	// ------------------------------------------------------------------------
 	// Constants & Fields
@@ -80,7 +82,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	/**
 	 * The stub called for the combiner.
 	 */
-	private final ReduceStub combineStub;
+	private final GenericReducer<E, ?> combineStub;
 
 	/**
 	 * A flag indicating whether the last merge also combines the values.
@@ -504,15 +506,14 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This class implements an iterator over values from a {@link eu.stratosphere.pact.runtime.sort.BufferSortable}.
-	 * The iterator returns the values of a given
+	 * This class implements an iterator over values from a sort buffer. The iterator returns the values of a given
 	 * interval.
 	 */
-	private static final class CombineValueIterator implements Iterator<PactRecord>
+	private static final class CombineValueIterator<E> implements Iterator<E>
 	{
-		private final NormalizedKeySorter<PactRecord> buffer; // the buffer from which values are returned
+		private final NormalizedKeySorter<E> buffer; // the buffer from which values are returned
 		
-		private final PactRecord record;
+		private final E record;
 
 		private int last; // the position of the last value to be returned
 
@@ -524,10 +525,10 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * @param buffer
 		 *        The buffer to get the values from.
 		 */
-		public CombineValueIterator(NormalizedKeySorter<PactRecord> buffer)
+		public CombineValueIterator(NormalizedKeySorter<E> buffer, E instance)
 		{
 			this.buffer = buffer;
-			this.record = new PactRecord();
+			this.record = instance;
 		}
 
 		/**
@@ -557,7 +558,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * @see java.util.Iterator#next()
 		 */
 		@Override
-		public PactRecord next()
+		public E next()
 		{
 			if (this.position <= this.last) {
 				try {
@@ -591,17 +592,20 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	/**
 	 * A simple collector that collects Key and Value and writes them into a given <code>Writer</code>.
 	 */
-	private static final class WriterCollector implements Collector
+	private static final class WriterCollector<E> implements Collector<E>
 	{	
 		private final ChannelWriterOutputView output; // the writer to write to
+		
+		private final TypeSerializer<E> serializer;
 
 		/**
 		 * Creates a new writer collector that writes to the given writer.
 		 * 
 		 * @param output The writer output view to write to.
 		 */
-		private WriterCollector(ChannelWriterOutputView output) {
+		private WriterCollector(ChannelWriterOutputView output, TypeSerializer<E> serializer) {
 			this.output = output;
+			this.serializer = serializer;
 		}
 
 		/*
@@ -611,9 +615,9 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * eu.stratosphere.pact.common.type.Value)
 		 */
 		@Override
-		public void collect(PactRecord record) {
+		public void collect(E record) {
 			try {
-				record.write(this.output);
+				this.serializer.serialize(record, this.output);
 			}
 			catch (IOException ioex) {
 				throw new RuntimeException("An error occurred forwarding the record to the writer.", ioex);
@@ -634,16 +638,18 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	/**
 	 * A simple collector that collects Key and Value and puts them into an <tt>ArrayList</tt>.
 	 */
-	private static final class ListCollector implements Collector
+	private static final class ListCollector<E> implements Collector<E>
 	{
-		private ArrayList<PactRecord> list; // the list to collect pairs in
+		private ArrayList<E> list; // the list to collect pairs in
+		
+		private TypeSerializer<E> serializer; // the serializer that creates copies
 
 		/**
 		 * Creates a new collector that collects output in the given list.
 		 * 
 		 * @param list The list to collect output in.
 		 */
-		private ListCollector(ArrayList<PactRecord> list) {
+		private ListCollector(ArrayList<E> list) {
 			this.list = list;
 		}
 
@@ -652,8 +658,8 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * @see eu.stratosphere.pact.common.stub.Collector#collect(eu.stratosphere.pact.common.type.Key, eu.stratosphere.pact.common.type.Value)
 		 */
 		@Override
-		public void collect(PactRecord record) {
-			this.list.add(record.createCopy());
+		public void collect(E record) {
+			this.list.add(this.serializer.createCopy(record));
 
 		}
 
@@ -669,29 +675,29 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 
 	// ------------------------------------------------------------------------
 
-	private static final class CombiningIterator implements MutableObjectIterator<PactRecord>
+	private static final class CombiningIterator<E> implements MutableObjectIterator<E>
 	{
-		private final ReduceStub combineStub;
+		private final GenericReducer<E, ?> combineStub;
 
 		private final KeyGroupedIterator iterator;
 
-		private final ArrayList<PactRecord> results;
+		private final ArrayList<E> results;
 
-		private final ListCollector collector;
+		private final ListCollector<E> collector;
 
-		private CombiningIterator(ReduceStub combineStub, KeyGroupedIterator iterator) {
+		private CombiningIterator(GenericReducer<E, ?> combineStub, KeyGroupedIterator iterator) {
 			this.combineStub = combineStub;
 			this.iterator = iterator;
 
-			this.results = new ArrayList<PactRecord>();
-			this.collector = new ListCollector(this.results);
+			this.results = new ArrayList<E>();
+			this.collector = new ListCollector<E>(this.results);
 		}
 
 		/* (non-Javadoc)
 		 * @see eu.stratosphere.pact.runtime.util.ReadingIterator#next(java.lang.Object)
 		 */
 		@Override
-		public boolean next(PactRecord target) throws IOException
+		public boolean next(E target) throws IOException
 		{
 			try {
 				while (this.results.isEmpty() && this.iterator.nextKey()) {

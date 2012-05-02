@@ -698,8 +698,10 @@ public class HashJoinITCase
 	 * during an insert into the same.
 	 */
 	@Test
-	public void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException {
-		int reqMem = 2785280;
+	public void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException
+	{
+		final int reqMem = 2785280;
+		final int HASH_JOIN_PAGE_SIZE = 32 * 1024;
 
 		final int NUM_BUILD_KEYS = 500000;
 		final int NUM_BUILD_VALS = 1;
@@ -712,10 +714,10 @@ public class HashJoinITCase
 		List<MemorySegment> memSegments;
 		try {
 			memMan = new DefaultMemoryManager(reqMem);
-			long memoryAmount = reqMem & ~(((long) BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE) - 1);
+			long memoryAmount = reqMem & ~(((long) HASH_JOIN_PAGE_SIZE) - 1);
 			// NOTE: This calculation is erroneous if the total memory is above 63 TiBytes. 
-			final int numPages = (int) (memoryAmount / BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE);
-			memSegments = memMan.allocateStrict(MEM_OWNER, numPages, BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE);
+			final int numPages = (int) (memoryAmount / HASH_JOIN_PAGE_SIZE);
+			memSegments = memMan.allocateStrict(MEM_OWNER, numPages, HASH_JOIN_PAGE_SIZE);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");

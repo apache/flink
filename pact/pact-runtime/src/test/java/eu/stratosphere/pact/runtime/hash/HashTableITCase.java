@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,7 +37,6 @@ import eu.stratosphere.pact.common.type.NullKeyFieldException;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable.HashBucketIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
@@ -62,6 +62,9 @@ import static org.junit.Assert.fail;
 public class HashTableITCase
 {
 	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
+	
+	private MemoryManager memManager;
+	private IOManager ioManager;
 	
 	private TypeSerializer<PactRecord> recordBuildSideAccesssor;
 	private TypeSerializer<PactRecord> recordProbeSideAccesssor;
@@ -93,6 +96,22 @@ public class HashTableITCase
 		this.pairBuildSideComparator = new IntPairComparator();
 		this.pairProbeSideComparator = new IntPairComparator();
 		this.pairComparator = new IntPairPairComparator();
+		
+		this.memManager = new DefaultMemoryManager(32 * 1024 * 1024);
+		this.ioManager = new IOManager();
+	}
+	
+	@After
+	public void tearDown()
+	{
+		// shut down I/O manager and Memory Manager and verify the correct shutdown
+		this.ioManager.shutdown();
+		if (!this.ioManager.isProperlyShutDown()) {
+			fail("I/O manager was not property shut down.");
+		}
+		if (!this.memManager.verifyEmpty()) {
+			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
+		}
 	}
 	
 	@Test
@@ -133,20 +152,14 @@ public class HashTableITCase
 		MutableObjectIterator<PactRecord> probeInput = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		final IOManager ioManager = new IOManager();
 		
 		// ----------------------------------------------------------------------------------------
 		
@@ -169,19 +182,10 @@ public class HashTableITCase
 		
 		join.close();
 		
-		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
+
 	}
 	
 	@Test
@@ -198,20 +202,14 @@ public class HashTableITCase
 		MutableObjectIterator<PactRecord> probeInput = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
 		
 		// ----------------------------------------------------------------------------------------
 		
@@ -236,16 +234,7 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	@Test
@@ -262,20 +251,14 @@ public class HashTableITCase
 		MutableObjectIterator<PactRecord> probeInput = new UniformPactRecordGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
@@ -340,16 +323,7 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 
@@ -388,20 +362,14 @@ public class HashTableITCase
 		MutableObjectIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
@@ -463,16 +431,7 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	/*
@@ -515,20 +474,14 @@ public class HashTableITCase
 		MutableObjectIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
@@ -590,16 +543,7 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	/*
@@ -641,20 +585,14 @@ public class HashTableITCase
 		MutableObjectIterator<PactRecord> probeInput = new UnionIterator<PactRecord>(probes);
 		
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
 		
 		// ----------------------------------------------------------------------------------------
 		
@@ -684,19 +622,9 @@ public class HashTableITCase
 		
 		join.close();
 		
-		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	/*
@@ -706,8 +634,6 @@ public class HashTableITCase
 	@Test
 	public void testSparseProbeSpilling() throws IOException, MemoryAllocationException
 	{
-		int reqMem = 4 * 1024 * 1024;
-
 		final int NUM_BUILD_KEYS = 1000000;
 		final int NUM_BUILD_VALS = 1;
 		final int NUM_PROBE_KEYS = 20;
@@ -717,18 +643,14 @@ public class HashTableITCase
 				NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan;
 		List<MemorySegment> memSegments;
 		try {
-			memMan = new DefaultMemoryManager(reqMem);
-			memSegments = memMan.allocate(MEM_OWNER, reqMem, 64, 32 * 1024);
-		} catch (MemoryAllocationException maex) {
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 128);
+		}
+		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-
-		// I/O manager should be unnecessary
-		IOManager ioManager = new IOManager();
 
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
@@ -751,6 +673,8 @@ public class HashTableITCase
 		Assert.assertEquals("Wrong number of records in join result.", expectedNumResults, numRecordsInJoinResult);
 
 		join.close();
+		
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	/*
@@ -758,31 +682,24 @@ public class HashTableITCase
 	 * during an insert into the same.
 	 */
 	@Test
-	public void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException {
-		int reqMem = 2785280;
-	
+	public void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException
+	{
 		final int NUM_BUILD_KEYS = 500000;
 		final int NUM_BUILD_VALS = 1;
 		final int NUM_PROBE_KEYS = 10;
 		final int NUM_PROBE_VALS = 1;
 		
 		MutableObjectIterator<PactRecord> buildInput = new UniformPactRecordGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
+		
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
 		try {
-			memMan = new DefaultMemoryManager(reqMem);
-			long memoryAmount = reqMem & ~(((long) BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE) - 1);
-			// NOTE: This calculation is erroneous if the total memory is above 63 TiBytes. 
-			final int numPages = (int) (memoryAmount / BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE);
-			memSegments = memMan.allocateStrict(MEM_OWNER, numPages, BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 85);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}		
-		
-		IOManager ioManager = new IOManager();
 				
 		final MutableHashTable<PactRecord, PactRecord> join = new MutableHashTable<PactRecord, PactRecord>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
@@ -805,6 +722,8 @@ public class HashTableITCase
 		Assert.assertEquals("Wrong number of records in join result.", expectedNumResults, numRecordsInJoinResult);
 		
 		join.close();
+		
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	// ============================================================================================
@@ -826,12 +745,9 @@ public class HashTableITCase
 		MutableObjectIterator<IntPair> probeInput = new UniformIntPairGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
@@ -862,19 +778,9 @@ public class HashTableITCase
 		
 		join.close();
 		
-		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	@Test
@@ -891,20 +797,14 @@ public class HashTableITCase
 		MutableObjectIterator<IntPair> probeInput = new UniformIntPairGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
 		
 		// ----------------------------------------------------------------------------------------
 		
@@ -929,16 +829,7 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	@Test
@@ -955,12 +846,9 @@ public class HashTableITCase
 		MutableObjectIterator<IntPair> probeInput = new UniformIntPairGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
@@ -1033,16 +921,7 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 
@@ -1081,12 +960,9 @@ public class HashTableITCase
 		MutableObjectIterator<IntPair> probeInput = new UnionIterator<IntPair>(probes);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
@@ -1153,19 +1029,9 @@ public class HashTableITCase
 					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
 		}
 		
-		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	/*
@@ -1208,20 +1074,14 @@ public class HashTableITCase
 		MutableObjectIterator<IntPair> probeInput = new UnionIterator<IntPair>(probes);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
@@ -1280,19 +1140,9 @@ public class HashTableITCase
 					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
 		}
 		
-		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	/*
@@ -1334,20 +1184,14 @@ public class HashTableITCase
 		MutableObjectIterator<IntPair> probeInput = new UnionIterator<IntPair>(probes);
 		
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
 		
 		// ----------------------------------------------------------------------------------------
 		
@@ -1377,19 +1221,9 @@ public class HashTableITCase
 		
 		join.close();
 		
-		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	/*
@@ -1399,8 +1233,6 @@ public class HashTableITCase
 	@Test
 	public void testSparseProbeSpillingIntPair() throws IOException, MemoryAllocationException
 	{
-		int reqMem = 4 * 1024 * 1024;
-
 		final int NUM_BUILD_KEYS = 1000000;
 		final int NUM_BUILD_VALS = 1;
 		final int NUM_PROBE_KEYS = 20;
@@ -1409,18 +1241,14 @@ public class HashTableITCase
 		MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan;
 		List<MemorySegment> memSegments;
 		try {
-			memMan = new DefaultMemoryManager(reqMem);
-			memSegments = memMan.allocate(MEM_OWNER, reqMem, 64, 32 * 1024);
-		} catch (MemoryAllocationException maex) {
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 128);
+		}
+		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-
-		// I/O manager should be unnecessary
-		IOManager ioManager = new IOManager();
 
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
 				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
@@ -1443,6 +1271,8 @@ public class HashTableITCase
 		Assert.assertEquals("Wrong number of records in join result.", expectedNumResults, numRecordsInJoinResult);
 
 		join.close();
+		
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	/*
@@ -1450,31 +1280,24 @@ public class HashTableITCase
 	 * during an insert into the same.
 	 */
 	@Test
-	public void validateSpillingDuringInsertionIntPair() throws IOException, MemoryAllocationException {
-		int reqMem = 2785280;
-
+	public void validateSpillingDuringInsertionIntPair() throws IOException, MemoryAllocationException
+	{
 		final int NUM_BUILD_KEYS = 500000;
 		final int NUM_BUILD_VALS = 1;
 		final int NUM_PROBE_KEYS = 10;
 		final int NUM_PROBE_VALS = 1;
 		
 		MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
+
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
 		try {
-			memMan = new DefaultMemoryManager(reqMem);
-			long memoryAmount = reqMem & ~(((long) BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE) - 1);
-			// NOTE: This calculation is erroneous if the total memory is above 63 TiBytes. 
-			final int numPages = (int) (memoryAmount / BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE);
-			memSegments = memMan.allocateStrict(MEM_OWNER, numPages, BuildFirstHashMatchIterator.HASH_JOIN_PAGE_SIZE);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 85);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
-		}		
-		
-		IOManager ioManager = new IOManager();
+		}
 				
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
 				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
@@ -1497,6 +1320,8 @@ public class HashTableITCase
 		Assert.assertEquals("Wrong number of records in join result.", expectedNumResults, numRecordsInJoinResult);
 		
 		join.close();
+		
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	@Test
@@ -1513,20 +1338,14 @@ public class HashTableITCase
 		MutableObjectIterator<IntPair> probeInput = new UniformIntPairGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
 
 		// allocate the memory for the HashTable
-		MemoryManager memMan; 
 		List<MemorySegment> memSegments;
-		
 		try {
-			memMan = new DefaultMemoryManager(32 * 1024 * 1024);
-			memSegments = memMan.allocateStrict(MEM_OWNER, 896, 32 * 1024);
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 896);
 		}
 		catch (MemoryAllocationException maex) {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		final IOManager ioManager = new IOManager();
 		
 		// ----------------------------------------------------------------------------------------
 		
@@ -1574,16 +1393,7 @@ public class HashTableITCase
 		
 		// ----------------------------------------------------------------------------------------
 		
-		memMan.release(memSegments);
-		
-		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
-		if (!memMan.verifyEmpty()) {
-			fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-		}
+		this.memManager.release(join.getFreedMemory());
 	}
 	
 	// ============================================================================================
