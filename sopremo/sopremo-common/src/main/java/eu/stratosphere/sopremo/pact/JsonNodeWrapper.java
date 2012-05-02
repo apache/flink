@@ -1,7 +1,9 @@
 package eu.stratosphere.sopremo.pact;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -134,12 +136,32 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 
 	@Override
 	public int getMaxNormalizedKeyLen() {
-		return this.value.getMaxNormalizedKeyLen();
+		return (this.value.getMaxNormalizedKeyLen() > Integer.MAX_VALUE - 4) ? Integer.MAX_VALUE : this.value
+			.getMaxNormalizedKeyLen();
 	}
 
 	@Override
 	public void copyNormalizedKey(byte[] target, int offset, int len) {
-		this.value.copyNormalizedKey(target, offset, len);
+		byte[] type = this.convertToByteArray(this.value.getType().ordinal());
+		if (len > 0) {
+			for (int i = 0; i < ((len < 4) ? len : 4); i++) {
+				target[offset + i] = type[i];
+			}
+
+			if (len > 4) {
+				this.value.copyNormalizedKey(target, offset + 4, len - 4);
+			}
+		}
 	}
 
+	private byte[] convertToByteArray(int value) {
+		byte[] buffer = new byte[4];
+
+		buffer[0] = (byte) (value >>> 24);
+		buffer[1] = (byte) (value >>> 16);
+		buffer[2] = (byte) (value >>> 8);
+		buffer[3] = (byte) value;
+
+		return buffer;
+	}
 }

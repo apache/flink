@@ -22,11 +22,12 @@ import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonNodeTest;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
-public class JsonNodeWrapperTest {
+public class JsonNodeWrapperTest extends JsonNodeTest<JsonNodeWrapper> {
 
 	private static IObjectNode obj;
 
@@ -50,10 +51,12 @@ public class JsonNodeWrapperTest {
 			.put("friends", friends);
 	}
 
+	@Override
 	@Before
 	public void setUp() {
 		this.byteArray = new ByteArrayOutputStream();
 		this.outStream = new DataOutputStream(this.byteArray);
+		this.node = new JsonNodeWrapper(obj);
 	}
 
 	@Test
@@ -88,5 +91,19 @@ public class JsonNodeWrapperTest {
 		} catch (final IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	@Override
+	public void testValue() {
+	}
+
+	@Override
+	protected IJsonNode lowerNode() {
+		return new JsonNodeWrapper(TextNode.valueOf("1 lower node"));
+	}
+
+	@Override
+	protected IJsonNode higherNode() {
+		return new JsonNodeWrapper(TextNode.valueOf("2 higher node"));
 	}
 }
