@@ -24,9 +24,7 @@ import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -38,6 +36,10 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
@@ -68,25 +70,34 @@ public class CombiningUnilateralSortMergerITCase
 
 	private MemoryManager memoryManager;
 
-	@BeforeClass
-	public static void beforeClass() {
-	}
+	private TypeSerializer<PactRecord> serializer;
+	
+	private TypeComparator<PactRecord> comparator;
 
-	@AfterClass
-	public static void afterClass() {
-	}
-
+	@SuppressWarnings("unchecked")
 	@Before
-	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
-		ioManager = new IOManager();
+	public void beforeTest()
+	{
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.ioManager = new IOManager();
+		
+		this.serializer = PactRecordSerializer.get();
+		this.comparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 	}
 
 	@After
-	public void afterTest() {
-		if (memoryManager != null) {
-			memoryManager.shutdown();
-			memoryManager = null;
+	public void afterTest()
+	{
+		this.ioManager.shutdown();
+		if (!this.ioManager.isProperlyShutDown()) {
+			Assert.fail("I/O Manager was not properly shut down.");
+		}
+		
+		if (this.memoryManager != null) {
+			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.", 
+				this.memoryManager.verifyEmpty());
+			this.memoryManager.shutdown();
+			this.memoryManager = null;
 		}
 	}
 
@@ -96,15 +107,14 @@ public class CombiningUnilateralSortMergerITCase
 		int noKeys = 100;
 		int noKeyCnt = 10000;
 
-		final Comparator<TestData.Key> keyComparator = new TestData.KeyComparator();
 		MockRecordReader reader = new MockRecordReader();
 
 		LOG.debug("initializing sortmerger");
 		
-		@SuppressWarnings("unchecked")
-		Sorter merger = new CombiningUnilateralSortMerger(
-			new TestCountCombiner(), memoryManager, ioManager, 64L * 1024 * 1024, 64,
-			new Comparator[] {keyComparator}, new int[] {0}, new Class[]{TestData.Key.class}, reader, parentTask, 0.7f, true);
+		Sorter<PactRecord> merger = new CombiningUnilateralSortMerger<PactRecord>(new TestCountCombiner(), 
+				this.memoryManager, this.ioManager, 
+				reader, this.parentTask, this.serializer, this.comparator,
+				64 * 1024 * 1024, 64, 0.7f, true);
 
 		final PactRecord rec = new PactRecord();
 		rec.setField(1, new PactInteger(1));
@@ -125,6 +135,8 @@ public class CombiningUnilateralSortMergerITCase
 		while (iterator.next(target)) {
 			Assert.assertEquals(noKeyCnt, target.getField(1, PactInteger.class).getValue());
 		}
+		
+		merger.close();
 	}
 
 	@Test
@@ -143,10 +155,11 @@ public class CombiningUnilateralSortMergerITCase
 
 		// merge iterator
 		LOG.debug("initializing sortmerger");
-		@SuppressWarnings("unchecked")
-		Sorter merger = new CombiningUnilateralSortMerger(
-			new TestCountCombiner2(), memoryManager, ioManager, 64L * 1024 * 1024, 2,
-			new Comparator[] {keyComparator}, new int[] {0}, new Class[]{TestData.Key.class}, reader, parentTask, 0.7f, true);
+		
+		Sorter<PactRecord> merger = new CombiningUnilateralSortMerger<PactRecord>(new TestCountCombiner2(), 
+				this.memoryManager, this.ioManager, 
+				reader, this.parentTask, this.serializer, this.comparator,
+				64 * 1024 * 1024, 2, 0.7f, true);
 
 		// emit data
 		LOG.debug("emitting data");
@@ -192,15 +205,18 @@ public class CombiningUnilateralSortMergerITCase
 		for (Integer cnt : countTable.values()) {
 			Assert.assertTrue(cnt == 0);
 		}
-
+		
+		merger.close();
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	public class TestCountCombiner extends ReduceStub
 	{
+		private final PactInteger count = new PactInteger();
+		
 		@Override
-		public void combine(Iterator<PactRecord> values, Collector out)
+		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out)
 		{
 			PactRecord rec = null;
 			int cnt = 0;
@@ -208,12 +224,14 @@ public class CombiningUnilateralSortMergerITCase
 				rec = values.next();
 				cnt += rec.getField(1, PactInteger.class).getValue();
 			}
-
-			out.collect(new PactRecord(rec.getField(0, Key.class), new PactInteger(cnt)));
+			
+			this.count.setValue(cnt);
+			rec.setField(1, this.count);
+			out.collect(rec);
 		}
 
 		@Override
-		public void reduce(Iterator<PactRecord> values, Collector out) {
+		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			// yo, nothing, mon
 		}
 	}
@@ -221,7 +239,7 @@ public class CombiningUnilateralSortMergerITCase
 	public class TestCountCombiner2 extends ReduceStub
 	{
 		@Override
-		public void combine(Iterator<PactRecord> values, Collector out)
+		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out)
 		{
 			PactRecord rec = null;
 			int cnt = 0;
@@ -234,7 +252,7 @@ public class CombiningUnilateralSortMergerITCase
 		}
 
 		@Override
-		public void reduce(Iterator<PactRecord> values, Collector out) {
+		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out) {
 			// yo, nothing, mon
 		}
 	}
