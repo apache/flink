@@ -34,7 +34,7 @@ public class GroupByReturnFlag extends ReduceStub {
 	 * @see eu.stratosphere.pact.common.stub.ReduceStub#reduce(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector)
 	 */
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {
+	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 		PactRecord outRecord = new PactRecord();
 		Tuple returnTuple = new Tuple();
 		

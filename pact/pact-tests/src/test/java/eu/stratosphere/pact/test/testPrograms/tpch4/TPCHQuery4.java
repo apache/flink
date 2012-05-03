@@ -89,7 +89,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 		 * @see eu.stratosphere.pact.common.stub.MapStub#map(eu.stratosphere.pact.common.type.Key, eu.stratosphere.pact.common.type.Value, eu.stratosphere.pact.common.stub.Collector)
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			Tuple tuple = record.getField(1, Tuple.class);
 			Date orderDate;
 			
@@ -133,7 +133,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 		private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			Tuple tuple = record.getField(1, Tuple.class);
 			String commitString = tuple.getStringValueAt(11);
 			String receiptString = tuple.getStringValueAt(12);
@@ -163,7 +163,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 	public static class JoinLiO extends MatchStub {
 		
 		@Override
-		public void match(PactRecord order, PactRecord line, Collector out)
+		public void match(PactRecord order, PactRecord line, Collector<PactRecord> out)
 				throws Exception {
 			Tuple orderTuple = order.getField(1, Tuple.class);
 			
@@ -186,7 +186,7 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 		 * @see eu.stratosphere.pact.common.stub.ReduceStub#reduce(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stub.Collector)
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {	
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {	
 			long count = 0;
 			PactRecord rec = null;
 			

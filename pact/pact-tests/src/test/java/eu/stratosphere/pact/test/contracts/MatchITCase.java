@@ -108,7 +108,7 @@ public class MatchITCase extends TestBase
 		private PactString valueString = new PactString();
 		
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out)
+		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
 				throws Exception {
 			keyString = value1.getField(0, keyString);
 			keyString.setValue(""+ (Integer.parseInt(keyString.getValue())+1));

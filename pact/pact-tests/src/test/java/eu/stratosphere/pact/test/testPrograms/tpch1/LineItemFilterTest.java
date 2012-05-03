@@ -64,7 +64,7 @@ public class LineItemFilterTest {
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new OutputCollector(writerList);
 		
 		PactString returnFlag = new PactString(RETURN_FLAG);
 		
@@ -90,7 +90,7 @@ public class LineItemFilterTest {
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new OutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -108,7 +108,7 @@ public class LineItemFilterTest {
 		rec.setField(1, input);
 		
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new OutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -127,7 +127,7 @@ public class LineItemFilterTest {
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new OutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -156,7 +156,7 @@ public class LineItemFilterTest {
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new OutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
