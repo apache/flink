@@ -86,4 +86,24 @@ public class PactRecordPairComparator implements TypePairComparator<PactRecord, 
 		}
 		return true;
 	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.plugable.TypePairComparator#compareToReference(java.lang.Object)
+	 */
+	@Override
+	public int compareToReference(PactRecord candidate)
+	{
+		for (int i = 0; i < this.keyFields2.length; i++) {
+			final Key k = candidate.getField(this.keyFields2[i], this.keyHolders2[i]);
+			if (k == null)
+				throw new NullKeyFieldException(this.keyFields2[i]);
+			else {
+				final int comp = k.compareTo(this.keyHolders1[i]);
+				if (comp != 0) {
+					return comp;
+				}
+			}
+		}
+		return 0;
+	}
 }

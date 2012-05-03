@@ -50,6 +50,7 @@ import eu.stratosphere.pact.runtime.test.util.UniformIntPairGenerator;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPair;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairComparator;
+import eu.stratosphere.pact.runtime.test.util.types.IntPairPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -1492,30 +1493,19 @@ public class HashTableITCase
 				throw new NullKeyFieldException();
 			}
 		}
-	}
-	
-	// ============================================================================================
-
-	
-	private static final class IntPairPairComparator implements TypePairComparator<IntPair, IntPair>
-	{
-		private int key;
-		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#setReference(java.lang.Object, eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2)
-		 */
-		@Override
-		public void setReference(IntPair reference) {
-			this.key = reference.getKey();
-		}
 
 		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.runtime.plugable.TypeComparator#equalToReference(java.lang.Object, eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2)
+		 * @see eu.stratosphere.pact.runtime.plugable.TypePairComparator#compareToReference(java.lang.Object)
 		 */
 		@Override
-		public boolean equalToReference(IntPair candidate) {
-			return this.key == candidate.getKey();
+		public int compareToReference(PactRecord candidate) {
+			try {
+				final int i = candidate.getField(0, PactInteger.class).getValue();
+				return i - this.key;
+			} catch (NullPointerException npex) {
+				throw new NullKeyFieldException();
+			}
+				
 		}
-		
 	}
 }

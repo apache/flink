@@ -25,10 +25,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -37,6 +35,12 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypePairComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -47,8 +51,8 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
-public class SortMergeCoGroupIteratorITCase {
-	
+public class SortMergeCoGroupIteratorITCase
+{	
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 128;
 
@@ -75,46 +79,52 @@ public class SortMergeCoGroupIteratorITCase {
 	// dummy abstract task
 	private final AbstractTask parentTask = new DummyInvokable();
 
-	// memory and io manager
-	private static IOManager ioManager;
-
+	private IOManager ioManager;
 	private MemoryManager memoryManager;
+	
+	private TypeSerializer<PactRecord> serializer1;
+	private TypeSerializer<PactRecord> serializer2;
+	private TypeComparator<PactRecord> comparator1;
+	private TypeComparator<PactRecord> comparator2;
+	private TypePairComparator<PactRecord, PactRecord> pairComparator;
 
 
-	@BeforeClass
-	public static void beforeClass() {
-		ioManager = new IOManager();
-	}
-
-	@AfterClass
-	public static void afterClass() {
-		if (ioManager != null) {
-			ioManager.shutdown();
-			if (!ioManager.isProperlyShutDown()) {
-				Assert.fail("I/O manager failed to properly shut down.");
-			}
-			ioManager = null;
-		}
-		
-	}
-
+	@SuppressWarnings("unchecked")
 	@Before
-	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+	public void beforeTest()
+	{
+		this.serializer1 = PactRecordSerializer.get();
+		this.serializer2 = PactRecordSerializer.get();
+		this.comparator1 = new PactRecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
+		this.comparator2 = new PactRecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
+		this.pairComparator = new PactRecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
+		
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.ioManager = new IOManager();
 	}
 
 	@After
-	public void afterTest() {
-		if (memoryManager != null) {
+	public void afterTest()
+	{
+		if (this.ioManager != null) {
+			this.ioManager.shutdown();
+			if (!this.ioManager.isProperlyShutDown()) {
+				Assert.fail("I/O manager failed to properly shut down.");
+			}
+			this.ioManager = null;
+		}
+		
+		if (this.memoryManager != null) {
 			Assert.assertTrue("Memory Leak: Not all memory has been returned to the memory manager.",
-				memoryManager.verifyEmpty());
-			memoryManager.shutdown();
-			memoryManager = null;
+				this.memoryManager.verifyEmpty());
+			this.memoryManager.shutdown();
+			this.memoryManager = null;
 		}
 	}
  
 	@Test
-	public void testSortBothMerge() {
+	public void testSortBothMerge()
+	{
 		try {
 			
 			generator1 = new Generator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -133,10 +143,10 @@ public class SortMergeCoGroupIteratorITCase {
 			generator2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			SortMergeCoGroupIterator iterator =	new SortMergeCoGroupIterator(
-						memoryManager, ioManager, reader1, reader2, new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+			SortMergeCoGroupIterator<PactRecord, PactRecord> iterator =	new SortMergeCoGroupIterator<PactRecord, PactRecord>(
+					this.memoryManager, this.ioManager, this.reader1, this.reader2, 
+						this.serializer1, this.comparator1, this.serializer2, this.comparator2, this.pairComparator,
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, this.parentTask);
 	
 			iterator.open();
 			
@@ -221,9 +231,9 @@ public class SortMergeCoGroupIteratorITCase {
 			generator2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			SortMergeCoGroupIterator iterator =	new SortMergeCoGroupIterator(
-				memoryManager, ioManager, reader1, reader2, new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
+			SortMergeCoGroupIterator<PactRecord, PactRecord> iterator =	new SortMergeCoGroupIterator<PactRecord, PactRecord>(
+					this.memoryManager, this.ioManager, this.reader1, this.reader2, 
+						this.serializer1, this.comparator1, this.serializer2, this.comparator2, this.pairComparator,
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_FIRST_MERGE, parentTask);
 	
 			iterator.open();
@@ -308,9 +318,9 @@ public class SortMergeCoGroupIteratorITCase {
 			generator2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			SortMergeCoGroupIterator iterator =	new SortMergeCoGroupIterator(
-				memoryManager, ioManager, reader1, reader2, new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
+			SortMergeCoGroupIterator<PactRecord, PactRecord> iterator =	new SortMergeCoGroupIterator<PactRecord, PactRecord>(
+					this.memoryManager, this.ioManager, this.reader1, this.reader2, 
+						this.serializer1, this.comparator1, this.serializer2, this.comparator2, this.pairComparator,
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_SECOND_MERGE, parentTask);
 	
 			iterator.open();
@@ -395,9 +405,9 @@ public class SortMergeCoGroupIteratorITCase {
 			generator2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			SortMergeCoGroupIterator iterator =	new SortMergeCoGroupIterator(
-						memoryManager, ioManager, reader1, reader2, new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
+			SortMergeCoGroupIterator<PactRecord, PactRecord> iterator =	new SortMergeCoGroupIterator<PactRecord, PactRecord>(
+					this.memoryManager, this.ioManager, this.reader1, this.reader2, 
+						this.serializer1, this.comparator1, this.serializer2, this.comparator2, this.pairComparator,
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.MERGE, parentTask);
 	
 			iterator.open();

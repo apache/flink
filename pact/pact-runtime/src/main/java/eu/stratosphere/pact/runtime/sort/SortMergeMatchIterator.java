@@ -26,11 +26,15 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.generic.GenericMatcher;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypePairComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
@@ -49,7 +53,7 @@ import eu.stratosphere.pact.runtime.util.PactRecordRepeatableIterator;
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public class SortMergeMatchIterator implements MatchTaskIterator
+public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, O>
 {
 	/**
 	 * The log used by this iterator to log messages.
@@ -64,19 +68,15 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final MemoryManager memoryManager;
-
-	private final IOManager ioManager;
-
-	private final MutableObjectIterator<PactRecord> reader1;
-
-	private final MutableObjectIterator<PactRecord> reader2;
+	private TypePairComparator<T1, T2> comp;
 	
-	private final int[] firstKeyPositions;
+	private KeyGroupedIterator<T1> iterator1;
+
+	private KeyGroupedIterator<T2> iterator2;
 	
-	private final int[] secondKeyPositions;
-	
-	private final Class<? extends Key>[] keyClasses;
+	private final MutableObjectIterator<T1> reader1;
+
+	private final MutableObjectIterator<T2> reader2;
 	
 	private final PactRecord copy1 = new PactRecord();
 	
@@ -85,6 +85,22 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	private final PactRecord instance = new PactRecord();
 	
 	private final BlockResettableIterator blockIt;				// for N:M cross products with same key
+	
+	private final TypeSerializer<T1> serializer1;
+	
+	private final TypeSerializer<T2> serializer2;
+	
+	private final TypeComparator<T1> comparator1;
+	
+	private final TypeComparator<T2> comparator2;
+	
+	private Sorter<T1> sortMerger1;
+
+	private Sorter<T2> sortMerger2;
+	
+	private final MemoryManager memoryManager;
+
+	private final IOManager ioManager;
 	
 	private final LocalStrategy localStrategy;
 	
@@ -95,15 +111,7 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	private final int fileHandlesPerChannel;
 	
 	private final float spillingThreshold;
-
 	
-	private Sorter sortMerger1;
-
-	private Sorter sortMerger2;
-	
-	private KeyGroupedIterator iterator1;
-
-	private KeyGroupedIterator iterator2;
 
 	
 	public SortMergeMatchIterator(MemoryManager memoryManager, IOManager ioManager,
@@ -154,16 +162,7 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 */
 	@Override
 	public void open() throws IOException, MemoryAllocationException, InterruptedException
-	{
-		// comparator
-		final Comparator<Key> keyComparator = new KeyComparator();
-		
-		@SuppressWarnings("unchecked")
-		final Comparator<Key>[] comparators = (Comparator<Key>[]) new Comparator[this.keyClasses.length];
-		for (int i = 0; i < comparators.length; i++) {
-			comparators[i] = keyComparator;
-		}
-			
+	{	
 		// ================================================================
 		//                   PERFORMANCE NOTICE
 		//
@@ -177,40 +176,36 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		// iterator 1
 		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_FIRST_MERGE)
 		{
-			// merger
-			this.sortMerger1 = new UnilateralSortMerger(this.memoryManager, this.ioManager,
-					this.memoryPerChannel, this.fileHandlesPerChannel, 
-					comparators, this.firstKeyPositions, this.keyClasses, 
-					this.reader1, this.parentTask, this.spillingThreshold);
+			this.sortMerger1 = new UnilateralSortMerger<T1>(this.memoryManager, this.ioManager,
+					this.reader1, this.parentTask, this.serializer1, this.comparator1, 
+					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
 		}
 
 		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_SECOND_MERGE)
 		{
-			// merger
-			this.sortMerger2 = new UnilateralSortMerger(this.memoryManager, this.ioManager, 
-					this.memoryPerChannel, this.fileHandlesPerChannel,
-					comparators, this.secondKeyPositions, this.keyClasses,
-					this.reader2, this.parentTask, this.spillingThreshold);
+			this.sortMerger2 = new UnilateralSortMerger<T2>(this.memoryManager, this.ioManager,
+					this.reader2, this.parentTask, this.serializer2, this.comparator2, 
+					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
 		}
 			
 		// =============== These calls freeze until the data is actually available ============ 
 		
 		switch (this.localStrategy) {
 			case SORT_BOTH_MERGE:
-				this.iterator1 = new KeyGroupedIterator(this.sortMerger1.getIterator(), this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(this.sortMerger2.getIterator(), this.secondKeyPositions, this.keyClasses);
+				this.iterator1 = new KeyGroupedIterator<T1>(this.sortMerger1.getIterator(), this.serializer1, this.comparator1.duplicate());
+				this.iterator2 = new KeyGroupedIterator<T2>(this.sortMerger2.getIterator(), this.serializer2, this.comparator2.duplicate());
 				break;
 			case SORT_FIRST_MERGE:
-				this.iterator1 = new KeyGroupedIterator(this.sortMerger1.getIterator(), this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(this.reader2, this.secondKeyPositions, this.keyClasses);
+				this.iterator1 = new KeyGroupedIterator<T1>(this.sortMerger1.getIterator(), this.serializer1, this.comparator1.duplicate());
+				this.iterator2 = new KeyGroupedIterator<T2>(this.reader2, this.serializer2, this.comparator2.duplicate());
 				break;
 			case SORT_SECOND_MERGE:
-				this.iterator1 = new KeyGroupedIterator(this.reader1, this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(this.sortMerger2.getIterator(), this.secondKeyPositions, this.keyClasses);
+				this.iterator1 = new KeyGroupedIterator<T1>(this.reader1, this.serializer1, this.comparator1.duplicate());
+				this.iterator2 = new KeyGroupedIterator<T2>(this.sortMerger2.getIterator(), this.serializer2, this.comparator2.duplicate());
 				break;
 			case MERGE:
-				this.iterator1 = new KeyGroupedIterator(this.reader1, this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(this.reader2, this.secondKeyPositions, this.keyClasses);
+				this.iterator1 = new KeyGroupedIterator<T1>(this.reader1, this.serializer1, this.comparator1.duplicate());
+				this.iterator2 = new KeyGroupedIterator<T2>(this.reader2, this.serializer2, this.comparator2.duplicate());
 				break;
 			default:
 				throw new RuntimeException("Unsupported Local Strategy in SortMergeMatchIterator: "+this.localStrategy);
@@ -265,27 +260,21 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#callWithNextKey()
 	 */
 	@Override
-	public boolean callWithNextKey(MatchStub matchFunction, Collector collector)
+	public boolean callWithNextKey(GenericMatcher<T1, T2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
 			return false;
 		}
 
-		Key[] keys1 = this.iterator1.getKeys();
-		Key[] keys2 = this.iterator2.getKeys();
-
+		final TypePairComparator<T1, T2> comparator = this.comp;
+		comparator.setReference(this.iterator1.getCurrent());
+		T2 current2 = this.iterator2.getCurrent();
+				
 		// zig zag
 		while (true) {
 			// determine the relation between the (possibly composite) keys
-			int comp = 0;
-			for (int i = 0; i < keys1.length; i++) {
-				int c = keys1[i].compareTo(keys2[i]);
-				if (c != 0) {
-					comp = c;
-					break;
-				}
-			}
+			final int comp = comparator.compareToReference(current2);
 			
 			if (comp == 0)
 				break;
@@ -294,20 +283,20 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 				if (!this.iterator2.nextKey()) {
 					return false;
 				}
-				keys2 = this.iterator2.getKeys();
+				current2 = this.iterator2.getCurrent();
 			}
 			else {
 				if (!this.iterator1.nextKey()) {
 					return false;
 				}
-				keys1 = this.iterator1.getKeys();
+				comparator.setReference(this.iterator1.getCurrent());
 			}
 		}
 		
 		// here, we have a common key! call the match function with the cross product of the
 		// values
-		final KeyGroupedIterator.ValuesIterator values1 = this.iterator1.getValues();
-		final KeyGroupedIterator.ValuesIterator values2 = this.iterator2.getValues();
+		final KeyGroupedIterator<T1>.ValuesIterator values1 = this.iterator1.getValues();
+		final KeyGroupedIterator<T2>.ValuesIterator values2 = this.iterator2.getValues();
 		
 		final PactRecord firstV1 = values1.next().createCopy();
 		final PactRecord firstV2 = values2.next().createCopy();	
@@ -360,8 +349,8 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 *          
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
-	private void crossFirst1withNValues(PactRecord val1, PactRecord firstValN,
-			Iterator<PactRecord> valsN, MatchStub matchFunction, Collector collector)
+	private void crossFirst1withNValues(T1 val1, T2 firstValN,
+			Iterator<T2> valsN, MatchStub matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		val1.copyTo(this.copy1);
@@ -393,8 +382,8 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 *          
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
-	private void crossSecond1withNValues(PactRecord val1, PactRecord firstValN,
-			Iterator<PactRecord> valsN, MatchStub matchFunction, Collector collector)
+	private void crossSecond1withNValues(T2 val1, PactRecord T1,
+			Iterator<T1> valsN, MatchStub matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		val1.copyTo(this.copy1);
@@ -422,9 +411,9 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 * @param firstV2
 	 * @param blockVals
 	 */
-	private void crossMwithNValues(final PactRecord firstV1, Iterator<PactRecord> spillVals,
-			final PactRecord firstV2, final Iterator<PactRecord> blockVals,
-			MatchStub matchFunction, Collector collector)
+	private void crossMwithNValues(final T1 firstV1, Iterator<T1> spillVals,
+			final T2 firstV2, final Iterator<T2> blockVals,
+			MatchStub matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		// ==================================================

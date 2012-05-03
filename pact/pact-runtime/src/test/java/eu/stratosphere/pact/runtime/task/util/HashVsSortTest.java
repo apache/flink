@@ -16,10 +16,8 @@
 package eu.stratosphere.pact.runtime.task.util;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -31,6 +29,12 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypePairComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
@@ -60,40 +64,46 @@ public class HashVsSortTest {
 	private final AbstractTask parentTask = new DummyInvokable();
 
 	// memory and io manager
-	private static IOManager ioManager;
-
+	private IOManager ioManager;
 	private MemoryManager memoryManager;
+	
+	private TypeSerializer<PactRecord> serializer1;
+	private TypeSerializer<PactRecord> serializer2;
+	private TypeComparator<PactRecord> comparator1;
+	private TypeComparator<PactRecord> comparator2;
+	private TypePairComparator<PactRecord, PactRecord> pairComparator11;
 
 
-	@BeforeClass
-	public static void beforeClass() {
-		ioManager = new IOManager();
-	}
-
-	@AfterClass
-	public static void afterClass() {
-		if (ioManager != null) {
-			ioManager.shutdown();
-			if (!ioManager.isProperlyShutDown()) {
-				Assert.fail("I/O manager failed to properly shut down.");
-			}
-			ioManager = null;
-		}
-		
-	}
-
+	@SuppressWarnings("unchecked")
 	@Before
-	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+	public void beforeTest()
+	{
+		this.serializer1 = PactRecordSerializer.get();
+		this.serializer2 = PactRecordSerializer.get();
+		this.comparator1 = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.comparator2 = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
+		this.pairComparator11 = new PactRecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
+		
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.ioManager = new IOManager();
 	}
 
 	@After
-	public void afterTest() {
-		if (memoryManager != null) {
+	public void afterTest()
+	{
+		if (this.memoryManager != null) {
 			Assert.assertTrue("Memory Leak: Not all memory has been returned to the memory manager.",
-				memoryManager.verifyEmpty());
-			memoryManager.shutdown();
-			memoryManager = null;
+				this.memoryManager.verifyEmpty());
+			this.memoryManager.shutdown();
+			this.memoryManager = null;
+		}
+		
+		if (this.ioManager != null) {
+			this.ioManager.shutdown();
+			if (!this.ioManager.isProperlyShutDown()) {
+				Assert.fail("I/O manager failed to properly shut down.");
+			}
+			this.ioManager = null;
 		}
 	}
 	
@@ -109,7 +119,7 @@ public class HashVsSortTest {
 			
 			final MatchStub matcher = new NoOpMatcher();
 			
-			final Collector collector = new DiscardingOutputCollector();
+			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -154,7 +164,7 @@ public class HashVsSortTest {
 			
 			final MatchStub matcher =new NoOpMatcher();
 			
-			final Collector collector = new DiscardingOutputCollector();
+			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -163,10 +173,11 @@ public class HashVsSortTest {
 			input2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			BuildFirstHashMatchIterator iterator = 
-				new BuildFirstHashMatchIterator(input1, input2, new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class}, 
-					this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
+			final BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+					new BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord>(
+						input1, input2, this.serializer1, this.comparator1, 
+							this.serializer2, this.comparator2, this.pairComparator11,
+							this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
 	
 			long start = System.nanoTime();
 			
@@ -198,7 +209,7 @@ public class HashVsSortTest {
 			
 			final MatchStub matcher = new NoOpMatcher();
 			
-			final Collector collector = new DiscardingOutputCollector();
+			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -207,10 +218,11 @@ public class HashVsSortTest {
 			input2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			BuildSecondHashMatchIterator iterator = 
-				new BuildSecondHashMatchIterator(input1, input2, new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class}, 
-						this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
+			BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+					new BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord>(
+						input1, input2, this.serializer1, this.comparator1, 
+						this.serializer2, this.comparator2, this.pairComparator11,
+						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
 	
 			long start = System.nanoTime();
 			
@@ -235,7 +247,7 @@ public class HashVsSortTest {
 	private static final class NoOpMatcher extends MatchStub
 	{
 		@Override
-		public void match(PactRecord rec1, PactRecord rec2, Collector out) {}
+		public void match(PactRecord rec1, PactRecord rec2, Collector<PactRecord> out) {}
 		
 	}
 }

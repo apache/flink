@@ -26,7 +26,7 @@ import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public final class KeyGroupedIterator<E>
 {
@@ -36,19 +36,23 @@ public final class KeyGroupedIterator<E>
 	
 	private final TypeComparator<E> comparator;
 	
-	private E next;
+	private E current;
+	
+	private E lookahead;
 
 	private ValuesIterator valuesIterator;
 
-	private boolean nextIsFresh;
+	private boolean lookAheadHasNext;
+	
+	private boolean done;
 
 	/**
 	 * Initializes the KeyGroupedIterator. It requires an iterator which returns its result
 	 * sorted by the key fields.
 	 * 
 	 * @param iterator An iterator over records, which are sorted by the key fields, in any order.
-	 * @param keyPositions The positions of the keys in the records.
-	 * @param keyClasses The types of the key fields.
+	 * @param serializer The serializer for the data type iterated over.
+	 * @param comparator The comparator for the data type iterated over.
 	 */
 	public KeyGroupedIterator(MutableObjectIterator<E> iterator,
 			TypeSerializer<E> serializer, TypeComparator<E> comparator)
@@ -70,51 +74,65 @@ public final class KeyGroupedIterator<E>
 	 */
 	public boolean nextKey() throws IOException
 	{
-		// first element
-		if (this.next == null) {
-			this.next = this.serializer.createInstance();
-			if (this.iterator.next(this.next)) {
-				this.comparator.setReference(this.next);
-				this.nextIsFresh = false;
+		// first element (or empty)
+		if (this.current == null) {
+			if (this.done) {
+				this.valuesIterator = null;
+				return false;
+			}
+			this.current = this.serializer.createInstance();
+			if (this.iterator.next(this.current)) {
+				this.comparator.setReference(this.current);
+				this.lookAheadHasNext = false;
 				this.valuesIterator = new ValuesIterator();
-				this.valuesIterator.nextIsUnconsumed = true;
+				this.valuesIterator.currentIsUnconsumed = true;
 				return true;
 			} else {
 				// empty input, set everything null
 				this.valuesIterator = null;
+				this.current = null;
+				this.done = true;
 				return false;
 			}
 		}
 
 		// Whole value-iterator was read and a new key is available.
-		if (this.nextIsFresh) {
-			this.nextIsFresh = false;
-			this.comparator.setReference(this.next);
-			this.valuesIterator.nextIsUnconsumed = true;
+		if (this.lookAheadHasNext) {
+			this.lookAheadHasNext = false;
+			this.current = this.lookahead;
+			this.lookahead = null;
+			this.comparator.setReference(this.current);
+			this.valuesIterator.currentIsUnconsumed = true;
 			return true;
 		}
 
 		// try to move to next key.
 		// Required if user code / reduce() method did not read the whole value iterator.
 		while (true) {
-			if (this.iterator.next(this.next)) {
-				if (!this.comparator.equalToReference(this.next)) {
+			if (this.iterator.next(this.current)) {
+				if (!this.comparator.equalToReference(this.current)) {
 					// the keys do not match, so we have a new group. store the current keys
-					this.comparator.setReference(this.next);						
-					this.nextIsFresh = false;
-					this.valuesIterator.nextIsUnconsumed = true;
+					this.comparator.setReference(this.current);						
+					this.lookAheadHasNext = false;
+					this.valuesIterator.currentIsUnconsumed = true;
 					return true;
 				}
 			}
 			else {
 				this.valuesIterator = null;
+				this.current = null;
+				this.done = true;
 				return false;
 			}
 		}
 	}
 	
+	public TypeComparator<E> getComparatorWithCurrentReference() {
+		return this.comparator;
+	}
+	
 	public E getCurrent() {
-		return this.next;
+		return this.current;
 	}
 
 	/**
@@ -125,7 +143,7 @@ public final class KeyGroupedIterator<E>
 	 * @return Iterator over all values that belong to the current key.
 	 */
 	public ValuesIterator getValues() {
-		return valuesIterator;
+		return this.valuesIterator;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -135,41 +153,43 @@ public final class KeyGroupedIterator<E>
 		private final TypeSerializer<E> serializer = KeyGroupedIterator.this.serializer;
 		private final TypeComparator<E> comparator = KeyGroupedIterator.this.comparator; 
 		
-		private E bufferRec = this.serializer.createInstance();
-		private boolean nextIsUnconsumed = false;
+		private E staging = this.serializer.createInstance();
+		private boolean currentIsUnconsumed = false;
 		
 		private ValuesIterator() {}
 
 		@Override
 		public boolean hasNext()
 		{
-			if (KeyGroupedIterator.this.next == null || KeyGroupedIterator.this.nextIsFresh) {
+			if (KeyGroupedIterator.this.current == null || KeyGroupedIterator.this.lookAheadHasNext) {
 				return false;
 			}
-			if (this.nextIsUnconsumed) {
+			if (this.currentIsUnconsumed) {
 				return true;
 			}
 			
 			try {
-				if (KeyGroupedIterator.this.iterator.next(this.bufferRec)) {
-					// exchange the buffer record and the next record
-					E tmp = this.bufferRec;
-					this.bufferRec = KeyGroupedIterator.this.next;
-					KeyGroupedIterator.this.next = tmp;
-					
-					if (!this.comparator.equalToReference(tmp)) {
+				// read the next value into the staging record to make sure we keep the
+				// current as it is in case the key changed
+				if (KeyGroupedIterator.this.iterator.next(this.staging)) {
+					if (this.comparator.equalToReference(this.staging)) {
+						// same key, next value is in staging, so exchange staging with current
+						final E tmp = this.staging;
+						this.staging = KeyGroupedIterator.this.current;
+						KeyGroupedIterator.this.current = tmp;
+						this.currentIsUnconsumed = true;
+						return true;
+					} else {
 						// moved to the next key, no more values here
-						KeyGroupedIterator.this.nextIsFresh = true;
+						KeyGroupedIterator.this.lookAheadHasNext = true;
+						KeyGroupedIterator.this.lookahead = this.staging;
+						this.staging = KeyGroupedIterator.this.current;
 						return false;						
 					}
-					
-					// same key, next value is in "next"
-					this.nextIsUnconsumed = true;
-					return true;
 				}
 				else {
 					// backing iterator is consumed
-					KeyGroupedIterator.this.next = null;
+					KeyGroupedIterator.this.done = true;
 					return false;
 				}
 			}
@@ -184,9 +204,9 @@ public final class KeyGroupedIterator<E>
 		 */
 		@Override
 		public E next() {
-			if (this.nextIsUnconsumed || hasNext()) {
-				this.nextIsUnconsumed = false;
-				return KeyGroupedIterator.this.next;
+			if (this.currentIsUnconsumed || hasNext()) {
+				this.currentIsUnconsumed = false;
+				return KeyGroupedIterator.this.current;
 			} else {
 				throw new NoSuchElementException();
 			}

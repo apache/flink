@@ -31,7 +31,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
-public class OutputCollector implements Collector
+public class OutputCollector implements Collector<PactRecord>
 {	
 	// list of writers
 	protected AbstractRecordWriter<PactRecord>[] writers; 

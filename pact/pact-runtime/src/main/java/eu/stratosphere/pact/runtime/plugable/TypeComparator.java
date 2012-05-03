@@ -41,6 +41,8 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * @see java.util.Comparator#compare(Object, Object)
  *
  * @author Stephan Ewen
+ * 
+ * @param T The data type that the comparator works on.
  */
 public interface TypeComparator<T>
 {	
@@ -126,7 +128,7 @@ public interface TypeComparator<T>
 	 * sorted order. The actual comparison performed by this method may be very cheap, as it
 	 * happens on the extracted features.
 	 * 
-	 * @param referencedAccessors The type accessors where the element for comparison has been set
+	 * @param referencedComparator The type accessors where the element for comparison has been set
 	 *                            as reference.
 	 * 
 	 * @return A value smaller than zero, if the reference value of {@code referencedAccessors} is smaller
@@ -135,7 +137,7 @@ public interface TypeComparator<T>
 	 * 
 	 * @see #setReference(Object)
 	 */
-	public int compareToReference(TypeComparator<T> referencedAccessors);
+	public int compareToReference(TypeComparator<T> referencedComparator);
 	
 	/**
 	 * Compares two records in serialized from. The return value indicates the order of the two in the same way

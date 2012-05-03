@@ -198,16 +198,25 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator#getValues1()
+	 */
 	@Override
 	public Iterator<T1> getValues1() {
 		return this.firstReturn;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator#getValues2()
+	 */
 	@Override
 	public Iterator<T2> getValues2() {
 		return this.secondReturn;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator#next()
+	 */
 	@Override
 	public boolean next() throws IOException
 	{
@@ -256,8 +265,7 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 		}
 		else {
 			// both inputs are not empty
-			final T2 second = this.iterator2.getCurrent();
-			final int comp = this.comp.compareToReference(second);
+			final int comp = this.comp.compareToReference(this.iterator2.getCurrent());
 			
 			if (0 == comp) {
 				// keys match
@@ -265,7 +273,7 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 				this.secondReturn = this.iterator2.getValues();
 				this.matchStatus = MatchStatus.NONE_REMAINED;
 			}
-			else if (0 > comp) {
+			else if (0 < comp) {
 				// key1 goes first
 				this.firstReturn = this.iterator1.getValues();
 				this.secondReturn = EmptyIterator.get();

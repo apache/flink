@@ -29,6 +29,8 @@ import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
  * correctness of the program.
  *
  * @author Stephan Ewen
+ * 
+ * @param T The data type that the serializer serializes.
  */
 public interface TypeSerializer<T>
 {

@@ -35,6 +35,7 @@ import eu.stratosphere.pact.common.generic.AbstractStub;
 import eu.stratosphere.pact.common.generic.GenericMatcher;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.NullKeyFieldException;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -728,8 +729,22 @@ public class HashMatchIteratorITCase
 
 		@Override
 		public boolean equalToReference(PactRecord candidate) {
-			final PactInteger i = candidate.getField(0, PactInteger.class);
-			return i.getValue() == this.reference;
+			try {
+				final PactInteger i = candidate.getField(0, PactInteger.class);
+				return i.getValue() == this.reference;
+			} catch (NullPointerException npex) {
+				throw new NullKeyFieldException();
+			}
+		}
+
+		@Override
+		public int compareToReference(PactRecord candidate) {
+			try {
+				final PactInteger i = candidate.getField(0, PactInteger.class);
+				return i.getValue() - this.reference;
+			} catch (NullPointerException npex) {
+				throw new NullKeyFieldException();
+			}
 		}
 	}
 	
@@ -745,6 +760,11 @@ public class HashMatchIteratorITCase
 		@Override
 		public boolean equalToReference(IntPair candidate) {
 			return this.reference == candidate.getKey();
+		}
+
+		@Override
+		public int compareToReference(IntPair candidate) {
+			return candidate.getKey() - this.reference;
 		}
 	}
 }
