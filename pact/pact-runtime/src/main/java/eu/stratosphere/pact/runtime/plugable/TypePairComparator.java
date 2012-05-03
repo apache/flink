@@ -47,4 +47,6 @@ public interface TypePairComparator<T1, T2>
 	 * @return True, if the candidate is equal to the reference, false otherwise.
 	 */
 	public boolean equalToReference(T2 candidate);
+	
+	public int compareToReference(T2 candidate);
 }

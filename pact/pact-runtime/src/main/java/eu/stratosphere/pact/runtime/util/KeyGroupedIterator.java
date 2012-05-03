@@ -112,6 +112,10 @@ public final class KeyGroupedIterator<E>
 			}
 		}
 	}
+	
+	public E getCurrent() {
+		return this.next;
+	}
 
 	/**
 	 * Returns an iterator over all values that belong to the current key. The iterator is initially <code>null</code>
