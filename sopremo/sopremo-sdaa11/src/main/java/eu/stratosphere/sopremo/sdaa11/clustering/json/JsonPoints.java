@@ -35,4 +35,12 @@ public class JsonPoints {
 		return values;
 	}
 
+	/**
+	 * @param pointNode
+	 * @return
+	 */
+	public static String getId(ObjectNode pointNode) {
+		return ((TextNode) pointNode.get("id")).getTextValue();
+	}
+
 }
