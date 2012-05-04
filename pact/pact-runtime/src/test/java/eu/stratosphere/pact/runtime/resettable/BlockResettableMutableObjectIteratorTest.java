@@ -28,6 +28,8 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.MutableObjectIteratorWrapper;
@@ -38,6 +40,10 @@ public class BlockResettableMutableObjectIteratorTest
 	private static final int MEMORY_CAPACITY = 3 * 128 * 1024;
 	
 	private static final int NUM_VALUES = 20000;
+	
+	private final TypeSerializer<PactRecord> serializer = PactRecordSerializer.get();
+	
+	private final AbstractInvokable memOwner = new DummyInvokable();
 	
 	private MemoryManager memman;
 
@@ -57,7 +63,7 @@ public class BlockResettableMutableObjectIteratorTest
 		}
 		
 		// create the reader
-		this.reader = new MutableObjectIteratorWrapper(objects.iterator());
+		this.reader = new MutableObjectIteratorWrapper(this.objects.iterator());
 	}
 	
 	@After
@@ -76,117 +82,133 @@ public class BlockResettableMutableObjectIteratorTest
 	@Test
 	public void testSerialBlockResettableIterator() throws Exception
 	{
-		final AbstractInvokable memOwner = new DummyInvokable();
-		// create the resettable Iterator
-		BlockResettableMutableObjectIterator iterator = new BlockResettableMutableObjectIterator(memman, reader, BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, 1, memOwner);
-		// open the iterator
-		iterator.open();
-		
-		final PactRecord target = new PactRecord();
-		
-		// now test walking through the iterator
-		int lower = 0;
-		int upper = 0;
-		do {
-			lower = upper;
-			upper = lower;
-			// find the upper bound
-			while (iterator.next(target)) {
-				int val = target.getField(0, PactInteger.class).getValue();
-				Assert.assertEquals(upper++, val);
-			}
-			// now reset the buffer a few times
-			for (int i = 0; i < 5; ++i) {
-				iterator.reset();
-				int count = 0;
+		try {
+			// create the resettable Iterator
+			final BlockResettableMutableObjectIterator<PactRecord> iterator = 
+						new BlockResettableMutableObjectIterator<PactRecord>(this.memman, this.reader, 
+								this.serializer, this.memman.getPageSize(), memOwner);
+			// open the iterator
+			iterator.open();
+			
+			final PactRecord target = new PactRecord();
+			
+			// now test walking through the iterator
+			int lower = 0;
+			int upper = 0;
+			do {
+				lower = upper;
+				upper = lower;
+				// find the upper bound
 				while (iterator.next(target)) {
 					int val = target.getField(0, PactInteger.class).getValue();
-					Assert.assertEquals(lower + (count++), val);
+					Assert.assertEquals(upper++, val);
 				}
-				Assert.assertEquals(upper - lower, count);
-			}
-		} while (iterator.nextBlock());
-		Assert.assertEquals(NUM_VALUES, upper);
-		// close the iterator
-		iterator.close();
+				// now reset the buffer a few times
+				for (int i = 0; i < 5; ++i) {
+					iterator.reset();
+					int count = 0;
+					while (iterator.next(target)) {
+						int val = target.getField(0, PactInteger.class).getValue();
+						Assert.assertEquals(lower + (count++), val);
+					}
+					Assert.assertEquals(upper - lower, count);
+				}
+			} while (iterator.nextBlock());
+			Assert.assertEquals(NUM_VALUES, upper);
+			// close the iterator
+			iterator.close();
+		}
+		catch (Exception ex) {
+			Assert.fail("Test encountered an exception: " + ex.getMessage());
+		}
 	}
 
 	@Test
 	public void testDoubleBufferedBlockResettableIterator() throws Exception
 	{
-		final AbstractInvokable memOwner = new DummyInvokable();
-		// create the resettable Iterator
-		BlockResettableMutableObjectIterator iterator = new BlockResettableMutableObjectIterator(memman, reader,2 * BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, 2, memOwner);
-		// open the iterator
-		iterator.open();
-		
-		PactRecord target = new PactRecord();
-		
-		// now test walking through the iterator
-		int lower = 0;
-		int upper = 0;
-		do {
-			lower = upper;
-			upper = lower;
-			// find the upper bound
-			while (iterator.next(target)) {
-				int val = target.getField(0, PactInteger.class).getValue();
-				Assert.assertEquals(upper++, val);
-			}
-			// now reset the buffer a few times
-			for (int i = 0; i < 5; ++i) {
-				iterator.reset();
-				int count = 0;
+		try {
+			// create the resettable Iterator
+			final BlockResettableMutableObjectIterator<PactRecord> iterator = 
+						new BlockResettableMutableObjectIterator<PactRecord>(this.memman, this.reader, 
+								this.serializer, 2 * this.memman.getPageSize(), memOwner);
+			// open the iterator
+			iterator.open();
+			
+			final PactRecord target = new PactRecord();
+			
+			// now test walking through the iterator
+			int lower = 0;
+			int upper = 0;
+			do {
+				lower = upper;
+				upper = lower;
+				// find the upper bound
 				while (iterator.next(target)) {
 					int val = target.getField(0, PactInteger.class).getValue();
-					Assert.assertEquals(lower + (count++), val);
+					Assert.assertEquals(upper++, val);
 				}
-				Assert.assertEquals(upper - lower, count);
-			}
-		} while (iterator.nextBlock());
-		Assert.assertEquals(NUM_VALUES, upper);
-		
-		// close the iterator
-		iterator.close();
+				// now reset the buffer a few times
+				for (int i = 0; i < 5; ++i) {
+					iterator.reset();
+					int count = 0;
+					while (iterator.next(target)) {
+						int val = target.getField(0, PactInteger.class).getValue();
+						Assert.assertEquals(lower + (count++), val);
+					}
+					Assert.assertEquals(upper - lower, count);
+				}
+			} while (iterator.nextBlock());
+			Assert.assertEquals(NUM_VALUES, upper);
+			// close the iterator
+			iterator.close();
+		}
+		catch (Exception ex) {
+			Assert.fail("Test encountered an exception: " + ex.getMessage());
+		}
 	}
 
 	@Test
-	public void testTripleBufferedBlockResettableIterator() throws Exception
+	public void testTwelveFoldBufferedBlockResettableIterator() throws Exception
 	{
-		final AbstractInvokable memOwner = new DummyInvokable();
-		// create the resettable Iterator
-		BlockResettableMutableObjectIterator iterator = new BlockResettableMutableObjectIterator(memman, reader, 3 * BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, 3, memOwner);
-		// open the iterator
-		iterator.open();
-		
-		PactRecord target = new PactRecord();
-		
-		// now test walking through the iterator
-		int lower = 0;
-		int upper = 0;
-		do {
-			lower = upper;
-			upper = lower;
-			// find the upper bound
-			while (iterator.next(target)) {
-				int val = target.getField(0, PactInteger.class).getValue();
-				Assert.assertEquals(upper++, val);
-			}
-			// now reset the buffer a few times
-			for (int i = 0; i < 5; ++i) {
-				iterator.reset();
-				int count = 0;
+		try {
+			// create the resettable Iterator
+			final BlockResettableMutableObjectIterator<PactRecord> iterator = 
+						new BlockResettableMutableObjectIterator<PactRecord>(this.memman, this.reader, 
+								this.serializer, 12 * this.memman.getPageSize(), memOwner);
+			// open the iterator
+			iterator.open();
+			
+			final PactRecord target = new PactRecord();
+			
+			// now test walking through the iterator
+			int lower = 0;
+			int upper = 0;
+			do {
+				lower = upper;
+				upper = lower;
+				// find the upper bound
 				while (iterator.next(target)) {
 					int val = target.getField(0, PactInteger.class).getValue();
-					Assert.assertEquals(lower + (count++), val);
+					Assert.assertEquals(upper++, val);
 				}
-				Assert.assertEquals(upper - lower, count);
-			}
-		} while (iterator.nextBlock());
-		Assert.assertEquals(NUM_VALUES, upper);
-		
-		// close the iterator
-		iterator.close();
+				// now reset the buffer a few times
+				for (int i = 0; i < 5; ++i) {
+					iterator.reset();
+					int count = 0;
+					while (iterator.next(target)) {
+						int val = target.getField(0, PactInteger.class).getValue();
+						Assert.assertEquals(lower + (count++), val);
+					}
+					Assert.assertEquals(upper - lower, count);
+				}
+			} while (iterator.nextBlock());
+			Assert.assertEquals(NUM_VALUES, upper);
+			// close the iterator
+			iterator.close();
+		}
+		catch (Exception ex) {
+			Assert.fail("Test encountered an exception: " + ex.getMessage());
+		}
 	}
 
 }

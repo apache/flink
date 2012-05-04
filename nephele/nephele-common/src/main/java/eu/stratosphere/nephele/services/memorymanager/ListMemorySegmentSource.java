@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.services.memorymanager;
 
-import java.util.List;
+import java.util.ArrayList;
 
 
 /**
@@ -25,9 +25,9 @@ import java.util.List;
  */
 public class ListMemorySegmentSource implements MemorySegmentSource
 {
-	private final List<MemorySegment> segments;
+	private final ArrayList<MemorySegment> segments;
 	
-	public ListMemorySegmentSource(final List<MemorySegment> memorySegments) {
+	public ListMemorySegmentSource(final ArrayList<MemorySegment> memorySegments) {
 		this.segments = memorySegments;
 	}
 	

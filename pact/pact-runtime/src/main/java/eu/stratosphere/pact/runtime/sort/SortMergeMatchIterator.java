@@ -78,17 +78,17 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 
 	private final MutableObjectIterator<T2> reader2;
 	
-	private final PactRecord copy1 = new PactRecord();
+	private final T1 copy1;
 	
-	private final PactRecord copy2 = new PactRecord();
-	
-	private final PactRecord instance = new PactRecord();
-	
-	private final BlockResettableIterator blockIt;				// for N:M cross products with same key
+	private final T2 copy2;
 	
 	private final TypeSerializer<T1> serializer1;
 	
 	private final TypeSerializer<T2> serializer2;
+	
+	private final PactRecord instance = new PactRecord();
+	
+	private final BlockResettableIterator blockIt;				// for N:M cross products with same key
 	
 	private final TypeComparator<T1> comparator1;
 	
@@ -260,7 +260,7 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#callWithNextKey()
 	 */
 	@Override
-	public boolean callWithNextKey(GenericMatcher<T1, T2, O> matchFunction, Collector<O> collector)
+	public boolean callWithNextKey(final GenericMatcher<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
@@ -298,12 +298,8 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 		final KeyGroupedIterator<T1>.ValuesIterator values1 = this.iterator1.getValues();
 		final KeyGroupedIterator<T2>.ValuesIterator values2 = this.iterator2.getValues();
 		
-		final PactRecord firstV1 = values1.next().createCopy();
-		final PactRecord firstV2 = values2.next().createCopy();	
-		
-		if (firstV1 == null || firstV2 == null) {
-			return false;
-		}
+		final T1 firstV1 = values1.next();
+		final T2 firstV2 = values2.next();	
 			
 		final boolean v1HasNext = values1.hasNext();
 		final boolean v2HasNext = values2.hasNext();
@@ -311,21 +307,22 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 		// check if one side is already empty
 		// this check could be omitted if we put this in MatchTask.
 		// then we can derive the local strategy (with build side).
-		if (!v1HasNext && !v2HasNext) {
-			// both sides contain only one value
-			matchFunction.match(firstV1, firstV2, collector);
-		}
-		else if (!v1HasNext) {
-			crossFirst1withNValues(firstV1, firstV2, values2, matchFunction, collector);
-
-		}
-		else if (!v2HasNext) {
-			crossSecond1withNValues(firstV2, firstV1, values1, matchFunction, collector);
-		}
-		else {
-			// both sides contain more than one value
-			// TODO: Decide which side to spill and which to block!
-			crossMwithNValues(firstV1, values1, firstV2, values2, matchFunction, collector);
+		
+		if (v1HasNext) {
+			if (v2HasNext) {
+				// both sides contain more than one value
+				// TODO: Decide which side to spill and which to block!
+				crossMwithNValues(firstV1, values1, firstV2, values2, matchFunction, collector);
+			} else {
+				crossSecond1withNValues(firstV2, firstV1, values1, matchFunction, collector);
+			}
+		} else {
+			if (v2HasNext) {
+				crossFirst1withNValues(firstV1, firstV2, values2, matchFunction, collector);
+			} else {
+				// both sides contain only one value
+				matchFunction.match(firstV1, firstV2, collector);
+			}
 		}
 		return true;
 	}
@@ -349,23 +346,23 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 	 *          
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
-	private void crossFirst1withNValues(T1 val1, T2 firstValN,
-			Iterator<T2> valsN, MatchStub matchFunction, Collector<O> collector)
+	private void crossFirst1withNValues(final T1 val1, final T2 firstValN,
+			final Iterator<T2> valsN, final GenericMatcher<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
-		val1.copyTo(this.copy1);
-		matchFunction.match(val1, firstValN, collector);
+		this.serializer1.copyTo(val1, this.copy1);
+		matchFunction.match(this.copy1, firstValN, collector);
 		
 		// set copy and match first element
 		boolean more = true;
 		do {
-			PactRecord nRec = valsN.next();
+			final T2 nRec = valsN.next();
 			
 			if (valsN.hasNext()) {
-				this.copy1.copyToIfModified(val1);
-				matchFunction.match(val1, nRec, collector);
-			} else {
+				this.serializer1.copyTo(val1, this.copy1);
 				matchFunction.match(this.copy1, nRec, collector);
+			} else {
+				matchFunction.match(val1, nRec, collector);
 				more = false;
 			}
 		}
@@ -382,23 +379,23 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 	 *          
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
-	private void crossSecond1withNValues(T2 val1, PactRecord T1,
-			Iterator<T1> valsN, MatchStub matchFunction, Collector<O> collector)
+	private void crossSecond1withNValues(T2 val1, T1 firstValN,
+			Iterator<T1> valsN, GenericMatcher<T1, T2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
-		val1.copyTo(this.copy1);
-		matchFunction.match(firstValN, val1, collector);
+		this.serializer2.copyTo(val1, this.copy2);
+		matchFunction.match(firstValN, this.copy2, collector);
 		
 		// set copy and match first element
 		boolean more = true;
 		do {
-			PactRecord nRec = valsN.next();
+			final T1 nRec = valsN.next();
 			
 			if (valsN.hasNext()) {
-				this.copy1.copyToIfModified(val1);
-				matchFunction.match(nRec, val1, collector);
+				this.serializer2.copyTo(val1, this.copy2);
+				matchFunction.match(nRec, this.copy2, collector);
 			} else {
-				matchFunction.match(nRec, this.copy1, collector);
+				matchFunction.match(nRec, val1, collector);
 				more = false;
 			}
 		}
@@ -413,7 +410,7 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 	 */
 	private void crossMwithNValues(final T1 firstV1, Iterator<T1> spillVals,
 			final T2 firstV2, final Iterator<T2> blockVals,
-			MatchStub matchFunction, Collector<O> collector)
+			final GenericMatcher<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		// ==================================================

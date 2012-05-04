@@ -22,12 +22,10 @@ import java.util.NoSuchElementException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.services.iomanager.Buffer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.util.ResettableIterator;
 
 /**
@@ -37,154 +35,92 @@ import eu.stratosphere.pact.runtime.util.ResettableIterator;
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public class BlockResettableIterator extends AbstractBlockResettableIterator implements ResettableIterator<PactRecord>
+public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<T> implements ResettableIterator<T>
 {
 	public static final Log LOG = LogFactory.getLog(BlockResettableIterator.class);
 	
-	public static final int MIN_BUFFER_SIZE = 8 * 1024;
+	// ------------------------------------------------------------------------
+	
+	protected Iterator<T> input;
+	
+	private T nextElement;
+	
+	private final T stagingElement;
+	
+	private T leftOverElement;
+	
+	private boolean readPhase;
+	
+	private boolean noMoreBlocks;
 	
 	// ------------------------------------------------------------------------
 	
-	protected Iterator<PactRecord> input;
-	
-	private PactRecord nextElement;
-	
-	private final PactRecord stagingElement;
-	
-	private PactRecord leftOverElement;
-	
-	// ------------------------------------------------------------------------
-	
-	public BlockResettableIterator(MemoryManager memoryManager, Iterator<PactRecord> input,
-			long availableMemory, int nrOfBuffers, AbstractInvokable ownerTask)
+	public BlockResettableIterator(MemoryManager memoryManager, Iterator<T> input,
+			TypeSerializer<T> serializer, long availableMemory, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
-		this(memoryManager, availableMemory, nrOfBuffers, ownerTask);
+		this(memoryManager, serializer, availableMemory, ownerTask);
 		this.input = input;
 	}
 	
 	public BlockResettableIterator(MemoryManager memoryManager,
-			long availableMemory, int nrOfBuffers, AbstractInvokable ownerTask)
+			TypeSerializer<T> serializer, long availableMemory, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
-		super(memoryManager, availableMemory, nrOfBuffers, ownerTask);
+		super(serializer, memoryManager, availableMemory, ownerTask);
 		
-		this.stagingElement = new PactRecord();
+		this.stagingElement = serializer.createInstance();
 	}
 	
 	// ------------------------------------------------------------------------
 	
-	public void reopen(Iterator<PactRecord> input) throws IOException
+	public void reopen(Iterator<T> input) throws IOException
 	{
 		this.input = input;
 		
-		collectAllBuffers(this.emptySegments);
 		this.noMoreBlocks = false;
 		this.closed = false;
 		
 		nextBlock();
 	}
-
+	
+	
 	/* (non-Javadoc)
 	 * @see java.util.Iterator#hasNext()
 	 */
 	@Override
 	public boolean hasNext()
 	{
-		if (this.nextElement == null)
-		{
-			// we need to make a case distinction whether we are currently reading through full blocks
-			// or filling blocks anew
-			if (this.bufferCurrentlyRead != null)
-			{
-				// we are reading from a full block
-				if (this.bufferCurrentlyRead.read(this.stagingElement)) {
-					// the current buffer had another element
-					this.nextElement = this.stagingElement;
-					return true;
-				}
-				else {
-					// the current buffer is exhausted
-					this.consumedBuffers.add(this.bufferCurrentlyRead);
-					if (this.fullBuffers.isEmpty()) {
-						// no more elements in this block.
-						this.bufferCurrentlyRead = null;
+		try {
+			if (this.nextElement == null) {
+				if (this.readPhase) {
+					// read phase, get next element from buffer
+					if (getNextRecord(this.stagingElement)) {
+						this.nextElement = this.stagingElement;
+						return true;
+					} else {
 						return false;
 					}
-					else {
-						// go to next input block
-						this.bufferCurrentlyRead = this.fullBuffers.remove(0);
-						if (this.bufferCurrentlyRead.read(this.stagingElement)) {
-							// the current buffer had another element
-							this.nextElement = this.stagingElement;
+				} else {
+					if (this.input.hasNext()) {
+						final T next = this.input.next();
+						if (writeNextRecord(next)) {
+							this.nextElement = next;
 							return true;
-						}
-						else {
-							throw new RuntimeException("BlockResettableIterator: " +
-									"BUG - Could not de-serialize element newly obtaint input block buffer.");
-						}
-					}
-				}
-			}
-			else if (this.bufferCurrentlyFilled != null) {
-				// we are reading from the input reader and filling the block along
-				if (this.input.hasNext()) {
-					PactRecord next = this.input.next();
-
-					if (this.bufferCurrentlyFilled.write(next)) {
-						// object fit into current buffer
-						this.nextElement = next;
-						return true;
-					}
-					else {
-						// object did not fit into current buffer
-						// add the current buffer to the full buffers
-						final int fillPosition = this.bufferCurrentlyFilled.getPosition();
-						final MemorySegment seg = this.bufferCurrentlyFilled.dispose();
-						this.bufferCurrentlyFilled = null;
-						
-						final Buffer.Input in = new Buffer.Input(seg);
-						in.reset(fillPosition);
-						this.consumedBuffers.add(in);
-						
-						// get the next buffer
-						if (this.emptySegments.isEmpty()) {
-							// no more empty segments. the current element is left over
+						} else {
 							this.leftOverElement = next;
 							return false;
 						}
-						else {
-							// next segment available, use it.
-							this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
-							if (this.bufferCurrentlyFilled.write(next)) {
-								// object fit into next buffer
-								this.nextElement = next;
-								return true;
-							}
-							else {
-								throw new RuntimeException("BlockResettableIterator: " +
-									"Could not serialize element into fresh block buffer - element is too large.");
-							}
-						}
+					} else {
+						this.noMoreBlocks = true;
+						return false;
 					}
 				}
-				else {
-					// no more input from the reader
-					this.noMoreBlocks = true;
-					return false;
-				}
+			} else {
+				return true;
 			}
-			else {
-				// we have a repeated call to hasNext() an either the buffers are completely filled, or completely read
-				// or the iterator was closed
-				if (this.closed) {
-					throw new IllegalStateException("Iterator was closed.");
-				}
-				return false;
-			}
-		}
-		else {
-			return true;
+		} catch (IOException ioex) {
+			throw new RuntimeException("Error (de)serializing record in block resettable iterator.", ioex);
 		}
 	}
 	
@@ -192,14 +128,15 @@ public class BlockResettableIterator extends AbstractBlockResettableIterator imp
 	 * @see java.util.Iterator#next()
 	 */
 	@Override
-	public PactRecord next() {
+	public T next()
+	{
 		if (this.nextElement == null) {
 			if (!hasNext()) {
 				throw new NoSuchElementException();
 			}
 		}
 		
-		PactRecord out = this.nextElement;
+		T out = this.nextElement;
 		this.nextElement = null;
 		return out;
 	}
@@ -213,10 +150,21 @@ public class BlockResettableIterator extends AbstractBlockResettableIterator imp
 	}
 	
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.resettable.AbstractBlockResettableIterator#reset()
+	 */
+	public void reset()
+	{
+		// a reset always goes to the read phase
+		this.readPhase = true;
+		super.reset();
+	}
+	
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator#nextBlock()
 	 */
 	@Override
-	public boolean nextBlock() {
+	public boolean nextBlock() throws IOException
+	{
 		// check the state
 		if (this.closed) {
 			throw new IllegalStateException("Iterator has been closed.");
@@ -227,14 +175,10 @@ public class BlockResettableIterator extends AbstractBlockResettableIterator imp
 			return false;
 		}
 		
-		// the basic logic is to dispose all input buffers and reuse the memory segments by putting
-		// them into the empty segment list
-		collectAllBuffers(this.emptySegments);
-			
-		// set one buffer to be filled and write the next element
-		this.bufferCurrentlyFilled = new Buffer.Output(this.emptySegments.remove(this.emptySegments.size() - 1));
+		// reset the views in the superclass
+		super.nextBlock();
 		
-		PactRecord next = this.leftOverElement;
+		T next = this.leftOverElement;
 		this.leftOverElement = null;
 		if (next == null) {
 			if (this.input.hasNext()) {
@@ -246,11 +190,38 @@ public class BlockResettableIterator extends AbstractBlockResettableIterator imp
 			}
 		}
 		
-		if (!this.bufferCurrentlyFilled.write(next)) {
-				throw new RuntimeException("BlockResettableIterator: " +
-					"Could not serialize element into fresh block buffer - element is too large.");
+		// write the leftover record
+		if (!writeNextRecord(next)) {
+			throw new IOException("BlockResettableIterator could not serialize record into fresh memory block: " +
+					"Record is too large.");
 		}
+		
 		this.nextElement = next;
+		this.readPhase = false;
+		
 		return true;
+	}
+	
+	/**
+	 * Checks, whether the input that is blocked by this iterator, has further elements
+	 * available. This method may be used to forecast (for example at the point where a
+	 * block is full) whether there will be more data (possibly in another block).
+	 * 
+	 * @return True, if there will be more data, false otherwise.
+	 */
+	public boolean hasFurtherInput()
+	{
+		return !this.noMoreBlocks; 
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.resettable.AbstractBlockResettableIterator#close()
+	 */
+	public void close()
+	{
+		// suggest that we are in the read phase. because nothing is in the current block,
+		// read requests will fail
+		this.readPhase = true;
+		super.close();
 	}
 }
