@@ -22,14 +22,12 @@ public class SequentialClustering extends
 		ElementaryOperator<SequentialClustering> {
 
 	private static final long serialVersionUID = 5563265035325926095L;
-	
+
 	public static final String SCHEMA_ID = "id";
 
 	public static final String SCHEMA_POINTS = "points";
 
 	public static final String SCHEMA_CLUSTROID = "clustroid";
-
-	
 
 	/** The maximum radius of a cluster. */
 	private int maxRadius;
@@ -69,6 +67,9 @@ public class SequentialClustering extends
 
 		@Override
 		protected void reduce(final IArrayNode values, final JsonCollector out) {
+			
+			System.out.println("Sequential clustering: "+values);
+			
 			this.addPoints(values);
 			this.cluster();
 			this.emitClusters(out);

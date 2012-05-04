@@ -12,18 +12,13 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.sdaa11;
-
-import eu.stratosphere.sopremo.type.IJsonNode;
+package eu.stratosphere.sopremo.sdaa11.clustering.json;
 
 /**
  * @author skruse
- * 
+ *
  */
-public interface JsonSerializable {
-
-	IJsonNode write(IJsonNode node);
-
-	void read(IJsonNode node);
+public class JsonCluster {
+	
 
 }

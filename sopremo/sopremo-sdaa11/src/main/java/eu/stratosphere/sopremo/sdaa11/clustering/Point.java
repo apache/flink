@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo.sdaa11.clustering;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -14,7 +15,8 @@ import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
-public class Point implements Serializable, Cloneable, Comparable<Point>, JsonSerializable {
+public class Point implements Serializable, Cloneable, Comparable<Point>,
+		JsonSerializable {
 
 	private static final long serialVersionUID = 8916618314991854207L;
 
@@ -23,6 +25,10 @@ public class Point implements Serializable, Cloneable, Comparable<Point>, JsonSe
 	private int rowsum = 0;
 
 	public Point() {
+	}
+	
+	public Point(final String key, final String... values) {
+		this(key, Arrays.asList(values));
 	}
 
 	public Point(final String key, final List<String> values) {
@@ -100,7 +106,8 @@ public class Point implements Serializable, Cloneable, Comparable<Point>, JsonSe
 		return FastStringComparator.INSTANCE.compare(this.key, otherPoint.key);
 	}
 
-	public IJsonNode write(IJsonNode node) {
+	@Override
+	public IJsonNode write(final IJsonNode node) {
 		ObjectNode objectNode;
 		if (node == null || !(node instanceof ObjectNode))
 			objectNode = new ObjectNode();
@@ -113,20 +120,19 @@ public class Point implements Serializable, Cloneable, Comparable<Point>, JsonSe
 			valuesNode.add(new TextNode(value));
 		objectNode.put("values", valuesNode);
 		objectNode.put("rowsum", new IntNode(this.rowsum));
-		
+
 		return objectNode;
 	}
-	
-	public void read(IJsonNode node) {
-		if (node == null || !(node instanceof ObjectNode)) {
-			throw new IllegalArgumentException("Illegal point node: "+node);
-		}
-		ObjectNode objectNode = (ObjectNode) node;
-		key = ((TextNode) objectNode.get("id")).getJavaValue();
-		values = new ArrayList<String>();
-		for (IJsonNode valuesNode : (ArrayNode) objectNode.get("values")) {
-			values.add(((TextNode) valuesNode).getJavaValue());
-		}
-		rowsum = ((IntNode) objectNode.get("rowsum")).getJavaValue();
+
+	@Override
+	public void read(final IJsonNode node) {
+		if (node == null || !(node instanceof ObjectNode))
+			throw new IllegalArgumentException("Illegal point node: " + node);
+		final ObjectNode objectNode = (ObjectNode) node;
+		this.key = ((TextNode) objectNode.get("id")).getJavaValue();
+		this.values = new ArrayList<String>();
+		for (final IJsonNode valuesNode : (ArrayNode) objectNode.get("values"))
+			this.values.add(((TextNode) valuesNode).getJavaValue());
+		this.rowsum = ((IntNode) objectNode.get("rowsum")).getJavaValue();
 	}
 }

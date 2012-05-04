@@ -10,14 +10,14 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 public class Annotator extends ElementaryOperator<Annotator> {
 
 	private static final long serialVersionUID = 1243242341L;
-	
+
 	/**
 	 * Key in output JSON object for the annotated object.
 	 */
 	public static final String OBJECT_KEY = "object";
 
 	public static final String DUMMY_KEY = "dummy";
-	
+
 	public static final int DUMMY_VALUE_INDEX = 1;
 	public static final IntNode DUMMY_VALUE = new IntNode(0);
 
@@ -26,17 +26,18 @@ public class Annotator extends ElementaryOperator<Annotator> {
 
 		@Override
 		protected void map(final IJsonNode value, final JsonCollector out) {
+			System.out.println("Annotating "+value);
 			this.output.put(OBJECT_KEY, value);
 			this.output.put(DUMMY_KEY, DUMMY_VALUE);
 			out.collect(this.output);
 		}
 
 	}
-	
-	public static IJsonNode deannotate(IJsonNode node) {
+
+	public static IJsonNode deannotate(final IJsonNode node) {
 		if (node == null || !(node instanceof ObjectNode))
-			throw new IllegalArgumentException("Cannot deannotate "+node);
-		
+			throw new IllegalArgumentException("Cannot deannotate " + node);
+
 		return ((ObjectNode) node).get(OBJECT_KEY);
 	}
 

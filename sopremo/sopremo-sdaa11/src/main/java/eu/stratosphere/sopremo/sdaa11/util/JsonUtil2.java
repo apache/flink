@@ -19,26 +19,27 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
  * @author skruse
- *
+ * 
  */
 public class JsonUtil2 {
-	
-	public static ObjectNode reuseObjectNode(IJsonNode node) {
+
+	public static ObjectNode reuseObjectNode(final IJsonNode node) {
 		if (node == null || !(node instanceof ObjectNode))
 			return new ObjectNode();
 		return (ObjectNode) node;
 	}
-	
-	public static boolean isObjectNode(IJsonNode node) {
+
+	public static boolean isObjectNode(final IJsonNode node) {
 		return node != null && node instanceof ObjectNode;
 	}
-	
+
 	@SuppressWarnings("unchecked")
-	public static <T> T getField(IJsonNode node, String field, Class<T> type) {
+	public static <T> T getField(final IJsonNode node, final String field,
+			final Class<T> type) {
 		return (T) ((ObjectNode) node).get(field);
 	}
-	
-	public static IJsonNode getField(IJsonNode node, String field) {
+
+	public static IJsonNode getField(final IJsonNode node, final String field) {
 		return ((ObjectNode) node).get(field);
 	}
 

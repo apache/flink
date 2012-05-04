@@ -30,7 +30,7 @@ public class InitialClustering extends CompositeOperator<InitialClustering> {
 	public void setMaxSize(final int maxSize) {
 		this.maxSize = maxSize;
 	}
-	
+
 	@Override
 	public SopremoModule asElementaryOperators() {
 		final SopremoModule module = new SopremoModule(this.getName(), 1, 1);
@@ -39,8 +39,8 @@ public class InitialClustering extends CompositeOperator<InitialClustering> {
 		final Annotator annotator = new Annotator().withInputs(input);
 		final SequentialClustering sequentialClustering = new SequentialClustering()
 				.withInputs(annotator);
-		sequentialClustering.setMaxRadius(maxRadius);
-		sequentialClustering.setMaxSize(maxSize);
+		sequentialClustering.setMaxRadius(this.maxRadius);
+		sequentialClustering.setMaxSize(this.maxSize);
 
 		module.getOutput(0).setInput(0, sequentialClustering);
 

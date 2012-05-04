@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.sdaa11;
+package eu.stratosphere.sopremo.sdaa11.clustering.initial;
 
 import java.util.Arrays;
 
@@ -6,6 +6,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.sdaa11.Annotator;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.SequentialClustering;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;

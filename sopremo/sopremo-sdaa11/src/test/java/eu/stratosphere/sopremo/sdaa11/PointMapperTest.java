@@ -14,16 +14,41 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.sdaa11;
 
+import org.junit.Test;
+
+import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.clustering.main.PointMapper;
+import eu.stratosphere.sopremo.sdaa11.clustering.tree.ClusterTree;
+import eu.stratosphere.sopremo.sdaa11.clustering.util.Points;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
+
 
 /**
  * @author skruse
- * 
+ *
  */
-public interface JsonSerializable {
+public class PointMapperTest {
 
-	IJsonNode write(IJsonNode node);
-
-	void read(IJsonNode node);
-
+	@Test
+	public void testPointMapping() {
+		
+		SopremoTestPlan plan = new SopremoTestPlan(new PointMapper());
+		
+		ClusterTree tree = new ClusterTree(2);
+		tree.add(new Point("p1", "a", "b", "c"), "c1");
+		tree.add(new Point("p2", "1", "2", "3"), "c2");
+		IJsonNode treeNode = tree.write(null);
+		System.out.println(treeNode);
+		plan.getInput(0).add(treeNode);
+		
+		plan.getInput(1).add(Points.asJson("a", "b"))
+			.add(Points.asJson("2", "3"));
+		
+		plan.run();
+		
+		for (IJsonNode outputNode : plan.getActualOutput(0)) {
+			System.out.println("Output: "+outputNode);
+		}
+	}
 }

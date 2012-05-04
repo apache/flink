@@ -25,8 +25,8 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
- * Takes whole clusters and separately outputs all of its points with the respective
- * cluster ID assigned.
+ * Takes whole clusters and separately outputs all of its points with the
+ * respective cluster ID assigned.
  * 
  * @author skruse
  * 
@@ -51,6 +51,9 @@ public class ClusterDisassemble extends ElementaryOperator<ClusterDisassemble> {
 		 */
 		@Override
 		protected void map(final IJsonNode clusterNode, final JsonCollector out) {
+			
+			System.out.println("Disassembling "+clusterNode);
+			
 			final TextNode idNode = JsonUtil2.getField(clusterNode,
 					SequentialClustering.SCHEMA_ID, TextNode.class);
 			final IArrayNode pointsNode = JsonUtil2.getField(clusterNode,

@@ -12,18 +12,27 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.sdaa11;
+package eu.stratosphere.sopremo.sdaa11.clustering.json;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
- * 
+ *
  */
-public interface JsonSerializable {
-
-	IJsonNode write(IJsonNode node);
-
-	void read(IJsonNode node);
+public class JsonPoints {
+	
+	public static List<String> getValues(ObjectNode node) {
+		List<String> values = new ArrayList<String>();
+		for (final IJsonNode valuesNode : (ArrayNode) node.get("values"))
+			values.add(((TextNode) valuesNode).getJavaValue());
+		return values;
+	}
 
 }

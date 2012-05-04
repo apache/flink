@@ -12,18 +12,30 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.sdaa11;
-
-import eu.stratosphere.sopremo.type.IJsonNode;
+package eu.stratosphere.sopremo.sdaa11.util;
 
 /**
  * @author skruse
- * 
+ *
  */
-public interface JsonSerializable {
+public class ReverseRanking<T> extends Ranking<T> {
 
-	IJsonNode write(IJsonNode node);
-
-	void read(IJsonNode node);
+	/**
+	 * Initializes ReverseRanking.
+	 *
+	 * @param capacity
+	 * @param memberClass
+	 */
+	public ReverseRanking(int capacity) {
+		super(capacity);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.sdaa11.util.Ranking#isHigher(int, int)
+	 */
+	@Override
+	protected boolean isHigher(int rank1, int rank2) {
+		return rank1 > rank2;
+	}
 
 }

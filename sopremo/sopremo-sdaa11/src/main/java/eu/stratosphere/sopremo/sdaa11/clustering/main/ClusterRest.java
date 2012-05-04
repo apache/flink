@@ -16,36 +16,50 @@ package eu.stratosphere.sopremo.sdaa11.clustering.main;
 
 import temp.UnionAll;
 import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.Source;
 
 /**
  * @author skruse
- *
+ * 
  */
+@InputCardinality(min = 3, max = 3)
 public class ClusterRest extends CompositeOperator<ClusterRest> {
-	
+
+	private static final long serialVersionUID = -6900556381101996519L;
+
 	public static final int SAMPLE_CLUSTERS_INPUT_INDEX = 0;
 	public static final int REST_POINTS_INPUT_INDEX = 1;
 	public static final int TREE_INPUT_INDEX = 2;
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
 	public SopremoModule asElementaryOperators() {
-		SopremoModule module = new SopremoModule(getName(), 3, 1);
+		final SopremoModule module = new SopremoModule(this.getName(), 3, 1);
+
+		final Source sampleClusterInput = module
+				.getInput(SAMPLE_CLUSTERS_INPUT_INDEX);
+		final Source restPointsInput = module
+				.getInput(REST_POINTS_INPUT_INDEX);
+		final Source treeInput = module.getInput(TREE_INPUT_INDEX);
+
+		final ClusterDisassemble disassembleClusters = new ClusterDisassemble()
+				.withInputs(sampleClusterInput.getOutput(0));
 		
-		Operator<?> sampleClusterInput = module.getInput(SAMPLE_CLUSTERS_INPUT_INDEX);
-		Operator<?> restPointsInput = module.getInput(REST_POINTS_INPUT_INDEX);
-		Operator<?> treeInput = module.getInput(TREE_INPUT_INDEX);
+		final PointMapper pointMapper = new PointMapper();
+		pointMapper.setInput(PointMapper.TREE_INPUT_INDEX, treeInput);
+		pointMapper.setInput(PointMapper.POINT_INPUT_INDEX, restPointsInput);
 		
-		Operator<?> disassembleClusters = new ClusterDisassemble().withInputs(sampleClusterInput.getOutput(0));
-		Operator<?> pointMapper = new PointMapper().withInputs(treeInput.getOutput(0), restPointsInput.getOutput(0));
-		Operator<?> unionAll = new UnionAll().withInputs(disassembleClusters.getOutput(0), pointMapper.getOutput(0));
-		
+		final UnionAll unionAll = new UnionAll().withInputs(
+				disassembleClusters.getOutput(0), pointMapper.getOutput(0));
+
 		module.getOutput(0).setInputs(unionAll.getOutputs());
-		
+
 		return module;
 	}
 

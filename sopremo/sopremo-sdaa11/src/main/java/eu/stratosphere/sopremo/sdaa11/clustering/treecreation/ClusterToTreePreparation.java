@@ -21,37 +21,46 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
- * This operator simply takes clusters, strips off all of its points
- * except for the clustroid and additionally adds a dummy reduce key.
+ * This operator simply takes clusters, strips off all of its points except for
+ * the clustroid and additionally adds a dummy reduce key.
  * 
  * @see TreeCreator
  * @see TreeAssembler
  * @author skruse
- *
+ * 
  */
-public class ClusterToTreePreparation extends ElementaryOperator<ClusterToTreePreparation> {
-	
+public class ClusterToTreePreparation extends
+		ElementaryOperator<ClusterToTreePreparation> {
+
 	private static final long serialVersionUID = -5035298968776097883L;
 
 	public static class Implementation extends SopremoMap {
 
 		ObjectNode outputNode = new ObjectNode();
-		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see
+		 * eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo
+		 * .type.IJsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
 		 */
 		@Override
-		protected void map(IJsonNode value, JsonCollector out) {
-			ObjectNode clusterNode = (ObjectNode) value;
+		protected void map(final IJsonNode value, final JsonCollector out) {
 			
+			System.out.println("Preparing "+value);
+			
+			final ObjectNode clusterNode = (ObjectNode) value;
+
 			// TODO: check whether it is better to just modify the incoming node
-			outputNode.put(TreeAssembler.DUMMY_KEY, TreeAssembler.DUMMY_NODE);
-			outputNode.put("id", clusterNode.get("id"));
-			outputNode.put("clustroid", clusterNode.get("clustroid"));
-			
-			out.collect(outputNode);
+			this.outputNode.put(TreeAssembler.DUMMY_KEY,
+					TreeAssembler.DUMMY_NODE);
+			this.outputNode.put("id", clusterNode.get("id"));
+			this.outputNode.put("clustroid", clusterNode.get("clustroid"));
+
+			out.collect(this.outputNode);
 		}
-		
+
 	}
 
 }

@@ -23,7 +23,7 @@ import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
 
 /**
  * @author skruse
- *
+ * 
  */
 public class Clustering extends CompositeOperator<Clustering> {
 
@@ -32,28 +32,30 @@ public class Clustering extends CompositeOperator<Clustering> {
 	public static final int SAMPLE_INPUT_INDEX = 0;
 	public static final int REST_INPUT_INDEX = 1;
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
 	public SopremoModule asElementaryOperators() {
-		SopremoModule module = new SopremoModule(getName(), 2, 4);
-		
-		Operator<?> sampleInput = module.getInput(SAMPLE_INPUT_INDEX);
-		Operator<?> restInput = module.getInput(REST_INPUT_INDEX);
-		
-		Operator<?> initialClustering = new InitialClustering();
+		final SopremoModule module = new SopremoModule(this.getName(), 2, 4);
+
+		final Operator<?> sampleInput = module.getInput(SAMPLE_INPUT_INDEX);
+		final Operator<?> restInput = module.getInput(REST_INPUT_INDEX);
+
+		final Operator<?> initialClustering = new InitialClustering();
 		initialClustering.setInput(0, sampleInput);
-		
-		Operator<?> treeCreator = new TreeCreator();
+
+		final Operator<?> treeCreator = new TreeCreator();
 		treeCreator.setInput(0, initialClustering.getOutput(0));
-		
-		Operator<?> pointMapper = new PointMapper();
+
+		final Operator<?> pointMapper = new PointMapper();
 		pointMapper.setInput(0, treeCreator.getOutput(0));
 		pointMapper.setInput(1, restInput);
-		
+
 		// TODO
-		
+
 		return module;
 	}
 
