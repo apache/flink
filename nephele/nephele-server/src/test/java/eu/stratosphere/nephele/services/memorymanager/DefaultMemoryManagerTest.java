@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.services.memorymanager;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -184,7 +183,7 @@ public class DefaultMemoryManagerTest
 	public void bulkAllocateRelease() {
 		
 		final AbstractInvokable memOwner = new DummyInvokable();
-		Collection<MemorySegment> segments = null;
+		List<MemorySegment> segments = null;
 
 		/*
 		 * part 1: test allocation of more than the available memory

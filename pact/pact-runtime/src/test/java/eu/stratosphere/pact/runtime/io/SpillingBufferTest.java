@@ -43,7 +43,7 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 /**
  * @author Stephan Ewen 
  */
-public class SpillingCacheTest
+public class SpillingBufferTest
 {
 	private static final long SEED = 649180756312423613L;
 
@@ -98,7 +98,7 @@ public class SpillingCacheTest
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
 		this.memoryManager.allocatePages(this.parentTask, memory, NUM_MEMORY_SEGMENTS);
-		final SpillingBufferOutputView outView = new SpillingBufferOutputView(this.ioManager, 
+		final SpillingBuffer outView = new SpillingBuffer(this.ioManager, 
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
@@ -157,7 +157,7 @@ public class SpillingCacheTest
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
 		this.memoryManager.allocatePages(this.parentTask, memory, NUM_MEMORY_SEGMENTS);
-		final SpillingBufferOutputView outView = new SpillingBufferOutputView(this.ioManager, 
+		final SpillingBuffer outView = new SpillingBuffer(this.ioManager, 
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
@@ -224,7 +224,7 @@ public class SpillingCacheTest
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
 		this.memoryManager.allocatePages(this.parentTask, memory, NUM_MEMORY_SEGMENTS);
-		final SpillingBufferOutputView outView = new SpillingBufferOutputView(this.ioManager, 
+		final SpillingBuffer outView = new SpillingBuffer(this.ioManager, 
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
@@ -283,7 +283,7 @@ public class SpillingCacheTest
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
 		this.memoryManager.allocatePages(this.parentTask, memory, NUM_MEMORY_SEGMENTS);
-		final SpillingBufferOutputView outView = new SpillingBufferOutputView(this.ioManager, 
+		final SpillingBuffer outView = new SpillingBuffer(this.ioManager, 
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs

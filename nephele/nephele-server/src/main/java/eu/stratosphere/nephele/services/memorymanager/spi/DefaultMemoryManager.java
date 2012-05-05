@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.services.memorymanager.spi;
 
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -123,6 +122,8 @@ public class DefaultMemoryManager implements MemoryManager
 	
 	private final int pageSize;				// the page size, in bytes
 	
+	private final int pageSizeBits;			// the number of bits that the power-of-two page size corresponds to
+	
 	
 
 	// ------------------------------------------------------------------------
@@ -202,13 +203,20 @@ public class DefaultMemoryManager implements MemoryManager
 			this.freeSegments.add(new FreeSegmentEntry(numberOfFullChunks, numberOfFullChunks * ((long) this.chunkSize), numberOfFullChunks * ((long) this.chunkSize) + lastChunkSize));
 		}
 		
-		final int pageSize = 32 * 1024;
+		int pageSize = 32 * 1024;
 		if ((pageSize & (pageSize - 1)) != 0) {
 			// not a power of two
 			throw new IllegalArgumentException("The given page size is not a power of two.");
 		}
+		
+		// assign page size and bit utilities
 		this.pageSize = pageSize;
 		this.roundingMask = ~((long) (pageSize - 1));
+		
+		int log = 0;
+		while ((pageSize = pageSize >>> 1) != 0)
+			log++;
+		this.pageSizeBits = log;
 	}
 
 
@@ -278,6 +286,25 @@ public class DefaultMemoryManager implements MemoryManager
 	{
 		final ArrayList<MemorySegment> mem = allocatePages(owner, numPages);
 		target.addAll(mem);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocatePages(eu.stratosphere.nephele.template.AbstractInvokable, long)
+	 */
+	@Override
+	public List<MemorySegment> allocatePages(AbstractInvokable owner, long numBytes) throws MemoryAllocationException
+	{
+		return allocatePages(owner, getNumPages(numBytes));
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#allocatePages(eu.stratosphere.nephele.template.AbstractInvokable, java.util.List, long)
+	 */
+	@Override
+	public void allocatePages(AbstractInvokable owner, List<MemorySegment> target, long numBytes)
+			throws MemoryAllocationException
+	{
+		allocatePages(owner, target, getNumPages(numBytes));
 	}
 	
 	/* (non-Javadoc)
@@ -757,7 +784,7 @@ public class DefaultMemoryManager implements MemoryManager
 	 * @see eu.stratosphere.nephele.services.memorymanager.MemoryManager#release(java.util.Collection)
 	 */
 	@Override
-	public <T extends MemorySegment> void release(Collection<T> segments) {
+	public <T extends MemorySegment> void release(List<T> segments) {
 		
 		// sanity checks
 		if (segments == null) {
@@ -1024,5 +1051,17 @@ public class DefaultMemoryManager implements MemoryManager
 			this.end = end;
 			this.size = end - start;
 		}
+	}
+	
+	private final int getNumPages(long numBytes)
+	{
+		if (numBytes < 0)
+			throw new IllegalArgumentException("The number of bytes to allocate must not be negative.");
+		
+		final long numPages = numBytes >>> this.pageSizeBits;
+		if (numPages <= Integer.MAX_VALUE)
+			return (int) numPages;
+		else
+			throw new IllegalArgumentException("The given number of bytes correstponds to more than MAX_INT pages.");
 	}
 }

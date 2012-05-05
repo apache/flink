@@ -15,12 +15,9 @@
 
 package eu.stratosphere.nephele.services.memorymanager;
 
-
-import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.nephele.template.AbstractInvokable;
-
 
 /**
  * Interface for a memory manager that assigns portions of memory to different tasks. Each allocated segment of
@@ -70,9 +67,15 @@ public interface MemoryManager
 	List<MemorySegment> allocateStrict(AbstractInvokable owner, int numSegments, int segmentSize)
 	throws MemoryAllocationException;
 	
+	
+	
 	List<MemorySegment> allocatePages(AbstractInvokable owner, int numPages) throws MemoryAllocationException;
 	
 	void allocatePages(AbstractInvokable owner, List<MemorySegment> target, int numPages) throws MemoryAllocationException;
+	
+	List<MemorySegment> allocatePages(AbstractInvokable owner, long numBytes) throws MemoryAllocationException;
+	
+	void allocatePages(AbstractInvokable owner, List<MemorySegment> target, long numBytes) throws MemoryAllocationException;
 	
 	/**
 	 * Tries to release the memory for the specified segment. If the <code>segment</code> has already been released or
@@ -92,7 +95,7 @@ public interface MemoryManager
 	 * @throws NullPointerException Thrown, if the given collection is null.
 	 * @throws IllegalArgumentException Thrown, id the segments are of an incompatible type.
 	 */
-	<T extends MemorySegment> void release(Collection<T> segments);
+	<T extends MemorySegment> void release(List<T> segments);
 	
 	/**
 	 * Releases all memory segments for the given task. 

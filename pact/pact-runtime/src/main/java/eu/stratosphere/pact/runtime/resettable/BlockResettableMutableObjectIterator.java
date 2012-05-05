@@ -41,7 +41,7 @@ implements ResettableMutableObjectIterator<T>
 	
 	// ------------------------------------------------------------------------
 	
-	private final MutableObjectIterator<T> input;;
+	private final MutableObjectIterator<T> input;
 	
 	private boolean readPhase;
 	

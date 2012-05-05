@@ -33,7 +33,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
  *
  * @author Stephan Ewen
  */
-public class SpillingBufferOutputView extends AbstractPagedOutputView
+public class SpillingBuffer extends AbstractPagedOutputView
 {	
 	private final ArrayList<MemorySegment> fullSegments;
 	
@@ -54,7 +54,7 @@ public class SpillingBufferOutputView extends AbstractPagedOutputView
 	private int numMemorySegmentsInWriter;
 
 
-	public SpillingBufferOutputView(IOManager ioManager, MemorySegmentSource memSource, int segmentSize)
+	public SpillingBuffer(IOManager ioManager, MemorySegmentSource memSource, int segmentSize)
 	{
 		super(memSource.nextSegment(), segmentSize, 0);
 		
@@ -87,7 +87,9 @@ public class SpillingBufferOutputView extends AbstractPagedOutputView
 					this.writer.writeBlock(this.fullSegments.get(i));
 				}
 				this.fullSegments.clear();
-				return this.writer.getNextReturnedSegment();
+				final MemorySegment seg = this.writer.getNextReturnedSegment();
+				this.numMemorySegmentsInWriter--;
+				return seg;
 			}
 		} else {
 			// spilling
@@ -110,12 +112,15 @@ public class SpillingBufferOutputView extends AbstractPagedOutputView
 			} else {
 				// external: write the last segment and collect the memory back
 				this.writer.writeBlock(this.getCurrentSegment());
+				this.numMemorySegmentsInWriter++;
+				
 				this.numBytesInLastSegment = getCurrentPositionInSegment();
 				this.blockCount++;
 				this.writer.close();
 				for (int i = this.numMemorySegmentsInWriter; i > 0; i--) {
 					this.fullSegments.add(this.writer.getNextReturnedSegment());
 				}
+				this.numMemorySegmentsInWriter = 0;
 			}
 			
 			// make sure we cannot write more
@@ -143,24 +148,52 @@ public class SpillingBufferOutputView extends AbstractPagedOutputView
 	 */
 	public List<MemorySegment> close() throws IOException
 	{
-		ArrayList<MemorySegment> segments = new ArrayList<MemorySegment>(this.fullSegments.size() + this.blockCount);
+		ArrayList<MemorySegment> segments = new ArrayList<MemorySegment>(this.fullSegments.size() + this.numMemorySegmentsInWriter);
 		
+		// if the buffer is still being written, clean that up
 		if (getCurrentSegment() != null) {
 			segments.add(getCurrentSegment());
 			clear();
 		}
 		
 		moveAll(this.fullSegments, segments);
+		this.fullSegments.clear();
 		
+		// clean up the writer
 		if (this.writer != null) {
+			// closing before the first flip, collect the memory in the writer
+			this.writer.close();
+			for (int i = this.numMemorySegmentsInWriter; i > 0; i--) {
+				segments.add(this.writer.getNextReturnedSegment());
+			}
 			this.writer.closeAndDelete();
+			this.writer = null;
 		}
 		
+		// clean up the views
+		if (this.inMemInView != null) {
+			this.inMemInView = null;
+		}
+		if (this.externalInView != null) {
+			if (!this.externalInView.isClosed()) {
+				this.externalInView.close();
+			}
+			this.externalInView = null;
+		}
 		return segments;
 	}
 	
+	/**
+	 * Utility method that moves elements. It avoids copying the data into a dedicated array first, as
+	 * the {@link ArrayList#addAll(java.util.Collection)} method does.
+	 * 
+	 * @param <E>
+	 * @param source
+	 * @param target
+	 */
 	private static final <E> void moveAll(ArrayList<E> source, ArrayList<E> target)
 	{
+		target.ensureCapacity(target.size() + source.size());
 		for (int i = source.size() - 1; i >= 0; i--) {
 			target.add(source.remove(i));
 		}

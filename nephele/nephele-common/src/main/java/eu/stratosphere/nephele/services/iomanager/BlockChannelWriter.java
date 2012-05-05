@@ -100,7 +100,7 @@ public class BlockChannelWriter extends BlockChannelAccess<WriteRequest, LinkedB
 					return next;
 				} else {
 					if (this.closed) {
-						throw new IOException("The writer has been asynchronously closed.");
+						throw new IOException("The writer has been closed.");
 					}
 					checkErroneous();
 				}

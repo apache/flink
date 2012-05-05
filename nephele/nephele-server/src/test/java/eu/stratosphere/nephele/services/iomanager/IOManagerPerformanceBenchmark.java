@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.Collection;
+import java.util.List;
 
 import junit.framework.Assert;
 
@@ -119,7 +119,7 @@ public class IOManagerPerformanceBenchmark
 		ChannelReader reader = null;
 		
 		try {
-			Collection<MemorySegment> segments = memManager.allocate(memoryOwner, numSegments, segmentSize);
+			List<MemorySegment> segments = memManager.allocate(memoryOwner, numSegments, segmentSize);
 			
 			writer = ioManager.createChannelWriter(channel, segments);
 			

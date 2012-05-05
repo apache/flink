@@ -88,7 +88,7 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 	
 	private final PactRecord instance = new PactRecord();
 	
-	private final BlockResettableIterator blockIt;				// for N:M cross products with same key
+	private final BlockResettableIterator<T2> blockIt;				// for N:M cross products with same key
 	
 	private final TypeComparator<T1> comparator1;
 	
@@ -430,8 +430,8 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 		// 6) cross the spilling iterator with the next block.
 		
 		// match the first values first
-		firstV1.copyTo(this.copy1);
-		firstV2.copyTo(this.copy2);
+		this.serializer1.copyTo(firstV1, this.copy1);
+		this.serializer2.copyTo(firstV2, this.copy2);
 		
 		// --------------- 1) Cross the heads -------------------
 		matchFunction.match(firstV1, firstV2, collector);

@@ -153,6 +153,10 @@ public class ChannelReaderInputView extends AbstractPagedInputView
 		}
 	}
 	
+	public boolean isClosed() {
+		return this.closed;
+	}
+	
 	/**
 	 * Closes this InputView, closing the underlying reader and returning all memory segments.
 	 * 

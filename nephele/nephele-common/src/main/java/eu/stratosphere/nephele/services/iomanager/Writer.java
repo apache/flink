@@ -16,7 +16,7 @@
 package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.List;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -36,7 +36,7 @@ public interface Writer
 	 * @return The memory segments used internally.
 	 * @throws IOException Thrown, if the writing of buffered data fails.
 	 */
-	Collection<MemorySegment> close() throws IOException;
+	List<MemorySegment> close() throws IOException;
 
 	/**
 	 * Writes an object to the stream behind the writer. This function typically writes the object into a buffer,
