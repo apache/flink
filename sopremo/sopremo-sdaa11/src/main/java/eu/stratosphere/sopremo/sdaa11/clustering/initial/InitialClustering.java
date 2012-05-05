@@ -5,6 +5,19 @@ import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.sdaa11.Annotator;
 
+/**
+ * Inputs:<br>
+ * <ol>
+ * <li>Sample points</li>
+ * </ol>
+ * Outputs:<br>
+ * <ol>
+ * <li>Clusters</li>
+ * </ol>
+ * 
+ * @author skruse
+ *
+ */
 public class InitialClustering extends CompositeOperator<InitialClustering> {
 
 	private static final long serialVersionUID = 9084919057903474256L;

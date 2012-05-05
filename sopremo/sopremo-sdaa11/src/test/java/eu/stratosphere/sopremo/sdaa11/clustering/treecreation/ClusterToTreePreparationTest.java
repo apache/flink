@@ -53,12 +53,12 @@ public class ClusterToTreePreparationTest {
 
 		final ObjectNode clusterNode1 = new ObjectNode();
 		clusterNode1.put("id", new TextNode("c1"));
-		clusterNode1.put("clustroid", p1);
+		clusterNode1.put("clustroi", p1);
 		clusterNode1.put("points", points1);
 
 		final ObjectNode clusterNode2 = new ObjectNode();
 		clusterNode2.put("id", new TextNode("c2"));
-		clusterNode2.put("clustroid", p3);
+		clusterNode2.put("clustroi", p3);
 		clusterNode2.put("points", points2);
 
 		plan.getInput(0).add(clusterNode1).add(clusterNode2);

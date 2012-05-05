@@ -17,9 +17,6 @@ package eu.stratosphere.sopremo.sdaa11.clustering;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
-import eu.stratosphere.sopremo.sdaa11.clustering.main.PointMapper;
-import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
 
 /**
  * @author skruse
@@ -44,17 +41,9 @@ public class Clustering extends CompositeOperator<Clustering> {
 		final Operator<?> sampleInput = module.getInput(SAMPLE_INPUT_INDEX);
 		final Operator<?> restInput = module.getInput(REST_INPUT_INDEX);
 
-		final Operator<?> initialClustering = new InitialClustering();
-		initialClustering.setInput(0, sampleInput);
-
-		final Operator<?> treeCreator = new TreeCreator();
-		treeCreator.setInput(0, initialClustering.getOutput(0));
-
-		final Operator<?> pointMapper = new PointMapper();
-		pointMapper.setInput(0, treeCreator.getOutput(0));
-		pointMapper.setInput(1, restInput);
-
-		// TODO
+		SimpleClustering simpleClustering = new SimpleClustering().withInputs(sampleInput, restInput);
+		
+		// TODO PostProcessing
 
 		return module;
 	}

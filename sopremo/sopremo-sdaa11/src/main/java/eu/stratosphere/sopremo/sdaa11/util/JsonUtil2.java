@@ -14,8 +14,11 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.sdaa11.util;
 
+import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
@@ -41,6 +44,20 @@ public class JsonUtil2 {
 
 	public static IJsonNode getField(final IJsonNode node, final String field) {
 		return ((ObjectNode) node).get(field);
+	}
+	
+	public static void copyStrings(IArrayNode array, Iterable<String> values) {
+		array.clear();
+		for (String value : values) {
+			array.add(new TextNode(value));
+		}
+	}
+	
+	public static void copy(IArrayNode array, Iterable<JsonSerializable> values) {
+		array.clear();
+		for (JsonSerializable value : values) {
+			array.add(value.write(null));
+		}
 	}
 
 }

@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo.sdaa11;
 
 import org.junit.Test;
 
+import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -30,8 +31,7 @@ public class AnnotatorTest {
 
 	private IJsonNode createAnnotatedValue(final IJsonNode annotatee) {
 		final ObjectNode annotatedValue = new ObjectNode();
-		annotatedValue.put(Annotator.OBJECT_KEY, annotatee);
-		annotatedValue.put(Annotator.DUMMY_KEY, Annotator.DUMMY_VALUE);
+		AnnotatorNodes.annotate(annotatedValue, Annotator.ANNOTATION_VALUE, annotatee);
 		return annotatedValue;
 	}
 

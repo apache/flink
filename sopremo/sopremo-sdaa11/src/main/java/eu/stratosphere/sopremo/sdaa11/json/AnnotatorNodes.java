@@ -12,13 +12,36 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.sdaa11.clustering.json;
+package eu.stratosphere.sopremo.sdaa11.json;
+
+import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
+ * Convenience class for annotator nodes. <br>
+ * Structure: {"annotation":int; "annotatee":obj}
+ * 
  * @author skruse
  *
  */
-public class JsonCluster {
+public class AnnotatorNodes {
+	
+	public static final String ANNOTATEE = "value";
+	public static final String ANNOTATION = "key";
+
+	public static void annotate(ObjectNode node, IntNode annotation, IJsonNode annotatee) {
+		node.put(ANNOTATION, annotation);
+		node.put(ANNOTATEE, annotatee);
+	}
+	
+	public static IntNode getAnnotation(ObjectNode annotatorNode) {
+		return (IntNode) annotatorNode.get(ANNOTATION);
+	}
+	
+	public static IJsonNode getAnnotatee(ObjectNode annotatorNode) {
+		return annotatorNode.get(ANNOTATEE);
+	}
 	
 
 }

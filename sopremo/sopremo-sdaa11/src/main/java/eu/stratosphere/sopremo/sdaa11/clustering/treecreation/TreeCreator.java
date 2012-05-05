@@ -15,14 +15,23 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 
 import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.Source;
 
 /**
  * @author skruse
  * 
  * Assembles tree, additionally outputs stripped cluster representations
+ * Inputs:<br>
+ * <ol>
+ * <li>Clusters</li>
+ * </ol>
+ * Outputs:<br>
+ * <ol>
+ * <li>Tree</li>
+ * <li>Cluster representations</li>
+ * </ol>
  * 
  */
 @OutputCardinality(min = 2, max = 2)
@@ -61,11 +70,13 @@ public class TreeCreator extends CompositeOperator<TreeCreator> {
 	 */
 	@Override
 	public SopremoModule asElementaryOperators() {
-		final SopremoModule module = new SopremoModule(this.getName(), 1, 1);
+		final SopremoModule module = new SopremoModule(this.getName(), 1, 2);
 
-		final Operator<?> input = module.getInput(0);
+		final Source input = module.getInput(0);
+		
 		final ClusterToTreePreparation preparation = new ClusterToTreePreparation()
 				.withInputs(input);
+		
 		final TreeAssembler assembler = new TreeAssembler()
 				.withInputs(preparation);
 		assembler.setTreeWidth(this.treeWidth);

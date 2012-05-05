@@ -9,6 +9,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.sdaa11.Annotator;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.SequentialClustering;
+import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -30,13 +31,12 @@ public class SequentialClusteringTest {
 		final Point p4 = new Point("p4", Arrays.asList("a", "b", "w"));
 
 		plan.getInput(0)
-				.add(this.createAnnotatedValue(p1.write((IJsonNode) null)))
-				.add(this.createAnnotatedValue(p2.write((IJsonNode) null)))
-				.add(this.createAnnotatedValue(p3.write((IJsonNode) null)))
-				.add(this.createAnnotatedValue(p4.write((IJsonNode) null)));
+				.add(this.createAnnotatedPoint(p1))
+				.add(this.createAnnotatedPoint(p2))
+				.add(this.createAnnotatedPoint(p3))
+				.add(this.createAnnotatedPoint(p4));
 
-		// We do pass expectedOutput as one does not simply predict the
-		// cluster IDs.
+		// TODO pass expected output
 
 		plan.run();
 
@@ -52,10 +52,9 @@ public class SequentialClusteringTest {
 		Assert.assertEquals(2, count);
 	}
 
-	private IJsonNode createAnnotatedValue(final IJsonNode annotatee) {
+	private IJsonNode createAnnotatedPoint(final Point point) {
 		final ObjectNode annotatedValue = new ObjectNode();
-		annotatedValue.put(Annotator.OBJECT_KEY, annotatee);
-		annotatedValue.put(Annotator.DUMMY_KEY, Annotator.DUMMY_VALUE);
+		AnnotatorNodes.annotate(annotatedValue, Annotator.ANNOTATION_VALUE, point.write(null));
 		return annotatedValue;
 	}
 

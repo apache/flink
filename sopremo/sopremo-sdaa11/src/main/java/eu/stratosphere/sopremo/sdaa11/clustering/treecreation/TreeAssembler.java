@@ -16,8 +16,6 @@ package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 
 import java.util.Arrays;
 
-import org.apache.tools.ant.types.CommandlineJava.SysProperties;
-
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;

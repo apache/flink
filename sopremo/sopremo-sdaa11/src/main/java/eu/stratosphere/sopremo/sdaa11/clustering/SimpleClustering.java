@@ -12,42 +12,42 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.sdaa11.clustering.main;
+package eu.stratosphere.sopremo.sdaa11.clustering;
 
-import temp.UnionAll;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
+import eu.stratosphere.sopremo.sdaa11.clustering.main.MainClustering;
+import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
 
 /**
+ * Clustering without post-processing.<br>
  * Inputs:<br>
  * <ol>
- * <li>Initial clusters</li>
+ * <li>Sample points</li>
  * <li>Remaining points</li>
- * <li>Cluster tree</li>
- * <li>Cluster representations</li>
  * </ol>
- * Ouputs:<br>
+ * Outputs:<br>
  * <ol>
  * <li>Assigned points</li>
  * <li>Cluster representations</li>
  * </ol>
  * 
  * 
- * 
  * @author skruse
  * 
  */
-@InputCardinality(min = 4, max = 4)
+@InputCardinality(min = 2, max = 2)
 @OutputCardinality(min = 2, max = 2)
-public class MainClustering extends CompositeOperator<MainClustering> {
+public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = -7712289910767829747L;
+	private static final long serialVersionUID = 5063867071090826368L;
 
 	/*
 	 * (non-Javadoc)
@@ -56,28 +56,23 @@ public class MainClustering extends CompositeOperator<MainClustering> {
 	 */
 	@Override
 	public SopremoModule asElementaryOperators() {
-		final SopremoModule module = new SopremoModule(this.getName(), 4, 2);
+		final SopremoModule module = new SopremoModule(this.getName(), 2, 2);
 
-		final Source initialClustersInput = module.getInput(0);
-		final Source restPointsInput = module.getInput(1);
-		final Source treeInput = module.getInput(2);
-		final Source representationInput = module.getInput(3);
+		final Source samplePointSource = module.getInput(0);
+		final Source remainingPointsSource = module.getInput(1);
 
-		final ClusterDisassemble disassemble = new ClusterDisassemble()
-				.withInputs(initialClustersInput);
+		final InitialClustering initialClustering = new InitialClustering()
+				.withInputs(samplePointSource);
 
-		final PointMapper pointMapper = new PointMapper();
-		pointMapper.setInput(PointMapper.POINT_INPUT_INDEX, restPointsInput);
-		pointMapper.setInput(PointMapper.TREE_INPUT_INDEX, treeInput);
+		final TreeCreator treeCreator = new TreeCreator()
+				.withInputs(initialClustering);
 
-		final UnionAll pointUnionAll = new UnionAll().withInputs(disassemble,
-				pointMapper);
-
-		final RepresentationUpdate representationUpdate = new RepresentationUpdate()
-				.withInputs(representationInput, pointUnionAll);
-
-		module.getOutput(0).setInput(0, pointUnionAll);
-		module.getOutput(1).setInput(0, representationUpdate);
+		final MainClustering mainClustering = new MainClustering().withInputs(
+				initialClustering, remainingPointsSource,
+				treeCreator.getOutput(0), treeCreator.getOutput(1));
+		
+		module.getOutput(0).setInputs(mainClustering.getOutput(0));
+		module.getOutput(1).setInputs(mainClustering.getOutput(1));
 
 		return module;
 	}

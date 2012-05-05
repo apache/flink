@@ -66,6 +66,8 @@ public class PointMapper extends ElementaryOperator<PointMapper> {
 			final ObjectNode taggedPoint = new ObjectNode();
 			taggedPoint.put(SCHEMA_CLUSTER_ID, new TextNode(clusterId));
 			taggedPoint.put(SCHEMA_POINT, pointNode.clone());
+			
+			System.out.println(taggedPoint);
 
 			out.collect(taggedPoint);
 		}
