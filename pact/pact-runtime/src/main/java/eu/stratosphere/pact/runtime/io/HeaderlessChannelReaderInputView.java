@@ -78,6 +78,7 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 	{
 		// check for end-of-stream
 		if (this.numBlocksRemaining <= 0) {
+			this.reader.close();
 			throw new EOFException();
 		}
 		

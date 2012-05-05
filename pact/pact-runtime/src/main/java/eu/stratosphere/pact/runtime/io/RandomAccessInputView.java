@@ -41,19 +41,22 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 	
 	private final int segmentSize;
 	
+	private final int limitInLastSegment;
+	
 	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize)
 	{
-		this(segments, segmentSize, MathUtils.log2strict(segmentSize));
+		this(segments, segmentSize, segmentSize);
 	}
 	
-	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize, int segmentSizeBits)
+	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize, int limitInLastSegment)
 	{
 		super(segments.get(0), segmentSize, 0);
 		this.segments = segments;
 		this.currentSegmentIndex = 0;
 		this.segmentSize = segmentSize;
-		this.segmentSizeBits = segmentSizeBits;
+		this.segmentSizeBits = MathUtils.log2strict(segmentSize);
 		this.segmentSizeMask = segmentSize - 1;
+		this.limitInLastSegment = limitInLastSegment;
 	}
 
 	/* (non-Javadoc)
@@ -86,7 +89,8 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 	 * @see eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView#getLimitForSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
 	 */
 	@Override
-	protected int getLimitForSegment(MemorySegment segment) {
-		return this.segmentSize;
+	protected int getLimitForSegment(MemorySegment segment)
+	{
+		return this.currentSegmentIndex == this.segments.size() - 1 ? this.limitInLastSegment : this.segmentSize;
 	}
 }

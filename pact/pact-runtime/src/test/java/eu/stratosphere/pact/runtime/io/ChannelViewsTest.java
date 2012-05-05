@@ -318,4 +318,48 @@ public class ChannelViewsTest
 		this.memoryManager.release(inView.close());
 		reader.deleteChannel();
 	}
+	
+	@Test
+	public void testWriteReadNotAll() throws Exception
+	{
+		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+		final Channel.ID channel = this.ioManager.createChannel();
+		
+		// create the writer output view
+		List<MemorySegment> memory = this.memoryManager.allocateStrict(this.parentTask, NUM_MEMORY_SEGMENTS, MEMORY_SEGMENT_SIZE);
+		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_SEGMENT_SIZE);
+		
+		// write a number of pairs
+		final PactRecord rec = new PactRecord();
+		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+			generator.next(rec);
+			rec.write(outView);
+		}
+		this.memoryManager.release(outView.close());
+		
+		// create the reader input view
+		memory = this.memoryManager.allocateStrict(this.parentTask, NUM_MEMORY_SEGMENTS, MEMORY_SEGMENT_SIZE);
+		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
+		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
+		generator.reset();
+		
+		// read and re-generate all records and compare them
+		final PactRecord readRec = new PactRecord();
+		for (int i = 0; i < NUM_PAIRS_SHORT / 2; i++) {
+			generator.next(rec);
+			readRec.read(inView);
+			
+			Key k1 = rec.getField(0, Key.class);
+			Value v1 = rec.getField(1, Value.class);
+			
+			Key k2 = readRec.getField(0, Key.class);
+			Value v2 = readRec.getField(1, Value.class);
+			
+			Assert.assertTrue("The re-generated and the read record do not match.", k1.equals(k2) && v1.equals(v2));
+		}
+		
+		this.memoryManager.release(inView.close());
+		reader.deleteChannel();
+	}
 }
