@@ -524,9 +524,7 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 		}
 		
 		long getCurrentPointer() {
-			return getCurrentPositionInSegment() != this.segmentSize ?
-				(((long) this.currentBlockNumber) << this.sizeBits) | getCurrentPositionInSegment() :
-				((long) this.currentBlockNumber + 1) << this.sizeBits;
+			return (((long) this.currentBlockNumber) << this.sizeBits) + getCurrentPositionInSegment();
 		}
 		
 		int getBlockCount() {
@@ -590,9 +588,7 @@ class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDa
 			final int pos = getCurrentPositionInSegment();
 			final int buffer = HashPartition.this.currentBufferNum;
 			
-			this.currentPointer = pos < HashPartition.this.memorySegmentSize ?
-				(((long) buffer) << HashPartition.this.segmentSizeBits) | pos :
-				((long) buffer + 1) << HashPartition.this.segmentSizeBits;
+			this.currentPointer = (((long) buffer) << HashPartition.this.segmentSizeBits) + pos;
 			
 			try {
 				HashPartition.this.buildSideSerializer.deserialize(record, HashPartition.this);
