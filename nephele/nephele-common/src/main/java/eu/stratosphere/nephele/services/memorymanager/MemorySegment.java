@@ -23,39 +23,15 @@ import java.nio.ByteBuffer;
 
 
 /**
- * This class represents a piece of memory allocated from the memory manager.
- * The memory segment comes with multiple views, that can be used to put data
- * into it, or get data from it:
- * <ul>
- *   <li>The memory segment itself features random put and get methods for the basic types.</li>
- *   <li>It provides {@link eu.stratosphere.nephele.services.memorymanager.DataOutputView}, which can be used to write
- *       data to the segment much like to a stream, via the {@link java.io.DataOutput} interface.</li>
- *   <li>Also provided is a {@link eu.stratosphere.nephele.services.memorymanager.DataInputView}, which can
- *       be used to read data from the segment much like from a stream, via the {@link java.io.DataInput} interface.</li>
- * </ul>
- * All the view operate independent from each other. You read more data from the segment through the input view than
- * you wrote before. In that case, the contents is undefined.
+ * This class represents a piece of memory allocated from the memory manager. The segment is backed
+ * by a byte array and features random put and get methods for the basic types that are stored in a byte-wise
+ * fashion in the memory.
  *
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  */
 public class MemorySegment
 {
-	/**
-	 * The input view, used to read the data sequentially from the memory segment.
-	 */
-	public final DataInputView inputView;
-
-	/**
-	 * The output view, used to write data sequentially to the memory segment.
-	 */
-	public final DataOutputView outputView;
-	
-	/**
-	 * The byte buffer used to wrap the memory segment for I/O.
-	 */
-	protected ByteBuffer wrapper;
-	
 	/**
 	 * The array in which the data is stored.
 	 */
@@ -70,12 +46,11 @@ public class MemorySegment
 	 * The size of the memory segment.
 	 */
 	protected final int size;
-
+	
 	/**
-	 * A flag, indicating whether the segment has been freed.
+	 * Wrapper for I/O requests.
 	 */
-	private boolean isFreed;
-
+	protected ByteBuffer wrapper;
 	
 	// -------------------------------------------------------------------------
 	//                             Constructors
@@ -88,22 +63,26 @@ public class MemorySegment
 	 * @param inputView The input view to use.
 	 * @param outputView The output view to use.
 	 */
-	protected MemorySegment(byte[] memory, int offset, int size, 
-			DataInputView inputView, DataOutputView outputView)
-	{
-		this.inputView = inputView;
-		this.outputView = outputView;
-		
+	public MemorySegment(byte[] memory, int offset, int size)
+	{		
 		this.memory = memory;
 		this.offset = offset;
 		this.size = size;
-		
-		this.isFreed = false;
 	}
 
 	// -------------------------------------------------------------------------
 	//                        MemorySegment Accessors
 	// -------------------------------------------------------------------------
+	
+	/**
+	 * Checks whether this memory segment has already been freed. In that case, the
+	 * segment must not be used any more.
+	 * 
+	 * @return True, if the segment has been freed, false otherwise.
+	 */
+	public boolean isFreed() {
+		return this.memory == null;
+	}
 	
 	/**
 	 * Gets the size of the memory segment, in bytes. Because segments
@@ -113,23 +92,6 @@ public class MemorySegment
 	 */
 	public final int size() {
 		return size;
-	}
-
-	/**
-	 * Marks the memory segment as freed.
-	 * A freed memory segment is invalidated and produces undefined results, when accessed through any of its views.
-	 */
-	public final void free() {
-		isFreed = true;
-	}
-
-	/**
-	 * Checks, whether the segment has been freed.
-	 * 
-	 * @return True, if the segment has been freed, false, if it is still valid.
-	 */
-	public final boolean isFree() {
-		return isFreed;
 	}
 	
 	/**

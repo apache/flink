@@ -24,10 +24,6 @@ import java.io.PipedOutputStream;
 import junit.framework.TestCase;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -38,8 +34,6 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
-@PrepareForTest( LibraryCacheManager.class )
-@RunWith( PowerMockRunner.class )
 public class OutputEmitterTest extends TestCase {
 
 	@Test
@@ -329,66 +323,5 @@ public class OutputEmitterTest extends TestCase {
 		}
 		assertTrue(correctException);
 	}
-	
-	@SuppressWarnings("unchecked")
-	@Test
-	public static void testSerialization() throws IOException {
-		
-		final JobID jobId = new JobID();
-		
-		PowerMockito.mockStatic( LibraryCacheManager.class );
-		PowerMockito.when( LibraryCacheManager.getClassLoader(jobId) ).thenReturn(PactInteger.class.getClassLoader());
-		
-		PipedInputStream pipedInput = new PipedInputStream(1024*1024);
-		DataInputStream in = new DataInputStream(pipedInput);
-		DataOutputStream out = null;
-		try {
-			out = new DataOutputStream(new PipedOutputStream(pipedInput));
-		} catch (IOException e1) {
-			fail("Test erroneous");
-		}
-		
-		OutputEmitter oe;
-		
-		oe = new OutputEmitter();
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
-		oe = new OutputEmitter(ShipStrategy.PARTITION_HASH);
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
-		oe = new OutputEmitter(ShipStrategy.PARTITION_HASH, jobId, new int[] {0}, new Class[] {PactInteger.class});
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
-		oe = new OutputEmitter(ShipStrategy.PARTITION_HASH, jobId, new int[] {0,3,5,7}, new Class[] {PactInteger.class, PactString.class, PactDouble.class, PactLong.class});
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
-		oe = new OutputEmitter(ShipStrategy.BROADCAST, jobId, new byte[] {1,2,3,4,5,6,7,8}, new int[] {0}, new Class[] {PactInteger.class});
-		try {
-			oe.write(out);
-			oe.read(in);
-		} catch (IOException e) {
-			fail("Error serializing output emitter.");
-		}
-		
-	}
+
 }

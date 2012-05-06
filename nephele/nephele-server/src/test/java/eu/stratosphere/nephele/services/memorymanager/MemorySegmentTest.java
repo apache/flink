@@ -22,6 +22,8 @@ import static org.junit.Assert.fail;
 
 import java.util.Random;
 
+import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -35,7 +37,7 @@ public class MemorySegmentTest {
 
 	public static final int MANAGED_MEMORY_SIZE = 1024 * 1024 * 16;
 
-	public static final int SEGMENT_SIZE = 1024 * 512;
+	public static final int PAGE_SIZE = 1024 * 512;
 
 	private DefaultMemoryManager manager;
 
@@ -44,23 +46,28 @@ public class MemorySegmentTest {
 	private Random random;
 
 	@Before
-	public void setUp() {
+	public void setUp() throws Exception{
 		try {
-			manager = new DefaultMemoryManager(MANAGED_MEMORY_SIZE);
-			segment = manager.allocate(new DefaultMemoryManagerTest.DummyInvokable(), SEGMENT_SIZE);
-			random = new Random(RANDOM_SEED);
+			this.manager = new DefaultMemoryManager(MANAGED_MEMORY_SIZE, PAGE_SIZE);
+			this.segment = manager.allocatePages(new DefaultMemoryManagerTest.DummyInvokable(), 1).get(0);
+			this.random = new Random(RANDOM_SEED);
 		} catch (Exception e) {
-			throw new RuntimeException(e);
+			e.printStackTrace();
+			fail("Test setup failed.");
 		}
 	}
 
 	@After
-	public void tearDown() {
-		manager.release(segment);
-
-		random = null;
-		segment = null;
-		manager = null;
+	public void tearDown()
+	{
+		this.manager.release(this.segment);
+		this.random = null;
+		this.segment = null;
+		
+		if (!this.manager.verifyEmpty()) {
+			Assert.fail("Not all memory has been properly released.");
+		}
+		this.manager = null;
 	}
 
 	@Test
@@ -68,17 +75,17 @@ public class MemorySegmentTest {
 
 		// test exceptions
 		{
-			byte[] bytes = new byte[SEGMENT_SIZE / 4];
+			byte[] bytes = new byte[PAGE_SIZE / 4];
 
 			try {
-				segment.put(3 * (SEGMENT_SIZE / 4) + 1, bytes);
+				segment.put(3 * (PAGE_SIZE / 4) + 1, bytes);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
 			}
 
 			try {
-				segment.put(7 * (SEGMENT_SIZE / 8) + 1, bytes, 0, bytes.length / 2);
+				segment.put(7 * (PAGE_SIZE / 8) + 1, bytes, 0, bytes.length / 2);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -90,18 +97,18 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			byte[] src = new byte[SEGMENT_SIZE / 8];
+			byte[] src = new byte[PAGE_SIZE / 8];
 			for (int i = 0; i < 8; i++) {
 				random.nextBytes(src);
-				segment.put(i * (SEGMENT_SIZE / 8), src);
+				segment.put(i * (PAGE_SIZE / 8), src);
 			}
 
 			random.setSeed(seed);
-			byte[] expected = new byte[SEGMENT_SIZE / 8];
-			byte[] actual = new byte[SEGMENT_SIZE / 8];
+			byte[] expected = new byte[PAGE_SIZE / 8];
+			byte[] actual = new byte[PAGE_SIZE / 8];
 			for (int i = 0; i < 8; i++) {
 				random.nextBytes(expected);
-				segment.get(i * (SEGMENT_SIZE / 8), actual);
+				segment.get(i * (PAGE_SIZE / 8), actual);
 
 				assertArrayEquals(expected, actual);
 			}
@@ -109,18 +116,18 @@ public class MemorySegmentTest {
 
 		// test expected correct behavior with specific offset / length
 		{
-			byte[] expected = new byte[SEGMENT_SIZE];
+			byte[] expected = new byte[PAGE_SIZE];
 			random.nextBytes(expected);
 
 			for (int i = 0; i < 16; i++) {
-				segment.put(i * (SEGMENT_SIZE / 16), expected, i * (SEGMENT_SIZE / 16),
-					SEGMENT_SIZE / 16);
+				segment.put(i * (PAGE_SIZE / 16), expected, i * (PAGE_SIZE / 16),
+					PAGE_SIZE / 16);
 			}
 
-			byte[] actual = new byte[SEGMENT_SIZE];
+			byte[] actual = new byte[PAGE_SIZE];
 			for (int i = 0; i < 16; i++) {
-				segment.get(i * (SEGMENT_SIZE / 16), actual, i * (SEGMENT_SIZE / 16),
-					SEGMENT_SIZE / 16);
+				segment.get(i * (PAGE_SIZE / 16), actual, i * (PAGE_SIZE / 16),
+					PAGE_SIZE / 16);
 			}
 
 			assertArrayEquals(expected, actual);
@@ -139,7 +146,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.put(SEGMENT_SIZE, (byte) 0);
+				segment.put(PAGE_SIZE, (byte) 0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -153,7 +160,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.get(SEGMENT_SIZE);
+				segment.get(PAGE_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -165,12 +172,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE; i++) {
+			for (int i = 0; i < PAGE_SIZE; i++) {
 				segment.put(i, (byte) random.nextInt());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE; i++) {
+			for (int i = 0; i < PAGE_SIZE; i++) {
 				assertEquals((byte) random.nextInt(), segment.get(i));
 			}
 		}
@@ -188,7 +195,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.putBoolean(SEGMENT_SIZE, false);
+				segment.putBoolean(PAGE_SIZE, false);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -202,7 +209,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.getBoolean(SEGMENT_SIZE);
+				segment.getBoolean(PAGE_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -214,12 +221,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE; i++) {
+			for (int i = 0; i < PAGE_SIZE; i++) {
 				segment.putBoolean(i, random.nextBoolean());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE; i++) {
+			for (int i = 0; i < PAGE_SIZE; i++) {
 				assertEquals(random.nextBoolean(), segment.getBoolean(i));
 			}
 		}
@@ -237,7 +244,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.putChar(SEGMENT_SIZE, 'a');
+				segment.putChar(PAGE_SIZE, 'a');
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -251,7 +258,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.getChar(SEGMENT_SIZE);
+				segment.getChar(PAGE_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -263,12 +270,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 2; i += 2) {
+			for (int i = 0; i < PAGE_SIZE / 2; i += 2) {
 				segment.putChar(i, (char) ('a' + random.nextInt(26)));
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 2; i += 2) {
+			for (int i = 0; i < PAGE_SIZE / 2; i += 2) {
 				assertEquals((char) ('a' + random.nextInt(26)), segment.getChar(i));
 			}
 		}
@@ -286,7 +293,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.putDouble(SEGMENT_SIZE, 0.0);
+				segment.putDouble(PAGE_SIZE, 0.0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -300,7 +307,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.getDouble(SEGMENT_SIZE);
+				segment.getDouble(PAGE_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -312,12 +319,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 8; i += 8) {
+			for (int i = 0; i < PAGE_SIZE / 8; i += 8) {
 				segment.putDouble(i, random.nextDouble());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 8; i += 8) {
+			for (int i = 0; i < PAGE_SIZE / 8; i += 8) {
 				assertEquals(random.nextDouble(), segment.getDouble(i), 0.0);
 			}
 		}
@@ -335,7 +342,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.putFloat(SEGMENT_SIZE, 0.0f);
+				segment.putFloat(PAGE_SIZE, 0.0f);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -349,7 +356,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.getFloat(SEGMENT_SIZE);
+				segment.getFloat(PAGE_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -361,12 +368,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
+			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
 				segment.putFloat(i, random.nextFloat());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
+			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
 				assertEquals(random.nextFloat(), segment.getFloat(i), 0.0);
 			}
 		}
@@ -384,7 +391,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.putLong(SEGMENT_SIZE, 0L);
+				segment.putLong(PAGE_SIZE, 0L);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -398,7 +405,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.getLong(SEGMENT_SIZE);
+				segment.getLong(PAGE_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -410,12 +417,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 8; i += 8) {
+			for (int i = 0; i < PAGE_SIZE / 8; i += 8) {
 				segment.putLong(i, random.nextLong());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 8; i += 8) {
+			for (int i = 0; i < PAGE_SIZE / 8; i += 8) {
 				assertEquals(random.nextLong(), segment.getLong(i));
 			}
 		}
@@ -433,7 +440,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.putInt(SEGMENT_SIZE, 0);
+				segment.putInt(PAGE_SIZE, 0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -447,7 +454,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.getInt(SEGMENT_SIZE);
+				segment.getInt(PAGE_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -459,12 +466,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
+			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
 				segment.putInt(i, random.nextInt());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
+			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
 				assertEquals(random.nextInt(), segment.getInt(i));
 			}
 		}
@@ -482,7 +489,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.putShort(SEGMENT_SIZE, (short) 0);
+				segment.putShort(PAGE_SIZE, (short) 0);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -496,7 +503,7 @@ public class MemorySegmentTest {
 			}
 
 			try {
-				segment.getShort(SEGMENT_SIZE);
+				segment.getShort(PAGE_SIZE);
 				fail("IndexOutOfBoundsException expected");
 			} catch (Exception e) {
 				assertTrue(e instanceof IndexOutOfBoundsException);
@@ -508,12 +515,12 @@ public class MemorySegmentTest {
 			long seed = random.nextLong();
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
+			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
 				segment.putShort(i, (short) random.nextInt());
 			}
 
 			random.setSeed(seed);
-			for (int i = 0; i < SEGMENT_SIZE / 4; i += 4) {
+			for (int i = 0; i < PAGE_SIZE / 4; i += 4) {
 				assertEquals((short) random.nextInt(), segment.getShort(i));
 			}
 		}

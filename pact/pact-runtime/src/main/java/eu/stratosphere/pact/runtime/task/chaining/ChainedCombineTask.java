@@ -15,44 +15,44 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
-import java.util.Comparator;
-
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.pact.common.generic.GenericReducer;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorterCollector;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.InputDataCollector;
 import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
-import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
 
 /**
  * @author Stephan Ewen
  */
-public class ChainedCombineTask implements ChainedTask
+public class ChainedCombineTask implements ChainedTask<PactRecord, PactRecord>
 {
 	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024; // the minimal amount of memory for the task to operate
 	
-	private InputDataCollector inputCollector;
+	private InputDataCollector<PactRecord> inputCollector;
 	
 	private volatile Exception exception;
 	
 	
-	private ReduceStub combiner;
+	private GenericReducer<PactRecord, ?> combiner;
 	
-	private Collector outputCollector;
+	private Collector<PactRecord> outputCollector;
 	
-	private AsynchronousPartialSorterCollector sorter;
+	private AsynchronousPartialSorterCollector<PactRecord> sorter;
 	
 	private CombinerThread combinerThread;
 	
@@ -73,14 +73,17 @@ public class ChainedCombineTask implements ChainedTask
 	 */
 	@Override
 	public void setup(TaskConfig config, String taskName, AbstractInvokable parent, 
-			ClassLoader userCodeClassLoader, Collector output)
+			ClassLoader userCodeClassLoader, Collector<PactRecord> output)
 	{
 		this.config = config;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.taskName = taskName;
 		this.outputCollector = output;
 		this.parent = parent;
-		this.combiner = AbstractPactTask.instantiateUserCode(config, userCodeClassLoader, ReduceStub.class);
+		
+		@SuppressWarnings("unchecked")
+		final GenericReducer<PactRecord, ?> combiner = AbstractPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
+		this.combiner = combiner;
 	}
 	
 	/* (non-Javadoc)
@@ -93,6 +96,7 @@ public class ChainedCombineTask implements ChainedTask
 		Configuration stubConfig = this.config.getStubParameters();
 		stubConfig.setInteger("pact.parallel.task.id", this.parent.getEnvironment().getIndexInSubtaskGroup());
 		stubConfig.setInteger("pact.parallel.task.count", this.parent.getEnvironment().getCurrentNumberOfSubtasks());
+		
 		if(this.parent.getEnvironment().getTaskName() != null) {
 			stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
 		}
@@ -118,7 +122,6 @@ public class ChainedCombineTask implements ChainedTask
 		}
 		
 		final MemoryManager memoryManager = this.parent.getEnvironment().getMemoryManager();
-		final IOManager ioManager = this.parent.getEnvironment().getIOManager();
 
 		// get the key positions and types
 		final int[] keyPositions = this.config.getLocalStrategyKeyPositions(0);
@@ -127,13 +130,8 @@ public class ChainedCombineTask implements ChainedTask
 			throw new Exception("The key positions and types are not specified for the CombineTask.");
 		}
 		
-		// create the comparators
-		@SuppressWarnings("unchecked")
-		final Comparator<Key>[] comparators = new Comparator[keyPositions.length];
-		final KeyComparator kk = new KeyComparator();
-		for (int i = 0; i < comparators.length; i++) {
-			comparators[i] = kk;
-		}
+		final TypeSerializer<PactRecord> serializer = PactRecordSerializer.get();
+		final TypeComparator<PactRecord> comparator = new PactRecordComparator(keyPositions, keyClasses);
 
 		switch (ls) {
 
@@ -142,8 +140,8 @@ public class ChainedCombineTask implements ChainedTask
 			// the combine() method of the ReduceStub.
 			// An iterator on the sorted, grouped, and combined pairs is created and returned
 			case COMBININGSORT:
-				this.sorter = new AsynchronousPartialSorterCollector(memoryManager,
-						ioManager, availableMemory, comparators, keyPositions, keyClasses, this.parent);
+				this.sorter = new AsynchronousPartialSorterCollector<PactRecord>(memoryManager, this.parent,
+						serializer, comparator.duplicate(), availableMemory);
 				this.inputCollector = this.sorter.getInputCollector();
 				break;
 			default:
@@ -152,7 +150,7 @@ public class ChainedCombineTask implements ChainedTask
 		
 		// ----------------- Set up the combiner thread -------------------------
 		
-		this.combinerThread = new CombinerThread(this.sorter, keyPositions, keyClasses, this.combiner, this.outputCollector);
+		this.combinerThread = new CombinerThread(this.sorter, serializer, comparator, this.combiner, this.outputCollector);
 		this.combinerThread.start();
 		if (this.parent != null) {
 			this.parent.userThreadStarted(this.combinerThread);
@@ -247,29 +245,29 @@ public class ChainedCombineTask implements ChainedTask
 	
 	private final class CombinerThread extends Thread
 	{
-		private final AsynchronousPartialSorterCollector sorter;
+		private final AsynchronousPartialSorterCollector<PactRecord> sorter;
 		
-		private final int[] keyPositions;
+		private final TypeSerializer<PactRecord> serializer;
 		
-		private final Class<? extends Key>[] keyClasses;
+		private final TypeComparator<PactRecord> comparator;
 		
-		private final ReduceStub stub;
+		private final GenericReducer<PactRecord, ?> stub;
 		
-		private final Collector output;
+		private final Collector<PactRecord> output;
 		
 		private volatile boolean running;
 		
 		
-		private CombinerThread(AsynchronousPartialSorterCollector sorter,
-				int[] keyPositions, Class<? extends Key>[] keyClasses, 
-				ReduceStub stub, Collector output)
+		private CombinerThread(AsynchronousPartialSorterCollector<PactRecord> sorter,
+				TypeSerializer<PactRecord> serializer, TypeComparator<PactRecord> comparator, 
+				GenericReducer<PactRecord, ?> stub, Collector<PactRecord> output)
 		{
 			super("Combiner Thread");
 			setDaemon(true);
 			
 			this.sorter = sorter;
-			this.keyPositions = keyPositions;
-			this.keyClasses = keyClasses;
+			this.serializer = serializer;
+			this.comparator = comparator;
 			this.stub = stub;
 			this.output = output;
 			this.running = true;
@@ -289,11 +287,11 @@ public class ChainedCombineTask implements ChainedTask
 					}
 				}
 				
-				final KeyGroupedIterator keyIter = new KeyGroupedIterator(iterator, this.keyPositions, this.keyClasses);
+				final KeyGroupedIterator<PactRecord> keyIter = new KeyGroupedIterator<PactRecord>(iterator, this.serializer, this.comparator);
 				
 				// cache references on the stack
-				final ReduceStub stub = this.stub;
-				final Collector output = this.output;
+				final GenericReducer<PactRecord, ?> stub = this.stub;
+				final Collector<PactRecord> output = this.output;
 
 				// run stub implementation
 				while (this.running && keyIter.nextKey()) {

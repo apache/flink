@@ -33,11 +33,11 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	 */
 	public enum ShipStrategy {
 		FORWARD,
-		BROADCAST,
 		PARTITION_HASH,
-		PARTITION_RANGE,
 		PARTITION_LOCAL_HASH,
+		PARTITION_RANGE,
 		PARTITION_LOCAL_RANGE,
+		BROADCAST,
 		SFR,
 		NONE
 	}
@@ -114,15 +114,15 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	public final int[] selectChannels(PactRecord record, int numberOfChannels)
 	{
 		switch (strategy) {
-		case BROADCAST:
-			return broadcast(numberOfChannels);
+		case FORWARD:
+			return robin(numberOfChannels);
 		case PARTITION_HASH:
 		case PARTITION_LOCAL_HASH:
 			return hashPartitionDefault(record, numberOfChannels);
-		case FORWARD:
-			return robin(numberOfChannels);
 		case PARTITION_RANGE:
 			return partition_range(record, numberOfChannels);
+		case BROADCAST:
+			return broadcast(numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}

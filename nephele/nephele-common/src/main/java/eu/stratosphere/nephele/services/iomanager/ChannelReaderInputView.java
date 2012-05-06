@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 

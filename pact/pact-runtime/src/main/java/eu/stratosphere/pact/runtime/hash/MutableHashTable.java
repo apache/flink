@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.SeekableDataOutputView;
 import eu.stratosphere.pact.common.type.LazyDeSerializable;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.hash.HashJoin;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
@@ -90,7 +89,7 @@ import eu.stratosphere.pact.runtime.util.MathUtils;
  */
 public class MutableHashTable<BT, PT> implements MemorySegmentSource
 {
-	private static final Log LOG = LogFactory.getLog(HashJoin.class);
+	private static final Log LOG = LogFactory.getLog(MutableHashTable.class);
 	
 	// ------------------------------------------------------------------------
 	//                         Internal Constants
