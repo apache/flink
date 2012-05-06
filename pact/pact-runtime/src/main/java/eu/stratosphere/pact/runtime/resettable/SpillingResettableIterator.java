@@ -82,8 +82,7 @@ public class SpillingResettableIterator<T> implements ResettableIterator<T>
 	}
 	
 	public SpillingResettableIterator(Iterator<T> input, TypeSerializer<T> serializer,
-			MemoryManager memoryManager, IOManager ioManager,
-			List<MemorySegment> memory)
+			MemoryManager memoryManager, IOManager ioManager, List<MemorySegment> memory)
 	{
 		this(input, serializer, memoryManager, ioManager, memory, false);
 	}

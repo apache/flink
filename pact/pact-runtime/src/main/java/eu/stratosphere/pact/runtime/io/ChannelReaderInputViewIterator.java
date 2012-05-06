@@ -22,6 +22,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.Channel;
+import eu.stratosphere.nephele.services.iomanager.ChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;

@@ -17,8 +17,6 @@ package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -27,7 +25,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.UnboundMemoryBackedException;
 
 /**
  * The facade for the provided I/O manager services.
@@ -236,67 +233,6 @@ public final class IOManager implements UncaughtExceptionHandler
 	// ------------------------------------------------------------------------
 	//                        Reader / Writer instantiations
 	// ------------------------------------------------------------------------
-	
-	/**
-	 * Creates a ChannelWriter for the anonymous file identified by the specified {@code channelID} using the provided
-	 * {@code freeSegmens} as backing memory for an internal flow of output buffers.
-	 * 
-	 * @param channelID
-	 * @param freeSegments
-	 * @return
-	 * @throws IOException
-	 */
-	public ChannelWriter createChannelWriter(Channel.ID channelID, Collection<MemorySegment> freeSegments)
-	throws IOException
-	{
-		if (this.isClosed) {
-			throw new IllegalStateException("I/O-Manger is closed.");
-		}
-		
-		return new ChannelWriter(channelID, this.writers[channelID.getThreadNum()].requestQueue, IOManager.createOutputBuffers(freeSegments), false);
-	}
-
-	/**
-	 * Creates a ChannelWriter for the anonymous file identified by the specified {@code channelID} using the provided
-	 * {@code memorySegments} as backing memory for an internal flow of output buffers. If the boolean variable {@code
-	 * filled} is set, the content of the memorySegments is flushed to the file before reusing.
-	 * 
-	 * @param channelID
-	 * @param freeSegments
-	 * @param filled
-	 * @return
-	 * @throws IOException
-	 */
-	public ChannelWriter createChannelWriter(Channel.ID channelID, Collection<Buffer.Output> buffers, boolean filled)
-	throws IOException
-	{
-		if (this.isClosed) {
-			throw new IllegalStateException("I/O-Manger is closed.");
-		}
-		
-		return new ChannelWriter(channelID, this.writers[channelID.getThreadNum()].requestQueue, buffers, filled);
-	}
-
-	/**
-	 * Creates a ChannelWriter for the anonymous file written on secondary storage and identified by the specified
-	 * {@code channelID} using the provided {@code freeSegments} as backing memory for an internal flow of input
-	 * buffers.
-	 * 
-	 * @param channelID
-	 * @param freeSegments
-	 * @return
-	 * @throws IOException
-	 */
-	public ChannelReader createChannelReader(Channel.ID channelID, Collection<MemorySegment> freeSegments,
-			boolean deleteFileAfterRead)
-	throws IOException
-	{
-		if (this.isClosed) {
-			throw new IllegalStateException("I/O-Manger is closed.");
-		}
-		
-		return new ChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, createInputBuffers(freeSegments), deleteFileAfterRead);
-	}
 	
 	/**
 	 * Creates a block channel writer that writes to the given channel. The writer writes asynchronously (write-behind),
@@ -517,82 +453,6 @@ public final class IOManager implements UncaughtExceptionHandler
 		}
 		
 		return new BulkBlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, targetSegments, numBlocks);
-	}
-
-	
-	// ------------------------------------------------------------------------
-	//       Utility methods for creating and binding / unbinding buffers
-	// ------------------------------------------------------------------------
-	
-	/**
-	 * Creates an input buffer around the given memory segment.
-	 * 
-	 * @return An input buffer storing its data in the given memory segment.
-	 */
-	public static Buffer.Input createInputBuffer(MemorySegment memory)
-	{
-		return new Buffer.Input(memory);
-	}
-
-	/**
-	 * Creates an output buffer around the given memory segment.
-	 * 
-	 * @return An output buffer storing its data in the given memory segment.
-	 */
-	public static Buffer.Output createOutputBuffer(MemorySegment memory)
-	{
-		return new Buffer.Output(memory);
-	}
-
-	/**
-	 * Factory method for input buffers.
-	 * 
-	 * @param freeSegments The memory segments around which to create the input buffers.
-	 * @return An unsynchronized list of initialized input buffers.
-	 */
-	public static List<Buffer.Input> createInputBuffers(Collection<MemorySegment> freeSegments)
-	{
-		ArrayList<Buffer.Input> buffers = new ArrayList<Buffer.Input>(freeSegments.size());
-
-		for (MemorySegment segment : freeSegments) {
-			Buffer.Input buffer = createInputBuffer(segment);
-			buffers.add(buffer);
-		}
-		return buffers;
-	}
-	
-	/**
-	 * Factory method for output buffers.
-	 * 
-	 * @param freeSegments The memory segments around which to create the output buffers.
-	 * @return An unsynchronized list of initialized output buffers.
-	 */
-	public static List<Buffer.Output> createOutputBuffers(Collection<MemorySegment> freeSegments)
-	{
-		ArrayList<Buffer.Output> buffers = new ArrayList<Buffer.Output>(freeSegments.size());
-
-		for (MemorySegment segment : freeSegments) {
-			Buffer.Output buffer = createOutputBuffer(segment);
-			buffers.add(buffer);
-		}
-		return buffers;
-	}
-
-	/**
-	 * Unbinds the collection of IO buffers.
-	 * 
-	 * @param buffers The buffers to unbind.
-	 * @return A list containing the freed memory segments.
-	 * @throws UnboundMemoryBackedException Thrown, if the collection contains an unbound buffer.
-	 */
-	public static List<MemorySegment> unbindBuffers(Collection<? extends Buffer> buffers) {
-		ArrayList<MemorySegment> freeSegments = new ArrayList<MemorySegment>(buffers.size());
-
-		for (Buffer buffer : buffers) {
-			freeSegments.add(buffer.dispose());
-		}
-
-		return freeSegments;
 	}
 	
 	// ========================================================================

@@ -36,6 +36,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
+import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
+import eu.stratosphere.nephele.services.iomanager.Channel;
+import eu.stratosphere.nephele.services.iomanager.ChannelReaderInputView;
+import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
@@ -91,82 +97,70 @@ public class IOManagerPerformanceBenchmark
 	@Test
 	public void speedTestIOManager() throws Exception
 	{
-		LOG.info("Starting speed test with IO Manager and ALIGNED buffer sizes ...");
+		LOG.info("Starting speed test with IO Manager...");
 		
-		for (int bufferSize : SEGMENT_SIZES_ALIGNED)
-		{
-			for (int num : NUM_SEGMENTS) {
-				testChannelWithSegments(bufferSize, num);
-			}
-		}
-		
-		LOG.info("Starting speed test with IO Manager and UNALIGNED buffer sizes ...");
-		
-		for (int bufferSize : SEGMENT_SIZES_UNALIGNED)
-		{
-			for (int num : NUM_SEGMENTS) {
-				testChannelWithSegments(bufferSize, num);
-			}
+		for (int num : NUM_SEGMENTS) {
+			testChannelWithSegments(num);
 		}
 	}
 
-	private final void testChannelWithSegments(int segmentSize, int numSegments) throws Exception
+	private final void testChannelWithSegments(int numSegments) throws Exception
 	{
-		final Channel.ID channel = ioManager.createChannel();
-		final IntegerRecord rec = new IntegerRecord(0);
+		final List<MemorySegment> memory = this.memManager.allocatePages(memoryOwner, numSegments);
+		final Channel.ID channel = this.ioManager.createChannel();
 		
-		ChannelWriter writer = null;
-		ChannelReader reader = null;
+		BlockChannelWriter writer = null;
+		BlockChannelReader reader = null;
 		
-		try {
-			List<MemorySegment> segments = memManager.allocate(memoryOwner, numSegments, segmentSize);
-			
-			writer = ioManager.createChannelWriter(channel, segments);
+		try {	
+			writer = this.ioManager.createBlockChannelWriter(channel);
+			final ChannelWriterOutputView out = new ChannelWriterOutputView(writer, memory, this.memManager.getPageSize());
 			
 			long writeStart = System.currentTimeMillis();
 			
 			int valsLeft = NUM_INTS_WRITTEN;
 			while (valsLeft-- > 0) {
-				rec.setValue(valsLeft);
-				writer.write(rec);
+				out.writeInt(valsLeft);
 			}
 			
-			segments = writer.close();
+			out.close();
+			final int numBlocks = out.getBlockCount();
+			writer.close();
 			writer = null;
 			
 			long writeElapsed = System.currentTimeMillis() - writeStart;
 			
 			// ----------------------------------------------------------------
 			
-			reader = ioManager.createChannelReader(channel, segments, false);
+			reader = ioManager.createBlockChannelReader(channel);
+			final ChannelReaderInputView in = new ChannelReaderInputView(reader, memory, numBlocks, false);
 			
 			long readStart = System.currentTimeMillis();
 			
 			valsLeft = NUM_INTS_WRITTEN;
 			while (valsLeft-- > 0) {
-				reader.read(rec);
+				in.readInt();
 //				Assert.assertTrue(rec.getValue() == valsLeft);
 			}
 			
-			segments = reader.close();
+			in.close();
+			reader.close();
 			
 			long readElapsed = System.currentTimeMillis() - readStart;
 			
 			reader.deleteChannel();
 			reader = null;
 			
-			LOG.info("IOManager with " + numSegments + " buffer of " + segmentSize + " bytes: write " + (writeElapsed / 1000) + " secs, read " + (readElapsed / 1000) + " secs.");
+			LOG.info("IOManager with " + numSegments + " mem segments: write " + writeElapsed + " msecs, read " + readElapsed + " msecs.");
 			
-			memManager.release(segments);
+			memManager.release(memory);
 		}
 		finally {
 			if (reader != null) {
-				memManager.release(reader.close());
-				reader.deleteChannel();
+				reader.closeAndDelete();
 			}
 			if (writer != null) {
-				memManager.release(writer.close());
-				writer.deleteChannel();
+				writer.closeAndDelete();
 			}
 		}
 	}
@@ -289,7 +283,7 @@ public class IOManagerPerformanceBenchmark
 			
 			long readElapsed = System.currentTimeMillis() - readStart;
 			
-			LOG.info("File-Stream with buffer " + bufferSize + ": write " + (writeElapsed / 1000) + " secs, read " + (readElapsed / 1000) + " secs.");
+			LOG.info("File-Stream with buffer " + bufferSize + ": write " + writeElapsed + " msecs, read " + readElapsed + " msecs.");
 		}
 		finally {
 			// close if possible
@@ -407,7 +401,7 @@ public class IOManagerPerformanceBenchmark
 			
 			long readElapsed = System.currentTimeMillis() - readStart;
 			
-			LOG.info("NIO Channel with buffer " + bufferSize + ": write " + (writeElapsed / 1000) + " secs, read " + (readElapsed / 1000) + " secs.");
+			LOG.info("NIO Channel with buffer " + bufferSize + ": write " + writeElapsed + " msecs, read " + readElapsed + " msecs.");
 		}
 		finally {
 			// close if possible

@@ -21,6 +21,7 @@ import java.util.List;
 
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
+import eu.stratosphere.nephele.services.iomanager.HeaderlessChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
