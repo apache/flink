@@ -128,11 +128,11 @@ public class HashVsSortTest {
 			input2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-						memoryManager, ioManager, input1, input2, 
-						new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class}, 
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(input1, input2, 
+						this.serializer1, this.comparator1, this.serializer2, this.comparator2, this.pairComparator11,
+						this.memoryManager, this.ioManager, 
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, this.parentTask);
 	
 			long start = System.nanoTime();
 			
