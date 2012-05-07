@@ -25,7 +25,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -52,7 +52,7 @@ public class SpillingResettableIterator<T> implements ResettableIterator<T>
 	
 	private final T instance;
 	
-	protected DataInputViewV2 inView;
+	protected DataInputView inView;
 	
 	protected final TypeSerializer<T> serializer;
 	

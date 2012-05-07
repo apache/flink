@@ -18,12 +18,12 @@ package eu.stratosphere.nephele.services.memorymanager;
 import java.io.IOException;
 
 /**
- * Interface marking a {@link DataOutputViewV2} as seekable. Seekable views can set the position where they
+ * Interface marking a {@link DataOutputView} as seekable. Seekable views can set the position where they
  * write to.
  * 
  * @author Stephan Ewen
  */
-public interface SeekableDataOutputView extends DataOutputViewV2
+public interface SeekableDataOutputView extends DataOutputView
 {
 	/**
 	 * Sets the write pointer to the given position.

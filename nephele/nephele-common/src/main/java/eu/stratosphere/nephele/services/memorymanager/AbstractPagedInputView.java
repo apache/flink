@@ -19,7 +19,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 
@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  *
  * @author Stephan Ewen
  */
-public abstract class AbstractPagedInputView implements DataInputViewV2
+public abstract class AbstractPagedInputView implements DataInputView
 {
 	private MemorySegment currentSegment;
 	

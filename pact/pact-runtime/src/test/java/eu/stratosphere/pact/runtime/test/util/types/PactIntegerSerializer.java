@@ -17,8 +17,8 @@ package eu.stratosphere.pact.runtime.test.util.types;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 
@@ -63,7 +63,7 @@ public class PactIntegerSerializer implements TypeSerializer<PactInteger> {
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeSerializer#serialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
 	 */
 	@Override
-	public long serialize(PactInteger record, DataOutputViewV2 target) throws IOException {
+	public long serialize(PactInteger record, DataOutputView target) throws IOException {
 		target.writeInt(record.getValue());
 		return 4;
 	}
@@ -72,7 +72,7 @@ public class PactIntegerSerializer implements TypeSerializer<PactInteger> {
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeSerializer#deserialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
 	 */
 	@Override
-	public void deserialize(PactInteger target, DataInputViewV2 source) throws IOException {
+	public void deserialize(PactInteger target, DataInputView source) throws IOException {
 		target.setValue(source.readInt());
 	}
 
@@ -80,7 +80,7 @@ public class PactIntegerSerializer implements TypeSerializer<PactInteger> {
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeSerializer#copy(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
 	 */
 	@Override
-	public void copy(DataInputViewV2 source, DataOutputViewV2 target) throws IOException {
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.write(source, 4);
 	}
 }

@@ -24,7 +24,7 @@ import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.HeaderlessChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
 
@@ -100,7 +100,7 @@ public class SpillingBuffer extends AbstractPagedOutputView
 		}
 	}
 	
-	public DataInputViewV2 flip() throws IOException
+	public DataInputView flip() throws IOException
 	{
 		// check whether this is the first flip and we need to add the current segment to the full ones
 		if (getCurrentSegment() != null) {

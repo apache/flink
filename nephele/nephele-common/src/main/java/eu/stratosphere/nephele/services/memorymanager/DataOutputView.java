@@ -27,7 +27,7 @@ import java.io.IOException;
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  */
-public interface DataOutputViewV2 extends DataOutput
+public interface DataOutputView extends DataOutput
 {
 	/**
 	 * Skips {@code numBytes} bytes memory. If some program reads the memory that was skipped over, the
@@ -49,5 +49,5 @@ public interface DataOutputViewV2 extends DataOutput
 	 * @throws IOException Thrown, if any I/O related problem occurred, such that either the input view
 	 *                     could not be read, or the output could not be written.
 	 */
-	public void write(DataInputViewV2 source, int numBytes) throws IOException;
+	public void write(DataInputView source, int numBytes) throws IOException;
 }

@@ -19,12 +19,12 @@ import java.io.IOException;
 
 
 /**
- * Interface marking a {@link DataInputViewV2} as seekable. Seekable views can set the position where they
+ * Interface marking a {@link DataInputView} as seekable. Seekable views can set the position where they
  * read from.
  * 
  * @author Stephan Ewen
  */
-public interface SeekableDataInputView extends DataInputViewV2
+public interface SeekableDataInputView extends DataInputView
 {
 	/**
 	 * Sets the read pointer to the given position.

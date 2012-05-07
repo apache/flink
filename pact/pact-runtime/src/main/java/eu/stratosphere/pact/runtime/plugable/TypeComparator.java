@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.plugable;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 
 /**
@@ -152,7 +152,7 @@ public interface TypeComparator<T>
 	 * 
 	 *  @see java.util.Comparator#compare(Object, Object)
 	 */
-	public int compare(DataInputViewV2 firstSource, DataInputViewV2 secondSource) throws IOException;
+	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException;
 	
 	// --------------------------------------------------------------------------------------------
 	

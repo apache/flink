@@ -38,7 +38,7 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
-import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -61,11 +61,11 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	
 	protected MutableObjectIterator<PactRecord>[] inputs;
 	
-	protected Collector output;
+	protected Collector<PactRecord> output;
 	
 	protected ClassLoader userCodeClassLoader;
 	
-	protected ArrayList<ChainedTask> chainedTasks;
+	protected ArrayList<ChainedTask<PactRecord, PactRecord>> chainedTasks;
 	
 	protected volatile boolean running;
 	
@@ -278,14 +278,14 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 		{	
 			final int groupSize = this.config.getGroupSize(i+1);
 			if(groupSize < 2) {
-				inputs[i] = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
+				inputs[i] = new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
 			} else {
 				@SuppressWarnings("unchecked")
 				MutableRecordReader<PactRecord>[] readers = new MutableRecordReader[groupSize];
 				for(int j = 0; j < groupSize; ++j) {
 					readers[j] = new MutableRecordReader<PactRecord>(this);
 				}
-				inputs[i] = new NepheleReaderIterator(new MutableUnionRecordReader<PactRecord>(readers));
+				inputs[i] = new PactRecordNepheleReaderIterator(new MutableUnionRecordReader<PactRecord>(readers));
 			}
 		}
 		this.inputs = inputs;
@@ -297,7 +297,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 */
 	protected void initOutputs()
 	{
-		this.chainedTasks = new ArrayList<ChainedTask>();
+		this.chainedTasks = new ArrayList<ChainedTask<PactRecord, PactRecord>>();
 		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks);
 	}
 	
@@ -443,7 +443,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategy.
 	 */
-	public static Collector initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config, List<ChainedTask> chainedTasksTarget)
+	public static Collector<PactRecord> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config, List<ChainedTask<PactRecord, PactRecord>> chainedTasksTarget)
 	{
 		final int numOutputs = config.getNumOutputs();
 		
@@ -457,13 +457,14 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			}
 			
 			// instantiate each task
-			Collector previous = null;
+			Collector<PactRecord> previous = null;
 			for (int i = numChained - 1; i >= 0; --i)
 			{
 				// get the task first
-				final ChainedTask ct;
+				final ChainedTask<PactRecord, PactRecord> ct;
 				try {
-					Class<? extends ChainedTask> ctc = config.getChainedTask(i);
+					@SuppressWarnings("unchecked")
+					Class<? extends ChainedTask<PactRecord, PactRecord>> ctc = (Class<? extends ChainedTask<PactRecord, PactRecord>>) (Class<?>) config.getChainedTask(i);
 					ct = ctc.newInstance();
 				}
 				catch (Exception ex) {
@@ -548,11 +549,11 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the opening encounters an exception.
 	 */
-	public static void openChainedTasks(List<ChainedTask> tasks, AbstractInvokable parent) throws Exception
+	public static void openChainedTasks(List<ChainedTask<PactRecord, PactRecord>> tasks, AbstractInvokable parent) throws Exception
 	{
 		// start all chained tasks
 		for (int i = 0; i < tasks.size(); i++) {
-			final ChainedTask task = tasks.get(i);
+			final ChainedTask<?, ?> task = tasks.get(i);
 			if (LOG.isInfoEnabled())
 				LOG.info(constructLogString("Start PACT code", task.getTaskName(), parent));
 			task.openTask();
@@ -567,10 +568,10 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the closing encounters an exception.
 	 */
-	public static void closeChainedTasks(List<ChainedTask> tasks, AbstractInvokable parent) throws Exception
+	public static void closeChainedTasks(List<ChainedTask<PactRecord, PactRecord>> tasks, AbstractInvokable parent) throws Exception
 	{
 		for (int i = 0; i < tasks.size(); i++) {
-			final ChainedTask task = tasks.get(i);
+			final ChainedTask<?, ?> task = tasks.get(i);
 			task.closeTask();
 			
 			if (LOG.isInfoEnabled())
@@ -585,7 +586,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * 
 	 * @param tasks The tasks to be canceled.
 	 */
-	public static void cancelChainedTasks(List<ChainedTask> tasks)
+	public static void cancelChainedTasks(List<ChainedTask<PactRecord, PactRecord>> tasks)
 	{
 		for (int i = 0; i < tasks.size(); i++) {
 			try {

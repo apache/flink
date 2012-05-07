@@ -68,7 +68,7 @@ public class MapTask extends AbstractPactTask<MapStub>
 		// cache references on the stack
 		final MutableObjectIterator<PactRecord> input = this.inputs[0];
 		final MapStub stub = this.stub;
-		final Collector output = this.output;
+		final Collector<PactRecord> output = this.output;
 		
 		final PactRecord record = new PactRecord();
 		

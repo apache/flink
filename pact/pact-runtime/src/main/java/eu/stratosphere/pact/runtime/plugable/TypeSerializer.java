@@ -17,8 +17,8 @@ package eu.stratosphere.pact.runtime.plugable;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 
 /**
  * This interface describes the methods that are required for a data type to be handled by the pact
@@ -78,7 +78,7 @@ public interface TypeSerializer<T>
 	 * @throws IOException Thrown, if the serialization encountered an I/O related error. Typically raised by the
 	 *                     output view, which may have an underlying I/O channel to which it delegates.
 	 */
-	public long serialize(T record, DataOutputViewV2 target) throws IOException;
+	public long serialize(T record, DataOutputView target) throws IOException;
 
 	/**
 	 * De-serializes a record from the given source input view into the given target record instance.
@@ -89,7 +89,7 @@ public interface TypeSerializer<T>
 	 * @throws IOException Thrown, if the de-serialization encountered an I/O related error. Typically raised by the
 	 *                     input view, which may have an underlying I/O channel from which it reads.
 	 */
-	public void deserialize(T target, DataInputViewV2 source) throws IOException;
+	public void deserialize(T target, DataInputView source) throws IOException;
 	
 	/**
 	 * Copies exactly one record from the source input view to the target output view. Whether this operation
@@ -103,5 +103,5 @@ public interface TypeSerializer<T>
 	 * 
 	 * @throws IOException Thrown if any of the two views raises an exception.
 	 */
-	public void copy(DataInputViewV2 source, DataOutputViewV2 target) throws IOException;
+	public void copy(DataInputView source, DataOutputView target) throws IOException;
 }

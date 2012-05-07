@@ -25,7 +25,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -109,7 +109,7 @@ public class SpillingBufferTest
 		}
 		
 		// create the reader input view
-		DataInputViewV2 inView = outView.flip();
+		DataInputView inView = outView.flip();
 		generator.reset();
 		
 		// read and re-generate all records and compare them
@@ -168,7 +168,7 @@ public class SpillingBufferTest
 		}
 		
 		// create the reader input view
-		DataInputViewV2 inView = outView.flip();
+		DataInputView inView = outView.flip();
 		generator.reset();
 		
 		// read and re-generate all records and compare them
@@ -235,7 +235,7 @@ public class SpillingBufferTest
 		}
 		
 		// create the reader input view
-		DataInputViewV2 inView = outView.flip();
+		DataInputView inView = outView.flip();
 		generator.reset();
 		
 		// read and re-generate all records and compare them
@@ -294,7 +294,7 @@ public class SpillingBufferTest
 		}
 		
 		// create the reader input view
-		DataInputViewV2 inView = outView.flip();
+		DataInputView inView = outView.flip();
 		generator.reset();
 		
 		// read and re-generate all records and compare them

@@ -17,8 +17,8 @@ package eu.stratosphere.pact.runtime.test.util.types;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 
 
@@ -65,7 +65,7 @@ public class IntPairSerializer implements TypeSerializer<IntPair>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#serialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
 	 */
 	@Override
-	public long serialize(IntPair record, DataOutputViewV2 target) throws IOException
+	public long serialize(IntPair record, DataOutputView target) throws IOException
 	{
 		target.writeInt(record.getKey());
 		target.writeInt(record.getValue());
@@ -76,7 +76,7 @@ public class IntPairSerializer implements TypeSerializer<IntPair>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#deserialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputView)
 	 */
 	@Override
-	public void deserialize(IntPair target, DataInputViewV2 source) throws IOException {
+	public void deserialize(IntPair target, DataInputView source) throws IOException {
 		target.setKey(source.readInt());
 		target.setValue(source.readInt());
 	}
@@ -85,7 +85,7 @@ public class IntPairSerializer implements TypeSerializer<IntPair>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#copy(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
 	 */
 	@Override
-	public void copy(DataInputViewV2 source, DataOutputViewV2 target) throws IOException
+	public void copy(DataInputView source, DataOutputView target) throws IOException
 	{
 		for (int i = 0; i < 8; i++) {
 			target.writeByte(source.readUnsignedByte());

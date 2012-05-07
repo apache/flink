@@ -28,7 +28,7 @@ import java.io.IOException;
  * @author Alexander Alexandrov
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public interface DataInputViewV2 extends DataInput
+public interface DataInputView extends DataInput
 {
 	/**
 	 * Skips {@code numBytes} bytes of memory. In contrast to the {@link #skipBytes(int)} method,

@@ -19,8 +19,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 
@@ -33,7 +33,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
  *
  * @author Stephan Ewen
  */
-public abstract class AbstractPagedOutputView implements DataOutputViewV2
+public abstract class AbstractPagedOutputView implements DataOutputView
 {
 	private MemorySegment currentSegment;			// the current memory segment to write to
 	
@@ -457,7 +457,7 @@ public abstract class AbstractPagedOutputView implements DataOutputViewV2
 	 * @see eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2#write(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, int)
 	 */
 	@Override
-	public void write(DataInputViewV2 source, int numBytes) throws IOException
+	public void write(DataInputView source, int numBytes) throws IOException
 	{
 		while (numBytes > 0) {
 			final int remaining = this.segmentSize - this.positionInSegment;

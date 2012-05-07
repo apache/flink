@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.test.util.types;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.pact.runtime.plugable.TypeComparator;
 
 
@@ -63,7 +63,7 @@ public class IntPairComparator implements TypeComparator<IntPair>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#compare(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataInputView)
 	 */
 	@Override
-	public int compare(DataInputViewV2 source1, DataInputViewV2 source2) throws IOException {
+	public int compare(DataInputView source1, DataInputView source2) throws IOException {
 		return source1.readInt() - source2.readInt();
 	}
 

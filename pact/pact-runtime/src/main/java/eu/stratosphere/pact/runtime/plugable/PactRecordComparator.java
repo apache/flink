@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.plugable;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
@@ -193,7 +193,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#compare(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
 	 */
 	@Override
-	public int compare(DataInputViewV2 source1, DataInputViewV2 source2) throws IOException
+	public int compare(DataInputView source1, DataInputView source2) throws IOException
 	{
 		this.temp1.read(source1);
 		this.temp2.read(source2);

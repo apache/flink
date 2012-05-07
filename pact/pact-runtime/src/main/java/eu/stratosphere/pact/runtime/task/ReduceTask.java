@@ -19,6 +19,7 @@ import java.util.Comparator;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.pact.common.generic.GenericReducer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
@@ -44,18 +45,15 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * @author Fabian Hueske
  * @author Stephan Ewen
  */
-public class ReduceTask extends AbstractPactTask<ReduceStub>
+public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>>
 {
 
 	// the minimal amount of memory for the task to operate
 	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
 	
 	
-	private CloseableInputProvider<PactRecord> input;
+	private CloseableInputProvider<IT> input;
 	
-	private int[] keyPositions;
-	
-	private Class<? extends Key>[] keyClasses;
 
 	// ------------------------------------------------------------------------
 	
@@ -93,8 +91,10 @@ public class ReduceTask extends AbstractPactTask<ReduceStub>
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
 	@Override
-	public Class<ReduceStub> getStubType() {
-		return ReduceStub.class;
+	public Class<GenericReducer<IT, OT>> getStubType() {
+		@SuppressWarnings("unchecked")
+		final Class<GenericReducer<IT, OT>> clazz = (Class<GenericReducer<IT, OT>>) (Class<?>) GenericReducer.class; 
+		return clazz;
 	}
 
 	/* (non-Javadoc)

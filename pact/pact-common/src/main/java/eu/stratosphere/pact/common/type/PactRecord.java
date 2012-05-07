@@ -21,8 +21,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 
 
@@ -1169,7 +1169,7 @@ public final class PactRecord implements Value
 	 * 
 	 * @throws IOException Thrown, if an error occurred in the view during writing.
 	 */
-	public long serialize(DataOutputViewV2 target)
+	public long serialize(DataOutputView target)
 	throws IOException
 	{
 		updateBinaryRepresenation();
@@ -1191,7 +1191,7 @@ public final class PactRecord implements Value
 	 * @param source
 	 * @throws IOException
 	 */
-	public void deserialize(DataInputViewV2 source) throws IOException
+	public void deserialize(DataInputView source) throws IOException
 	{
 		int val = source.readUnsignedByte();
 		if (val >= MAX_BIT) {

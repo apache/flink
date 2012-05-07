@@ -144,7 +144,7 @@ public class ChainTaskTest extends TaskTestBase {
 		int cnt = 0;
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			if(++this.cnt>=5) {
 				throw new RuntimeException("Expected Test Exception");

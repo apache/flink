@@ -32,7 +32,7 @@ import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -218,7 +218,7 @@ public class DataSinkTask extends AbstractOutputTask
 	private void initInputReader()
 	{
 		// create reader
-		this.reader = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
+		this.reader = new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
 	}
 	
 	// ------------------------------------------------------------------------
