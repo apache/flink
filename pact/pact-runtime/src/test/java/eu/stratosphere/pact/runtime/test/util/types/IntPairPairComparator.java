@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.runtime.test.util.types;
 
-import eu.stratosphere.pact.runtime.plugable.TypePairComparator;
+import eu.stratosphere.pact.common.generic.types.TypePairComparator;
 
 
 /**

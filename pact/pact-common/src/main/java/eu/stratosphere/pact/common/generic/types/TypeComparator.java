@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable;
+package eu.stratosphere.pact.common.generic.types;
 
 import java.io.IOException;
 

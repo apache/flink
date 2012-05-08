@@ -28,13 +28,13 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.SeekableDataInputView;
 import eu.stratosphere.nephele.services.memorymanager.SeekableDataOutputView;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.pact.runtime.io.RandomAccessOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegmentSource;
-import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 
 

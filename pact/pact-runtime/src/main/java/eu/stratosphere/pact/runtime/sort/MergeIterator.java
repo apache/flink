@@ -19,9 +19,9 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 
 /**
  * An iterator that returns a sorted merge of the sequences of elements from a

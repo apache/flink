@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.plugable;
 
+import eu.stratosphere.pact.common.generic.types.TypePairComparator;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
 import eu.stratosphere.pact.common.type.PactRecord;

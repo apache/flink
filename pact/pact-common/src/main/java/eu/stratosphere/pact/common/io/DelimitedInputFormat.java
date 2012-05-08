@@ -454,6 +454,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 						return countInWrapBuffer + count;
 					}
 				} else {
+					ensureTargetBufferSize(count);
 					System.arraycopy(this.readBuffer, startPos, this.targetBuffer, 0, count);
 					return count;
 				}

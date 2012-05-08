@@ -6,6 +6,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 
 
 /**

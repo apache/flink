@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable;
+package eu.stratosphere.pact.common.generic.types;
 
 /**
  * This interface defines the method required by the runtime to use data types in join-like operations.

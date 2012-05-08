@@ -17,9 +17,9 @@ package eu.stratosphere.pact.runtime.util;
 
 import java.io.IOException;
 
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.plugable.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.TypeSerializer;
 
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
