@@ -17,30 +17,16 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
-import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
  * @author Erik Nijkamp
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  */
-public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T>>
+public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 {
-	/**
-	 * Enumeration defining the different shipping types of the output, such as local forward, re-partitioning by hash,
-	 * or re-partitioning by range.
-	 */
-	public enum ShipStrategy {
-		FORWARD,
-		PARTITION_HASH,
-		PARTITION_LOCAL_HASH,
-		PARTITION_RANGE,
-		PARTITION_LOCAL_RANGE,
-		BROADCAST,
-		SFR,
-		NONE
-	}
-
 	// ------------------------------------------------------------------------
 	// Fields
 	// ------------------------------------------------------------------------
@@ -53,7 +39,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	
 	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
 	
-	private final TypeComparator<T> comparator;	// the comparator for hashing / sorting
+	private final TypeComparator<PactRecord> comparator;	// the comparator for hashing / sorting
 	
 	private final byte[] salt;					// the salt used to randomize the hash values
 
@@ -64,7 +50,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	/**
 	 * Creates a new channel selector that distributes data round robin.
 	 */
-	public OutputEmitter()
+	public PactRecordOutputEmitter()
 	{
 		this(ShipStrategy.NONE);
 	}
@@ -74,7 +60,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * 
 	 * @param strategy The distribution strategy to be used.
 	 */
-	public OutputEmitter(ShipStrategy strategy)
+	public PactRecordOutputEmitter(ShipStrategy strategy)
 	{
 		this(strategy, null);
 	}	
@@ -86,7 +72,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * @param strategy The distribution strategy to be used.
 	 * @param comparator The comparator used to hash / compare the records.
 	 */
-	public OutputEmitter(ShipStrategy strategy, TypeComparator<T> comparator)
+	public PactRecordOutputEmitter(ShipStrategy strategy, TypeComparator<PactRecord> comparator)
 	{
 		this(strategy, comparator, DEFAULT_SALT);
 	}
@@ -99,7 +85,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * @param comparator The comparator used to hash / compare the records.
 	 * @param salt The salt to use to randomize the hashes.
 	 */
-	public OutputEmitter(ShipStrategy strategy, TypeComparator<T> comparator, byte[] salt)
+	public PactRecordOutputEmitter(ShipStrategy strategy, TypeComparator<PactRecord> comparator, byte[] salt)
 	{
 		if (strategy == null | salt == null) { 
 			throw new NullPointerException();
@@ -118,14 +104,14 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * @see eu.stratosphere.nephele.io.ChannelSelector#selectChannels(java.lang.Object, int)
 	 */
 	@Override
-	public final int[] selectChannels(SerializationDelegate<T> record, int numberOfChannels)
+	public final int[] selectChannels(PactRecord record, int numberOfChannels)
 	{
 		switch (strategy) {
 		case FORWARD:
 			return robin(numberOfChannels);
 		case PARTITION_HASH:
 		case PARTITION_LOCAL_HASH:
-			return hashPartitionDefault(record.getInstance(), numberOfChannels);
+			return hashPartitionDefault(record, numberOfChannels);
 		case BROADCAST:
 			return broadcast(numberOfChannels);
 		default:
@@ -160,7 +146,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		return channels;
 	}
 
-	private final int[] hashPartitionDefault(T record, int numberOfChannels)
+	private final int[] hashPartitionDefault(PactRecord record, int numberOfChannels)
 	{
 		if (channels == null || channels.length != 1) {
 			channels = new int[1];
@@ -170,7 +156,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		for (int i = 0; i < this.salt.length; i++) {
 			hash ^= ((hash << 5) + this.salt[i] + (hash >> 2));
 		}
-	
 		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
 		return this.channels;
 	}

@@ -21,24 +21,31 @@ import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
+import junit.framework.Assert;
 import junit.framework.TestCase;
 
 import org.junit.Test;
 
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.pact.common.type.DeserializationException;
+import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
+import eu.stratosphere.pact.common.type.NullKeyFieldException;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
-public class OutputEmitterTest extends TestCase {
-
+public class OutputEmitterTest extends TestCase
+{
 	@Test
-	public static void testPartitionHash() {
-
+	public static void testPartitionHash()
+	{
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0}, new Class[] {PactInteger.class});
+		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
 
 		int numChans = 100;
 		int numRecs = 50000;
@@ -63,7 +70,8 @@ public class OutputEmitterTest extends TestCase {
 
 		// Test for PactString
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0}, new Class[] {PactString.class});
+		final PactRecordComparator stringComp = new PactRecordComparator(new int[] {0}, new Class[] {PactString.class});
+		ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, stringComp);
 
 		numChans = 100;
 		numRecs = 10000;
@@ -90,11 +98,12 @@ public class OutputEmitterTest extends TestCase {
 	}
 	
 	@Test
-	public static void testForward() {
-
+	public static void testForward()
+	{
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.FORWARD, new int[] {0}, new Class[] {PactInteger.class});
+		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.FORWARD, intComp);
 
 		int numChannels = 100;
 		int numRecords = 50000;
@@ -120,7 +129,8 @@ public class OutputEmitterTest extends TestCase {
 
 		// Test for PactString
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.FORWARD, new int[] {0}, new Class[] {PactString.class});
+		final PactRecordComparator stringComp = new PactRecordComparator(new int[] {0}, new Class[] {PactString.class});
+		final ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategy.FORWARD, stringComp);
 
 		numChannels = 100;
 		numRecords = 10000;
@@ -147,11 +157,12 @@ public class OutputEmitterTest extends TestCase {
 	}
 	
 	@Test
-	public static void testBroadcast() {
-
+	public static void testBroadcast()
+	{
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.BROADCAST, new int[] {0}, new Class[] {PactInteger.class});
+		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.BROADCAST, intComp);
 
 		int numChannels = 100;
 		int numRecords = 50000;
@@ -174,7 +185,8 @@ public class OutputEmitterTest extends TestCase {
 		
 		// Test for PactString
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe2 = new OutputEmitter(ShipStrategy.BROADCAST, new int[] {0}, new Class[] {PactString.class});
+		final PactRecordComparator stringComp = new PactRecordComparator(new int[] {0}, new Class[] {PactString.class});
+		final ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategy.BROADCAST, stringComp);
 
 		numChannels = 100;
 		numRecords = 5000;
@@ -196,29 +208,32 @@ public class OutputEmitterTest extends TestCase {
 		}
 	}
 	
-	@Test
-	public static void testPartitionRange() {
-
-		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_RANGE, new int[] {0}, new Class[] {PactInteger.class});
-
-		boolean correctException = false;
-		try {
-			oe1.selectChannels(new PactRecord(new PactInteger(1)), 2);
-		} catch(RuntimeException re) {
-			if(re.getMessage().equals("Partition function for RangePartitioner not set!"))
-				correctException = true;
-		}
-		assertTrue(correctException);
-		
-		// TODO: extend!
-	}
+//	@Test
+//	public static void testPartitionRange()
+//	{
+//		// Test for PactInteger
+//		@SuppressWarnings("unchecked")
+//		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
+//		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
+//
+//		boolean correctException = false;
+//		try {
+//			oe1.selectChannels(new PactRecord(new PactInteger(1)), 2);
+//		} catch(RuntimeException re) {
+//			if(re.getMessage().equals("Partition function for RangePartitioner not set!"))
+//				correctException = true;
+//		}
+//		assertTrue(correctException);
+//		
+//		// TODO: extend!
+//	}
 	
 	@Test
-	public static void testMultiKeys() {
-		
+	public static void testMultiKeys()
+	{	
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0,1,3}, new Class[] {PactInteger.class, PactString.class, PactDouble.class});
+		final PactRecordComparator multiComp = new PactRecordComparator(new int[] {0,1,3}, new Class[] {PactInteger.class, PactString.class, PactDouble.class});
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, multiComp);
 
 		int numChannels = 100;
 		int numRecords = 5000;
@@ -247,50 +262,52 @@ public class OutputEmitterTest extends TestCase {
 	}
 	
 	@Test
-	public static void testMissingKey() {
-		
+	public static void testMissingKey()
+	{
+		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {1}, new Class[] {PactInteger.class});
+		final PactRecordComparator intComp = new PactRecordComparator(new int[] {1}, new Class[] {PactInteger.class});
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
 
 		PactRecord rec = new PactRecord(0);
 		rec.setField(0, new PactInteger(1));
-
-		boolean correctException = false;
+		
 		try {
 			oe1.selectChannels(rec, 100);
-		} catch(RuntimeException re) {
-			if(re.getMessage().equals("Key field 1 is of our bounds of record."))
-				correctException = true;
+		} catch (KeyFieldOutOfBoundsException re) {
+			Assert.assertEquals(1, re.getFieldNumber());
+			return;
 		}
-		assertTrue(correctException);
-		
+		Assert.fail("Expected a KeyFieldOutOfBoundsException.");
 	}
 	
 	@Test
-	public static void testNullKey() {
-	
+	public static void testNullKey()
+	{
+		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0}, new Class[] {PactInteger.class});
+		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
 
 		PactRecord rec = new PactRecord(2);
 		rec.setField(1, new PactInteger(1));
 
-		boolean correctException = false;
 		try {
 			oe1.selectChannels(rec, 100);
-		} catch(RuntimeException re) {
-			if(re.getMessage().equals("Key field 0 is null."))
-				correctException = true;
+		} catch (NullKeyFieldException re) {
+			Assert.assertEquals(0, re.getFieldNumber());
+			return;
 		}
-		assertTrue(correctException);
-		
+		Assert.fail("Expected a NullKeyFieldException.");
 	}
 	
 	@Test
 	public static void testWrongKeyClass() {
 		
+		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		OutputEmitter oe1 = new OutputEmitter(ShipStrategy.PARTITION_HASH, new int[] {0}, new Class[] {PactDouble.class});
+		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactDouble.class});
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
 
 		PipedInputStream pipedInput = new PipedInputStream(1024*1024);
 		DataInputStream in = new DataInputStream(pipedInput);
@@ -310,15 +327,15 @@ public class OutputEmitterTest extends TestCase {
 		} catch (IOException e) {
 			fail("Test erroneous");
 		}
-		
-		boolean correctException = false;
+
 		try {
 			oe1.selectChannels(rec, 100);
-		} catch(RuntimeException re) {
-			if(re.getMessage().equals("Key field 0 of type 'eu.stratosphere.pact.common.type.base.PactDouble' could not be deserialized."))
-				correctException = true;
+		} catch (DeserializationException re) {
+			return;
+//			if(re.getMessage().equals("Key field 0 of type 'eu.stratosphere.pact.common.type.base.PactDouble' could not be deserialized."))
+//				correctException = true;
 		}
-		assertTrue(correctException);
+		Assert.fail("Expected a NullKeyFieldException.");
 	}
 
 }

@@ -15,9 +15,9 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import eu.stratosphere.pact.common.generic.GenericMapper;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
@@ -29,10 +29,12 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  * to the <code>map()</code> method of the MapStub.
  * 
  * @see MapStub
+ * @see GenericMapper
+ * 
  * @author Fabian Hueske
  * @author Stephan Ewen
  */
-public class MapTask extends AbstractPactTask<MapStub>
+public class MapTask<IT, OT> extends AbstractPactTask<GenericMapper<IT, OT>, OT>
 {
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
@@ -46,8 +48,19 @@ public class MapTask extends AbstractPactTask<MapStub>
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
 	@Override
-	public Class<MapStub> getStubType() {
-		return MapStub.class;
+	public Class<GenericMapper<IT, OT>> getStubType()
+	{
+		@SuppressWarnings("unchecked")
+		final Class<GenericMapper<IT, OT>> clazz = (Class<GenericMapper<IT, OT>>) (Class<?>) GenericMapper.class;
+		return clazz;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
+	 */
+	@Override
+	public boolean requiresComparatorOnInput() {
+		return false;
 	}
 
 	/* (non-Javadoc)
@@ -66,11 +79,11 @@ public class MapTask extends AbstractPactTask<MapStub>
 	public void run() throws Exception
 	{
 		// cache references on the stack
-		final MutableObjectIterator<PactRecord> input = this.inputs[0];
-		final MapStub stub = this.stub;
-		final Collector<PactRecord> output = this.output;
+		final MutableObjectIterator<IT> input = getInput(0);
+		final GenericMapper<IT, OT> stub = this.stub;
+		final Collector<OT> output = this.output;
 		
-		final PactRecord record = new PactRecord();
+		final IT record = this.<IT>getInputSerializer(0).createInstance();
 		
 		while (this.running && input.next(record)) {
 			stub.map(record, output);

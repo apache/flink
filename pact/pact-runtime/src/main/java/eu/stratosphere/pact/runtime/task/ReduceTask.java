@@ -15,21 +15,19 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.util.Comparator;
-
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.generic.GenericReducer;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
-import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
 /**
@@ -45,7 +43,7 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * @author Fabian Hueske
  * @author Stephan Ewen
  */
-public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>>
+public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>, OT>
 {
 
 	// the minimal amount of memory for the task to operate
@@ -54,30 +52,12 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>>
 	
 	private CloseableInputProvider<IT> input;
 	
+	private TypeSerializer<IT> serializer;
+	
+	private TypeComparator<IT> comparator;
+	
 
 	// ------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
-	 */
-	@Override
-	public void run() throws Exception
-	{
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Preprocessing done, iterator obtained."));
-
-		final KeyGroupedIterator iter = new KeyGroupedIterator(this.input.getIterator(), this.keyPositions, this.keyClasses);
-		
-		// cache references on the stack
-		final ReduceStub stub = this.stub;
-		final Collector output = this.output;
-		
-		// run stub implementation
-		while (this.running && iter.nextKey())
-		{
-			stub.reduce(iter.getValues(), output);
-		}
-	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
@@ -91,11 +71,22 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>>
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
 	@Override
-	public Class<GenericReducer<IT, OT>> getStubType() {
+	public Class<GenericReducer<IT, OT>> getStubType()
+	{
 		@SuppressWarnings("unchecked")
 		final Class<GenericReducer<IT, OT>> clazz = (Class<GenericReducer<IT, OT>>) (Class<?>) GenericReducer.class; 
 		return clazz;
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
+	 */
+	@Override
+	public boolean requiresComparatorOnInput() {
+		return false;
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
@@ -109,7 +100,7 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>>
 		final float spillThreshold = this.config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
-		LocalStrategy ls = this.config.getLocalStrategy();
+		final LocalStrategy ls = this.config.getLocalStrategy();
 		if ((ls == LocalStrategy.SORT || ls == LocalStrategy.COMBININGSORT) && availableMemory < MIN_REQUIRED_MEMORY)
 		{
 			throw new Exception("The Reduce task was initialized with too little memory for local strategy " +
@@ -117,25 +108,12 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>>
 				    "Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
 		}
 		
-		// obtain the TaskManager's MemoryManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
-		// obtain the TaskManager's IOManager
 		final IOManager ioManager = getEnvironment().getIOManager();
-
-		// get the key positions and types
-		this.keyPositions = this.config.getLocalStrategyKeyPositions(0);
-		this.keyClasses = this.config.getLocalStrategyKeyClasses(this.userCodeClassLoader);
-		if (this.keyPositions == null || this.keyClasses == null) {
-			throw new Exception("The key positions and types are not specified for the ReduceTask.");
-		}
 		
-		// create the comparators
-		@SuppressWarnings("unchecked")
-		final Comparator<Key>[] comparators = new Comparator[keyPositions.length];
-		final KeyComparator kk = new KeyComparator();
-		for (int i = 0; i < comparators.length; i++) {
-			comparators[i] = kk;
-		}
+		final MutableObjectIterator<IT> in = getInput(0);
+		this.serializer = getInputSerializer(0);
+		this.comparator = getInputComparator(0);
 
 		// obtain grouped iterator defined by local strategy
 		switch (config.getLocalStrategy())
@@ -143,25 +121,49 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>>
 		case NONE:
 			// local strategy is NONE
 			// input is already grouped, an iterator that wraps the reader is created and returned
-			this.input = new SimpleCloseableInputProvider<PactRecord>(this.inputs[0]);
+			this.input = new SimpleCloseableInputProvider<IT>(in);
 			break;
 
 			// local strategy is SORT
 			// The input is grouped using a sort-merge strategy. An iterator on the sorted pairs is created and returned.
 		case SORT:			
 			// instantiate a sort-merger
-			this.input = new UnilateralSortMerger(memoryManager, ioManager, availableMemory, maxFileHandles, comparators, 
-				keyPositions, keyClasses, this.inputs[0], this, spillThreshold);
+			this.input = new UnilateralSortMerger<IT>(memoryManager, ioManager, this.<IT>getInput(0),
+					this, this.serializer, this.comparator, availableMemory, maxFileHandles, spillThreshold);
 			break;
 			
 		case COMBININGSORT:
 			// instantiate a combining sort-merger
-			this.input = new CombiningUnilateralSortMerger(this.stub, memoryManager,
-					ioManager, availableMemory, maxFileHandles, comparators,
-					keyPositions, keyClasses, this.inputs[0], this, spillThreshold, false);
+			this.input = new CombiningUnilateralSortMerger<IT>(this.stub, memoryManager,
+					ioManager, in, this, this.serializer, this.comparator.duplicate(),
+					availableMemory, maxFileHandles, spillThreshold, false);
 			break;
 		default:
 			throw new Exception("Invalid local strategy provided for ReduceTask: " + ls.name());
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
+	 */
+	@Override
+	public void run() throws Exception
+	{
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(getLogString("Reducer preprocessing done. Running Reducer code."));
+		}
+
+		final KeyGroupedIterator<IT> iter = new KeyGroupedIterator<IT>(
+						this.input.getIterator(), this.serializer, this.comparator);
+		
+		// cache references on the stack
+		final GenericReducer<IT, OT> stub = this.stub;
+		final Collector<OT> output = this.output;
+		
+		// run stub implementation
+		while (this.running && iter.nextKey())
+		{
+			stub.reduce(iter.getValues(), output);
 		}
 	}
 
@@ -169,7 +171,8 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>>
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
 	 */
 	@Override
-	public void cleanup() throws Exception {
+	public void cleanup() throws Exception
+	{
 		if (this.input != null) {
 			this.input.close();
 			this.input = null;

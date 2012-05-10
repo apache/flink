@@ -287,7 +287,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		private final PactInteger value = new PactInteger();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int cnt = 0;
@@ -310,7 +310,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		private final PactInteger combineValue = new PactInteger();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int sum = 0;
@@ -327,7 +327,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector out)
+		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int sum = 0;
@@ -353,7 +353,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		private final PactInteger value = new PactInteger();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int valCnt = 0;
@@ -376,7 +376,7 @@ public class ReduceTaskTest extends TaskTestBase {
 	public static class MockDelayingReduceStub extends ReduceStub {
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out) {
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) {
 			while(records.hasNext()) {
 				try {
 					Thread.sleep(100);

@@ -16,6 +16,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.MapTask;
 import eu.stratosphere.pact.runtime.task.MapTaskTest.MockMapStub;
 import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
@@ -25,15 +26,14 @@ import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 /**
- * 
  * @author enijkamp
- *
  */
-public class ChainTaskTest extends TaskTestBase {
+public class ChainTaskTest extends TaskTestBase
+{
 
 	private static final Log LOG = LogFactory.getLog(ChainTaskTest.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
+	private List<PactRecord> outList = new ArrayList<PactRecord>();
 		
 	@SuppressWarnings("unchecked")
 	@Test
@@ -59,15 +59,16 @@ public class ChainTaskTest extends TaskTestBase {
 			combineConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
 			combineConfig.setMemorySize(3 * 1024 * 1024);
 			combineConfig.setNumFilehandles(2);
-			combineConfig.setLocalStrategyKeyTypes(0, new int[]{0});
-			combineConfig.setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+			
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(), 
+				combineConfig.getPrefixForInputParameters(0), new int[]{0}, new Class[]{ PactInteger.class });
 			
 			super.getTaskConfig().addChainedTask(ChainedCombineTask.class, combineConfig, "combine");
 		}
 		
 		// chained map+combine
 		{
-			MapTask testTask = new MapTask();
+			MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
 			
 			super.registerTask(testTask, MockMapStub.class);
 			
@@ -92,7 +93,6 @@ public class ChainTaskTest extends TaskTestBase {
 	 */
 	@SuppressWarnings("unchecked")
 	@Test
-	@Ignore
 	public void testFailingMapTask() {
 		
 		int keyCnt = 100;
@@ -115,15 +115,15 @@ public class ChainTaskTest extends TaskTestBase {
 			combineConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
 			combineConfig.setMemorySize(3 * 1024 * 1024);
 			combineConfig.setNumFilehandles(2);
-			combineConfig.setLocalStrategyKeyTypes(0, new int[]{0});
-			combineConfig.setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(), 
+				combineConfig.getPrefixForInputParameters(0), new int[]{0}, new Class[]{ PactInteger.class });
 			
 			super.getTaskConfig().addChainedTask(ChainedCombineTask.class, combineConfig, "combine");
 		}
 		
 		// chained map+combine
 		{
-			MapTask testTask = new MapTask();
+			MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
 			
 			super.registerTask(testTask, MockMapStub.class);
 

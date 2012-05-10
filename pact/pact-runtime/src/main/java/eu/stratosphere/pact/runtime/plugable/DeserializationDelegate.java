@@ -16,18 +16,21 @@ import eu.stratosphere.pact.common.generic.types.TypeSerializer;
  */
 public class DeserializationDelegate<T> implements Record
 {
-	private final T instance;
+	private T instance;
 	
 	private final TypeSerializer<T> serializer;
 	
 	private final InputViewWrapper wrapper;
 	
 	
-	public DeserializationDelegate(T instance, TypeSerializer<T> serializer)
+	public DeserializationDelegate(TypeSerializer<T> serializer)
 	{
-		this.instance = instance;
 		this.serializer = serializer;
 		this.wrapper = new InputViewWrapper();
+	}
+	
+	public void setInstance(T instance) {
+		this.instance = instance;
 	}
 	
 	/* (non-Javadoc)

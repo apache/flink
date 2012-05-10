@@ -20,6 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
 import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -141,6 +142,9 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		}
 		catch (NullPointerException npex) {
 			throw new NullKeyFieldException(this.keyFields[i]);
+		}
+		catch (IndexOutOfBoundsException iobex) {
+			throw new KeyFieldOutOfBoundsException(this.keyFields[i]);
 		}
 	}
 

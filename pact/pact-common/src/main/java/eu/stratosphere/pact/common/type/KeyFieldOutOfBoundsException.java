@@ -19,42 +19,42 @@ package eu.stratosphere.pact.common.type;
 /**
  * An exception specifying that a required key field was not set in a record, i.e. was <code>null</code>.
  */
-public class NullKeyFieldException extends RuntimeException
+public class KeyFieldOutOfBoundsException extends RuntimeException
 {
 	/**
 	 * UID for serialization interoperability. 
 	 */
-	private static final long serialVersionUID = -3254501285363420762L;
+	private static final long serialVersionUID = 1538404143052384932L;
 	
 	private final int fieldNumber;
 
 	/**
-     * Constructs an {@code NullKeyFieldException} with {@code null}
+     * Constructs an {@code KeyFieldOutOfBoundsException} with {@code null}
      * as its error detail message.
      */
-	public NullKeyFieldException() {
+	public KeyFieldOutOfBoundsException() {
 		super();
 		this.fieldNumber = -1;
 	}
 
 	/**
-     * Constructs an {@code NullKeyFieldException} with the specified detail message.
+     * Constructs an {@code KeyFieldOutOfBoundsException} with the specified detail message.
      *
      * @param message The detail message.
      */
-	public NullKeyFieldException(String message) {
+	public KeyFieldOutOfBoundsException(String message) {
 		super(message);
 		this.fieldNumber = -1;
 	}
 	
 	/**
-     * Constructs an {@code NullKeyFieldException} with a default message, referring to
+     * Constructs an {@code KeyFieldOutOfBoundsException} with a default message, referring to
      * given field number as the null key field.
      *
      * @param fieldNumber The index of the field that was null, bit expected to hold a key.
      */
-	public NullKeyFieldException(int fieldNumber) {
-		super("Field " + fieldNumber + " is null, but expected to hold a key.");
+	public KeyFieldOutOfBoundsException(int fieldNumber) {
+		super("Field " + fieldNumber + " is accessed for a key, but out of bounds in the record.");
 		this.fieldNumber = fieldNumber;
 	}
 	

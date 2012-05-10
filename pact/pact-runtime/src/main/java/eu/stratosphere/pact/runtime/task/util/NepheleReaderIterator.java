@@ -18,37 +18,42 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.MutableReader;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 
 
 /**
- * A {@link MutableObjectIterator} that wraps a Nephele Reader producing {@link PactRecord}s.
+ * A {@link MutableObjectIterator} that wraps a Nephele Reader producing records of a certain type.
  *
  * @author Stephan Ewen
  */
-public final class NepheleReaderIterator implements MutableObjectIterator<PactRecord>
+public final class NepheleReaderIterator<T> implements MutableObjectIterator<T>
 {
-	private final MutableReader<PactRecord> reader;		// the source
+	private final MutableReader<DeserializationDelegate<T>> reader;		// the source
+	
+	private final DeserializationDelegate<T> delegate;
 
 	/**
 	 * Creates a new iterator, wrapping the given reader.
 	 * 
 	 * @param reader The reader to wrap.
 	 */
-	public NepheleReaderIterator(MutableReader<PactRecord> reader)
+	public NepheleReaderIterator(MutableReader<DeserializationDelegate<T>> reader, TypeSerializer<T> serializer)
 	{
 		this.reader = reader;
+		this.delegate = new DeserializationDelegate<T>(serializer);
 	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.util.MutableObjectIterator#next(java.lang.Object)
 	 */
 	@Override
-	public boolean next(PactRecord target) throws IOException
+	public boolean next(T target) throws IOException
 	{
+		this.delegate.setInstance(target);
 		try {
-			return this.reader.next(target);
+			return this.reader.next(this.delegate);
 		}
 		catch (InterruptedException iex) {
 			throw new IOException("Reader was interrupted.");

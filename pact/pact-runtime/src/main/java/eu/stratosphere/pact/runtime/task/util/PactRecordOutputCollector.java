@@ -21,23 +21,19 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
-import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
- * The OutputCollector collects records, and emits the pair to a set of Nephele {@link RecordWriter}s.
+ * The OutputCollector collects {@link PactRecord}s, and emits the pair to a set of Nephele {@link RecordWriter}s.
  * The OutputCollector tracks to which writers a deep-copy must be given and which not.
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
-public class OutputCollector<T> implements Collector<T>
+public class PactRecordOutputCollector implements Collector<PactRecord>
 {	
 	// list of writers
-	protected AbstractRecordWriter<SerializationDelegate<T>>[] writers; 
-
-	private final SerializationDelegate<T> delegate;
-
+	protected AbstractRecordWriter<PactRecord>[] writers; 
 	
 	/**
 	 * Initializes the output collector with a set of writers. 
@@ -47,10 +43,9 @@ public class OutputCollector<T> implements Collector<T>
 	 * @param writers List of all writers.
 	 */
 	@SuppressWarnings("unchecked")
-	public OutputCollector(List<AbstractRecordWriter<SerializationDelegate<T>>> writers, TypeSerializer<T> serializer)
-	{
-		this.delegate = new SerializationDelegate<T>(serializer);
-		this.writers = (AbstractRecordWriter<SerializationDelegate<T>>[]) writers.toArray(new AbstractRecordWriter[writers.size()]);
+	public PactRecordOutputCollector(List<AbstractRecordWriter<PactRecord>> writers) {
+		
+		this.writers = (AbstractRecordWriter<PactRecord>[]) writers.toArray(new AbstractRecordWriter[writers.size()]);
 	}
 	
 	/**
@@ -60,14 +55,14 @@ public class OutputCollector<T> implements Collector<T>
 	 */
 
 	@SuppressWarnings("unchecked")
-	public void addWriter(AbstractRecordWriter<SerializationDelegate<T>> writer)
+	public void addWriter(AbstractRecordWriter<PactRecord> writer)
 	{
 		// avoid using the array-list here to reduce one level of object indirection
 		if (this.writers == null) {
 			this.writers = new AbstractRecordWriter[] {writer};
 		}
 		else {
-			AbstractRecordWriter<SerializationDelegate<T>>[] ws = new AbstractRecordWriter[this.writers.length + 1];
+			AbstractRecordWriter<PactRecord>[] ws = new AbstractRecordWriter[this.writers.length + 1];
 			System.arraycopy(this.writers, 0, ws, 0, this.writers.length);
 			ws[this.writers.length] = writer;
 			this.writers = ws;
@@ -75,15 +70,15 @@ public class OutputCollector<T> implements Collector<T>
 	}
 
 	/**
-	 * Collects a record and emits it to all writers.
+	 * Collects a {@link PactRecord}, and emits it to all writers.
+	 * Writers which require a deep-copy are fed with a copy.
 	 */
 	@Override
-	public void collect(T record)
+	public void collect(PactRecord record)
 	{
-		this.delegate.setInstance(record);
 		try {
 			for (int i = 0; i < writers.length; i++) {
-				this.writers[i].emit(this.delegate);	
+				this.writers[i].emit(record);	
 			}
 		}
 		catch (IOException e) {
@@ -106,7 +101,7 @@ public class OutputCollector<T> implements Collector<T>
 	 * List of writers that are associated with this output collector
 	 * @return list of writers
 	 */
-	public List<AbstractRecordWriter<SerializationDelegate<T>>> getWriters() {
-		return Collections.unmodifiableList(Arrays.asList(this.writers));
+	public List<AbstractRecordWriter<PactRecord>> getWriters() {
+		return Collections.unmodifiableList(Arrays.asList(writers));
 	}
 }

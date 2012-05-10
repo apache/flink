@@ -33,26 +33,25 @@ import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("javadoc")
-public class MapTaskTest extends TaskTestBase {
-
+public class MapTaskTest extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
 	
-	List<PactRecord> outList;
+	private List<PactRecord> outList;
 		
 	@Test
-	public void testMapTask() {
-
-		int keyCnt = 100;
-		int valCnt = 20;
+	public void testMapTask()
+	{
+		final int keyCnt = 100;
+		final int valCnt = 20;
 		
 		this.outList = new ArrayList<PactRecord>();
 		
-		super.initEnvironment(1);
+		super.initEnvironment(1024 * 1024);
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(this.outList);
 		
-		MapTask testTask = new MapTask();
+		MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
 		
 		super.registerTask(testTask, MockMapStub.class);
 		
@@ -68,18 +67,18 @@ public class MapTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testFailingMapTask() {
-
-		int keyCnt = 100;
-		int valCnt = 20;
+	public void testFailingMapTask()
+	{
+		final int keyCnt = 100;
+		final int valCnt = 20;
 		
 		this.outList = new ArrayList<PactRecord>();
 		
-		super.initEnvironment(1);
+		super.initEnvironment(1024 * 1024);
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(this.outList);
 		
-		MapTask testTask = new MapTask();
+		MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
 		
 		super.registerTask(testTask, MockFailingMapStub.class);
 		
@@ -96,13 +95,13 @@ public class MapTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testCancelMapTask() {
-		
-		super.initEnvironment(1);
+	public void testCancelMapTask()
+	{
+		super.initEnvironment(1024 * 1024);
 		super.addInput(new InfiniteInputIterator(), 1);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MapTask testTask = new MapTask();
+		final MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
 		
 		super.registerTask(testTask, MockMapStub.class);
 		
@@ -131,10 +130,10 @@ public class MapTaskTest extends TaskTestBase {
 				
 	}
 	
-	public static class MockMapStub extends MapStub {
-
+	public static class MockMapStub extends MapStub
+	{
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			out.collect(record);
 		}
 		
@@ -145,7 +144,7 @@ public class MapTaskTest extends TaskTestBase {
 		int cnt = 0;
 		
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
 			}

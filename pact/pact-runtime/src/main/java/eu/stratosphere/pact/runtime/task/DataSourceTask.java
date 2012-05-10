@@ -37,20 +37,20 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * DataSourceTask which is executed by a Nephele task manager. The task reads data and uses an 
  * {@link InputFormat} to create records from the input.
  * 
- * @see eu.stratosphere.pact.common.io.InputFormat
+ * @see eu.stratosphere.pact.common.generic.io.InputFormat
  * 
  * @author Stephan Ewen
  * @author Fabian Hueske
  * @author Moritz Kaufmann
  */
 
-public class DataSourceTask extends AbstractInputTask<InputSplit>
+public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 {
 	// Obtain DataSourceTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSourceTask.class);
 
 	// Output collector
-	private Collector output;
+	private Collector<OT> output;
 
 	// InputFormat instance
 	private InputFormat<InputSplit> format;
@@ -58,7 +58,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	// Task configuration
 	private TaskConfig config;
 	
-	private ArrayList<ChainedTask> chainedTasks;
+	private ArrayList<ChainedTask<?, ?>> chainedTasks;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -241,9 +241,9 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategy.
 	 */
-	private void initOutputs(ClassLoader cl)
+	private void initOutputs(ClassLoader cl) throws Exception
 	{
-		this.chainedTasks = new ArrayList<ChainedTask>();
+		this.chainedTasks = new ArrayList<ChainedTask<?, ?>>();
 		this.output = AbstractPactTask.initOutputs(this, cl, this.config, this.chainedTasks);
 	}
 	

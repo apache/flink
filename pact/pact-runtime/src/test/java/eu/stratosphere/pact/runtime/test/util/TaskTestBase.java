@@ -48,14 +48,14 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(LibraryCacheManager.class)
 @PowerMockIgnore("org.apache.log4j.*")
-public abstract class TaskTestBase {
+public abstract class TaskTestBase
+{
+	protected long memorySize = 0;
 
-	long memorySize = 0;
+	protected MockEnvironment mockEnv;
 
-	MockEnvironment mockEnv;
-
-	public void initEnvironment(long memorySize) {
-
+	public void initEnvironment(long memorySize)
+	{
 		this.memorySize = memorySize;
 		this.mockEnv = new MockEnvironment(this.memorySize);
 
@@ -71,7 +71,6 @@ public abstract class TaskTestBase {
 
 	public void addInput(MutableObjectIterator<PactRecord> input, int groupId) {
 		this.mockEnv.addInput(input);
-		new TaskConfig(this.mockEnv.getTaskConfiguration()).addInputShipStrategy(ShipStrategy.FORWARD, groupId);
 	}
 
 	public void addOutput(List<PactRecord> output) {
@@ -130,13 +129,15 @@ public abstract class TaskTestBase {
 	}
 
 	@After
-	public void shutdownIOManager() throws Exception {
+	public void shutdownIOManager() throws Exception
+	{
 		this.mockEnv.getIOManager().shutdown();
 		Assert.assertTrue("IO Manager has not properly shut down.", this.mockEnv.getIOManager().isProperlyShutDown());
 	}
 
 	@After
-	public void shutdownMemoryManager() throws Exception {
+	public void shutdownMemoryManager() throws Exception
+	{
 		if (this.memorySize > 0) {
 			MemoryManager memMan = getMemoryManager();
 			if (memMan != null) {
