@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.generic.io;
 
 import java.io.IOException;
 
@@ -53,11 +53,12 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * @see InputSplit
  * @see BaseStatistics
  * 
- * @param <T> The type of input split.
- * 
  * @author Stephan Ewen
+ * 
+ * @param <OT> The type of the produced records.
+ * @param <T> The type of input split.
  */
-public interface InputFormat<T extends InputSplit>
+public interface InputFormat<OT, T extends InputSplit>
 {
 	/**
 	 * The key by which the identifier to retrieve cached statistics can be obtained. 

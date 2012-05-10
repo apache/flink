@@ -24,7 +24,7 @@ import java.util.Map.Entry;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.OutputSchemaProvider;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;

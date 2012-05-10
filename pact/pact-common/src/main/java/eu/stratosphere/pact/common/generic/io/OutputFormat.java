@@ -13,12 +13,11 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.generic.io;
 
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.PactRecord;
 
 
 /**
@@ -36,8 +35,10 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * </ol>
  * 
  * @author Stephan Ewen
+ * 
+ * @param <IT> The type of the consumed records. 
  */
-public abstract class OutputFormat
+public abstract class OutputFormat<IT>
 {
 	/**
 	 * Configures this output format. Since output formats are instantiated generically and hence parameterless, 
@@ -68,7 +69,7 @@ public abstract class OutputFormat
 	 * @param record The records to add to the output.
 	 * @throws IOException Thrown, if the records could not be added to to an I/O problem.
 	 */
-	public abstract void writeRecord(PactRecord record) throws IOException;
+	public abstract void writeRecord(IT record) throws IOException;
 	
 	/**
 	 * Method that marks the end of the life-cycle of parallel output instance. Should be used to close

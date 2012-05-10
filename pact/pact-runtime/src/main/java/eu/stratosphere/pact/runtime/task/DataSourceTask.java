@@ -25,7 +25,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;

@@ -30,7 +30,9 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 
 /**
@@ -69,7 +71,7 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
  * @author Moritz Kaufmann
  * @author Stephan Ewen
  */
-public abstract class FileInputFormat implements InputFormat<FileInputSplit>
+public abstract class FileInputFormat implements InputFormat<PactRecord, FileInputSplit>
 {
 	/**
 	 * The config parameter which defines the input file path.
@@ -134,7 +136,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	/**
 	 * Configures the file input format by reading the file path from the configuration.
 	 * 
-	 * @see eu.stratosphere.pact.common.io.InputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
+	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#configure(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
 	public void configure(Configuration parameters)
@@ -185,7 +187,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	 * 
 	 * @param The minimum desired number of file splits.
 	 * @return The computed file splits.
-	 * @see eu.stratosphere.pact.common.io.InputFormat#createInputSplits(int)
+	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#createInputSplits(int)
 	 */
 	@Override
 	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException
@@ -329,7 +331,7 @@ public abstract class FileInputFormat implements InputFormat<FileInputSplit>
 	 * The stream is actually opened in an asynchronous thread to make sure any interruptions to the thread 
 	 * working on the input format do not reach the file system.
 	 * 
-	 * @see eu.stratosphere.pact.common.io.InputFormat#open(eu.stratosphere.nephele.template.InputSplit)
+	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#open(eu.stratosphere.nephele.template.InputSplit)
 	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException
