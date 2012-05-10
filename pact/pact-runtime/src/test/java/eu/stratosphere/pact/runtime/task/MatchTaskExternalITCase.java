@@ -33,12 +33,11 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings( {"javadoc", "unchecked"} )
-public class MatchTaskExternalITCase extends TaskTestBase {
-
+public class MatchTaskExternalITCase extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(MatchTaskExternalITCase.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testExternalSort1MatchTask() {
@@ -54,7 +53,7 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -94,7 +93,7 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(outList);
 		
-		MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setMemorySize(4*1024*1024);
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
@@ -134,7 +133,7 @@ public class MatchTaskExternalITCase extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(outList);
 		
-		MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setMemorySize(4*1024*1024);
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});

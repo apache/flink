@@ -445,7 +445,7 @@ public class TaskConfig
 		return this.config.getInteger(CHAINING_NUM_STUBS, 0);
 	}
 	
-	public void addChainedTask(Class<? extends ChainedTask> chainedTaskClass, TaskConfig conf, String taskName)
+	public void addChainedTask(@SuppressWarnings("rawtypes") Class<? extends ChainedTask> chainedTaskClass, TaskConfig conf, String taskName)
 	{
 		int numChainedYet = this.config.getInteger(CHAINING_NUM_STUBS, 0);
 		
@@ -461,14 +461,16 @@ public class TaskConfig
 		return new TaskConfig(new DelegatingConfiguration(this.config, CHAINING_TASKCONFIG_PREFIX + chainPos + '.'));
 	}
 
-	public Class<? extends ChainedTask> getChainedTask(int chainPos)
+	public Class<? extends ChainedTask<?, ?>> getChainedTask(int chainPos)
 	throws ClassNotFoundException, ClassCastException
 	{
 		String className = this.config.getString(CHAINING_TASK_PREFIX + chainPos, null);
 		if (className == null)
 			throw new IllegalStateException("Chained Task Class missing");
 		
-		return Class.forName(className).asSubclass(ChainedTask.class);
+		@SuppressWarnings("unchecked")
+		final Class<ChainedTask<?, ?>> clazz = (Class<ChainedTask<?, ?>>) (Class<?>) ChainedTask.class;
+		return Class.forName(className).asSubclass(clazz);
 	}
 	
 	public String getChainedTaskName(int chainPos)

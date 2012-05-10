@@ -20,7 +20,6 @@ import java.io.IOException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Describes the base interface that is used describe an input that produces records that are processed
@@ -144,7 +143,7 @@ public interface InputFormat<OT, T extends InputSplit>
 	 *         
 	 * @throws IOException Thrown, if an I/O error occurred.
 	 */
-	public boolean nextRecord(PactRecord record) throws IOException;
+	public boolean nextRecord(OT record) throws IOException;
 	
 	/**
 	 * Method that marks the end of the life-cycle of an input split. Should be used to close channels and streams

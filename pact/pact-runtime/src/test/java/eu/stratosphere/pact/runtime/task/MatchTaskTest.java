@@ -35,9 +35,9 @@ import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings( {"javadoc", "unchecked"} )
-public class MatchTaskTest extends TaskTestBase {
 
+public class MatchTaskTest extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(MatchTaskTest.class);
 	
 	List<PactRecord> outList = new ArrayList<PactRecord>();
@@ -56,7 +56,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
@@ -96,7 +96,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -136,7 +136,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -176,7 +176,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -216,7 +216,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -256,7 +256,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -297,7 +297,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -338,7 +338,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -378,7 +378,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -414,7 +414,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -460,7 +460,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -506,7 +506,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -557,7 +557,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
@@ -598,7 +598,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -638,7 +638,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -678,7 +678,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -718,7 +718,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -758,7 +758,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -796,7 +796,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -831,7 +831,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -877,7 +877,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -923,7 +923,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -970,7 +970,7 @@ public class MatchTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -1011,7 +1011,7 @@ public class MatchTaskTest extends TaskTestBase {
 	public static class MockMatchStub extends MatchStub {
 
 		@Override
-		public void match(PactRecord record1, PactRecord record2, Collector out) throws Exception {
+		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) throws Exception {
 			out.collect(record1);
 		}
 		
@@ -1022,7 +1022,7 @@ public class MatchTaskTest extends TaskTestBase {
 		int cnt = 0;
 		
 		@Override
-		public void match(PactRecord record1, PactRecord record2, Collector out) {
+		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 			
 			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
@@ -1038,7 +1038,7 @@ public class MatchTaskTest extends TaskTestBase {
 	public static class MockDelayingMatchStub extends MatchStub {
 
 		@Override
-		public void match(PactRecord record1, PactRecord record2, Collector out) {
+		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 			
 			try {
 				Thread.sleep(100);

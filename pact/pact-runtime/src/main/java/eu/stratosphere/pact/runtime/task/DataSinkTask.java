@@ -34,7 +34,9 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -68,6 +70,9 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 
 	// task configuration
 	private TaskConfig config;
+	
+	// class loader for user code
+	private ClassLoader userCodeClassLoader;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -83,6 +88,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 
 		// initialize OutputFormat
 		initOutputFormat();
+		
 		// initialize input reader
 		initInputReader();
 
@@ -238,19 +244,36 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	private void initInputReader()
 	{
 		// get data type serializer
-		final Class<? extends TypeSerializerFactory<?>> serializerFactoryClass = 
-			this.config.getSerializerFactoryForInput(i, this.userCodeClassLoader);
+		final Class<? extends TypeSerializerFactory<IT>> serializerFactoryClass;
+		try {
+			serializerFactoryClass = this.config.getSerializerFactoryForInput(0, this.userCodeClassLoader);
+		} catch (ClassNotFoundException cnfex) {
+			throw new RuntimeException("The serializer factory noted in the configuration could not be loaded.", cnfex);
+		}
+						
 		
 		final TypeSerializerFactory<IT> serializerFactory;
 		if (serializerFactoryClass == null) {
 			// fall back to PactRecord
-			serializerFactory = PactRecordSerializerFactory.get();
+			@SuppressWarnings("unchecked")
+			TypeSerializerFactory<IT> ps = (TypeSerializerFactory<IT>) PactRecordSerializerFactory.get();
+			serializerFactory = ps;
 		} else {
-			serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
+			@SuppressWarnings("unchecked")
+			Class<TypeSerializerFactory<IT>> clazz = (Class<TypeSerializerFactory<IT>>) (Class<?>) TypeSerializerFactory.class;
+			serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, clazz);
 		}
 		
+		this.inputTypeSerializer = serializerFactory.getSerializer();
+		
 		// create reader
-		this.reader = new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
+		if (serializerFactory.getDataType().equals(PactRecord.class)) {
+			@SuppressWarnings("unchecked")
+			MutableObjectIterator<IT> it = (MutableObjectIterator<IT>) new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this)); 
+			this.reader = it;
+		} else {
+			this.reader = new NepheleReaderIterator<IT>(new MutableRecordReader<DeserializationDelegate<IT>>(this), this.inputTypeSerializer);
+		}
 	}
 	
 	// ------------------------------------------------------------------------

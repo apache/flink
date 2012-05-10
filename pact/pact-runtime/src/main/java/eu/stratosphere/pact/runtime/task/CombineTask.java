@@ -15,18 +15,16 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.util.Comparator;
-
-import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.pact.common.generic.GenericReducer;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
+
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorter;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
-import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
 /**
@@ -42,16 +40,16 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * @author Fabian Hueske
  * @author Matthias Ringwald
  */
-public class CombineTask extends AbstractPactTask<ReduceStub> {
-
+public class CombineTask<T> extends AbstractPactTask<GenericReducer<T, ?>, T>
+{
 	// the minimal amount of memory for the task to operate
 	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
 	
-	private CloseableInputProvider<PactRecord> input;
+	private CloseableInputProvider<T> input;
 	
-	private int[] keyPositions;
+	private TypeSerializer<T> serializer;
 	
-	private Class<? extends Key>[] keyClasses;
+	private TypeComparator<T> comparator;
 
 	// ------------------------------------------------------------------------
 
@@ -67,8 +65,18 @@ public class CombineTask extends AbstractPactTask<ReduceStub> {
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
 	@Override
-	public Class<ReduceStub> getStubType() {
-		return ReduceStub.class;
+	public Class<GenericReducer<T, ?>> getStubType() {
+		@SuppressWarnings("unchecked")
+		final Class<GenericReducer<T, ?>> clazz = (Class<GenericReducer<T, ?>>) (Class<?>) GenericReducer.class; 
+		return clazz;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
+	 */
+	@Override
+	public boolean requiresComparatorOnInput() {
+		return true;
 	}
 
 	/* (non-Javadoc)
@@ -100,33 +108,20 @@ public class CombineTask extends AbstractPactTask<ReduceStub> {
 		
 		// obtain the TaskManager's MemoryManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
-		// obtain the TaskManager's IOManager
-		final IOManager ioManager = getEnvironment().getIOManager();
 
-		// get the key positions and types
-		this.keyPositions = this.config.getLocalStrategyKeyPositions(0);
-		this.keyClasses = this.config.getLocalStrategyKeyClasses(this.userCodeClassLoader);
-		if (this.keyPositions == null || this.keyClasses == null) {
-			throw new Exception("The key positions and types are not specified for the CombineTask.");
-		}
+		final MutableObjectIterator<T> in = getInput(0);
+		this.serializer = getInputSerializer(0);
+		this.comparator = getInputComparator(0);
 		
-		// create the comparators
-		@SuppressWarnings("unchecked")
-		final Comparator<Key>[] comparators = new Comparator[keyPositions.length];
-		final KeyComparator kk = new KeyComparator();
-		for (int i = 0; i < comparators.length; i++) {
-			comparators[i] = kk;
-		}
-
-		switch (ls) {
-
+		switch (ls)
+		{
 			// local strategy is COMBININGSORT
 			// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
 			// the combine() method of the ReduceStub.
 			// An iterator on the sorted, grouped, and combined pairs is created and returned
 			case COMBININGSORT:
-				input = new AsynchronousPartialSorter(memoryManager,
-						ioManager, availableMemory, comparators, keyPositions, keyClasses, inputs[0], this);
+				input = new AsynchronousPartialSorter<T>(memoryManager, in, this, 
+						this.serializer, this.comparator.duplicate(), availableMemory);
 				break;
 					// obtain and return a grouped iterator from the combining sort-merger
 			default:
@@ -144,11 +139,12 @@ public class CombineTask extends AbstractPactTask<ReduceStub> {
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Preprocessing done, iterator obtained."));
 
-		final KeyGroupedIterator iter = new KeyGroupedIterator(this.input.getIterator(), this.keyPositions, this.keyClasses);
+		final KeyGroupedIterator<T> iter = new KeyGroupedIterator<T>(this.input.getIterator(),
+				this.serializer, this.comparator);
 		
 		// cache references on the stack
-		final ReduceStub stub = this.stub;
-		final Collector output = this.output;
+		final GenericReducer<T, ?> stub = this.stub;
+		final Collector<T> output = this.output;
 		
 		// run stub implementation
 		while (this.running && iter.nextKey())

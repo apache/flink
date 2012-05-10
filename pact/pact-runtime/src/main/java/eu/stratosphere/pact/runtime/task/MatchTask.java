@@ -17,9 +17,14 @@ package eu.stratosphere.pact.runtime.task;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.pact.common.generic.GenericMatcher;
+import eu.stratosphere.pact.common.generic.GenericReducer;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
@@ -38,13 +43,13 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Fabian Hueske
  * @author Stephan Ewen
  */
-public class MatchTask extends AbstractPactTask<MatchStub>
+public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1, IT2, OT>, OT>
 {	
 	// the minimal amount of memory for the task to operate
 	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
 	
 	// the iterator that does the actual matching
-	private MatchTaskIterator matchIterator;
+	private MatchTaskIterator<IT1, IT2, OT> matchIterator;
 	
 	// ------------------------------------------------------------------------
 
@@ -60,8 +65,18 @@ public class MatchTask extends AbstractPactTask<MatchStub>
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
 	@Override
-	public Class<MatchStub> getStubType() {
-		return MatchStub.class;
+	public Class<GenericMatcher<IT1, IT2, OT>> getStubType() {
+		@SuppressWarnings("unchecked")
+		final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class; 
+		return clazz;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
+	 */
+	@Override
+	public boolean requiresComparatorOnInput() {
+		return true;
 	}
 
 	/* (non-Javadoc)
@@ -98,17 +113,15 @@ public class MatchTask extends AbstractPactTask<MatchStub>
 					ls.name() + ": " + availableMemory + " bytes. Required is at least " + strategyMinMem + " bytes.");
 		}
 		
-		// get the key positions and types
-		final int[] keyPositions1 = this.config.getLocalStrategyKeyPositions(0);
-		final int[] keyPositions2 = this.config.getLocalStrategyKeyPositions(1);
-		final Class<? extends Key>[] keyClasses = this.config.getLocalStrategyKeyClasses(this.userCodeClassLoader);
+		final MutableObjectIterator<IT1> in1 = getInput(0);
+		final MutableObjectIterator<IT2> in2 = getInput(1);
 		
-		if (keyPositions1 == null || keyPositions2 == null || keyClasses == null) {
-			throw new Exception("The key positions and types are not specified for the MatchTask.");
-		}
-		if (keyPositions1.length != keyPositions2.length || keyPositions2.length != keyClasses.length) {
-			throw new Exception("The number of key positions and types does not match in the configuration");
-		}
+		// get the key positions and types
+		final TypeSerializer<IT1> serializer1 = getInputSerializer(0);
+		final TypeSerializer<IT2> serializer2 = getInputSerializer(1);
+		final TypeComparator<IT1> comparator1 = getInputComparator(0);
+		final TypeComparator<IT2> comparator2 = getInputComparator(1);
+		
 		
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
@@ -151,9 +164,9 @@ public class MatchTask extends AbstractPactTask<MatchStub>
 	@Override
 	public void run() throws Exception
 	{
-		final MatchStub matchStub = this.stub;
-		final Collector collector = this.output;
-		final MatchTaskIterator matchIterator = this.matchIterator;
+		final GenericMatcher<IT1, IT2, OT> matchStub = this.stub;
+		final Collector<OT> collector = this.output;
+		final MatchTaskIterator<IT1, IT2, OT> matchIterator = this.matchIterator;
 		
 		while (this.running && matchIterator.callWithNextKey(matchStub, collector));
 	}

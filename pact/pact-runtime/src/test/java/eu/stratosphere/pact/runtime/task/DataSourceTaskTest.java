@@ -38,9 +38,8 @@ import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("javadoc")
-public class DataSourceTaskTest extends TaskTestBase {
-	
+public class DataSourceTaskTest extends TaskTestBase
+{
 	private List<PactRecord> outList;
 	
 	private String tempTestPath = System.getProperty("java.io.tmpdir")+"/dst_test";
@@ -69,10 +68,10 @@ public class DataSourceTaskTest extends TaskTestBase {
 			Assert.fail("Unable to set-up test input file");
 		}
 		
-		super.initEnvironment(1);
+		super.initEnvironment(1024 * 1024);
 		super.addOutput(this.outList);
 		
-		DataSourceTask testTask = new DataSourceTask();
+		DataSourceTask<PactRecord> testTask = new DataSourceTask<PactRecord>();
 		
 		super.registerFileInputTask(testTask, MockInputFormat.class, "file://"+this.tempTestPath, "\n");
 		
@@ -125,10 +124,10 @@ public class DataSourceTaskTest extends TaskTestBase {
 			Assert.fail("Unable to set-up test input file");
 		}
 		
-		super.initEnvironment(1);
+		super.initEnvironment(1024 * 1024);
 		super.addOutput(this.outList);
 		
-		DataSourceTask testTask = new DataSourceTask();
+		DataSourceTask<PactRecord> testTask = new DataSourceTask<PactRecord>();
 
 		
 		super.registerFileInputTask(testTask, MockFailingInputFormat.class, "file://"+this.tempTestPath, "\n");
@@ -155,7 +154,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		int keyCnt = 20;
 		int valCnt = 4;
 		
-		super.initEnvironment(1);
+		super.initEnvironment(1024 * 1024);
 		super.addOutput(new NirvanaOutputList());
 		
 		try {
@@ -165,7 +164,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 			Assert.fail("Unable to set-up test input file");
 		}
 		
-		final DataSourceTask testTask = new DataSourceTask();
+		final DataSourceTask<PactRecord> testTask = new DataSourceTask<PactRecord>();
 		
 		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  "file://"+this.tempTestPath, "\n");
 		
@@ -233,7 +232,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		@Override
 		public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
 			
-			String line = new String(record);
+			String line = new String(record, 0, numBytes);
 			
 			try {
 				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));
@@ -290,7 +289,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
 			
 			if(this.cnt == 10) {
-				throw new RuntimeException();
+				throw new RuntimeException("Excpected Test Exception.");
 			}
 			
 			this.cnt++;

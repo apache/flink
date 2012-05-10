@@ -83,7 +83,7 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>,
 	 */
 	@Override
 	public boolean requiresComparatorOnInput() {
-		return false;
+		return true;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>,
 		case SORT:			
 			// instantiate a sort-merger
 			this.input = new UnilateralSortMerger<IT>(memoryManager, ioManager, this.<IT>getInput(0),
-					this, this.serializer, this.comparator, availableMemory, maxFileHandles, spillThreshold);
+					this, this.serializer, this.comparator.duplicate(), availableMemory, maxFileHandles, spillThreshold);
 			break;
 			
 		case COMBININGSORT:

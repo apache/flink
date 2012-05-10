@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.pact.common.generic.GenericCrosser;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
@@ -40,7 +41,7 @@ import eu.stratosphere.pact.runtime.util.LastRepeatableMutableObjectIterator;
  * @author Fabian Hueske
  * @author Matthias Ringwald
  */
-public class CrossTask extends AbstractPactTask<CrossStub>
+public class CrossTask<IT1, IT2, OT> extends AbstractPactTask<GenericCrosser<IT1, IT2, OT>, OT>
 {
 	// the minimal amount of memory for the task to operate
 	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
