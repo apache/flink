@@ -23,7 +23,10 @@ public abstract class SopremoCross extends CrossStub {
 	 */
 	@Override
 	public void open(final Configuration parameters) throws Exception {
-		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
+		// We need to pass our class loader since the default class loader is
+		// not able to resolve classes coming from the Sopremo user jar file.
+		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT,
+				EvaluationContext.class, this.getClass().getClassLoader());
 		this.inputSchema1 = this.context.getInputSchema(0);
 		this.inputSchema2 = this.context.getInputSchema(1);
 		this.collector = new JsonCollector(this.context.getOutputSchema(0));

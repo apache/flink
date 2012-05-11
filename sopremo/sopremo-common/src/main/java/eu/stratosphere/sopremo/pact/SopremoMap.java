@@ -19,6 +19,8 @@ public abstract class SopremoMap extends MapStub {
 
 	@Override
 	public void open(final Configuration parameters) {
+		// We need to pass our class loader since the default class loader is
+		// not able to resolve classes coming from the Sopremo user jar file.
 		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT,
 				EvaluationContext.class, this.getClass().getClassLoader());
 		this.inputSchema = this.context.getInputSchema(0);
