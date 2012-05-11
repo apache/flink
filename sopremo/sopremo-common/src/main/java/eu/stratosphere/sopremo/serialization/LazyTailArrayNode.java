@@ -126,7 +126,7 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	/**
-	 * Returns the arrayNode "others", which is in between the head and the tail.
+	 * Returns the arrayNode "others", which is the first in the PactRecord before the tail starts.
 	 * 
 	 * @return the field "others" of the PactRecord
 	 */
@@ -144,15 +144,13 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 		for (int i = 1; i <= this.schema.getTailSize(); i++) {
 			if (!this.record.isNull(i)) {
 				count++;
-			} else
-				return count;
+			}
 		}
 		return count + others.size();
 	}
 
 	@Override
 	public IArrayNode add(IJsonNode node) {
-		// TODO implement new ArraySchema with tail
 		if (node == null) {
 			throw new NullPointerException();
 		}
@@ -216,18 +214,18 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IJsonNode get(int index) {
-		// TODO implement new ArraySchema with tail
 		int size = this.size();
 		if (index < 0 || index >= size) {
 			return MissingNode.getInstance();
 		}
 
 		if (size <= this.schema.getTailSize()) {
-			return SopremoUtil.unwrap(this.record.getField(this.schema.getTailSize() -size + index + 1, JsonNodeWrapper.class));
-			
+			return SopremoUtil.unwrap(this.record.getField(this.schema.getTailSize() - size + index + 1,
+				JsonNodeWrapper.class));
+
 		} else {
 			return this.getOtherField().get(index);
-			
+
 		}
 	}
 
@@ -296,7 +294,6 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public void clear() {
-		// TODO implement new ArraySchema with tail
 		for (int i = 1; i <= this.schema.getTailSize(); i++) {
 			this.record.setNull(i);
 		}
