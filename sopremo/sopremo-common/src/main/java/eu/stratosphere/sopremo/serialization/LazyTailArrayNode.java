@@ -36,11 +36,13 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 
 		@Override
 		protected IJsonNode loadNext() {
-			if (!LazyTailArrayNode.this.record.isNull(lastIndex) && lastIndex < this.endIndex) {
+			while (lastIndex < this.endIndex) {
 				IJsonNode value = SopremoUtil.unwrap(LazyTailArrayNode.this.record.getField(this.lastIndex,
 					JsonNodeWrapper.class));
 				this.lastIndex++;
-				return value;
+				if (value != null) {
+					return value;
+				}
 			}
 			return noMoreElements();
 
@@ -172,12 +174,16 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 				return this;
 			} else {
 				tmpNode = SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class));
-				this.record.setField(i, SopremoUtil.wrap(oldNode));
+				if (oldNode != null) {
+					this.record.setField(i, SopremoUtil.wrap(oldNode));
+				}
 				oldNode = tmpNode;
 			}
 		}
 
-		this.getOtherField().add(node);
+		if (oldNode != null) {
+			this.getOtherField().add(oldNode);
+		}
 		return this;
 	}
 
