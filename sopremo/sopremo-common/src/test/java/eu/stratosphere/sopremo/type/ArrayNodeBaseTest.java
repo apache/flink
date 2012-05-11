@@ -82,9 +82,12 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 
 	@Test
 	public void shouldReturnTheCorrectNode() {
+		this.node.add(0, TextNode.valueOf("lastname"));
 		this.node.add(0, TextNode.valueOf("firstname"));
 
 		Assert.assertEquals(TextNode.valueOf("firstname"), this.node.get(0));
+		Assert.assertEquals(TextNode.valueOf("lastname"), this.node.get(1));
+
 	}
 
 	@Test

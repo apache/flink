@@ -166,24 +166,28 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 		IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(this.schema.getTailSize(), JsonNodeWrapper.class));
 		IJsonNode tmpNode;
 		// replace with new node
-		this.record.setField(this.schema.getTailSize(), SopremoUtil.wrap(node));
-		// shift every node in tail and replace with oldNode
-		for (int i = this.schema.getTailSize() - 1; i > 0; i--) {
-			if (this.record.isNull(i)) {
-				this.record.setField(i, SopremoUtil.wrap(oldNode));
-				return this;
-			} else {
-				tmpNode = SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class));
-				if (oldNode != null) {
+		if (this.schema.getTailSize() > 0) {
+			this.record.setField(this.schema.getTailSize(), SopremoUtil.wrap(node));
+			// shift every node in tail and replace with oldNode
+			for (int i = this.schema.getTailSize() - 1; i > 0; i--) {
+				if (this.record.isNull(i)) {
 					this.record.setField(i, SopremoUtil.wrap(oldNode));
+					return this;
+				} else {
+					tmpNode = SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class));
+					if (oldNode != null) {
+						this.record.setField(i, SopremoUtil.wrap(oldNode));
+					}
+					oldNode = tmpNode;
 				}
-				oldNode = tmpNode;
 			}
-		}
 
-		if (oldNode != null) {
-			this.getOtherField().add(oldNode);
-		}
+			if (oldNode != null) {
+				this.getOtherField().add(oldNode);
+			}
+
+		} else
+			this.getOtherField().add(node);
 		return this;
 	}
 
@@ -202,17 +206,30 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 			throw new IndexOutOfBoundsException();
 		}
 
-		if (index < this.schema.getTailSize()) {
-			for (int i = this.schema.getTailSize() - 1; i >= index; i--) {
-				if (!this.record.isNull(i)) {
-					if (i == this.schema.getTailSize() - 1) {
-						this.getOtherField().add(0, SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class)));
-					} else {
-						this.record.setField(i + 1, this.record.getField(i, JsonNodeWrapper.class));
+		// similar to adding nodes, insert it at the specific position and shift all elements before to the left
+		int recordPosition = this.schema.getTailSize() - size() + index;
+		if (recordPosition < 0) {
+			this.getOtherField().add(index, element);
+		} else {
+			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(recordPosition + 1, JsonNodeWrapper.class));
+			IJsonNode tmpNode;
+			this.record.setField(recordPosition + 1, SopremoUtil.wrap(element));
+			for (int i = recordPosition + 1; i > 0; i--) {
+				if (this.record.isNull(i)) {
+					this.record.setField(i, SopremoUtil.wrap(oldNode));
+					return this;
+				} else {
+					tmpNode = SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class));
+					if (oldNode != null) {
+						this.record.setField(i, SopremoUtil.wrap(oldNode));
 					}
+					oldNode = tmpNode;
 				}
 			}
-			this.record.setField(index, SopremoUtil.wrap(element));
+
+			if (oldNode != null) {
+				this.getOtherField().add(oldNode);
+			}
 		}
 
 		return this;
@@ -224,9 +241,9 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 		if (index < 0 || index >= size) {
 			return MissingNode.getInstance();
 		}
-
-		if (size <= this.schema.getTailSize()) {
-			return SopremoUtil.unwrap(this.record.getField(this.schema.getTailSize() - size + index + 1,
+		int recordPosition = this.schema.getTailSize() - size + index;
+		if (recordPosition >=0) {
+			return SopremoUtil.unwrap(this.record.getField(recordPosition + 1,
 				JsonNodeWrapper.class));
 
 		} else {
@@ -237,7 +254,6 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IJsonNode set(int index, IJsonNode node) {
-		// TODO implement new ArraySchema with tail
 		if (node == null) {
 			throw new NullPointerException();
 		}
@@ -254,13 +270,13 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 				throw new IndexOutOfBoundsException();
 			}
 		}
-		int pactRecordPosition = this.schema.getTailSize() - size() + index;
-		if (pactRecordPosition < 0) {
+		int recordPosition = this.schema.getTailSize() - size() + index;
+		if (recordPosition < 0) {
 			return this.getOtherField().set(index, node);
 		} else {
-			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(pactRecordPosition + 1,
+			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(recordPosition + 1,
 				JsonNodeWrapper.class));
-			this.record.setField(pactRecordPosition + 1, node);
+			this.record.setField(recordPosition + 1, node);
 			return oldNode;
 		}
 	}
