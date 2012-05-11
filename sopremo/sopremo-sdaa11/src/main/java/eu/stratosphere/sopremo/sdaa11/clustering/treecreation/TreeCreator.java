@@ -22,22 +22,27 @@ import eu.stratosphere.sopremo.Source;
 /**
  * @author skruse
  * 
- * Assembles tree, additionally outputs stripped cluster representations
- * Inputs:<br>
- * <ol>
- * <li>Clusters</li>
- * </ol>
- * Outputs:<br>
- * <ol>
- * <li>Tree</li>
- * <li>Cluster representations</li>
- * </ol>
+ *         Assembles tree, additionally outputs stripped cluster representations
+ *         Inputs:<br>
+ *         <ol>
+ *         <li>Clusters</li>
+ *         </ol>
+ *         Outputs:<br>
+ *         <ol>
+ *         <li>Tree</li>
+ *         <li>Cluster representations</li>
+ *         </ol>
  * 
  */
 @OutputCardinality(min = 2, max = 2)
+// TODO: Check why this does not work
 public class TreeCreator extends CompositeOperator<TreeCreator> {
 
 	private static final long serialVersionUID = 1450138351751038162L;
+
+	public TreeCreator() {
+		super(2);
+	}
 
 	/**
 	 * Specifies the degree of the created tree.
@@ -73,10 +78,10 @@ public class TreeCreator extends CompositeOperator<TreeCreator> {
 		final SopremoModule module = new SopremoModule(this.getName(), 1, 2);
 
 		final Source input = module.getInput(0);
-		
+
 		final ClusterToTreePreparation preparation = new ClusterToTreePreparation()
 				.withInputs(input);
-		
+
 		final TreeAssembler assembler = new TreeAssembler()
 				.withInputs(preparation);
 		assembler.setTreeWidth(this.treeWidth);

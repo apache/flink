@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.PointNodes;
 import eu.stratosphere.sopremo.sdaa11.clustering.util.SortedJaccardDistance;
 import eu.stratosphere.sopremo.sdaa11.util.FastStringComparator;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -26,7 +27,7 @@ public class Point implements Serializable, Cloneable, Comparable<Point>,
 
 	public Point() {
 	}
-	
+
 	public Point(final String key, final String... values) {
 		this(key, Arrays.asList(values));
 	}
@@ -114,12 +115,11 @@ public class Point implements Serializable, Cloneable, Comparable<Point>,
 		else
 			objectNode = (ObjectNode) node;
 
-		objectNode.put("id", new TextNode(this.key));
 		final ArrayNode valuesNode = new ArrayNode();
 		for (final String value : this.values)
 			valuesNode.add(new TextNode(value));
-		objectNode.put("values", valuesNode);
-		objectNode.put("rowsum", new IntNode(this.rowsum));
+		PointNodes.write(objectNode, new TextNode(this.key), valuesNode,
+				new IntNode(this.rowsum));
 
 		return objectNode;
 	}
@@ -129,10 +129,11 @@ public class Point implements Serializable, Cloneable, Comparable<Point>,
 		if (node == null || !(node instanceof ObjectNode))
 			throw new IllegalArgumentException("Illegal point node: " + node);
 		final ObjectNode objectNode = (ObjectNode) node;
-		this.key = ((TextNode) objectNode.get("id")).getJavaValue();
+
+		this.key = PointNodes.getId(objectNode).getJavaValue();
 		this.values = new ArrayList<String>();
-		for (final IJsonNode valuesNode : (ArrayNode) objectNode.get("values"))
+		for (final IJsonNode valuesNode : PointNodes.getValues(objectNode))
 			this.values.add(((TextNode) valuesNode).getJavaValue());
-		this.rowsum = ((IntNode) objectNode.get("rowsum")).getJavaValue();
+		this.rowsum = PointNodes.getRowsum(objectNode).getJavaValue();
 	}
 }

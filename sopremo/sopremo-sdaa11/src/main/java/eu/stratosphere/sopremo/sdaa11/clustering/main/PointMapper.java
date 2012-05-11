@@ -19,6 +19,7 @@ import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.PointNodes;
 import eu.stratosphere.sopremo.sdaa11.clustering.tree.ClusterTree;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -33,13 +34,12 @@ public class PointMapper extends ElementaryOperator<PointMapper> {
 
 	private static final long serialVersionUID = -1539853388756701551L;
 
-	public static final String SCHEMA_CLUSTER_ID = "clusterId";
-	public static final String SCHEMA_POINT = "point";
-
 	public static final int TREE_INPUT_INDEX = 0;
 	public static final int POINT_INPUT_INDEX = 1;
 
 	public static class Implementation extends SopremoCross {
+
+		private final TextNode clusterIdNode = new TextNode();
 
 		/*
 		 * (non-Javadoc)
@@ -50,11 +50,11 @@ public class PointMapper extends ElementaryOperator<PointMapper> {
 		 * eu.stratosphere.sopremo.pact.JsonCollector)
 		 */
 		@Override
-		protected void cross(final IJsonNode pointNode, final IJsonNode treeNode,
-				 final JsonCollector out) {
+		protected void cross(final IJsonNode pointNode,
+				final IJsonNode treeNode, final JsonCollector out) {
 
-			System.out.println("Cross tree "+treeNode);
-			System.out.println("x point "+pointNode);
+			System.out.println("Cross tree " + treeNode);
+			System.out.println("x point " + pointNode);
 			final ClusterTree tree = new ClusterTree();
 			tree.read(treeNode);
 
@@ -62,14 +62,13 @@ public class PointMapper extends ElementaryOperator<PointMapper> {
 			point.read(pointNode);
 
 			final String clusterId = tree.findIdOfClusterNextTo(point);
+			this.clusterIdNode.setValue(clusterId);
 
-			final ObjectNode taggedPoint = new ObjectNode();
-			taggedPoint.put(SCHEMA_CLUSTER_ID, new TextNode(clusterId));
-			taggedPoint.put(SCHEMA_POINT, pointNode.clone());
-			
-			System.out.println(taggedPoint);
+			PointNodes
+					.assignCluster((ObjectNode) pointNode, this.clusterIdNode);
 
-			out.collect(taggedPoint);
+			System.out.println(pointNode);
+			out.collect(pointNode);
 		}
 
 	}

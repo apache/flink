@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.sdaa11.clustering;
+package eu.stratosphere.sopremo.sdaa11.clustering.util;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.Operator;
@@ -22,12 +22,28 @@ import eu.stratosphere.sopremo.SopremoModule;
  * @author skruse
  * 
  */
-public class Clustering extends CompositeOperator<Clustering> {
+public class OutputProjection extends CompositeOperator<OutputProjection> {
 
-	private static final long serialVersionUID = -747074302410053877L;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 7119989985555069850L;
+	private final Operator<?> operator;
+	private final int outputIndex;
 
-	public static final int SAMPLE_INPUT_INDEX = 0;
-	public static final int REST_INPUT_INDEX = 1;
+	protected int getNumInputs() {
+		return 1;
+	}
+
+	/**
+	 * Initializes OutputProjection.
+	 * 
+	 * @param operator
+	 */
+	public OutputProjection(final Operator<?> operator, final int outputIndex) {
+		this.operator = operator;
+		this.outputIndex = outputIndex;
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -36,16 +52,11 @@ public class Clustering extends CompositeOperator<Clustering> {
 	 */
 	@Override
 	public SopremoModule asElementaryOperators() {
-		final SopremoModule module = new SopremoModule(this.getName(), 2, 4);
-
-		final Operator<?> sampleInput = module.getInput(SAMPLE_INPUT_INDEX);
-		final Operator<?> restInput = module.getInput(REST_INPUT_INDEX);
-
-		final SimpleClustering simpleClustering = new SimpleClustering()
-				.withInputs(sampleInput, restInput);
-
-		// TODO PostProcessing
-
+		final SopremoModule module = new SopremoModule(this.operator.getName()
+				+ "_" + this.outputIndex, 1, 1);
+		this.operator.withInputs(module.getInputs());
+		module.getOutput(0).setInput(0,
+				this.operator.getOutput(this.outputIndex));
 		return module;
 	}
 

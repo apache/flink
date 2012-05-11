@@ -19,7 +19,8 @@ import java.util.Arrays;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
-import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.ClusterNodes;
+import eu.stratosphere.sopremo.sdaa11.clustering.util.OutputProjection;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -33,11 +34,19 @@ import eu.stratosphere.sopremo.type.TextNode;
 public class TreeCreatorTest {
 
 	@Test
-	public void testPreparation() {
+	public void testTreeOutput() {
+		this.testOutput(0);
+	}
 
-		final TreeCreator treeCreator = new TreeCreator();
+	@Test
+	public void testRepresentationOutput() {
+		this.testOutput(1);
+	}
 
-		final SopremoTestPlan plan = new SopremoTestPlan(treeCreator);
+	public void testOutput(final int outputIndex) {
+
+		final SopremoTestPlan plan = new SopremoTestPlan(new OutputProjection(
+				new TreeCreator(), outputIndex));
 
 		final IJsonNode p1 = new Point("p1", Arrays.asList("1", "2", "3"))
 				.write((IJsonNode) null);
@@ -52,14 +61,12 @@ public class TreeCreatorTest {
 		final ArrayNode points2 = new ArrayNode(p3, p4);
 
 		final ObjectNode clusterNode1 = new ObjectNode();
-		clusterNode1.put("id", new TextNode("c1"));
-		clusterNode1.put("clustroid", p1);
-		clusterNode1.put("points", points1);
+		ClusterNodes.write(clusterNode1, new TextNode("c1"), (ObjectNode) p1,
+				points1);
 
 		final ObjectNode clusterNode2 = new ObjectNode();
-		clusterNode2.put("id", new TextNode("c2"));
-		clusterNode2.put("clustroid", p3);
-		clusterNode2.put("points", points2);
+		ClusterNodes.write(clusterNode2, new TextNode("c2"), (ObjectNode) p2,
+				points2);
 
 		plan.getInput(0).add(clusterNode1).add(clusterNode2);
 

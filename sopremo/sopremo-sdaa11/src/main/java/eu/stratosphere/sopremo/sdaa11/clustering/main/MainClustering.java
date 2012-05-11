@@ -49,6 +49,10 @@ public class MainClustering extends CompositeOperator<MainClustering> {
 	 */
 	private static final long serialVersionUID = -7712289910767829747L;
 
+	public MainClustering() {
+		super(2);
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -76,8 +80,8 @@ public class MainClustering extends CompositeOperator<MainClustering> {
 		final RepresentationUpdate representationUpdate = new RepresentationUpdate()
 				.withInputs(representationInput, pointUnionAll);
 
-		module.getOutput(0).setInput(0, pointUnionAll);
-		module.getOutput(1).setInput(0, representationUpdate);
+		module.getOutput(0).setInputs(pointUnionAll);
+		module.getOutput(1).setInputs(representationUpdate);
 
 		return module;
 	}

@@ -20,28 +20,38 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 
 /**
  * Convenience class for annotator nodes. <br>
- * Structure: {"annotation":int; "annotatee":obj}
+ * Structure: {"key":int; "value":obj}
  * 
  * @author skruse
- *
+ * 
  */
 public class AnnotatorNodes {
-	
+
 	public static final String ANNOTATEE = "value";
 	public static final String ANNOTATION = "key";
+	public static final String FLAT_ANNOTATION = "__key__";
 
-	public static void annotate(ObjectNode node, IntNode annotation, IJsonNode annotatee) {
+	public static void annotate(final ObjectNode node,
+			final IntNode annotation, final IJsonNode annotatee) {
 		node.put(ANNOTATION, annotation);
 		node.put(ANNOTATEE, annotatee);
 	}
-	
-	public static IntNode getAnnotation(ObjectNode annotatorNode) {
+
+	public static IntNode getAnnotation(final ObjectNode annotatorNode) {
 		return (IntNode) annotatorNode.get(ANNOTATION);
 	}
-	
-	public static IJsonNode getAnnotatee(ObjectNode annotatorNode) {
+
+	public static IJsonNode getAnnotatee(final ObjectNode annotatorNode) {
 		return annotatorNode.get(ANNOTATEE);
 	}
-	
+
+	public static void flatAnnotate(final ObjectNode node,
+			final IntNode annotation) {
+		node.put(FLAT_ANNOTATION, annotation);
+	}
+
+	public static IntNode getFlatAnnotation(final ObjectNode node) {
+		return (IntNode) node.get(FLAT_ANNOTATION);
+	}
 
 }

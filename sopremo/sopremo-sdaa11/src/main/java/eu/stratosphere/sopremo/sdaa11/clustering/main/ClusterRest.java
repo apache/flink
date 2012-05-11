@@ -44,17 +44,16 @@ public class ClusterRest extends CompositeOperator<ClusterRest> {
 
 		final Source sampleClusterInput = module
 				.getInput(SAMPLE_CLUSTERS_INPUT_INDEX);
-		final Source restPointsInput = module
-				.getInput(REST_POINTS_INPUT_INDEX);
+		final Source restPointsInput = module.getInput(REST_POINTS_INPUT_INDEX);
 		final Source treeInput = module.getInput(TREE_INPUT_INDEX);
 
 		final ClusterDisassemble disassembleClusters = new ClusterDisassemble()
 				.withInputs(sampleClusterInput.getOutput(0));
-		
+
 		final PointMapper pointMapper = new PointMapper();
 		pointMapper.setInput(PointMapper.TREE_INPUT_INDEX, treeInput);
 		pointMapper.setInput(PointMapper.POINT_INPUT_INDEX, restPointsInput);
-		
+
 		final UnionAll unionAll = new UnionAll().withInputs(
 				disassembleClusters.getOutput(0), pointMapper.getOutput(0));
 

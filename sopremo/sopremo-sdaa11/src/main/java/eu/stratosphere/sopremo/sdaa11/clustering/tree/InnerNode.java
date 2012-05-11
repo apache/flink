@@ -300,17 +300,17 @@ public class InnerNode extends AbstractNode {
 	@Override
 	public void read(final IJsonNode node) {
 		this.representative = new Point();
-		this.representative.read(JsonUtil2.getField(node, JSON_KEY_REPRESENTATIVE,
-				ObjectNode.class));
+		this.representative.read(JsonUtil2.getField(node,
+				JSON_KEY_REPRESENTATIVE, ObjectNode.class));
 		int i = 0;
-		for (final IJsonNode member : JsonUtil2.getField(node, JSON_KEY_CHILDREN,
-				IArrayNode.class))
+		for (final IJsonNode member : JsonUtil2.getField(node,
+				JSON_KEY_CHILDREN, IArrayNode.class))
 			this.entries[i++] = this.readEntry(member);
 	}
 
 	private Entry readEntry(final IJsonNode node) {
-		final int rowsum = JsonUtil2.getField(node, JSON_KEY_ROWSUM, IntNode.class)
-				.getIntValue();
+		final int rowsum = JsonUtil2.getField(node, JSON_KEY_ROWSUM,
+				IntNode.class).getIntValue();
 		INode subnode;
 		if (JsonUtil2.getField(node, JSON_KEY_HAS_LEAF, BooleanNode.class)
 				.getBooleanValue())
@@ -331,7 +331,8 @@ public class InnerNode extends AbstractNode {
 	@Override
 	public IJsonNode write(final IJsonNode node) {
 		final ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
-		objectNode.put(JSON_KEY_REPRESENTATIVE, this.representative.write(null));
+		objectNode
+				.put(JSON_KEY_REPRESENTATIVE, this.representative.write(null));
 		objectNode.put(JSON_KEY_CHILDREN, this.writeEntries());
 		return objectNode;
 	}

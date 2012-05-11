@@ -16,7 +16,7 @@ import eu.stratosphere.sopremo.sdaa11.Annotator;
  * </ol>
  * 
  * @author skruse
- *
+ * 
  */
 public class InitialClustering extends CompositeOperator<InitialClustering> {
 

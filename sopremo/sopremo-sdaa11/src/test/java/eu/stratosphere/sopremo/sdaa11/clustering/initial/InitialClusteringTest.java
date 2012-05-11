@@ -5,7 +5,6 @@ import java.util.Arrays;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
-import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;

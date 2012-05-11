@@ -17,10 +17,11 @@ package eu.stratosphere.sopremo.sdaa11.clustering.main;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.sdaa11.clustering.initial.SequentialClustering;
-import eu.stratosphere.sopremo.sdaa11.util.JsonUtil2;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.ClusterNodes;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.PointNodes;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -50,18 +51,17 @@ public class ClusterDisassemble extends ElementaryOperator<ClusterDisassemble> {
 		 * .type.IJsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
 		 */
 		@Override
-		protected void map(final IJsonNode clusterNode, final JsonCollector out) {
-			
-			System.out.println("Disassembling "+clusterNode);
-			
-			final TextNode idNode = JsonUtil2.getField(clusterNode,
-					SequentialClustering.SCHEMA_ID, TextNode.class);
-			final IArrayNode pointsNode = JsonUtil2.getField(clusterNode,
-					SequentialClustering.SCHEMA_POINTS, IArrayNode.class);
+		protected void map(final IJsonNode node, final JsonCollector out) {
 
-			this.outputNode.put(PointMapper.SCHEMA_CLUSTER_ID, idNode);
+			System.out.println("Disassembling " + node);
+			final ObjectNode clusterNode = (ObjectNode) node;
+
+			final TextNode idNode = ClusterNodes.getId(clusterNode);
+			final IArrayNode pointsNode = ClusterNodes.getPoints(clusterNode);
+
 			for (final IJsonNode pointNode : pointsNode) {
-				this.outputNode.put(PointMapper.SCHEMA_POINT, pointNode);
+				this.outputNode.putAll((IObjectNode) pointNode);
+				PointNodes.assignCluster(this.outputNode, idNode);
 				out.collect(this.outputNode);
 			}
 

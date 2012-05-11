@@ -33,27 +33,28 @@ public class Ranking<T> implements Iterable<T> {
 			throw new IllegalArgumentException("Capacity must be >= 2");
 		this.capacity = capacity;
 	}
-	
-	protected boolean isHigher(int rank1, int rank2) {
+
+	protected boolean isHigher(final int rank1, final int rank2) {
 		return rank1 < rank2;
 	}
-	
-	public Item<T> insert(Item<T> item) {
-		return insert(item.content, item.rank);
+
+	public Item<T> insert(final Item<T> item) {
+		return this.insert(item.content, item.rank);
 	}
 
 	public Item<T> insert(final T content, final int rank) {
 		this.size++;
 		if (this.size == 1)
 			this.head = this.tail = new Item<T>(content, rank);
-		else if (isHigher(rank, head.rank)) {
+		else if (this.isHigher(rank, this.head.rank)) {
 			final Item<T> newHead = new Item<T>(content, rank);
 			newHead.linkTo(this.head);
 			this.head = newHead;
 
 		} else {
 			Item<T> current = this.head;
-			while (current.next != null && isHigher(current.next.rank, rank))
+			while (current.next != null
+					&& this.isHigher(current.next.rank, rank))
 				current = current.next;
 			final Item<T> newElement = new Item<T>(content, rank);
 			final Item<T> follower = current.next;
@@ -71,9 +72,8 @@ public class Ranking<T> implements Iterable<T> {
 			this.tail = this.head = null;
 		else if (this.tail != null) {
 			this.tail = this.tail.prev;
-			if (tail != null) {
-				tail.next = null;
-			}
+			if (this.tail != null)
+				this.tail.next = null;
 		}
 		this.size--;
 		return oldTail;
@@ -95,7 +95,7 @@ public class Ranking<T> implements Iterable<T> {
 	}
 
 	public Object[] toArray() {
-		final Object[] array = new Object[size];
+		final Object[] array = new Object[this.size];
 		int index = 0;
 		for (Item<T> elem = this.head; elem != null; elem = elem.next, index++)
 			array[index] = elem.content;
@@ -103,13 +103,12 @@ public class Ranking<T> implements Iterable<T> {
 	}
 
 	public List<T> toList() {
-		List<T> list = new ArrayList<T>(size);
-		for (T member : this) {
+		final List<T> list = new ArrayList<T>(this.size);
+		for (final T member : this)
 			list.add(member);
-		}
 		return list;
 	}
-	
+
 	/*
 	 * (non-Javadoc)
 	 * 

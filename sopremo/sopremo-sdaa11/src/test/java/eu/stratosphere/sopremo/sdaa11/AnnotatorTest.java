@@ -31,7 +31,8 @@ public class AnnotatorTest {
 
 	private IJsonNode createAnnotatedValue(final IJsonNode annotatee) {
 		final ObjectNode annotatedValue = new ObjectNode();
-		AnnotatorNodes.annotate(annotatedValue, Annotator.ANNOTATION_VALUE, annotatee);
+		AnnotatorNodes.annotate(annotatedValue, Annotator.ANNOTATION_VALUE,
+				annotatee);
 		return annotatedValue;
 	}
 

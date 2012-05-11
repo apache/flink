@@ -11,7 +11,9 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.ClusterQueue.ClusterPair;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.ClusterNodes;
 import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
+import eu.stratosphere.sopremo.sdaa11.util.JsonUtil2;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -22,12 +24,6 @@ public class SequentialClustering extends
 		ElementaryOperator<SequentialClustering> {
 
 	private static final long serialVersionUID = 5563265035325926095L;
-
-	public static final String SCHEMA_ID = "id";
-
-	public static final String SCHEMA_POINTS = "points";
-
-	public static final String SCHEMA_CLUSTROID = "clustroid";
 
 	/** The maximum radius of a cluster. */
 	private int maxRadius;
@@ -65,11 +61,16 @@ public class SequentialClustering extends
 		private final List<HierarchicalCluster> clusters = new ArrayList<HierarchicalCluster>();
 		private int idCounter = 0;
 
+		private final ObjectNode outputNode = new ObjectNode();
+		private final TextNode idNode = new TextNode();
+		private final IArrayNode pointsNode = new ArrayNode();
+		private final ObjectNode clustroidNode = new ObjectNode();
+
 		@Override
 		protected void reduce(final IArrayNode values, final JsonCollector out) {
-			
-			System.out.println("Sequential clustering: "+values);
-			
+
+			System.out.println("Sequential clustering: " + values);
+
 			this.addPoints(values);
 			this.cluster();
 			this.emitClusters(out);
@@ -130,17 +131,14 @@ public class SequentialClustering extends
 		private void emit(final HierarchicalCluster cluster,
 				final JsonCollector out) {
 			if (cluster.isFinal()) {
-				final ArrayNode pointsNode = new ArrayNode();
+				this.pointsNode.clear();
 				for (final Point point : cluster.getPoints())
-					pointsNode.add(point.write((IJsonNode) null));
-
-				final ObjectNode clusterNode = new ObjectNode();
-				clusterNode.put(SCHEMA_ID, new TextNode(cluster.getId()));
-				clusterNode.put(SCHEMA_CLUSTROID,
-						cluster.getClustroid().write((IJsonNode) null));
-				clusterNode.put(SCHEMA_POINTS, pointsNode);
-
-				out.collect(clusterNode);
+					this.pointsNode.add(point.write((IJsonNode) null));
+				this.idNode.setValue(cluster.getId());
+				JsonUtil2.copy(this.pointsNode, cluster.getPoints());
+				ClusterNodes.write(this.outputNode, this.idNode,
+						this.clustroidNode, this.pointsNode);
+				out.collect(this.outputNode);
 			} else
 				for (final HierarchicalCluster child : cluster.getChildren())
 					this.emit(child, out);

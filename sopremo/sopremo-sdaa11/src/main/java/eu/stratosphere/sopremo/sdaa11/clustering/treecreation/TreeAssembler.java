@@ -22,12 +22,12 @@ import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.RepresentationNodes;
 import eu.stratosphere.sopremo.sdaa11.clustering.tree.ClusterTree;
+import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
@@ -36,10 +36,6 @@ import eu.stratosphere.sopremo.type.TextNode;
 public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 
 	private static final long serialVersionUID = -1439186245691893155L;
-
-	public static final IntNode DUMMY_NODE = new IntNode(0);
-
-	public static final String DUMMY_KEY = "dummy";
 
 	public static final int DEFAULT_TREE_WIDTH = 10;
 
@@ -75,7 +71,7 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 	 */
 	@Override
 	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		return Arrays.asList(new ObjectAccess(DUMMY_KEY));
+		return Arrays.asList(new ObjectAccess(AnnotatorNodes.FLAT_ANNOTATION));
 	}
 
 	public static class Implementation extends SopremoReduce {
@@ -94,17 +90,18 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 		 */
 		@Override
 		protected void reduce(final IArrayNode values, final JsonCollector out) {
-			
-			System.out.println("Assembling tree from: "+values);
-			
+
+			System.out.println("Assembling tree from: " + values);
+
 			final ClusterTree tree = new ClusterTree(this.treeWidth);
 
 			for (final IJsonNode value : values) {
-				final ObjectNode clusterDescriptorNode = (ObjectNode) value;
-				final String clusterName = ((TextNode) clusterDescriptorNode
-						.get("id")).getJavaValue();
+				final ObjectNode representationNode = (ObjectNode) value;
+				final String clusterName = RepresentationNodes.getId(
+						representationNode).getJavaValue();
 				final Point clustroid = new Point();
-				clustroid.read(clusterDescriptorNode.get("clustroid"));
+				clustroid.read(RepresentationNodes
+						.getClustroid(representationNode));
 				tree.add(clustroid, clusterName);
 			}
 

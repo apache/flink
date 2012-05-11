@@ -141,7 +141,8 @@ public class ClusterTree implements Serializable, JsonSerializable {
 		this.degree = JsonUtil2.getField(node, JSON_KEY_DEGREE, IntNode.class)
 				.getIntValue();
 		this.root = this.createInnerNode();
-		this.root.read(JsonUtil2.getField(node, JSON_KEY_ROOT, ObjectNode.class));
+		this.root.read(JsonUtil2
+				.getField(node, JSON_KEY_ROOT, ObjectNode.class));
 	}
 
 }

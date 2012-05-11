@@ -15,15 +15,18 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.main;
 
 import java.util.Arrays;
-import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.PointNodes;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.RepresentationNodes;
 import eu.stratosphere.sopremo.sdaa11.util.JsonUtil2;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -42,22 +45,15 @@ public class RepresentationUpdate extends
 	/**
 	 * 
 	 */
-	private static final List<ObjectAccess> KEY_EXPRESSIONS = 
-			Arrays.asList(new ObjectAccess("id"), new ObjectAccess("cluster"));
-
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = -5470882666744483986L;
 
 	private int representationCount = 10;
-	
+
 	private int maxRadius = 500;
-	
+
 	private int maxClustroidShift = 200;
-	
+
 	private int minPointsForSplitting = 21;
-	
 
 	/**
 	 * Returns the minPointsForSplitting.
@@ -65,15 +61,16 @@ public class RepresentationUpdate extends
 	 * @return the minPointsForSplitting
 	 */
 	public int getMinPointsForSplitting() {
-		return minPointsForSplitting;
+		return this.minPointsForSplitting;
 	}
 
 	/**
 	 * Sets the minPointsForSplitting to the specified value.
-	 *
-	 * @param minPointsForSplitting the minPointsForSplitting to set
+	 * 
+	 * @param minPointsForSplitting
+	 *            the minPointsForSplitting to set
 	 */
-	public void setMinPointsForSplitting(int minPointsForSplitting) {
+	public void setMinPointsForSplitting(final int minPointsForSplitting) {
 		this.minPointsForSplitting = minPointsForSplitting;
 	}
 
@@ -83,15 +80,16 @@ public class RepresentationUpdate extends
 	 * @return the maxDiameter
 	 */
 	public int getMaxRadius() {
-		return maxRadius;
+		return this.maxRadius;
 	}
 
 	/**
 	 * Sets the maxDiameter to the specified value.
-	 *
-	 * @param maxDiameter the maxDiameter to set
+	 * 
+	 * @param maxDiameter
+	 *            the maxDiameter to set
 	 */
-	public void setMaxRadius(int maxDiameter) {
+	public void setMaxRadius(final int maxDiameter) {
 		this.maxRadius = maxDiameter;
 	}
 
@@ -101,24 +99,26 @@ public class RepresentationUpdate extends
 	 * @return the maxClustroidShift
 	 */
 	public int getMaxClustroidShift() {
-		return maxClustroidShift;
+		return this.maxClustroidShift;
 	}
 
 	/**
 	 * Sets the maxClustroidShift to the specified value.
-	 *
-	 * @param maxClustroidShift the maxClustroidShift to set
+	 * 
+	 * @param maxClustroidShift
+	 *            the maxClustroidShift to set
 	 */
-	public void setMaxClustroidShift(int maxClustroidShift) {
+	public void setMaxClustroidShift(final int maxClustroidShift) {
 		this.maxClustroidShift = maxClustroidShift;
 	}
 
 	/**
 	 * Sets the representationCount to the specified value.
-	 *
-	 * @param representationCount the representationCount to set
+	 * 
+	 * @param representationCount
+	 *            the representationCount to set
 	 */
-	public void setRepresentationCount(int representationCount) {
+	public void setRepresentationCount(final int representationCount) {
 		this.representationCount = representationCount;
 	}
 
@@ -130,33 +130,39 @@ public class RepresentationUpdate extends
 	public int getRepresentationCount() {
 		return this.representationCount;
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
 	 */
 	@Override
 	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		System.out.println("Asked for key expression");
-		return KEY_EXPRESSIONS;
+		// return ALL_KEYS;
+		return Arrays
+				.asList(new PathExpression(new InputSelection(0),
+						new ObjectAccess(RepresentationNodes.ID)),
+						new PathExpression(new InputSelection(1),
+								new ObjectAccess(PointNodes.CLUSTER_ID)));
 	}
 
 	public static class Implementation extends SopremoCoGroup {
 
-		private int representationCount = 10;
-		
-		private int maxRadius = 500;
-		
-		private int maxClustroidShift = 200;
-		
-		private int minPointsForSplitting = 21;
+		private final int representationCount = 10;
+
+		private final int maxRadius = 500;
+
+		private final int maxClustroidShift = 200;
+
+		private final int minPointsForSplitting = 21;
 
 		private final ObjectNode outputNode = new ObjectNode();
-		
+
 		private final TextNode idNode = new TextNode();
-		private ObjectNode pointNode = new ObjectNode();
+		private final ObjectNode pointNode = new ObjectNode();
 		private final IntNode flagNode = new IntNode();
 		private final TextNode oldIdNode = new TextNode();
-		
+
 		/*
 		 * (non-Javadoc)
 		 * 
@@ -168,98 +174,106 @@ public class RepresentationUpdate extends
 		@Override
 		protected void coGroup(final IArrayNode representationsNode,
 				final IArrayNode pointsNode, final JsonCollector out) {
-			
+
 			if (representationsNode.size() != 1)
 				throw new IllegalStateException(
 						"Unexpected number of representations: "
 								+ representationsNode.size());
 			final ObjectNode representationNode = (ObjectNode) representationsNode
 					.get(0);
-			
-			String id = JsonUtil2.getField(representationNode, "id", TextNode.class).getJavaValue();
-			Point oldClustroid = new Point();
+
+			final String id = JsonUtil2.getField(representationNode, "id",
+					TextNode.class).getJavaValue();
+			final Point oldClustroid = new Point();
 			oldClustroid.read(representationNode.get("clustroid"));
-			
-			// TODO: Evaluate whether starting with an empty representation yields better results
-			ClusterRepresentation representation = 
-					new ClusterRepresentation(id, oldClustroid, representationCount);
+
+			// TODO: Evaluate whether starting with an empty representation
+			// yields better results
+			final ClusterRepresentation representation = new ClusterRepresentation(
+					id, oldClustroid, this.representationCount);
 
 			for (final IJsonNode memberNode : pointsNode) {
 				final Point point = new Point();
 				point.read(memberNode);
 				representation.add(point);
 			}
-			
-			emitRepresentation(representation, oldClustroid, out);
+
+			this.emitRepresentation(representation, oldClustroid, out);
 
 		}
 
-		private void emitRepresentation(ClusterRepresentation representation, Point oldClustroid, JsonCollector out) {
-			if (shallSplit(representation)) {
-				emitSplitRepresentations(representation, out);
-			} else if (shallRecluster(representation, oldClustroid)) {
-				emitUnstableRepresentation(representation, out);
-			} else {
-				emitStableRepresentation(representation, out);
-			}
+		private void emitRepresentation(
+				final ClusterRepresentation representation,
+				final Point oldClustroid, final JsonCollector out) {
+			if (this.shallSplit(representation))
+				this.emitSplitRepresentations(representation, out);
+			else if (this.shallRecluster(representation, oldClustroid))
+				this.emitUnstableRepresentation(representation, out);
+			else
+				this.emitStableRepresentation(representation, out);
 		}
 
-
-		private boolean shallSplit(ClusterRepresentation representation) {
-			return representation.size() >= minPointsForSplitting
-						&& representation.getRadius() >= maxRadius;
+		private boolean shallSplit(final ClusterRepresentation representation) {
+			return representation.size() >= this.minPointsForSplitting
+					&& representation.getRadius() >= this.maxRadius;
 		}
-		
-		private void emitSplitRepresentations(ClusterRepresentation representation, JsonCollector out) {
+
+		private void emitSplitRepresentations(
+				final ClusterRepresentation representation,
+				final JsonCollector out) {
 			// TODO: Splitting might work in the future in-place
-			String oldID = representation.getId();
-			Point[] newClustroids = representation.findSplittingClustroids();
-			
-			emit(oldID+"a", newClustroids[0], ClusterRepresentation.SPLIT_FLAG, oldID, out);
-			emit(oldID+"b", newClustroids[1], ClusterRepresentation.SPLIT_FLAG, oldID, out);
+			final String oldID = representation.getId();
+			final Point[] newClustroids = representation
+					.findSplittingClustroids();
+
+			this.emit(oldID + "a", newClustroids[0],
+					ClusterRepresentation.SPLIT_FLAG, oldID, out);
+			this.emit(oldID + "b", newClustroids[1],
+					ClusterRepresentation.SPLIT_FLAG, oldID, out);
 		}
 
-		private boolean shallRecluster(ClusterRepresentation representation, Point oldClustroid) {
-			return oldClustroid.getDistance(representation.getClustroid()) >= maxClustroidShift;
+		private boolean shallRecluster(
+				final ClusterRepresentation representation,
+				final Point oldClustroid) {
+			return oldClustroid.getDistance(representation.getClustroid()) >= this.maxClustroidShift;
 		}
 
-		private void emitUnstableRepresentation(ClusterRepresentation representation, JsonCollector out) {
-			emit(
-					representation.getId(), 
-					representation.getClustroid(), 
-					ClusterRepresentation.RECLUSTER_FLAG, 
-					representation.getId(),
+		private void emitUnstableRepresentation(
+				final ClusterRepresentation representation,
+				final JsonCollector out) {
+			this.emit(representation.getId(), representation.getClustroid(),
+					ClusterRepresentation.RECLUSTER_FLAG,
+					representation.getId(), out);
+		}
+
+		private void emitStableRepresentation(
+				final ClusterRepresentation representation,
+				final JsonCollector out) {
+			this.emit(representation.getId(), representation.getClustroid(),
+					ClusterRepresentation.STABLE_FLAG, representation.getId(),
 					out);
 		}
 
-		private void emitStableRepresentation(ClusterRepresentation representation, JsonCollector out) {
-			emit(
-					representation.getId(), 
-					representation.getClustroid(), 
-					ClusterRepresentation.STABLE_FLAG, 
-					representation.getId(),
-					out);		
-		}
+		private void emit(final String id, final Point clustroid,
+				final int flag, final String oldId,
+				final JsonCollector collector) {
+			this.outputNode.clear();
 
-		private void emit(String id, Point clustroid, int flag, String oldId, JsonCollector collector) {
-			outputNode.clear();
+			if (clustroid == null)
+				throw new IllegalArgumentException("Clustroid null in " + id);
 
-			if (clustroid == null) {
-				throw new IllegalArgumentException("Clustroid null in "+id);
-			}
-			
-			idNode.setValue(id);
-			outputNode.put("id", idNode);
+			this.idNode.setValue(id);
+			this.outputNode.put("id", this.idNode);
 
-			outputNode.put("clustroid", clustroid.write(pointNode));
+			this.outputNode.put("clustroid", clustroid.write(this.pointNode));
 
-			flagNode.setValue(flag);
-			outputNode.put("flag", flagNode);
+			this.flagNode.setValue(flag);
+			this.outputNode.put("flag", this.flagNode);
 
-			oldIdNode.setValue(oldId);
-			outputNode.put("oldId", oldIdNode);
-			
-			collector.collect(outputNode);
+			this.oldIdNode.setValue(oldId);
+			this.outputNode.put("oldId", this.oldIdNode);
+
+			collector.collect(this.outputNode);
 		}
 	}
 

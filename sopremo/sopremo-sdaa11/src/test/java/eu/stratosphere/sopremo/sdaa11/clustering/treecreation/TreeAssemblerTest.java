@@ -19,8 +19,11 @@ import java.util.Arrays;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.RepresentationNodes;
+import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -37,32 +40,31 @@ public class TreeAssemblerTest {
 
 		final SopremoTestPlan plan = new SopremoTestPlan(assembler);
 
-		final IJsonNode point1 = new Point("p1", Arrays.asList("1", "2", "3"))
-				.write((IJsonNode) null);
-		final IJsonNode point2 = new Point("p3", Arrays.asList("1", "2", "3"))
-				.write((IJsonNode) null);
+		final ObjectNode point1 = (ObjectNode) new Point("p1", Arrays.asList(
+				"1", "2", "3")).write(null);
+		final ObjectNode point2 = (ObjectNode) new Point("p3", Arrays.asList(
+				"1", "2", "3")).write(null);
+
+		final IntNode dummyKey = new IntNode(42);
 
 		final ObjectNode cluster1 = new ObjectNode();
-		cluster1.put(TreeAssembler.DUMMY_KEY, TreeAssembler.DUMMY_NODE);
-		cluster1.put("id", new TextNode("c1"));
-		cluster1.put("clustroid", point1);
+		RepresentationNodes.write(cluster1, new TextNode("c1"), point1);
+		AnnotatorNodes.flatAnnotate(cluster1, dummyKey);
 
 		final ObjectNode cluster2 = new ObjectNode();
-		cluster2.put(TreeAssembler.DUMMY_KEY, TreeAssembler.DUMMY_NODE);
-		cluster2.put("id", new TextNode("c2"));
-		cluster2.put("clustroid", point2);
+		RepresentationNodes.write(cluster2, new TextNode("c2"), point2);
+		AnnotatorNodes.flatAnnotate(cluster2, dummyKey);
 
 		plan.getInput(0).add(cluster1).add(cluster2);
 
 		plan.run();
 
-		for (final IJsonNode node : plan.getActualOutput(0)) {
+		for (final IJsonNode node : plan.getActualOutput(0))
 			System.out.println(node);
-//			final Object tree = SopremoUtil
-//					.stringToObject(((TextNode) ((ObjectNode) node).get("tree"))
-//							.getJavaValue());
-//			System.out.println(tree);
-		}
+		// final Object tree = SopremoUtil
+		// .stringToObject(((TextNode) ((ObjectNode) node).get("tree"))
+		// .getJavaValue());
+		// System.out.println(tree);
 
 	}
 

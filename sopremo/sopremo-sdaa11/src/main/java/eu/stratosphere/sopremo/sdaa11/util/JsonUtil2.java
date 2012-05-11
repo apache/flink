@@ -45,19 +45,33 @@ public class JsonUtil2 {
 	public static IJsonNode getField(final IJsonNode node, final String field) {
 		return ((ObjectNode) node).get(field);
 	}
-	
-	public static void copyStrings(IArrayNode array, Iterable<String> values) {
+
+	public static void copyStrings(final IArrayNode array,
+			final Iterable<String> values) {
 		array.clear();
-		for (String value : values) {
+		for (final String value : values)
 			array.add(new TextNode(value));
-		}
 	}
-	
-	public static void copy(IArrayNode array, Iterable<JsonSerializable> values) {
+
+	public static void copyStrings(final IArrayNode array,
+			final String... values) {
 		array.clear();
-		for (JsonSerializable value : values) {
+		for (final String value : values)
+			array.add(new TextNode(value));
+	}
+
+	public static void copy(final IArrayNode array,
+			final Iterable<JsonSerializable> values) {
+		array.clear();
+		for (final JsonSerializable value : values)
 			array.add(value.write(null));
-		}
+	}
+
+	public static void copy(final IArrayNode array,
+			final JsonSerializable... values) {
+		array.clear();
+		for (final JsonSerializable value : values)
+			array.add(value.write(null));
 	}
 
 }

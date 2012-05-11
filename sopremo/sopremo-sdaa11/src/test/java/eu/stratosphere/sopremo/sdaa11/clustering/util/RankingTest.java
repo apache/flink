@@ -21,56 +21,56 @@ import eu.stratosphere.sopremo.sdaa11.util.Ranking;
 
 /**
  * @author skruse
- *
+ * 
  */
 public class RankingTest {
-	
+
 	@Test
 	public void testEmptyRanking() {
-		Ranking<?> ranking = new Ranking<Object>(5);
+		final Ranking<?> ranking = new Ranking<Object>(5);
 		Assert.assertEquals(0, ranking.toArray().length);
 	}
-	
+
 	@Test
 	public void testClear() {
-		Ranking<String> ranking = new Ranking<String>(5);
+		final Ranking<String> ranking = new Ranking<String>(5);
 		ranking.insert("a", 1);
 		ranking.insert("b", 2);
 		ranking.insert("c", 0);
 		ranking.clear();
 		Assert.assertEquals(0, ranking.toArray().length);
 	}
-	
+
 	@Test
 	public void testUnderfulRanking() {
-		Ranking<String> ranking = new Ranking<String>(5);
+		final Ranking<String> ranking = new Ranking<String>(5);
 		Assert.assertNull(ranking.insert("a", 1));
 		Assert.assertNull(ranking.insert("b", 2));
 		Assert.assertNull(ranking.insert("c", 0));
-		String[] expected = {"c", "a", "b"};
+		final String[] expected = { "c", "a", "b" };
 		Assert.assertArrayEquals(expected, ranking.toArray());
 	}
-	
+
 	@Test
 	public void testExactlyRanking() {
-		Ranking<String> ranking = new Ranking<String>(3);
+		final Ranking<String> ranking = new Ranking<String>(3);
 		Assert.assertNull(ranking.insert("a", 1));
 		Assert.assertNull(ranking.insert("b", 2));
 		Assert.assertNull(ranking.insert("c", 0));
-		String[] expected = {"c", "a", "b"};
+		final String[] expected = { "c", "a", "b" };
 		Assert.assertArrayEquals(expected, ranking.toArray());
 	}
-	
+
 	@Test
 	public void testOverfulRanking() {
-		Ranking<String> ranking = new Ranking<String>(3);
+		final Ranking<String> ranking = new Ranking<String>(3);
 		Assert.assertNull(ranking.insert("a", 1));
 		Assert.assertNull(ranking.insert("e", -1));
 		Assert.assertNull(ranking.insert("b", 2));
 		Assert.assertEquals("b", ranking.insert("c", 0).getContent());
 		Assert.assertEquals("g", ranking.insert("g", 5).getContent());
 		Assert.assertEquals("a", ranking.insert("f", -2).getContent());
-		String[] expected = {"f", "e", "c"};
+		final String[] expected = { "f", "e", "c" };
 		Assert.assertArrayEquals(expected, ranking.toArray());
 	}
 

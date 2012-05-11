@@ -19,13 +19,13 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * @author skruse
- *
+ * 
  */
 public class Points {
-	
+
 	volatile private static int pointCount = 0;
-	
-	public static IJsonNode asJson(String... values) {
+
+	public static IJsonNode asJson(final String... values) {
 		return new Point(String.valueOf(pointCount++), values).write(null);
 	}
 

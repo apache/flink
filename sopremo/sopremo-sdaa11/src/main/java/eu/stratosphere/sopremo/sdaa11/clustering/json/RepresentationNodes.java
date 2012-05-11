@@ -14,33 +14,29 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.sdaa11.clustering.json;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
- *
+ * 
  */
-public class JsonPoints {
-	
-	public static List<String> getValues(ObjectNode node) {
-		List<String> values = new ArrayList<String>();
-		for (final IJsonNode valuesNode : (ArrayNode) node.get("values"))
-			values.add(((TextNode) valuesNode).getJavaValue());
-		return values;
+public class RepresentationNodes {
+
+	public static final String ID = "id";
+	public static final String CLUSTROID = "clstrd";
+
+	public static void write(final ObjectNode clusterNode,
+			final TextNode idNode, final ObjectNode clustroidNode) {
+		clusterNode.put(ID, idNode).put(CLUSTROID, clustroidNode);
 	}
 
-	/**
-	 * @param pointNode
-	 * @return
-	 */
-	public static String getId(ObjectNode pointNode) {
-		return ((TextNode) pointNode.get("id")).getTextValue();
+	public static TextNode getId(final ObjectNode clusterNode) {
+		return (TextNode) clusterNode.get(ID);
+	}
+
+	public static ObjectNode getClustroid(final ObjectNode clusterNode) {
+		return (ObjectNode) clusterNode.get(CLUSTROID);
 	}
 
 }

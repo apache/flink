@@ -8,7 +8,6 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.sdaa11.Annotator;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
-import eu.stratosphere.sopremo.sdaa11.clustering.initial.SequentialClustering;
 import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -30,8 +29,7 @@ public class SequentialClusteringTest {
 		final Point p3 = new Point("p3", Arrays.asList("a", "b", "c"));
 		final Point p4 = new Point("p4", Arrays.asList("a", "b", "w"));
 
-		plan.getInput(0)
-				.add(this.createAnnotatedPoint(p1))
+		plan.getInput(0).add(this.createAnnotatedPoint(p1))
 				.add(this.createAnnotatedPoint(p2))
 				.add(this.createAnnotatedPoint(p3))
 				.add(this.createAnnotatedPoint(p4));
@@ -54,7 +52,8 @@ public class SequentialClusteringTest {
 
 	private IJsonNode createAnnotatedPoint(final Point point) {
 		final ObjectNode annotatedValue = new ObjectNode();
-		AnnotatorNodes.annotate(annotatedValue, Annotator.ANNOTATION_VALUE, point.write(null));
+		AnnotatorNodes.annotate(annotatedValue, Annotator.ANNOTATION_VALUE,
+				point.write(null));
 		return annotatedValue;
 	}
 

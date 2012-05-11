@@ -91,7 +91,8 @@ public class Leaf extends AbstractNode {
 	@Override
 	public void read(final IJsonNode node) {
 		final ObjectNode objectNode = (ObjectNode) node;
-		this.clusterId = ((TextNode) objectNode.get(JSON_KEY_ID)).getTextValue();
+		this.clusterId = ((TextNode) objectNode.get(JSON_KEY_ID))
+				.getTextValue();
 		this.clustroid = new Point();
 		this.clustroid.read(objectNode.get(JSON_KEY_CLUSTROID));
 	}

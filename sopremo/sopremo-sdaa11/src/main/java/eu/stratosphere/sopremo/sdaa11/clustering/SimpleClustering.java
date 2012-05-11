@@ -49,6 +49,10 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 */
 	private static final long serialVersionUID = 5063867071090826368L;
 
+	public SimpleClustering() {
+		super(2);
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -70,7 +74,7 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 		final MainClustering mainClustering = new MainClustering().withInputs(
 				initialClustering, remainingPointsSource,
 				treeCreator.getOutput(0), treeCreator.getOutput(1));
-		
+
 		module.getOutput(0).setInputs(mainClustering.getOutput(0));
 		module.getOutput(1).setInputs(mainClustering.getOutput(1));
 

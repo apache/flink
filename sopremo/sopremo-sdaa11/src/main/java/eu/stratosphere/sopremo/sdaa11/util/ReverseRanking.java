@@ -16,25 +16,27 @@ package eu.stratosphere.sopremo.sdaa11.util;
 
 /**
  * @author skruse
- *
+ * 
  */
 public class ReverseRanking<T> extends Ranking<T> {
 
 	/**
 	 * Initializes ReverseRanking.
-	 *
+	 * 
 	 * @param capacity
 	 * @param memberClass
 	 */
-	public ReverseRanking(int capacity) {
+	public ReverseRanking(final int capacity) {
 		super(capacity);
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.sdaa11.util.Ranking#isHigher(int, int)
 	 */
 	@Override
-	protected boolean isHigher(int rank1, int rank2) {
+	protected boolean isHigher(final int rank1, final int rank2) {
 		return rank1 > rank2;
 	}
 

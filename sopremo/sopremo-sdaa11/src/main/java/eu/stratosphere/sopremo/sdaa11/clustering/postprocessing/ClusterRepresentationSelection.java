@@ -32,7 +32,7 @@ public class ClusterRepresentationSelection extends
 	 * 
 	 */
 	private static final long serialVersionUID = 459057198976528982L;
-	
+
 	private int flag;
 
 	/**
@@ -41,33 +41,37 @@ public class ClusterRepresentationSelection extends
 	 * @return the flag
 	 */
 	public int getFlag() {
-		return flag;
+		return this.flag;
 	}
 
 	/**
 	 * Sets the flag to the specified value.
-	 *
-	 * @param flag the flag to set
+	 * 
+	 * @param flag
+	 *            the flag to set
 	 */
-	public void setFlag(int flag) {
+	public void setFlag(final int flag) {
 		this.flag = flag;
 	}
-	
+
 	public static class Implementation extends SopremoMap {
-		
+
 		private int flag;
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see
+		 * eu.stratosphere.sopremo.pact.SopremoMap#map(eu.stratosphere.sopremo
+		 * .type.IJsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
 		 */
 		@Override
-		protected void map(IJsonNode value, JsonCollector out) {
-			int flag = ((IntNode) ((ObjectNode) value).get("flag")).getIntValue();
-			if (this.flag == flag) {
+		protected void map(final IJsonNode value, final JsonCollector out) {
+			final int flag = ((IntNode) ((ObjectNode) value).get("flag"))
+					.getIntValue();
+			if (this.flag == flag)
 				out.collect(value);
-			}
 		}
 	}
-	
 
 }
