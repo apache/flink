@@ -37,7 +37,7 @@ public class TempTaskTest extends TaskTestBase
 {
 	private static final Log LOG = LogFactory.getLog(TempTaskTest.class);
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();;
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 		
 	@Test
 	public void testTempTask()

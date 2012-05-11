@@ -221,5 +221,5 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 			}
 		}
 
-	};
+	}
 }

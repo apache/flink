@@ -127,7 +127,7 @@ public final class GlobalProperties implements Cloneable {
 		// check if partitioning survives
 		if (partitionedFields != null) {
 			for (Integer index : partitionedFields) {
-				if (node.isFieldKept(input, index) == false) {
+				if (!node.isFieldKept(input, index)) {
 					partitionedFields = null;
 					partitioning = PartitionProperty.NONE;
 				}
@@ -138,7 +138,7 @@ public final class GlobalProperties implements Cloneable {
 		if (ordering != null) {
 			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (node.isFieldKept(input, i) == false) {
+				if (!node.isFieldKept(input, i)) {
 					ordering = ordering.createNewOrderingUpToIndex(i);
 					break;
 				}
@@ -155,7 +155,7 @@ public final class GlobalProperties implements Cloneable {
 		Ordering newOrdering = null;
 		if (partitionedFields != null) {
 			for (Integer index : partitionedFields) {
-				if (node.isFieldKept(input, index) == true) {
+				if (node.isFieldKept(input, index)) {
 					if (newPartitionedFields == null) {
 						newPartitioning = this.partitioning;
 						newPartitionedFields = new ArrayList<Integer>();
@@ -170,7 +170,7 @@ public final class GlobalProperties implements Cloneable {
 			boolean orderingPreserved = true;
 			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (node.isFieldKept(input, i) == false) {
+				if (!node.isFieldKept(input, i)) {
 					orderingPreserved = false;
 					break;
 				}
@@ -228,18 +228,15 @@ public final class GlobalProperties implements Cloneable {
 						break;
 					}
 				}
-				if (foundField == false) {
+				if (!foundField) {
 					return false;
 				}
 			}
 		}
 
-		if (this.ordering != null && this.ordering.isMetBy(other.getOrdering()) == false) {
-			return false;
-		}
+    return !(this.ordering != null && !this.ordering.isMetBy(other.getOrdering()));
 
-		return true;
-	}
+  }
 
 	// ------------------------------------------------------------------------
 
@@ -272,13 +269,9 @@ public final class GlobalProperties implements Cloneable {
 		}
 
 		GlobalProperties other = (GlobalProperties) obj;
-		if ((ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
-			&& partitioning == other.getPartitioning() && partitionedFields != null
-			&& partitionedFields.equals(other.getPartitionedFields())) {
-			return true;
-		} else {
-			return false;
-		}
+    return (ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
+        && partitioning == other.getPartitioning() && partitionedFields != null
+        && partitionedFields.equals(other.getPartitionedFields());
 	}
 
 	/*

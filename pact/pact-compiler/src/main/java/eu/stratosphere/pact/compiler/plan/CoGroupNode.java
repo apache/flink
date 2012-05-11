@@ -522,8 +522,7 @@ public class CoGroupNode extends TwoInputNode {
 					} else {
 						// no valid plan possible with that combination of shipping strategies and pre-existing
 						// properties
-						continue;
-					}
+          }
 				}
 			}
 
@@ -844,7 +843,7 @@ public class CoGroupNode extends TwoInputNode {
 					break;
 				}
 			}
-			if (foundField == false) {
+			if (!foundField) {
 				return false;
 			}
 		}
@@ -873,7 +872,7 @@ public class CoGroupNode extends TwoInputNode {
 					break;
 				}
 			}
-			if (found == false) {
+			if (!found) {
 				throw new RuntimeException("Partitioned field is no subset of the key");
 			}
 		}
@@ -897,7 +896,7 @@ public class CoGroupNode extends TwoInputNode {
 				}
 			}
 			
-			if (foundNeyKey == false) {
+			if (!foundNeyKey) {
 				throw new RuntimeException("Partitioned fields are not subset of the key");
 			}
 		}
@@ -911,7 +910,7 @@ public class CoGroupNode extends TwoInputNode {
 		if (keySet1 != null) {
 			boolean isKept = true;
 			for (int keyField : keySet1) {
-				if (isFieldKept(0, keyField) == false) {
+				if (!isFieldKept(0, keyField)) {
 					isKept = false;
 					break;
 				}
@@ -926,7 +925,7 @@ public class CoGroupNode extends TwoInputNode {
 		if (keySet2 != null) {
 			boolean isKept = true;
 			for (int keyField : keySet2) {
-				if (isFieldKept(1, keyField) == false) {
+				if (!isFieldKept(1, keyField)) {
 					isKept = false;
 					break;
 				}

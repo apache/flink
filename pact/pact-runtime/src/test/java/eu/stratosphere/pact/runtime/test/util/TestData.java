@@ -45,7 +45,7 @@ public final class TestData {
 		public int compare(Key k1, Key k2) {
 			return k1.compareTo(k2);
 		}
-	};
+	}
 
 	/**
 	 * Key implementation.
@@ -117,11 +117,11 @@ public final class TestData {
 	public static class Generator implements MutableObjectIterator<PactRecord>{
 		public enum KeyMode {
 			SORTED, RANDOM
-		};
+		}
 
 		public enum ValueMode {
 			FIX_LENGTH, RANDOM_LENGTH, CONSTANT
-		};
+		}
 
 		private static char[] alpha = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'a', 'b', 'c',
 			'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm' };

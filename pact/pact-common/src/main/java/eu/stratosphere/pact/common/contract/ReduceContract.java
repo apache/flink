@@ -256,5 +256,5 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 */
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
-	public @interface Combinable {};
+	public @interface Combinable {}
 }

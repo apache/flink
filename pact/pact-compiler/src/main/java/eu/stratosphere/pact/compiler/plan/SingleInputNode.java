@@ -465,12 +465,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 				!inputSchema.containsAll(this.explProjections))
 			return false;
 		// check that input schema has explicitly copied fields
-		if(this.implOpMode == ImplicitOperationMode.Projection &&
-				!inputSchema.containsAll(this.explCopies))
-			return false;
-		
-		return true;
-	}
+    return !(this.implOpMode == ImplicitOperationMode.Projection &&
+        !inputSchema.containsAll(this.explCopies));
+
+  }
 	
 	/*
 	 * (non-Javadoc)
@@ -596,8 +594,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		
 		switch (implOpMode) {
 		case Projection:
-			return (explCopies == null ? false : 
-				explCopies.contains(fieldNumber));
+			return (explCopies != null && explCopies.contains(fieldNumber));
 		case Copy:
 			return (explProjections == null || explWrites == null ? false :
 				!((new FieldSet(explWrites, explProjections)).contains(fieldNumber)));

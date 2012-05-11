@@ -228,7 +228,7 @@ public class NepheleMiniCluster {
 			}
 		}
 
-		if (matchesIPv4.isEmpty() && matchesIPv6.isEmpty() == true) {
+		if (matchesIPv4.isEmpty() && matchesIPv6.isEmpty()) {
 			throw new Exception("Interface " + getNetworkInterface().getName() + " has no interface address attached.");
 		}
 

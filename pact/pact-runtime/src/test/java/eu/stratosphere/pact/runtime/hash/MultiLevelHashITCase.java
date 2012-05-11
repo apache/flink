@@ -193,7 +193,7 @@ class MultiLevelHashTester {
 	public void runTest(BucketBoundaries[] boundaries) {
 		addValues();
 		collectStatistics(rootMap, 0);
-		if (LOG.isDebugEnabled() == true) {
+		if (LOG.isDebugEnabled()) {
 			printStatistics();
 		}
 		checkBoundaries(boundaries);

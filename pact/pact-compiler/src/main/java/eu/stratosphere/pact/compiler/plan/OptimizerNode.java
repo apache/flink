@@ -1489,7 +1489,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 				}
 				
 				for (int keyColumn : keyColumns) {
-					if (isFieldKept(input, keyColumn) == false) {
+					if (!isFieldKept(input, keyColumn)) {
 						return null;	
 					}
 				}
@@ -1528,7 +1528,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	
 	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
 		for (Integer uniqueField : uniqueSet) {
-			if (isFieldKept(input, uniqueField) == false) {
+			if (!isFieldKept(input, uniqueField)) {
 				return false;
 			}
 		}

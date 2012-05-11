@@ -311,11 +311,11 @@ public class ReduceNode extends SingleInputNode {
 			}
 
 			boolean localStrategyNeeded = false;
-			if (lp.getOrdering() == null || lp.getOrdering().groupsFieldSet(keySet) == false) {
+			if (lp.getOrdering() == null || !lp.getOrdering().groupsFieldSet(keySet)) {
 				localStrategyNeeded = true;
 			}
 
-			if (localStrategyNeeded && lp.isGrouped() == true) {
+			if (localStrategyNeeded && lp.isGrouped()) {
 				localStrategyNeeded = !lp.getGroupedFields().equals(keySet);
 			}
 			
@@ -512,7 +512,7 @@ public class ReduceNode extends SingleInputNode {
 					break;
 				}
 			}
-			if (foundField == false) {
+			if (!foundField) {
 				return false;
 			}
 		}
@@ -524,7 +524,7 @@ public class ReduceNode extends SingleInputNode {
 	public List<FieldSet> createUniqueFieldsForNode() {
 		if (keySet != null) {
 			for (int keyField : keySet) {
-				if (isFieldKept(0, keyField) == false) {
+				if (!isFieldKept(0, keyField)) {
 					return null;
 				}
 			}

@@ -567,7 +567,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E>
 			throw new UnsupportedOperationException();
 		}
 
-	};
+	}
 
 	// ------------------------------------------------------------------------
 

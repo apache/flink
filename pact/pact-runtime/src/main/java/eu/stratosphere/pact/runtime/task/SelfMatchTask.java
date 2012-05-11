@@ -689,5 +689,5 @@ public class SelfMatchTask<IT, OT> extends AbstractPactTask<GenericMatcher<IT, I
 			return valIterator.next(target);
 		}
 		
-	};
+	}
 }

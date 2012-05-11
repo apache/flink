@@ -217,10 +217,8 @@ public class Costs implements Comparable<Costs>, Cloneable {
 		Costs other = (Costs) obj;
 		if (networkCost != other.networkCost)
 			return false;
-		if (secondaryStorageCost != other.secondaryStorageCost)
-			return false;
-		return true;
-	}
+    return secondaryStorageCost == other.secondaryStorageCost;
+  }
 
 	/*
 	 * (non-Javadoc)
