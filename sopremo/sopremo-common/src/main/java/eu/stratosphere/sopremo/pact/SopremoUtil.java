@@ -9,8 +9,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -33,14 +35,11 @@ import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
-import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.LongNode;
-import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.JsonNode.Type;
+import eu.stratosphere.sopremo.type.LongNode;
 
 public class SopremoUtil {
 
@@ -52,25 +51,38 @@ public class SopremoUtil {
 
 	static void configureStub(final Stub stub, final Configuration parameters) {
 		for (final Field stubField : stub.getClass().getDeclaredFields())
-			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0)
+			if ((stubField.getModifiers() & (Modifier.TRANSIENT
+					| Modifier.FINAL | Modifier.STATIC)) == 0)
 				if (parameters.getString(stubField.getName(), null) != null)
 					try {
 						stubField.setAccessible(true);
-						stubField.set(stub,
-							SopremoUtil.deserialize(parameters, stubField.getName(), Serializable.class));
+						stubField.set(stub, SopremoUtil.deserialize(parameters,
+								stubField.getName(), Serializable.class));
 					} catch (final Exception e) {
-						LOG.error(String.format("Could not set field %s of class %s: %s", stubField.getName(),
-							stub.getClass(), StringUtils.stringifyException(e)));
+						LOG.error(String.format(
+								"Could not set field %s of class %s: %s",
+								stubField.getName(), stub.getClass(),
+								StringUtils.stringifyException(e)));
 					}
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
+	public static <T extends Serializable> T deserialize(
+			final Configuration config, final String key,
 			@SuppressWarnings("unused") final Class<T> objectClass) {
+		return deserialize(config, key, objectClass,
+				ClassLoader.getSystemClassLoader());
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends Serializable> T deserialize(
+			final Configuration config, final String key,
+			@SuppressWarnings("unused") final Class<T> objectClass,
+			final ClassLoader classLoader) {
 		final String string = config.getString(key, null);
 		if (string == null)
 			return null;
-		return (T) stringToObject(string);
+		return (T) stringToObject(string, classLoader);
 	}
 
 	public static IJsonNode deserializeNode(final DataInput in) {
@@ -97,9 +109,9 @@ public class SopremoUtil {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> T deserializeObject(final ObjectInputStream ois, @SuppressWarnings("unused") final Class<T> clazz)
-			throws IOException,
-			ClassNotFoundException {
+	public static <T> T deserializeObject(final ObjectInputStream ois,
+			@SuppressWarnings("unused") final Class<T> clazz)
+			throws IOException, ClassNotFoundException {
 		if (ois.readBoolean())
 			return (T) ois.readObject();
 
@@ -112,25 +124,30 @@ public class SopremoUtil {
 			throw new IOException(e);
 		}
 
-		final Map<String, Object> values = (Map<String, Object>) ois.readObject();
+		final Map<String, Object> values = (Map<String, Object>) ois
+				.readObject();
 		BeanInfo beanInfo;
 		try {
 			beanInfo = Introspector.getBeanInfo(object.getClass());
 		} catch (final IntrospectionException e) {
 			LOG.info(String.format("Cannot retrieve bean info for type %s: %s",
-				object.getClass(), e.getMessage()));
+					object.getClass(), e.getMessage()));
 			ois.readObject();
 			return object;
 		}
 
-		for (final PropertyDescriptor propertyDescriptor : beanInfo.getPropertyDescriptors()) {
+		for (final PropertyDescriptor propertyDescriptor : beanInfo
+				.getPropertyDescriptors()) {
 			final String name = propertyDescriptor.getName();
 			if (values.containsKey(name))
 				try {
-					propertyDescriptor.getWriteMethod().invoke(object, values.get(name));
+					propertyDescriptor.getWriteMethod().invoke(object,
+							values.get(name));
 				} catch (final Exception e) {
-					LOG.debug(String.format("Cannot deserialize field %s of type %s: %s", propertyDescriptor.getName(),
-						object.getClass(), e.getMessage()));
+					LOG.debug(String.format(
+							"Cannot deserialize field %s of type %s: %s",
+							propertyDescriptor.getName(), object.getClass(),
+							e.getMessage()));
 				}
 		}
 
@@ -165,11 +182,13 @@ public class SopremoUtil {
 		return string;
 	}
 
-	public static void serialize(final Configuration config, final String key, final Serializable object) {
+	public static void serialize(final Configuration config, final String key,
+			final Serializable object) {
 		config.setString(key, objectToString(object));
 	}
 
-	public static void serializeNode(final DataOutput out, final IJsonNode iJsonNode) {
+	public static void serializeNode(final DataOutput out,
+			final IJsonNode iJsonNode) {
 		try {
 			out.writeInt(iJsonNode.getType().ordinal());
 
@@ -181,7 +200,8 @@ public class SopremoUtil {
 		}
 	}
 
-	public static void serializeObject(final ObjectOutputStream oos, final Object object) throws IOException {
+	public static void serializeObject(final ObjectOutputStream oos,
+			final Object object) throws IOException {
 		if (object instanceof Serializable) {
 			oos.writeBoolean(true);
 			oos.writeObject(object);
@@ -196,34 +216,47 @@ public class SopremoUtil {
 			beanInfo = Introspector.getBeanInfo(object.getClass());
 		} catch (final IntrospectionException e) {
 			LOG.info(String.format("Cannot retrieve bean info for type %s: %s",
-				object.getClass(), e.getMessage()));
+					object.getClass(), e.getMessage()));
 			oos.writeObject(values);
 			return;
 		}
 
-		for (final PropertyDescriptor propertyDescriptor : beanInfo.getPropertyDescriptors())
-			if (Serializable.class.isAssignableFrom(propertyDescriptor.getPropertyType()) &&
-				propertyDescriptor.getReadMethod() != null && propertyDescriptor.getWriteMethod() != null)
+		for (final PropertyDescriptor propertyDescriptor : beanInfo
+				.getPropertyDescriptors())
+			if (Serializable.class.isAssignableFrom(propertyDescriptor
+					.getPropertyType())
+					&& propertyDescriptor.getReadMethod() != null
+					&& propertyDescriptor.getWriteMethod() != null)
 				try {
-					values.put(propertyDescriptor.getName(), propertyDescriptor.getReadMethod().invoke(object));
+					values.put(propertyDescriptor.getName(), propertyDescriptor
+							.getReadMethod().invoke(object));
 				} catch (final Exception e) {
-					LOG.debug(String.format("Cannot serialize field %s of type %s: %s", propertyDescriptor.getName(),
-						object.getClass(), e.getMessage()));
+					LOG.debug(String.format(
+							"Cannot serialize field %s of type %s: %s",
+							propertyDescriptor.getName(), object.getClass(),
+							e.getMessage()));
 				}
 		oos.writeObject(values);
 	}
 
 	public static Object stringToObject(final String string) {
+		return stringToObject(string, ClassLoader.getSystemClassLoader());
+	}
+
+	public static Object stringToObject(final String string,
+			final ClassLoader classLoader) {
 		Object object = null;
 		try {
-			final ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(Base64.decodeBase64(string
-				.getBytes())));
+			final ObjectInputStream in = new CLObjectInputStream(
+					new ByteArrayInputStream(Base64.decodeBase64(string
+							.getBytes())), classLoader);
 			object = in.readObject();
 			in.close();
 		} catch (final IOException ex) {
 			ex.printStackTrace();
 		} catch (final ClassNotFoundException e) {
-			LOG.error(String.format("%s; classpath %s", e.getMessage(), System.getProperty("java.class.path")));
+			LOG.error(String.format("%s; classpath %s", e.getMessage(),
+					System.getProperty("java.class.path")));
 			e.printStackTrace();
 		}
 		return object;
@@ -234,7 +267,8 @@ public class SopremoUtil {
 	}
 
 	public static void untrace() {
-		((Log4JLogger) LOG).getLogger().setLevel(((Log4JLogger) LOG).getLogger().getParent().getLevel());
+		((Log4JLogger) LOG).getLogger().setLevel(
+				((Log4JLogger) LOG).getLogger().getParent().getLevel());
 	}
 
 	public static IJsonNode unwrap(final IJsonNode wrapper) {
@@ -249,40 +283,72 @@ public class SopremoUtil {
 		return new JsonNodeWrapper(node);
 	}
 
-	public static IJsonNode reuseTarget(IJsonNode target, Class<? extends JsonNode> clazz) {
-		if (target == null || !clazz.isInstance(target)) {
+	public static IJsonNode reuseTarget(IJsonNode target,
+			final Class<? extends JsonNode> clazz) {
+		if (target == null || !clazz.isInstance(target))
 			try {
 				target = clazz.newInstance();
-			} catch (InstantiationException e) {
-				throw new IllegalStateException("Expected type " + clazz.toString()
-					+ " has no public parameterless constructor.");
-			} catch (IllegalAccessException e) {
-				throw new IllegalStateException("Expected type " + clazz.toString()
-					+ " has no public parameterless constructor.");
+			} catch (final InstantiationException e) {
+				throw new IllegalStateException("Expected type "
+						+ clazz.toString()
+						+ " has no public parameterless constructor.");
+			} catch (final IllegalAccessException e) {
+				throw new IllegalStateException("Expected type "
+						+ clazz.toString()
+						+ " has no public parameterless constructor.");
 			}
-		} else {
+		else
 			target.clear();
-		}
 		return target;
 	}
 
-	public static IJsonNode reusePrimitive(IJsonNode source, IJsonNode target) {
-		Class<? extends IJsonNode> sourceClass = source.getClass();
-		if ((sourceClass != target.getClass()) || sourceClass.equals(BooleanNode.class) || source.isNull()) {
+	public static IJsonNode reusePrimitive(final IJsonNode source,
+			final IJsonNode target) {
+		final Class<? extends IJsonNode> sourceClass = source.getClass();
+		if (sourceClass != target.getClass()
+				|| sourceClass.equals(BooleanNode.class) || source.isNull())
 			return source;
+
+		if (sourceClass.equals(IntNode.class))
+			((IntNode) target).setValue(((IntNode) source).getIntValue());
+		else if (sourceClass.equals(DoubleNode.class))
+			((DoubleNode) target).setValue(((DoubleNode) source)
+					.getDoubleValue());
+		else if (sourceClass.equals(LongNode.class))
+			((LongNode) target).setValue(((LongNode) source).getLongValue());
+		else if (sourceClass.equals(DecimalNode.class))
+			((DecimalNode) target).setValue(((DecimalNode) source)
+					.getDecimalValue());
+		else if (sourceClass.equals(BigIntegerNode.class))
+			((BigIntegerNode) target).setValue(((BigIntegerNode) source)
+					.getBigIntegerValue());
+		return target;
+	}
+
+	private static class CLObjectInputStream extends ObjectInputStream {
+
+		private final ClassLoader classLoader;
+
+		private CLObjectInputStream(final InputStream in,
+				final ClassLoader classLoader) throws IOException {
+			super(in);
+			this.classLoader = classLoader;
 		}
 
-		if (sourceClass.equals(IntNode.class)) {
-			((IntNode) target).setValue(((IntNode) source).getIntValue());
-		} else if (sourceClass.equals(DoubleNode.class)) {
-			((DoubleNode) target).setValue(((DoubleNode) source).getDoubleValue());
-		} else if (sourceClass.equals(LongNode.class)) {
-			((LongNode) target).setValue(((LongNode) source).getLongValue());
-		} else if (sourceClass.equals(DecimalNode.class)) {
-			((DecimalNode) target).setValue(((DecimalNode) source).getDecimalValue());
-		} else if (sourceClass.equals(BigIntegerNode.class)) {
-			((BigIntegerNode) target).setValue(((BigIntegerNode) source).getBigIntegerValue());
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see
+		 * java.io.ObjectInputStream#resolveClass(java.io.ObjectStreamClass)
+		 */
+		@Override
+		protected Class<?> resolveClass(final ObjectStreamClass desc)
+				throws IOException, ClassNotFoundException {
+			try {
+				return super.resolveClass(desc);
+			} catch (final ClassNotFoundException e) {
+				return this.classLoader.loadClass(desc.getName());
+			}
 		}
-		return target;
 	}
 }
