@@ -14,7 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
-import org.junit.Ignore;
 import java.util.Arrays;
 import java.util.List;
 
@@ -33,7 +32,6 @@ import eu.stratosphere.sopremo.type.IntNode;
 /**
  * @author Michael Hopstock
  */
-@Ignore
 @RunWith(Parameterized.class)
 public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode> {
 
