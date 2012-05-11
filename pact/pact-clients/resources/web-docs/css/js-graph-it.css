@@ -1,0 +1,24 @@
+.draggable
+{
+	position: absolute;
+	cursor: move;
+	z-index: 1;
+}
+
+.connector
+{
+	background-color: black;
+}
+
+.dock_point
+{
+	height: 1px;
+	width: 1px;
+	overflow: hidden;
+	padding: 0px !important;
+	border: none !important;
+	margin: 0px !important;
+	position: absolute;
+	font-size: 1px;
+	visibility: hidden;
+}

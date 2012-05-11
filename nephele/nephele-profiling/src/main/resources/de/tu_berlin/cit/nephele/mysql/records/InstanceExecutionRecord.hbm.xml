@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+        "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping package="de.tu_berlin.cit.nephele.mysql.records">
+	<class name="InstanceExecutionRecord" table="NEPHELE_INSTANCE_EXECUTION">
+		<!-- class ProfilingRecord.java -->
+		<id name="id" type="long" column="INSTANCE_EXECUTION_ID">
+			<generator class="native" />
+		</id>
+
+		<property name="name" type="string" column="RecordName" />
+		<property name="samplePeriod" type="long" column="SamplePeriod" />
+		<property name="startTime" type="long" column="StartTime" />
+		<property name="endTime" type="long" column="EndTime" />
+
+		<!-- class InstanceRecord.java -->
+		<property name="typeIdentifier" type="string" column="TypeIdentifier" />
+		<property name="typeNumberOfComputeUnits" type="int" column="TypeNumberOfComputeUnits" />
+		<property name="typeNumberOfCores" type="int" column="TypeNumberOfCores" />
+		<property name="typeMemorySize" type="int" column="TypeMemorySize" />
+		<property name="typeDiskCapacity" type="int" column="TypeDiskCapacity" />
+		<property name="typePricePerHour" type="int" column="TypePricePerHour" />
+
+		<set name="tasks" inverse="true" cascade="all" lazy="false">
+			<key column="INSTANCE_EXECUTION_ID" />
+			<!--
+				one-to-many
+				class="de.tu_berlin.cit.nephele.mysql.TaskExecutionRecord"/
+			-->
+			<one-to-many class="TaskExecutionRecord" />
+		</set>
+
+		<property name="jobID" type="string" column="JobID" />
+		<property name="totalMemory" type="long" column="TotalMemory" />
+
+		<list name="swapMemory" table="NEPHELE_INSTANCE_SWAP_MEM_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="INSTANCE_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="long" column="swapkByte" not-null="true" />
+		</list>
+		<list name="freeMemory" table="NEPHELE_INSTANCE_FREE_MEM_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="INSTANCE_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="long" column="freekByte" not-null="true" />
+		</list>
+		<list name="inactiveMemory" table="NEPHELE_INSTANCE_INACTIVE_MEM_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="INSTANCE_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="long" column="inactiveMemorykByte" not-null="true" />
+		</list>
+		<list name="activeMemory" table="NEPHELE_INSTANCE_ACTIVE_MEM_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="INSTANCE_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="long" column="activeMemorykByte" not-null="true" />
+		</list>
+		<list name="userCPU" table="NEPHELE_INSTANCE_USER_CPU_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="INSTANCE_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="int" column="userCPUpercent" not-null="true" />
+		</list>
+		<list name="systemCPU" table="NEPHELE_INSTANCE_SYSTEM_CPU_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="INSTANCE_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="int" column="systemCPUpercent" not-null="true" />
+		</list>
+		<list name="idleCPU" table="NEPHELE_INSTANCE_IDLE_CPU_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="INSTANCE_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="int" column="idleCPUpercent" not-null="true" />
+		</list>
+		<list name="ioWaitCPU" table="NEPHELE_INSTANCE_IOWAIT_CPU_SNAPSHOTS" cascade="all" lazy="false">
+			<key column="INSTANCE_EXECUTION_ID" />
+			<list-index column="sortOrder" />
+			<element type="int" column="ioWaitCPUpercent" not-null="true" />
+		</list>
+
+	</class>
+
+</hibernate-mapping>
