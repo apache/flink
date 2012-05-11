@@ -15,6 +15,11 @@
 package eu.stratosphere.sopremo.serialization;
 
 import org.junit.Ignore;
+import java.util.Arrays;
+
+import junit.framework.Assert;
+
+import org.junit.Test;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -23,12 +28,13 @@ import eu.stratosphere.sopremo.type.IntNode;
 
 /**
  * @author Michael Hopstock
- *
  */
 @Ignore
-public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode>{
 
-	/* (non-Javadoc)
+public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode> {
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.ArrayNodeBaseTest#initArrayNode()
 	 */
 	@Override
@@ -39,7 +45,17 @@ public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode>{
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
 		this.node = new LazyTailArrayNode(record, schema);
-		
+
+	}
+
+	@Test
+	public void shouldSetNewNode() {
+		Assert.assertEquals(IntNode.valueOf(2), this.node.set(2, IntNode.valueOf(3)));
+		Assert.assertEquals(IntNode.valueOf(3), this.node.get(2));
+		this.node.addAll(Arrays.asList(IntNode.valueOf(4), IntNode.valueOf(5), IntNode.valueOf(6)));
+		Assert.assertEquals(IntNode.valueOf(0), this.node.set(0, IntNode.valueOf(7)));
+		Assert.assertEquals(IntNode.valueOf(7), this.node.get(0));
+
 	}
 
 }

@@ -254,17 +254,14 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 				throw new IndexOutOfBoundsException();
 			}
 		}
-
-		if (index < this.schema.getTailSize()) {
-			for (int i = 0; i < index; i++) {
-				if (this.record.isNull(i))
-					throw new IndexOutOfBoundsException();
-			}
-			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
-			this.record.setField(index, node);
-			return oldNode;
+		int pactRecordPosition = this.schema.getTailSize() - size() + index;
+		if (pactRecordPosition < 0) {
+			return this.getOtherField().set(index, node);
 		} else {
-			return this.getOtherField().set(index - this.schema.getTailSize(), node);
+			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(pactRecordPosition + 1,
+				JsonNodeWrapper.class));
+			this.record.setField(pactRecordPosition + 1, node);
+			return oldNode;
 		}
 	}
 
