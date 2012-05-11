@@ -22,13 +22,14 @@ import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
@@ -57,9 +58,16 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -78,7 +86,6 @@ public class MatchTaskExternalITCase extends TaskTestBase
 
 	}
 	
-	@Ignore
 	@Test
 	public void testExternalHash1MatchTask() {
 
@@ -96,9 +103,16 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setMemorySize(4*1024*1024);
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -118,7 +132,6 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		
 	}
 	
-	@Ignore
 	@Test
 	public void testExternalHash2MatchTask() {
 
@@ -136,9 +149,16 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setMemorySize(4*1024*1024);
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -156,11 +176,10 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		
 	}
 	
-	public static class MockMatchStub extends MatchStub {
-
-
+	public static class MockMatchStub extends MatchStub
+	{
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out) throws Exception {
+		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
 			out.collect(value1);
 		}
 		

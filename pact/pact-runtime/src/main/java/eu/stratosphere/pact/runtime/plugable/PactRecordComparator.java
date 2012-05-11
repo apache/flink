@@ -281,4 +281,21 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		return new PactRecordComparator(this.keyFields, this.keyHolders, this.normalizedKeyLengths,
 											this.numLeadingNormalizableKeys, this.normalizableKeyPrefixLen);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	final int[] getKeyPositions()
+	{
+		return this.keyFields;
+	}
+	
+	final Class<? extends Key>[] getKeyTypes()
+	{
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyTypes = new Class[this.keyHolders.length];
+		for (int i = 0; i < keyTypes.length; i++) {
+			keyTypes[i] = this.keyHolders[i].getClass();
+		}
+		return keyTypes;
+	}
 }

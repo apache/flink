@@ -21,6 +21,10 @@ import java.util.Iterator;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.pact.common.generic.GenericCoGrouper;
+import eu.stratosphere.pact.common.generic.GenericMatcher;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
@@ -48,9 +52,8 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * @author Fabian Hueske
  * @author Matthias Ringwald
  */
-@SuppressWarnings({"unchecked"})
-public class SelfMatchTask extends AbstractPactTask<MatchStub> {
-
+public class SelfMatchTask<IT, OT> extends AbstractPactTask<GenericMatcher<IT, IT, OT>, OT>
+{
 	public static final String SELFMATCH_CROSS_MODE_KEY = "selfMatch.crossMode";
 	
 	public static enum CrossMode {
@@ -70,22 +73,19 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	
 	private long availableMemory;
 	
-	// obtain the TaskManager's MemoryManager
-	private MemoryManager memoryManager;
-	// obtain the TaskManager's IOManager
-	private IOManager ioManager;
-	
 	// used for tracking of exceptions for matching values in valReader
-	private Exception exceptionInMatchForValReader = null;
-
-	private int[] keyPositions;
-	private Class<? extends Key>[] keyClasses;
-	
-	private CloseableInputProvider<PactRecord> closeableInput;
-	private SpillingResettableMutableObjectIterator outerValResettableIterator = null;
-	private SpillingResettableMutableObjectIterator innerValResettableIterator = null;
+	private Exception exceptionInMatchForValReader;
 	
 	private CrossMode crossMode;
+	
+	private CloseableInputProvider<IT> closeableInput;
+	
+	private SpillingResettableMutableObjectIterator<IT> outerValResettableIterator;
+	private SpillingResettableMutableObjectIterator<IT> innerValResettableIterator;
+	
+	private TypeSerializer<IT> serializer;
+	
+	private TypeComparator<IT> comparator;
 	
 	// ------------------------------------------------------------------------
 	
@@ -101,8 +101,18 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
 	@Override
-	public Class<MatchStub> getStubType() {
-		return MatchStub.class;
+	public Class<GenericMatcher<IT, IT, OT>> getStubType() {
+		@SuppressWarnings("unchecked")
+		final Class<GenericMatcher<IT, IT, OT>> clazz = (Class<GenericMatcher<IT, IT, OT>>) (Class<?>) GenericMatcher.class; 
+		return clazz;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
+	 */
+	@Override
+	public boolean requiresComparatorOnInput() {
+		return true;
 	}
 
 	/* (non-Javadoc)
@@ -150,27 +160,13 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 		
-		// obtain the TaskManager's MemoryManager
-		memoryManager = getEnvironment().getMemoryManager();
-		// obtain the TaskManager's IOManager
-		ioManager = getEnvironment().getIOManager();
+		// obtain the TaskManager's MemoryManager and IOManager
+		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
+		final IOManager ioManager = getEnvironment().getIOManager();
 		
-		keyPositions = this.config.getLocalStrategyKeyPositions(0);
-		keyClasses = this.config.getLocalStrategyKeyClasses(this.userCodeClassLoader);
-		
-		if (keyPositions == null || keyClasses == null) {
-			throw new Exception("The key positions and types are not specified for the SelfMatchTask.");
-		}
-		if (keyPositions.length != keyClasses.length) {
-			throw new Exception("The number of key positions and types does not match in the configuration");
-		}
-		
-		// create the comparators
-		final Comparator<Key>[] comparators = new Comparator[keyPositions.length];
-		final KeyComparator kk = new KeyComparator();
-		for (int i = 0; i < comparators.length; i++) {
-			comparators[i] = kk;
-		}
+		final MutableObjectIterator<IT> in = getInput(0);
+		this.serializer = getInputSerializer(0);
+		this.comparator = getInputComparator(0);
 		
 		switch (ls) {
 			// local strategy is NONE
@@ -178,7 +174,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 			// created and returned
 			case SELF_NESTEDLOOP:
 				// iterator wraps input reader
-				closeableInput = new SimpleCloseableInputProvider<PactRecord>(inputs[0]);
+				this.closeableInput = new SimpleCloseableInputProvider<IT>(in);
 				break;
 				
 				// local strategy is SORT
@@ -186,9 +182,9 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 				// An iterator on the sorted pairs is created and returned.
 			case SORT_SELF_NESTEDLOOP:
 					// instantiate a sort-merger
-					closeableInput = new UnilateralSortMerger(memoryManager, ioManager,
-						(long)(availableMemory * (1.0 - MEMORY_SHARE_RATIO)), maxFileHandles, 
-						comparators, keyPositions, keyClasses, inputs[0], this, spillThreshold);
+					this.closeableInput = new UnilateralSortMerger<IT>(memoryManager, ioManager, in,
+						this, this.serializer, this.comparator.duplicate(), availableMemory,
+						maxFileHandles, spillThreshold);
 					// obtain and return a grouped iterator from the sort-merger
 					break;
 			default:
@@ -203,8 +199,8 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	@Override
 	public void run() throws Exception
 	{
-		final KeyGroupedIterator it = 
-				new KeyGroupedIterator(closeableInput.getIterator(), keyPositions, keyClasses);
+		final KeyGroupedIterator<IT> it = 
+				new KeyGroupedIterator<IT>(this.closeableInput.getIterator(), this.serializer, this.comparator);
 		
 		while(this.running && it.nextKey()) {
 			// cross all value of a certain key
@@ -245,10 +241,10 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	{
 		super.cancel();
 		if (this.innerValResettableIterator != null) {
-			innerValResettableIterator.abort();
+			innerValResettableIterator.close();
 		}
 		if (this.outerValResettableIterator != null) {
-			outerValResettableIterator.abort();
+			outerValResettableIterator.close();
 		}
 	}
 
@@ -265,7 +261,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	 *        The collector to write the results to.
 	 * @throws Exception 
 	 */
-	private final void fullCross(final Iterator<PactRecord> values, final Collector out) throws Exception
+	private final void fullCross(final Iterator<IT> values, final Collector<OT> out) throws Exception
 	{
 		// allocate buffer
 		final PactRecord[] valBuffer = new PactRecord[VALUE_BUFFER_SIZE];
@@ -398,7 +394,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	 *        The collector to write the results to.
 	 * @throws Exception 
 	 */
-	private final void diagInclTriangleCross(final Iterator<PactRecord> values, final Collector out) throws Exception
+	private final void diagInclTriangleCross(final Iterator<IT> values, final Collector<OT> out) throws Exception
 	{
 		
 		// allocate buffer
@@ -539,7 +535,7 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 	 *        The collector to write the results to.
 	 * @throws Exception 
 	 */
-	private final void diagExclTriangleCross(final Iterator<PactRecord> values, final Collector out) throws Exception
+	private final void diagExclTriangleCross(final Iterator<IT> values, final Collector<OT> out) throws Exception
 	{
 		
 		// allocate buffer
@@ -669,8 +665,8 @@ public class SelfMatchTask extends AbstractPactTask<MatchStub> {
 		}
 	}
 	
-	private final class BufferIncludingIterator implements MutableObjectIterator<PactRecord> {
-
+	private final class BufferIncludingIterator implements MutableObjectIterator<IT>
+	{
 		int bufferIdx = 0;
 		
 		private PactRecord[] valBuffer;

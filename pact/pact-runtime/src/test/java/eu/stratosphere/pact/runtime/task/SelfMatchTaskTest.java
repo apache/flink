@@ -36,12 +36,12 @@ import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings( {"javadoc", "unchecked"} )
-public class SelfMatchTaskTest extends TaskTestBase {
 
+public class SelfMatchTaskTest extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(SelfMatchTaskTest.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testSortFullSelfMatchTask() {

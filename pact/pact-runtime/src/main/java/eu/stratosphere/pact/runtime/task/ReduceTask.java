@@ -128,7 +128,7 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>,
 			// The input is grouped using a sort-merge strategy. An iterator on the sorted pairs is created and returned.
 		case SORT:			
 			// instantiate a sort-merger
-			this.input = new UnilateralSortMerger<IT>(memoryManager, ioManager, this.<IT>getInput(0),
+			this.input = new UnilateralSortMerger<IT>(memoryManager, ioManager, in,
 					this, this.serializer, this.comparator.duplicate(), availableMemory, maxFileHandles, spillThreshold);
 			break;
 			

@@ -27,17 +27,16 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings( {"javadoc", "unchecked"} )
-public class CrossTaskExternalITCase extends TaskTestBase {
 
+public class CrossTaskExternalITCase extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(CrossTaskExternalITCase.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testExternalBlockCrossTask() {
@@ -54,12 +53,9 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		
@@ -93,12 +89,9 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 		
 		super.registerTask(testTask, MockCrossStub.class);
 		
@@ -120,7 +113,7 @@ public class CrossTaskExternalITCase extends TaskTestBase {
 	public static class MockCrossStub extends CrossStub {
 
 		@Override
-		public void cross(PactRecord record1, PactRecord record2, Collector out) {
+		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 			
 			out.collect(record1);
 			

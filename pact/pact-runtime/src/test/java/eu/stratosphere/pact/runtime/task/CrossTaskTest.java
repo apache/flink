@@ -33,16 +33,15 @@ import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("javadoc")
-public class CrossTaskTest extends TaskTestBase {
-
+public class CrossTaskTest extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(CrossTaskTest.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
-	public void testBlock1CrossTask() {
-
+	public void testBlock1CrossTask()
+	{
 		int keyCnt1 = 10;
 		int valCnt1 = 1;
 		
@@ -54,7 +53,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -89,7 +88,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -124,7 +123,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -158,7 +157,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -193,7 +192,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -228,7 +227,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -263,7 +262,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 1);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -298,7 +297,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 1);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -333,7 +332,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 1);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -370,7 +369,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CrossTask testTask = new CrossTask();
+		CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -401,7 +400,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(this.outList);
 		
-		final CrossTask testTask = new CrossTask();
+		final CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -443,7 +442,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(this.outList);
 		
-		final CrossTask testTask = new CrossTask();
+		final CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -485,7 +484,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(this.outList);
 		
-		final CrossTask testTask = new CrossTask();
+		final CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -527,7 +526,7 @@ public class CrossTaskTest extends TaskTestBase {
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(this.outList);
 		
-		final CrossTask testTask = new CrossTask();
+		final CrossTask<PactRecord, PactRecord, PactRecord> testTask = new CrossTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
@@ -561,7 +560,7 @@ public class CrossTaskTest extends TaskTestBase {
 	public static class MockCrossStub extends CrossStub {
 
 		@Override
-		public void cross(PactRecord record1, PactRecord record2, Collector out) {
+		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 			
 			out.collect(record1);
 		}
@@ -572,7 +571,7 @@ public class CrossTaskTest extends TaskTestBase {
 		int cnt = 0;
 		
 		@Override
-		public void cross(PactRecord record1, PactRecord record2, Collector out) {
+		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 			
 			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");

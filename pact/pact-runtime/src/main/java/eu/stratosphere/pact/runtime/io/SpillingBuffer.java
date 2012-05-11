@@ -149,7 +149,7 @@ public class SpillingBuffer extends AbstractPagedOutputView
 	 */
 	public List<MemorySegment> close() throws IOException
 	{
-		ArrayList<MemorySegment> segments = new ArrayList<MemorySegment>(this.fullSegments.size() + this.numMemorySegmentsInWriter);
+		final ArrayList<MemorySegment> segments = new ArrayList<MemorySegment>(this.fullSegments.size() + this.numMemorySegmentsInWriter);
 		
 		// if the buffer is still being written, clean that up
 		if (getCurrentSegment() != null) {

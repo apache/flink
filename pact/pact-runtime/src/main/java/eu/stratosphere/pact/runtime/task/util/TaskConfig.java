@@ -23,6 +23,7 @@ import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
@@ -99,6 +100,8 @@ public class TaskConfig
 	private static final String INPUT_TYPE_COMPARATOR_FACTORY_PREFIX = "pact.in.comparator.";
 	
 	private static final String INPUT_PARAMETERS_PREFIX = "pact.in.param.";
+	
+	private static final String INPUT_PAIR_COMPARATOR_FACTORY = "pact.in.paircomp";
 	
 	/*
 	 * If one input has multiple predecessors (bag union), multiple
@@ -219,6 +222,11 @@ public class TaskConfig
 		this.config.setString(INPUT_TYPE_COMPARATOR_FACTORY_PREFIX + inputNum, clazz.getName());
 	}
 	
+	public void setPairComparatorFactory(Class<? extends TypePairComparatorFactory<?, ?>> clazz)
+	{
+		this.config.setString(INPUT_PAIR_COMPARATOR_FACTORY, clazz.getName());
+	}
+	
 	public <T> Class<? extends TypeSerializerFactory<T>> getSerializerFactoryForInput(int inputNum, ClassLoader cl)
 	throws ClassNotFoundException
 	{
@@ -254,6 +262,24 @@ public class TaskConfig
 			}
 		}
 	}
+	
+	public <T1, T2> Class<? extends TypePairComparatorFactory<T1, T2>> getPairComparatorFactory(ClassLoader cl)
+		throws ClassNotFoundException
+		{
+			final String className = this.config.getString(INPUT_PAIR_COMPARATOR_FACTORY, null);
+			if (className == null) {
+				return null;
+			} else {
+				@SuppressWarnings("unchecked")
+				final Class<TypePairComparatorFactory<T1, T2>> superClass = (Class<TypePairComparatorFactory<T1, T2>>) (Class<?>) TypePairComparatorFactory.class;
+				try {
+					return Class.forName(className, true, cl).asSubclass(superClass);
+				} catch (ClassCastException ccex) {
+					throw new CorruptConfigurationException("The class noted in the configuration as the pair comparator factory " +
+							"is no subclass of TypePairComparatorFactory.");
+				}
+			}
+		}
 	
 	public String getPrefixForInputParameters(int inputNum)
 	{

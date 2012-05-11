@@ -47,6 +47,8 @@ implements ResettableMutableObjectIterator<T>
 	
 	private boolean leftOverReturned;
 	
+	private boolean fullWriteBuffer;
+	
 	private boolean noMoreBlocks;
 	
 	private final T leftOverRecord;
@@ -87,12 +89,15 @@ implements ResettableMutableObjectIterator<T>
 						// did not fit into memory, keep as leftover
 						this.serializer.copyTo(target, this.leftOverRecord);
 						this.leftOverReturned = false;
+						this.fullWriteBuffer = true;
 						return false;
 					}
 				} else {
 					this.noMoreBlocks = true;
 					return false;
 				}
+			} else if (this.fullWriteBuffer) {
+				return false;
 			} else {
 				this.leftOverReturned = true;
 				this.serializer.copyTo(this.leftOverRecord, target);
@@ -131,9 +136,15 @@ implements ResettableMutableObjectIterator<T>
 		super.nextBlock();
 		
 		// if there is no leftover record, get a record such that we guarantee to advance
-		if (this.leftOverReturned) {
-			this.input.next(this.leftOverRecord);
-			this.leftOverReturned = false;
+		if (this.leftOverReturned || !this.fullWriteBuffer) {
+			if (this.input.next(this.leftOverRecord)) {
+				this.leftOverReturned = false;
+			} else {
+				this.noMoreBlocks = true;
+				this.fullWriteBuffer = true;
+				this.readPhase = false;
+				return false;
+			}
 		}
 
 		// write the leftover record
@@ -142,6 +153,7 @@ implements ResettableMutableObjectIterator<T>
 					"Record is too large.");
 		}
 		this.readPhase = false;
+		this.fullWriteBuffer = false;
 		
 		return true;
 	}

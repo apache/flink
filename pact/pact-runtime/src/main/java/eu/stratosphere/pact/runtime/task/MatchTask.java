@@ -18,15 +18,17 @@ package eu.stratosphere.pact.runtime.task;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.generic.GenericMatcher;
-import eu.stratosphere.pact.common.generic.GenericReducer;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.type.Key;
+
+import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
@@ -122,6 +124,24 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 		final TypeComparator<IT1> comparator1 = getInputComparator(0);
 		final TypeComparator<IT2> comparator2 = getInputComparator(1);
 		
+		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
+		try {
+			final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
+				this.config.getPairComparatorFactory(this.userCodeClassLoader);
+			
+			if (factoryClass == null) {
+				@SuppressWarnings("unchecked")
+				TypePairComparatorFactory<IT1, IT2> pactRecordFactory = 
+									(TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
+				pairComparatorFactory = pactRecordFactory;
+			} else {
+				@SuppressWarnings("unchecked")
+				final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
+				pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
+			}
+		} catch (ClassNotFoundException cnfex) {
+			throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", cnfex);
+		}
 		
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
@@ -135,16 +155,19 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 		case SORT_FIRST_MERGE:
 		case SORT_SECOND_MERGE:
 		case MERGE:
-			this.matchIterator = new SortMergeMatchIterator(memoryManager, ioManager, this.inputs[0], this.inputs[1],
-				keyPositions1, keyPositions2, keyClasses, availableMemory, maxFileHandles, spillThreshold, ls, this);
+			this.matchIterator = new SortMergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
+					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
+					memoryManager, ioManager, availableMemory, maxFileHandles, spillThreshold, ls, this);
 			break;
 		case HYBRIDHASH_FIRST:
-			this.matchIterator = new BuildFirstHashMatchIterator(this.inputs[0], this.inputs[1], 
-				keyPositions1, keyPositions2, keyClasses, memoryManager, ioManager, this, availableMemory);
+			this.matchIterator = new BuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
+				serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2),
+				memoryManager, ioManager, this, availableMemory);
 			break;
 		case HYBRIDHASH_SECOND:
-			this.matchIterator = new BuildSecondHashMatchIterator(this.inputs[0], this.inputs[1], 
-				keyPositions2, keyPositions1, keyClasses, memoryManager, ioManager, this, availableMemory);
+			this.matchIterator = new BuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
+					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
+					memoryManager, ioManager, this, availableMemory);
 			break;
 		default:
 			throw new Exception("Unsupported local strategy for MatchTask: " + ls.name());
