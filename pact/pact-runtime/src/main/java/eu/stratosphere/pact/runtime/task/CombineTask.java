@@ -36,7 +36,7 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * The CombineTask uses a combining iterator over all key-value pairs of its input. The output of the iterator is
  * emitted.
  * 
- * @see eu.stratosphere.pact.common.stub.ReduceStub
+ * @see eu.stratosphere.pact.common.stubs.ReduceStub
  * @author Fabian Hueske
  * @author Matthias Ringwald
  */
@@ -66,9 +66,7 @@ public class CombineTask<T> extends AbstractPactTask<GenericReducer<T, ?>, T>
 	 */
 	@Override
 	public Class<GenericReducer<T, ?>> getStubType() {
-		@SuppressWarnings("unchecked")
-		final Class<GenericReducer<T, ?>> clazz = (Class<GenericReducer<T, ?>>) (Class<?>) GenericReducer.class; 
-		return clazz;
+    return (Class<GenericReducer<T, ?>>) GenericReducer.class;
 	}
 
 	/* (non-Javadoc)
@@ -103,7 +101,7 @@ public class CombineTask<T> extends AbstractPactTask<GenericReducer<T, ?>, T>
 			throw new RuntimeException(
 					"The Combine task was initialized with too little memory for local strategy "+
 					config.getLocalStrategy()+" : " + availableMemory + " bytes." +
-				    "Required is at least " + strategyMinMem + " bytes.");
+				  "Required is at least " + strategyMinMem + " bytes.");
 		}
 		
 		// obtain the TaskManager's MemoryManager

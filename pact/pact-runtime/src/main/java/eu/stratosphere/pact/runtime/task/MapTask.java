@@ -50,9 +50,7 @@ public class MapTask<IT, OT> extends AbstractPactTask<GenericMapper<IT, OT>, OT>
 	@Override
 	public Class<GenericMapper<IT, OT>> getStubType()
 	{
-		@SuppressWarnings("unchecked")
-		final Class<GenericMapper<IT, OT>> clazz = (Class<GenericMapper<IT, OT>>) (Class<?>) GenericMapper.class;
-		return clazz;
+    return (Class<GenericMapper<IT, OT>>) GenericMapper.class;
 	}
 
 	/* (non-Javadoc)

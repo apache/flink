@@ -48,7 +48,7 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * over pairs that share the same key. Each element of these Cartesian products is handed 
  * to the <code>match()</code> method of the MatchStub.
  * 
- * @see eu.stratosphere.pact.common.stub.MatchStub
+ * @see eu.stratosphere.pact.common.stubs.MatchStub
  * @author Fabian Hueske
  * @author Matthias Ringwald
  */
@@ -102,9 +102,7 @@ public class SelfMatchTask<IT, OT> extends AbstractPactTask<GenericMatcher<IT, I
 	 */
 	@Override
 	public Class<GenericMatcher<IT, IT, OT>> getStubType() {
-		@SuppressWarnings("unchecked")
-		final Class<GenericMatcher<IT, IT, OT>> clazz = (Class<GenericMatcher<IT, IT, OT>>) (Class<?>) GenericMatcher.class; 
-		return clazz;
+		return (Class<GenericMatcher<IT, IT, OT>>) GenericMatcher.class;
 	}
 	
 	/* (non-Javadoc)

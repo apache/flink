@@ -6,6 +6,7 @@ target
 .project
 .settings
 *.class
+*.iml
 filter.properties
 tmp/*
 pact/pact-tests/tmp/*

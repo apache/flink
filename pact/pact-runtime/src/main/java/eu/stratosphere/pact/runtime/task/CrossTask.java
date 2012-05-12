@@ -32,7 +32,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * The CrossTask builds the Cartesian product of the pairs of its two inputs. Each element (pair of pairs) is handed to
  * the <code>cross()</code> method of the CrossStub.
  * 
- * @see eu.stratosphere.pact.common.stub.CrossStub
+ * @see eu.stratosphere.pact.common.stubs.CrossStub
  * 
  * @author Stephan Ewen
  * @author Fabian Hueske
@@ -71,9 +71,7 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 	 */
 	@Override
 	public Class<GenericCrosser<T1, T2, OT>> getStubType() {
-		@SuppressWarnings("unchecked")
-		final Class<GenericCrosser<T1, T2, OT>> clazz = (Class<GenericCrosser<T1, T2, OT>>) (Class<?>) GenericCrosser.class; 
-		return clazz;
+		return (Class<GenericCrosser<T1, T2, OT>>) GenericCrosser.class;
 	}
 	
 	/* (non-Javadoc)

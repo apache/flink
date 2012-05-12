@@ -73,9 +73,7 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>,
 	@Override
 	public Class<GenericReducer<IT, OT>> getStubType()
 	{
-		@SuppressWarnings("unchecked")
-		final Class<GenericReducer<IT, OT>> clazz = (Class<GenericReducer<IT, OT>>) (Class<?>) GenericReducer.class; 
-		return clazz;
+    return (Class<GenericReducer<IT, OT>>) GenericReducer.class;
 	}
 	
 	/* (non-Javadoc)

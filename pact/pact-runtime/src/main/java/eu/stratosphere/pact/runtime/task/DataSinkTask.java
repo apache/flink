@@ -44,7 +44,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * DataSinkTask which is executed by a Nephele task manager.
  * The task hands the data to an output format.
  * 
- * @see eu.eu.stratosphere.pact.common.generic.io.OutputFormat
+ * @see eu.stratosphere.pact.common.generic.io.OutputFormat
  * 
  * @author Fabian Hueske
  */
@@ -70,7 +70,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 
 	// task configuration
 	private TaskConfig config;
-	
+
 	// class loader for user code
 	private ClassLoader userCodeClassLoader;
 

@@ -37,7 +37,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * The CoGroupTask group all pairs that share the same key from both inputs. Each for each key, the sets of values that
  * were pair with that key of both inputs are handed to the <code>coGroup()</code> method of the CoGroupStub.
  * 
- * @see eu.stratosphere.pact.common.stub.CoGroupStub
+ * @see eu.stratosphere.pact.common.stubs.CoGroupStub
  * @author Fabian Hueske
  * @author Matthias Ringwald
  */
@@ -64,9 +64,7 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 	 */
 	@Override
 	public Class<GenericCoGrouper<IT1, IT2, OT>> getStubType() {
-		@SuppressWarnings("unchecked")
-		final Class<GenericCoGrouper<IT1, IT2, OT>> clazz = (Class<GenericCoGrouper<IT1, IT2, OT>>) (Class<?>) GenericCoGrouper.class; 
-		return clazz;
+		return (Class<GenericCoGrouper<IT1, IT2, OT>>) GenericCoGrouper.class;
 	}
 	
 	/* (non-Javadoc)
@@ -133,7 +131,7 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 				pairComparatorFactory = pactRecordFactory;
 			} else {
 				@SuppressWarnings("unchecked")
-				final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
+				final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>) TypePairComparatorFactory.class;
 				pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
 			}
 		} catch (ClassNotFoundException cnfex) {
