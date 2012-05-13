@@ -49,7 +49,7 @@ public class OutgoingConnection {
 	/**
 	 * The address this outgoing connection is connected to.
 	 */
-	private final InetSocketAddress connectionAddress;
+	private final RemoteReceiver remoteReceiver;
 
 	/**
 	 * The outgoing connection thread which actually transmits the queued transfer envelopes.
@@ -112,17 +112,17 @@ public class OutgoingConnection {
 	/**
 	 * Constructs a new outgoing connection object.
 	 * 
-	 * @param connectionAddress
+	 * @param remoteReceiver
 	 *        the address of the destination host this outgoing connection object is supposed to connect to
 	 * @param connectionThread
 	 *        the connection thread which actually handles the network transfer
 	 * @param numberOfConnectionRetries
 	 *        the number of connection retries allowed before an I/O error is reported
 	 */
-	public OutgoingConnection(InetSocketAddress connectionAddress, OutgoingConnectionThread connectionThread,
+	public OutgoingConnection(RemoteReceiver remoteReceiver, OutgoingConnectionThread connectionThread,
 			int numberOfConnectionRetries) {
 
-		this.connectionAddress = connectionAddress;
+		this.remoteReceiver = remoteReceiver;
 		this.connectionThread = connectionThread;
 		this.numberOfConnectionRetries = numberOfConnectionRetries;
 	}
@@ -177,7 +177,8 @@ public class OutgoingConnection {
 	 *         connected to
 	 */
 	public InetSocketAddress getConnectionAddress() {
-		return this.connectionAddress;
+
+		return this.remoteReceiver.getConnectionAddress();
 	}
 
 	/**
@@ -196,7 +197,7 @@ public class OutgoingConnection {
 		// First, write exception to log
 		final long currentTime = System.currentTimeMillis();
 		if (currentTime - this.timstampOfLastRetry >= RETRYINTERVAL) {
-			LOG.error("Cannot connect to " + this.connectionAddress + ", " + this.retriesLeft + " retries left");
+			LOG.error("Cannot connect to " + this.remoteReceiver + ", " + this.retriesLeft + " retries left");
 		}
 
 		synchronized (this.queuedEnvelopes) {
@@ -208,7 +209,7 @@ public class OutgoingConnection {
 					try {
 						socketChannel.close();
 					} catch (IOException e) {
-						LOG.debug("Error while trying to close the socket channel to " + this.connectionAddress);
+						LOG.debug("Error while trying to close the socket channel to " + this.remoteReceiver);
 					}
 				}
 

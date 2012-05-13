@@ -15,12 +15,14 @@
 
 package eu.stratosphere.nephele.multicast;
 
+import java.net.InetSocketAddress;
 import java.util.LinkedList;
 
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
 
 /**
  * Each physical Node (instance) within a multicast-tree is represented by a TreeNode object.
@@ -161,7 +163,12 @@ public class TreeNode implements Comparable<TreeNode> {
 
 		// add remote targets
 		for (TreeNode n : this.children) {
-			actualentry.addRemoteTarget(n.getConnectionInfo());
+
+			final InstanceConnectionInfo ici = n.getConnectionInfo();
+			final InetSocketAddress isa = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
+
+			// TODO: Check if 0 is OK here
+			actualentry.addRemoteTarget(new RemoteReceiver(isa, 0));
 		}
 
 		table.addConnectionInfo(this.nodeConnectionInfo, actualentry);

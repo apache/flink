@@ -60,7 +60,7 @@ public final class NetworkConnectionManager {
 	/**
 	 * Map containing currently active outgoing connections.
 	 */
-	private final Map<InetSocketAddress, OutgoingConnection> outgoingConnections = new HashMap<InetSocketAddress, OutgoingConnection>();
+	private final Map<RemoteReceiver, OutgoingConnection> outgoingConnections = new HashMap<RemoteReceiver, OutgoingConnection>();
 
 	/**
 	 * The number of connection retries before giving up.
@@ -113,14 +113,14 @@ public final class NetworkConnectionManager {
 	/**
 	 * Queues an envelope for transfer to a particular target host.
 	 * 
-	 * @param targetAddress
-	 *        the address of the target host.
+	 * @param remoteReceiver
+	 *        the address of the remote receiver
 	 * @param transferEnvelope
 	 *        the envelope to be transfered
 	 */
-	public void queueEnvelopeForTransfer(final InetSocketAddress targetAddress, final TransferEnvelope transferEnvelope) {
+	public void queueEnvelopeForTransfer(final RemoteReceiver remoteReceiver, final TransferEnvelope transferEnvelope) {
 
-		getOutgoingConnection(targetAddress).queueEnvelope(transferEnvelope);
+		getOutgoingConnection(remoteReceiver).queueEnvelope(transferEnvelope);
 	}
 
 	/**
@@ -130,15 +130,15 @@ public final class NetworkConnectionManager {
 	 *        the address of the connection target
 	 * @return the outgoing connection object
 	 */
-	private OutgoingConnection getOutgoingConnection(final InetSocketAddress connectionAddress) {
+	private OutgoingConnection getOutgoingConnection(final RemoteReceiver remoteReceiver) {
 
 		synchronized (this.outgoingConnections) {
 
-			OutgoingConnection outgoingConnection = this.outgoingConnections.get(connectionAddress);
+			OutgoingConnection outgoingConnection = this.outgoingConnections.get(remoteReceiver);
 			if (outgoingConnection == null) {
-				outgoingConnection = new OutgoingConnection(connectionAddress, getOutgoingConnectionThread(),
+				outgoingConnection = new OutgoingConnection(remoteReceiver, getOutgoingConnectionThread(),
 					this.numberOfConnectionRetries);
-				this.outgoingConnections.put(connectionAddress, outgoingConnection);
+				this.outgoingConnections.put(remoteReceiver, outgoingConnection);
 			}
 
 			return outgoingConnection;
@@ -163,12 +163,12 @@ public final class NetworkConnectionManager {
 
 			System.out.println("\tOutgoing connections:");
 
-			final Iterator<Map.Entry<InetSocketAddress, OutgoingConnection>> it = this.outgoingConnections.entrySet()
+			final Iterator<Map.Entry<RemoteReceiver, OutgoingConnection>> it = this.outgoingConnections.entrySet()
 				.iterator();
 
 			while (it.hasNext()) {
 
-				final Map.Entry<InetSocketAddress, OutgoingConnection> entry = it.next();
+				final Map.Entry<RemoteReceiver, OutgoingConnection> entry = it.next();
 				System.out
 					.println("\t\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
 			}
