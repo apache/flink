@@ -5,13 +5,13 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
 @SuppressWarnings("serial")
 public class StateChangeException extends RuntimeException {
 
-	ChannelState state;
-	public StateChangeException(ChannelState state) {
-		this.state = state;
-	}
+  ChannelState state;
+  public StateChangeException(ChannelState state) {
+    this.state = state;
+  }
 
-	@Override
-	public String getMessage() {
-		return state.toString();
-	}
+  @Override
+  public String getMessage() {
+    return state.toString();
+  }
 }

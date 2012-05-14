@@ -7,45 +7,45 @@ import java.io.IOException;
 import eu.stratosphere.pact.common.type.Value;
 
 public class VertexPageRank implements Value {
-	private static final VertexPageRankAccessor accessor =
-			new VertexPageRankAccessor();
-	
-	protected long vid;
-	protected double rank;
-	
-	public VertexPageRank() {
-		
-	}
-	
-	
-	@Override
-	public void write(DataOutput out) throws IOException {
-		accessor.serialize(this, out);
-	}
+  private static final VertexPageRankAccessor accessor =
+      new VertexPageRankAccessor();
 
-	@Override
-	public void read(DataInput in) throws IOException {
-		accessor.deserialize(this, in);
-	}
+  protected long vid;
+  protected double rank;
+
+  public VertexPageRank() {
+
+  }
 
 
-	public long getVid() {
-		return vid;
-	}
+  @Override
+  public void write(DataOutput out) throws IOException {
+    accessor.serialize(this, out);
+  }
+
+  @Override
+  public void read(DataInput in) throws IOException {
+    accessor.deserialize(this, in);
+  }
 
 
-	public void setVid(long vid) {
-		this.vid = vid;
-	}
+  public long getVid() {
+    return vid;
+  }
 
 
-	public double getRank() {
-		return rank;
-	}
+  public void setVid(long vid) {
+    this.vid = vid;
+  }
 
 
-	public void setRank(double rank) {
-		this.rank = rank;
-	}
+  public double getRank() {
+    return rank;
+  }
+
+
+  public void setRank(double rank) {
+    this.rank = rank;
+  }
 
 }

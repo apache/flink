@@ -18,68 +18,68 @@ import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 
 public class VertexRankMatchBuild extends AbstractIterativeTask {
 
-	public static HashMap<Integer, MutableHashTable<Value, VertexNeighbourPartial>> tables =
-			new  HashMap<Integer, MutableHashTable<Value,VertexNeighbourPartial>>();
-	
-	private static final int MATCH_CHUNCK_SIZE = 1024*1024;
-	
-	private boolean firstRun  = true;
+  public static HashMap<Integer, MutableHashTable<Value, VertexNeighbourPartial>> tables =
+      new  HashMap<Integer, MutableHashTable<Value,VertexNeighbourPartial>>();
 
-	private List<MemorySegment> joinMem;
-	
-	private int iteration = 0;
-	
-	@Override
-	public void runIteration(IterationIterator iterationIter) throws Exception {
-		if(firstRun) {
-			int chunckSize = MATCH_CHUNCK_SIZE;
-			
-			joinMem = 
-				memoryManager.allocateStrict(this, (int) (memorySize/chunckSize), chunckSize);
-			firstRun = false;
-		}
-		
-		TypeAccessorsV2 buildAccess = new VertexPageRankAccessor();
-		TypeAccessorsV2 probeAccess = new VertexNeighbourPartialAccessor();
-		TypeComparator comp = new MatchComparator();
-		
-		if(iteration > 0) {
-			tables.get(iteration - 1).close();
-		}
-		
-		MutableHashTable<Value, VertexNeighbourPartial> table = 
-				new MutableHashTable<Value, VertexNeighbourPartial>(buildAccess, probeAccess, comp, 
-				joinMem, ioManager, 128);
-		table.open(iterationIter, EmptyMutableObjectIterator.<VertexNeighbourPartial>get());
-		
-		tables.put(iteration, table);
-		
-		iteration++;
-	}
-	
-	@Override
-	protected void initTask() {
-	}
+  private static final int MATCH_CHUNCK_SIZE = 1024*1024;
 
-	@Override
-	public int getNumberOfInputs() {
-		return 1;
-	}
+  private boolean firstRun  = true;
 
-	public static final class MatchComparator implements TypeComparator<VertexNeighbourPartial, 
-	VertexPageRank>
-	{
-		private long key;
-	
-		@Override
-		public void setReference(VertexNeighbourPartial reference, 
-				TypeAccessorsV2<VertexNeighbourPartial> accessor) {
-			this.key = reference.getVid();
-		}
-	
-		@Override
-		public boolean equalToReference(VertexPageRank candidate, TypeAccessorsV2<VertexPageRank> accessor) {
-			return this.key == candidate.getVid();
-		}
-	}
+  private List<MemorySegment> joinMem;
+
+  private int iteration = 0;
+
+  @Override
+  public void runIteration(IterationIterator iterationIter) throws Exception {
+    if (firstRun) {
+      int chunckSize = MATCH_CHUNCK_SIZE;
+
+      joinMem =
+        memoryManager.allocateStrict(this, (int) (memorySize/chunckSize), chunckSize);
+      firstRun = false;
+    }
+
+    TypeAccessorsV2 buildAccess = new VertexPageRankAccessor();
+    TypeAccessorsV2 probeAccess = new VertexNeighbourPartialAccessor();
+    TypeComparator comp = new MatchComparator();
+
+    if (iteration > 0) {
+      tables.get(iteration - 1).close();
+    }
+
+    MutableHashTable<Value, VertexNeighbourPartial> table =
+        new MutableHashTable<Value, VertexNeighbourPartial>(buildAccess, probeAccess, comp,
+        joinMem, ioManager, 128);
+    table.open(iterationIter, EmptyMutableObjectIterator.<VertexNeighbourPartial>get());
+
+    tables.put(iteration, table);
+
+    iteration++;
+  }
+
+  @Override
+  protected void initTask() {
+  }
+
+  @Override
+  public int getNumberOfInputs() {
+    return 1;
+  }
+
+  public static final class MatchComparator implements TypeComparator<VertexNeighbourPartial,
+  VertexPageRank>
+  {
+    private long key;
+
+    @Override
+    public void setReference(VertexNeighbourPartial reference,
+        TypeAccessorsV2<VertexNeighbourPartial> accessor) {
+      this.key = reference.getVid();
+    }
+
+    @Override
+    public boolean equalToReference(VertexPageRank candidate, TypeAccessorsV2<VertexPageRank> accessor) {
+      return this.key == candidate.getVid();
+    }
+  }
 }

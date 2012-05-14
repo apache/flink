@@ -68,7 +68,9 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 	 */
 	@Override
 	public Class<GenericMatcher<IT1, IT2, OT>> getStubType() {
-		return (Class<GenericMatcher<IT1, IT2, OT>>) GenericMatcher.class;
+        @SuppressWarnings("unchecked")
+        final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class;
+        return clazz;
 	}
 	
 	/* (non-Javadoc)
@@ -134,7 +136,7 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 				pairComparatorFactory = pactRecordFactory;
 			} else {
 				@SuppressWarnings("unchecked")
-				final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>) TypePairComparatorFactory.class;
+				final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
 				pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
 			}
 		} catch (ClassNotFoundException cnfex) {

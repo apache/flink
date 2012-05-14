@@ -7,44 +7,44 @@ import java.io.IOException;
 import eu.stratosphere.pact.common.type.Value;
 
 public class ComponentUpdate implements Value {
-	private static final ComponentUpdateAccessor accessor =
-			new ComponentUpdateAccessor();
-	protected long vid;
-	protected long cid;
-	
-	public ComponentUpdate() {
-		
-	}
-	
-	
-	@Override
-	public void write(DataOutput out) throws IOException {
-		accessor.serialize(this, out);
-	}
+  private static final ComponentUpdateAccessor accessor =
+      new ComponentUpdateAccessor();
+  protected long vid;
+  protected long cid;
 
-	@Override
-	public void read(DataInput in) throws IOException {
-		accessor.deserialize(this, in);
-	}
+  public ComponentUpdate() {
+
+  }
 
 
-	public long getVid() {
-		return vid;
-	}
+  @Override
+  public void write(DataOutput out) throws IOException {
+    accessor.serialize(this, out);
+  }
+
+  @Override
+  public void read(DataInput in) throws IOException {
+    accessor.deserialize(this, in);
+  }
 
 
-	public void setVid(long vid) {
-		this.vid = vid;
-	}
+  public long getVid() {
+    return vid;
+  }
 
 
-	public long getCid() {
-		return cid;
-	}
+  public void setVid(long vid) {
+    this.vid = vid;
+  }
 
 
-	public void setCid(long cid) {
-		this.cid = cid;
-	}
+  public long getCid() {
+    return cid;
+  }
+
+
+  public void setCid(long cid) {
+    this.cid = cid;
+  }
 
 }

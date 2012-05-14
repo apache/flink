@@ -6,9 +6,9 @@ import eu.stratosphere.pact.runtime.task.util.PartitionFunction;
 
 public class IntegerHashPartitioner implements PartitionFunction {
 
-	@Override
-	public void selectChannels(PactRecord data, int numChannels, int[] channels) {
-		channels[0] = data.getField(0, PactInteger.class).getValue() % numChannels;
-	}
+  @Override
+  public void selectChannels(PactRecord data, int numChannels, int[] channels) {
+    channels[0] = data.getField(0, PactInteger.class).getValue() % numChannels;
+  }
 
 }

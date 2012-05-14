@@ -7,52 +7,52 @@ import java.io.IOException;
 import eu.stratosphere.pact.common.type.Value;
 
 public class ComponentUpdateFlag implements Value {
-	private static final ComponentUpdateFlagAccessor accessor =
-			new ComponentUpdateFlagAccessor();
-	protected long vid;
-	protected long cid;
-	protected boolean updated;
-	
-	public ComponentUpdateFlag() {
-		
-	}
-	
-	
-	@Override
-	public void write(DataOutput out) throws IOException {
-		accessor.serialize(this, out);
-	}
+  private static final ComponentUpdateFlagAccessor accessor =
+      new ComponentUpdateFlagAccessor();
+  protected long vid;
+  protected long cid;
+  protected boolean updated;
 
-	@Override
-	public void read(DataInput in) throws IOException {
-		accessor.deserialize(this, in);
-	}
+  public ComponentUpdateFlag() {
+
+  }
 
 
-	public long getVid() {
-		return vid;
-	}
+  @Override
+  public void write(DataOutput out) throws IOException {
+    accessor.serialize(this, out);
+  }
+
+  @Override
+  public void read(DataInput in) throws IOException {
+    accessor.deserialize(this, in);
+  }
 
 
-	public void setVid(long vid) {
-		this.vid = vid;
-	}
+  public long getVid() {
+    return vid;
+  }
 
 
-	public long getCid() {
-		return cid;
-	}
+  public void setVid(long vid) {
+    this.vid = vid;
+  }
 
 
-	public void setCid(long cid) {
-		this.cid = cid;
-	}
+  public long getCid() {
+    return cid;
+  }
 
-	public boolean isUpdated() {
-		return updated;
-	}
-	
-	public void setUpdated(boolean updated) {
-		this.updated = updated;
-	}
+
+  public void setCid(long cid) {
+    this.cid = cid;
+  }
+
+  public boolean isUpdated() {
+    return updated;
+  }
+
+  public void setUpdated(boolean updated) {
+    this.updated = updated;
+  }
 }

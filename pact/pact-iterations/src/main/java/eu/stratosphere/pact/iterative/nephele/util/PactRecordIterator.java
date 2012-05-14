@@ -8,17 +8,17 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 public abstract class PactRecordIterator implements MutableObjectIterator<PactRecord> {
 
-	private MutableObjectIterator<Value> iter;
+  private MutableObjectIterator<Value> iter;
 
-	public PactRecordIterator(MutableObjectIterator<Value> iter) {
-		this.iter = iter;
-	}
-	
-	@Override
-	public boolean next(PactRecord target) throws IOException {
-		return nextPactRecord(iter, target);
-	}
+  public PactRecordIterator(MutableObjectIterator<Value> iter) {
+    this.iter = iter;
+  }
 
-	public abstract boolean nextPactRecord(MutableObjectIterator<Value> iter, 
-			PactRecord target) throws IOException;
+  @Override
+  public boolean next(PactRecord target) throws IOException {
+    return nextPactRecord(iter, target);
+  }
+
+  public abstract boolean nextPactRecord(MutableObjectIterator<Value> iter,
+      PactRecord target) throws IOException;
 }

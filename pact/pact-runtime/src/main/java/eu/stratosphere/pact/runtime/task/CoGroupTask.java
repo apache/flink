@@ -64,7 +64,9 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 	 */
 	@Override
 	public Class<GenericCoGrouper<IT1, IT2, OT>> getStubType() {
-		return (Class<GenericCoGrouper<IT1, IT2, OT>>) GenericCoGrouper.class;
+        @SuppressWarnings("unchecked")
+        final Class<GenericCoGrouper<IT1, IT2, OT>> clazz = (Class<GenericCoGrouper<IT1, IT2, OT>>) (Class<?>) GenericCoGrouper.class;
+        return clazz;
 	}
 	
 	/* (non-Javadoc)
@@ -131,7 +133,7 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 				pairComparatorFactory = pactRecordFactory;
 			} else {
 				@SuppressWarnings("unchecked")
-				final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>) TypePairComparatorFactory.class;
+				final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
 				pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
 			}
 		} catch (ClassNotFoundException cnfex) {

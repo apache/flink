@@ -35,131 +35,133 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * <p>
  * The CombineTask uses a combining iterator over all key-value pairs of its input. The output of the iterator is
  * emitted.
- * 
- * @see eu.stratosphere.pact.common.stubs.ReduceStub
+ *
+ * @see eu.stratosphere.pact.common.stub.ReduceStub
  * @author Fabian Hueske
  * @author Matthias Ringwald
  */
 public class CombineTask<T> extends AbstractPactTask<GenericReducer<T, ?>, T>
 {
-	// the minimal amount of memory for the task to operate
-	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
-	
-	private CloseableInputProvider<T> input;
-	
-	private TypeSerializer<T> serializer;
-	
-	private TypeComparator<T> comparator;
+    // the minimal amount of memory for the task to operate
+    private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
 
-	// ------------------------------------------------------------------------
+    private CloseableInputProvider<T> input;
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
-	 */
-	@Override
-	public int getNumberOfInputs() {
-		return 1;
-	}
+    private TypeSerializer<T> serializer;
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
-	 */
-	@Override
-	public Class<GenericReducer<T, ?>> getStubType() {
-    return (Class<GenericReducer<T, ?>>) GenericReducer.class;
-	}
+    private TypeComparator<T> comparator;
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
-	 */
-	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
-	}
+    // ------------------------------------------------------------------------
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
-	 */
-	@Override
-	public void prepare() throws Exception
-	{
-		// set up memory and I/O parameters
-		final long availableMemory = this.config.getMemorySize();
-		
-		// test minimum memory requirements
-		LocalStrategy ls = config.getLocalStrategy();
-		
-		long strategyMinMem = 0;
-		
-		switch (ls) {
-			case COMBININGSORT:
-				strategyMinMem = MIN_REQUIRED_MEMORY;
-				break;
-		}
-	
-		if (availableMemory < strategyMinMem) {
-			throw new RuntimeException(
-					"The Combine task was initialized with too little memory for local strategy "+
-					config.getLocalStrategy()+" : " + availableMemory + " bytes." +
-				  "Required is at least " + strategyMinMem + " bytes.");
-		}
-		
-		// obtain the TaskManager's MemoryManager
-		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
+    /* (non-Javadoc)
+      * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
+      */
+    @Override
+    public int getNumberOfInputs() {
+        return 1;
+    }
 
-		final MutableObjectIterator<T> in = getInput(0);
-		this.serializer = getInputSerializer(0);
-		this.comparator = getInputComparator(0);
-		
-		switch (ls)
-		{
-			// local strategy is COMBININGSORT
-			// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
-			// the combine() method of the ReduceStub.
-			// An iterator on the sorted, grouped, and combined pairs is created and returned
-			case COMBININGSORT:
-				input = new AsynchronousPartialSorter<T>(memoryManager, in, this, 
-						this.serializer, this.comparator.duplicate(), availableMemory);
-				break;
-					// obtain and return a grouped iterator from the combining sort-merger
-			default:
-				throw new RuntimeException("Invalid local strategy provided for CombineTask.");
-		}
-	}
+    /* (non-Javadoc)
+      * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
+      */
+    @Override
+    public Class<GenericReducer<T, ?>> getStubType() {
+        @SuppressWarnings("unchecked")
+        final Class<GenericReducer<T, ?>> clazz = (Class<GenericReducer<T, ?>>) (Class<?>) GenericReducer.class;
+        return clazz;
+    }
+
+    /* (non-Javadoc)
+      * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
+      */
+    @Override
+    public boolean requiresComparatorOnInput() {
+        return true;
+    }
+
+    /* (non-Javadoc)
+      * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
+      */
+    @Override
+    public void prepare() throws Exception
+    {
+        // set up memory and I/O parameters
+        final long availableMemory = this.config.getMemorySize();
+
+        // test minimum memory requirements
+        LocalStrategy ls = config.getLocalStrategy();
+
+        long strategyMinMem = 0;
+
+        switch (ls) {
+            case COMBININGSORT:
+                strategyMinMem = MIN_REQUIRED_MEMORY;
+                break;
+        }
+
+        if (availableMemory < strategyMinMem) {
+            throw new RuntimeException(
+                    "The Combine task was initialized with too little memory for local strategy "+
+                            config.getLocalStrategy()+" : " + availableMemory + " bytes." +
+                            "Required is at least " + strategyMinMem + " bytes.");
+        }
+
+        // obtain the TaskManager's MemoryManager
+        final MemoryManager memoryManager = getEnvironment().getMemoryManager();
+
+        final MutableObjectIterator<T> in = getInput(0);
+        this.serializer = getInputSerializer(0);
+        this.comparator = getInputComparator(0);
+
+        switch (ls)
+        {
+            // local strategy is COMBININGSORT
+            // The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
+            // the combine() method of the ReduceStub.
+            // An iterator on the sorted, grouped, and combined pairs is created and returned
+            case COMBININGSORT:
+                input = new AsynchronousPartialSorter<T>(memoryManager, in, this,
+                        this.serializer, this.comparator.duplicate(), availableMemory);
+                break;
+            // obtain and return a grouped iterator from the combining sort-merger
+            default:
+                throw new RuntimeException("Invalid local strategy provided for CombineTask.");
+        }
+    }
 
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
-	 */
-	@Override
-	public void run() throws Exception
-	{
-		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Preprocessing done, iterator obtained."));
+    /* (non-Javadoc)
+      * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
+      */
+    @Override
+    public void run() throws Exception
+    {
+        if (LOG.isDebugEnabled())
+            LOG.debug(getLogString("Preprocessing done, iterator obtained."));
 
-		final KeyGroupedIterator<T> iter = new KeyGroupedIterator<T>(this.input.getIterator(),
-				this.serializer, this.comparator);
-		
-		// cache references on the stack
-		final GenericReducer<T, ?> stub = this.stub;
-		final Collector<T> output = this.output;
-		
-		// run stub implementation
-		while (this.running && iter.nextKey())
-		{
-			stub.combine(iter.getValues(), output);
-		}
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
-	 */
-	@Override
-	public void cleanup() throws Exception {
-		if (this.input != null) {
-			this.input.close();
-			this.input = null;
-		}
-	}
-	
+        final KeyGroupedIterator<T> iter = new KeyGroupedIterator<T>(this.input.getIterator(),
+                this.serializer, this.comparator);
+
+        // cache references on the stack
+        final GenericReducer<T, ?> stub = this.stub;
+        final Collector<T> output = this.output;
+
+        // run stub implementation
+        while (this.running && iter.nextKey())
+        {
+            stub.combine(iter.getValues(), output);
+        }
+    }
+
+    /* (non-Javadoc)
+      * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
+      */
+    @Override
+    public void cleanup() throws Exception {
+        if (this.input != null) {
+            this.input.close();
+            this.input = null;
+        }
+    }
+
 }

@@ -16,8 +16,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 
 public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
-        implements ConcurrentMap<K, V>, Serializable
-{
+        implements ConcurrentMap<K, V>, Serializable {
    
 
     /*
@@ -26,10 +25,10 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
      */
 
     /* ---------------- Constants -------------- */
-	
-	 private static final long serialVersionUID = 5941548859389629479L;
 
-	/**
+   private static final long serialVersionUID = 5941548859389629479L;
+
+  /**
      * The default initial capacity for this table,
      * used when not otherwise specified in a constructor.
      */
@@ -147,10 +146,10 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
             this.value = value;
         }
 
-	@SuppressWarnings("unchecked")
-	static final <K,V> HashEntry<K,V>[] newArray(int i) {
-	    return new HashEntry[i];
-	}
+  @SuppressWarnings("unchecked")
+  static final <K,V> HashEntry<K,V>[] newArray(int i) {
+      return new HashEntry[i];
+  }
     }
 
     /**
@@ -238,9 +237,9 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
             setTable(HashEntry.<K,V>newArray(initialCapacity));
         }
 
-	@SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked")
         static final <K,V> Segment<K,V>[] newArray(int i) {
-	    return new Segment[i];
+      return new Segment[i];
         }
 
         /**
@@ -529,8 +528,7 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
      * nonpositive.
      */
     public AccessibleConcurrentHashMap(int initialCapacity,
-                             float loadFactor, int concurrencyLevel)
-    {
+                             float loadFactor, int concurrencyLevel) {
         if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0)
             throw new IllegalArgumentException();
 
@@ -864,7 +862,7 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
      * @throws NullPointerException if the specified key is null
      */
     public V remove(Object key) {
-	int hash = hash(key.hashCode());
+  int hash = hash(key.hashCode());
         return segmentFor(hash).remove(key, hash, null);
     }
 
@@ -1056,17 +1054,15 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
     }
 
     final class KeyIterator
-	extends HashIterator
-	implements Iterator<K>, Enumeration<K>
-    {
+  extends HashIterator
+  implements Iterator<K>, Enumeration<K> {
         public K next()        { return super.nextEntry().key; }
         public K nextElement() { return super.nextEntry().key; }
     }
 
     final class ValueIterator
-	extends HashIterator
-	implements Iterator<V>, Enumeration<V>
-    {
+  extends HashIterator
+  implements Iterator<V>, Enumeration<V> {
         public V next()        { return super.nextEntry().value; }
         public V nextElement() { return super.nextEntry().value; }
     }
@@ -1076,9 +1072,8 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
      * setValue changes to the underlying map.
      */
     @SuppressWarnings("serial")
-	final class WriteThroughEntry
-	extends AbstractMap.SimpleEntry<K,V>
-    {
+  final class WriteThroughEntry
+  extends AbstractMap.SimpleEntry<K,V> {
         WriteThroughEntry(K k, V v) {
             super(k,v);
         }
@@ -1092,7 +1087,7 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
          * removed in which case the put will re-establish). We do not
          * and cannot guarantee more.
          */
-	public V setValue(V value) {
+  public V setValue(V value) {
             if (value == null) throw new NullPointerException();
             V v = super.setValue(value);
             AccessibleConcurrentHashMap.this.put(getKey(), value);
@@ -1101,9 +1096,8 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
     }
 
     final class EntryIterator
-	extends HashIterator
-	implements Iterator<Entry<K,V>>
-    {
+  extends HashIterator
+  implements Iterator<Entry<K,V>> {
         public Map.Entry<K,V> next() {
             HashEntry<K,V> e = super.nextEntry();
             return new WriteThroughEntry(e.key, e.value);
@@ -1124,7 +1118,7 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
             return AccessibleConcurrentHashMap.this.remove(o) != null;
         }
         public void clear() {
-        	AccessibleConcurrentHashMap.this.clear();
+          AccessibleConcurrentHashMap.this.clear();
         }
     }
 
@@ -1139,7 +1133,7 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
             return AccessibleConcurrentHashMap.this.containsValue(o);
         }
         public void clear() {
-        	AccessibleConcurrentHashMap.this.clear();
+          AccessibleConcurrentHashMap.this.clear();
         }
     }
 
@@ -1164,7 +1158,7 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
             return AccessibleConcurrentHashMap.this.size();
         }
         public void clear() {
-        	AccessibleConcurrentHashMap.this.clear();
+          AccessibleConcurrentHashMap.this.clear();
         }
     }
 
@@ -1207,7 +1201,7 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
      * @param s the stream
      */
     @SuppressWarnings("unchecked")
-	private void readObject(java.io.ObjectInputStream s)
+  private void readObject(java.io.ObjectInputStream s)
         throws IOException, ClassNotFoundException  {
         s.defaultReadObject();
 
@@ -1224,96 +1218,96 @@ public class AccessibleConcurrentHashMap<K, V> extends AbstractMap<K, V>
                 break;
             put(key, value);
         }
-	}
+  }
 
-	public Iterator<Map.Entry<K, V>>[] getIterators(int numIterators)
-	{
-		final Segment<K,V>[] segments = this.segments;
-		
-		@SuppressWarnings("unchecked")
-		final Iterator<Map.Entry<K, V>>[] iterators = new Iterator[numIterators];
-		
-		final int numSegmentsPer = segments.length / numIterators;
-		final int numWithOneMore = segments.length % numIterators;
-		
-		for (int i = 0, start = 0; i < numIterators; i++) {
-			int num = i < numWithOneMore ? numSegmentsPer + 1 : numSegmentsPer;
-			iterators[i] = new SegmentsIterator(segments, start, num);
-			start += num;
-		}
-		return iterators;
-	}
+  public Iterator<Map.Entry<K, V>>[] getIterators(int numIterators)
+  {
+    final Segment<K,V>[] segments = this.segments;
 
-	public final class SegmentsIterator implements Iterator<Map.Entry<K, V>>
-	{
-		private final Segment<K,V>[] segments;
-		
-		private int nextSegmentIndex;
-		private final int firstSegmentIndex;
-		
-	    private int nextTableIndex;
-	    private HashEntry<K,V>[] currentTable;
-	    private HashEntry<K, V> nextEntry;
-	    private HashEntry<K, V> lastReturned;
-		
-		public SegmentsIterator(Segment<K,V>[] segments, int start, int num) {
-			this.segments = segments;
-			this.firstSegmentIndex = start;
-			this.nextSegmentIndex = start + num - 1;
-			
-	        this.nextTableIndex = -1;
-	        
-	        advance();
-		}
-	
-	
-		@Override
-		public Map.Entry<K, V> next() {
-			HashEntry<K,V> e = nextEntry();
-	        return new WriteThroughEntry(e.key, e.value);
-		}
-		
-	    final void advance() {
-	        if (this.nextEntry != null && (this.nextEntry = this.nextEntry.next) != null)
-	            return;
-	
-	        while (this.nextTableIndex >= 0) {
-	            if ( (this.nextEntry = this.currentTable[this.nextTableIndex--]) != null)
-	                return;
-	        }
-	
-	        while (this.nextSegmentIndex >= this.firstSegmentIndex) {
-	            Segment<K,V> seg = this.segments[this.nextSegmentIndex--];
-	            if (seg.count != 0) {
-	            	this.currentTable = seg.table;
-	                for (int j = this.currentTable.length - 1; j >= 0; --j) {
-	                    if ( (this.nextEntry = this.currentTable[j]) != null) {
-	                    	this.nextTableIndex = j - 1;
-	                        return;
-	                    }
-	                }
-	            }
-	        }
-	    }
-	
-	    public boolean hasNext() { 
-	    	return nextEntry != null;
-	    }
-	
-	    HashEntry<K,V> nextEntry() {
-	        if (this.nextEntry == null)
-	            throw new NoSuchElementException();
-	        this.lastReturned = this.nextEntry;
-	        advance();
-	        return this.lastReturned;
-	    }
-	
-	    public void remove() {
-	        if (this.lastReturned == null)
-	            throw new IllegalStateException();
-	        AccessibleConcurrentHashMap.this.remove(this.lastReturned.key);
-	        this.lastReturned = null;
-	    }
-	}
-	
+    @SuppressWarnings("unchecked")
+    final Iterator<Map.Entry<K, V>>[] iterators = new Iterator[numIterators];
+
+    final int numSegmentsPer = segments.length / numIterators;
+    final int numWithOneMore = segments.length % numIterators;
+
+    for (int i = 0, start = 0; i < numIterators; i++) {
+      int num = i < numWithOneMore ? numSegmentsPer + 1 : numSegmentsPer;
+      iterators[i] = new SegmentsIterator(segments, start, num);
+      start += num;
+    }
+    return iterators;
+  }
+
+  public final class SegmentsIterator implements Iterator<Map.Entry<K, V>>
+  {
+    private final Segment<K,V>[] segments;
+
+    private int nextSegmentIndex;
+    private final int firstSegmentIndex;
+
+      private int nextTableIndex;
+      private HashEntry<K,V>[] currentTable;
+      private HashEntry<K, V> nextEntry;
+      private HashEntry<K, V> lastReturned;
+
+    public SegmentsIterator(Segment<K,V>[] segments, int start, int num) {
+      this.segments = segments;
+      this.firstSegmentIndex = start;
+      this.nextSegmentIndex = start + num - 1;
+
+          this.nextTableIndex = -1;
+
+          advance();
+    }
+
+
+    @Override
+    public Map.Entry<K, V> next() {
+      HashEntry<K,V> e = nextEntry();
+          return new WriteThroughEntry(e.key, e.value);
+    }
+
+      final void advance() {
+          if (this.nextEntry != null && (this.nextEntry = this.nextEntry.next) != null)
+              return;
+
+          while (this.nextTableIndex >= 0) {
+              if ( (this.nextEntry = this.currentTable[this.nextTableIndex--]) != null)
+                  return;
+          }
+
+          while (this.nextSegmentIndex >= this.firstSegmentIndex) {
+              Segment<K,V> seg = this.segments[this.nextSegmentIndex--];
+              if (seg.count != 0) {
+                this.currentTable = seg.table;
+                  for (int j = this.currentTable.length - 1; j >= 0; --j) {
+                      if ( (this.nextEntry = this.currentTable[j]) != null) {
+                        this.nextTableIndex = j - 1;
+                          return;
+                      }
+                  }
+              }
+          }
+      }
+
+      public boolean hasNext() {
+        return nextEntry != null;
+      }
+
+      HashEntry<K,V> nextEntry() {
+          if (this.nextEntry == null)
+              throw new NoSuchElementException();
+          this.lastReturned = this.nextEntry;
+          advance();
+          return this.lastReturned;
+      }
+
+      public void remove() {
+          if (this.lastReturned == null)
+              throw new IllegalStateException();
+          AccessibleConcurrentHashMap.this.remove(this.lastReturned.key);
+          this.lastReturned = null;
+      }
+  }
+
 }

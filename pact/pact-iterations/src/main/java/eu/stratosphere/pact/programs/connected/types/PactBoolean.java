@@ -8,23 +8,23 @@ import eu.stratosphere.pact.common.type.Value;
 
 public class PactBoolean implements Value {
 
-	private boolean value;
-	
-	@Override
-	public void write(DataOutput out) throws IOException {
-		out.writeBoolean(value);
-	}
+  private boolean value;
 
-	@Override
-	public void read(DataInput in) throws IOException {
-		value = in.readBoolean();
-	}
+  @Override
+  public void write(DataOutput out) throws IOException {
+    out.writeBoolean(value);
+  }
 
-	public boolean isValue() {
-		return value;
-	}
-	
-	public void setValue(boolean value) {
-		this.value = value;
-	}
+  @Override
+  public void read(DataInput in) throws IOException {
+    value = in.readBoolean();
+  }
+
+  public boolean isValue() {
+    return value;
+  }
+
+  public void setValue(boolean value) {
+    this.value = value;
+  }
 }

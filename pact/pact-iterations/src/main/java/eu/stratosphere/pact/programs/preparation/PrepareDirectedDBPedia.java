@@ -25,47 +25,47 @@ import eu.stratosphere.pact.programs.preparation.tasks.CreateAdjList;
 import eu.stratosphere.pact.programs.preparation.tasks.Longify;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
-public class PrepareDirectedDBPedia {	
-	@SuppressWarnings("unchecked")
-	public static void main(String[] args) throws JobGraphDefinitionException, IOException, JobExecutionException
-	{
-		if(args.length != 5) {
-			System.out.println("Not correct parameters");
-			System.exit(-1);
-		}
-		
-		final int dop = Integer.valueOf(args[0]);
-		final String input = args[1];
-		final String output = args[2];
-		final int spi = Integer.valueOf(args[3]);
-		final int baseMemory = Integer.valueOf(args[4]);
-		final Class<? extends Key> keyType = PactLong.class;
-		
-		JobGraph graph = new JobGraph("Bulk PageRank Broadcast -- Optimized Twitter");
-		
-		//Create tasks
-		JobInputVertex sourceVertex = createInput(DBPediaPageLinkInput.class, input, graph, dop, spi);
-		
-		JobTaskVertex longify = createTask(Longify.class, graph, dop, spi);
-		longify.setVertexToShareInstancesWith(sourceVertex);
-		
-		JobTaskVertex adjList = createTask(CreateAdjList.class, graph, dop, spi);
-		adjList.setVertexToShareInstancesWith(sourceVertex);
-		setMemorySize(adjList, baseMemory/3);
-		setReduceInformation(adjList, new int[] {0}, new Class[] {keyType});
-		
-		JobOutputVertex sinkVertex = createOutput(AdjListOutput.class, output, graph, dop, spi);
-		sinkVertex.setVertexToShareInstancesWith(sourceVertex);
-		
-		//Connect tasks
-		connectJobVertices(ShipStrategy.FORWARD, sourceVertex, longify, null, null);
-		
-		connectJobVertices(ShipStrategy.PARTITION_HASH, longify, adjList, 
-				new int[] {0}, new Class[] {keyType});
-		
-		connectJobVertices(ShipStrategy.FORWARD, adjList, sinkVertex, null, null);
-		
-		//Submit job
-		submit(graph, getConfiguration());
-	}
+public class PrepareDirectedDBPedia {
+  @SuppressWarnings("unchecked")
+  public static void main(String[] args) throws JobGraphDefinitionException, IOException, JobExecutionException
+  {
+    if (args.length != 5) {
+      System.out.println("Not correct parameters");
+      System.exit(-1);
+    }
+
+    final int dop = Integer.valueOf(args[0]);
+    final String input = args[1];
+    final String output = args[2];
+    final int spi = Integer.valueOf(args[3]);
+    final int baseMemory = Integer.valueOf(args[4]);
+    final Class<? extends Key> keyType = PactLong.class;
+
+    JobGraph graph = new JobGraph("Bulk PageRank Broadcast -- Optimized Twitter");
+
+    //Create tasks
+    JobInputVertex sourceVertex = createInput(DBPediaPageLinkInput.class, input, graph, dop, spi);
+
+    JobTaskVertex longify = createTask(Longify.class, graph, dop, spi);
+    longify.setVertexToShareInstancesWith(sourceVertex);
+
+    JobTaskVertex adjList = createTask(CreateAdjList.class, graph, dop, spi);
+    adjList.setVertexToShareInstancesWith(sourceVertex);
+    setMemorySize(adjList, baseMemory/3);
+    setReduceInformation(adjList, new int[] {0}, new Class[] {keyType});
+
+    JobOutputVertex sinkVertex = createOutput(AdjListOutput.class, output, graph, dop, spi);
+    sinkVertex.setVertexToShareInstancesWith(sourceVertex);
+
+    //Connect tasks
+    connectJobVertices(ShipStrategy.FORWARD, sourceVertex, longify, null, null);
+
+    connectJobVertices(ShipStrategy.PARTITION_HASH, longify, adjList,
+        new int[] {0}, new Class[] {keyType});
+
+    connectJobVertices(ShipStrategy.FORWARD, adjList, sinkVertex, null, null);
+
+    //Submit job
+    submit(graph, getConfiguration());
+  }
 }

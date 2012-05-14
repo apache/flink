@@ -57,6 +57,11 @@
         else is specified.
         -->
         <dependencies>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>r09</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

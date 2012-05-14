@@ -43,6 +43,10 @@
       <artifactId>pact-clients</artifactId>
       <version>${version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
   </dependencies>
 
   <reporting>

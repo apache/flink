@@ -7,30 +7,26 @@ import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
 import eu.stratosphere.pact.programs.pagerank.types.VertexPageRank;
 
 public class BulkIterationHead extends IterationHead {
-	private VertexPageRank vRank = new VertexPageRank();
+  private VertexPageRank vRank = new VertexPageRank();
 
-	@Override
-	public void finish(MutableObjectIterator<Value> iter,
-			OutputCollectorV2 output) throws Exception {
-		forwardRecords(iter, output);
-	}
+  @Override
+  public void finish(MutableObjectIterator<Value> iter, OutputCollectorV2 output) throws Exception {
+    forwardRecords(iter, output);
+  }
 
-	@Override
-	public void processInput(MutableObjectIterator<Value> iter,
-			OutputCollectorV2 output) throws Exception {
-		forwardRecords(iter, output);
-	}
+  @Override
+  public void processInput(MutableObjectIterator<Value> iter, OutputCollectorV2 output) throws Exception {
+    forwardRecords(iter, output);
+  }
 
-	@Override
-	public void processUpdates(MutableObjectIterator<Value> iter,
-			OutputCollectorV2 output) throws Exception {
-		forwardRecords(iter, output);
-	}
-	
-	private final void forwardRecords(MutableObjectIterator<Value> iter,
-			OutputCollectorV2 output) throws Exception {
-		while(iter.next(vRank)) {
-			output.collect(vRank);
-		}
-	}
+  @Override
+  public void processUpdates(MutableObjectIterator<Value> iter, OutputCollectorV2 output) throws Exception {
+    forwardRecords(iter, output);
+  }
+
+  private final void forwardRecords(MutableObjectIterator<Value> iter, OutputCollectorV2 output) throws Exception {
+    while (iter.next(vRank)) {
+      output.collect(vRank);
+    }
+  }
 }

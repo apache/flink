@@ -284,7 +284,16 @@ final class CheckpointEnvironment implements Environment {
 		return this.environment.getInputGateIDs();
 	}
 
-	/**
+    @Override
+    public InputGate<? extends Record> getInputGate(int pos) {
+        return environment.getInputGate(pos);
+    }
+
+    public OutputGate<? extends Record> getOutputGate(int pos) {
+        return environment.getOutputGate(pos);
+    }
+
+    /**
 	 * {@inheritDoc}
 	 */
 	@Override

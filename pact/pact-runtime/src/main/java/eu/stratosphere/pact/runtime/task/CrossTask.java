@@ -71,7 +71,9 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 	 */
 	@Override
 	public Class<GenericCrosser<T1, T2, OT>> getStubType() {
-		return (Class<GenericCrosser<T1, T2, OT>>) GenericCrosser.class;
+        @SuppressWarnings("unchecked")
+        final Class<GenericCrosser<T1, T2, OT>> clazz = (Class<GenericCrosser<T1, T2, OT>>) (Class<?>) GenericCrosser.class;
+        return clazz;
 	}
 	
 	/* (non-Javadoc)

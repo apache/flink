@@ -12,21 +12,21 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 public class DeserializingIterator implements MutableObjectIterator<Value> {
 
-	protected static final Log LOG = LogFactory.getLog(DeserializingIterator.class);
-	
-	private DataInputViewV2 input;
-	
-	public DeserializingIterator(DataInputViewV2 input) {
-		this.input = input;
-	}
-	@Override
-	public boolean next(Value target) throws IOException {
-		try {
-			target.read(input);
-		} catch (EOFException ex) {
-			return false;
-		}
-		return true;
-	}
+  protected static final Log LOG = LogFactory.getLog(DeserializingIterator.class);
+
+  private DataInputViewV2 input;
+
+  public DeserializingIterator(DataInputViewV2 input) {
+    this.input = input;
+  }
+  @Override
+  public boolean next(Value target) throws IOException {
+    try {
+      target.read(input);
+    } catch (EOFException ex) {
+      return false;
+    }
+    return true;
+  }
 
 }

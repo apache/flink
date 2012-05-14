@@ -24,42 +24,42 @@ import eu.stratosphere.pact.programs.preparation.tasks.AdjListOutput;
 import eu.stratosphere.pact.programs.preparation.tasks.CreateAdjList;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
-public class PrepareDirectedTwitter {	
-	@SuppressWarnings("unchecked")
-	public static void main(String[] args) throws JobGraphDefinitionException, IOException, JobExecutionException
-	{
-		if(args.length != 5) {
-			System.out.println("Not correct parameters");
-			System.exit(-1);
-		}
-		
-		final int dop = Integer.valueOf(args[0]);
-		final String input = args[1];
-		final String output = args[2];
-		final int spi = Integer.valueOf(args[3]);
-		final int baseMemory = Integer.valueOf(args[4]);
-		final Class<? extends Key> keyType = PactLong.class;
-		
-		JobGraph graph = new JobGraph("Bulk PageRank Broadcast -- Optimized Twitter");
-		
-		//Create tasks
-		JobInputVertex sourceVertex = createInput(TwitterLinkInput.class, input, graph, dop, spi);
-		
-		JobTaskVertex adjList = createTask(CreateAdjList.class, graph, dop, spi);
-		adjList.setVertexToShareInstancesWith(sourceVertex);
-		setMemorySize(adjList, baseMemory/2);
-		setReduceInformation(adjList, new int[] {0}, new Class[] {keyType});
-		
-		JobOutputVertex sinkVertex = createOutput(AdjListOutput.class, output, graph, dop, spi);
-		sinkVertex.setVertexToShareInstancesWith(sourceVertex);
-		
-		//Connect tasks
-		connectJobVertices(ShipStrategy.PARTITION_HASH, sourceVertex, adjList, 
-				new int[] {0}, new Class[] {keyType});
-		
-		connectJobVertices(ShipStrategy.FORWARD, adjList, sinkVertex, null, null);
-		
-		//Submit job
-		submit(graph, getConfiguration());
-	}
+public class PrepareDirectedTwitter {
+  @SuppressWarnings("unchecked")
+  public static void main(String[] args) throws JobGraphDefinitionException, IOException, JobExecutionException
+  {
+    if (args.length != 5) {
+      System.out.println("Not correct parameters");
+      System.exit(-1);
+    }
+
+    final int dop = Integer.valueOf(args[0]);
+    final String input = args[1];
+    final String output = args[2];
+    final int spi = Integer.valueOf(args[3]);
+    final int baseMemory = Integer.valueOf(args[4]);
+    final Class<? extends Key> keyType = PactLong.class;
+
+    JobGraph graph = new JobGraph("Bulk PageRank Broadcast -- Optimized Twitter");
+
+    //Create tasks
+    JobInputVertex sourceVertex = createInput(TwitterLinkInput.class, input, graph, dop, spi);
+
+    JobTaskVertex adjList = createTask(CreateAdjList.class, graph, dop, spi);
+    adjList.setVertexToShareInstancesWith(sourceVertex);
+    setMemorySize(adjList, baseMemory/2);
+    setReduceInformation(adjList, new int[] {0}, new Class[] {keyType});
+
+    JobOutputVertex sinkVertex = createOutput(AdjListOutput.class, output, graph, dop, spi);
+    sinkVertex.setVertexToShareInstancesWith(sourceVertex);
+
+    //Connect tasks
+    connectJobVertices(ShipStrategy.PARTITION_HASH, sourceVertex, adjList,
+        new int[] {0}, new Class[] {keyType});
+
+    connectJobVertices(ShipStrategy.FORWARD, adjList, sinkVertex, null, null);
+
+    //Submit job
+    submit(graph, getConfiguration());
+  }
 }

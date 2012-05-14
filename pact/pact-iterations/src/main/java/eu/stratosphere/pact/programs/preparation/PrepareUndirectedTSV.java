@@ -26,54 +26,54 @@ import eu.stratosphere.pact.programs.preparation.tasks.UndirectedAdjList;
 import eu.stratosphere.pact.programs.preparation.tasks.UniqueReduce;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
-public class PrepareUndirectedTSV {	
-	@SuppressWarnings("unchecked")
-	public static void main(String[] args) throws JobGraphDefinitionException, IOException, JobExecutionException
-	{
-		if(args.length != 5) {
-			System.out.println("Not correct parameters");
-			System.exit(-1);
-		}
-		
-		final int dop = Integer.valueOf(args[0]);
-		final String input = args[1];
-		final String output = args[2];
-		final int spi = Integer.valueOf(args[3]);
-		final int baseMemory = Integer.valueOf(args[4]);
-		final Class<? extends Key> keyType = PactLong.class;
-		
-		JobGraph graph = new JobGraph("Bulk PageRank Broadcast -- Optimized Twitter");
-		
-		//Create tasks
-		JobInputVertex sourceVertex = createInput(TSVInput.class, input, graph, dop, spi);
-		
-		JobTaskVertex undirect = createTask(UndirectedAdjList.class, graph, dop, spi);
-		undirect.setVertexToShareInstancesWith(sourceVertex);
-		
-		JobTaskVertex uniqueify = createTask(UniqueReduce.class, graph, dop, spi);
-		uniqueify.setVertexToShareInstancesWith(sourceVertex);
-		setMemorySize(uniqueify, baseMemory/2);
-		setReduceInformation(uniqueify, new int[] {0,1}, new Class[] {keyType, keyType});
-		
-		JobTaskVertex adjList = createTask(CreateAdjList.class, graph, dop, spi);
-		adjList.setVertexToShareInstancesWith(sourceVertex);
-		setMemorySize(adjList, baseMemory/2);
-		setReduceInformation(adjList, new int[] {0}, new Class[] {keyType});
-		
-		JobOutputVertex sinkVertex = createOutput(AdjListOutput.class, output, graph, dop, spi);
-		sinkVertex.setVertexToShareInstancesWith(sourceVertex);
-		
-		//Connect tasks
-		connectJobVertices(ShipStrategy.FORWARD, sourceVertex, undirect, null, null);
-		
-		connectJobVertices(ShipStrategy.PARTITION_HASH, undirect, uniqueify, 
-				new int[] {0}, new Class[] {keyType});
-		
-		connectJobVertices(ShipStrategy.FORWARD, uniqueify, adjList, null, null);
-		
-		connectJobVertices(ShipStrategy.FORWARD, adjList, sinkVertex, null, null);
-		
-		//Submit job
-		submit(graph, getConfiguration());
-	}
+public class PrepareUndirectedTSV {
+  @SuppressWarnings("unchecked")
+  public static void main(String[] args) throws JobGraphDefinitionException, IOException, JobExecutionException
+  {
+    if (args.length != 5) {
+      System.out.println("Not correct parameters");
+      System.exit(-1);
+    }
+
+    final int dop = Integer.valueOf(args[0]);
+    final String input = args[1];
+    final String output = args[2];
+    final int spi = Integer.valueOf(args[3]);
+    final int baseMemory = Integer.valueOf(args[4]);
+    final Class<? extends Key> keyType = PactLong.class;
+
+    JobGraph graph = new JobGraph("Bulk PageRank Broadcast -- Optimized Twitter");
+
+    //Create tasks
+    JobInputVertex sourceVertex = createInput(TSVInput.class, input, graph, dop, spi);
+
+    JobTaskVertex undirect = createTask(UndirectedAdjList.class, graph, dop, spi);
+    undirect.setVertexToShareInstancesWith(sourceVertex);
+
+    JobTaskVertex uniqueify = createTask(UniqueReduce.class, graph, dop, spi);
+    uniqueify.setVertexToShareInstancesWith(sourceVertex);
+    setMemorySize(uniqueify, baseMemory/2);
+    setReduceInformation(uniqueify, new int[] {0,1}, new Class[] {keyType, keyType});
+
+    JobTaskVertex adjList = createTask(CreateAdjList.class, graph, dop, spi);
+    adjList.setVertexToShareInstancesWith(sourceVertex);
+    setMemorySize(adjList, baseMemory/2);
+    setReduceInformation(adjList, new int[] {0}, new Class[] {keyType});
+
+    JobOutputVertex sinkVertex = createOutput(AdjListOutput.class, output, graph, dop, spi);
+    sinkVertex.setVertexToShareInstancesWith(sourceVertex);
+
+    //Connect tasks
+    connectJobVertices(ShipStrategy.FORWARD, sourceVertex, undirect, null, null);
+
+    connectJobVertices(ShipStrategy.PARTITION_HASH, undirect, uniqueify,
+        new int[] {0}, new Class[] {keyType});
+
+    connectJobVertices(ShipStrategy.FORWARD, uniqueify, adjList, null, null);
+
+    connectJobVertices(ShipStrategy.FORWARD, adjList, sinkVertex, null, null);
+
+    //Submit job
+    submit(graph, getConfiguration());
+  }
 }

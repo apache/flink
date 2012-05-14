@@ -14,59 +14,59 @@ import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIt
 
 public class ParallelVertexRankMatchProbeCaching extends AbstractIterativeTask {
 
-	boolean firstRound = true;
-	private SpillingResettableMutableObjectIteratorV2<Value> stateIterator;
-	
-	private int iteration = 0;
-	@Override
-	public void runIteration(IterationIterator iterationIter) throws Exception {
-		if(firstRound) {
-			firstRound = false;
-			
-			stateIterator = new SpillingResettableMutableObjectIteratorV2<Value>(memoryManager, ioManager, 
-					inputs[1], (TypeAccessorsV2<Value>) accessors[1], memorySize, this);
-			stateIterator.open();
-		}
-		
-		stateIterator.reset();
-		
-		VertexNeighbourPartial state = new VertexNeighbourPartial();
-		VertexPageRank pageRank = new VertexPageRank();
-		VertexPageRank result = new VertexPageRank();
-		
-		//Blocks until Hashtable is build
-		while(iterationIter.next(pageRank));
-		
-		MutableHashTable<Value, VertexNeighbourPartial> table = 
-				ParallelVertexRankMatchBuild.tables.get(iteration).duplicate(((TypeComparator)new VertexRankMatchBuild.MatchComparator()));
-		
-		while(stateIterator.next(state)) {
-			HashBucketIterator<Value, VertexNeighbourPartial> tableIter = table.getMatchesFor(state);
-			while(tableIter.next(pageRank)) {
-				double rank = pageRank.getRank();
-				double partial = state.getPartial();
-				
-				if(Double.isNaN(rank*partial)) {
-					LOG.info("NAN: "  + pageRank.getVid() + "::" + rank + " // " + pageRank.getRank() +"::"+ state.getPartial() );
-				} else {
-					result.setVid(state.getNid());
-					result.setRank(rank*partial);
-					output.collect(result);
-				}
-			}
-		}
-		
-		//table.close();
-		iteration++;
-	}
+  boolean firstRound = true;
+  private SpillingResettableMutableObjectIteratorV2<Value> stateIterator;
 
-	@Override
-	protected void initTask() {
-		accessors[1] = new VertexNeighbourPartialAccessor();
-	}
+  private int iteration = 0;
+  @Override
+  public void runIteration(IterationIterator iterationIter) throws Exception {
+    if (firstRound) {
+      firstRound = false;
 
-	@Override
-	public int getNumberOfInputs() {
-		return 2;
-	}
+      stateIterator = new SpillingResettableMutableObjectIteratorV2<Value>(memoryManager, ioManager,
+          inputs[1], (TypeAccessorsV2<Value>) accessors[1], memorySize, this);
+      stateIterator.open();
+    }
+
+    stateIterator.reset();
+
+    VertexNeighbourPartial state = new VertexNeighbourPartial();
+    VertexPageRank pageRank = new VertexPageRank();
+    VertexPageRank result = new VertexPageRank();
+
+    //Blocks until Hashtable is build
+    while (iterationIter.next(pageRank));
+
+    MutableHashTable<Value, VertexNeighbourPartial> table =
+        ParallelVertexRankMatchBuild.tables.get(iteration).duplicate(((TypeComparator)new VertexRankMatchBuild.MatchComparator()));
+
+    while (stateIterator.next(state)) {
+      HashBucketIterator<Value, VertexNeighbourPartial> tableIter = table.getMatchesFor(state);
+      while (tableIter.next(pageRank)) {
+        double rank = pageRank.getRank();
+        double partial = state.getPartial();
+
+        if (Double.isNaN(rank*partial)) {
+          LOG.info("NAN: "  + pageRank.getVid() + "::" + rank + " // " + pageRank.getRank() +"::"+ state.getPartial() );
+        } else {
+          result.setVid(state.getNid());
+          result.setRank(rank*partial);
+          output.collect(result);
+        }
+      }
+    }
+
+    //table.close();
+    iteration++;
+  }
+
+  @Override
+  protected void initTask() {
+    accessors[1] = new VertexNeighbourPartialAccessor();
+  }
+
+  @Override
+  public int getNumberOfInputs() {
+    return 2;
+  }
 }

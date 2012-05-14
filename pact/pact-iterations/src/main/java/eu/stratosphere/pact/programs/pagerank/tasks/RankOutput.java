@@ -9,12 +9,12 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 
 public class RankOutput extends FileOutputFormat {
 
-	@Override
-	public void writeRecord(PactRecord record) throws IOException {
-		stream.write((record.getField(0, PactLong.class).getValue()+"").getBytes());
-		stream.write(' ');
-		stream.write(record.getField(1, PactDouble.class).toString().getBytes());
-		stream.write('\n');
-	}
+  @Override
+  public void writeRecord(PactRecord record) throws IOException {
+    stream.write((record.getField(0, PactLong.class).getValue()+"").getBytes());
+    stream.write(' ');
+    stream.write(record.getField(1, PactDouble.class).toString().getBytes());
+    stream.write('\n');
+  }
 
 }
