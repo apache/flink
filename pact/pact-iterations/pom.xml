@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <artifactId>pact</artifactId>
+    <groupId>eu.stratosphere</groupId>
+    <version>0.2</version>
+  </parent>
+
+  <groupId>eu.stratosphere</groupId>
+  <artifactId>pact-iter</artifactId>
+  <version>0.2</version>
+  <name>pact-iterations</name>
+  
+  <packaging>jar</packaging>
+
+  <dependencies>
+  
+  <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>nephele-common</artifactId>
+    	<version>${version}</version>
+    </dependency>
+
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-common</artifactId>
+    	<version>${version}</version>
+    </dependency>
+    
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-compiler</artifactId>
+    	<version>${version}</version>
+    </dependency>
+    
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-runtime</artifactId>
+    	<version>${version}</version>
+    </dependency>
+    <dependency>
+    	<groupId>eu.stratosphere</groupId>
+    	<artifactId>pact-clients</artifactId>
+    	<version>${version}</version>
+    </dependency>
+  </dependencies>
+
+  <reporting>
+    <plugins>
+    </plugins>
+  </reporting>
+
+  <build>
+    <plugins>
+      
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+      </plugin>
+      
+    </plugins>
+  </build>
+</project>

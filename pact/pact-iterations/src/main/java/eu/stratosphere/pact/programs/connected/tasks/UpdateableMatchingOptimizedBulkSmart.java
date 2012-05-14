@@ -1,0 +1,281 @@
+package eu.stratosphere.pact.programs.connected.tasks;
+
+import java.util.Comparator;
+import java.util.List;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.iterative.nephele.tasks.IterationHead;
+import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
+import eu.stratosphere.pact.programs.connected.types.ComponentUpdateFlag;
+import eu.stratosphere.pact.programs.connected.types.ComponentUpdateFlagAccessor;
+import eu.stratosphere.pact.programs.connected.types.PactBoolean;
+import eu.stratosphere.pact.programs.connected.types.TransitiveClosureEntry;
+import eu.stratosphere.pact.programs.connected.types.TransitiveClosureEntryAccessors;
+import eu.stratosphere.pact.runtime.iterative.MutableHashTable;
+import eu.stratosphere.pact.runtime.iterative.MutableHashTable.HashBucketIterator;
+import eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2;
+import eu.stratosphere.pact.runtime.plugable.TypeComparator;
+import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorterCollector;
+import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.InputDataCollector;
+import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
+import eu.stratosphere.pact.runtime.util.KeyComparator;
+import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
+
+public class UpdateableMatchingOptimizedBulkSmart extends IterationHead {
+	
+	protected static final Log LOG = LogFactory.getLog(UpdateableMatchingOptimizedBulkSmart.class);
+	
+	private MutableHashTable<Value, ComponentUpdateFlag> table;
+	
+	private int[] keyPos;
+	private Class<? extends Key>[] keyClasses;
+	private Comparator<Key>[] comparators;
+	
+	private ReduceStub stub = new UpdateReduceStub();
+	
+	private long sortMem  = 0;
+	private long matchMem  = 0;
+
+	private InputDataCollector inputCollector;
+
+	private CombinerThread combinerThread;
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	protected void initTask() {
+		super.initTask();
+		outputAccessors[numInternalOutputs] = new ComponentUpdateFlagAccessor();
+		
+		keyPos = new int[] {0};
+		keyClasses =  new Class[] {PactLong.class};
+		
+		// create the comparators
+		comparators = new Comparator[keyPos.length];
+		final KeyComparator kk = new KeyComparator();
+		for (int i = 0; i < comparators.length; i++) {
+			comparators[i] = kk;
+		}
+	}
+	@Override
+	public void finish(MutableObjectIterator<Value> iter,
+			OutputCollectorV2 output) throws Exception {
+		//TODO: Properly output state
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Override
+	public void processInput(MutableObjectIterator<Value> iter,
+			OutputCollectorV2 output) throws Exception {
+		sortMem = memorySize*2 / 6;
+		matchMem = memorySize*4 / 6;
+		// Load build side into table		
+		int chunckSize = UpdateableMatching.MATCH_CHUNCK_SIZE;
+		List<MemorySegment> joinMem = memoryManager.allocateStrict(this, (int) (matchMem/chunckSize), chunckSize);
+		
+		TypeAccessorsV2 buildAccess = new TransitiveClosureEntryAccessors();
+		TypeAccessorsV2 probeAccess = new ComponentUpdateFlagAccessor();
+		TypeComparator comp = new MatchComparator();
+		
+		table = new MutableHashTable<Value, ComponentUpdateFlag>(buildAccess, probeAccess, comp, 
+				joinMem, ioManager);
+		table.open(inputs[1], EmptyMutableObjectIterator.<ComponentUpdateFlag>get());
+		
+		// Process input as normally
+		processUpdates(iter, output);
+	}
+
+	@Override
+	public void processUpdates(MutableObjectIterator<Value> iter,
+			OutputCollectorV2 output) throws Exception {
+		TransitiveClosureEntry state = new TransitiveClosureEntry();
+		
+		ComponentUpdateFlag probe = new ComponentUpdateFlag();
+		PactRecord update = new PactRecord();
+		PactLong vid = new PactLong();
+		PactLong cid = new PactLong();
+		PactBoolean updated = new PactBoolean();
+		
+		AsynchronousPartialSorterCollector sorter = 
+				new AsynchronousPartialSorterCollector(memoryManager,
+				ioManager, sortMem, comparators, keyPos, keyClasses, this);
+		this.inputCollector = sorter.getInputCollector();
+		
+		this.combinerThread = new CombinerThread(sorter, keyPos, keyClasses, this.stub, new PactRecordToUpdateCollector(output));
+		this.combinerThread.start();
+		
+		int preCombineCount = 0;
+		
+		while(iter.next(probe)) {
+			if(probe.isUpdated()) {
+				HashBucketIterator<Value, ComponentUpdateFlag> tableIter = table.getMatchesFor(probe);
+				if(tableIter.next(state)) {
+					long updateCid = probe.getCid();
+					
+					int numNeighbours = state.getNumNeighbors();
+					long[] neighbourIds = state.getNeighbors();
+					
+					cid.setValue(updateCid);
+					update.setField(1, cid);
+					
+					//Generate self update
+					updated.setValue(false);
+					update.setField(2, updated);
+					vid.setValue(probe.getVid());
+					update.setField(0, vid);
+					inputCollector.collect(update);
+					
+					//Generate neighbour update
+					updated.setValue(true);
+					update.setField(2, updated);
+					for (int i = 0; i < numNeighbours; i++) {
+						vid.setValue(neighbourIds[i]);
+						update.setField(0, vid);
+						preCombineCount++;
+						inputCollector.collect(update);
+					}
+				}
+				if(tableIter.next(state)) {
+					throw new RuntimeException("there should only be one");
+				}
+			} else {
+				vid.setValue(probe.getVid());
+				update.setField(0, vid);
+				cid.setValue(probe.getCid());
+				update.setField(1, cid);
+				updated.setValue(false);
+				update.setField(2, updated);
+				
+				inputCollector.collect(update);
+			}
+		}
+		
+		this.sendCounter("iteration.combine.inputCount", preCombineCount);
+		inputCollector.close();
+		while (this.combinerThread.isAlive()) {
+			try {
+				this.combinerThread.join();
+			}
+			catch (InterruptedException iex) {}
+		}
+		
+		sorter.close();
+	}
+	
+	@Override
+	public int getNumberOfInputs() {
+		return 2;
+	}
+
+	private static final class MatchComparator implements TypeComparator<ComponentUpdateFlag, TransitiveClosureEntry>
+	{
+		private long key;
+
+		@Override
+		public void setReference(ComponentUpdateFlag reference, 
+				TypeAccessorsV2<ComponentUpdateFlag> accessor) {
+			this.key = reference.getVid();
+		}
+
+		@Override
+		public boolean equalToReference(TransitiveClosureEntry candidate, TypeAccessorsV2<TransitiveClosureEntry> accessor) {
+			return this.key == candidate.getVid();
+		}
+	}
+	
+	private final class CombinerThread extends Thread
+	{
+		private final AsynchronousPartialSorterCollector sorter;
+		
+		private final int[] keyPositions;
+		
+		private final Class<? extends Key>[] keyClasses;
+		
+		private final ReduceStub stub;
+		
+		private final Collector output;
+		
+		private volatile boolean running;
+		
+		
+		private CombinerThread(AsynchronousPartialSorterCollector sorter,
+				int[] keyPositions, Class<? extends Key>[] keyClasses, 
+				ReduceStub stub, Collector output)
+		{
+			super("Combiner Thread");
+			setDaemon(true);
+			
+			this.sorter = sorter;
+			this.keyPositions = keyPositions;
+			this.keyClasses = keyClasses;
+			this.stub = stub;
+			this.output = output;
+			this.running = true;
+		}
+
+		public void run()
+		{
+			try {
+				MutableObjectIterator<PactRecord> iterator = null;
+				while (iterator == null) {
+					try {
+						iterator = this.sorter.getIterator();
+					}
+					catch (InterruptedException iex) {
+						if (!this.running)
+							return;
+					}
+				}
+				
+				final KeyGroupedIterator keyIter = new KeyGroupedIterator(iterator, this.keyPositions, this.keyClasses);
+				
+				// cache references on the stack
+				final ReduceStub stub = this.stub;
+				final Collector output = this.output;
+
+				// run stub implementation
+				while (this.running && keyIter.nextKey()) {
+					stub.combine(keyIter.getValues(), output);
+				}
+			}
+			catch (Throwable t) {
+				throw new RuntimeException("Errör");
+			}
+		}
+	}
+	
+	public class PactRecordToUpdateCollector implements Collector {
+
+		private OutputCollectorV2 collector;
+		private ComponentUpdateFlag update = new ComponentUpdateFlag();
+		private PactLong number = new PactLong();
+		private PactBoolean updated = new PactBoolean();
+
+		public PactRecordToUpdateCollector(OutputCollectorV2 collector) {
+			this.collector = collector;
+		}
+		
+		@Override
+		public void collect(PactRecord record) {
+			update.setVid(record.getField(0, number).getValue());
+			update.setCid(record.getField(1, number).getValue());
+			update.setUpdated(record.getField(2, updated).isValue());
+			collector.collect(update);
+		}
+
+		@Override
+		public void close() {
+			collector.close();
+		}
+
+	}
+}
