@@ -11,41 +11,37 @@
   </parent>
 
   <groupId>eu.stratosphere</groupId>
-  <artifactId>pact-iter</artifactId>
+  <artifactId>pact-iterations</artifactId>
   <version>0.2</version>
   <name>pact-iterations</name>
   
   <packaging>jar</packaging>
 
   <dependencies>
-  
-  <dependency>
-    	<groupId>eu.stratosphere</groupId>
-    	<artifactId>nephele-common</artifactId>
-    	<version>${version}</version>
-    </dependency>
-
     <dependency>
-    	<groupId>eu.stratosphere</groupId>
-    	<artifactId>pact-common</artifactId>
-    	<version>${version}</version>
-    </dependency>
-    
-    <dependency>
-    	<groupId>eu.stratosphere</groupId>
-    	<artifactId>pact-compiler</artifactId>
-    	<version>${version}</version>
-    </dependency>
-    
-    <dependency>
-    	<groupId>eu.stratosphere</groupId>
-    	<artifactId>pact-runtime</artifactId>
-    	<version>${version}</version>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>nephele-common</artifactId>
+      <version>${version}</version>
     </dependency>
     <dependency>
-    	<groupId>eu.stratosphere</groupId>
-    	<artifactId>pact-clients</artifactId>
-    	<version>${version}</version>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-common</artifactId>
+      <version>${version}</version>
+    </dependency>
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-compiler</artifactId>
+      <version>${version}</version>
+    </dependency>
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-runtime</artifactId>
+      <version>${version}</version>
+    </dependency>
+      <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-clients</artifactId>
+      <version>${version}</version>
     </dependency>
   </dependencies>
 
