@@ -68,6 +68,8 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	
 	// tasks chained to this data source
 	private ArrayList<ChainedTask<?, ?>> chainedTasks;
+	
+	private ClassLoader userCodeClassLoader;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -81,19 +83,20 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Start registering input and output"));
 
-		ClassLoader cl;
-		try {
-			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " + 
-						getEnvironment().getJobID(), ioe);
+		if (this.userCodeClassLoader == null) {
+			try {
+				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			}
+			catch (IOException ioe) {
+				throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " + 
+							getEnvironment().getJobID(), ioe);
+			}
 		}
 		
-		initInputFormat(cl);
+		initInputFormat(this.userCodeClassLoader);
 		
 		try {
-			initOutputs(cl);
+			initOutputs(this.userCodeClassLoader);
 		} catch (Exception ex) {
 			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " + 
 				ex.getMessage(), ex);
@@ -146,6 +149,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 					
 					if (this.output instanceof PactRecordOutputCollector)
 					{
+						// PactRecord going directly into network channels
 						final PactRecordOutputCollector output = (PactRecordOutputCollector) this.output;
 						while (!this.taskCanceled && !inFormat.reachedEnd()) {
 							// build next pair and ship pair if it is valid
@@ -154,6 +158,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 							}
 						}
 					} else if (this.output instanceof ChainedMapTask) {
+						// PactRecord going to a chained map task
 						@SuppressWarnings("unchecked")
 						final ChainedMapTask<PactRecord, ?> output = (ChainedMapTask<PactRecord, ?>) this.output;
 						
@@ -164,10 +169,20 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 								output.collect(pactRecord);
 							}
 						}
+					} else {
+						// PactRecord going to some other chained task
+						@SuppressWarnings("unchecked")
+						final Collector<PactRecord> output = (Collector<PactRecord>) this.output;
+						// as long as there is data to read
+						while (!this.taskCanceled && !inFormat.reachedEnd()) {
+							// build next pair and ship pair if it is valid
+							if (inFormat.nextRecord(pactRecord)) {
+								output.collect(pactRecord);
+							}
+						}
 					}
 				} else {
-					// general types
-					// we make a case distinction here for the common cases, in order to help
+					// general types. we make a case distinction here for the common cases, in order to help
 					// JIT method inlining
 					if (this.output instanceof OutputCollector)
 					{
@@ -256,6 +271,16 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		this.taskCanceled = true;
 		if (LOG.isWarnEnabled())
 			LOG.warn(getLogString("Cancelling PACT code"));
+	}
+	
+	/**
+	 * Sets the class-loader to be used to load the user code.
+	 * 
+	 * @param cl The class-loader to be used to load the user code.
+	 */
+	public void setUserCodeClassLoader(ClassLoader cl)
+	{
+		this.userCodeClassLoader = cl;
 	}
 
 	/**

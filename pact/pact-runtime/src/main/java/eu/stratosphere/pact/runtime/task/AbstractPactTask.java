@@ -148,6 +148,15 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Start registering input and output."));
 		}
+		
+		if (this.userCodeClassLoader == null) {
+			try {
+				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			}
+			catch (IOException ioe) {
+				throw new RuntimeException("The ClassLoader for the user code could not be instantiated from the library cache.", ioe);
+			}
+		}
 
 		try {
 			initConfigAndStub(getStubType());
@@ -272,6 +281,16 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 			LOG.warn(getLogString("Cancelling PACT code"));
 	}
 	
+	/**
+	 * Sets the class-loader to be used to load the user code.
+	 * 
+	 * @param cl The class-loader to be used to load the user code.
+	 */
+	public void setUserCodeClassLoader(ClassLoader cl)
+	{
+		this.userCodeClassLoader = cl;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//                                 Task Setup and Teardown
 	// --------------------------------------------------------------------------------------------
@@ -289,14 +308,10 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 
 		// obtain stub implementation class
 		try {
-			this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 			@SuppressWarnings("unchecked")
 			Class<S> stubClass = (Class<S>) this.config.getStubClass(stubSuperClass, this.userCodeClassLoader);
 			
 			this.stub = InstantiationUtil.instantiate(stubClass, stubSuperClass);
-		}
-		catch (IOException ioe) {
-			throw new Exception("The ClassLoader for the user code could not be instantiated from the library cache.", ioe);
 		}
 		catch (ClassNotFoundException cnfe) {
 			throw new Exception("The stub implementation class was not found.", cnfe);

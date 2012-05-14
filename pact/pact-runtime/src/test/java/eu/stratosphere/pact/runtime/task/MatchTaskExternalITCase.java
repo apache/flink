@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import junit.framework.Assert;
 
@@ -38,7 +37,7 @@ public class MatchTaskExternalITCase extends TaskTestBase
 {
 	private static final Log LOG = LogFactory.getLog(MatchTaskExternalITCase.class);
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final ArrayList<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testExternalSort1MatchTask() {
@@ -90,10 +89,13 @@ public class MatchTaskExternalITCase extends TaskTestBase
 	public void testExternalHash1MatchTask() {
 
 		int keyCnt1 = 32768;
-		int valCnt1 = 4*16;
+		int valCnt1 = 8;
 		
 		int keyCnt2 = 65536;
-		int valCnt2 = 1*16;
+		int valCnt2 = 8;
+		
+		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		this.outList.ensureCapacity(expCnt);
 		
 		super.initEnvironment(4*1024*1024);
 		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
@@ -124,8 +126,6 @@ public class MatchTaskExternalITCase extends TaskTestBase
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-		
 		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
 		
 		outList.clear();
@@ -136,10 +136,10 @@ public class MatchTaskExternalITCase extends TaskTestBase
 	public void testExternalHash2MatchTask() {
 
 		int keyCnt1 = 32768;
-		int valCnt1 = 4*16;
+		int valCnt1 = 8;
 		
 		int keyCnt2 = 65536;
-		int valCnt2 = 1*16;
+		int valCnt2 = 8;
 		
 		super.initEnvironment(4*1024*1024);
 		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);

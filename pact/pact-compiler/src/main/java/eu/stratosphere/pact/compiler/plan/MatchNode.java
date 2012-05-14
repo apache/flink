@@ -254,44 +254,44 @@ public class MatchNode extends TwoInputNode {
 					continue;
 
 				// check for self match
-				if (areBranchesEqual(predList1, predList2)) {
-					// we have a self match
-					
-					
-					if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && ss1.equals(ss2)) {
-						// ShipStrategy is forced on both inputs
-						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss1, estimator);
-					} else if (ss1 != ShipStrategy.NONE && ss2 == ShipStrategy.NONE) {
-						// ShipStrategy is forced on first input
-						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss1, estimator);
-					} else if (ss1 == ShipStrategy.NONE && ss2 != ShipStrategy.NONE) {
-						// ShipStrategy is forced on second input
-						createLocalAlternatives(outputPlans, predList1, predList2, ss2, ss2, estimator);
-					} else if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && !ss1.equals(ss2)) {
-						// incompatible ShipStrategies enforced
-						continue;
-					}
-					
-					GlobalProperties gp;
-					if(predList1.size() == 1) {
-						gp = predList1.get(0).getGlobalProperties();
-					} else {
-						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
-						gp = new GlobalProperties();
-					}
-					
-					if(!partitioningIsOnRightFields(gp, 0) || gp.getPartitioning().equals(PartitionProperty.NONE)) {
-						// we need to partition
-						// TODO: include range partitioning
-						createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH, ShipStrategy.PARTITION_HASH, estimator);
-					} else {
-						// input is already partitioned
-						createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD, ShipStrategy.FORWARD, estimator);
-					}
-					
-					// check next alternative
-					continue;
-				}
+//				if (areBranchesEqual(predList1, predList2)) {
+//					// we have a self match
+//					
+//					
+//					if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && ss1.equals(ss2)) {
+//						// ShipStrategy is forced on both inputs
+//						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss1, estimator);
+//					} else if (ss1 != ShipStrategy.NONE && ss2 == ShipStrategy.NONE) {
+//						// ShipStrategy is forced on first input
+//						createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss1, estimator);
+//					} else if (ss1 == ShipStrategy.NONE && ss2 != ShipStrategy.NONE) {
+//						// ShipStrategy is forced on second input
+//						createLocalAlternatives(outputPlans, predList1, predList2, ss2, ss2, estimator);
+//					} else if(ss1 != ShipStrategy.NONE && ss2 != ShipStrategy.NONE && !ss1.equals(ss2)) {
+//						// incompatible ShipStrategies enforced
+//						continue;
+//					}
+//					
+//					GlobalProperties gp;
+//					if(predList1.size() == 1) {
+//						gp = predList1.get(0).getGlobalProperties();
+//					} else {
+//						// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
+//						gp = new GlobalProperties();
+//					}
+//					
+//					if(!partitioningIsOnRightFields(gp, 0) || gp.getPartitioning().equals(PartitionProperty.NONE)) {
+//						// we need to partition
+//						// TODO: include range partitioning
+//						createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_HASH, ShipStrategy.PARTITION_HASH, estimator);
+//					} else {
+//						// input is already partitioned
+//						createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD, ShipStrategy.FORWARD, estimator);
+//					}
+//					
+//					// check next alternative
+//					continue;
+//				}
 
 				GlobalProperties gp1;
 				GlobalProperties gp2;
@@ -647,7 +647,7 @@ public class MatchNode extends TwoInputNode {
 			}
 
 		} else {
-			if (!areBranchesEqual(allPreds1, allPreds2)) {
+//			if (!areBranchesEqual(allPreds1, allPreds2)) {
 				// this is not a self match
 			
 				// create the hash strategies only, if we have estimates for the input sized
@@ -695,26 +695,23 @@ public class MatchNode extends TwoInputNode {
 					createMatchAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.SORT_BOTH_MERGE, Order.ASCENDING, true, null, estimator);
 					
 				}
-				
-			} else {
-				// this is a self match
-				FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-				if(lp1.isGrouped() && keyFields.equals(lp1.getGroupedFields())) {
-					// output will have order of input
-					LocalProperties outLp = new LocalProperties();
-					outLp.setOrdering(lp1.getOrdering());
-					outLp.setGrouped(true, lp1.getGroupedFields());
-					// self match without sorting
-					createMatchAlternative(target, allPreds1, null, ss1, null, LocalStrategy.SELF_NESTEDLOOP, Order.ANY, true, outLp, estimator);
-				} else {
-					// output will be ascendingly sorted
-					// self match with sorting
-					createMatchAlternative(target, allPreds1, null, ss1, null, LocalStrategy.SORT_SELF_NESTEDLOOP, Order.ASCENDING, true, null, estimator);
-				}
-				
-			}
+//			} else {
+//				// this is a self match
+//				FieldSet keyFields = new FieldSet(getPactContract().getKeyColumnNumbers(0));
+//				if(lp1.isGrouped() && keyFields.equals(lp1.getGroupedFields())) {
+//					// output will have order of input
+//					LocalProperties outLp = new LocalProperties();
+//					outLp.setOrdering(lp1.getOrdering());
+//					outLp.setGrouped(true, lp1.getGroupedFields());
+//					// self match without sorting
+//					createMatchAlternative(target, allPreds1, null, ss1, null, LocalStrategy.SELF_NESTEDLOOP, Order.ANY, true, outLp, estimator);
+//				} else {
+//					// output will be ascendingly sorted
+//					// self match with sorting
+//					createMatchAlternative(target, allPreds1, null, ss1, null, LocalStrategy.SORT_SELF_NESTEDLOOP, Order.ASCENDING, true, null, estimator);
+//				}
+//			}
 		}
-
 	}
 
 	/**
