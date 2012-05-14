@@ -411,7 +411,9 @@ public final class ExecutionStage {
 
 					if (!alreadyVisited.contains(connectedVertex)) {
 						recurse = true;
-					} else if (channelType == ChannelType.INMEMORY
+					}
+
+					if (channelType == ChannelType.INMEMORY
 						&& !pipeline.equals(connectedVertex.getExecutionPipeline())) {
 
 						connectedVertex.setExecutionPipeline(pipeline);
@@ -441,7 +443,9 @@ public final class ExecutionStage {
 
 					if (!alreadyVisited.contains(connectedVertex)) {
 						recurse = true;
-					} else if (channelType == ChannelType.INMEMORY
+					}
+
+					if (channelType == ChannelType.INMEMORY
 						&& !pipeline.equals(connectedVertex.getExecutionPipeline())) {
 
 						connectedVertex.setExecutionPipeline(pipeline);

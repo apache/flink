@@ -203,6 +203,7 @@
 
               <includes>
                 <include>**/wordcount/*.class</include>
+                <include>**/util/AsciiUtils*.class</include>
               </includes>
             </configuration>
           </execution>
