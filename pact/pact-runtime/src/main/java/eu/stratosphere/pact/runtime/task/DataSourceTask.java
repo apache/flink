@@ -68,6 +68,8 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	
 	// tasks chained to this data source
 	private ArrayList<ChainedTask<?, ?>> chainedTasks;
+	
+	private ClassLoader userCodeClassLoader;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -81,19 +83,20 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Start registering input and output"));
 
-		ClassLoader cl;
-		try {
-			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " + 
-						getEnvironment().getJobID(), ioe);
+		if (this.userCodeClassLoader == null) {
+			try {
+				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			}
+			catch (IOException ioe) {
+				throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " + 
+							getEnvironment().getJobID(), ioe);
+			}
 		}
 		
-		initInputFormat(cl);
+		initInputFormat(this.userCodeClassLoader);
 		
 		try {
-			initOutputs(cl);
+			initOutputs(this.userCodeClassLoader);
 		} catch (Exception ex) {
 			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " + 
 				ex.getMessage(), ex);
@@ -256,6 +259,16 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		this.taskCanceled = true;
 		if (LOG.isWarnEnabled())
 			LOG.warn(getLogString("Cancelling PACT code"));
+	}
+	
+	/**
+	 * Sets the class-loader to be used to load the user code.
+	 * 
+	 * @param cl The class-loader to be used to load the user code.
+	 */
+	public void setUserCodeClassLoader(ClassLoader cl)
+	{
+		this.userCodeClassLoader = cl;
 	}
 
 	/**

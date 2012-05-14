@@ -237,7 +237,7 @@ public class CoGroupTaskTest extends TaskTestBase
 		int keyCnt2 = 200;
 		int valCnt2 = 4;
 		
-		super.initEnvironment(1);
+		super.initEnvironment(1024 * 1024);
 		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true), 1);
 		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true), 2);
 		super.addOutput(this.outList);

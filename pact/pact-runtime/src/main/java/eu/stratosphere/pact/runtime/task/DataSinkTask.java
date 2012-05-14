@@ -192,6 +192,16 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		if (LOG.isWarnEnabled())
 			LOG.warn(getLogString("Cancelling PACT code"));
 	}
+	
+	/**
+	 * Sets the class-loader to be used to load the user code.
+	 * 
+	 * @param cl The class-loader to be used to load the user code.
+	 */
+	public void setUserCodeClassLoader(ClassLoader cl)
+	{
+		this.userCodeClassLoader = cl;
+	}
 
 	/**
 	 * Initializes the OutputFormat implementation and configuration.
@@ -202,21 +212,24 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	 */
 	private void initOutputFormat()
 	{
+		if (this.userCodeClassLoader == null) {
+			try {
+				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			} catch (IOException ioe) {
+				throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
+			}
+		}
 		// obtain task configuration (including stub parameters)
 		this.config = new TaskConfig(getTaskConfiguration());
 
 		// obtain stub implementation class
 		try {
-			final ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 			@SuppressWarnings("unchecked")
 			final Class<? extends OutputFormat<IT>> clazz = (Class<? extends OutputFormat<IT>>) (Class<?>) OutputFormat.class;
-			final Class<? extends OutputFormat<IT>> formatClass = this.config.getStubClass(clazz, cl);
+			final Class<? extends OutputFormat<IT>> formatClass = this.config.getStubClass(clazz, this.userCodeClassLoader);
 			
 			// obtain instance of stub implementation
 			this.format = InstantiationUtil.instantiate(formatClass, OutputFormat.class);
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		}
 		catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("OutputFormat implementation class was not found.", cnfe);
