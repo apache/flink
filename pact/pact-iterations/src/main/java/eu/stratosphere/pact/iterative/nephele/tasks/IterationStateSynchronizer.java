@@ -52,7 +52,7 @@ public class IterationStateSynchronizer extends AbstractMinimalTask {
         }
       } catch (StateChangeException ex) {
         if (stateListener.isChanged() && stateListener.getState() == ChannelState.CLOSED) {
-          LOG.info("Finnished Step: " + count + " in " + (System.nanoTime()-start)/1000000 + "");
+          LOG.info("Finnished Step: " + count + " in " + (System.nanoTime() - start) / 1000000 + "");
 
           count++;
           getEnvironment().getInputGate(1).publishEvent(new ChannelStateEvent(ChannelState.CLOSED));

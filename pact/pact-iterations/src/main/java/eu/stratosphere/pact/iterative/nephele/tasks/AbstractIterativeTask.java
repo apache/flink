@@ -23,8 +23,7 @@ public abstract class AbstractIterativeTask extends AbstractMinimalTask {
     stateListeners = new ChannelStateTracker[numInputs];
 
     for (int i = 0; i < numInputs; i++) {
-      stateListeners[i] =
-          initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
+      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
     }
 
     iterStateGates = getIterationOutputGates();
@@ -91,8 +90,8 @@ public abstract class AbstractIterativeTask extends AbstractMinimalTask {
     gate.flush();
   }
 
-  public static void publishState(ChannelState state,
-      OutputGate<? extends Record>[] iterStateGates) throws Exception {
+  public static void publishState(ChannelState state, OutputGate<? extends Record>[] iterStateGates)
+      throws Exception {
     for (OutputGate<? extends Record> gate : iterStateGates) {
       publishState(state, gate);
     }

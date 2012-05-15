@@ -2,6 +2,7 @@ package eu.stratosphere.pact.iterative.nephele.tasks;
 
 import java.io.IOException;
 
+import com.google.common.base.Preconditions;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
@@ -47,6 +48,7 @@ public abstract class AbstractDualIterativeTask extends AbstractIterativeTask {
   public boolean checkTermination(IterationIterator iterA, IterationIterator iterB) throws IOException {
     boolean terminatedA = iterA.checkTermination();
     boolean terminatedB = iterB.checkTermination();
+
     if (terminatedA && terminatedB) {
       return true;
     } else if (!terminatedA && !terminatedB) {

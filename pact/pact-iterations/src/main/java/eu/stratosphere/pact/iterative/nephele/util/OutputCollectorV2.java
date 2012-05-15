@@ -9,6 +9,7 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 
+@Deprecated
 public class OutputCollectorV2 {
   // list of writers
   protected RecordWriter<Value>[] writers;

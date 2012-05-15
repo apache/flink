@@ -7,6 +7,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 
 public class ChannelStateEvent extends AbstractTaskEvent {
+
   public static enum ChannelState {
     STARTED((byte) 1), OPEN((byte) 2), CLOSED((byte) 3), TERMINATED((byte) 4);
 

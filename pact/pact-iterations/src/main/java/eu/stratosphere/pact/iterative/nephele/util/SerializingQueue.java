@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.UnmodifiableIterator;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
@@ -15,8 +16,8 @@ public class SerializingQueue extends AbstractQueue<PactRecord> {
 
   private static final int DEFAULT_MEMORY_SEGMENT_SIZE = 8 * 1024 * 1024;
 
-  List<MemorySegment> segments = new ArrayList<MemorySegment>();
-  List<MemorySegment> newSegments = new ArrayList<MemorySegment>();
+  List<MemorySegment> segments = Lists.newArrayList();
+  List<MemorySegment> newSegments = Lists.newArrayList();
   MemorySegment currentWriteSegment;
   MemorySegment currentReadSegment;
   Iterator<MemorySegment> allocatingIterator;

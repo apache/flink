@@ -10,9 +10,7 @@ public class PactIntArray implements Value {
 
   private int[] data;
 
-  public PactIntArray() {
-
-  }
+  public PactIntArray() {}
 
   public PactIntArray(int[] data) {
     this.data = data;
@@ -35,7 +33,6 @@ public class PactIntArray implements Value {
     for (int i = 0; i < data.length; i++) {
       data[i] = in.readInt();
     }
-
   }
 
   public int[] getValue() {

@@ -12,9 +12,10 @@ import java.util.concurrent.ConcurrentMap;
 import eu.stratosphere.pact.iterative.AccessibleConcurrentHashMap;
 
 public class CacheStore {
+
   public static enum CacheType {
     ISOLATED, SHARED_READ, SHARED_READ_WRITE
-  };
+  }
 
   @SuppressWarnings("rawtypes")
   private final static ConcurrentMap<String, AccessibleConcurrentHashMap> store =

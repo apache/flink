@@ -58,8 +58,8 @@ public abstract class IterationHead extends AbstractMinimalTask {
       numInternalOutputs = 4;
     }
 
-    updateBufferSize = memorySize*1 / 5;
-    memorySize = memorySize*4 /5;
+    updateBufferSize = memorySize * 1 / 5;
+    memorySize = memorySize * 4 / 5;
   }
 
   @Override
@@ -90,15 +90,11 @@ public abstract class IterationHead extends AbstractMinimalTask {
         (int) (updateBufferSize / MEMORY_SEGMENT_SIZE), MEMORY_SEGMENT_SIZE);
     SerializedUpdateBuffer buffer = new SerializedUpdateBuffer(updateMemory, MEMORY_SEGMENT_SIZE, ioManager);
 
-    //Create and initialize internal structures for the transport of the iteration
-    //updates from the tail to the head (this class)
-    BackTrafficQueueStore.getInstance().addStructures(
-        getEnvironment().getJobID(),
+    //Create and initialize internal structures for the transport of the iteration updates from the tail to the head (this class)
+    BackTrafficQueueStore.getInstance().addStructures(getEnvironment().getJobID(),
         getEnvironment().getIndexInSubtaskGroup());
-    BackTrafficQueueStore.getInstance().publishUpdateBuffer(
-        getEnvironment().getJobID(),
-        getEnvironment().getIndexInSubtaskGroup(),
-        buffer);
+    BackTrafficQueueStore.getInstance().publishUpdateBuffer(getEnvironment().getJobID(),
+        getEnvironment().getIndexInSubtaskGroup(), buffer);
 
     //Start with a first iteration run using the input data
     AbstractIterativeTask.publishState(ChannelState.OPEN, iterStateGates);

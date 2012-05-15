@@ -40,31 +40,26 @@ public abstract class AsynchronousIterationHead extends IterationHead {
     //Gates where the iterative channel state is send to
     OutputGate<? extends Record>[] iterStateGates = getIterationOutputGates();
 
-    int segmentSize = 1024*1024;
+    int segmentSize = 1024 * 1024;
     //Allocate memory for update queue
-    List<MemorySegment> updateMemory = memoryManager.allocateStrict(this,
-        (int)(updateBufferSize / segmentSize), segmentSize);
-    SerializedPassthroughUpdateBuffer buffer =
-        new SerializedPassthroughUpdateBuffer(updateMemory, segmentSize);
+    List<MemorySegment> updateMemory = memoryManager.allocateStrict(this, (int)(updateBufferSize / segmentSize),
+        segmentSize);
+    SerializedPassthroughUpdateBuffer buffer = new SerializedPassthroughUpdateBuffer(updateMemory, segmentSize);
 
     //Create and initialize internal structures for the transport of the iteration
     //updates from the tail to the head (this class)
-    BackTrafficQueueStore.getInstance().addStructures(
-        getEnvironment().getJobID(),
+    BackTrafficQueueStore.getInstance().addStructures(getEnvironment().getJobID(),
         getEnvironment().getIndexInSubtaskGroup());
-    BackTrafficQueueStore.getInstance().publishUpdateBuffer(
-        getEnvironment().getJobID(),
-        getEnvironment().getIndexInSubtaskGroup(),
-        buffer);
+    BackTrafficQueueStore.getInstance().publishUpdateBuffer(getEnvironment().getJobID(),
+        getEnvironment().getIndexInSubtaskGroup(), buffer);
 
     //Start with a first iteration run using the input data
     AbstractIterativeTask.publishState(ChannelState.OPEN, iterStateGates);
 
     //Process all input records by passing them to the processInput method (supplied by the user)
     MutableObjectIterator<Value> input = inputs[0];
-    processInput(new WrappedIterator(input,
-        getEnvironment().getJobID(),
-        getEnvironment().getIndexInSubtaskGroup()), innerOutput);
+    processInput(new WrappedIterator(input, getEnvironment().getJobID(), getEnvironment().getIndexInSubtaskGroup()),
+        innerOutput);
 
     AbstractIterativeTask.publishState(ChannelState.CLOSED, iterStateGates);
 
@@ -99,8 +94,8 @@ public abstract class AsynchronousIterationHead extends IterationHead {
           second = true;
 
           try {
-            updatesBuffer = (SerializedPassthroughUpdateBuffer) BackTrafficQueueStore.getInstance().receiveIterationEnd(
-                id, subtaskIndex);
+            updatesBuffer = (SerializedPassthroughUpdateBuffer) BackTrafficQueueStore.getInstance()
+                .receiveIterationEnd(id, subtaskIndex);
             updatesIter = new DeserializingIterator(updatesBuffer.getReadEnd());
           } catch (InterruptedException e) {
             throw new RuntimeException("The house is on fire!");
@@ -130,6 +125,7 @@ public abstract class AsynchronousIterationHead extends IterationHead {
       return updatesBuffer.getCount();
     }
   }
+
   @Override
   public void cleanup() throws Exception {
     // TODO Auto-generated method stub

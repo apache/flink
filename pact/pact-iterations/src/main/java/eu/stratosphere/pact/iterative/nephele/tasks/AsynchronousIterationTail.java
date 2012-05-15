@@ -79,12 +79,9 @@ public class AsynchronousIterationTail extends AbstractMinimalTask {
           if (stateListeners[DATA_INPUT].getState() == ChannelState.OPEN && buffer == null) {
             //Get new queue to put items into
             buffer = (SerializedPassthroughUpdateBuffer) BackTrafficQueueStore.getInstance().receiveUpdateBuffer(
-                getEnvironment().getJobID(),
-                getEnvironment().getIndexInSubtaskGroup());
+                getEnvironment().getJobID(), getEnvironment().getIndexInSubtaskGroup());
             BackTrafficQueueStore.getInstance().publishIterationEnd(
-                getEnvironment().getJobID(),
-                getEnvironment().getIndexInSubtaskGroup(),
-                buffer);
+                getEnvironment().getJobID(), getEnvironment().getIndexInSubtaskGroup(), buffer);
             writeOutput = buffer.getWriteEnd();
           }
         }

@@ -57,8 +57,7 @@ public abstract class SortingReduce extends AbstractIterativeTask {
     sorter.close();
   }
 
-  public abstract void reduce(Iterator<PactRecord> records,
-      OutputCollectorV2 out) throws Exception;
+  public abstract void reduce(Iterator<PactRecord> records, OutputCollectorV2 out) throws Exception;
 
   public abstract PactRecordIterator getInputIterator(IterationIterator iterationIter);
 

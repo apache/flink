@@ -19,6 +19,7 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 
 public class CounterTask extends AbstractMinimalTask {
+
   private ChannelStateTracker[] stateListeners;
   protected static final Log LOG = LogFactory.getLog(CounterTask.class);
 

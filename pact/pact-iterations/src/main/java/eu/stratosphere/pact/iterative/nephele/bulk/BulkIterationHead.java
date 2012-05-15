@@ -7,6 +7,7 @@ import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
 import eu.stratosphere.pact.programs.pagerank.types.VertexPageRank;
 
 public class BulkIterationHead extends IterationHead {
+
   private VertexPageRank vRank = new VertexPageRank();
 
   @Override

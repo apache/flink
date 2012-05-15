@@ -15,6 +15,7 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 * @author Alexander Alexandrov
 * @author Stephan Ewen
 */
+@Deprecated
 public class OutputEmitterV2 implements ChannelSelector<Value> {
 
     // ------------------------------------------------------------------------

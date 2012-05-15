@@ -2,35 +2,34 @@ package eu.stratosphere.pact.iterative.nephele.util;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
 public class BackTrafficQueueStore {
-  private volatile HashMap<String, BlockingQueue<Object>> iterOpenMap =
-      new HashMap<String, BlockingQueue<Object>>();
-  private volatile HashMap<String, BlockingQueue<Object>> iterEndMap =
-      new HashMap<String, BlockingQueue<Object>>();
 
-  private static final BackTrafficQueueStore store = new BackTrafficQueueStore();
+  private volatile HashMap<String, BlockingQueue<Object>> iterOpenMap = Maps.newHashMap();
+  private volatile HashMap<String, BlockingQueue<Object>> iterEndMap = Maps.newHashMap();
+
+  private static final BackTrafficQueueStore STORE = new BackTrafficQueueStore();
 
   public static BackTrafficQueueStore getInstance() {
-    return store;
+    return STORE;
   }
 
   public void addStructures(JobID jobID, int subTaskId) {
     synchronized(iterOpenMap) {
       synchronized(iterEndMap) {
-        if (iterOpenMap.containsKey(getIdentifier(jobID, subTaskId))) {
-          throw new RuntimeException("Internal Error");
-        }
 
-        BlockingQueue<Object> openQueue =
-            new ArrayBlockingQueue<Object>(1);
-        BlockingQueue<Object> endQueue =
-            new ArrayBlockingQueue<Object>(1);
+        Preconditions.checkState(iterOpenMap.containsKey(getIdentifier(jobID, subTaskId)), "Internal error");
+
+        BlockingQueue<Object> openQueue = new ArrayBlockingQueue<Object>(1);
+        BlockingQueue<Object> endQueue = new ArrayBlockingQueue<Object>(1);
 
         iterOpenMap.put(getIdentifier(jobID, subTaskId), openQueue);
         iterEndMap.put(getIdentifier(jobID, subTaskId), endQueue);
@@ -41,9 +40,8 @@ public class BackTrafficQueueStore {
   public void releaseStructures(JobID jobID, int subTaskId) {
     synchronized(iterOpenMap) {
       synchronized(iterEndMap) {
-        if (!iterOpenMap.containsKey(getIdentifier(jobID, subTaskId))) {
-          throw new RuntimeException("Internal Error");
-        }
+
+        Preconditions.checkState(iterOpenMap.containsKey(getIdentifier(jobID, subTaskId)), "Internal error");
 
         iterOpenMap.remove(getIdentifier(jobID, subTaskId));
         iterEndMap.remove(getIdentifier(jobID, subTaskId));
@@ -53,11 +51,9 @@ public class BackTrafficQueueStore {
 
   public void publishUpdateBuffer(JobID jobID, int subTaskId, Object buffer) {
     //publishUpdateBuffer(jobID, subTaskId, memorySegments, segmentSize, UpdateQueueStrategy.IN_MEMORY_SERIALIZED);
-    BlockingQueue<Object> queue =
-         safeRetrieval(iterOpenMap, getIdentifier(jobID, subTaskId));
-    if (queue == null) {
-      throw new RuntimeException("Internal Error");
-    }
+    BlockingQueue<Object> queue = safeRetrieval(iterOpenMap, getIdentifier(jobID, subTaskId));
+
+    Preconditions.checkNotNull(queue);
 
     queue.add(buffer);
   }
@@ -91,27 +87,23 @@ public class BackTrafficQueueStore {
   }
 
   public void publishIterationEnd(JobID jobID, int subTaskId, Object outputBuffer) {
-    BlockingQueue<Object> queue =
-         safeRetrieval(iterEndMap, getIdentifier(jobID, subTaskId));
-    if (queue == null) {
-      throw new RuntimeException("Internal Error");
-    }
+    BlockingQueue<Object> queue = safeRetrieval(iterEndMap, getIdentifier(jobID, subTaskId));
+
+    Preconditions.checkNotNull(queue);
 
     queue.add(outputBuffer);
   }
 
   public Object receiveIterationEnd(JobID jobID, int subTaskId) throws InterruptedException {
-    BlockingQueue<Object> queue =
-        safeRetrieval(iterEndMap, getIdentifier(jobID, subTaskId));
-    if (queue == null) {
-      throw new RuntimeException("Internal Error");
-    }
+    BlockingQueue<Object> queue = safeRetrieval(iterEndMap, getIdentifier(jobID, subTaskId));
+
+    Preconditions.checkNotNull(queue);
 
     return queue.take();
   }
 
-
-  private <K,V> V safeRetrieval(HashMap<K, V> map, K key) {
+  //TODO why not use a concurrent hashmap that synchronizes on the key?
+  private <K,V> V safeRetrieval(Map<K, V> map, K key) {
     synchronized(map) {
       return map.get(key);
     }
@@ -122,8 +114,8 @@ public class BackTrafficQueueStore {
   }
 
   private interface UpdateBufferFactory {
-    public SerializedUpdateBuffer createBuffer(JobID id, int subTaskId,
-        List<MemorySegment> memorySegments, int segmentSize);
+    public SerializedUpdateBuffer createBuffer(JobID id, int subTaskId, List<MemorySegment> memorySegments,
+        int segmentSize);
   }
 
 //  public enum UpdateQueueStrategy {

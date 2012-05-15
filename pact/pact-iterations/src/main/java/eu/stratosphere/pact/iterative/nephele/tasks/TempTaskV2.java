@@ -9,6 +9,7 @@ import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIt
 
 /**
  */
+@Deprecated
 public class TempTaskV2 extends AbstractMinimalTask {
   // the minimal amount of memory required for the temp to work
   private static final long MIN_REQUIRED_MEMORY = 512 * 1024;
