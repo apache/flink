@@ -6,7 +6,6 @@ import eu.stratosphere.nephele.services.memorymanager.DataInputViewV2;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.iterative.nephele.tasks.AbstractMinimalTask;
-import eu.stratosphere.pact.iterative.nephele.util.DeserializingIterator;
 import eu.stratosphere.pact.iterative.nephele.util.SerializedUpdateBuffer;
 import eu.stratosphere.pact.programs.connected.types.ComponentUpdate;
 import eu.stratosphere.pact.programs.connected.types.ComponentUpdateAccessor;

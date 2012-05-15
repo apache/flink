@@ -10,8 +10,6 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.tasks.SortingReduce;
 import eu.stratosphere.pact.iterative.nephele.util.IterationIterator;
-import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
-import eu.stratosphere.pact.iterative.nephele.util.PactRecordIterator;
 import eu.stratosphere.pact.programs.connected.types.ComponentUpdateFlag;
 import eu.stratosphere.pact.programs.connected.types.PactBoolean;
 

@@ -2,11 +2,8 @@ package eu.stratosphere.pact.programs.pagerank.tasks;
 
 import java.util.List;
 
-import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.iterative.nephele.tasks.AbstractMinimalTask;
-import eu.stratosphere.pact.iterative.nephele.util.DeserializingIterator;
 import eu.stratosphere.pact.iterative.nephele.util.SerializedUpdateBuffer;
 import eu.stratosphere.pact.programs.pagerank.types.VertexPageRank;
 import eu.stratosphere.pact.programs.pagerank.types.VertexPageRankAccessor;

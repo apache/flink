@@ -21,8 +21,6 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.util.BackTrafficQueueStore;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
-import eu.stratosphere.pact.iterative.nephele.util.DeserializingIterator;
-import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
 import eu.stratosphere.pact.iterative.nephele.util.SerializedUpdateBuffer;
 
 public abstract class IterationHead extends AbstractMinimalTask {

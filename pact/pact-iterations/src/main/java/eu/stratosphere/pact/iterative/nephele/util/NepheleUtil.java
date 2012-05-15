@@ -7,6 +7,7 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -404,8 +405,7 @@ public class NepheleUtil {
 
     @Override
     public void registerInputOutput() {
-      this.input = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this,
-          new PointwiseDistributionPattern()));
+      this.input = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this, DistributionPattern.POINTWISE);
     }
 
     @Override

@@ -3,8 +3,6 @@ package eu.stratosphere.pact.programs.pagerank.tasks;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.tasks.IterationHead;
-import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
-import eu.stratosphere.pact.iterative.nephele.util.OutputEmitterV2;
 import eu.stratosphere.pact.programs.pagerank.types.VertexPageRank;
 
 public class ParallelForwardingHead extends IterationHead {

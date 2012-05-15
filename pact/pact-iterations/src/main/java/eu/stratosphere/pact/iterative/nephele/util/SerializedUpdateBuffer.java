@@ -12,9 +12,9 @@ import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
+import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.pact.runtime.io.AbstractPagedInputViewV2;
-import eu.stratosphere.pact.runtime.io.AbstractPagedOutputViewV2;
 
 
 /**
@@ -22,7 +22,8 @@ import eu.stratosphere.pact.runtime.io.AbstractPagedOutputViewV2;
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class SerializedUpdateBuffer extends AbstractPagedOutputViewV2 {
+public class SerializedUpdateBuffer extends AbstractPagedOutputView {
+
   private static final int HEADER_LENGTH = 4;
 
   private static final float SPILL_THRESHOLD = 0.9f;
@@ -252,8 +253,8 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputViewV2 {
   // ============================================================================================
 
 
-  private static final class ReadEnd extends AbstractPagedInputViewV2
-  {
+  private static final class ReadEnd extends AbstractPagedInputView {
+
     private final LinkedBlockingQueue<MemorySegment> emptyBufferTarget;
 
     private final ArrayDeque<MemorySegment> fullBufferSource;
@@ -325,7 +326,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputViewV2 {
      * @see eu.stratosphere.pact.runtime.io.AbstractPagedInputViewV2#getLimitForSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
      */
     @Override
-    protected int getLimitForSegment(MemorySegment segment) throws IOException {
+    protected int getLimitForSegment(MemorySegment segment) {
       return segment.getInt(0);
     }
 

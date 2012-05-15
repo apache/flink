@@ -15,7 +15,6 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.tasks.IterationHead;
-import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
 import eu.stratosphere.pact.programs.connected.types.ComponentUpdateFlag;
 import eu.stratosphere.pact.programs.connected.types.ComponentUpdateFlagAccessor;
 import eu.stratosphere.pact.programs.connected.types.PactBoolean;

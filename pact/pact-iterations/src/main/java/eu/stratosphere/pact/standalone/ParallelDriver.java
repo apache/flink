@@ -11,8 +11,6 @@ import java.nio.channels.FileChannel;
 import java.util.Iterator;
 import java.util.Map;
 
-import eu.stratosphere.pact.iterative.AccessibleConcurrentHashMap;
-
 
 public class ParallelDriver {
   public static final int READ_BUFFER_CAPACITY = 64*1024;

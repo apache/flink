@@ -10,7 +10,6 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.util.BackTrafficQueueStore;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
-import eu.stratosphere.pact.iterative.nephele.util.SerializedPassthroughUpdateBuffer;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 import eu.stratosphere.pact.programs.connected.types.ComponentUpdate;
 

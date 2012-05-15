@@ -17,6 +17,7 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
  *
  */
 public class ChannelStateTracker implements EventListener {
+
   private volatile ChannelState state = ChannelState.STARTED;
   private volatile ChannelState nextState = null;
   private volatile Queue<ChannelState> waitingStates;

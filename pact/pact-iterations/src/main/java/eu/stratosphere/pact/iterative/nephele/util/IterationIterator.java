@@ -8,6 +8,7 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
 
 public class IterationIterator implements MutableObjectIterator<Value> {
+
   private MutableObjectIterator<Value> iter;
   private ChannelStateTracker listener;
   private PactRecord dummyRecord;

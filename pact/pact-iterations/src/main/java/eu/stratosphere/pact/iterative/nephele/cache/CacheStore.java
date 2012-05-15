@@ -9,8 +9,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import eu.stratosphere.pact.iterative.AccessibleConcurrentHashMap;
-
 public class CacheStore {
 
   public static enum CacheType {
@@ -21,11 +19,9 @@ public class CacheStore {
   private final static ConcurrentMap<String, AccessibleConcurrentHashMap> store =
       new ConcurrentHashMap<String, AccessibleConcurrentHashMap>();
 
-  private final static ConcurrentMap<String, Set<Integer>> subTasks =
-      new ConcurrentHashMap<String, Set<Integer>>();
+  private final static ConcurrentMap<String, Set<Integer>> subTasks = new ConcurrentHashMap<String, Set<Integer>>();
 
-  private final static ConcurrentMap<String, CacheType> cacheTypes =
-      new ConcurrentHashMap<String, CacheType>();
+  private final static ConcurrentMap<String, CacheType> cacheTypes = new ConcurrentHashMap<String, CacheType>();
 
   @SuppressWarnings("unchecked")
   public static <K, V> ConcurrentMap<K, V> getInsertCache(String cacheId, int subTaskId, Class<K> keyClass, Class<V> valueClass) {

@@ -6,8 +6,6 @@ import java.util.Iterator;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.iterative.nephele.util.IterationIterator;
-import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
-import eu.stratosphere.pact.iterative.nephele.util.PactRecordIterator;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;

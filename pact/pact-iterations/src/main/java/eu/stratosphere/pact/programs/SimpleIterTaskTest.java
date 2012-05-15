@@ -24,7 +24,6 @@ import eu.stratosphere.pact.iterative.nephele.io.EdgeOutput;
 import eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask;
 import eu.stratosphere.pact.iterative.nephele.tasks.IterationHead;
 import eu.stratosphere.pact.iterative.nephele.util.IterationIterator;
-import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 public class SimpleIterTaskTest {

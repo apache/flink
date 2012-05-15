@@ -3,7 +3,6 @@ package eu.stratosphere.pact.iterative.nephele.tasks;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
 import eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIteratorV2;
 

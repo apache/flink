@@ -21,8 +21,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.iterative.nephele.util.OutputCollectorV2;
-import eu.stratosphere.pact.iterative.nephele.util.OutputEmitterV2;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
