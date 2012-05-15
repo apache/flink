@@ -3,6 +3,7 @@ package eu.stratosphere.pact.iterative.nephele.tasks;
 import java.io.IOException;
 import java.util.List;
 
+import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -69,14 +70,14 @@ public abstract class IterationHead extends AbstractMinimalTask {
   public void run() throws Exception {
     //Setup variables for easier access to the correct output gates / writers
     //Create output collector for intermediate results
-    OutputCollectorV2 innerOutput = new OutputCollectorV2();
+    OutputCollector innerOutput = new OutputCollector();
     RecordWriter<Value>[] innerWriters = getIterationRecordWriters();
     for (RecordWriter<Value> writer : innerWriters) {
       innerOutput.addWriter(writer);
     }
 
     //Create output collector for final iteration output
-    OutputCollectorV2 taskOutput = new OutputCollectorV2();
+    OutputCollector taskOutput = new OutputCollector();
     taskOutput.addWriter(output.getWriters().get(0));
 
     //Gates where the iterative channel state is send to
@@ -185,16 +186,15 @@ public abstract class IterationHead extends AbstractMinimalTask {
 
   @Override
   public void cleanup() throws Exception {
-    BackTrafficQueueStore.getInstance().releaseStructures(
-        getEnvironment().getJobID(),
+    BackTrafficQueueStore.getInstance().releaseStructures(getEnvironment().getJobID(),
         getEnvironment().getIndexInSubtaskGroup());
   }
 
-  public abstract void finish(MutableObjectIterator<Value> iter, OutputCollectorV2 output) throws Exception;
+  public abstract void finish(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception;
 
-  public abstract void processInput(MutableObjectIterator<Value> iter, OutputCollectorV2 output) throws Exception;
+  public abstract void processInput(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception;
 
-  public abstract void processUpdates(MutableObjectIterator<Value> iter, OutputCollectorV2 output) throws Exception;
+  public abstract void processUpdates(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception;
 
   public static String constructLogString(String message, String taskName, AbstractInvokable parent)
   {
@@ -352,12 +352,12 @@ public abstract class IterationHead extends AbstractMinimalTask {
     }
   }
 
-  protected static class CountingOutput extends OutputCollectorV2 {
-    private OutputCollectorV2 collector;
+  protected static class CountingOutput<T> extends OutputCollector<T> {
+    private OutputCollector collector;
     private long counter;
 
-    public CountingOutput(OutputCollectorV2 output) {
-      this.collector = output;
+    public CountingOutput(OutputCollector<T> output) {
+      collector = output;
     }
 
     @Override
