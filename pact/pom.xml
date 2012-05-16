@@ -48,6 +48,7 @@
     </developers>
 
     <properties>
+      <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencyManagement>
@@ -56,6 +57,11 @@
         else is specified.
         -->
         <dependencies>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>r09</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -64,7 +70,19 @@
     
     <build>
 		<plugins>
-		
+
+            <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>2.3.2</version>
+            <configuration>
+              <encoding>UTF-8</encoding>
+              <source>1.6</source>
+              <target>1.6</target>
+              <optimize>true</optimize>
+            </configuration>
+            </plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
@@ -88,13 +106,13 @@
 		</plugins>
 	</build>
 
-    <modules>
-        <module>pact-common</module>
-      	<module>pact-runtime</module>
-        <module>pact-compiler</module>
-        <module>pact-clients</module>
-      	<module>pact-examples</module>
-      	<module>pact-tests</module>
-
-    </modules>
+  <modules>
+    <module>pact-common</module>
+    <module>pact-runtime</module>
+    <module>pact-compiler</module>
+    <module>pact-iterations</module>
+    <module>pact-clients</module>
+    <module>pact-examples</module>
+    <module>pact-tests</module>
+  </modules>
 </project>

@@ -1690,5 +1690,5 @@ public final class PactRecord implements Value
 				throw new IOException("Serialization failed because the record length would exceed 2GB.");
 			}
 		}
-	};
+	}
 }

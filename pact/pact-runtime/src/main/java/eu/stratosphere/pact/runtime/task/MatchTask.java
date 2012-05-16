@@ -68,9 +68,9 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 	 */
 	@Override
 	public Class<GenericMatcher<IT1, IT2, OT>> getStubType() {
-		@SuppressWarnings("unchecked")
-		final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class; 
-		return clazz;
+        @SuppressWarnings("unchecked")
+        final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class;
+        return clazz;
 	}
 	
 	/* (non-Javadoc)

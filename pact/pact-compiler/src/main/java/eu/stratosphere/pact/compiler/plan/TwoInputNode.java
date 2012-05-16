@@ -1099,7 +1099,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			}
 			switch (implOpMode1) {
 			case Projection:
-				return (explCopies1 == null ? false : this.explCopies1.contains(fieldNumber));
+				return (explCopies1 != null && this.explCopies1.contains(fieldNumber));
 			case Copy:
 				return (explProjections1 == null || explWrites == null ? false : 
 					!(new FieldSet(this.explWrites, this.explProjections1)).contains(fieldNumber));
@@ -1112,10 +1112,9 @@ public abstract class TwoInputNode extends OptimizerNode
 			}
 			switch (implOpMode2) {
 			case Projection:
-				return (explCopies2 == null ? false : this.explCopies2.contains(fieldNumber));
+				return (explCopies2 != null && this.explCopies2.contains(fieldNumber));
 			case Copy:
-				return (explProjections2 == null || explWrites == null ? false : 
-					!(new FieldSet(explWrites, explProjections2)).contains(fieldNumber));
+				return (!(explProjections2 == null || explWrites == null) && !(new FieldSet(explWrites, explProjections2)).contains(fieldNumber));
 			default:
 				return false;
 			}

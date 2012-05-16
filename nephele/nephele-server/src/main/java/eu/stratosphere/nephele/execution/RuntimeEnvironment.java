@@ -446,6 +446,7 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 *        the index of the output gate to return
 	 * @return the output gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
+    @Override
 	public OutputGate<? extends Record> getOutputGate(final int pos) {
 		if (pos < this.outputGates.size()) {
 			return this.outputGates.get(pos);

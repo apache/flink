@@ -131,7 +131,7 @@ public class StubAnnotation
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ImplicitOperation
 	{
-		public static enum ImplicitOperationMode {Copy, Projection};
+		public static enum ImplicitOperationMode {Copy, Projection}
 		
 		ImplicitOperationMode implicitOperation();
 	}

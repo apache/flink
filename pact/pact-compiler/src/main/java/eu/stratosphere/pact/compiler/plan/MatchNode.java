@@ -1078,7 +1078,7 @@ public class MatchNode extends TwoInputNode {
 					break;
 				}
 			}
-			if (foundField == false) {
+			if (!foundField) {
 				return false;
 			}
 		}
@@ -1107,7 +1107,7 @@ public class MatchNode extends TwoInputNode {
 					break;
 				}
 			}
-			if (found == false) {
+			if (!found) {
 				throw new RuntimeException("Partitioned field is no subset of the key");
 			}
 		}
@@ -1131,7 +1131,7 @@ public class MatchNode extends TwoInputNode {
 				}
 			}
 			
-			if (foundNeyKey == false) {
+			if (!foundNeyKey) {
 				throw new RuntimeException("Partitioned fields are not subset of the key");
 			}
 		}

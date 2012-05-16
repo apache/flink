@@ -165,7 +165,6 @@ public interface Environment {
 	 * 
 	 * @param gateID
 	 * @param deserializer
-	 * @param distributionPattern
 	 * @return the created input gate
 	 */
 	InputGate<? extends Record> createInputGate(GateID gateID, RecordDeserializer<? extends Record> deserializer);
@@ -213,6 +212,22 @@ public interface Environment {
 	 * @return the IDs of all input gates connected to this environment
 	 */
 	Set<GateID> getInputGateIDs();
+
+    /**
+     * Returns the input gate at the given position
+     *
+     * @param pos
+     * @return the input gate at the given position
+     */
+    InputGate<? extends Record> getInputGate(int pos);
+
+    /**
+     * Returns the output gate at the given position
+     *
+     * @param pos
+     * @return the output gate at the given position
+     */
+    OutputGate<? extends Record> getOutputGate(int pos);
 
 	/**
 	 * Returns the IDs of all the output channels connected to the gate with the given ID.

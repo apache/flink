@@ -262,7 +262,7 @@ public class CrossNode extends TwoInputNode {
 				this, 1);
 	
 		for(PactConnection c : this.input1) {
-			if (props1.isEmpty() == false) {
+			if (!props1.isEmpty()) {
 				c.addAllInterestingProperties(props1);
 			}
 			else {
@@ -271,7 +271,7 @@ public class CrossNode extends TwoInputNode {
 		}
 		
 		for(PactConnection c : this.input1) {
-			if (props2.isEmpty() == false) {
+			if (!props2.isEmpty()) {
 				c.addAllInterestingProperties(props2);
 			}
 			else {
@@ -417,7 +417,7 @@ public class CrossNode extends TwoInputNode {
 			lp = new LocalProperties();
 		}
 		
-		if (keepFirstOrder == false) {
+		if (!keepFirstOrder) {
 			gp.setOrdering(null);
 			lp.setOrdering(null);
 		}
@@ -451,7 +451,7 @@ public class CrossNode extends TwoInputNode {
 			lp = new LocalProperties();
 		}
 		
-		if (keepSecondOrder == false) {
+		if (!keepSecondOrder) {
 			gp.setOrdering(null);
 			lp.setOrdering(null);
 		}
