@@ -57,8 +57,8 @@ public class CacheStore {
   }
 
   @SuppressWarnings("unchecked")
-  public static <K, V> Iterator<Entry<K, V>> getCachePartition(String cacheId, int subTaskId,
-      Class<K> keyClass, Class<V> valueClass) {
+  public static <K, V> Iterator<Entry<K, V>> getCachePartition(String cacheId, int subTaskId, Class<K> keyClass,
+      Class<V> valueClass) {
     CacheType cacheType = CACHE_TYPES.get(cacheId);
     String finalCacheId = getFinalCacheId(cacheId, subTaskId, cacheType);
 

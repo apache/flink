@@ -7,6 +7,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.iterative.nephele.util.IterationIterator;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
+import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
@@ -17,20 +18,6 @@ public abstract class SortingReduce extends AbstractIterativeTask {
   private Comparator<Key>[] comparators;
 
   private UnilateralSortMerger sorter;
-
-  @SuppressWarnings("unchecked")
-  @Override
-  protected void initTask() {
-    keyPos = getKeyPos();
-    keyClasses = getKeyClasses();
-
-    // create the comparators
-    comparators = new Comparator[keyPos.length];
-    final KeyComparator kk = new KeyComparator();
-    for (int i = 0; i < comparators.length; i++) {
-      comparators[i] = kk;
-    }
-  }
 
   @Override
   public void runIteration(IterationIterator iterationIter) throws Exception {
@@ -55,7 +42,7 @@ public abstract class SortingReduce extends AbstractIterativeTask {
     sorter.close();
   }
 
-  public abstract void reduce(Iterator<PactRecord> records, OutputCollectorV2 out) throws Exception;
+  public abstract void reduce(Iterator<PactRecord> records, OutputCollector out) throws Exception;
 
   public abstract PactRecordIterator getInputIterator(IterationIterator iterationIter);
 
@@ -66,5 +53,18 @@ public abstract class SortingReduce extends AbstractIterativeTask {
   @Override
   public int getNumberOfInputs() {
     return 1;
+  }
+
+  @Override
+  public void prepare() throws Exception {
+    keyPos = getKeyPos();
+    keyClasses = getKeyClasses();
+
+    // create the comparators
+    comparators = new Comparator[keyPos.length];
+    final KeyComparator kk = new KeyComparator();
+    for (int i = 0; i < comparators.length; i++) {
+      comparators[i] = kk;
+    }
   }
 }
