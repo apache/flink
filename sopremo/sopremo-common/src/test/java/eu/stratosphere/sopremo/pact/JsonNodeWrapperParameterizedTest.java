@@ -83,7 +83,7 @@ public class JsonNodeWrapperParameterizedTest {
 		this.wrapper1.copyNormalizedKey(this.target1, 0, ARRAY_LENGHT);
 		this.wrapper2.copyNormalizedKey(this.target2, 0, ARRAY_LENGHT);
 
-		Assert.assertTrue(this.shouldBeEqual == Arrays.equals(this.target1, this.target2));
+		Assert.assertEquals(this.shouldBeEqual, Arrays.equals(this.target1, this.target2));
 	}
 
 }
