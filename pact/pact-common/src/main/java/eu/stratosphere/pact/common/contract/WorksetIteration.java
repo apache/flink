@@ -13,7 +13,7 @@ public class WorksetIteration extends Contract
 	
 	
 	public WorksetIteration() {
-		super("blah");
+		super("WorksetIteration");
 	}
 	
 	/**

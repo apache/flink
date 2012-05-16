@@ -37,7 +37,7 @@ public class Iteration extends Contract
 	public void setTerminationCriterion(Contract criterion)
 	{}
 	
-	public void setNumberOfIteration(int num)
+	public void setNumberOfIterations(int num)
 	{}
 	
 	/* (non-Javadoc)
