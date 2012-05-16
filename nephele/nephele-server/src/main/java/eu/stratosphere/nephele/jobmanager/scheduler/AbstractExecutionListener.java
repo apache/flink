@@ -75,13 +75,13 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 			final ExecutionGroupVertex groupVertex = this.executionVertex.getGroupVertex();
 			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); ++i) {
 				final ExecutionVertex groupMember = groupVertex.getGroupMember(i);
-				if (groupMember.getExecutionState() == ExecutionState.SCHEDULED) {
+				if (groupMember.compareAndUpdateExecutionState(ExecutionState.SCHEDULED, ExecutionState.ASSIGNED)) {
 
 					final ExecutionPipeline pipelineToBeDeployed = groupMember.getExecutionPipeline();
 					pipelineToBeDeployed.setAllocatedResource(this.executionVertex.getAllocatedResource());
 					pipelineToBeDeployed.updateExecutionState(ExecutionState.ASSIGNED);
 
-					this.scheduler.deployAssignedVertices(groupMember);
+					this.scheduler.deployAssignedPipeline(pipelineToBeDeployed);
 					return;
 				}
 			}
@@ -102,7 +102,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 		}
 
 		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
-				|| newExecutionState == ExecutionState.FAILED) {
+			|| newExecutionState == ExecutionState.FAILED) {
 			// Check if instance can be released
 			this.scheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
 		}
