@@ -2,7 +2,6 @@ package eu.stratosphere.pact.programs.pagerank.tasks;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.iterative.nephele.tasks.AbstractMinimalTask;
 import eu.stratosphere.pact.programs.pagerank.types.VertexPageRank;
 import eu.stratosphere.pact.programs.pagerank.types.VertexPageRankAccessor;
 

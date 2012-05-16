@@ -4,7 +4,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.iterative.nephele.tasks.AbstractMinimalTask;
 
 public class Undirect extends AbstractMinimalTask {
   PactRecord record = new PactRecord();

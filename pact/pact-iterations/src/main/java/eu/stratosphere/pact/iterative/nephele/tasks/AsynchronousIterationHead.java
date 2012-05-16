@@ -124,8 +124,5 @@ public abstract class AsynchronousIterationHead extends IterationHead {
   }
 
   @Override
-  public void cleanup() throws Exception {
-    // TODO Auto-generated method stub
-    //super.cleanup();
-  }
+  public void cleanup() throws Exception {}
 }

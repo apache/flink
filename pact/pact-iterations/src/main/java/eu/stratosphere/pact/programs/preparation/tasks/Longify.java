@@ -5,7 +5,6 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.iterative.nephele.tasks.AbstractMinimalTask;
 
 public class Longify extends AbstractMinimalTask {
   PactRecord record = new PactRecord();

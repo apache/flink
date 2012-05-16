@@ -2,6 +2,7 @@ package eu.stratosphere.pact.iterative.nephele.tasks;
 
 import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.initStateTracking;
 
+import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -14,23 +15,12 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 
-public class IterationStateSynchronizer extends AbstractMinimalTask {
+public class IterationStateSynchronizer extends AbstractPactTask {
 
   private ChannelStateTracker[] stateListeners;
   protected static final Log LOG = LogFactory.getLog(IterationStateSynchronizer.class);
   private int count = 0;
   private long start = 0;
-
-  @SuppressWarnings("unchecked")
-  @Override
-  protected void initTask() {
-    int numInputs = getNumberOfInputs();
-    stateListeners = new ChannelStateTracker[numInputs];
-
-    for (int i = 0; i < numInputs; i++) {
-      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
-    }
-  }
 
   @Override
   public void run() throws Exception {
@@ -69,6 +59,32 @@ public class IterationStateSynchronizer extends AbstractMinimalTask {
   @Override
   public int getNumberOfInputs() {
     return 2;
+  }
+
+  @Override
+  public void cleanup() throws Exception {}
+
+
+  @Override
+  public Class getStubType() {
+    //TODO implement
+    return null;
+  }
+
+  @Override
+  public boolean requiresComparatorOnInput() {
+    //TODO implement
+    return false;
+  }
+
+  @Override
+  public void prepare() throws Exception {
+    int numInputs = getNumberOfInputs();
+    stateListeners = new ChannelStateTracker[numInputs];
+
+    for (int i = 0; i < numInputs; i++) {
+      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
+    }
   }
 
 }

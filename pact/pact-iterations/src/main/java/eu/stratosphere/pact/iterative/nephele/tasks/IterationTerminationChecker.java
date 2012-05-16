@@ -14,31 +14,14 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 import eu.stratosphere.pact.iterative.nephele.util.TerminationDecider;
+import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 
-public class IterationTerminationChecker extends AbstractMinimalTask {
+public class IterationTerminationChecker extends AbstractPactTask {
 
   public static final String TERMINATION_DECIDER = "iter.termination.decider";
 
   private TerminationDecider decider = null;
   private ChannelStateTracker[] stateListeners;
-
-  @SuppressWarnings("unchecked")
-  @Override
-  protected void initTask() {
-    Class<?> cls = getTaskConfiguration().getClass(TERMINATION_DECIDER, null);
-    try {
-      decider = (TerminationDecider) cls.newInstance();
-    } catch (Exception ex) {
-      throw new RuntimeException("Could not instantiate termination decider", ex);
-    }
-
-    int numInputs = getNumberOfInputs();
-    stateListeners = new ChannelStateTracker[numInputs];
-
-    for (int i = 0; i < numInputs; i++) {
-      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
-    }
-  }
 
   @Override
   public void run() throws Exception {
@@ -80,4 +63,35 @@ public class IterationTerminationChecker extends AbstractMinimalTask {
     return 2;
   }
 
+  @Override
+  public void cleanup() throws Exception {}
+
+  @Override
+  public Class getStubType() {
+    //TODO implement
+    return null;
+  }
+
+  @Override
+  public boolean requiresComparatorOnInput() {
+    //TODO implement
+    return false;
+  }
+
+  @Override
+  public void prepare() throws Exception {
+    Class<?> cls = getTaskConfiguration().getClass(TERMINATION_DECIDER, null);
+    try {
+      decider = (TerminationDecider) cls.newInstance();
+    } catch (Exception ex) {
+      throw new RuntimeException("Could not instantiate termination decider", ex);
+    }
+
+    int numInputs = getNumberOfInputs();
+    stateListeners = new ChannelStateTracker[numInputs];
+
+    for (int i = 0; i < numInputs; i++) {
+      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
+    }
+  }
 }

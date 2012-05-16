@@ -3,7 +3,7 @@ package eu.stratosphere.pact.iterative.nephele.tasks;
 import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.initStateTracking;
 import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.publishState;
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
+import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
@@ -12,23 +12,22 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 import eu.stratosphere.pact.programs.connected.types.ComponentUpdate;
+import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 
 
-public class AsynchronousIterationTail extends AbstractMinimalTask {
+public class AsynchronousIterationTail extends AbstractPactTask {
 
   private static final int DATA_INPUT = 1;
   private static final int PLACEMENT_INPUT = 0;
   private ChannelStateTracker[] stateListeners;
 
-  @SuppressWarnings("unchecked")
   @Override
-  protected void initTask() {
+  public void prepare() throws Exception {
     int numInputs = getNumberOfInputs();
     stateListeners = new ChannelStateTracker[numInputs];
 
     for (int i = 0; i < numInputs; i++) {
-      stateListeners[i] =
-          initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
+      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
     }
   }
 
@@ -39,7 +38,7 @@ public class AsynchronousIterationTail extends AbstractMinimalTask {
     //have the same partitioning as the iteration head.
     MutableObjectIterator<Value> input = inputs[DATA_INPUT];
     SerializedPassthroughUpdateBuffer buffer = null;
-    DataOutputViewV2 writeOutput = null;
+    DataOutputView writeOutput = null;
 
     ComponentUpdate rec = new ComponentUpdate();
     while (true) {
@@ -95,7 +94,23 @@ public class AsynchronousIterationTail extends AbstractMinimalTask {
   }
 
   @Override
+  public void cleanup() throws Exception {}
+
+  @Override
   public int getNumberOfInputs() {
     return 2;
   }
+
+  @Override
+  public Class getStubType() {
+    //TODO implement
+    return null;  //To change body of implemented methods use File | Settings | File Templates.
+  }
+
+  @Override
+  public boolean requiresComparatorOnInput() {
+    //TODO implement
+    return false;  //To change body of implemented methods use File | Settings | File Templates.
+  }
+
 }

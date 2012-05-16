@@ -2,7 +2,6 @@ package eu.stratosphere.pact.programs.connected.tasks;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.iterative.nephele.tasks.AbstractMinimalTask;
 import eu.stratosphere.pact.programs.connected.types.TransitiveClosureEntry;
 import eu.stratosphere.pact.programs.connected.types.TransitiveClosureEntryAccessors;
 import eu.stratosphere.pact.programs.preparation.tasks.LongList;

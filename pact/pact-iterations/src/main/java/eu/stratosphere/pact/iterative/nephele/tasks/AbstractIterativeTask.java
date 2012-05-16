@@ -10,41 +10,35 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.IterationIterator;
+import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 
-public abstract class AbstractIterativeTask extends AbstractMinimalTask {
+public abstract class AbstractIterativeTask extends AbstractPactTask {
 
   protected ChannelStateTracker[] stateListeners;
   protected OutputGate<? extends Record>[] iterStateGates;
 
-  @SuppressWarnings("unchecked")
-  @Override
-  protected final void initInternal() {
-    int numInputs = getNumberOfInputs();
-    stateListeners = new ChannelStateTracker[numInputs];
-
-    for (int i = 0; i < numInputs; i++) {
-      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
-    }
-
-    iterStateGates = getIterationOutputGates();
-  }
+//  @SuppressWarnings("unchecked")
+//  @Override
+//  protected final void initInternal() {
+//    int numInputs = getNumberOfInputs();
+//    stateListeners = new ChannelStateTracker[numInputs];
+//
+//    for (int i = 0; i < numInputs; i++) {
+//      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
+//    }
+//
+//    iterStateGates = getIterationOutputGates();
+//  }
 
   @Override
   public void run() throws Exception {
     MutableObjectIterator<Value> input = inputs[0];
     ChannelStateTracker stateListener = stateListeners[0];
 
-//    boolean firstRound = true;
-
     IterationIterator iterationIter = new IterationIterator(input, stateListener);
     while (!iterationIter.checkTermination()) {
       //Send iterative open state to output gates
       publishState(ChannelState.OPEN, iterStateGates);
-
-//      if (firstRound) {
-//        invokeStart();
-//        firstRound = false;
-//      }
 
       //Call iteration stub function with the data for this iteration
       runIteration(iterationIter);
@@ -68,12 +62,6 @@ public abstract class AbstractIterativeTask extends AbstractMinimalTask {
 
     return gates;
   }
-
-//  /**
-//   * Allows to run code that should only be run once in the beginning
-//   * @throws Exception
-//   */
-//  public abstract void invokeStart() throws Exception;
 
   public abstract void runIteration(IterationIterator iterationIter) throws Exception;
 

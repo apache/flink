@@ -7,7 +7,6 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.iterative.nephele.tasks.AbstractMinimalTask;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;

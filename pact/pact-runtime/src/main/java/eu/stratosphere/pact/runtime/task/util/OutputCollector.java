@@ -52,8 +52,8 @@ public class OutputCollector<T> implements Collector<T>
 		this.delegate = new SerializationDelegate<T>(serializer);
 		this.writers = (AbstractRecordWriter<SerializationDelegate<T>>[]) writers.toArray(new AbstractRecordWriter[writers.size()]);
 	}
-	
-	/**
+
+    /**
 	 * Adds a writer to the OutputCollector.
 	 * 
 	 * @param writer The writer to add.

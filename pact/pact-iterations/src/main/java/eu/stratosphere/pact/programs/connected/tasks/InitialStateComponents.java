@@ -1,6 +1,5 @@
 package eu.stratosphere.pact.programs.connected.tasks;
 
-import eu.stratosphere.pact.iterative.nephele.tasks.AbstractMinimalTask;
 import eu.stratosphere.pact.programs.connected.types.TransitiveClosureEntry;
 
 public class InitialStateComponents extends AbstractMinimalTask {

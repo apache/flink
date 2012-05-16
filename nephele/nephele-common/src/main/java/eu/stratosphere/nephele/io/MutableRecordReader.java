@@ -28,8 +28,6 @@ public class MutableRecordReader<T extends Record> extends AbstractRecordReader<
 	 * 
 	 * @param taskBase
 	 *        the application that instantiated the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
 	public MutableRecordReader(final AbstractTask taskBase) {
 
@@ -65,8 +63,6 @@ public class MutableRecordReader<T extends Record> extends AbstractRecordReader<
 	 * @param outputBase
 	 *        the application that instantiated the record reader
 	 * @param inputGateID
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
 	 */
 	public MutableRecordReader(final AbstractOutputTask outputBase, int inputGateID) {
 

@@ -12,25 +12,14 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.SerializedUpdateBuffer;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 import eu.stratosphere.pact.programs.connected.types.ComponentUpdate;
+import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 
 
-public class IterationTail extends AbstractMinimalTask {
+public class IterationTail extends AbstractPactTask {
 
   private static final int DATA_INPUT = 1;
   private static final int PLACEMENT_INPUT = 0;
   private ChannelStateTracker[] stateListeners;
-
-  @SuppressWarnings("unchecked")
-  @Override
-  protected void initTask() {
-    int numInputs = getNumberOfInputs();
-    stateListeners = new ChannelStateTracker[numInputs];
-
-    for (int i = 0; i < numInputs; i++) {
-      stateListeners[i] =
-          initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
-    }
-  }
 
   @Override
   public void run() throws Exception {
@@ -94,5 +83,30 @@ public class IterationTail extends AbstractMinimalTask {
   @Override
   public int getNumberOfInputs() {
     return 2;
+  }
+
+  @Override
+  public void cleanup() throws Exception {}
+
+  @Override
+  public Class getStubType() {
+    //TODO implement
+    return null;
+  }
+
+  @Override
+  public boolean requiresComparatorOnInput() {
+    //TODO implement
+    return false;
+  }
+
+  @Override
+  public void prepare() throws Exception {
+    int numInputs = getNumberOfInputs();
+    stateListeners = new ChannelStateTracker[numInputs];
+
+    for (int i = 0; i < numInputs; i++) {
+      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
+    }
   }
 }

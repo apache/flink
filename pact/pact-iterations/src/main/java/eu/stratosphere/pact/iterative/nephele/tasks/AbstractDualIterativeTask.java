@@ -19,19 +19,12 @@ public abstract class AbstractDualIterativeTask extends AbstractIterativeTask {
     ChannelStateTracker stateListenerA = stateListeners[0];
     ChannelStateTracker stateListenerB = stateListeners[1];
 
-//    boolean firstRound = true;
-
     IterationIterator iterationIterA = new IterationIterator(inputA, stateListenerA);
     iterationIterB = new IterationIterator(inputB, stateListenerB);
 
     while (!checkTermination(iterationIterA, iterationIterB)) {
       //Send iterative open state to output gates
       publishState(ChannelState.OPEN, getEnvironment().getOutputGate(0));
-
-//      if (firstRound) {
-//        invokeStart();
-//        firstRound = false;
-//      }
 
       //Call iteration stub function with the data for this iteration
       runIteration(iterationIterA);

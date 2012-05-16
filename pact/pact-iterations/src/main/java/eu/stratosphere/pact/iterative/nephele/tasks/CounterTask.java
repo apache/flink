@@ -3,8 +3,11 @@ package eu.stratosphere.pact.iterative.nephele.tasks;
 import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.initStateTracking;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 
+import com.google.common.collect.Maps;
+import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -18,23 +21,13 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 
-public class CounterTask extends AbstractMinimalTask {
+public class CounterTask extends AbstractPactTask {
 
   private ChannelStateTracker[] stateListeners;
   protected static final Log LOG = LogFactory.getLog(CounterTask.class);
 
   private int count = 0;
-  private HashMap<String, Long> counters = new HashMap<String, Long>();
-
-  @Override
-  protected void initTask() {
-    int numInputs = getNumberOfInputs();
-    stateListeners = new ChannelStateTracker[numInputs];
-
-    for (int i = 0; i < numInputs; i++) {
-      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
-    }
-  }
+  private Map<String, Long> counters = Maps.newHashMap();
 
   @Override
   public void run() throws Exception {
@@ -78,8 +71,33 @@ public class CounterTask extends AbstractMinimalTask {
   }
 
   @Override
+  public void cleanup() throws Exception {}
+
+  @Override
   public int getNumberOfInputs() {
     return 1;
+  }
+
+  @Override
+  public Class getStubType() {
+    //TODO implement
+    return null;
+  }
+
+  @Override
+  public boolean requiresComparatorOnInput() {
+    //TODO implement
+    return false;
+  }
+
+  @Override
+  public void prepare() throws Exception {
+    int numInputs = getNumberOfInputs();
+    stateListeners = new ChannelStateTracker[numInputs];
+
+    for (int i = 0; i < numInputs; i++) {
+      stateListeners[i] = initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i));
+    }
   }
 
 }

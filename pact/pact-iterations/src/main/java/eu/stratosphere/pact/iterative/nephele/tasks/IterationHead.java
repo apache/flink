@@ -3,6 +3,8 @@ package eu.stratosphere.pact.iterative.nephele.tasks;
 import java.io.IOException;
 import java.util.List;
 
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -24,10 +26,10 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
 import eu.stratosphere.pact.iterative.nephele.util.SerializedUpdateBuffer;
 
-public abstract class IterationHead extends AbstractMinimalTask {
+public abstract class IterationHead extends AbstractPactTask {
 
   protected static final Log LOG = LogFactory.getLog(IterationHead.class);
-  protected static final int MEMORY_SEGMENT_SIZE = 1024*1024;
+  protected static final int MEMORY_SEGMENT_SIZE = 1024 * 1024;
 
   public static final String FIXED_POINT_TERMINATOR = "pact.iter.fixedpoint";
   public static final String NUMBER_OF_ITERATIONS = "pact.iter.numiterations";
@@ -104,12 +106,12 @@ public abstract class IterationHead extends AbstractMinimalTask {
     //Process all input records by passing them to the processInput method (supplied by the user)
     MutableObjectIterator<Value> input = inputs[0];
     CountingIterator statsIter = new CountingIterator(input);
-    CountingOutput statsOutput = new CountingOutput(innerOutput);
-    processInput(statsIter, statsOutput);
+    CountingOutputCollector statsOutputCollector = new CountingOutputCollector(innerOutput);
+    processInput(statsIter, statsOutputCollector);
 
     //Send iterative close event to indicate that this round is finished
     sendCounter("iter.received.messages", statsIter.getCount());
-    sendCounter("iter.send.messages", statsOutput.getCount());
+    sendCounter("iter.send.messages", statsOutputCollector.getCount());
     AbstractIterativeTask.publishState(ChannelState.CLOSED, iterStateGates);
     //AbstractIterativeTask.publishState(ChannelState.CLOSED, terminationOutputGate);
 
@@ -156,11 +158,11 @@ public abstract class IterationHead extends AbstractMinimalTask {
           AbstractIterativeTask.publishState(ChannelState.OPEN, iterStateGates);
 
           //Call stub function to process updates
-          statsOutput = new CountingOutput(innerOutput);
-          processUpdates(statsIter, statsOutput);
+          statsOutputCollector = new CountingOutputCollector(innerOutput);
+          processUpdates(statsIter, statsOutputCollector);
 
           sendCounter("iter.received.messages", statsIter.getCount());
-          sendCounter("iter.send.messages", statsOutput.getCount());
+          sendCounter("iter.send.messages", statsOutputCollector.getCount());
           AbstractIterativeTask.publishState(ChannelState.CLOSED, iterStateGates);
 
           updatesBuffer = null;
@@ -196,8 +198,7 @@ public abstract class IterationHead extends AbstractMinimalTask {
 
   public abstract void processUpdates(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception;
 
-  public static String constructLogString(String message, String taskName, AbstractInvokable parent)
-  {
+  public static String constructLogString(String message, String taskName, AbstractInvokable parent) {
     StringBuilder bld = new StringBuilder(128);
     bld.append(message);
     bld.append(':').append(' ');
@@ -238,6 +239,7 @@ public abstract class IterationHead extends AbstractMinimalTask {
   PactRecord countRec = new PactRecord();
   PactString keyStr = new PactString();
   PactLong countLng = new PactLong();
+
   protected void sendCounter(String key, long count) throws IOException, InterruptedException {
     keyStr.setValue(key);
     countLng.setValue(count);
@@ -352,16 +354,18 @@ public abstract class IterationHead extends AbstractMinimalTask {
     }
   }
 
-  protected static class CountingOutput<T> extends OutputCollector<T> {
+  protected static class CountingOutputCollector<T> implements Collector<T> {
+
     private OutputCollector collector;
     private long counter;
 
-    public CountingOutput(OutputCollector<T> output) {
+    public CountingOutputCollector(OutputCollector<T> output) {
+      super();
       collector = output;
     }
 
     @Override
-    public void collect(Value record) {
+    public void collect(T record) {
       counter++;
       collector.collect(record);
     }
@@ -369,16 +373,6 @@ public abstract class IterationHead extends AbstractMinimalTask {
     @Override
     public void close() {
       collector.close();
-    }
-
-    @Override
-    public void addWriter(RecordWriter<Value> writer) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public List<RecordWriter<Value>> getWriters() {
-      throw new UnsupportedOperationException();
     }
 
     public long getCount() {

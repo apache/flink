@@ -19,15 +19,14 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
+import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.iterative.nephele.bulk.BulkIterationHead;
-import eu.stratosphere.pact.iterative.nephele.tasks.AbstractMinimalTask;
 import eu.stratosphere.pact.iterative.nephele.tasks.AsynchronousIterationTail;
 import eu.stratosphere.pact.iterative.nephele.tasks.CounterTask;
 import eu.stratosphere.pact.iterative.nephele.tasks.IterationHead;
@@ -153,7 +152,7 @@ public class NepheleUtil {
     // set ship strategy in vertex and child
 
     // set strategies in task configs
-    if ( (keyPos == null | keyTypes == null) || (keyPos.length == 0 | keyTypes.length == 0)) {
+    if ((keyPos == null | keyTypes == null) || (keyPos.length == 0 | keyTypes.length == 0)) {
       outputConfig.addOutputShipStrategy(shipStrategy);
     } else {
       outputConfig.addOutputShipStrategy(shipStrategy, keyPos, keyTypes);
