@@ -9,6 +9,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Arrays;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -183,11 +184,11 @@ public class DoubleNode extends NumericNode implements INumericNode {
 
 	@Override
 	public int getMaxNormalizedKeyLen() {
-		return 8;
+		return Integer.MAX_VALUE;
 	}
 
 	@Override
 	public void copyNormalizedKey(byte[] target, int offset, int len) {
-		// TODO [IMPLEMENT] PactDouble doesn't support <copyNormalizedKeyLen> yet
+		this.fillWithZero(target, offset, offset + len);
 	}
 }

@@ -5,6 +5,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 
 import eu.stratosphere.pact.common.type.Key;
 
@@ -210,12 +211,18 @@ public abstract class JsonNode implements IJsonNode {
 			this.write(new DataOutputStream(stream));
 			byte[] result = stream.toByteArray();
 			int resultLenght = result.length;
-			for (int i = 0; i < len; i++) {
-				target[offset + i] = (i >= resultLenght) ? (byte) 0 : result[i];
+			for (int i = 0; i < resultLenght; i++) {
+				target[offset + i] = result[i];
 			}
+			this.fillWithZero(target, offset + resultLenght, offset + len);
 		} catch (IOException e) {
 			e.printStackTrace();
 
 		}
 	}
+
+	protected void fillWithZero(byte[] target, int fromIndex, int toIndex) {
+		Arrays.fill(target, fromIndex, toIndex, (byte) 0);
+	}
+
 }

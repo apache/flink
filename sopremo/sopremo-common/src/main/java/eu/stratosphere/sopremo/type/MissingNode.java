@@ -116,16 +116,12 @@ public class MissingNode extends JsonNode implements IPrimitiveNode {
 
 	@Override
 	public int getMaxNormalizedKeyLen() {
-		return 1;
+		return 0;
 	}
 
 	@Override
 	public void copyNormalizedKey(byte[] target, int offset, int len) {
-		if (len >= this.getMaxNormalizedKeyLen()) {
-			for (int i = 0; i < len; i++) {
-				target[offset + i] = (byte) 0;
-			}
-		}
+		this.fillWithZero(target, offset, offset + len);
 	}
 
 }

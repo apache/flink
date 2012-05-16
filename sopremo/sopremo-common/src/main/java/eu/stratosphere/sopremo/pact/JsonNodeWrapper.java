@@ -142,26 +142,17 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 
 	@Override
 	public void copyNormalizedKey(byte[] target, int offset, int len) {
-		byte[] type = this.convertToByteArray(this.value.getType().ordinal());
 		if (len > 0) {
-			for (int i = 0; i < ((len < 4) ? len : 4); i++) {
-				target[offset + i] = type[i];
-			}
+			target[offset] = this.convertToByteArray(this.value.getType().ordinal());
 
-			if (len > 4) {
-				this.value.copyNormalizedKey(target, offset + 4, len - 4);
+			if (len > 1) {
+				this.value.copyNormalizedKey(target, offset + 1, len - 1);
 			}
 		}
 	}
 
-	private byte[] convertToByteArray(int value) {
-		byte[] buffer = new byte[4];
+	private byte convertToByteArray(int value) {
 
-		buffer[0] = (byte) (value >>> 24);
-		buffer[1] = (byte) (value >>> 16);
-		buffer[2] = (byte) (value >>> 8);
-		buffer[3] = (byte) value;
-
-		return buffer;
+		return (byte) value;
 	}
 }
