@@ -8,37 +8,45 @@ import eu.stratosphere.pact.common.plan.Visitor;
  *
  * @author Stephan Ewen
  */
-public class Iteration extends Contract
+public class WorksetIteration extends Contract
 {
 	
 	
-	public Iteration() {
-		super("Iteration");
+	public WorksetIteration() {
+		super("blah");
 	}
 	
 	/**
 	 * @param name
 	 */
-	public Iteration(String name) {
+	public WorksetIteration(String name) {
 		super(name);
 	}
 
+
+	public void setInitialWorkset(Contract input)
+	{}
+	
 	public void setInitialPartialSolution(Contract input)
 	{}
 	
-	public void setNextPartialSolution(Contract result)
+	public void setNextWorkset(Contract result)
 	{}
+	
+	public void setPartialSolutionDelta(Contract result)
+	{}
+	
 	
 	public Contract getPartialSolution()
 	{
 		return null;
 	}
 	
-	public void setTerminationCriterion(Contract criterion)
-	{}
+	public Contract getWorkset()
+	{
+		return null;
+	}
 	
-	public void setNumberOfIteration(int num)
-	{}
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
