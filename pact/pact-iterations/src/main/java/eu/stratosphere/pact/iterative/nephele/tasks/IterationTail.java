@@ -1,8 +1,6 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
-import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.initStateTracking;
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
@@ -11,11 +9,9 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.SerializedUpdateBuffer;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
-import eu.stratosphere.pact.programs.connected.types.ComponentUpdate;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 
 
-public class IterationTail extends AbstractPactTask {
+public class IterationTail extends AbstractStateCommunicatingTask {
 
   private static final int DATA_INPUT = 1;
   private static final int PLACEMENT_INPUT = 0;
@@ -30,7 +26,9 @@ public class IterationTail extends AbstractPactTask {
     SerializedUpdateBuffer buffer = null;
     //DataOutputViewV2 writeOutput = null;
 
-    ComponentUpdate rec = new ComponentUpdate();
+    // TODO Was hardwired to a component update
+    //ComponentUpdate rec = new ComponentUpdate();
+    PactRecord rec = new PactRecord();
     while (true) {
       try {
         boolean success = input.next(rec);

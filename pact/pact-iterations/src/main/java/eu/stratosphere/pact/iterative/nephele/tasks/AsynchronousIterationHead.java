@@ -12,6 +12,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.util.BackTrafficQueueStore;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
+import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 
 public abstract class AsynchronousIterationHead extends IterationHead {
 
@@ -24,14 +25,14 @@ public abstract class AsynchronousIterationHead extends IterationHead {
   public void run() throws Exception {
     //Setup variables for easier access to the correct output gates / writers
     //Create output collector for intermediate results
-    OutputCollectorV2 innerOutput = new OutputCollectorV2();
+    OutputCollector innerOutput = new OutputCollector();
     RecordWriter<Value>[] innerWriters = getIterationRecordWriters();
     for (RecordWriter<Value> writer : innerWriters) {
       innerOutput.addWriter(writer);
     }
 
     //Create output collector for final iteration output
-    OutputCollectorV2 taskOutput = new OutputCollectorV2();
+    OutputCollector taskOutput = new OutputCollector();
     taskOutput.addWriter(output.getWriters().get(0));
 
     //Gates where the iterative channel state is send to
@@ -39,8 +40,8 @@ public abstract class AsynchronousIterationHead extends IterationHead {
 
     int segmentSize = 1024 * 1024;
     //Allocate memory for update queue
-    List<MemorySegment> updateMemory = memoryManager.allocateStrict(this, (int)(updateBufferSize / segmentSize),
-        segmentSize);
+    List<MemorySegment> updateMemory =
+        getEnvironment().getMemoryManager().allocateStrict(this, (int)(updateBufferSize / segmentSize), segmentSize);
     SerializedPassthroughUpdateBuffer buffer = new SerializedPassthroughUpdateBuffer(updateMemory, segmentSize);
 
     //Create and initialize internal structures for the transport of the iteration
@@ -51,14 +52,14 @@ public abstract class AsynchronousIterationHead extends IterationHead {
         getEnvironment().getIndexInSubtaskGroup(), buffer);
 
     //Start with a first iteration run using the input data
-    AbstractIterativeTask.publishState(ChannelState.OPEN, iterStateGates);
+    publishState(ChannelState.OPEN, iterStateGates);
 
     //Process all input records by passing them to the processInput method (supplied by the user)
     MutableObjectIterator<Value> input = inputs[0];
     processInput(new WrappedIterator(input, getEnvironment().getJobID(), getEnvironment().getIndexInSubtaskGroup()),
         innerOutput);
 
-    AbstractIterativeTask.publishState(ChannelState.CLOSED, iterStateGates);
+    publishState(ChannelState.CLOSED, iterStateGates);
 
     //Thread.sleep(2000);
     //memoryManager.release(updateMemory);

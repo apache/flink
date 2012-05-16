@@ -1,12 +1,9 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
-import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.IterationIterator;
@@ -38,13 +35,13 @@ public abstract class AbstractIterativeTask extends AbstractPactTask {
     IterationIterator iterationIter = new IterationIterator(input, stateListener);
     while (!iterationIter.checkTermination()) {
       //Send iterative open state to output gates
-      publishState(ChannelState.OPEN, iterStateGates);
+      StateUtils.publishState(ChannelState.OPEN, iterStateGates);
 
       //Call iteration stub function with the data for this iteration
       runIteration(iterationIter);
 
       if (stateListener.getState() == ChannelState.CLOSED) {
-        publishState(ChannelState.CLOSED, iterStateGates);
+        StateUtils.publishState(ChannelState.CLOSED, iterStateGates);
       } else {
         throw new RuntimeException("Illegal state after iteration call");
       }
@@ -65,23 +62,4 @@ public abstract class AbstractIterativeTask extends AbstractPactTask {
 
   public abstract void runIteration(IterationIterator iterationIter) throws Exception;
 
-  public static ChannelStateTracker initStateTracking(InputGate<PactRecord> gate) {
-    ChannelStateTracker tracker = new ChannelStateTracker(gate.getNumberOfInputChannels());
-    gate.subscribeToEvent(tracker, ChannelStateEvent.class);
-    return tracker;
-  }
-
-  public static void publishState(ChannelState state, OutputGate<?> gate) throws Exception {
-    gate.flush(); //So that all records are hopefully send in a seperate envelope from the event
-    //Now when the event arrives, all records will be processed before the state change.
-    gate.publishEvent(new ChannelStateEvent(state));
-    gate.flush();
-  }
-
-  public static void publishState(ChannelState state, OutputGate<? extends Record>[] iterStateGates)
-      throws Exception {
-    for (OutputGate<? extends Record> gate : iterStateGates) {
-      publishState(state, gate);
-    }
-  }
 }

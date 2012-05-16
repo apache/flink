@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -26,7 +25,7 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
 import eu.stratosphere.pact.iterative.nephele.util.SerializedUpdateBuffer;
 
-public abstract class IterationHead extends AbstractPactTask {
+public abstract class IterationHead extends AbstractStateCommunicatingTask {
 
   protected static final Log LOG = LogFactory.getLog(IterationHead.class);
   protected static final int MEMORY_SEGMENT_SIZE = 1024 * 1024;
@@ -42,7 +41,7 @@ public abstract class IterationHead extends AbstractPactTask {
   protected volatile boolean finished = false;
 
   @Override
-  protected void initTask() {
+  public void prepare() throws Exception {
     boolean useFixedPointTerminator = getEnvironment().getTaskConfiguration()
         .getBoolean(FIXED_POINT_TERMINATOR, false);
 
@@ -87,9 +86,10 @@ public abstract class IterationHead extends AbstractPactTask {
 
     //Allocate memory for update queue
     LOG.info("Update memory: " + updateBufferSize + ", numSegments: " + (int) (updateBufferSize / MEMORY_SEGMENT_SIZE));
-    List<MemorySegment> updateMemory = memoryManager.allocateStrict(this,
-        (int) (updateBufferSize / MEMORY_SEGMENT_SIZE), MEMORY_SEGMENT_SIZE);
-    SerializedUpdateBuffer buffer = new SerializedUpdateBuffer(updateMemory, MEMORY_SEGMENT_SIZE, ioManager);
+    List<MemorySegment> updateMemory = getEnvironment().getMemoryManager().allocateStrict(this,
+            (int) (updateBufferSize / MEMORY_SEGMENT_SIZE), MEMORY_SEGMENT_SIZE);
+    SerializedUpdateBuffer buffer = new SerializedUpdateBuffer(updateMemory, MEMORY_SEGMENT_SIZE,
+        getEnvironment().getIOManager());
 
     //Create and initialize internal structures for the transport of the iteration updates from the tail to the head (this class)
     BackTrafficQueueStore.getInstance().addStructures(getEnvironment().getJobID(),
@@ -98,7 +98,7 @@ public abstract class IterationHead extends AbstractPactTask {
         getEnvironment().getIndexInSubtaskGroup(), buffer);
 
     //Start with a first iteration run using the input data
-    AbstractIterativeTask.publishState(ChannelState.OPEN, iterStateGates);
+    publishState(ChannelState.OPEN, iterStateGates);
 
     if (LOG.isInfoEnabled()) {
       LOG.info(constructLogString("Starting Iteration: -1", getEnvironment().getTaskName(), this));
@@ -112,19 +112,18 @@ public abstract class IterationHead extends AbstractPactTask {
     //Send iterative close event to indicate that this round is finished
     sendCounter("iter.received.messages", statsIter.getCount());
     sendCounter("iter.send.messages", statsOutputCollector.getCount());
-    AbstractIterativeTask.publishState(ChannelState.CLOSED, iterStateGates);
+    publishState(ChannelState.CLOSED, iterStateGates);
     //AbstractIterativeTask.publishState(ChannelState.CLOSED, terminationOutputGate);
 
     //Loop until iteration terminates
     int iterationCounter = 0;
-    SerializedUpdateBuffer updatesBuffer = null;
+    SerializedUpdateBuffer updatesBuffer;
     while (true) {
       //Wait until previous iteration run is finished for this subtask
       //and retrieve buffered updates
       try {
         updatesBuffer = (SerializedUpdateBuffer) BackTrafficQueueStore.getInstance().receiveIterationEnd(
-            getEnvironment().getJobID(),
-            getEnvironment().getIndexInSubtaskGroup());
+            getEnvironment().getJobID(), getEnvironment().getIndexInSubtaskGroup());
       } catch (InterruptedException ex) {
         throw new RuntimeException("Internal Error");
       }
@@ -155,7 +154,7 @@ public abstract class IterationHead extends AbstractPactTask {
               buffer);
 
           //Start new iteration run
-          AbstractIterativeTask.publishState(ChannelState.OPEN, iterStateGates);
+          publishState(ChannelState.OPEN, iterStateGates);
 
           //Call stub function to process updates
           statsOutputCollector = new CountingOutputCollector(innerOutput);
@@ -163,7 +162,7 @@ public abstract class IterationHead extends AbstractPactTask {
 
           sendCounter("iter.received.messages", statsIter.getCount());
           sendCounter("iter.send.messages", statsOutputCollector.getCount());
-          AbstractIterativeTask.publishState(ChannelState.CLOSED, iterStateGates);
+          publishState(ChannelState.CLOSED, iterStateGates);
 
           updatesBuffer = null;
           iterationCounter++;
@@ -181,7 +180,7 @@ public abstract class IterationHead extends AbstractPactTask {
       //TODO: Deactivated so that broadcast job finnished
       //updatesBuffer.close();
     }
-    memoryManager.release(updateMemory);
+    getEnvironment().getMemoryManager().release(updateMemory);
 
     finished = true;
   }
@@ -323,7 +322,6 @@ public abstract class IterationHead extends AbstractPactTask {
 
     private MutableObjectIterator<Value> iter;
     private boolean first = true;
-    private long start;
     private long count;
 
     public CountingIterator(MutableObjectIterator<Value> iter) {
@@ -336,17 +334,12 @@ public abstract class IterationHead extends AbstractPactTask {
 
       if (success) {
         if (first) {
-          start = System.nanoTime();
           first = false;
         }
         count++;
       }
 
       return success;
-    }
-
-    public long getStartTime() {
-      return start;
     }
 
     public long getCount() {

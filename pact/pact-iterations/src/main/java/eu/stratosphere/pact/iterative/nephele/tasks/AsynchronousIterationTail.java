@@ -1,7 +1,5 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
-import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.initStateTracking;
-import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.publishState;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -11,11 +9,9 @@ import eu.stratosphere.pact.iterative.nephele.util.BackTrafficQueueStore;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
-import eu.stratosphere.pact.programs.connected.types.ComponentUpdate;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 
 
-public class AsynchronousIterationTail extends AbstractPactTask {
+public class AsynchronousIterationTail extends AbstractStateCommunicatingTask {
 
   private static final int DATA_INPUT = 1;
   private static final int PLACEMENT_INPUT = 0;
@@ -40,7 +36,8 @@ public class AsynchronousIterationTail extends AbstractPactTask {
     SerializedPassthroughUpdateBuffer buffer = null;
     DataOutputView writeOutput = null;
 
-    ComponentUpdate rec = new ComponentUpdate();
+    //ComponentUpdate rec = new ComponentUpdate();
+    PactRecord rec = new PactRecord();
     while (true) {
       try {
         boolean success = input.next(rec);

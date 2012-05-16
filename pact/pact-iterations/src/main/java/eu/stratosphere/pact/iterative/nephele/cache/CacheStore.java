@@ -56,24 +56,24 @@ public class CacheStore {
     }
   }
 
-  @SuppressWarnings("unchecked")
-  public static <K, V> Iterator<Entry<K, V>> getCachePartition(String cacheId, int subTaskId, Class<K> keyClass,
-      Class<V> valueClass) {
-    CacheType cacheType = CACHE_TYPES.get(cacheId);
-    String finalCacheId = getFinalCacheId(cacheId, subTaskId, cacheType);
-
-    switch(cacheType) {
-      case ISOLATED:
-      case SHARED_READ:
-        return (Iterator<Entry<K, V>>) STORE.get(finalCacheId).entrySet().iterator();
-      case SHARED_READ_WRITE:
-        //TODO: Test
-        int numSubTasks = SUB_TASKS.get(cacheId).size();
-        return STORE.get(finalCacheId).getIterators(numSubTasks)[subTaskId];
-      default:
-        throw new RuntimeException("Unknown cache type " + cacheType.name());
-    }
-  }
+//  @SuppressWarnings("unchecked")
+//  public static <K, V> Iterator<Entry<K, V>> getCachePartition(String cacheId, int subTaskId, Class<K> keyClass,
+//      Class<V> valueClass) {
+//    CacheType cacheType = CACHE_TYPES.get(cacheId);
+//    String finalCacheId = getFinalCacheId(cacheId, subTaskId, cacheType);
+//
+//    switch(cacheType) {
+//      case ISOLATED:
+//      case SHARED_READ:
+//        return (Iterator<Entry<K, V>>) STORE.get(finalCacheId).entrySet().iterator();
+//      case SHARED_READ_WRITE:
+//        //TODO: Test
+//        int numSubTasks = SUB_TASKS.get(cacheId).size();
+//        return STORE.get(finalCacheId).getIterators(numSubTasks)[subTaskId];
+//      default:
+//        throw new RuntimeException("Unknown cache type " + cacheType.name());
+//    }
+//  }
 
   @SuppressWarnings("unchecked")
   public static <K, V> ConcurrentMap<K, V> getLookupCache(String cacheId, int subTaskId,
