@@ -377,7 +377,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	@Override
 	public Buffer requestEmptyBuffer(final int minimumSizeOfBuffer) throws IOException {
 
-		throw new IllegalStateException("requestEmptyBuffer called on InputChannelContext");
+		return this.inputGateContext.requestEmptyBuffer(minimumSizeOfBuffer);
 	}
 
 	/**
