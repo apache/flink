@@ -864,8 +864,19 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
 				final InetSocketAddress isa = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
 
-				// TODO: Check if 0 is ok here
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, 0));
+				// Determine the connection ID
+				final AbstractInputChannel<? extends Record> inputChannel = eg.getInputChannelByID(outputChannel
+					.getConnectedChannelID());
+
+				if (inputChannel == null) {
+					LOG.error("Cannot find input channel with ID " + outputChannel.getConnectedChannelID());
+					return ConnectionInfoLookupResponse.createReceiverNotReady();
+				}
+
+				final int connectionID = targetVertex.getGroupVertex()
+					.getBackwardEdge(inputChannel.getInputGate().getIndex()).getConnectionID();
+
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, connectionID));
 			}
 		}
 

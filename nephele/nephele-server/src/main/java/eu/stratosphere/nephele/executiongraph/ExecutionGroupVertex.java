@@ -360,7 +360,8 @@ public class ExecutionGroupVertex {
 	 */
 	void wireTo(final ExecutionGroupVertex groupVertex, final int indexOfInputGate, final int indexOfOutputGate,
 			final ChannelType channelType, final boolean userDefinedChannelType,
-			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel, final DistributionPattern distributionPattern)
+			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel,
+			final DistributionPattern distributionPattern)
 			throws GraphConversionException {
 
 		try {
@@ -926,5 +927,27 @@ public class ExecutionGroupVertex {
 	public Iterator<ExecutionVertex> iterator() {
 
 		return this.groupMembers.iterator();
+	}
+
+	/**
+	 * Recursive method to calculate the connection IDs of the {@link ExecutionGraph}.
+	 * 
+	 * @param currentConnectionID
+	 *        the current connection ID
+	 * @param alreadyVisited
+	 *        the set of already visited group vertices
+	 */
+	void calculateConnectionID(final int currentConnectionID, final Set<ExecutionGroupVertex> alreadyVisited) {
+
+		if (!alreadyVisited.add(this)) {
+			return;
+		}
+
+		int nextConnectionID = currentConnectionID;
+		for (final ExecutionGroupEdge backwardLink : this.backwardLinks) {
+			backwardLink.setConnectionID(nextConnectionID);
+			backwardLink.getSourceVertex().calculateConnectionID(nextConnectionID, alreadyVisited);
+			++nextConnectionID;
+		}
 	}
 }
