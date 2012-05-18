@@ -132,7 +132,7 @@ public final class RemoteReceiver implements IOReadableWritable {
 		final InetAddress ia = this.connectionAddress.getAddress();
 		out.writeInt(ia.getAddress().length);
 		out.write(ia.getAddress());
-		out.write(this.connectionAddress.getPort());
+		out.writeInt(this.connectionAddress.getPort());
 
 		out.writeInt(this.connectionIndex);
 	}
