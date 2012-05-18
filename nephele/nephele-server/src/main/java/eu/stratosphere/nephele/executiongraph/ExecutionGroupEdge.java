@@ -54,6 +54,12 @@ public class ExecutionGroupEdge {
 	private volatile CompressionLevel compressionLevel;
 
 	/**
+	 * The edge's connection ID. The connection ID determines to which physical TCP connection channels represented by
+	 * this edge will be mapped in case the edge's channel type is NETWORK.
+	 */
+	private volatile int connectionID;
+
+	/**
 	 * The group vertex connected to this edge.
 	 */
 	private final ExecutionGroupVertex targetVertex;
@@ -72,7 +78,7 @@ public class ExecutionGroupEdge {
 	 * The index of the consuming task's input gate.
 	 */
 	private final int indexOfInputGate;
-	
+
 	/**
 	 * The distribution pattern used to connect the vertices within two groups.
 	 */
@@ -103,7 +109,8 @@ public class ExecutionGroupEdge {
 	public ExecutionGroupEdge(final ExecutionGraph executionGraph, final ExecutionGroupVertex sourceVertex,
 			final int indexOfOutputGate, final ExecutionGroupVertex targetVertex, final int indexOfInputGate,
 			final ChannelType channelType, final boolean userDefinedChannelType,
-			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel, final DistributionPattern distributionPattern) {
+			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel,
+			final DistributionPattern distributionPattern) {
 		this.executionGraph = executionGraph;
 		this.sourceVertex = sourceVertex;
 		this.indexOfOutputGate = indexOfOutputGate;
@@ -186,6 +193,25 @@ public class ExecutionGroupEdge {
 	}
 
 	/**
+	 * Sets the edge's connection ID.
+	 * 
+	 * @param connectionID
+	 *        the edge's connection ID
+	 */
+	void setConnectionID(final int connectionID) {
+		this.connectionID = connectionID;
+	}
+
+	/**
+	 * Returns the edge's connection ID.
+	 * 
+	 * @return the edge's connection ID
+	 */
+	public int getConnectionID() {
+		return this.connectionID;
+	}
+
+	/**
 	 * Returns if the edge's channel type is user defined.
 	 * 
 	 * @return <code>true</code> if the channel type is user defined, <code>false</code> otherwise
@@ -229,12 +255,13 @@ public class ExecutionGroupEdge {
 	public int getIndexOfOutputGate() {
 		return this.indexOfOutputGate;
 	}
-	
+
 	/**
 	 * Returns the distribution pattern associated with this group edge.
+	 * 
 	 * @return
 	 */
-	public DistributionPattern getDistributionPattern(){
+	public DistributionPattern getDistributionPattern() {
 		return this.distributionPattern;
 	}
 }

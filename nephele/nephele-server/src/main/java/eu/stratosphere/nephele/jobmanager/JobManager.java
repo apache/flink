@@ -121,6 +121,7 @@ import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.Record;
@@ -809,8 +810,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(connectedChannelID);
 			} else {
 				// Receiver runs on a different task manager
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance
-					.getInstanceConnectionInfo());
+
+				final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
+				final InetSocketAddress isa = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
+
+				// TODO: Check if 0 is ok here
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, 0));
 			}
 		}
 
@@ -856,8 +861,22 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					.getConnectedChannelID());
 			} else {
 				// Receiver runs on a different task manager
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(assignedInstance
-					.getInstanceConnectionInfo());
+				final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
+				final InetSocketAddress isa = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
+
+				// Determine the connection ID
+				final AbstractInputChannel<? extends Record> inputChannel = eg.getInputChannelByID(outputChannel
+					.getConnectedChannelID());
+
+				if (inputChannel == null) {
+					LOG.error("Cannot find input channel with ID " + outputChannel.getConnectedChannelID());
+					return ConnectionInfoLookupResponse.createReceiverNotReady();
+				}
+
+				final int connectionID = targetVertex.getGroupVertex()
+					.getBackwardEdge(inputChannel.getInputGate().getIndex()).getConnectionID();
+
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, connectionID));
 			}
 		}
 

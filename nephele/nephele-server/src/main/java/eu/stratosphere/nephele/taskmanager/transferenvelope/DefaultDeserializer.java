@@ -58,16 +58,20 @@ public final class DefaultDeserializer extends AbstractDeserializer {
 					this.lastDeserializedSourceID = getDeserializedSourceID();
 				}
 
-				setBuffer(this.bufferProvider.requestEmptyBufferBlocking(getSizeOfBuffer()));
+				final Buffer buf = this.bufferProvider.requestEmptyBuffer(getSizeOfBuffer());
 
-				if (getBuffer() == null) {
+				if (buf == null) {
 
-					Thread.sleep(100);
-					// Wait for 100 milliseconds, so the NIO thread won't do busy
+					// TODO: Avoid waiting here
+					Thread.sleep(1);
+					// Wait for 1 milliseconds, so the NIO thread won't do busy
 					// waiting...
 
 					return true;
 				}
+
+				setBuffer(buf);
+
 			} catch (InterruptedException e) {
 				return true;
 			}

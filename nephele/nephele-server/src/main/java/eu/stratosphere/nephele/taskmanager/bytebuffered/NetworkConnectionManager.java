@@ -61,7 +61,7 @@ public final class NetworkConnectionManager {
 	/**
 	 * Map containing currently active outgoing connections.
 	 */
-	private final ConcurrentMap<InetSocketAddress, OutgoingConnection> outgoingConnections = new ConcurrentHashMap<InetSocketAddress, OutgoingConnection>();
+	private final ConcurrentMap<RemoteReceiver, OutgoingConnection> outgoingConnections = new ConcurrentHashMap<RemoteReceiver, OutgoingConnection>();
 
 	/**
 	 * The number of connection retries before giving up.
@@ -111,14 +111,14 @@ public final class NetworkConnectionManager {
 	/**
 	 * Queues an envelope for transfer to a particular target host.
 	 * 
-	 * @param targetAddress
-	 *        the address of the target host.
+	 * @param remoteReceiver
+	 *        the address of the remote receiver
 	 * @param transferEnvelope
 	 *        the envelope to be transfered
 	 */
-	public void queueEnvelopeForTransfer(final InetSocketAddress targetAddress, final TransferEnvelope transferEnvelope) {
+	public void queueEnvelopeForTransfer(final RemoteReceiver remoteReceiver, final TransferEnvelope transferEnvelope) {
 
-		getOutgoingConnection(targetAddress).queueEnvelope(transferEnvelope);
+		getOutgoingConnection(remoteReceiver).queueEnvelope(transferEnvelope);
 	}
 
 	/**
@@ -128,17 +128,16 @@ public final class NetworkConnectionManager {
 	 *        the address of the connection target
 	 * @return the outgoing connection object
 	 */
-	private OutgoingConnection getOutgoingConnection(final InetSocketAddress connectionAddress) {
+	private OutgoingConnection getOutgoingConnection(final RemoteReceiver remoteReceiver) {
 
-		OutgoingConnection outgoingConnection = this.outgoingConnections.get(connectionAddress);
+		OutgoingConnection outgoingConnection = this.outgoingConnections.get(remoteReceiver);
 
 		if (outgoingConnection == null) {
 
-			outgoingConnection = new OutgoingConnection(connectionAddress, getOutgoingConnectionThread(),
+			outgoingConnection = new OutgoingConnection(remoteReceiver, getOutgoingConnectionThread(),
 				this.numberOfConnectionRetries);
 
-			final OutgoingConnection oldEntry = this.outgoingConnections.putIfAbsent(connectionAddress,
-				outgoingConnection);
+			final OutgoingConnection oldEntry = this.outgoingConnections.putIfAbsent(remoteReceiver, outgoingConnection);
 
 			// We had a race, use the old value
 			if (oldEntry != null) {
