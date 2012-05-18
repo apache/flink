@@ -3,7 +3,7 @@ package eu.stratosphere.pact.iterative.nephele.tasks;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.iterative.nephele.util.DeserializingIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -58,8 +58,8 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
       numInternalOutputs = 4;
     }
 
-    updateBufferSize = memorySize * 1 / 5;
-    memorySize = memorySize * 4 / 5;
+    updateBufferSize = config.getMemorySize() * 1 / 5;
+    config.setMemorySize(config.getMemorySize() * 4 / 5);
   }
 
   @Override
@@ -85,10 +85,14 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
     OutputGate<? extends Record>[] iterStateGates = getIterationOutputGates();
 
     //Allocate memory for update queue
-    LOG.info("Update memory: " + updateBufferSize + ", numSegments: " + (int) (updateBufferSize / MEMORY_SEGMENT_SIZE));
-    List<MemorySegment> updateMemory = getEnvironment().getMemoryManager().allocateStrict(this,
-            (int) (updateBufferSize / MEMORY_SEGMENT_SIZE), MEMORY_SEGMENT_SIZE);
-    SerializedUpdateBuffer buffer = new SerializedUpdateBuffer(updateMemory, MEMORY_SEGMENT_SIZE,
+    LOG.info("Update memory: " + updateBufferSize + ", numSegments: " +
+        (int) (updateBufferSize / MEMORY_SEGMENT_SIZE));
+//    List<MemorySegment> updateMemory = getEnvironment().getMemoryManager().allocateStrict(this,
+//            (int) (updateBufferSize / MEMORY_SEGMENT_SIZE), MEMORY_SEGMENT_SIZE);
+    List<MemorySegment> updateMemory = getEnvironment().getMemoryManager().allocatePages(this,
+              (int) (updateBufferSize / MEMORY_SEGMENT_SIZE));
+
+      SerializedUpdateBuffer buffer = new SerializedUpdateBuffer(updateMemory, MEMORY_SEGMENT_SIZE,
         getEnvironment().getIOManager());
 
     //Create and initialize internal structures for the transport of the iteration updates from the tail to the head (this class)
@@ -148,10 +152,8 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
           }
           statsIter = new CountingIterator(new DeserializingIterator(updatesBuffer.switchBuffers()));
 
-          BackTrafficQueueStore.getInstance().publishUpdateBuffer(
-              getEnvironment().getJobID(),
-              getEnvironment().getIndexInSubtaskGroup(),
-              buffer);
+          BackTrafficQueueStore.getInstance().publishUpdateBuffer(getEnvironment().getJobID(),
+              getEnvironment().getIndexInSubtaskGroup(), buffer);
 
           //Start new iteration run
           publishState(ChannelState.OPEN, iterStateGates);
@@ -177,7 +179,7 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
 
     //Release the structures for this iteration
     if (updatesBuffer != null) {
-      //TODO: Deactivated so that broadcast job finnished
+      //TODO: Deactivated so that broadcast job finished
       //updatesBuffer.close();
     }
     getEnvironment().getMemoryManager().release(updateMemory);
@@ -211,7 +213,7 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
   }
 
   protected RecordWriter<Value>[] getIterationRecordWriters() {
-    int numIterOutputs = this.config.getNumOutputs() - numInternalOutputs;
+    int numIterOutputs = config.getNumOutputs() - numInternalOutputs;
 
     @SuppressWarnings("unchecked")
     RecordWriter<Value>[] writers = new RecordWriter[numIterOutputs];
@@ -347,7 +349,7 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
     }
   }
 
-  protected static class CountingOutputCollector<T> implements Collector<T> {
+  protected static class CountingOutputCollector<T> extends OutputCollector<T> {
 
     private OutputCollector collector;
     private long counter;

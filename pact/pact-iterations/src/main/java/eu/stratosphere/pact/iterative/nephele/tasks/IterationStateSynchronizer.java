@@ -1,8 +1,5 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
-import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.initStateTracking;
-
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -15,7 +12,7 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 
-public class IterationStateSynchronizer extends AbstractPactTask {
+public class IterationStateSynchronizer extends AbstractStateCommunicatingTask {
 
   private ChannelStateTracker[] stateListeners;
   protected static final Log LOG = LogFactory.getLog(IterationStateSynchronizer.class);

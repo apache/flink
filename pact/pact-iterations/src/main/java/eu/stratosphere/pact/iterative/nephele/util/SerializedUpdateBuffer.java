@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
@@ -15,7 +17,6 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-
 
 /**
  *
@@ -52,140 +53,132 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
 
 
-  public SerializedUpdateBuffer()
-  {
+  public SerializedUpdateBuffer() {
     super(-1, HEADER_LENGTH);
 
-    this.emptyBuffers = null;
-    this.fullBuffers = null;
+    emptyBuffers = null;
+    fullBuffers = null;
 
-    this.ioManager = null;
-    this.channelEnumerator = null;
+    ioManager = null;
+    channelEnumerator = null;
 
-    this.numSegmentsSpillingThreshold = -1;
-    this.minBuffersForWriteEnd = -1;
-    this.minBuffersForSpilledReadEnd = -1;
-    this.totalNumBuffers = -1;
+    numSegmentsSpillingThreshold = -1;
+    minBuffersForWriteEnd = -1;
+    minBuffersForSpilledReadEnd = -1;
+    totalNumBuffers = -1;
 
-    this.readEnds = Collections.emptyList();
+    readEnds = Collections.emptyList();
   }
 
-  public SerializedUpdateBuffer(List<MemorySegment> memSegments, int segmentSize, IOManager ioManager)
-  {
+  public SerializedUpdateBuffer(List<MemorySegment> memSegments, int segmentSize, IOManager ioManager) {
     super(memSegments.remove(memSegments.size()-1), segmentSize, HEADER_LENGTH);
 
-    this.totalNumBuffers = memSegments.size() + 1;
-    if (this.totalNumBuffers < 3) {
-      throw new IllegalArgumentException("SerializedUpdateBuffer needs at least 3 memory segments.");
-    }
+    totalNumBuffers = memSegments.size() + 1;
+    Preconditions.checkArgument(totalNumBuffers >= 3, "SerializedUpdateBuffer needs at least 3 memory segments.");
 
-    this.emptyBuffers = new LinkedBlockingQueue<MemorySegment>(this.totalNumBuffers);
-    this.fullBuffers = new ArrayDeque<MemorySegment>(64);
+    emptyBuffers = new LinkedBlockingQueue<MemorySegment>(totalNumBuffers);
+    fullBuffers = new ArrayDeque<MemorySegment>(64);
 
-    this.emptyBuffers.addAll(memSegments);
+    emptyBuffers.addAll(memSegments);
 
-    int threshold = (int) ((1 - SPILL_THRESHOLD) * this.totalNumBuffers);
-    this.numSegmentsSpillingThreshold = threshold > 0 ? threshold : 0;
-    this.minBuffersForWriteEnd = Math.max(2, Math.min(16, this.totalNumBuffers / 2));
-    this.minBuffersForSpilledReadEnd = Math.max(1, Math.min(16, this.totalNumBuffers / 4));
+    int threshold = (int) ((1 - SPILL_THRESHOLD) * totalNumBuffers);
+    numSegmentsSpillingThreshold = threshold > 0 ? threshold : 0;
+    minBuffersForWriteEnd = Math.max(2, Math.min(16, totalNumBuffers / 2));
+    minBuffersForSpilledReadEnd = Math.max(1, Math.min(16,totalNumBuffers / 4));
 
-    if (this.minBuffersForSpilledReadEnd + this.minBuffersForWriteEnd > this.totalNumBuffers) {
-      throw new RuntimeException("BUG: Unfulfillable memory assignment.");
-    }
+    Preconditions.checkState(minBuffersForSpilledReadEnd + minBuffersForWriteEnd <= totalNumBuffers,
+        "BUG: Unfulfillable memory assignment.");
 
     this.ioManager = ioManager;
-    this.channelEnumerator = ioManager.createChannelEnumerator();
-    this.readEnds = new ArrayList<ReadEnd>();
+    channelEnumerator = ioManager.createChannelEnumerator();
+    readEnds = Lists.newArrayList();
   }
 
   /* (non-Javadoc)
    * @see eu.stratosphere.pact.runtime.io.AbstractPagedOutputViewV2#nextSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment, int)
    */
   @Override
-  protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException
-  {
+  protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
     current.putInt(0, positionInCurrent);
 
     // check if we keep the segment in memory, or if we spill it
-    if (this.emptyBuffers.size() > this.numSegmentsSpillingThreshold) {
+    if (emptyBuffers.size() > numSegmentsSpillingThreshold) {
       // keep buffer in memory
-      this.fullBuffers.addLast(current);
+      fullBuffers.addLast(current);
     } else {
       // spill all buffers up to now
       // check, whether we have a channel already
-      if (this.currentWriter == null) {
-        this.currentWriter = this.ioManager.createBlockChannelWriter(this.channelEnumerator.next(), this.emptyBuffers);
+      if (currentWriter == null) {
+        currentWriter = ioManager.createBlockChannelWriter(channelEnumerator.next(), emptyBuffers);
       }
 
       // spill all elements gathered up to now
-      this.numBuffersSpilled += this.fullBuffers.size();
-      while (this.fullBuffers.size() > 0) {
-        this.currentWriter.writeBlock(this.fullBuffers.removeFirst());
+      numBuffersSpilled += fullBuffers.size();
+      while (fullBuffers.size() > 0) {
+        currentWriter.writeBlock(fullBuffers.removeFirst());
       }
-      this.currentWriter.writeBlock(current);
-      this.numBuffersSpilled++;
+      currentWriter.writeBlock(current);
+      numBuffersSpilled++;
     }
 
     try {
-      return this.emptyBuffers.take();
+      return emptyBuffers.take();
     } catch (InterruptedException iex) {
       throw new RuntimeException("Spilling Fifo Queue was interrupted while waiting for next buffer.");
     }
   }
 
-  public void flush() throws IOException
-  {
+  public void flush() throws IOException {
     advance();
   }
 
 
-  public ReadEnd switchBuffers() throws IOException
-  {
+  public ReadEnd switchBuffers() throws IOException {
     // remove exhausted read ends
-    for (int i = this.readEnds.size() - 1; i >= 0; --i) {
-      final ReadEnd re = this.readEnds.get(i);
+    for (int i = readEnds.size() - 1; i >= 0; --i) {
+      final ReadEnd re = readEnds.get(i);
       if (re.disposeIfDone()) {
-        this.readEnds.remove(i);
+        readEnds.remove(i);
       }
     }
 
     // add the current memorySegment and reset this writer
     final MemorySegment current = getCurrentSegment();
     current.putInt(0, getCurrentPositionInSegment());
-    this.fullBuffers.addLast(current);
+    fullBuffers.addLast(current);
 
     // create the reader
     final ReadEnd readEnd;
-    if (this.numBuffersSpilled == 0 && this.emptyBuffers.size() >= this.minBuffersForWriteEnd) {
+    if (numBuffersSpilled == 0 && emptyBuffers.size() >= minBuffersForWriteEnd) {
       // read completely from in-memory segments
-      readEnd = new ReadEnd(this.fullBuffers.removeFirst(), this.emptyBuffers,
-                          this.fullBuffers, null, null, this.segmentSize, 0);
+      readEnd = new ReadEnd(fullBuffers.removeFirst(), emptyBuffers, fullBuffers, null, null, segmentSize, 0);
     } else {
-      int toSpill = Math.min(this.minBuffersForSpilledReadEnd + this.minBuffersForWriteEnd - this.emptyBuffers.size(), this.fullBuffers.size());
+      int toSpill = Math.min(minBuffersForSpilledReadEnd + minBuffersForWriteEnd - emptyBuffers.size(),
+          fullBuffers.size());
 
       // reader reads also segments on disk
       // grab some empty buffers to re-read the first segment
       if (toSpill > 0) {
         // need to spill to make a buffers available
-        if (this.currentWriter == null) {
-          this.currentWriter = this.ioManager.createBlockChannelWriter(this.channelEnumerator.next(), this.emptyBuffers);
+        if (currentWriter == null) {
+          currentWriter = ioManager.createBlockChannelWriter(channelEnumerator.next(), emptyBuffers);
         }
 
         for (int i = 0; i < toSpill; i++) {
-          this.currentWriter.writeBlock(this.fullBuffers.removeFirst());
+          currentWriter.writeBlock(fullBuffers.removeFirst());
         }
-        this.numBuffersSpilled += toSpill;
+        numBuffersSpilled += toSpill;
       }
 
       // now close the writer and create the reader
-      this.currentWriter.close();
-      final BlockChannelReader reader = this.ioManager.createBlockChannelReader(this.currentWriter.getChannelID());
+      currentWriter.close();
+      final BlockChannelReader reader = ioManager.createBlockChannelReader(currentWriter.getChannelID());
 
       // gather some memory segments to circulate while reading back the data
-      final ArrayList<MemorySegment> readSegments = new ArrayList<MemorySegment>();
+      final ArrayList<MemorySegment> readSegments = Lists.newArrayList();
       try {
-        while (readSegments.size() < this.minBuffersForSpilledReadEnd) {
-          readSegments.add(this.emptyBuffers.take());
+        while (readSegments.size() < minBuffersForSpilledReadEnd) {
+          readSegments.add(emptyBuffers.take());
         }
 
         // read the first segment
@@ -194,17 +187,17 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
         firstSeg = reader.getReturnQueue().take();
 
         // create the read end reading one less buffer, because the first buffer is already read back
-        readEnd = new ReadEnd(firstSeg, this.emptyBuffers, this.fullBuffers, reader,
-          readSegments, this.segmentSize, this.numBuffersSpilled - 1);
+        readEnd = new ReadEnd(firstSeg, emptyBuffers, fullBuffers, reader, readSegments, segmentSize,
+            numBuffersSpilled - 1);
       } catch (InterruptedException iex) {
         throw new RuntimeException("SerializedUpdateBuffer was interrupted while reclaiming memory by spilling.");
       }
     }
 
     // reset the writer
-    this.fullBuffers = new ArrayDeque<MemorySegment>(64);
-    this.currentWriter = null;
-    this.numBuffersSpilled = 0;
+    fullBuffers = new ArrayDeque<MemorySegment>(64);
+    currentWriter = null;
+    numBuffersSpilled = 0;
     try {
       seekOutput(emptyBuffers.take(), HEADER_LENGTH);
     } catch (InterruptedException iex) {
@@ -212,36 +205,35 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
     }
 
     // register this read end
-    this.readEnds.add(readEnd);
+    readEnds.add(readEnd);
     return readEnd;
   }
 
-  public List<MemorySegment> close()
-  {
-    if (this.currentWriter != null) {
+  public List<MemorySegment> close() {
+    if (currentWriter != null) {
       try {
-        this.currentWriter.closeAndDelete();
+        currentWriter.closeAndDelete();
       } catch (Throwable t) {}
     }
 
-    ArrayList<MemorySegment> freeMem = new ArrayList<MemorySegment>(64);
+    ArrayList<MemorySegment> freeMem = Lists.newArrayListWithCapacity(64);
 
     // add all memory allocated to the write end
     freeMem.add(getCurrentSegment());
     clear();
-    freeMem.addAll(this.fullBuffers);
-    this.fullBuffers = null;
+    freeMem.addAll(fullBuffers);
+    fullBuffers = null;
 
     // add memory from non-exhausted read ends
     try {
-      for (int i = this.readEnds.size() - 1; i >= 0; --i) {
-        final ReadEnd re = this.readEnds.remove(i);
+      for (int i = readEnds.size() - 1; i >= 0; --i) {
+        final ReadEnd re = readEnds.remove(i);
         re.forceDispose(freeMem);
       }
 
       // release all empty segments
-      while (freeMem.size() < this.totalNumBuffers)
-        freeMem.add(this.emptyBuffers.take());
+      while (freeMem.size() < totalNumBuffers)
+        freeMem.add(emptyBuffers.take());
     }
     catch (InterruptedException iex) {
       throw new RuntimeException("Retrieving memory back from asynchronous I/O was interrupted.");
@@ -276,13 +268,13 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
       this.spilledBufferSource = spilledBufferSource;
 
-      this.requestsRemaining = numBuffersSpilled;
+      requestsRemaining = numBuffersSpilled;
       this.spilledBuffersRemaining = numBuffersSpilled;
 
       // send the first requests
-      while (this.requestsRemaining > 0 && emptyBuffers.size() > 0) {
+      while (requestsRemaining > 0 && emptyBuffers.size() > 0) {
         this.spilledBufferSource.readBlock(emptyBuffers.remove(emptyBuffers.size() - 1));
-        this.requestsRemaining--;
+        requestsRemaining--;
       }
     }
 
@@ -292,30 +284,30 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
     @Override
     protected MemorySegment nextSegment(MemorySegment current) throws IOException {
       // use the buffer to send the next request
-      if (this.requestsRemaining > 0) {
-        this.requestsRemaining--;
-        this.spilledBufferSource.readBlock(current);
+      if (requestsRemaining > 0) {
+        requestsRemaining--;
+        spilledBufferSource.readBlock(current);
       } else {
-        this.emptyBufferTarget.add(current);
+        emptyBufferTarget.add(current);
       }
 
       // get the next buffer either from the return queue, or the full buffer source
-      if (this.spilledBuffersRemaining > 0) {
-        this.spilledBuffersRemaining--;
+      if (spilledBuffersRemaining > 0) {
+        spilledBuffersRemaining--;
         try {
-          return this.spilledBufferSource.getReturnQueue().take();
+          return spilledBufferSource.getReturnQueue().take();
         }
         catch (InterruptedException iex) {
           throw new RuntimeException("Read End was interrupted while waiting for spilled buffer.");
         }
-      } else if (this.fullBufferSource.size() > 0) {
-        return this.fullBufferSource.removeFirst();
+      } else if (fullBufferSource.size() > 0) {
+        return fullBufferSource.removeFirst();
       } else {
         clear();
 
         // delete the channel, if we had one
-        if (this.spilledBufferSource != null) {
-          this.spilledBufferSource.closeAndDelete();
+        if (spilledBufferSource != null) {
+          spilledBufferSource.closeAndDelete();
         }
 
         throw new EOFException();
@@ -331,17 +323,16 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
     }
 
     private boolean disposeIfDone() {
-      if (this.fullBufferSource.isEmpty() && this.spilledBuffersRemaining == 0)
-      {
+      if (fullBufferSource.isEmpty() && spilledBuffersRemaining == 0) {
         if (getCurrentSegment() == null || getCurrentPositionInSegment() >= getCurrentSegmentLimit()) {
           if (getCurrentSegment() != null) {
-            this.emptyBufferTarget.add(getCurrentSegment());
+            emptyBufferTarget.add(getCurrentSegment());
             clear();
           }
 
-          if (this.spilledBufferSource != null) {
+          if (spilledBufferSource != null) {
             try {
-              this.spilledBufferSource.closeAndDelete();
+              spilledBufferSource.closeAndDelete();
             } catch (Throwable t) {}
           }
           return true;
@@ -359,16 +350,16 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
       }
 
       // add all remaining memory
-      freeMemTarget.addAll(this.fullBufferSource);
+      freeMemTarget.addAll(fullBufferSource);
 
       // add the segments with the requests issued but not returned
-      for (int i = this.spilledBuffersRemaining - this.requestsRemaining; i > 0; --i) {
-        freeMemTarget.add(this.emptyBufferTarget.take());
+      for (int i = spilledBuffersRemaining - requestsRemaining; i > 0; --i) {
+        freeMemTarget.add(emptyBufferTarget.take());
       }
 
-      if (this.spilledBufferSource != null) {
+      if (spilledBufferSource != null) {
         try {
-          this.spilledBufferSource.closeAndDelete();
+          spilledBufferSource.closeAndDelete();
         } catch (Throwable t) {}
       }
     }

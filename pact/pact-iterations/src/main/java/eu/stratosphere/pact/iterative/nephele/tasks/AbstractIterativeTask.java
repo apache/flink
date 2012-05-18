@@ -1,5 +1,6 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
+import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.Value;
@@ -7,9 +8,8 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.IterationIterator;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 
-public abstract class AbstractIterativeTask extends AbstractPactTask {
+public abstract class AbstractIterativeTask extends AbstractStateCommunicatingTask {
 
   protected ChannelStateTracker[] stateListeners;
   protected OutputGate<? extends Record>[] iterStateGates;
@@ -35,16 +35,15 @@ public abstract class AbstractIterativeTask extends AbstractPactTask {
     IterationIterator iterationIter = new IterationIterator(input, stateListener);
     while (!iterationIter.checkTermination()) {
       //Send iterative open state to output gates
-      StateUtils.publishState(ChannelState.OPEN, iterStateGates);
+      publishState(ChannelState.OPEN, iterStateGates);
 
       //Call iteration stub function with the data for this iteration
       runIteration(iterationIter);
 
-      if (stateListener.getState() == ChannelState.CLOSED) {
-        StateUtils.publishState(ChannelState.CLOSED, iterStateGates);
-      } else {
-        throw new RuntimeException("Illegal state after iteration call");
-      }
+      Preconditions.checkState(stateListener.getState() == ChannelState.CLOSED, "Illegal state after iteration call");
+
+      publishState(ChannelState.CLOSED, iterStateGates);
+
     }
   }
 

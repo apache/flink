@@ -1,13 +1,9 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
-import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.initStateTracking;
-
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import com.google.common.collect.Maps;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -21,7 +17,7 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 
-public class CounterTask extends AbstractPactTask {
+public class CounterTask extends AbstractStateCommunicatingTask {
 
   private ChannelStateTracker[] stateListeners;
   protected static final Log LOG = LogFactory.getLog(CounterTask.class);

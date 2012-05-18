@@ -41,7 +41,7 @@ public abstract class AsynchronousIterationHead extends IterationHead {
     int segmentSize = 1024 * 1024;
     //Allocate memory for update queue
     List<MemorySegment> updateMemory =
-        getEnvironment().getMemoryManager().allocateStrict(this, (int)(updateBufferSize / segmentSize), segmentSize);
+        getEnvironment().getMemoryManager().allocatePages(this, (int)(updateBufferSize / segmentSize));
     SerializedPassthroughUpdateBuffer buffer = new SerializedPassthroughUpdateBuffer(updateMemory, segmentSize);
 
     //Create and initialize internal structures for the transport of the iteration

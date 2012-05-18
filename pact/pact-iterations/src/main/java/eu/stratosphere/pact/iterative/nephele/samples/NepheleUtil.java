@@ -7,8 +7,6 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
@@ -17,26 +15,20 @@ import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.iterative.nephele.tasks.AsynchronousIterationTail;
 import eu.stratosphere.pact.iterative.nephele.tasks.CounterTask;
 import eu.stratosphere.pact.iterative.nephele.tasks.IterationHead;
 import eu.stratosphere.pact.iterative.nephele.tasks.IterationStateSynchronizer;
 import eu.stratosphere.pact.iterative.nephele.tasks.IterationTail;
-import eu.stratosphere.pact.iterative.nephele.tasks.IterationTerminationChecker;
-import eu.stratosphere.pact.iterative.nephele.util.TerminationDecider;
 import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
-import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
@@ -98,20 +90,20 @@ public class NepheleUtil {
     return sinkVertex;
   }
 
-//  public static JobOutputVertex createDummyOutput(JobGraph graph, int dop, int spi) {
-//    JobOutputVertex vertex = createDummyOutput(graph, dop);
-//    vertex.setNumberOfSubtasksPerInstance(spi);
-//    return vertex;
-//  }
-//
-//  public static JobOutputVertex createDummyOutput(JobGraph graph, int dop) {
-//    JobOutputVertex sinkVertex = new JobOutputVertex("Dummy output task", graph);
-//    sinkVertex.setOutputClass(DummyNullOutput.class);
-//    sinkVertex.setNumberOfSubtasks(dop);
-//    sinkVertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, dop);
-//
-//    return sinkVertex;
-//  }
+  public static JobOutputVertex createDummyOutput(JobGraph graph, int dop, int spi) {
+    JobOutputVertex vertex = createDummyOutput(graph, dop);
+    vertex.setNumberOfSubtasksPerInstance(spi);
+    return vertex;
+  }
+
+  public static JobOutputVertex createDummyOutput(JobGraph graph, int dop) {
+    JobOutputVertex sinkVertex = new JobOutputVertex("Dummy output task", graph);
+    sinkVertex.setOutputClass(DummyNullOutput.class);
+    sinkVertex.setNumberOfSubtasks(dop);
+    sinkVertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, dop);
+
+    return sinkVertex;
+  }
 
   public static JobTaskVertex createTask(Class<? extends AbstractPactTask> task, JobGraph graph, int dop, int spi) {
     JobTaskVertex vertex = createTask(task, graph, dop);
@@ -127,59 +119,60 @@ public class NepheleUtil {
     return taskVertex;
   }
 
-//  public static void connectJobVertices(ShipStrategy shipStrategy, AbstractJobVertex outputVertex,
-//      AbstractJobVertex inputVertex, int[] keyPos, Class<? extends Key>[] keyTypes) throws JobGraphDefinitionException {
-//    ChannelType channelType;
-//
-//    switch (shipStrategy) {
-//      case FORWARD:
-//      case PARTITION_LOCAL_HASH:
-//        channelType = ChannelType.INMEMORY;
-//        break;
-//      case PARTITION_HASH:
-//      case PARTITION_RANGE:
-//      case BROADCAST:
-//      case SFR:
-//        channelType = ChannelType.NETWORK;
-//        break;
-//      default:
-//        throw new IllegalArgumentException("Unsupported ship-strategy: " + shipStrategy.name());
-//    }
-//
-//    TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
-//    TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
-//
-//    // connect child with inmemory channel
-//    outputVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION);
-//    // set ship strategy in vertex and child
-//
-//    // set strategies in task configs
-//    if ((keyPos == null | keyTypes == null) || (keyPos.length == 0 | keyTypes.length == 0)) {
-//      outputConfig.addOutputShipStrategy(shipStrategy);
-//    } else {
-//      outputConfig.addOutputShipStrategy(shipStrategy, keyPos, keyTypes);
-//    }
-//    inputConfig.addInputShipStrategy(shipStrategy, 0);
-//    System.out.println(outputVertex.getName() + " --> " + inputVertex.getName() + "::" + channelType);
-//  }
+  public static void connectJobVertices(ShipStrategy shipStrategy, AbstractJobVertex outputVertex,
+      AbstractJobVertex inputVertex, int[] keyPos, Class<? extends Key>[] keyTypes) throws JobGraphDefinitionException {
+    ChannelType channelType;
 
-  public static void connectBoundedRoundsIterationLoop(AbstractJobVertex iterationInput, AbstractJobVertex iterationOutput,
-      JobTaskVertex[] innerLoopStarts, JobTaskVertex innerLoopEnd, JobTaskVertex iterationHead,
-      ShipStrategy iterationInputShipStrategy, int numRounds, JobGraph graph) throws JobGraphDefinitionException {
+    switch (shipStrategy) {
+      case FORWARD:
+      case PARTITION_LOCAL_HASH:
+        channelType = ChannelType.INMEMORY;
+        break;
+      case PARTITION_HASH:
+      case PARTITION_RANGE:
+      case BROADCAST:
+      case SFR:
+        channelType = ChannelType.NETWORK;
+        break;
+      default:
+        throw new IllegalArgumentException("Unsupported ship-strategy: " + shipStrategy.name());
+    }
+
+    TaskConfig outputConfig = new TaskConfig(outputVertex.getConfiguration());
+    TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
+
+    // connect child with inmemory channel
+    outputVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION);
+    // set ship strategy in vertex and child
+
+    // set strategies in task configs
+    if ((keyPos == null | keyTypes == null) || (keyPos.length == 0 | keyTypes.length == 0)) {
+      outputConfig.addOutputShipStrategy(shipStrategy);
+    } else {
+      outputConfig.addOutputShipStrategy(shipStrategy, keyPos, keyTypes);
+    }
+    inputConfig.addInputShipStrategy(shipStrategy, 0);
+    System.out.println(outputVertex.getName() + " --> " + inputVertex.getName() + "::" + channelType);
+  }
+
+  public static void connectBoundedRoundsIterationLoop(AbstractJobVertex iterationInput,
+      AbstractJobVertex iterationOutput, JobTaskVertex[] innerLoopStarts, JobTaskVertex innerLoopEnd,
+      JobTaskVertex iterationHead, ShipStrategy iterationInputShipStrategy, int numRounds, JobGraph graph)
+      throws JobGraphDefinitionException {
     ShipStrategy[] innerStartStrategies = null;
     if (innerLoopStarts != null) {
       innerStartStrategies = new ShipStrategy[innerLoopStarts.length];
       Arrays.fill(innerStartStrategies, ShipStrategy.FORWARD);
     }
 
-    connectBoundedRoundsIterationLoop(iterationInput, iterationOutput, innerLoopStarts,
-        innerStartStrategies, innerLoopEnd, iterationHead, iterationInputShipStrategy,
-        numRounds, graph, false);
+    connectBoundedRoundsIterationLoop(iterationInput, iterationOutput, innerLoopStarts, innerStartStrategies, innerLoopEnd,
+        iterationHead, iterationInputShipStrategy, numRounds, graph, false);
   }
 
-  public static void connectAsyncBoundedRoundsIterationLoop(AbstractJobVertex iterationInput, AbstractJobVertex iterationOutput,
-      JobTaskVertex[] innerLoopStarts, JobTaskVertex innerLoopEnd, JobTaskVertex iterationHead,
-      ShipStrategy iterationInputShipStrategy, int numRounds, JobGraph graph) throws JobGraphDefinitionException {
+  public static void connectAsyncBoundedRoundsIterationLoop(AbstractJobVertex iterationInput,
+      AbstractJobVertex iterationOutput, JobTaskVertex[] innerLoopStarts, JobTaskVertex innerLoopEnd,
+      JobTaskVertex iterationHead, ShipStrategy iterationInputShipStrategy, int numRounds, JobGraph graph)
+      throws JobGraphDefinitionException {
     ShipStrategy[] innerStartStrategies = null;
     if (innerLoopStarts != null) {
       innerStartStrategies = new ShipStrategy[innerLoopStarts.length];
@@ -198,7 +191,6 @@ public class NepheleUtil {
           throws JobGraphDefinitionException {
     int dop = iterationInput.getNumberOfSubtasks();
     int spi = iterationInput.getNumberOfSubtasksPerInstance();
-
 
     iterationHead.getConfiguration().setBoolean(IterationHead.FIXED_POINT_TERMINATOR, false);
     iterationHead.getConfiguration().setInteger(IterationHead.NUMBER_OF_ITERATIONS, numRounds);

@@ -1,7 +1,5 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
-import static eu.stratosphere.pact.iterative.nephele.tasks.AbstractIterativeTask.initStateTracking;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,9 +12,8 @@ import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelStat
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
 import eu.stratosphere.pact.iterative.nephele.util.StateChangeException;
 import eu.stratosphere.pact.iterative.nephele.util.TerminationDecider;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 
-public class IterationTerminationChecker extends AbstractPactTask {
+public class IterationTerminationChecker extends AbstractStateCommunicatingTask {
 
   public static final String TERMINATION_DECIDER = "iter.termination.decider";
 
