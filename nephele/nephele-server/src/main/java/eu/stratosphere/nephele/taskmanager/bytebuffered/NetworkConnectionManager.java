@@ -137,7 +137,8 @@ public final class NetworkConnectionManager {
 			outgoingConnection = new OutgoingConnection(remoteReceiver, getOutgoingConnectionThread(),
 				this.numberOfConnectionRetries);
 
-			final OutgoingConnection oldEntry = this.outgoingConnections.putIfAbsent(remoteReceiver, outgoingConnection);
+			final OutgoingConnection oldEntry = this.outgoingConnections
+				.putIfAbsent(remoteReceiver, outgoingConnection);
 
 			// We had a race, use the old value
 			if (oldEntry != null) {
@@ -163,12 +164,12 @@ public final class NetworkConnectionManager {
 
 		System.out.println("\tOutgoing connections:");
 
-		final Iterator<Map.Entry<InetSocketAddress, OutgoingConnection>> it = this.outgoingConnections.entrySet()
-				.iterator();
+		final Iterator<Map.Entry<RemoteReceiver, OutgoingConnection>> it = this.outgoingConnections.entrySet()
+			.iterator();
 
 		while (it.hasNext()) {
 
-			final Map.Entry<InetSocketAddress, OutgoingConnection> entry = it.next();
+			final Map.Entry<RemoteReceiver, OutgoingConnection> entry = it.next();
 			System.out.println("\t\tOC " + entry.getKey() + ": " + entry.getValue().getNumberOfQueuedWriteBuffers());
 		}
 	}
