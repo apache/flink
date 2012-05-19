@@ -22,6 +22,7 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
@@ -191,5 +192,14 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 	public void asynchronousEventOccurred() throws IOException, InterruptedException {
 
 		throw new IllegalStateException("ReplayTaskContext received asynchronous event");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
+
+		return this.localBufferPool.registerBufferAvailabilityListener(bufferAvailabilityListener);
 	}
 }

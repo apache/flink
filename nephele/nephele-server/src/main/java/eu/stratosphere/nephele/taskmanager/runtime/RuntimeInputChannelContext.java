@@ -33,6 +33,7 @@ import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
@@ -443,5 +444,14 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		sb.append(')');
 
 		return sb.toString();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
+
+		return this.inputGateContext.registerBufferAvailabilityListener(bufferAvailabilityListener);
 	}
 }

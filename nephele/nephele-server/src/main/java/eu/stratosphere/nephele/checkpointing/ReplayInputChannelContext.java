@@ -21,6 +21,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
@@ -168,5 +169,14 @@ final class ReplayInputChannelContext implements InputChannelContext {
 		if (this.encapsulatedContext != null) {
 			this.encapsulatedContext.logQueuedEnvelopes();
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
+
+		return this.encapsulatedContext.registerBufferAvailabilityListener(bufferAvailabilityListener);
 	}
 }
