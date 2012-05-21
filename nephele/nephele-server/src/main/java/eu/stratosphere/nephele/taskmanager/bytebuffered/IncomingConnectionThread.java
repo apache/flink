@@ -50,13 +50,13 @@ public class IncomingConnectionThread extends Thread {
 
 		private final Queue<SelectionKey> pendingReadEventSubscribeRequests;
 
-		private final SelectionKey canceledKey;
+		private final SelectionKey key;
 
 		private IncomingConnectionBufferAvailListener(final Queue<SelectionKey> pendingReadEventSubscribeRequests,
-				final SelectionKey canceledKey) {
+				final SelectionKey key) {
 
 			this.pendingReadEventSubscribeRequests = pendingReadEventSubscribeRequests;
-			this.canceledKey = canceledKey;
+			this.key = key;
 		}
 
 		/**
@@ -66,7 +66,7 @@ public class IncomingConnectionThread extends Thread {
 		public void bufferAvailable() {
 
 			synchronized (this.pendingReadEventSubscribeRequests) {
-				this.pendingReadEventSubscribeRequests.add(this.canceledKey);
+				this.pendingReadEventSubscribeRequests.add(this.key);
 			}
 		}
 	}
@@ -96,15 +96,15 @@ public class IncomingConnectionThread extends Thread {
 
 			synchronized (this.pendingReadEventSubscribeRequests) {
 				while (!this.pendingReadEventSubscribeRequests.isEmpty()) {
-					final SelectionKey canceledKey = this.pendingReadEventSubscribeRequests.poll();
-					final IncomingConnection incomingConnection = (IncomingConnection) canceledKey.attachment();
-					final SocketChannel socketChannel = (SocketChannel) canceledKey.channel();
+					final SelectionKey key = this.pendingReadEventSubscribeRequests.poll();
+					final IncomingConnection incomingConnection = (IncomingConnection) key.attachment();
+					final SocketChannel socketChannel = (SocketChannel) key.channel();
 
 					try {
 						final SelectionKey newKey = socketChannel.register(this.selector, SelectionKey.OP_READ);
 						newKey.attach(incomingConnection);
 					} catch (ClosedChannelException e) {
-						incomingConnection.reportTransmissionProblem(canceledKey, e);
+						incomingConnection.reportTransmissionProblem(key, e);
 					}
 				}
 			}
@@ -200,12 +200,19 @@ public class IncomingConnectionThread extends Thread {
 			// Nothing to do here
 		} catch (NoBufferAvailableException e) {
 			// There are no buffers available, unsubscribe from read event
-			key.cancel();
+			final SocketChannel socketChannel = (SocketChannel) key.channel();
+			try {
+				final SelectionKey newKey = socketChannel.register(this.selector, 0);
+				newKey.attach(incomingConnection);
+			} catch (ClosedChannelException e1) {
+				incomingConnection.reportTransmissionProblem(key, e1);
+			}
+
 			final BufferAvailabilityListener bal = new IncomingConnectionBufferAvailListener(
 				this.pendingReadEventSubscribeRequests, key);
 			if (!e.getBufferProvider().registerBufferAvailabilityListener(bal)) {
 				// In the meantime, a buffer has become available again, subscribe to read event again
-				final SocketChannel socketChannel = (SocketChannel) key.channel();
+
 				try {
 					final SelectionKey newKey = socketChannel.register(this.selector, SelectionKey.OP_READ);
 					newKey.attach(incomingConnection);
