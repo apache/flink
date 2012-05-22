@@ -1,8 +1,12 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
+import com.google.common.base.Preconditions;
+import eu.stratosphere.nephele.io.AbstractRecordWriter;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.iterative.nephele.util.DeserializingIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import org.apache.commons.logging.Log;
@@ -11,7 +15,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
@@ -40,6 +43,8 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
 
   protected volatile boolean finished = false;
 
+  protected OutputCollector outputCollector;
+
   @Override
   public void prepare() throws Exception {
     boolean useFixedPointTerminator = getEnvironment().getTaskConfiguration()
@@ -60,6 +65,10 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
 
     updateBufferSize = config.getMemorySize() * 1 / 5;
     config.setMemorySize(config.getMemorySize() * 4 / 5);
+
+    //TODO refactor the collectors
+    Preconditions.checkState(output instanceof OutputCollector);
+    outputCollector = (OutputCollector) output;
   }
 
   @Override
@@ -69,17 +78,17 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
 
   @Override
   public void run() throws Exception {
+
     //Setup variables for easier access to the correct output gates / writers
     //Create output collector for intermediate results
-    OutputCollector innerOutput = new OutputCollector();
-    RecordWriter<Value>[] innerWriters = getIterationRecordWriters();
-    for (RecordWriter<Value> writer : innerWriters) {
-      innerOutput.addWriter(writer);
-    }
+    OutputCollector innerOutput = new OutputCollector(Arrays.asList(getIterationRecordWriters()),
+        outputCollector.getSerializer());
+
+    CountingOutputCollector statsOutputCollector = new CountingOutputCollector(innerOutput);
 
     //Create output collector for final iteration output
-    OutputCollector taskOutput = new OutputCollector();
-    taskOutput.addWriter(output.getWriters().get(0));
+    OutputCollector taskOutput = new OutputCollector(Arrays.asList(outputCollector.getWriter(0)),
+        outputCollector.getSerializer());
 
     //Gates where the iterative channel state is send to
     OutputGate<? extends Record>[] iterStateGates = getIterationOutputGates();
@@ -110,7 +119,6 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
     //Process all input records by passing them to the processInput method (supplied by the user)
     MutableObjectIterator<Value> input = inputs[0];
     CountingIterator statsIter = new CountingIterator(input);
-    CountingOutputCollector statsOutputCollector = new CountingOutputCollector(innerOutput);
     processInput(statsIter, statsOutputCollector);
 
     //Send iterative close event to indicate that this round is finished
@@ -195,9 +203,9 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
 
   public abstract void finish(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception;
 
-  public abstract void processInput(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception;
+  public abstract void processInput(MutableObjectIterator<Value> iter, Collector output) throws Exception;
 
-  public abstract void processUpdates(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception;
+  public abstract void processUpdates(MutableObjectIterator<Value> iter, Collector output) throws Exception;
 
   public static String constructLogString(String message, String taskName, AbstractInvokable parent) {
     StringBuilder bld = new StringBuilder(128);
@@ -212,13 +220,13 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
     return bld.toString();
   }
 
-  protected RecordWriter<Value>[] getIterationRecordWriters() {
+  protected AbstractRecordWriter<Value>[] getIterationRecordWriters() {
     int numIterOutputs = config.getNumOutputs() - numInternalOutputs;
 
     @SuppressWarnings("unchecked")
-    RecordWriter<Value>[] writers = new RecordWriter[numIterOutputs];
+    AbstractRecordWriter<Value>[] writers = new AbstractRecordWriter[numIterOutputs];
     for (int i = 0; i < numIterOutputs; i++) {
-      writers[i]  = output.getWriters().get(numInternalOutputs + i);
+      writers[i]  = outputCollector.getWriter(numInternalOutputs + i);
     }
 
     return writers;
@@ -246,7 +254,8 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
     countLng.setValue(count);
     countRec.setField(0, keyStr);
     countRec.setField(1, countLng);
-    output.getWriters().get(3).emit(countRec);
+    //TODO introduce constant
+    outputCollector.getWriter(3).emit(countRec);
   }
 
   protected class ClosedListener implements EventListener {
@@ -349,12 +358,12 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
     }
   }
 
-  protected static class CountingOutputCollector<T> extends OutputCollector<T> {
+  protected static class CountingOutputCollector<T> implements Collector<T> {
 
-    private OutputCollector collector;
+    private Collector collector;
     private long counter;
 
-    public CountingOutputCollector(OutputCollector<T> output) {
+    public CountingOutputCollector(Collector<T> output) {
       super();
       collector = output;
     }

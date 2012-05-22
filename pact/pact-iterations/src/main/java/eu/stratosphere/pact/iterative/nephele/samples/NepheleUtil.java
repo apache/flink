@@ -15,6 +15,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
+import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.generic.io.OutputFormat;
@@ -57,7 +58,9 @@ public class NepheleUtil {
   public static JobInputVertex createInput(Class<? extends InputFormat<?, ? extends InputSplit>> format,
       String path, JobGraph graph, int dop) {
     JobInputVertex sourceVertex = new JobInputVertex("Input task", graph);
-    sourceVertex.setInputClass(DataSourceTask.class);
+    //sourceVertex.setInputClass(DataSourceTask.class);
+    final Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask.class;
+    sourceVertex.setInputClass(clazz);
     sourceVertex.setNumberOfSubtasks(dop);
 
     TaskConfig sourceConfig = new TaskConfig(sourceVertex.getConfiguration());
@@ -149,9 +152,11 @@ public class NepheleUtil {
     if ((keyPos == null | keyTypes == null) || (keyPos.length == 0 | keyTypes.length == 0)) {
       outputConfig.addOutputShipStrategy(shipStrategy);
     } else {
-      outputConfig.addOutputShipStrategy(shipStrategy, keyPos, keyTypes);
+      //TODO restore
+      //outputConfig.addOutputShipStrategy(shipStrategy, keyPos, keyTypes);
     }
-    inputConfig.addInputShipStrategy(shipStrategy, 0);
+    //TODO restore
+    //inputConfig.addInputShipStrategy(shipStrategy, 0);
     System.out.println(outputVertex.getName() + " --> " + inputVertex.getName() + "::" + channelType);
   }
 

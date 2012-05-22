@@ -13,6 +13,7 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -89,7 +90,7 @@ public class SimpleIterativeTask {
     }
 
     @Override
-    public void processInput(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception {
+    public void processInput(MutableObjectIterator<Value> iter, Collector output) throws Exception {
 
       while (iter.next(rec)) {}
 
@@ -101,7 +102,7 @@ public class SimpleIterativeTask {
     }
 
     @Override
-    public void processUpdates(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception {
+    public void processUpdates(MutableObjectIterator<Value> iter, Collector output) throws Exception {
       PactRecord rec = new PactRecord();
       while (iter.next(rec)) {
         output.collect(rec);

@@ -28,7 +28,7 @@ public class AsynchronousIterationTail extends AbstractStateCommunicatingTask {
   }
 
   @Override
-  public void run() throws Exception {
+  public void run() throws Exception {                    /*
     //For the iteration internal state tracking, events like iteration close are forwarded using
     //the nephele event mechanisms. The input data for this task should
     //have the same partitioning as the iteration head.
@@ -87,7 +87,7 @@ public class AsynchronousIterationTail extends AbstractStateCommunicatingTask {
     //channels and it can close this and the previous task.
     inputs[PLACEMENT_INPUT].next(new PactRecord());
 
-    output.close();
+    output.close();         */
   }
 
   @Override

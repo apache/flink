@@ -38,6 +38,8 @@ public class OutputCollector<T> implements Collector<T>
 
 	private final SerializationDelegate<T> delegate;
 
+  private final TypeSerializer<T> serializer;
+
 	
 	/**
 	 * Initializes the output collector with a set of writers. 
@@ -49,6 +51,7 @@ public class OutputCollector<T> implements Collector<T>
 	@SuppressWarnings("unchecked")
 	public OutputCollector(List<AbstractRecordWriter<SerializationDelegate<T>>> writers, TypeSerializer<T> serializer)
 	{
+    this.serializer = serializer;
 		this.delegate = new SerializationDelegate<T>(serializer);
 		this.writers = (AbstractRecordWriter<SerializationDelegate<T>>[]) writers.toArray(new AbstractRecordWriter[writers.size()]);
 	}
@@ -102,11 +105,22 @@ public class OutputCollector<T> implements Collector<T>
 	public void close() {
 	}
 
+  //TODO We need a smart way to "split" the OutputCollector for usage in IterationHead
+
 	/**
 	 * List of writers that are associated with this output collector
 	 * @return list of writers
 	 */
+  @Deprecated
 	public List<AbstractRecordWriter<SerializationDelegate<T>>> getWriters() {
 		return Collections.unmodifiableList(Arrays.asList(this.writers));
 	}
+
+  public AbstractRecordWriter<SerializationDelegate<T>> getWriter(int index) {
+    return this.writers[index];
+  }
+
+  public TypeSerializer<T> getSerializer() {
+    return this.serializer;
+  }
 }
