@@ -19,6 +19,9 @@ import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
+/**
+ * InputFormat that interpretes the input data as a csv representation.
+ */
 public class CsvInputFormat extends TextInputFormat {
 
 	private char fieldDelimiter = ',';

@@ -13,6 +13,11 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * An abstract implementation of the {@link CoGroupStub}. SopremoCoGroup provides the functionality to convert the
+ * standard input of the CoGroupStub to a more manageable representation (both inputs are converted to an
+ * {@link IArrayNode}).
+ */
 public abstract class SopremoCoGroup extends CoGroupStub {
 	private EvaluationContext context;
 
@@ -20,6 +25,16 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 
 	private RecordToJsonIterator cachedIterator1, cachedIterator2;
 
+	/**
+	 * This method must be implemented to provide a user implementation of a CoGroup.
+	 * 
+	 * @param values1
+	 *        an {@link IArrayNode} that holds all elements of the first input which were paired with the key
+	 * @param values2
+	 *        an {@link IArrayNode} that holds all elements of the second input which were paired with the key
+	 * @param out
+	 *        a collector that collects all output pairs
+	 */
 	protected abstract void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out);
 
 	/*
@@ -74,8 +89,8 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 	protected EvaluationContext getContext() {
 		return this.context;
 	}
-	
-	@SuppressWarnings("unused") 
+
+	@SuppressWarnings("unused")
 	protected boolean needsResettableIterator(final int input, final Iterator<IJsonNode> values) {
 		return false;
 	}

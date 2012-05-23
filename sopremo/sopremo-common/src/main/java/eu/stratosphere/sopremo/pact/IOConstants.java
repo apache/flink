@@ -15,12 +15,29 @@
 package eu.stratosphere.sopremo.pact;
 
 /**
+ * Defines constants that are used by {@link InputFormat}s to read there data
+ * 
  * @author Arvid Heise
  */
 public interface IOConstants {
-	public static final String ENCODING = "Encoding", SCHEMA = "targetSchema";
+	
+	/**
+	 * Constant to define which encoding is used
+	 */
+	public static final String ENCODING = "Encoding";
+	
+	/**
+	 * Constant to define which {@link Schema} is used
+	 */
+	public static final String SCHEMA = "targetSchema";
 
+	/**
+	 * Constant to define the column names
+	 */
 	public static final String COLUMN_NAMES = "columnNames";
 
+	/**
+	 * Constant to define which field delimiter is used
+	 */
 	public static final String FIELD_DELIMITER = "fieldDelimiter";
 }

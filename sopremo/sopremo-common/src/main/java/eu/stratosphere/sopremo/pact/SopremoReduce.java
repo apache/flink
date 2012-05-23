@@ -13,6 +13,11 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * An abstract implementation of the {@link ReduceStub}. SopremoReduce provides the functionality to convert the
+ * standard input of the ReduceStub to a more manageable representation (the input is converted to an {@link IArrayNode}
+ * ).
+ */
 public abstract class SopremoReduce extends ReduceStub {
 	private EvaluationContext context;
 
@@ -35,12 +40,20 @@ public abstract class SopremoReduce extends ReduceStub {
 	protected EvaluationContext getContext() {
 		return this.context;
 	}
-	
-	@SuppressWarnings("unused") 
+
+	@SuppressWarnings("unused")
 	protected boolean needsResettableIterator(final Iterator<IJsonNode> values) {
 		return false;
 	}
 
+	/**
+	 * This method must be implemented to provide a user implementation of a reduce.
+	 * 
+	 * @param values
+	 *        an {@link IArrayNode} that holds all elements that belong to the same key
+	 * @param out
+	 *        a collector that collects all output nodes
+	 */
 	protected abstract void reduce(IArrayNode values, JsonCollector out);
 
 	/*

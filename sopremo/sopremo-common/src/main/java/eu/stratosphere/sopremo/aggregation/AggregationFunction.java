@@ -5,6 +5,9 @@ import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * 
+ */
 public abstract class AggregationFunction implements SerializableSopremoType, Cloneable {
 	/**
 	 * 
@@ -13,12 +16,31 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 
 	private final String name;
 
+	/**
+	 * Initializes a new AggregationFunction with the given name.
+	 * 
+	 * @param name
+	 *        the name of the function
+	 */
 	public AggregationFunction(final String name) {
 		this.name = name;
 	}
 
+	/**
+	 * This method must be implemented to define how this function aggregates the nodes
+	 * 
+	 * @param node
+	 *        the node that should be added to the aggregate
+	 * @param context
+	 *        additional context informations
+	 */
 	public abstract void aggregate(IJsonNode node, EvaluationContext context);
 
+	/**
+	 * Creates an {@link AggregationExpression} for this function
+	 * 
+	 * @return the AggregationExpression
+	 */
 	public AggregationExpression asExpression() {
 		return new AggregationExpression(this);
 	}
@@ -57,8 +79,16 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 		}
 	}
 
+	/**
+	 * Returns the result of all aggregation steps called before
+	 * 
+	 * @return the result
+	 */
 	public abstract IJsonNode getFinalAggregate();
 
+	/**
+	 * Initializes this function
+	 */
 	public void initialize() {
 	}
 

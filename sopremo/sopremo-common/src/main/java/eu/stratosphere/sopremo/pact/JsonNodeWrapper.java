@@ -1,15 +1,17 @@
 package eu.stratosphere.sopremo.pact;
 
-import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.DataOutputStream;
 import java.io.IOException;
 
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
 
+/**
+ * A JsonNodeWrapper wraps a {@link IJsonNode} and adds some new functionality which
+ * exceed the possibilities of {@link IJsonNode}s
+ */
 public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 
 	/**
@@ -19,14 +21,18 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 
 	private IJsonNode value;
 
+	/**
+	 * Initializes a JsonNodeWrapper that wraps a {@link MissingNode}.
+	 */
 	public JsonNodeWrapper() {
 		this.value = MissingNode.getInstance();
 	}
 
 	/**
-	 * Initializes JsonNodeWrapper.
+	 * Initializes a JsonNodeWrapper that wraps the given {@link IJsonNode}.
 	 * 
 	 * @param value
+	 *        the {@link IJsonNode} that should be wrapped
 	 */
 	public JsonNodeWrapper(final IJsonNode value) {
 		super();
@@ -52,20 +58,32 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 		this.value.write(out);
 	}
 
+	/**
+	 * Returns the wrapped {@link IJsonNode}
+	 * 
+	 * @return the wrapped node
+	 */
 	public IJsonNode getValue() {
 		return this.value;
 	}
 
+	/**
+	 * Returns the wrapped node. Tries to cast the node to the given class
+	 * 
+	 * @param klass
+	 *        the class that should be used to cast the wrapped node
+	 * @return the wrapped node after casting
+	 */
 	@SuppressWarnings("unchecked")
-	public <T extends IJsonNode> T getValue(@SuppressWarnings("unused") Class<T> klass) {
+	public <T extends IJsonNode> T getValue(Class<T> klass) {
 		return (T) this.value;
 	}
 
 	/**
-	 * Sets the value to the specified value.
+	 * Sets the value to the specified {@link IJsonNode}.
 	 * 
 	 * @param value
-	 *        the value to set
+	 *        the {@link IJsonNode} that should be wrapped
 	 */
 	public void setValue(final IJsonNode value) {
 		if (value == null)

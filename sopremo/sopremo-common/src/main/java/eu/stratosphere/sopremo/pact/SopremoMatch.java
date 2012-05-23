@@ -8,6 +8,11 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * An abstract implementation of the {@link MatchStub}. SopremoMatch provides the functionality to convert the
+ * standard input of the MatchStub to a more manageable representation (both inputs are converted to an
+ * {@link IJsonNode}).
+ */
 public abstract class SopremoMatch extends MatchStub {
 	private EvaluationContext context;
 
@@ -34,6 +39,16 @@ public abstract class SopremoMatch extends MatchStub {
 		return this.context;
 	}
 
+	/**
+	 * This method must be implemented to provide a user implementation of a match.
+	 * 
+	 * @param value1
+	 *        an {@link IJsonNode} that comes from the first input
+	 * @param value2
+	 *        an {@link IJsonNode} that comes from the second input
+	 * @param out
+	 *        a collector that collects all output pairs
+	 */
 	protected abstract void match(IJsonNode value1, IJsonNode value2, JsonCollector out);
 
 	/*

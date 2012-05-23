@@ -6,15 +6,25 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * The JsonCollector converts {@link IJsonNode}s to {@link PactRecord}s and collects this records with a given
+ * Collector.
+ */
 public class JsonCollector {
 	private Collector collector;
-	
+
 	private EvaluationContext context;
 
 	private final Schema schema;
 
 	private PactRecord record;
 
+	/**
+	 * Initializes a JsonCollector with the given {@link Schema}.
+	 * 
+	 * @param schema
+	 *        the schema that should be used for the IJsonNode - PactRecord conversion.
+	 */
 	public JsonCollector(final Schema schema) {
 		this.schema = schema;
 	}
@@ -28,8 +38,14 @@ public class JsonCollector {
 	public void configure(final Collector collector, EvaluationContext context) {
 		this.collector = collector;
 		this.context = context;
-	}	
+	}
 
+	/**
+	 * Collects the given {@link IJsonNode}
+	 * 
+	 * @param value
+	 *        the node that should be collected
+	 */
 	public void collect(final IJsonNode value) {
 		if (SopremoUtil.LOG.isTraceEnabled())
 			SopremoUtil.LOG.trace(String.format(" to %s", value));
