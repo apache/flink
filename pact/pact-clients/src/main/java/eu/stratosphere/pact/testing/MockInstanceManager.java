@@ -43,18 +43,19 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
 class MockInstanceManager implements InstanceManager {
 
 	private static InstanceType DEFAULT = LocalInstanceManager
-			.createDefaultInstanceType();
+		.createDefaultInstanceType();
 
 	@SuppressWarnings("serial")
-	private static final HashMap<InstanceType, InstanceTypeDescription> TYPE_DESCRIPTIONS = new HashMap<InstanceType, InstanceTypeDescription>() {
-		{
-			put(DEFAULT, InstanceTypeDescriptionFactory.construct(DEFAULT,
+	private static final HashMap<InstanceType, InstanceTypeDescription> TYPE_DESCRIPTIONS =
+		new HashMap<InstanceType, InstanceTypeDescription>() {
+			{
+				put(DEFAULT, InstanceTypeDescriptionFactory.construct(DEFAULT,
 					MockInstance.DESCRIPTION, 1));
-		}
-	};
+			}
+		};
 
 	private static final NetworkTopology NETWORK_TOPOLOGY = NetworkTopology
-			.createEmptyTopology();
+		.createEmptyTopology();
 
 	private static MockInstanceManager INSTANCE = new MockInstanceManager();
 
@@ -63,7 +64,7 @@ class MockInstanceManager implements InstanceManager {
 	}
 
 	private final AllocatedResource allocatedResource = new AllocatedResource(
-			new MockInstance(DEFAULT, NETWORK_TOPOLOGY), DEFAULT, new AllocationID());
+		new MockInstance(DEFAULT, NETWORK_TOPOLOGY), DEFAULT, new AllocationID());
 
 	private InstanceListener instanceListener;
 
@@ -101,9 +102,14 @@ class MockInstanceManager implements InstanceManager {
 	}
 
 	@Override
-	public void requestInstance(JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
+	public void requestInstance(final JobID jobID, Configuration conf, Map<InstanceType, Integer> instanceMap,
 			List<String> splitAffinityList) throws InstanceException {
-		this.instanceListener.resourceAllocated(jobID, this.allocatedResource);
+		ConcurrentUtil.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				MockInstanceManager.this.instanceListener.resourceAllocated(jobID, getAllocatedResource());
+			}
+		});
 	}
 
 	@Override
@@ -118,6 +124,15 @@ class MockInstanceManager implements InstanceManager {
 	@Override
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 		return TYPE_DESCRIPTIONS;
+	}
+
+	/**
+	 * Returns the allocatedResource.
+	 * 
+	 * @return the allocatedResource
+	 */
+	public AllocatedResource getAllocatedResource() {
+		return this.allocatedResource;
 	}
 
 }

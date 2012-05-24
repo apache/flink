@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import eu.stratosphere.pact.common.io.FileInputFormat;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.stub.Stub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.Value;

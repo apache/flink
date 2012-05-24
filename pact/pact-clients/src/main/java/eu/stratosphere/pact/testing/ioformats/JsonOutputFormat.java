@@ -49,10 +49,10 @@ public class JsonOutputFormat extends FileOutputFormat<PactNull, PactJsonObject>
 	
 	@Override
 	public void close() throws IOException {
-		super.close();
-		
 		this.generator.writeEndArray();
 		this.generator.close();
+		
+		super.close();		
 	}
 
 	@Override

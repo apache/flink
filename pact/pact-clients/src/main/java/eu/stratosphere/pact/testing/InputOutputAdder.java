@@ -24,9 +24,9 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.FileDataSinkContract;
 import eu.stratosphere.pact.common.contract.FileDataSourceContract;
-import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;

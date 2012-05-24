@@ -178,7 +178,7 @@ public class TestPairs<K extends Key, V extends Value> implements
 	private void assignMemory(final TaskConfig config, final int memSize)
 	{
 		// set the config
-		config.setMemorySize(((long) memSize) * 1024L * 1024L);
+		config.setMemorySize(memSize * 1024L * 1024L);
 		config.setNumFilehandles(DEFAUTL_MERGE_FACTOR);
 	}
 

@@ -32,8 +32,6 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
@@ -132,9 +130,9 @@ public class FormatUtil {
 		FileSystem fs = nephelePath.getFileSystem();
 		FileStatus fileStatus = fs.getFileStatus(nephelePath);
 		if (!fileStatus.isDir())
-			return (T[]) new InputFormat[] { createInputFormat(inputFormatClass, path, configuration) };
+			return (T[]) new FileInputFormat[] { createInputFormat(inputFormatClass, path, configuration) };
 		FileStatus[] list = fs.listStatus(nephelePath);
-		T[] formats = (T[]) new InputFormat[list.length];
+		T[] formats = (T[]) new FileInputFormat[list.length];
 		for (int index = 0; index < formats.length; index++)
 			formats[index] = createInputFormat(inputFormatClass, list[index].getPath().toString(), configuration);
 		return formats;
