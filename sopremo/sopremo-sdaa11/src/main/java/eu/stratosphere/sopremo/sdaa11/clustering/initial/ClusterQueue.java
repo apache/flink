@@ -57,8 +57,8 @@ public class ClusterQueue {
 
 		@Override
 		public String toString() {
-			return "ClusterPair<" + this.cluster1 + " and " + this.cluster2
-					+ " with distance " + this.distance + ">";
+			return "ClusterPair[dist="+this.distance +";"+ this.cluster1 + ";" + this.cluster2
+					+ "]";
 		}
 
 		@Override
@@ -121,5 +121,13 @@ public class ClusterQueue {
 
 	public Set<HierarchicalCluster> getClusters() {
 		return this.clusters;
+	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return "ClusterQueues[#clusters="+clusters.size()+";pairs="+distancedPairs+"]";
 	}
 }

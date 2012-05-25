@@ -52,5 +52,13 @@ public class BaseCluster extends HierarchicalCluster {
 	public boolean canBeFinal() {
 		return true;
 	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return "BaseCluster["+point+"]";
+	}
 
 }

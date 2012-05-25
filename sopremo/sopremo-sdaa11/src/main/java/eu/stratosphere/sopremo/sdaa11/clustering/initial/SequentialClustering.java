@@ -13,7 +13,6 @@ import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.ClusterQueue.ClusterPair;
 import eu.stratosphere.sopremo.sdaa11.clustering.json.ClusterNodes;
 import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
-import eu.stratosphere.sopremo.sdaa11.util.JsonUtil2;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -25,11 +24,14 @@ public class SequentialClustering extends
 
 	private static final long serialVersionUID = 5563265035325926095L;
 
+	public static final int DEFAULT_MAX_RADIUS = 100;
+	public static final int DEFAULT_MAX_SIZE = 1000;
+
 	/** The maximum radius of a cluster. */
-	private int maxRadius;
+	private int maxRadius = DEFAULT_MAX_RADIUS;
 
 	/** The maximum number of points of a cluster. */
-	private int maxSize;
+	private int maxSize = DEFAULT_MAX_SIZE;
 
 	public int getMaxRadius() {
 		return this.maxRadius;
@@ -52,6 +54,14 @@ public class SequentialClustering extends
 		return Arrays.asList(new ObjectAccess(AnnotatorNodes.ANNOTATION));
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.AbstractSopremoType#toString()
+	 */
+	@Override
+	public String toString() {
+		return "SequentialClustering[maxRadius="+maxRadius+";maxSize"+maxSize+"]";
+	}
+	
 	public static class Implementation extends SopremoReduce {
 
 		private int maxRadius;
@@ -90,6 +100,9 @@ public class SequentialClustering extends
 			// left.
 			while (this.queue.getNumberOfClusters() > 1) {
 				final ClusterPair pair = this.queue.getFirstElement();
+				if (pair.getDistance() > maxRadius) {
+					break;
+				}
 				final HierarchicalCluster cluster1 = pair.getCluster1();
 				final HierarchicalCluster cluster2 = pair.getCluster2();
 
@@ -134,8 +147,11 @@ public class SequentialClustering extends
 				this.pointsNode.clear();
 				for (final Point point : cluster.getPoints())
 					this.pointsNode.add(point.write((IJsonNode) null));
+				
 				this.idNode.setValue(cluster.getId());
-				JsonUtil2.copy(this.pointsNode, cluster.getPoints());
+				
+				cluster.getClustroid().write(this.clustroidNode);
+				
 				ClusterNodes.write(this.outputNode, this.idNode,
 						this.clustroidNode, this.pointsNode);
 				out.collect(this.outputNode);

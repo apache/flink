@@ -67,7 +67,7 @@ public class JsonUtil2 {
 			array.add(value.write(null));
 	}
 
-	public static void copy(final IArrayNode array,
+	public static void copyToArray(final IArrayNode array,
 			final JsonSerializable... values) {
 		array.clear();
 		for (final JsonSerializable value : values)
