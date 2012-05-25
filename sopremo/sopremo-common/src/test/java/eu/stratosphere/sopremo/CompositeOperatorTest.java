@@ -77,8 +77,8 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		}
 
 		@Override
-		public SopremoModule asElementaryOperators() {
-			return SopremoModule.valueOf(this.getName(),
+		public ElementarySopremoModule asElementaryOperators() {
+			return ElementarySopremoModule.valueOf(this.getName(),
 				new ElementaryOperatorImpl().withInputs(null, new ElementaryOperatorImpl()));
 		}
 

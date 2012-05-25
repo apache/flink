@@ -51,9 +51,12 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		protected Object readResolve() {
 			return LONG_COMBINATION;
 		}
-		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#evaluate(eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.sopremo.expressions.EvaluationExpression#evaluate(eu.stratosphere.sopremo.type.IJsonNode,
+		 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
 		 */
 		@Override
 		public IJsonNode evaluate(IJsonNode node, IJsonNode target, EvaluationContext context) {
@@ -105,8 +108,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		this.idGeneration = idGeneration;
 	}
 
-	public static class Implementation extends
-			SopremoMap<JsonNode, JsonNode, JsonNode, JsonNode> {
+	public static class Implementation extends SopremoMap {
 		private EvaluationExpression enumerationExpression, idGeneration;
 
 		private long counter;

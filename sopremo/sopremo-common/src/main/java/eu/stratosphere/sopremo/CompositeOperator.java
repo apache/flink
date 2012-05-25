@@ -4,9 +4,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.util.CollectionUtil;
-import eu.stratosphere.util.ConversionIterable;
 
 /**
  * A composite operator may be composed of several {@link ElementaryOperator}s and other CompositeOperators.<br>
@@ -41,26 +38,6 @@ public abstract class CompositeOperator<Self extends CompositeOperator<Self>> ex
 		super();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.Operator#getKeyExpression()
-	 */
-	@Override
-	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		final SopremoModule elementaryPlan = this.asElementaryOperators();
-		return CollectionUtil.mergeUnique(new ConversionIterable<Operator<?>, Iterable<? extends EvaluationExpression>>(
-			elementaryPlan.getReachableNodes()) {
-			/*
-			 * (non-Javadoc)
-			 * @see eu.stratosphere.util.ConversionIterable#convert(java.lang.Object)
-			 */
-			@Override
-			protected Iterable<? extends EvaluationExpression> convert(Operator<?> inputObject) {
-				return inputObject.getKeyExpressions();
-			}
-		});
-	}
-
 	/**
 	 * Returns a {@link SopremoModule} that consists entirely of {@link ElementaryOperator}s. The module can be seen as
 	 * an expanded version of this operator where all CompositeOperators are recursively translated to
@@ -68,20 +45,14 @@ public abstract class CompositeOperator<Self extends CompositeOperator<Self>> ex
 	 * 
 	 * @return a module of ElementaryOperators
 	 */
-	public abstract SopremoModule asElementaryOperators();
-
-	// @Override
-	// public SopremoModule toElementaryOperators() {
-	// SopremoModule elementary = asElementaryOperators().asElementary();
-	// System.out.println(getName() + " -> "+ elementary);
-	// return elementary;
-	// }
+	@Override
+	public abstract ElementarySopremoModule asElementaryOperators();
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		if (LOG.isTraceEnabled())
 			LOG.trace("Transforming\n" + this);
-		final SopremoModule elementaryPlan = this.asElementaryOperators();
+		final ElementarySopremoModule elementaryPlan = this.asElementaryOperators();
 		if (LOG.isTraceEnabled())
 			LOG.trace(" to elementary plan\n" + elementaryPlan);
 		context.pushOperator(this);

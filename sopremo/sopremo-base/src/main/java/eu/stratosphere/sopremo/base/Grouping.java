@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
@@ -12,10 +13,10 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Property;
-import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
+import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.PathExpression;
@@ -44,9 +45,9 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 	}
 
 	@Override
-	public SopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators() {
 		final int numInputs = this.getInputOperators().size();
-		final SopremoModule module = new SopremoModule(this.getName(), numInputs, 1);
+		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), numInputs, 1);
 
 		final List<Operator<?>> inputs = new ArrayList<Operator<?>>();
 		for (int index = 0; index < numInputs; index++)
@@ -195,7 +196,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		}
 
 		public static class Implementation extends SopremoCoGroup {
-			private EvaluationExpression projection;
+			private CachingExpression<IJsonNode> projection;
 
 			@Override
 			protected void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out) {
@@ -218,7 +219,7 @@ public class Grouping extends MultiSourceOperator<Grouping> {
 		}
 
 		public static class Implementation extends SopremoReduce {
-			private EvaluationExpression projection;
+			private CachingExpression<IJsonNode> projection;
 
 			@Override
 			protected void reduce(final IArrayNode values, final JsonCollector out) {

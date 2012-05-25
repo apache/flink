@@ -14,6 +14,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,6 +27,7 @@ import org.apache.log4j.Level;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
@@ -33,14 +35,12 @@ import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
-import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.LongNode;
-import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.JsonNode.Type;
+import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.util.reflect.BoundType;
 
 public class SopremoUtil {
 
@@ -57,11 +57,27 @@ public class SopremoUtil {
 					try {
 						stubField.setAccessible(true);
 						stubField.set(stub,
-							SopremoUtil.deserialize(parameters, stubField.getName(), Serializable.class));
+							SopremoUtil.deserializeCachingAware(parameters, stubField.getName(), stubField.getType(),
+								stubField.getGenericType()));
 					} catch (final Exception e) {
 						LOG.error(String.format("Could not set field %s of class %s: %s", stubField.getName(),
 							stub.getClass(), StringUtils.stringifyException(e)));
 					}
+	}
+
+	@SuppressWarnings("unchecked")
+	public static Object deserializeCachingAware(final Configuration config, final String key, Class<?> targetRawType,
+			java.lang.reflect.Type targetType) {
+		final Object object = deserialize(config, key, Serializable.class);
+		if (CachingExpression.class.isAssignableFrom(targetRawType) && !(object instanceof CachingExpression)) {
+			final Class<IJsonNode> cachingType;
+			if (targetType instanceof ParameterizedType)
+				cachingType = (Class<IJsonNode>) BoundType.of((ParameterizedType) targetType).getParameters()[0].getType();
+			else
+				cachingType = IJsonNode.class;
+			return CachingExpression.of((EvaluationExpression) object, cachingType);
+		}
+		return object;
 	}
 
 	@SuppressWarnings("unchecked")

@@ -7,14 +7,12 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.NullNode;
-import eu.stratosphere.util.CollectionUtil;
-import eu.stratosphere.util.ConversionIterable;
 
 public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>> extends CompositeOperator<Self> {
 
@@ -35,9 +33,9 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 		NullNode.getInstance()));
 
 	@Override
-	public SopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators() {
 		final int numInputs = this.getInputOperators().size();
-		final SopremoModule module = new SopremoModule(this.getName(), numInputs, 1);
+		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), numInputs, 1);
 
 		final List<Operator<?>> inputs = new ArrayList<Operator<?>>();
 		for (int index = 0; index < numInputs; index++)
@@ -111,21 +109,6 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 		if (valueProjection == null)
 			valueProjection = this.getDefaultValueProjection(source);
 		return valueProjection;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.CompositeOperator#getKeyExpressions()
-	 */
-	@Override
-	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		return CollectionUtil.mergeUnique(new ConversionIterable<JsonStream, List<? extends EvaluationExpression>>(
-			getInputs()) {
-			@Override
-			protected List<? extends EvaluationExpression> convert(JsonStream stream) {
-				return getKeyExpressions(stream);
-			};
-		});
 	}
 
 	@Override
