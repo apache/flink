@@ -12,7 +12,6 @@ import java.util.List;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.plan.PactModule;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 /**
  * The class <code>OperatorTest</code> contains tests for the class <code>{@link Operator<?>}</code>.
@@ -288,17 +287,17 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 			this.index = index;
 		}
 
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.Operator#asElementaryOperators()
+		 */
 		@Override
-		public PactModule asPactModule(final EvaluationContext context) {
+		public ElementarySopremoModule asElementaryOperators() {
 			return null;
 		}
 		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.Operator#getKeyExpression()
-		 */
 		@Override
-		public Iterable<EvaluationExpression> getKeyExpressions() {
-			return NO_KEYS;
+		public PactModule asPactModule(final EvaluationContext context) {
+			return null;
 		}
 
 		@Override
@@ -322,6 +321,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 			result = prime * result + this.index;
 			return result;
 		}
+
 	}
 
 }

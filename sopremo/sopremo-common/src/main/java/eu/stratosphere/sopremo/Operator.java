@@ -40,6 +40,10 @@ import eu.stratosphere.util.reflect.ReflectUtil;
 @OutputCardinality(min = 1, max = 1)
 public abstract class Operator<Self extends Operator<Self>> extends AbstractSopremoType implements
 		SerializableSopremoType, JsonStream, Cloneable, BeanInfo {
+
+	public final static List<EvaluationExpression> ALL_KEYS =
+		Collections.unmodifiableList(new ArrayList<EvaluationExpression>());
+
 	/**
 	 * 
 	 */
@@ -97,11 +101,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 			return null;
 		}
 	}
-
-	protected final static List<EvaluationExpression> NO_KEYS = Collections.unmodifiableList(new ArrayList<EvaluationExpression>()),
-			ALL_KEYS = Collections.unmodifiableList(new ArrayList<EvaluationExpression>());
-
-	public abstract Iterable<? extends EvaluationExpression> getKeyExpressions();
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -477,16 +476,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 				this.outputs.add(new Output(index));
 	}
 
-	public SopremoModule toElementaryOperators() {
-		final SopremoModule module = new SopremoModule(this.getName(), this.getInputs().size(), this.getOutputs()
-			.size());
-		final Operator<Self> clone = this.clone();
-		for (int index = 0; index < this.getInputs().size(); index++)
-			clone.setInput(index, module.getInput(index));
-		for (int index = 0; index < this.getOutputs().size(); index++)
-			module.getOutput(index).setInput(index, clone.getOutput(index));
-		return module;
-	}
+	public abstract ElementarySopremoModule asElementaryOperators();
 
 	/*
 	 * (non-Javadoc)
@@ -651,7 +641,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 
 		@Override
 		public void toString(StringBuilder builder) {
-			builder.append(this.getOperator().getName()).append('@').append(this.index);
+			builder.append(this.getOperator().toString()).append('@').append(this.index);
 		}
 	}
 

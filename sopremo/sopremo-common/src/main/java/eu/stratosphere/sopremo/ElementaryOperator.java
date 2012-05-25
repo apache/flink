@@ -6,7 +6,9 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
@@ -29,9 +31,8 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
-import eu.stratosphere.util.FilteringIterable;
+import eu.stratosphere.util.CollectionUtil;
 import eu.stratosphere.util.IdentityList;
-import eu.stratosphere.util.Predicate;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
@@ -75,7 +76,8 @@ import eu.stratosphere.util.reflect.ReflectUtil;
 public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> extends Operator<Self> {
 	private static final org.apache.commons.logging.Log LOG = LogFactory.getLog(ElementaryOperator.class);
 
-	private Iterable<? extends EvaluationExpression> keyExpressions = NO_KEYS;
+	private List<List<? extends EvaluationExpression>> keyExpressions =
+		new ArrayList<List<? extends EvaluationExpression>>();
 
 	/**
 	 * 
@@ -99,13 +101,19 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		super();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.Operator#getKeyExpression()
-	 */
-	@Override
-	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		return this.keyExpressions;
+	{
+		for (int index = 0; index < getMinInputs(); index++)
+			this.keyExpressions.add(new ArrayList<EvaluationExpression>());
+	}
+
+	@SuppressWarnings("unchecked")
+	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
+		if (inputIndex >= this.keyExpressions.size())
+			return Collections.EMPTY_LIST;
+		final List<? extends EvaluationExpression> expressions = this.keyExpressions.get(inputIndex);
+		if (expressions == null)
+			return Collections.EMPTY_LIST;
+		return expressions;
 	}
 
 	/**
@@ -115,11 +123,24 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 *        the keyExpressions to set
 	 */
 	@Property(hidden = true)
-	public void setKeyExpressions(Iterable<? extends EvaluationExpression> keyExpressions) {
+	public void setKeyExpressions(int index, List<? extends EvaluationExpression> keyExpressions) {
 		if (keyExpressions == null)
 			throw new NullPointerException("keyExpressions must not be null");
+		CollectionUtil.ensureSize(this.keyExpressions, index + 1);
+		this.keyExpressions.set(index, keyExpressions);
+	}
 
-		this.keyExpressions = keyExpressions;
+	/**
+	 * Sets the keyExpressions to the specified value.
+	 * 
+	 * @param keyExpressions
+	 *        the keyExpressions to set
+	 */
+	public void setKeyExpressions(int index, EvaluationExpression... keyExpressions) {
+		if (keyExpressions.length == 0)
+			throw new IllegalArgumentException("keyExpressions must not be null");
+
+		setKeyExpressions(index, Arrays.asList(keyExpressions));
 	}
 
 	@Override
@@ -191,6 +212,19 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 			}
 	}
 
+	@Override
+	public ElementarySopremoModule asElementaryOperators() {
+		final ElementarySopremoModule module =
+			new ElementarySopremoModule(this.getName(), this.getInputs().size(), this.getOutputs()
+				.size());
+		final Operator<Self> clone = this.clone();
+		for (int index = 0; index < this.getInputs().size(); index++)
+			clone.setInput(index, module.getInput(index));
+		for (int index = 0; index < this.getOutputs().size(); index++)
+			module.getOutput(index).setInput(index, clone.getOutput(index));
+		return module;
+	}
+
 	/**
 	 * Creates the {@link Contract} that represents this operator.
 	 * 
@@ -207,20 +241,20 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 
 		try {
 			if (contractClass == ReduceContract.class) {
-				int[] keyIndices = getKeyIndices(globalSchema, this.getKeyExpressions());
+				int[] keyIndices = getKeyIndices(globalSchema, this.getKeyExpressions(0));
 				return new ReduceContract((Class<? extends ReduceStub>) stubClass,
 					getKeyClasses(globalSchema, keyIndices), keyIndices, this.toString());
 			}
 			else if (contractClass == CoGroupContract.class) {
-				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressionsForInput(0));
-				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressionsForInput(1));
+				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressions(0));
+				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressions(1));
 				return new CoGroupContract((Class<? extends CoGroupStub>) stubClass,
 					getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
 					keyIndices1, keyIndices2, this.toString());
 			}
 			else if (contractClass == MatchContract.class) {
-				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressionsForInput(0));
-				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressionsForInput(1));
+				int[] keyIndices1 = getKeyIndices(globalSchema, getKeyExpressions(0));
+				int[] keyIndices2 = getKeyIndices(globalSchema, getKeyExpressions(1));
 				return new MatchContract((Class<? extends MatchStub>) stubClass,
 					getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
 					keyIndices1, keyIndices2, this.toString());
@@ -241,16 +275,25 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		return keyClasses1;
 	}
 
-	protected Iterable<? extends EvaluationExpression> getKeyExpressionsForInput(final int index) {
-		final Iterable<? extends EvaluationExpression> keyExpressions = this.getKeyExpressions();
-		if(keyExpressions == ALL_KEYS) 
-			return keyExpressions;
-		return new FilteringIterable<EvaluationExpression>(keyExpressions, new Predicate<EvaluationExpression>() {
-			@Override
-			public boolean isTrue(EvaluationExpression expression) {
-				return SopremoUtil.getInputIndex(expression) == index;
-			};
-		});
+	// protected Iterable<? extends EvaluationExpression> getKeyExpressionsForInput(final int index) {
+	// final Iterable<? extends EvaluationExpression> keyExpressions = this.getKeyExpressions();
+	// if (keyExpressions == ALL_KEYS)
+	// return keyExpressions;
+	// return new FilteringIterable<EvaluationExpression>(keyExpressions, new Predicate<EvaluationExpression>() {
+	// @Override
+	// public boolean isTrue(EvaluationExpression expression) {
+	// return SopremoUtil.getInputIndex(expression) == index;
+	// };
+	// });
+	// }
+	//
+	public List<List<? extends EvaluationExpression>> getAllKeyExpressions() {
+		final ArrayList<List<? extends EvaluationExpression>> allKeys =
+			new ArrayList<List<? extends EvaluationExpression>>();
+		final List<JsonStream> inputs = getInputs();
+		for (int index = 0; index < inputs.size(); index++)
+			allKeys.add(getKeyExpressions(index));
+		return allKeys;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -267,9 +310,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	}
 
 	private int[] getKeyIndices(final Schema globalSchema, Iterable<? extends EvaluationExpression> keyExpressions) {
-		if(keyExpressions == ALL_KEYS) {
+		if (keyExpressions == ALL_KEYS) {
 			final int[] allSchema = new int[globalSchema.getPactSchema().length];
-			for (int index = 0; index < allSchema.length; index++) 
+			for (int index = 0; index < allSchema.length; index++)
 				allSchema[index] = index;
 			return allSchema;
 		}

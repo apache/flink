@@ -21,7 +21,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,7 +39,6 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
@@ -267,7 +265,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 * (String,Integer)-KeyValuePair is emitted where the Token is the key and
 	 * an Integer(1) is the value.<br>
 	 * Expected input: { line: "word1 word2 word1" }<br>
-	 * Output: [{ word: "word1"}, { word: "word2"}, { word: "word1"}] 
+	 * Output: [{ word: "word1"}, { word: "word2"}, { word: "word1"}]
 	 */
 	public static class TokenizeLine extends ElementaryOperator<TokenizeLine> {
 		/**
@@ -297,7 +295,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 * occurences of a given token (word) is computed and emitted. The key is
 	 * not modified, hence a SameKey OutputContract is attached to this class.<br>
 	 * Expected input: [{ word: "word1"}, { word: "word1"}] <br>
-	 * Output: [{ word: "word1", count: 2}] 
+	 * Output: [{ word: "word1", count: 2}]
 	 */
 	public static class CountWords extends ElementaryOperator<CountWords> {
 		/**
@@ -305,13 +303,11 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		 */
 		private static final long serialVersionUID = 1472064163594245033L;
 
-		/*
-		 * (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
+		/**
+		 * Initializes SopremoTestPlanTest.CountWords.
 		 */
-		@Override
-		public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-			return Arrays.asList(new ObjectAccess("word"));
+		public CountWords() {
+			setKeyExpressions(0, new ObjectAccess("word"));
 		}
 
 		@Combinable
@@ -334,7 +330,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 
 			protected int getCount(IObjectNode entry) {
 				IJsonNode countNode = entry.get("count");
-				if(countNode.isMissing())
+				if (countNode.isMissing())
 					return 1;
 				return ((IntNode) countNode).getIntValue();
 			}

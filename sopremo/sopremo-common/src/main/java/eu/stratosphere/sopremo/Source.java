@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -100,8 +102,17 @@ public class Source extends ElementaryOperator<Source> {
 			SopremoUtil.serialize(contract.getParameters(),
 					GeneratorInputFormat.ADHOC_EXPRESSION_PARAMETER_KEY,
 					this.adhocExpression);
-		} else
+		} else {
+			try {
+				URI validURI = new URI(inputPath);
+				if (validURI.getScheme() == null)
+					throw new IllegalStateException("Source does not have a valid schema: " + inputPath);
+			} catch (URISyntaxException e) {
+				throw new IllegalStateException("Source does not have a valid path: " + inputPath, e);
+			}
+			
 			contract = new FileDataSource(this.inputFormat, inputPath, name);
+		}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
 		if (this.inputFormat == JsonInputFormat.class)
 			contract.setDegreeOfParallelism(1);

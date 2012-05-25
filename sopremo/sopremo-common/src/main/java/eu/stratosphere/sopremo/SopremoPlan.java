@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.sopremo.serialization.NaiveSchemaFactory;
 import eu.stratosphere.sopremo.serialization.Schema;
@@ -19,7 +20,7 @@ public class SopremoPlan {
 	private final SopremoModule module;
 
 	private EvaluationContext context = new EvaluationContext();
-	
+
 	private SchemaFactory schemaFactory = new NaiveSchemaFactory();
 
 	public SopremoPlan() {
@@ -32,9 +33,19 @@ public class SopremoPlan {
 	 * 
 	 * @return the converted Pact plan
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public Plan asPactPlan() {
-		return new Plan((Collection) this.module.assemblePact(this.context));
+		return new Plan(checkForSinks(assemblePact()));
+	}
+
+	/**
+	 * Checks if all contracts are {@link GenericDataSink}s.
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private Collection<GenericDataSink> checkForSinks(Collection<Contract> contracts) {
+		for (Contract contract : contracts)
+			if (!GenericDataSink.class.isInstance(contract))
+				throw new IllegalStateException("Contract without connected sink detected " + contract);
+		return (Collection) contracts;
 	}
 
 	public void setSinks(final Sink... sinks) {
@@ -44,13 +55,12 @@ public class SopremoPlan {
 	public void setSinks(final List<Sink> sinks) {
 		for (final Sink sink : sinks)
 			this.module.addInternalOutput(sink);
-		this.context.setSchema(this.module.getSchema(this.schemaFactory));
 	}
 
 	public Schema getSchema() {
 		return this.context.getOutputSchema(0);
 	}
-	
+
 	/**
 	 * Assembles the Pacts of the contained Sopremo operators and returns a list
 	 * of all Pact sinks. These sinks may either be directly a {@link FileDataSinkContract} or an unconnected
@@ -59,7 +69,10 @@ public class SopremoPlan {
 	 * @return a list of Pact sinks
 	 */
 	public Collection<Contract> assemblePact() {
-		return this.module.assemblePact(this.context);
+		final ElementarySopremoModule elementaryModule = this.module.asElementary();
+		elementaryModule.inferSchema(this.schemaFactory);
+		this.context.setSchema(elementaryModule.getSchema());
+		return elementaryModule.assemblePact(this.context);
 	}
 
 	/**

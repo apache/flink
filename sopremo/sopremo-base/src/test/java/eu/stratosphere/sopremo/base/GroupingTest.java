@@ -2,6 +2,7 @@ package eu.stratosphere.sopremo.base;
 
 import static eu.stratosphere.sopremo.JsonUtil.createPath;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.DefaultFunctions;
@@ -18,6 +19,7 @@ import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
+@Ignore
 public class GroupingTest extends SopremoTest<Grouping> {
 	@Override
 	protected Grouping createDefaultInstance(final int index) {

@@ -7,11 +7,14 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
+import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
+import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
@@ -68,22 +71,24 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 	}
 
 	public static class Implementation extends SopremoMap {
-		private EvaluationExpression objectPath, valueProjection;
+		private CachingExpression<IObjectNode> objectPath;
+
+		private EvaluationExpression valueProjection;
 
 		@Override
 		protected void map(IJsonNode value, JsonCollector out) {
-			final IJsonNode object = this.objectPath.evaluate(value, this.getContext());
+			final IObjectNode object = this.objectPath.evaluate(value, this.getContext());
 			if (!object.isObject())
 				throw new EvaluationException("Cannot split non-object");
 
-			final Iterator<String> fieldNames = ((ObjectNode) object).getFieldNames();
+			final Iterator<String> fieldNames = object.getFieldNames();
 			final EvaluationContext context = this.getContext();
+			final TextNode fieldNode = TextNode.valueOf("");
+			ArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), fieldNode, object, value);
 			while (fieldNames.hasNext()) {
 				String field = fieldNames.next();
-				final TextNode fieldNode = TextNode.valueOf(field);
-				out.collect(
-					this.valueProjection.evaluate(JsonUtil.asArray(((ObjectNode) value).get(field), fieldNode, object,
-						value), context));
+				fieldNode.setValue(field);
+				out.collect(this.valueProjection.evaluate(contextNode, null, context));
 			}
 		}
 	}

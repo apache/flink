@@ -5,6 +5,7 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
+import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -77,7 +78,7 @@ public class Projection extends ElementaryOperator<Projection> {
 	}
 
 	public static class ProjectionStub extends SopremoMap {
-		private EvaluationExpression transformation;
+		private CachingExpression<IJsonNode> transformation;
 
 		@Override
 		protected void map(final IJsonNode value, final JsonCollector out) {

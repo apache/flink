@@ -87,6 +87,7 @@ public class GeneralSchemaTest {
 	@Test
 	public void shouldProvideTheCorrectPactSchema() {
 		int count = 3;
+		@SuppressWarnings("unchecked")
 		Class<? extends Value>[] expected = new Class[count];
 		for (int i = 0; i < count; i++) {
 			expected[i] = JsonNodeWrapper.class;

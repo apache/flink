@@ -12,6 +12,7 @@ import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
+import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
@@ -386,9 +387,7 @@ public class Replace extends CompositeOperator<Replace> {
 		}
 
 		public static class Implementation extends SopremoCoGroup {
-			private EvaluationExpression inputKeyExtractor;
-
-			private EvaluationExpression defaultExpression;
+			private CachingExpression<IJsonNode> inputKeyExtractor, defaultExpression;
 
 			/*
 			 * (non-Javadoc)
@@ -403,9 +402,14 @@ public class Replace extends CompositeOperator<Replace> {
 				final Iterator<IJsonNode> valueIterator = values1.iterator();
 				final EvaluationContext context = this.getContext();
 				while (valueIterator.hasNext()) {
-					IJsonNode value = valueIterator.next();
-					IJsonNode replacement = replaceValue != null ? replaceValue :
-						this.defaultExpression.evaluate(this.inputKeyExtractor.evaluate(value, context), context);
+					final IJsonNode value = valueIterator.next();
+					final IJsonNode replacement;
+					if (replaceValue != null)
+						replacement = replaceValue;
+					else {
+						final IJsonNode key = this.inputKeyExtractor.evaluate(value, context);
+						replacement = this.defaultExpression.evaluate(key, context);
+					}
 					out.collect(this.inputKeyExtractor.set(value, replacement, context));
 				}
 			}
