@@ -41,56 +41,61 @@ import eu.stratosphere.sopremo.type.TextNode;
 @InputCardinality(min = 2, max = 2)
 public class RepresentationUpdate extends
 		ElementaryOperator<RepresentationUpdate> {
-
-	/**
-	 * 
-	 */
+	
 	private static final long serialVersionUID = -5470882666744483986L;
 
-	private int representationCount = 10;
+	public static final int DEFAULT_MIN_POINT_COUNT = 21;
 
-	private int maxRadius = 500;
+	public static final int DEFAULT_MAX_CLUSTROID_SHIFT = 200;
 
-	private int maxClustroidShift = 200;
+	public static final int DEFAULT_MAX_CLUSTER_RADIUS = 500;
 
-	private int minPointsForSplitting = 21;
+	public static final int DEFAULT_REPRESENTATION_DETAIL = 10;
+
+	private int representationDetail = DEFAULT_REPRESENTATION_DETAIL;
+
+	private int maxClusterRadius = DEFAULT_MAX_CLUSTER_RADIUS;
+
+	private int maxClustroidShift = DEFAULT_MAX_CLUSTROID_SHIFT;
+
+	private int minPointCount = DEFAULT_MIN_POINT_COUNT;
 
 	/**
-	 * Returns the minPointsForSplitting.
+	 * Returns the representationDetail.
 	 * 
-	 * @return the minPointsForSplitting
+	 * @return the representationDetail
 	 */
-	public int getMinPointsForSplitting() {
-		return this.minPointsForSplitting;
+	public int getRepresentationDetail() {
+		return this.representationDetail;
 	}
 
 	/**
-	 * Sets the minPointsForSplitting to the specified value.
+	 * Sets the representationDetail to the specified value.
 	 * 
-	 * @param minPointsForSplitting
-	 *            the minPointsForSplitting to set
+	 * @param representationDetail
+	 *            the representationDetail to set
 	 */
-	public void setMinPointsForSplitting(final int minPointsForSplitting) {
-		this.minPointsForSplitting = minPointsForSplitting;
+	public void setRepresentationDetail(final int representationDetail) {
+		this.representationDetail = representationDetail;
 	}
 
 	/**
-	 * Returns the maxDiameter.
+	 * Returns the maxClusterRadius.
 	 * 
-	 * @return the maxDiameter
+	 * @return the maxClusterRadius
 	 */
-	public int getMaxRadius() {
-		return this.maxRadius;
+	public int getMaxClusterRadius() {
+		return this.maxClusterRadius;
 	}
 
 	/**
-	 * Sets the maxDiameter to the specified value.
+	 * Sets the maxClusterRadius to the specified value.
 	 * 
-	 * @param maxDiameter
-	 *            the maxDiameter to set
+	 * @param maxClusterRadius
+	 *            the maxClusterRadius to set
 	 */
-	public void setMaxRadius(final int maxDiameter) {
-		this.maxRadius = maxDiameter;
+	public void setMaxClusterRadius(final int maxClusterRadius) {
+		this.maxClusterRadius = maxClusterRadius;
 	}
 
 	/**
@@ -113,22 +118,22 @@ public class RepresentationUpdate extends
 	}
 
 	/**
-	 * Sets the representationCount to the specified value.
+	 * Returns the minPointCount.
 	 * 
-	 * @param representationCount
-	 *            the representationCount to set
+	 * @return the minPointCount
 	 */
-	public void setRepresentationCount(final int representationCount) {
-		this.representationCount = representationCount;
+	public int getMinPointCount() {
+		return this.minPointCount;
 	}
 
 	/**
-	 * Returns the representationCount.
+	 * Sets the minPointCount to the specified value.
 	 * 
-	 * @return the representationCount
+	 * @param minPointCount
+	 *            the minPointCount to set
 	 */
-	public int getRepresentationCount() {
-		return this.representationCount;
+	public void setMinPointCount(final int minPointCount) {
+		this.minPointCount = minPointCount;
 	}
 
 	/*
@@ -148,13 +153,13 @@ public class RepresentationUpdate extends
 
 	public static class Implementation extends SopremoCoGroup {
 
-		private final int representationCount = 10;
+		private int representationDetail;
 
-		private final int maxRadius = 500;
+		private int maxClusterRadius;
 
-		private final int maxClustroidShift = 200;
+		private int maxClustroidShift;
 
-		private final int minPointsForSplitting = 21;
+		private int minPointCount;
 
 		private final ObjectNode outputNode = new ObjectNode();
 
@@ -190,7 +195,7 @@ public class RepresentationUpdate extends
 			// TODO: Evaluate whether starting with an empty representation
 			// yields better results
 			final ClusterRepresentation representation = new ClusterRepresentation(
-					id, oldClustroid, this.representationCount);
+					id, oldClustroid, this.representationDetail);
 
 			for (final IJsonNode memberNode : pointsNode) {
 				final Point point = new Point();
@@ -214,8 +219,8 @@ public class RepresentationUpdate extends
 		}
 
 		private boolean shallSplit(final ClusterRepresentation representation) {
-			return representation.size() >= this.minPointsForSplitting
-					&& representation.getRadius() >= this.maxRadius;
+			return representation.size() >= this.minPointCount
+					&& representation.getRadius() >= this.maxClusterRadius;
 		}
 
 		private void emitSplitRepresentations(

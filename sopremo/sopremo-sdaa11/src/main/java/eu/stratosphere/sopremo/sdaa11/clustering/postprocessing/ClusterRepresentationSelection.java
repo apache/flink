@@ -29,7 +29,8 @@ public class ClusterRepresentationSelection extends
 		ElementaryOperator<ClusterRepresentationSelection> {
 
 	/**
-	 * 
+	 * Describes the flag which will be selection criterion of incoming
+	 * cluster representations.
 	 */
 	private static final long serialVersionUID = 459057198976528982L;
 

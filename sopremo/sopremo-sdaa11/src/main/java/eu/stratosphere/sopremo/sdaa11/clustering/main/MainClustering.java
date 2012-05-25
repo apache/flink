@@ -48,6 +48,10 @@ public class MainClustering extends CompositeOperator<MainClustering> {
 	 * 
 	 */
 	private static final long serialVersionUID = -7712289910767829747L;
+	private int representationDetail = RepresentationUpdate.DEFAULT_REPRESENTATION_DETAIL;
+	private int maxClusterRadius = RepresentationUpdate.DEFAULT_MAX_CLUSTER_RADIUS;
+	private int maxClustroidShift = RepresentationUpdate.DEFAULT_MAX_CLUSTROID_SHIFT;
+	private int minPointCount = RepresentationUpdate.DEFAULT_MIN_POINT_COUNT;
 
 	public MainClustering() {
 		super(2);
@@ -79,11 +83,91 @@ public class MainClustering extends CompositeOperator<MainClustering> {
 
 		final RepresentationUpdate representationUpdate = new RepresentationUpdate()
 				.withInputs(representationInput, pointUnionAll);
+		representationUpdate.setMaxClusterRadius(this.maxClusterRadius);
+		representationUpdate.setMinPointCount(this.minPointCount);
+		representationUpdate.setMaxClustroidShift(this.maxClustroidShift);
+		representationUpdate.setRepresentationDetail(this.representationDetail);
 
 		module.getOutput(0).setInputs(pointUnionAll);
 		module.getOutput(1).setInputs(representationUpdate);
 
 		return module;
+	}
+
+	/**
+	 * Returns the representationDetail.
+	 * 
+	 * @return the representationDetail
+	 */
+	public int getRepresentationDetail() {
+		return this.representationDetail;
+	}
+
+	/**
+	 * Sets the representationDetail to the specified value.
+	 * 
+	 * @param representationDetail
+	 *            the representationDetail to set
+	 */
+	public void setRepresentationDetail(final int representationDetail) {
+		this.representationDetail = representationDetail;
+	}
+
+	/**
+	 * Returns the maxClusterRadius.
+	 * 
+	 * @return the maxClusterRadius
+	 */
+	public int getMaxClusterRadius() {
+		return this.maxClusterRadius;
+	}
+
+	/**
+	 * Sets the maxClusterRadius to the specified value.
+	 * 
+	 * @param maxClusterRadius
+	 *            the maxClusterRadius to set
+	 */
+	public void setMaxClusterRadius(final int maxClusterRadius) {
+		this.maxClusterRadius = maxClusterRadius;
+	}
+
+	/**
+	 * Returns the maxClustroidShift.
+	 * 
+	 * @return the maxClustroidShift
+	 */
+	public int getMaxClustroidShift() {
+		return this.maxClustroidShift;
+	}
+
+	/**
+	 * Sets the maxClustroidShift to the specified value.
+	 * 
+	 * @param maxClustroidShift
+	 *            the maxClustroidShift to set
+	 */
+	public void setMaxClustroidShift(final int maxClustroidShift) {
+		this.maxClustroidShift = maxClustroidShift;
+	}
+
+	/**
+	 * Returns the minPointCount.
+	 * 
+	 * @return the minPointCount
+	 */
+	public int getMinPointCount() {
+		return this.minPointCount;
+	}
+
+	/**
+	 * Sets the minPointCount to the specified value.
+	 * 
+	 * @param minPointCount
+	 *            the minPointCount to set
+	 */
+	public void setMinPointCount(final int minPointCount) {
+		this.minPointCount = minPointCount;
 	}
 
 }
