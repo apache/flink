@@ -230,7 +230,7 @@ public final class PactRecord implements Value
 	{
 		// range check
 		if (fieldNum < 0 || fieldNum >= this.numFields) {
-			throw new IndexOutOfBoundsException();
+			throw new IndexOutOfBoundsException(fieldNum+" for range [0.."+(this.numFields-1)+"]");
 		}
 		
 		// get offset and check for null
