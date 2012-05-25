@@ -41,7 +41,7 @@ import eu.stratosphere.sopremo.type.TextNode;
 @InputCardinality(min = 2, max = 2)
 public class RepresentationUpdate extends
 		ElementaryOperator<RepresentationUpdate> {
-	
+
 	private static final long serialVersionUID = -5470882666744483986L;
 
 	public static final int DEFAULT_MIN_POINT_COUNT = 21;

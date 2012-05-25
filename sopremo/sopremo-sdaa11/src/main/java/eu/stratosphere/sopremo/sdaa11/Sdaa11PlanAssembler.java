@@ -48,7 +48,7 @@ public class Sdaa11PlanAssembler implements PlanAssembler {
 		System.out.println(Arrays.toString(args));
 
 		Plan pactPlan;
-//		pactPlan = getSimpleClusteringPlan(args);
+		// pactPlan = getSimpleClusteringPlan(args);
 		pactPlan = this.getInitialClusteringPlan(args);
 		return pactPlan;
 	}

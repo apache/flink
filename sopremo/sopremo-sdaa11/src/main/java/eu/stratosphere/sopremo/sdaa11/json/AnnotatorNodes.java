@@ -35,10 +35,10 @@ public class AnnotatorNodes {
 			final IntNode annotation, final IJsonNode annotatee) {
 		annotate(node, ANNOTATION, annotation, ANNOTATEE, annotatee);
 	}
-	
+
 	public static void annotate(final ObjectNode node,
-			String annotationKey, final IntNode annotation, 
-			String annotateeKey, final IJsonNode annotatee) {
+			final String annotationKey, final IntNode annotation,
+			final String annotateeKey, final IJsonNode annotatee) {
 		node.put(annotationKey, annotation);
 		node.put(annotateeKey, annotatee);
 

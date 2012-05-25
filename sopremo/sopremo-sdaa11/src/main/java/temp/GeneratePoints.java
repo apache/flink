@@ -27,44 +27,43 @@ import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
- *
+ * 
  */
 public class GeneratePoints {
 
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
-		String[] vocabulary = "a b c d e f g h i j k l m n o".split(" ");
-		IArrayNode points = new ArrayNode();
-		
-		int numPoints = 100;
-		int numValues = 10;
-		
-		Set<Integer> chosenValueIndexes = new TreeSet<Integer>();
+	public static void main(final String[] args) {
+		final String[] vocabulary = "a b c d e f g h i j k l m n o".split(" ");
+		final IArrayNode points = new ArrayNode();
+
+		final int numPoints = 100;
+		final int numValues = 10;
+
+		final Set<Integer> chosenValueIndexes = new TreeSet<Integer>();
 		TextNode idNode;
 		IArrayNode valuesNode;
-		IntNode rowsumNode = new IntNode(0);
-		Random random = new Random();
-		
+		final IntNode rowsumNode = new IntNode(0);
+		final Random random = new Random();
+
 		for (int pointIndex = 0; pointIndex < numPoints; pointIndex++) {
 			idNode = new TextNode(String.format("point%03d", pointIndex));
 
 			chosenValueIndexes.clear();
-			while (chosenValueIndexes.size() < numValues) {
+			while (chosenValueIndexes.size() < numValues)
 				chosenValueIndexes.add(random.nextInt(vocabulary.length));
-			}
 			valuesNode = new ArrayNode();
-			for (int valueIndex : chosenValueIndexes) {
-				valuesNode.add(new TextNode(String.valueOf(vocabulary[valueIndex])));
-			}
-			
-			ObjectNode pointNode = new ObjectNode();
+			for (final int valueIndex : chosenValueIndexes)
+				valuesNode.add(new TextNode(String
+						.valueOf(vocabulary[valueIndex])));
+
+			final ObjectNode pointNode = new ObjectNode();
 			PointNodes.write(pointNode, idNode, valuesNode, rowsumNode);
 			points.add(pointNode);
-			
+
 		}
-		
+
 		System.out.println(points.toString().replaceAll("\\\"", "\\\\\""));
 	}
 

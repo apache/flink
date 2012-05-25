@@ -51,7 +51,7 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 * 
 	 */
 	private static final long serialVersionUID = 5063867071090826368L;
-	
+
 	private int maxInitialClusterSize = SequentialClustering.DEFAULT_MAX_SIZE;
 	private int maxInitialClusterRadius = SequentialClustering.DEFAULT_MAX_RADIUS;
 	private int treeWidth = TreeAssembler.DEFAULT_TREE_WIDTH;
@@ -60,7 +60,6 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	private int maxClustroidShift = RepresentationUpdate.DEFAULT_MAX_CLUSTROID_SHIFT;
 	private int minPointCount = RepresentationUpdate.DEFAULT_MIN_POINT_COUNT;
 
-	
 	public SimpleClustering() {
 		super(2);
 	}
@@ -79,20 +78,20 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 
 		final InitialClustering initialClustering = new InitialClustering()
 				.withInputs(samplePointSource);
-		initialClustering.setMaxRadius(maxInitialClusterRadius);
-		initialClustering.setMaxSize(maxInitialClusterSize);
+		initialClustering.setMaxRadius(this.maxInitialClusterRadius);
+		initialClustering.setMaxSize(this.maxInitialClusterSize);
 
 		final TreeCreator treeCreator = new TreeCreator()
 				.withInputs(initialClustering);
-		treeCreator.setTreeWidth(treeWidth);
+		treeCreator.setTreeWidth(this.treeWidth);
 
 		final MainClustering mainClustering = new MainClustering().withInputs(
 				initialClustering, remainingPointsSource,
 				treeCreator.getOutput(0), treeCreator.getOutput(1));
-		mainClustering.setMaxClusterRadius(maxFinalClusterRadius);
-		mainClustering.setMaxClustroidShift(maxClustroidShift);
-		mainClustering.setMinPointCount(minPointCount);
-		mainClustering.setRepresentationDetail(representationDetail);
+		mainClustering.setMaxClusterRadius(this.maxFinalClusterRadius);
+		mainClustering.setMaxClustroidShift(this.maxClustroidShift);
+		mainClustering.setMinPointCount(this.minPointCount);
+		mainClustering.setRepresentationDetail(this.representationDetail);
 
 		module.getOutput(0).setInputs(mainClustering.getOutput(0));
 		module.getOutput(1).setInputs(mainClustering.getOutput(1));
@@ -106,15 +105,16 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 * @return the representationDetail
 	 */
 	public int getRepresentationDetail() {
-		return representationDetail;
+		return this.representationDetail;
 	}
 
 	/**
 	 * Sets the representationDetail to the specified value.
-	 *
-	 * @param representationDetail the representationDetail to set
+	 * 
+	 * @param representationDetail
+	 *            the representationDetail to set
 	 */
-	public void setRepresentationDetail(int representationDetail) {
+	public void setRepresentationDetail(final int representationDetail) {
 		this.representationDetail = representationDetail;
 	}
 
@@ -124,15 +124,16 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 * @return the maxFinalClusterRadius
 	 */
 	public int getMaxFinalClusterRadius() {
-		return maxFinalClusterRadius;
+		return this.maxFinalClusterRadius;
 	}
 
 	/**
 	 * Sets the maxFinalClusterRadius to the specified value.
-	 *
-	 * @param maxFinalClusterRadius the maxFinalClusterRadius to set
+	 * 
+	 * @param maxFinalClusterRadius
+	 *            the maxFinalClusterRadius to set
 	 */
-	public void setMaxFinalClusterRadius(int maxFinalClusterRadius) {
+	public void setMaxFinalClusterRadius(final int maxFinalClusterRadius) {
 		this.maxFinalClusterRadius = maxFinalClusterRadius;
 	}
 
@@ -142,15 +143,16 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 * @return the maxClustroidShift
 	 */
 	public int getMaxClustroidShift() {
-		return maxClustroidShift;
+		return this.maxClustroidShift;
 	}
 
 	/**
 	 * Sets the maxClustroidShift to the specified value.
-	 *
-	 * @param maxClustroidShift the maxClustroidShift to set
+	 * 
+	 * @param maxClustroidShift
+	 *            the maxClustroidShift to set
 	 */
-	public void setMaxClustroidShift(int maxClustroidShift) {
+	public void setMaxClustroidShift(final int maxClustroidShift) {
 		this.maxClustroidShift = maxClustroidShift;
 	}
 
@@ -160,15 +162,16 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 * @return the minPointCount
 	 */
 	public int getMinPointCount() {
-		return minPointCount;
+		return this.minPointCount;
 	}
 
 	/**
 	 * Sets the minPointCount to the specified value.
-	 *
-	 * @param minPointCount the minPointCount to set
+	 * 
+	 * @param minPointCount
+	 *            the minPointCount to set
 	 */
-	public void setMinPointCount(int minPointCount) {
+	public void setMinPointCount(final int minPointCount) {
 		this.minPointCount = minPointCount;
 	}
 
@@ -178,15 +181,16 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 * @return the maxInitialClusterSize
 	 */
 	public int getMaxInitialClusterSize() {
-		return maxInitialClusterSize;
+		return this.maxInitialClusterSize;
 	}
 
 	/**
 	 * Sets the maxInitialClusterSize to the specified value.
-	 *
-	 * @param maxInitialClusterSize the maxInitialClusterSize to set
+	 * 
+	 * @param maxInitialClusterSize
+	 *            the maxInitialClusterSize to set
 	 */
-	public void setMaxInitialClusterSize(int maxInitialClusterSize) {
+	public void setMaxInitialClusterSize(final int maxInitialClusterSize) {
 		this.maxInitialClusterSize = maxInitialClusterSize;
 	}
 
@@ -196,15 +200,16 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 * @see SequentialClustering#getMaxRadius()
 	 */
 	public int getMaxInitialClusterRadius() {
-		return maxInitialClusterRadius;
+		return this.maxInitialClusterRadius;
 	}
 
 	/**
 	 * Sets the maxInitialClusterRadius to the specified value.
-	 *
-	 * @param maxInitialClusterRadius the maxInitialClusterRadius to set
+	 * 
+	 * @param maxInitialClusterRadius
+	 *            the maxInitialClusterRadius to set
 	 */
-	public void setMaxInitialClusterRadius(int maxInitialClusterRadius) {
+	public void setMaxInitialClusterRadius(final int maxInitialClusterRadius) {
 		this.maxInitialClusterRadius = maxInitialClusterRadius;
 	}
 
@@ -214,15 +219,16 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 * @return the treeWidth
 	 */
 	public int getTreeWidth() {
-		return treeWidth;
+		return this.treeWidth;
 	}
 
 	/**
 	 * Sets the treeWidth to the specified value.
-	 *
-	 * @param treeWidth the treeWidth to set
+	 * 
+	 * @param treeWidth
+	 *            the treeWidth to set
 	 */
-	public void setTreeWidth(int treeWidth) {
+	public void setTreeWidth(final int treeWidth) {
 		this.treeWidth = treeWidth;
 	}
 

@@ -54,14 +54,17 @@ public class SequentialClustering extends
 		return Arrays.asList(new ObjectAccess(AnnotatorNodes.ANNOTATION));
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.AbstractSopremoType#toString()
 	 */
 	@Override
 	public String toString() {
-		return "SequentialClustering[maxRadius="+maxRadius+";maxSize"+maxSize+"]";
+		return "SequentialClustering[maxRadius=" + this.maxRadius + ";maxSize"
+				+ this.maxSize + "]";
 	}
-	
+
 	public static class Implementation extends SopremoReduce {
 
 		private int maxRadius;
@@ -100,9 +103,8 @@ public class SequentialClustering extends
 			// left.
 			while (this.queue.getNumberOfClusters() > 1) {
 				final ClusterPair pair = this.queue.getFirstElement();
-				if (pair.getDistance() > maxRadius) {
+				if (pair.getDistance() > this.maxRadius)
 					break;
-				}
 				final HierarchicalCluster cluster1 = pair.getCluster1();
 				final HierarchicalCluster cluster2 = pair.getCluster2();
 
@@ -147,11 +149,11 @@ public class SequentialClustering extends
 				this.pointsNode.clear();
 				for (final Point point : cluster.getPoints())
 					this.pointsNode.add(point.write((IJsonNode) null));
-				
+
 				this.idNode.setValue(cluster.getId());
-				
+
 				cluster.getClustroid().write(this.clustroidNode);
-				
+
 				ClusterNodes.write(this.outputNode, this.idNode,
 						this.clustroidNode, this.pointsNode);
 				out.collect(this.outputNode);

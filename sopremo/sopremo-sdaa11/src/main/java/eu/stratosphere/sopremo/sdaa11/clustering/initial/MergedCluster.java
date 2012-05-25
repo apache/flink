@@ -140,13 +140,15 @@ public class MergedCluster extends HierarchicalCluster {
 	public boolean canBeFinal() {
 		return this.child1.isFinal() && this.child2.isFinal();
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
 	public String toString() {
-		return "MergedCluster[size="+size+"]";
+		return "MergedCluster[size=" + this.size + "]";
 	}
 
 }
