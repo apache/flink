@@ -48,7 +48,7 @@ public class Sdaa11PlanAssembler implements PlanAssembler {
 		System.out.println(Arrays.toString(args));
 
 		Plan pactPlan;
-		// pactPlan = getSimpleClusteringPlan(args);
+//		pactPlan = getSimpleClusteringPlan(args);
 		pactPlan = this.getInitialClusteringPlan(args);
 		return pactPlan;
 	}
@@ -64,7 +64,7 @@ public class Sdaa11PlanAssembler implements PlanAssembler {
 				.withInputs(sampleSource);
 
 		final List<Sink> sinks = new ArrayList<Sink>();
-		int i = 2;
+		int i = 1;
 		for (final JsonStream output : initialClustering.getOutputs()) {
 			final Sink sink = new Sink(args[i++]).withInputs(output);
 			sinks.add(sink);
@@ -75,8 +75,6 @@ public class Sdaa11PlanAssembler implements PlanAssembler {
 		final Plan pactPlan = sopremoPlan.asPactPlan();
 		SopremoUtil.serialize(pactPlan.getPlanConfiguration(),
 				SopremoUtil.CONTEXT, new EvaluationContext());
-		System.out.println(pactPlan.getPlanConfiguration().getString(
-				SopremoUtil.CONTEXT, "--"));
 		return pactPlan;
 
 	}
