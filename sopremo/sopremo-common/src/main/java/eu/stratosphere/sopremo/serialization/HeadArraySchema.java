@@ -26,6 +26,8 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
+ * A {@link Schema} that handles {@link PactRecord}s with the structure: { &#60head nodes&#62, [other nodes] }.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

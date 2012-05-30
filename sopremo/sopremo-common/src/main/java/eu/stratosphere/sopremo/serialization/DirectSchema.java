@@ -22,6 +22,8 @@ import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
+ * {@link Schema} that specifies a record with only a single node.
+ * 
  * @author Arvid Heise
  */
 public class DirectSchema implements Schema {
@@ -59,7 +61,7 @@ public class DirectSchema implements Schema {
 	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
 		if (target == null || target.getNumFields() != 1) {
 			target = new PactRecord(new JsonNodeWrapper());
-		} 
+		}
 
 		JsonNodeWrapper wrapper = target.getField(0, JsonNodeWrapper.class);
 		wrapper.setValue(value);

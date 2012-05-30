@@ -10,21 +10,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.type.BigIntegerNode;
-import eu.stratosphere.sopremo.type.BooleanNode;
-import eu.stratosphere.sopremo.type.DecimalNode;
-import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
-import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.LongNode;
-import eu.stratosphere.sopremo.type.MissingNode;
-import eu.stratosphere.sopremo.type.NullNode;
 
-/**
- * @author Tommy Neubert
- */
 public class GeneralSchema implements Schema {
 
 	/**

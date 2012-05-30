@@ -16,6 +16,10 @@ import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
+/**
+ * This {@link IArrayNode} supports {@link PactRecord}s more efficient by working directly with the record instead of
+ * transforming it to a JsonNode. The record is handled by a {@link HeadArraySchema}.
+ */
 public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 
 	/**
@@ -27,6 +31,14 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 
 	protected HeadArraySchema schema;
 
+	/**
+	 * Initializes a LazyHeadArrayNode with the given {@link PactRecord} and the given {@link HeadArraySchema}.
+	 * 
+	 * @param record
+	 *        the record that should be used
+	 * @param schema
+	 *        the schema that should be used for transformations
+	 */
 	public LazyHeadArrayNode(PactRecord record, HeadArraySchema schema) {
 		this.record = record;
 		this.schema = schema;
@@ -116,6 +128,12 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 		return sb;
 	}
 
+	/**
+	 * Returns the last field of the record. This 'other' field stores all nodes after reaching the defined head size of
+	 * the schema.
+	 * 
+	 * @return the 'other' field of the record
+	 */
 	public IArrayNode getOtherField() {
 		return (IArrayNode) SopremoUtil.unwrap(this.record.getField(this.schema.getHeadSize(),
 			JsonNodeWrapper.class));
