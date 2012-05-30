@@ -36,6 +36,9 @@ import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
+/**
+ * Creates a JsonNode-representation of the provided data. The input-data must be provided in a valid json-format.
+ */
 public class JsonParser {
 
 	private final BufferedReader reader;
@@ -58,23 +61,54 @@ public class JsonParser {
 			new CloseHandler(), new KeyValueSeperatorHandler(), new StringHandler(),
 			new CommaHandler(), new WhiteSpaceHandler() });
 
+	/**
+	 * Initializes a JsonParser that reads the input-data from a {@link FSDataInputStream}.
+	 * 
+	 * @param stream
+	 *        the stream that provides the data
+	 */
 	public JsonParser(final FSDataInputStream stream) {
 		this(new InputStreamReader(stream, Charset.forName("utf-8")));
 	}
 
+	/**
+	 * Initializes a JsonParser that reads the input-data from a {@link Reader}.
+	 * 
+	 * @param inputStreamReader
+	 *        the reader that provides the data
+	 */
 	public JsonParser(final Reader inputStreamReader) {
 		this.reader = new BufferedReader(inputStreamReader);
 		this.handler.defaultReturnValue(new DefaultHandler());
 	}
 
+	/**
+	 * Initializes a JsonParser that reads the input-data from an {@link URL}.
+	 * 
+	 * @param url
+	 *        the url that provides the data
+	 * @throws IOException
+	 */
 	public JsonParser(final URL url) throws IOException {
 		this(new BufferedReader(new InputStreamReader(url.openStream())));
 	}
 
+	/**
+	 * Initializes a JsonParser directly with the input-data.
+	 * 
+	 * @param value
+	 *        the data that should be parsed
+	 */
 	public JsonParser(final String value) {
 		this(new BufferedReader(new StringReader(value)));
 	}
 
+	/**
+	 * Parses the provided data and creates a JsonNode-representation from it.
+	 * 
+	 * @return the JsonNode-representation of the provided data
+	 * @throws IOException
+	 */
 	public JsonNode readValueAsTree() throws IOException {
 
 		this.state.push(this.root);
@@ -118,14 +152,31 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * Returns either the parsing of the input-data is finished or not.
+	 * 
+	 * @return the parsing is completed
+	 */
 	public boolean checkEnd() {
 		return this.reachedEnd;
 	}
 
+	/**
+	 * Closes the connection to the data source.
+	 * 
+	 * @throws IOException
+	 */
 	public void close() throws IOException {
 		this.reader.close();
 	}
 
+	/**
+	 * Creates a {@link eu.stratosphere.sopremo.type.IPrimitiveNode} from the given data.
+	 * 
+	 * @param value
+	 *        the string that should be parsed
+	 * @return the created node
+	 */
 	private static JsonNode parsePrimitive(final String value) {
 		if (value.equals("null"))
 			return NullNode.getInstance();
@@ -149,10 +200,22 @@ public class JsonParser {
 		return TextNode.valueOf(value);
 	}
 
+	/**
+	 * Interface for all character handler. These handlers are responsible for processing special characters in the
+	 * json-format.
+	 */
 	private interface CharacterHandler {
+		/**
+		 * Implementation of this method specifies how this handler should behave.
+		 * 
+		 * @throws JsonParseException
+		 */
 		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException;
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles the begin of an array.
+	 */
 	private class OpenArrayHandler implements CharacterHandler {
 
 		@Override
@@ -165,6 +228,9 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles the begin of an object.
+	 */
 	private class OpenObjectHandler implements CharacterHandler {
 
 		@Override
@@ -176,6 +242,9 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles the end of arrays and objects.
+	 */
 	private class CloseHandler implements CharacterHandler {
 
 		@Override
@@ -205,6 +274,9 @@ public class JsonParser {
 		}
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles begin and end of strings.
+	 */
 	private class StringHandler implements CharacterHandler {
 
 		@Override
@@ -219,6 +291,9 @@ public class JsonParser {
 		}
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles commas.
+	 */
 	private class CommaHandler implements CharacterHandler {
 
 		@Override
@@ -236,6 +311,9 @@ public class JsonParser {
 		}
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles a whitespace.
+	 */
 	private class WhiteSpaceHandler implements CharacterHandler {
 
 		@Override
@@ -246,6 +324,9 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles the separation of key-value-pairs.
+	 */
 	private class KeyValueSeperatorHandler implements CharacterHandler {
 
 		@Override
@@ -260,6 +341,9 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles unknown characters.
+	 */
 	private class DefaultHandler implements CharacterHandler {
 
 		@Override
@@ -273,31 +357,58 @@ public class JsonParser {
 		}
 	}
 
+	/**
+	 * {@link JsonNode} that represents an unfinished complex-node in the parsing-process.
+	 */
 	private class ContainerNode extends JsonNode {
 
-		/**
-		 * 
-		 */
 		private static final long serialVersionUID = -7285733826083281420L;
 
 		private final List<String> keys = new ArrayList<String>();
 
 		private final List<JsonNode> values = new ArrayList<JsonNode>();
 
+		/**
+		 * Adds the data contained in the given {@link StringBuilder} as a key.
+		 * 
+		 * @param sb
+		 *        the string builder that contains the data
+		 */
 		public void addKey(final StringBuilder sb) {
 			this.keys.add(sb.toString());
 		}
 
+		/**
+		 * Adds the given {@link JsonNode} as a value.
+		 * 
+		 * @param node
+		 *        the node that should be added as a value
+		 */
 		public void addValue(final JsonNode node) {
 			this.values.add(node);
 		}
 
+		/**
+		 * Removes the value at the specified index. This method only allows removal of values if this ContainerNode
+		 * represents an unfinished array.
+		 * 
+		 * @param index
+		 *        the index of the value that should be removed
+		 * @return the removed JsonNode
+		 * @throws JsonParseException
+		 */
 		public JsonNode remove(final int index) throws JsonParseException {
 			if (this.keys.isEmpty())
 				return this.values.remove(index);
 			throw new JsonParseException();
 		}
 
+		/**
+		 * Creates a JsonNode from the data stored in this ContainerNode.
+		 * 
+		 * @return the created JsonNode
+		 * @throws JsonParseException
+		 */
 		public JsonNode build() throws JsonParseException {
 			JsonNode node;
 
