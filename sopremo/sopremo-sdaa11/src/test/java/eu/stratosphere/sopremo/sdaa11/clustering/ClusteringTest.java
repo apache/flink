@@ -44,8 +44,9 @@ public class ClusteringTest {
 	@Test
 	public void testClustering() throws IOException {
 
-		Clustering clustering = new Clustering();
-		ElementarySopremoModule module = clustering.asElementaryOperators();
+		final Clustering clustering = new Clustering();
+		final ElementarySopremoModule module = clustering
+				.asElementaryOperators();
 		module.inferSchema(new NaiveSchemaFactory());
 		final SopremoTestPlan plan = new SopremoTestPlan(clustering);
 

@@ -72,8 +72,7 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 */
 	@Override
 	public ElementarySopremoModule asElementaryOperators() {
-		final SopremoModule module = new SopremoModule(
-				this.getName(), 2, 2);
+		final SopremoModule module = new SopremoModule(this.getName(), 2, 2);
 
 		final Source samplePointSource = module.getInput(0);
 		final Source remainingPointsSource = module.getInput(1);
@@ -85,7 +84,7 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 
 		final TreeCreator treeCreator = new TreeCreator()
 				.withInputs(initialClustering);
-		 treeCreator.setTreeWidth(this.treeWidth);
+		treeCreator.setTreeWidth(this.treeWidth);
 
 		final MainClustering mainClustering = new MainClustering().withInputs(
 				initialClustering, remainingPointsSource,

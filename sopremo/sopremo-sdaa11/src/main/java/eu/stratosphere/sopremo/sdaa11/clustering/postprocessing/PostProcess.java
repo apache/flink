@@ -44,8 +44,8 @@ import eu.stratosphere.sopremo.sdaa11.clustering.main.RepresentationUpdate;
  * @author skruse
  * 
  */
- @InputCardinality(min = 2, max = 2)
- @OutputCardinality(min = 4, max = 4)
+@InputCardinality(min = 2, max = 2)
+@OutputCardinality(min = 4, max = 4)
 public class PostProcess extends CompositeOperator<PostProcess> {
 
 	/**
@@ -58,7 +58,7 @@ public class PostProcess extends CompositeOperator<PostProcess> {
 	public PostProcess() {
 		super(4);
 	}
-	
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -88,8 +88,8 @@ public class PostProcess extends CompositeOperator<PostProcess> {
 		final Split split = new Split().withInputs(splitRepresentations,
 				pointSource);
 		split.setRepresentationDetail(this.representationDetail);
-		final UnionAll priorReclusterRepresentations = new UnionAll().withInputs(
-				unstableRepresentations, split);
+		final UnionAll priorReclusterRepresentations = new UnionAll()
+				.withInputs(unstableRepresentations, split);
 		module.getOutput(2).setInputs(priorReclusterRepresentations);
 
 		final UnionAll reclusterRepresentations = new UnionAll().withInputs(
