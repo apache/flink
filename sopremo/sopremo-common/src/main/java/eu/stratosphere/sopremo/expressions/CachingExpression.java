@@ -48,6 +48,12 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 
 	public abstract CacheType evaluate(IJsonNode node, EvaluationContext context);
 
+	protected final EvaluationExpression expression;
+
+	public CachingExpression(EvaluationExpression expression) {
+		this.expression = expression;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#evaluate(eu.stratosphere.sopremo.type.IJsonNode,
@@ -58,6 +64,14 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 		// ignores target, maintains its own target
 		return evaluate(node, context);
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		this.expression.toString(builder);
+	}
 
 	private static class EagerCachingExpression<CacheType extends IJsonNode> extends CachingExpression<CacheType> {
 		/**
@@ -65,12 +79,10 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 		 */
 		private static final long serialVersionUID = 7026101939583167279L;
 
-		private final EvaluationExpression expression;
-
 		private final CacheType cachedVariable;
 
 		public EagerCachingExpression(EvaluationExpression expression, CacheType cachedVariable) {
-			this.expression = expression;
+			super(expression);
 			this.cachedVariable = cachedVariable;
 		}
 
@@ -87,13 +99,11 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 		 */
 		private static final long serialVersionUID = -2084630771920876904L;
 
-		private final EvaluationExpression expression;
-
 		private CacheType cachedVariable;
 
 		public LazyCachingExpression(EvaluationExpression expression,
 				@SuppressWarnings("unused") Class<? extends CacheType> cacheType) {
-			this.expression = expression;
+			super(expression);
 		}
 
 		@Override

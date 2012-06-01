@@ -36,9 +36,9 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 	 */
 	@Test
 	public void testAsPactModule() throws Exception {
-		final Operator<?> input1 = new Source("1");
-		final Operator<?> input2 = new Source("2");
-		final Operator<?> input3 = new Source("3");
+		final Operator<?> input1 = new Source("file://1");
+		final Operator<?> input2 = new Source("file://2");
+		final Operator<?> input3 = new Source("file://3");
 		final CompositeOperator<?> fixture = new CompositeOperatorImpl(1);
 		fixture.setInputs(input1, input2, input3);
 		final EvaluationContext context = new EvaluationContext();
@@ -79,7 +79,8 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		@Override
 		public ElementarySopremoModule asElementaryOperators() {
 			return ElementarySopremoModule.valueOf(this.getName(),
-				new ElementaryOperatorImpl().withInputs(null, new ElementaryOperatorImpl()));
+				new ElementaryOperatorImpl().withInputs(getInput(0),
+					new ElementaryOperatorImpl().withInputs(getInput(1), getInput(2))));
 		}
 
 		@Override
