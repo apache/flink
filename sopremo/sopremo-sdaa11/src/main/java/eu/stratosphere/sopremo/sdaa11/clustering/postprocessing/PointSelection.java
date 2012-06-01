@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -33,6 +34,7 @@ import eu.stratosphere.sopremo.type.ObjectNode;
  * @author skruse
  * 
  */
+@InputCardinality(min = 2, max = 2)
 public class PointSelection extends ElementaryOperator<PointSelection> {
 
 	/**

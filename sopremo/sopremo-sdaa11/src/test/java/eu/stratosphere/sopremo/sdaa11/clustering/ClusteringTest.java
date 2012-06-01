@@ -14,7 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.sdaa11.clustering;
 
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -26,6 +28,8 @@ import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.sdaa11.clustering.main.ClusterRest;
 import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
+import eu.stratosphere.sopremo.sdaa11.clustering.util.Points;
+import eu.stratosphere.sopremo.serialization.NaiveSchemaFactory;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
@@ -38,18 +42,22 @@ public class ClusteringTest {
 	private int pointCount = 0;
 
 	@Test
-	public void testClustering() {
+	public void testClustering() throws IOException {
 
-		// SopremoTestPlan plan = new SopremoTestPlan(2, 1);
-		// TestOperator testOperator = new TestOperator();
-		// testOperator.setInputs(plan.getInputOperators(0, 2));
-		// plan.getOutputOperator(0).setInput(0, testOperator);
-		final SopremoTestPlan plan = new SopremoTestPlan(new TestOperator());
+		Clustering clustering = new Clustering();
+		ElementarySopremoModule module = clustering.asElementaryOperators();
+		module.inferSchema(new NaiveSchemaFactory());
+		final SopremoTestPlan plan = new SopremoTestPlan(clustering);
 
-		plan.getInput(0).add(this.createPoint("sample_1"))
-				.add(this.createPoint("sample_2"));
+		final List<IJsonNode> input1Nodes = Points
+				.loadPoints(Points.POINTS1_PATH);
+		for (final IJsonNode inputNode : input1Nodes)
+			plan.getInput(0).add(inputNode);
 
-		plan.getInput(1).add(this.createPoint("rest_1"));
+		final List<IJsonNode> input2Nodes = Points
+				.loadPoints(Points.POINTS2_PATH);
+		for (final IJsonNode inputNode : input2Nodes)
+			plan.getInput(1).add(inputNode);
 
 		plan.run();
 

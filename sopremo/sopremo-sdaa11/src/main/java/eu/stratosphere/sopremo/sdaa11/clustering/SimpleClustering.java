@@ -17,8 +17,8 @@ package eu.stratosphere.sopremo.sdaa11.clustering;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OutputCardinality;
+import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.SequentialClustering;
@@ -72,7 +72,7 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 	 */
 	@Override
 	public ElementarySopremoModule asElementaryOperators() {
-		final ElementarySopremoModule module = new ElementarySopremoModule(
+		final SopremoModule module = new SopremoModule(
 				this.getName(), 2, 2);
 
 		final Source samplePointSource = module.getInput(0);
@@ -83,10 +83,9 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 		initialClustering.setMaxRadius(this.maxInitialClusterRadius);
 		initialClustering.setMaxSize(this.maxInitialClusterSize);
 
-		final Operator<?> treeCreator = new TreeCreator()
-				.withInputs(initialClustering).asElementaryOperators()
-				.asOperator();
-		// treeCreator.setTreeWidth(this.treeWidth);
+		final TreeCreator treeCreator = new TreeCreator()
+				.withInputs(initialClustering);
+		 treeCreator.setTreeWidth(this.treeWidth);
 
 		final MainClustering mainClustering = new MainClustering().withInputs(
 				initialClustering, remainingPointsSource,
@@ -99,7 +98,7 @@ public class SimpleClustering extends CompositeOperator<SimpleClustering> {
 		module.getOutput(0).setInputs(mainClustering.getOutput(0));
 		module.getOutput(1).setInputs(mainClustering.getOutput(1));
 
-		return module;
+		return module.asElementary();
 	}
 
 	/**

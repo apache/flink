@@ -36,7 +36,7 @@ import eu.stratosphere.sopremo.Source;
  * 
  */
 @OutputCardinality(min = 2, max = 2)
-// TODO: Check why this does not work
+// TODO: Check why this does not work <-- ??
 public class TreeCreator extends CompositeOperator<TreeCreator> {
 
 	private static final long serialVersionUID = 1450138351751038162L;

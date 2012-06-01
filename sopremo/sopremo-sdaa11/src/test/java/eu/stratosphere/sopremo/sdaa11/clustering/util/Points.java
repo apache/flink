@@ -14,6 +14,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.sdaa11.clustering.util;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
+
+import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
@@ -25,8 +33,27 @@ public class Points {
 
 	volatile private static int pointCount = 0;
 
+	public static final String POINTS1_PATH = "src/test/resources/clustering/points1";
+	public static final String POINTS2_PATH = "src/test/resources/clustering/points1";
+
 	public static IJsonNode asJson(final String... values) {
 		return new Point(String.valueOf(pointCount++), values).write(null);
+	}
+
+	public static List<IJsonNode> loadPoints(final String filePath)
+			throws IOException {
+		BufferedReader reader = null;
+		try {
+			final File pointFile = new File(filePath);
+			reader = new BufferedReader(new FileReader(pointFile));
+			final JsonParser parser = new JsonParser(reader);
+			final List<IJsonNode> pointNodes = new LinkedList<IJsonNode>();
+			while (!parser.checkEnd())
+				pointNodes.add(parser.readValueAsTree());
+			return pointNodes;
+		} finally {
+			reader.close();
+		}
 	}
 
 }

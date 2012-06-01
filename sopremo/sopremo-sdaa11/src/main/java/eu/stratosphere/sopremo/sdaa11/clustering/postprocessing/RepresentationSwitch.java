@@ -48,6 +48,10 @@ public class RepresentationSwitch extends
 	 * 
 	 */
 	private static final long serialVersionUID = 7105199259028835295L;
+	
+	public RepresentationSwitch() {
+		super(3);
+	}
 
 	/*
 	 * (non-Javadoc)

@@ -45,6 +45,10 @@ public class Clustering extends CompositeOperator<Clustering> {
 	private int maxFinalClusterRadius = RepresentationUpdate.DEFAULT_MAX_CLUSTER_RADIUS;
 	private int maxClustroidShift = RepresentationUpdate.DEFAULT_MAX_CLUSTROID_SHIFT;
 	private int minPointCount = RepresentationUpdate.DEFAULT_MIN_POINT_COUNT;
+	
+	public Clustering() {
+		super(4);
+	}
 
 	/*
 	 * (non-Javadoc)

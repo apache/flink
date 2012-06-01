@@ -17,7 +17,9 @@ package eu.stratosphere.sopremo.sdaa11.clustering.postprocessing;
 import temp.UnionAll;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.sdaa11.clustering.main.RepresentationUpdate;
@@ -42,6 +44,8 @@ import eu.stratosphere.sopremo.sdaa11.clustering.main.RepresentationUpdate;
  * @author skruse
  * 
  */
+ @InputCardinality(min = 2, max = 2)
+ @OutputCardinality(min = 4, max = 4)
 public class PostProcess extends CompositeOperator<PostProcess> {
 
 	/**
@@ -51,6 +55,10 @@ public class PostProcess extends CompositeOperator<PostProcess> {
 
 	private int representationDetail = RepresentationUpdate.DEFAULT_REPRESENTATION_DETAIL;
 
+	public PostProcess() {
+		super(4);
+	}
+	
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -80,7 +88,9 @@ public class PostProcess extends CompositeOperator<PostProcess> {
 		final Split split = new Split().withInputs(splitRepresentations,
 				pointSource);
 		split.setRepresentationDetail(this.representationDetail);
-		module.getOutput(2).setInputs(unstableRepresentations, split);
+		final UnionAll priorReclusterRepresentations = new UnionAll().withInputs(
+				unstableRepresentations, split);
+		module.getOutput(2).setInputs(priorReclusterRepresentations);
 
 		final UnionAll reclusterRepresentations = new UnionAll().withInputs(
 				unstableRepresentations, splitRepresentations);
