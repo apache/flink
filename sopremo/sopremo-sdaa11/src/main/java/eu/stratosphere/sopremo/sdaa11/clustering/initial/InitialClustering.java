@@ -1,9 +1,9 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.initial;
 
 import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.sdaa11.Annotator;
-import eu.stratosphere.sopremo.ElementarySopremoModule;
 
 /**
  * Inputs:<br>
@@ -46,7 +46,8 @@ public class InitialClustering extends CompositeOperator<InitialClustering> {
 
 	@Override
 	public ElementarySopremoModule asElementaryOperators() {
-		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), 1, 1);
+		final ElementarySopremoModule module = new ElementarySopremoModule(
+				this.getName(), 1, 1);
 
 		final Operator<?> input = module.getInput(0);
 		final Annotator annotator = new Annotator().withInputs(input);

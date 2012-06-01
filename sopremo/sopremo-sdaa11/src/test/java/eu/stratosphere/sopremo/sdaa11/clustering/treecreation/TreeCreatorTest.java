@@ -42,7 +42,7 @@ public class TreeCreatorTest {
 	public void testRepresentationOutput() {
 		this.testOutput(1);
 	}
-	
+
 	@Test
 	public void testBlakeks() {
 		final SopremoTestPlan plan = new SopremoTestPlan(new TreeCreator());

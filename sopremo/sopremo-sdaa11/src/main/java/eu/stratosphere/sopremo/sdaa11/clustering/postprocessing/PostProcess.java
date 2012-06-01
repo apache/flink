@@ -14,14 +14,17 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.sdaa11.clustering.postprocessing;
 
+import temp.UnionAll;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.sdaa11.clustering.main.RepresentationUpdate;
 
 /**
- * Post-processes a clustering result, i.e. do splitting and separate unstable from stable clusters.<br>
+ * Post-processes a clustering result, i.e. do splitting and separate unstable
+ * from stable clusters.<br>
  * Inputs:<br>
  * <ol>
  * <li>Assigned points</li>
@@ -41,23 +44,70 @@ import eu.stratosphere.sopremo.Source;
  */
 public class PostProcess extends CompositeOperator<PostProcess> {
 
-	/* (non-Javadoc)
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -1517888414053098096L;
+
+	private int representationDetail = RepresentationUpdate.DEFAULT_REPRESENTATION_DETAIL;
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
 	public ElementarySopremoModule asElementaryOperators() {
-		SopremoModule module = new SopremoModule(getName(), 2, 4);
-		Source pointSource = module.getInput(0);
-		Source representationSource = module.getInput(1);
-		
-		RepresentationSwitch representationSwitch = new RepresentationSwitch().withInputs(representationSource);
-		JsonStream stablePoints = representationSwitch.getOutput(0);
-		module.getOutput(0).setInput(0, stablePoints);
-		
-		PointSelection stablePointSelection = new PointSelection().withInputs(stablePoints);
+		final SopremoModule module = new SopremoModule(this.getName(), 2, 4);
+		final Source pointSource = module.getInput(0);
+		final Source representationSource = module.getInput(1);
+
+		final RepresentationSwitch representationSwitch = new RepresentationSwitch()
+				.withInputs(representationSource);
+		final JsonStream stableRepresentations = representationSwitch
+				.getOutput(0);
+		final JsonStream unstableRepresentations = representationSwitch
+				.getOutput(1);
+		final JsonStream splitRepresentations = representationSwitch
+				.getOutput(2);
+
+		module.getOutput(0).setInput(0, stableRepresentations);
+
+		final PointSelection stablePointSelection = new PointSelection()
+				.withInputs(pointSource, stableRepresentations);
 		module.getOutput(1).setInput(0, stablePointSelection);
-		
+
+		final Split split = new Split().withInputs(splitRepresentations,
+				pointSource);
+		split.setRepresentationDetail(this.representationDetail);
+		module.getOutput(2).setInputs(unstableRepresentations, split);
+
+		final UnionAll reclusterRepresentations = new UnionAll().withInputs(
+				unstableRepresentations, splitRepresentations);
+		final PointSelection unstablePointSelection = new PointSelection()
+				.withInputs(pointSource, reclusterRepresentations);
+		module.getOutput(3).setInput(0, unstablePointSelection);
+
 		return module.asElementary();
+	}
+
+	/**
+	 * Returns the representationDetail.
+	 * 
+	 * @return the representationDetail
+	 */
+	public int getRepresentationDetail() {
+		return this.representationDetail;
+	}
+
+	/**
+	 * Sets the representationDetail to the specified value.
+	 * 
+	 * @param representationDetail
+	 *            the representationDetail to set
+	 */
+	public void setRepresentationDetail(final int representationDetail) {
+		this.representationDetail = representationDetail;
 	}
 
 }

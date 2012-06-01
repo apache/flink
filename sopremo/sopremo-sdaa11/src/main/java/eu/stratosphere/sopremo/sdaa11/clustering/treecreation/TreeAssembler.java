@@ -66,12 +66,14 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 	}
 
 	@Override
-	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
-		if (inputIndex != 0) {
-			throw new IllegalArgumentException("Illegal input index: "+inputIndex);
-		}
+	public List<? extends EvaluationExpression> getKeyExpressions(
+			final int inputIndex) {
+		if (inputIndex != 0)
+			throw new IllegalArgumentException("Illegal input index: "
+					+ inputIndex);
 		return Arrays.asList(new ObjectAccess(AnnotatorNodes.FLAT_ANNOTATION));
 	}
+
 	public static class Implementation extends SopremoReduce {
 
 		/**

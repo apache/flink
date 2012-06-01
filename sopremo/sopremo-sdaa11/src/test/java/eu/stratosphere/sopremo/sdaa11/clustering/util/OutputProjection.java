@@ -15,8 +15,8 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.util;
 
 import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 
 /**

@@ -16,8 +16,8 @@ package eu.stratosphere.sopremo.sdaa11.clustering.main;
 
 import temp.UnionAll;
 import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Source;
 
 /**
@@ -40,7 +40,8 @@ public class ClusterRest extends CompositeOperator<ClusterRest> {
 	 */
 	@Override
 	public ElementarySopremoModule asElementaryOperators() {
-		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), 3, 1);
+		final ElementarySopremoModule module = new ElementarySopremoModule(
+				this.getName(), 3, 1);
 
 		final Source sampleClusterInput = module
 				.getInput(SAMPLE_CLUSTERS_INPUT_INDEX);

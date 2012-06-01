@@ -24,7 +24,7 @@ public class SequentialClustering extends
 
 	private static final long serialVersionUID = 5563265035325926095L;
 
-	public static final int DEFAULT_MAX_RADIUS = 100;
+	public static final int DEFAULT_MAX_RADIUS = 500;
 	public static final int DEFAULT_MAX_SIZE = 1000;
 
 	/** The maximum radius of a cluster. */
@@ -48,12 +48,13 @@ public class SequentialClustering extends
 	public void setMaxSize(final int maxSize) {
 		this.maxSize = maxSize;
 	}
-	
+
 	@Override
-	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
-		if (inputIndex != 0) {
-			throw new IllegalArgumentException("Illegal input index: "+inputIndex);
-		}
+	public List<? extends EvaluationExpression> getKeyExpressions(
+			final int inputIndex) {
+		if (inputIndex != 0)
+			throw new IllegalArgumentException("Illegal input index: "
+					+ inputIndex);
 		return Arrays.asList(new ObjectAccess(AnnotatorNodes.ANNOTATION));
 	}
 

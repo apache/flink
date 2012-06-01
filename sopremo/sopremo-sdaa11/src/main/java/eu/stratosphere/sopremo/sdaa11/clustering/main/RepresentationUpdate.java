@@ -141,14 +141,15 @@ public class RepresentationUpdate extends
 	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
 	 */
 	@Override
-	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
+	public List<? extends EvaluationExpression> getKeyExpressions(
+			final int inputIndex) {
 		switch (inputIndex) {
 		case 0:
 			return Arrays.asList(new ObjectAccess(RepresentationNodes.ID));
 		case 1:
 			return Arrays.asList(new ObjectAccess(PointNodes.CLUSTER_ID));
 		}
-		throw new IllegalArgumentException("Illegal input index: "+inputIndex);
+		throw new IllegalArgumentException("Illegal input index: " + inputIndex);
 	}
 
 	public static class Implementation extends SopremoCoGroup {

@@ -16,20 +16,35 @@ package eu.stratosphere.sopremo.sdaa11.clustering;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.sdaa11.clustering.initial.SequentialClustering;
+import eu.stratosphere.sopremo.sdaa11.clustering.main.RepresentationUpdate;
 import eu.stratosphere.sopremo.sdaa11.clustering.postprocessing.PostProcess;
+import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeAssembler;
 
 /**
  * @author skruse
  * 
  */
+@InputCardinality(min = 2, max = 2)
+@OutputCardinality(min = 4, max = 4)
 public class Clustering extends CompositeOperator<Clustering> {
 
 	private static final long serialVersionUID = -747074302410053877L;
 
 	public static final int SAMPLE_INPUT_INDEX = 0;
 	public static final int REST_INPUT_INDEX = 1;
+
+	private final int maxInitialClusterSize = SequentialClustering.DEFAULT_MAX_SIZE;
+	private final int maxInitialClusterRadius = SequentialClustering.DEFAULT_MAX_RADIUS;
+	private final int treeWidth = TreeAssembler.DEFAULT_TREE_WIDTH;
+	private final int representationDetail = RepresentationUpdate.DEFAULT_REPRESENTATION_DETAIL;
+	private final int maxFinalClusterRadius = RepresentationUpdate.DEFAULT_MAX_CLUSTER_RADIUS;
+	private final int maxClustroidShift = RepresentationUpdate.DEFAULT_MAX_CLUSTROID_SHIFT;
+	private final int minPointCount = RepresentationUpdate.DEFAULT_MIN_POINT_COUNT;
 
 	/*
 	 * (non-Javadoc)
@@ -38,8 +53,7 @@ public class Clustering extends CompositeOperator<Clustering> {
 	 */
 	@Override
 	public ElementarySopremoModule asElementaryOperators() {
-		final SopremoModule module = new SopremoModule(
-				this.getName(), 2, 4);
+		final SopremoModule module = new SopremoModule(this.getName(), 2, 4);
 
 		final Operator<?> sampleInput = module.getInput(SAMPLE_INPUT_INDEX);
 		final Operator<?> restInput = module.getInput(REST_INPUT_INDEX);

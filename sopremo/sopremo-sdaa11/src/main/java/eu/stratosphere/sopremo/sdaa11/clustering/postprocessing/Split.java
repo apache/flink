@@ -28,6 +28,11 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
+ * <ol>
+ * <li>Representations</li>
+ * <li>Points</li>
+ * </ol>
+ * 
  * @author skruse
  * 
  */
@@ -134,14 +139,16 @@ public class Split extends ElementaryOperator<Split> {
 		}
 
 		private void emit(final String id, final Point clustroid,
-				final int flag, final String parentId, final JsonCollector collector) {
+				final int flag, final String parentId,
+				final JsonCollector collector) {
 			clustroid.write(this.clustroidNode);
 			this.idNode.setValue(id);
 			this.parentIdNode.setValue(parentId);
 			this.flagNode.setValue(flag);
-			RepresentationNodes.write(this.outputNode, this.idNode, this.parentIdNode, this.clustroidNode);
+			RepresentationNodes.write(this.outputNode, this.idNode,
+					this.parentIdNode, this.clustroidNode);
 			RepresentationNodes.setFlag(this.outputNode, this.flagNode);
-			collector.collect(outputNode);
+			collector.collect(this.outputNode);
 		}
 	}
 

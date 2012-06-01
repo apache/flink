@@ -37,10 +37,12 @@ public class RepresentationNodes {
 	}
 
 	public static void write(final ObjectNode clusterNode,
-			final TextNode idNode, final TextNode parentIdNode, final ObjectNode clustroidNode) {
-		clusterNode.put(ID, idNode).put(PARENT_ID, parentIdNode).put(CLUSTROID, clustroidNode);
+			final TextNode idNode, final TextNode parentIdNode,
+			final ObjectNode clustroidNode) {
+		clusterNode.put(ID, idNode).put(PARENT_ID, parentIdNode)
+				.put(CLUSTROID, clustroidNode);
 	}
-	
+
 	public static TextNode getId(final ObjectNode clusterNode) {
 		return (TextNode) clusterNode.get(ID);
 	}
@@ -48,15 +50,16 @@ public class RepresentationNodes {
 	public static ObjectNode getClustroid(final ObjectNode clusterNode) {
 		return (ObjectNode) clusterNode.get(CLUSTROID);
 	}
-	
+
 	public static TextNode getParentId(final ObjectNode clusterNode) {
 		return (TextNode) clusterNode.get(PARENT_ID);
 	}
-	
-	public static void setFlag(final ObjectNode clusterNode, IntNode flagNode) {
+
+	public static void setFlag(final ObjectNode clusterNode,
+			final IntNode flagNode) {
 		clusterNode.put(FLAG, flagNode);
 	}
-	
+
 	public static IntNode getFlag(final ObjectNode clusterNode) {
 		return (IntNode) clusterNode.get(FLAG);
 	}

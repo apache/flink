@@ -19,8 +19,8 @@ import java.util.Arrays;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;

@@ -38,11 +38,11 @@ public class PointSelection extends ElementaryOperator<PointSelection> {
 	/**
 	 * 
 	 */
-	private static final List<ObjectAccess> POINT_KEY_EXPRESSIONS = 
-			Arrays.asList(new ObjectAccess("oldId"));
-	
-	private static final List<ObjectAccess> REPRESENTATION_KEY_EXPRESSION = 
-			Arrays.asList(new ObjectAccess("id"));
+	private static final List<ObjectAccess> POINT_KEY_EXPRESSIONS = Arrays
+			.asList(new ObjectAccess("oldId"));
+
+	private static final List<ObjectAccess> REPRESENTATION_KEY_EXPRESSION = Arrays
+			.asList(new ObjectAccess("id"));
 
 	/**
 	 * 
@@ -55,14 +55,15 @@ public class PointSelection extends ElementaryOperator<PointSelection> {
 	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
 	 */
 	@Override
-	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
+	public List<? extends EvaluationExpression> getKeyExpressions(
+			final int inputIndex) {
 		switch (inputIndex) {
 		case 0:
 			return POINT_KEY_EXPRESSIONS;
 		case 1:
 			return REPRESENTATION_KEY_EXPRESSION;
 		}
-		throw new IllegalArgumentException("Illegal input index: "+inputIndex);
+		throw new IllegalArgumentException("Illegal input index: " + inputIndex);
 	}
 
 	public static class Implementation extends SopremoMatch {
@@ -80,7 +81,7 @@ public class PointSelection extends ElementaryOperator<PointSelection> {
 				final IJsonNode clusterRepresentationNode,
 				final JsonCollector out) {
 			((ObjectNode) mappedPointNode).remove("clusterId");
-			out.collect(((ObjectNode) mappedPointNode));
+			out.collect(mappedPointNode);
 		}
 
 	}
