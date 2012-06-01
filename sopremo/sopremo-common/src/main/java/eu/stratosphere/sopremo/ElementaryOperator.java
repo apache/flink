@@ -106,6 +106,13 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 			this.keyExpressions.add(new ArrayList<EvaluationExpression>());
 	}
 
+	/**
+	 * Returns the key expressions of the given input.
+	 * 
+	 * @param inputIndex
+	 *        the index of the input
+	 * @return the key expressions of the given input
+	 */
 	@SuppressWarnings("unchecked")
 	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
 		if (inputIndex >= this.keyExpressions.size())
@@ -121,17 +128,19 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 * 
 	 * @param keyExpressions
 	 *        the keyExpressions to set
+	 * @param inputIndex
+	 *        the index of the input
 	 */
 	@Property(hidden = true)
-	public void setKeyExpressions(int index, List<? extends EvaluationExpression> keyExpressions) {
+	public void setKeyExpressions(int inputIndex, List<? extends EvaluationExpression> keyExpressions) {
 		if (keyExpressions == null)
 			throw new NullPointerException("keyExpressions must not be null");
-		CollectionUtil.ensureSize(this.keyExpressions, index + 1);
-		this.keyExpressions.set(index, keyExpressions);
+		CollectionUtil.ensureSize(this.keyExpressions, inputIndex + 1);
+		this.keyExpressions.set(inputIndex, keyExpressions);
 	}
 
 	/**
-	 * Sets the keyExpressions to the specified value.
+	 * Sets the keyExpressions of the given input to the specified value.
 	 * 
 	 * @param keyExpressions
 	 *        the keyExpressions to set
@@ -141,6 +150,34 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 			throw new IllegalArgumentException("keyExpressions must not be null");
 
 		setKeyExpressions(index, Arrays.asList(keyExpressions));
+	}
+
+	/**
+	 * Sets the keyExpressions of the given input to the specified value.
+	 * 
+	 * @param keyExpressions
+	 *        the keyExpressions to set
+	 * @param inputIndex
+	 *        the index of the input
+	 * @return this
+	 */
+	public Self withKeyExpressions(int index, EvaluationExpression... keyExpressions) {
+		setKeyExpressions(index, keyExpressions);
+		return self();
+	}
+
+	/**
+	 * Sets the keyExpressions of the given input to the specified value.
+	 * 
+	 * @param keyExpressions
+	 *        the keyExpressions to set
+	 * @param inputIndex
+	 *        the index of the input
+	 * @return this
+	 */
+	public Self withKeyExpressions(int index, List<? extends EvaluationExpression> keyExpressions) {
+		setKeyExpressions(index, keyExpressions);
+		return self();
 	}
 
 	@Override
@@ -198,17 +235,21 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 
 		for (final Field stubField : contract.getUserCodeClass().getDeclaredFields())
 			if ((stubField.getModifiers() & (Modifier.TRANSIENT | Modifier.FINAL | Modifier.STATIC)) == 0) {
-				Field thisField;
-				try {
-					thisField = this.getClass().getDeclaredField(stubField.getName());
-					thisField.setAccessible(true);
-					SopremoUtil.serialize(stubConfiguration, stubField.getName(), (Serializable) thisField.get(this));
-				} catch (final NoSuchFieldException e) {
-					// ignore field of stub if the field does not exist in this operator
-				} catch (final Exception e) {
-					LOG.error(String.format("Could not serialize field %s of class %s: %s", stubField.getName(),
-						contract.getClass(), e));
-				}
+				Class<?> clazz = this.getClass();
+				do {
+					Field thisField;
+					try {
+						thisField = clazz.getDeclaredField(stubField.getName());
+						thisField.setAccessible(true);
+						SopremoUtil.serialize(stubConfiguration, stubField.getName(),
+							(Serializable) thisField.get(this));
+					} catch (final NoSuchFieldException e) {
+						// ignore field of stub if the field does not exist in this operator
+					} catch (final Exception e) {
+						LOG.error(String.format("Could not serialize field %s of class %s: %s", stubField.getName(),
+							contract.getClass(), e));
+					}
+				} while ((clazz = clazz.getSuperclass()) != ElementaryOperator.class);
 			}
 	}
 

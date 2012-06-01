@@ -58,9 +58,9 @@ public class GeneralSchemaTest {
 	public void shouldCreateACorrectRecord() {
 		PactRecord record = this.schema.jsonToRecord(this.array, null, this.context);
 
-		Assert.assertEquals(IntNode.valueOf(7), record.getField(0, JsonNodeWrapper.class));
-		Assert.assertEquals(IntNode.valueOf(12), record.getField(1, JsonNodeWrapper.class));
-		Assert.assertEquals(this.array, record.getField(2, JsonNodeWrapper.class));
+		Assert.assertEquals(IntNode.valueOf(7), record.getField(0, JsonNodeWrapper.class).getValue());
+		Assert.assertEquals(IntNode.valueOf(12), record.getField(1, JsonNodeWrapper.class).getValue());
+		Assert.assertEquals(this.array, record.getField(2, JsonNodeWrapper.class).getValue());
 	}
 
 	@Test

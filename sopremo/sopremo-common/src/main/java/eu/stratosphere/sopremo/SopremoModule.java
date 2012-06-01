@@ -169,11 +169,9 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				new ElementarySopremoModule(sopremoModule.getName(), sourceCount, sinkCount);
 
 			for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++)
-				elementarySopremoModule.setInput(sourceIndex,
-					this.modules.get(sopremoModule.getInput(sourceIndex)).getInput(0));
+				elementarySopremoModule.setInput(sourceIndex, sopremoModule.getInput(sourceIndex));
 			for (int sinkIndex = 0; sinkIndex < sinkCount; sinkIndex++)
-				elementarySopremoModule.setOutput(sinkIndex,
-					this.modules.get(sopremoModule.getOutput(sinkIndex)).getOutput(0));
+				elementarySopremoModule.setOutput(sinkIndex, sopremoModule.getOutput(sinkIndex));
 			for (Sink sink : sopremoModule.getInternalOutputNodes())
 				elementarySopremoModule.addInternalOutput(this.modules.get(sink).getInternalOutputNodes(0));
 
@@ -200,8 +198,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 					new IdentityHashMap<JsonStream, JsonStream>();
 
 				for (int index = 0; index < operator.getInputs().size(); index++) {
-					final Operator<?>.Output inputSource = operator.getInput(index).getSource();
-					final JsonStream input = traceInput(inputSource);
+					final JsonStream input = traceInput(operator, index);
 					operatorInputToModuleOutput.put(module.getInput(index).getOutput(0), input);
 				}
 
@@ -222,7 +219,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 			}
 		}
 
-		protected JsonStream traceInput(final Operator<?>.Output inputSource) {
+		protected JsonStream traceInput(Operator<?> operator, int index) {
+			final Operator<?>.Output inputSource = operator.getInput(index).getSource();
 			final ElementarySopremoModule inputModule = this.modules.get(inputSource.getOperator());
 			final JsonStream input = inputModule.getOutput(inputSource.getIndex()).getInput(0);
 			final Operator<?> inputOperator = input.getSource().getOperator();
@@ -230,9 +228,10 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 			if (inputOperator instanceof Source) {
 				final Source[] inputs = inputModule.getInputs();
 				for (int i = 0; i < inputs.length; i++)
-					if (inputOperator == inputs[i])
-						// reducely find the actual input
-						return traceInput(input.getSource());
+					if (inputOperator == inputs[i]) {
+						final JsonStream inputStream = operator.getInput(index);
+						return traceInput(inputStream.getSource().getOperator(), inputStream.getSource().getIndex());
+					}
 			}
 			return input;
 		}
