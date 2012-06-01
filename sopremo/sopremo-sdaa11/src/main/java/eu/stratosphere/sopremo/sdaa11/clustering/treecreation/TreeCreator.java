@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.OutputCardinality;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
 
@@ -74,8 +75,8 @@ public class TreeCreator extends CompositeOperator<TreeCreator> {
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
-	public SopremoModule asElementaryOperators() {
-		final SopremoModule module = new SopremoModule(this.getName(), 1, 2);
+	public ElementarySopremoModule asElementaryOperators() {
+		final SopremoModule module = new ElementarySopremoModule(this.getName(), 1, 2);
 
 		final Source input = module.getInput(0);
 
@@ -89,7 +90,7 @@ public class TreeCreator extends CompositeOperator<TreeCreator> {
 		module.getOutput(0).setInput(0, assembler);
 		module.getOutput(1).setInput(0, preparation);
 
-		return module;
+		return module.asElementary();
 	}
 
 }

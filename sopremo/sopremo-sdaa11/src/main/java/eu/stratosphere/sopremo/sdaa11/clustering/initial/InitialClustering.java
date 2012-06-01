@@ -2,8 +2,8 @@ package eu.stratosphere.sopremo.sdaa11.clustering.initial;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.sdaa11.Annotator;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
 
 /**
  * Inputs:<br>
@@ -23,10 +23,10 @@ public class InitialClustering extends CompositeOperator<InitialClustering> {
 	private static final long serialVersionUID = 9084919057903474256L;
 
 	/** The maximum radius of a cluster. */
-	private int maxRadius = 100;
+	private int maxRadius = SequentialClustering.DEFAULT_MAX_RADIUS;
 
 	/** The maximum number of points of a cluster. */
-	private int maxSize = 100;
+	private int maxSize = SequentialClustering.DEFAULT_MAX_SIZE;
 
 	public int getMaxRadius() {
 		return this.maxRadius;
@@ -45,8 +45,8 @@ public class InitialClustering extends CompositeOperator<InitialClustering> {
 	}
 
 	@Override
-	public SopremoModule asElementaryOperators() {
-		final SopremoModule module = new SopremoModule(this.getName(), 1, 1);
+	public ElementarySopremoModule asElementaryOperators() {
+		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), 1, 1);
 
 		final Operator<?> input = module.getInput(0);
 		final Annotator annotator = new Annotator().withInputs(input);

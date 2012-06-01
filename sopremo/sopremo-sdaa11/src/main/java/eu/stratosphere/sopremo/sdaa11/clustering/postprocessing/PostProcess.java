@@ -12,47 +12,51 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.sdaa11.clustering;
+package eu.stratosphere.sopremo.sdaa11.clustering.postprocessing;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
-import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.sdaa11.clustering.postprocessing.PostProcess;
+import eu.stratosphere.sopremo.Source;
 
 /**
+ * Post-processes a clustering result, i.e. do splitting and separate unstable from stable clusters.<br>
+ * Inputs:<br>
+ * <ol>
+ * <li>Assigned points</li>
+ * <li>Cluster representations</li>
+ * </ol>
+ * Outputs:<br>
+ * <ol>
+ * <li>Stable cluster representations</li>
+ * <li>Assigned points of stable clusters</li>
+ * <li>Unstable cluster representations</li>
+ * <li>Assigned points of unstable clusters</li>
+ * </ol>
+ * 
+ * 
  * @author skruse
  * 
  */
-public class Clustering extends CompositeOperator<Clustering> {
+public class PostProcess extends CompositeOperator<PostProcess> {
 
-	private static final long serialVersionUID = -747074302410053877L;
-
-	public static final int SAMPLE_INPUT_INDEX = 0;
-	public static final int REST_INPUT_INDEX = 1;
-
-	/*
-	 * (non-Javadoc)
-	 * 
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
 	public ElementarySopremoModule asElementaryOperators() {
-		final SopremoModule module = new SopremoModule(
-				this.getName(), 2, 4);
-
-		final Operator<?> sampleInput = module.getInput(SAMPLE_INPUT_INDEX);
-		final Operator<?> restInput = module.getInput(REST_INPUT_INDEX);
-
-		final SimpleClustering simpleClustering = new SimpleClustering()
-				.withInputs(sampleInput, restInput);
-
-		final PostProcess postProcess = new PostProcess()
-				.withInputs(simpleClustering.getOutputs());
-
-		for (int index = 0; index < 4; index++)
-			module.getOutput(index).setInput(0, postProcess.getOutput(index));
-
+		SopremoModule module = new SopremoModule(getName(), 2, 4);
+		Source pointSource = module.getInput(0);
+		Source representationSource = module.getInput(1);
+		
+		RepresentationSwitch representationSwitch = new RepresentationSwitch().withInputs(representationSource);
+		JsonStream stablePoints = representationSwitch.getOutput(0);
+		module.getOutput(0).setInput(0, stablePoints);
+		
+		PointSelection stablePointSelection = new PointSelection().withInputs(stablePoints);
+		module.getOutput(1).setInput(0, stablePointSelection);
+		
 		return module.asElementary();
 	}
 

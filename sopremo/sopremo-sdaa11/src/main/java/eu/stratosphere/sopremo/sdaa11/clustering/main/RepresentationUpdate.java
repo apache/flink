@@ -15,13 +15,12 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.main;
 
 import java.util.Arrays;
+import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
@@ -142,13 +141,14 @@ public class RepresentationUpdate extends
 	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
 	 */
 	@Override
-	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		// return ALL_KEYS;
-		return Arrays
-				.asList(new PathExpression(new InputSelection(0),
-						new ObjectAccess(RepresentationNodes.ID)),
-						new PathExpression(new InputSelection(1),
-								new ObjectAccess(PointNodes.CLUSTER_ID)));
+	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
+		switch (inputIndex) {
+		case 0:
+			return Arrays.asList(new ObjectAccess(RepresentationNodes.ID));
+		case 1:
+			return Arrays.asList(new ObjectAccess(PointNodes.CLUSTER_ID));
+		}
+		throw new IllegalArgumentException("Illegal input index: "+inputIndex);
 	}
 
 	public static class Implementation extends SopremoCoGroup {
@@ -247,7 +247,7 @@ public class RepresentationUpdate extends
 				final ClusterRepresentation representation,
 				final JsonCollector out) {
 			this.emit(representation.getId(), representation.getClustroid(),
-					ClusterRepresentation.RECLUSTER_FLAG,
+					ClusterRepresentation.UNSTABLE_FLAG,
 					representation.getId(), out);
 		}
 

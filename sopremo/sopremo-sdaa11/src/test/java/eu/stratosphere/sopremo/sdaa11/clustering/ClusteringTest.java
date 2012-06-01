@@ -21,7 +21,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.sdaa11.clustering.main.ClusterRest;
@@ -75,8 +75,8 @@ public class ClusteringTest {
 		 * eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 		 */
 		@Override
-		public SopremoModule asElementaryOperators() {
-			final SopremoModule module = new SopremoModule(this.getName(), 2, 1);
+		public ElementarySopremoModule asElementaryOperators() {
+			final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), 2, 1);
 
 			final Source sampleInput = module.getInput(0);
 			final Source restInput = module.getInput(1);

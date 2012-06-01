@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.sdaa11.clustering.util;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.SopremoModule;
 
 /**
@@ -51,13 +52,13 @@ public class OutputProjection extends CompositeOperator<OutputProjection> {
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
-	public SopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators() {
 		final SopremoModule module = new SopremoModule(this.operator.getName()
 				+ "_" + this.outputIndex, 1, 1);
 		this.operator.withInputs(module.getInputs());
 		module.getOutput(0).setInput(0,
 				this.operator.getOutput(this.outputIndex));
-		return module;
+		return module.asElementary();
 	}
 
 }

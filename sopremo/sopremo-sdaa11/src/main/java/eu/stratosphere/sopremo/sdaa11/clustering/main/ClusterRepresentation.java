@@ -3,28 +3,23 @@ package eu.stratosphere.sopremo.sdaa11.clustering.main;
 import java.util.HashSet;
 import java.util.Set;
 
-import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.util.Ranking;
 import eu.stratosphere.sopremo.sdaa11.util.ReverseRanking;
-import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.sopremo.type.TextNode;
 
-public class ClusterRepresentation implements JsonSerializable {
+public class ClusterRepresentation /* implements JsonSerializable */{
 
 	public static final int STABLE_FLAG = 0;
-	public static final int RECLUSTER_FLAG = 1;
+	public static final int UNSTABLE_FLAG = 1;
 	public static final int SPLIT_FLAG = 2;
 
-	private Ranking<Point> nearestPoints;
-	private Ranking<Point> furthestPoints;
+	private final Ranking<Point> nearestPoints;
+	private final Ranking<Point> furthestPoints;
 	private Point clustroid;
 	private int size;
-	private String id;
-	private int representationCount;
+	private final String id;
+	private String parentId;
+	private final int representationCount;
 
 	public ClusterRepresentation(final String id, final Point clustroid,
 			final int representationCount) {
@@ -116,64 +111,64 @@ public class ClusterRepresentation implements JsonSerializable {
 		return this.size;
 	}
 
-	@Override
-	public IJsonNode write(final IJsonNode node) {
-		ObjectNode objectNode;
-		if (node == null || !(node instanceof ObjectNode))
-			objectNode = new ObjectNode();
-		else
-			objectNode = (ObjectNode) node;
-
-		objectNode.put("id", new TextNode(this.id));
-		objectNode.put("representationCount", new IntNode(
-				this.representationCount));
-		objectNode.put("size", new IntNode(this.size));
-		objectNode.put("clustroid", this.clustroid.write(null));
-
-		final ArrayNode nearestPointsNode = new ArrayNode();
-		for (final Point point : this.furthestPoints)
-			nearestPointsNode.add(point.write(null));
-		objectNode.put("nearestPoints", nearestPointsNode);
-
-		final ArrayNode furthestPointsNode = new ArrayNode();
-		for (final Point point : this.furthestPoints)
-			furthestPointsNode.add(point.write(null));
-		objectNode.put("furthestPoints", furthestPointsNode);
-
-		return objectNode;
-	}
-
-	@Override
-	public void read(final IJsonNode node) {
-		if (node == null || !(node instanceof ObjectNode))
-			throw new IllegalArgumentException("Illegal point node: " + node);
-		final ObjectNode objectNode = (ObjectNode) node;
-
-		this.id = ((TextNode) objectNode.get("id")).getJavaValue();
-		this.size = ((IntNode) objectNode.get("size")).getIntValue();
-		this.representationCount = ((IntNode) objectNode.get("size"))
-				.getIntValue();
-
-		this.clustroid = new Point();
-		this.clustroid.read(objectNode.get("clustroid"));
-
-		this.nearestPoints = new ReverseRanking<Point>(this.representationCount);
-		ArrayNode pointsNode = (ArrayNode) objectNode.get("nearestPoints");
-		for (final IJsonNode pointNode : pointsNode) {
-			final Point point = new Point();
-			point.read(pointNode);
-			this.nearestPoints.insert(point, point.getRowsum());
-		}
-
-		this.furthestPoints = new ReverseRanking<Point>(
-				this.representationCount);
-		pointsNode = (ArrayNode) objectNode.get("furthestPoints");
-		for (final IJsonNode pointNode : pointsNode) {
-			final Point point = new Point();
-			point.read(pointNode);
-			this.furthestPoints.insert(point, point.getRowsum());
-		}
-
-	}
+	// @Override
+	// public IJsonNode write(final IJsonNode node) {
+	// ObjectNode objectNode;
+	// if (node == null || !(node instanceof ObjectNode))
+	// objectNode = new ObjectNode();
+	// else
+	// objectNode = (ObjectNode) node;
+	//
+	// objectNode.put("id", new TextNode(this.id));
+	// objectNode.put("representationCount", new IntNode(
+	// this.representationCount));
+	// objectNode.put("size", new IntNode(this.size));
+	// objectNode.put("clustroid", this.clustroid.write(null));
+	//
+	// final ArrayNode nearestPointsNode = new ArrayNode();
+	// for (final Point point : this.furthestPoints)
+	// nearestPointsNode.add(point.write(null));
+	// objectNode.put("nearestPoints", nearestPointsNode);
+	//
+	// final ArrayNode furthestPointsNode = new ArrayNode();
+	// for (final Point point : this.furthestPoints)
+	// furthestPointsNode.add(point.write(null));
+	// objectNode.put("furthestPoints", furthestPointsNode);
+	//
+	// return objectNode;
+	// }
+	//
+	// @Override
+	// public void read(final IJsonNode node) {
+	// if (node == null || !(node instanceof ObjectNode))
+	// throw new IllegalArgumentException("Illegal point node: " + node);
+	// final ObjectNode objectNode = (ObjectNode) node;
+	//
+	// this.id = ((TextNode) objectNode.get("id")).getJavaValue();
+	// this.size = ((IntNode) objectNode.get("size")).getIntValue();
+	// this.representationCount = ((IntNode) objectNode.get("size"))
+	// .getIntValue();
+	//
+	// this.clustroid = new Point();
+	// this.clustroid.read(objectNode.get("clustroid"));
+	//
+	// this.nearestPoints = new ReverseRanking<Point>(this.representationCount);
+	// ArrayNode pointsNode = (ArrayNode) objectNode.get("nearestPoints");
+	// for (final IJsonNode pointNode : pointsNode) {
+	// final Point point = new Point();
+	// point.read(pointNode);
+	// this.nearestPoints.insert(point, point.getRowsum());
+	// }
+	//
+	// this.furthestPoints = new ReverseRanking<Point>(
+	// this.representationCount);
+	// pointsNode = (ArrayNode) objectNode.get("furthestPoints");
+	// for (final IJsonNode pointNode : pointsNode) {
+	// final Point point = new Point();
+	// point.read(pointNode);
+	// this.furthestPoints.insert(point, point.getRowsum());
+	// }
+	//
+	// }
 
 }

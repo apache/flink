@@ -15,6 +15,7 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 
 import java.util.Arrays;
+import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -64,16 +65,13 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 		this.treeWidth = treeWidth;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
-	 */
 	@Override
-	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
+	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
+		if (inputIndex != 0) {
+			throw new IllegalArgumentException("Illegal input index: "+inputIndex);
+		}
 		return Arrays.asList(new ObjectAccess(AnnotatorNodes.FLAT_ANNOTATION));
 	}
-
 	public static class Implementation extends SopremoReduce {
 
 		/**

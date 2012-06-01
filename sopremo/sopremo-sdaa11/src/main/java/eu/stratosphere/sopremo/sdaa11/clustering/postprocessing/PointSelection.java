@@ -28,6 +28,7 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 /**
  * TODO Takes mapped point stream and cluster representation stream as input and
  * forwards those points that correspond to one of the cluster representations.
+ * input1: points input2: representations
  * 
  * @author skruse
  * 
@@ -37,8 +38,12 @@ public class PointSelection extends ElementaryOperator<PointSelection> {
 	/**
 	 * 
 	 */
-	private static final List<ObjectAccess> KEY_EXPRESSIONS = Arrays.asList(
-			new ObjectAccess("clusterId"), new ObjectAccess("id"));
+	private static final List<ObjectAccess> POINT_KEY_EXPRESSIONS = 
+			Arrays.asList(new ObjectAccess("oldId"));
+	
+	private static final List<ObjectAccess> REPRESENTATION_KEY_EXPRESSION = 
+			Arrays.asList(new ObjectAccess("id"));
+
 	/**
 	 * 
 	 */
@@ -50,8 +55,14 @@ public class PointSelection extends ElementaryOperator<PointSelection> {
 	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
 	 */
 	@Override
-	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		return KEY_EXPRESSIONS;
+	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
+		switch (inputIndex) {
+		case 0:
+			return POINT_KEY_EXPRESSIONS;
+		case 1:
+			return REPRESENTATION_KEY_EXPRESSION;
+		}
+		throw new IllegalArgumentException("Illegal input index: "+inputIndex);
 	}
 
 	public static class Implementation extends SopremoMatch {
@@ -68,7 +79,8 @@ public class PointSelection extends ElementaryOperator<PointSelection> {
 		protected void match(final IJsonNode mappedPointNode,
 				final IJsonNode clusterRepresentationNode,
 				final JsonCollector out) {
-			out.collect(((ObjectNode) mappedPointNode).get("point"));
+			((ObjectNode) mappedPointNode).remove("clusterId");
+			out.collect(((ObjectNode) mappedPointNode));
 		}
 
 	}

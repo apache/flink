@@ -48,9 +48,12 @@ public class SequentialClustering extends
 	public void setMaxSize(final int maxSize) {
 		this.maxSize = maxSize;
 	}
-
+	
 	@Override
-	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
+	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
+		if (inputIndex != 0) {
+			throw new IllegalArgumentException("Illegal input index: "+inputIndex);
+		}
 		return Arrays.asList(new ObjectAccess(AnnotatorNodes.ANNOTATION));
 	}
 

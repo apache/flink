@@ -42,6 +42,38 @@ public class TreeCreatorTest {
 	public void testRepresentationOutput() {
 		this.testOutput(1);
 	}
+	
+	@Test
+	public void testBlakeks() {
+		final SopremoTestPlan plan = new SopremoTestPlan(new TreeCreator());
+
+		final IJsonNode p1 = new Point("p1", Arrays.asList("1", "2", "3"))
+				.write((IJsonNode) null);
+		final IJsonNode p2 = new Point("p2", Arrays.asList("2", "3"))
+				.write((IJsonNode) null);
+		final IJsonNode p3 = new Point("p3", Arrays.asList("1", "2", "3"))
+				.write((IJsonNode) null);
+		final IJsonNode p4 = new Point("p4", Arrays.asList("1", "2", "3"))
+				.write((IJsonNode) null);
+
+		final ArrayNode points1 = new ArrayNode(p1, p2);
+		final ArrayNode points2 = new ArrayNode(p3, p4);
+
+		final ObjectNode clusterNode1 = new ObjectNode();
+		ClusterNodes.write(clusterNode1, new TextNode("c1"), (ObjectNode) p1,
+				points1);
+
+		final ObjectNode clusterNode2 = new ObjectNode();
+		ClusterNodes.write(clusterNode2, new TextNode("c2"), (ObjectNode) p2,
+				points2);
+
+		plan.getInput(0).add(clusterNode1).add(clusterNode2);
+
+		plan.run();
+
+		for (final IJsonNode node : plan.getActualOutput(0))
+			System.out.println(node);
+	}
 
 	public void testOutput(final int outputIndex) {
 

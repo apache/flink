@@ -20,6 +20,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
@@ -76,7 +77,7 @@ public class InitialClusteringAndTreeCreationTest {
 		 * eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 		 */
 		@Override
-		public SopremoModule asElementaryOperators() {
+		public ElementarySopremoModule asElementaryOperators() {
 			final SopremoModule module = new SopremoModule(this.getName(), 1, 1);
 
 			final Operator<?> input = module.getInput(0);
@@ -90,7 +91,7 @@ public class InitialClusteringAndTreeCreationTest {
 
 			module.getOutput(0).setInput(0, treeCreator);
 
-			return module;
+			return module.asElementary();
 		}
 
 	}
