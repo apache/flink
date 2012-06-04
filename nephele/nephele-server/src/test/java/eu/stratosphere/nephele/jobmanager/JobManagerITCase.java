@@ -247,7 +247,6 @@ public class JobManagerITCase {
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
 			t1.setTaskClass(ForwardTask.class);
-			
 
 			// task vertex 2
 			final JobTaskVertex t2 = new JobTaskVertex("Task 2", jg);
@@ -973,6 +972,113 @@ public class JobManagerITCase {
 
 				fail(str.toString());
 			}
+
+		} catch (JobGraphDefinitionException jgde) {
+			fail(jgde.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+
+			// Remove temporary files
+			if (inputFile1 != null) {
+				inputFile1.delete();
+			}
+			if (inputFile2 != null) {
+				inputFile2.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
+		}
+	}
+
+	/**
+	 * Tests the execution of a job with a large degree of parallelism. In particular, the tests checks that the overall
+	 * runtime of the test does not exceed a certain time limit.
+	 */
+	@Test
+	public void testExecutionWithLargeDoP() {
+
+		// The degree of parallelism to be used by tasks in this job.
+		final int numberOfSubtasks = 1024;
+
+		File inputFile1 = null;
+		File inputFile2 = null;
+		File outputFile = null;
+		File jarFile = new File(ServerTestUtils.getTempDir() + File.separator + "largeDoP.jar");
+		JobClient jobClient = null;
+
+		try {
+
+			inputFile1 = ServerTestUtils.createInputFile(0);
+			inputFile2 = ServerTestUtils.createInputFile(0);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
+
+			// Create required jar file
+			JarFileCreator jfc = new JarFileCreator(jarFile);
+			jfc.addClass(UnionTask.class);
+			jfc.createJarFile();
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job with large DoP (" + numberOfSubtasks + ")");
+
+			// input vertex 1
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
+			i1.setFileInputClass(FileLineReader.class);
+			i1.setFilePath(new Path("file://" + inputFile1.getAbsolutePath().toString()));
+			i1.setNumberOfSubtasks(numberOfSubtasks);
+			i1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
+
+			// input vertex 2
+			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
+			i2.setFileInputClass(FileLineReader.class);
+			i2.setFilePath(new Path("file://" + inputFile2.getAbsolutePath().toString()));
+			i2.setNumberOfSubtasks(numberOfSubtasks);
+			i2.setNumberOfSubtasksPerInstance(numberOfSubtasks);
+
+			// union task
+			final JobTaskVertex f1 = new JobTaskVertex("Forward 1", jg);
+			f1.setTaskClass(DoubleTargetTask.class);
+			f1.setNumberOfSubtasks(numberOfSubtasks);
+			f1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
+
+			// output vertex
+			JobFileOutputVertex o1 = new JobFileOutputVertex("Output", jg);
+			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setNumberOfSubtasks(numberOfSubtasks);
+			o1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
+
+			i1.setVertexToShareInstancesWith(o1);
+			i2.setVertexToShareInstancesWith(o1);
+			f1.setVertexToShareInstancesWith(o1);
+
+			// connect vertices
+			i1.connectTo(f1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
+			i2.connectTo(f1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
+			f1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
+
+			// add jar
+			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+
+			// Create job client and launch job
+			jobClient = new JobClient(jg, configuration);
+
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+				fail(e.getMessage());
+			}
+
+			// Finally, make sure the output file is empty
+			assertEquals(0L, outputFile.length());
 
 		} catch (JobGraphDefinitionException jgde) {
 			fail(jgde.getMessage());
