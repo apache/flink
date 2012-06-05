@@ -25,17 +25,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * An execution stage contains all execution group vertices (and as a result all execution vertices) which
@@ -391,21 +385,18 @@ public final class ExecutionStage {
 
 		alreadyVisited.add(vertex);
 
-		final RuntimeEnvironment env = vertex.getEnvironment();
-
 		if (forward) {
 
-			final int numberOfOutputGates = env.getNumberOfOutputGates();
+			final int numberOfOutputGates = vertex.getNumberOfOutputGates();
 			for (int i = 0; i < numberOfOutputGates; ++i) {
 
-				final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
+				final ExecutionGate outputGate = vertex.getOutputGate(i);
 				final ChannelType channelType = outputGate.getChannelType();
-				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+				final int numberOfOutputChannels = outputGate.getNumberOfEdges();
 				for (int j = 0; j < numberOfOutputChannels; ++j) {
 
-					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-					final ExecutionVertex connectedVertex = this.executionGraph.getVertexByChannelID(outputChannel
-						.getConnectedChannelID());
+					final ExecutionEdge outputChannel = outputGate.getEdge(j);
+					final ExecutionVertex connectedVertex = outputChannel.getInputGate().getVertex();
 
 					boolean recurse = false;
 
@@ -427,17 +418,16 @@ public final class ExecutionStage {
 			}
 		} else {
 
-			final int numberOfInputGates = env.getNumberOfInputGates();
+			final int numberOfInputGates = vertex.getNumberOfInputGates();
 			for (int i = 0; i < numberOfInputGates; ++i) {
 
-				final InputGate<? extends Record> inputGate = env.getInputGate(i);
+				final ExecutionGate inputGate = vertex.getInputGate(i);
 				final ChannelType channelType = inputGate.getChannelType();
-				final int numberOfInputChannels = inputGate.getNumberOfInputChannels();
+				final int numberOfInputChannels = inputGate.getNumberOfEdges();
 				for (int j = 0; j < numberOfInputChannels; ++j) {
 
-					final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
-					final ExecutionVertex connectedVertex = this.executionGraph.getVertexByChannelID(inputChannel
-						.getConnectedChannelID());
+					final ExecutionEdge inputChannel = inputGate.getEdge(j);
+					final ExecutionVertex connectedVertex = inputChannel.getOutputGate().getVertex();
 
 					boolean recurse = false;
 

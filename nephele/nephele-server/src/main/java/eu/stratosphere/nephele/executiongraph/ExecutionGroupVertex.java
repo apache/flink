@@ -25,7 +25,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import eu.stratosphere.nephele.annotations.ForceCheckpoint;
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceType;
@@ -33,6 +35,7 @@ import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -165,6 +168,11 @@ public class ExecutionGroupVertex {
 	private final Configuration configuration;
 
 	/**
+	 * The environment created to execute the vertex's task.
+	 */
+	private final RuntimeEnvironment environment;
+
+	/**
 	 * Constructs a new group vertex.
 	 * 
 	 * @param name
@@ -191,12 +199,17 @@ public class ExecutionGroupVertex {
 	 *        the vertex's configuration object
 	 * @param signature
 	 *        the cryptographic signature of the vertex
+	 * @param invokableClass
+	 *        the task that is assigned to execution vertices of this group
+	 * @throws Exception
+	 *         throws if an error occurs while instantiating the {@link AbstractInvokable}
 	 */
 	public ExecutionGroupVertex(final String name, final JobVertexID jobVertexID, final ExecutionGraph executionGraph,
 			final int userDefinedNumberOfMembers, final InstanceType instanceType,
 			final boolean userDefinedInstanceType, final int numberOfSubtasksPerInstance,
 			final boolean userDefinedVertexToShareInstanceWith, final int numberOfExecutionRetries,
-			final Configuration configuration, final ExecutionSignature signature) {
+			final Configuration configuration, final ExecutionSignature signature,
+			final Class<? extends AbstractInvokable> invokableClass) throws Exception {
 
 		this.name = name;
 		this.jobVertexID = jobVertexID;
@@ -219,6 +232,11 @@ public class ExecutionGroupVertex {
 		this.userDefinedVertexToShareInstancesWith = userDefinedVertexToShareInstanceWith;
 		this.configuration = configuration;
 		this.executionSignature = signature;
+
+		this.environment = new RuntimeEnvironment(executionGraph.getJobID(), name, invokableClass, configuration,
+			executionGraph.getJobConfiguration());
+
+		this.environment.instantiateInvokable();
 	}
 
 	/**
@@ -228,6 +246,16 @@ public class ExecutionGroupVertex {
 	 */
 	public String getName() {
 		return this.name;
+	}
+
+	/**
+	 * Returns the environment of the instantiated {@link AbstractInvokable} object.
+	 * 
+	 * @return the environment of the instantiated {@link AbstractInvokable} object
+	 */
+	public RuntimeEnvironment getEnvironment() {
+
+		return this.environment;
 	}
 
 	/**
@@ -357,12 +385,16 @@ public class ExecutionGroupVertex {
 	 *        the compression level to be used for this edge
 	 * @param userDefinedCompressionLevel
 	 *        <code>true</code> if the compression level is user defined, <code>false</code> otherwise
+	 * @param distributionPattern
+	 *        the distribution pattern to create the wiring between the group members
+	 * @param isBroadcast
+	 *        indicates that the edge is part of broadcast group
+	 * @return the created edge.
 	 */
-	void wireTo(final ExecutionGroupVertex groupVertex, final int indexOfInputGate, final int indexOfOutputGate,
-			final ChannelType channelType, final boolean userDefinedChannelType,
+	ExecutionGroupEdge wireTo(final ExecutionGroupVertex groupVertex, final int indexOfInputGate,
+			final int indexOfOutputGate, final ChannelType channelType, final boolean userDefinedChannelType,
 			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel,
-			final DistributionPattern distributionPattern)
-			throws GraphConversionException {
+			final DistributionPattern distributionPattern, final boolean isBroadcast) throws GraphConversionException {
 
 		try {
 			final ExecutionGroupEdge previousEdge = this.forwardLinks.get(indexOfOutputGate);
@@ -374,13 +406,14 @@ public class ExecutionGroupVertex {
 			// Ignore exception
 		}
 
-		final ExecutionGroupEdge edge = new ExecutionGroupEdge(this.executionGraph, this, indexOfOutputGate,
-			groupVertex, indexOfInputGate, channelType, userDefinedChannelType, compressionLevel,
-			userDefinedCompressionLevel, distributionPattern);
+		final ExecutionGroupEdge edge = new ExecutionGroupEdge(this, indexOfOutputGate, groupVertex, indexOfInputGate,
+			channelType, userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern, isBroadcast);
 
 		this.forwardLinks.add(edge);
 
 		groupVertex.wireBackLink(edge);
+
+		return edge;
 	}
 
 	/**
@@ -523,12 +556,10 @@ public class ExecutionGroupVertex {
 
 		// Update the index and size information attached to the vertices
 		int index = 0;
-		final int groupSize = this.groupMembers.size();
 		final Iterator<ExecutionVertex> it = this.groupMembers.iterator();
 		while (it.hasNext()) {
 			final ExecutionVertex vertex = it.next();
-			vertex.getEnvironment().setIndexInSubtaskGroup(index++);
-			vertex.getEnvironment().setCurrentNumberOfSubtasks(groupSize);
+			vertex.setIndexInVertexGroup(index++);
 		}
 	}
 
@@ -538,17 +569,13 @@ public class ExecutionGroupVertex {
 		Iterator<ExecutionGroupEdge> it = this.forwardLinks.iterator();
 
 		while (it.hasNext()) {
-			final ExecutionGroupEdge edge = it.next();
-			this.executionGraph.unwire(edge.getSourceVertex(), edge.getIndexOfOutputGate(), edge.getTargetVertex(),
-				edge.getIndexOfInputGate());
+			this.executionGraph.unwire(it.next());
 		}
 
 		// Remove all channels from producing tasks
 		it = this.backwardLinks.iterator();
 		while (it.hasNext()) {
-			final ExecutionGroupEdge edge = it.next();
-			this.executionGraph.unwire(edge.getSourceVertex(), edge.getIndexOfOutputGate(), edge.getTargetVertex(),
-					edge.getIndexOfInputGate());
+			this.executionGraph.unwire(it.next());
 		}
 	}
 
@@ -556,17 +583,12 @@ public class ExecutionGroupVertex {
 
 		Iterator<ExecutionGroupEdge> it = this.forwardLinks.iterator();
 		while (it.hasNext()) {
-			final ExecutionGroupEdge edge = it.next();
-			this.executionGraph.wire(edge.getSourceVertex(), edge.getIndexOfOutputGate(), edge.getTargetVertex(),
-					edge.getIndexOfInputGate(), edge.getChannelType(), edge.getCompressionLevel());
+			this.executionGraph.wire(it.next());
 		}
 
-		// Remove all channels from producing tasks
 		it = this.backwardLinks.iterator();
 		while (it.hasNext()) {
-			final ExecutionGroupEdge edge = it.next();
-			this.executionGraph.wire(edge.getSourceVertex(), edge.getIndexOfOutputGate(), edge.getTargetVertex(),
-					edge.getIndexOfInputGate(), edge.getChannelType(), edge.getCompressionLevel());
+			this.executionGraph.wire(it.next());
 		}
 	}
 
@@ -949,5 +971,40 @@ public class ExecutionGroupVertex {
 			backwardLink.getSourceVertex().calculateConnectionID(nextConnectionID, alreadyVisited);
 			++nextConnectionID;
 		}
+	}
+
+	/**
+	 * Calculates and returns initial checkpoint state of the vertex group.
+	 * 
+	 * @return the initial checkpoint state of the vertex group
+	 */
+	CheckpointState checkInitialCheckpointState() {
+
+		// Determine the vertex' initial checkpoint state
+		CheckpointState ics = CheckpointState.UNDECIDED;
+		boolean hasFileChannels = false;
+		for (int i = 0; i < this.forwardLinks.size(); ++i) {
+			if (this.forwardLinks.get(i).getChannelType() == ChannelType.FILE) {
+				hasFileChannels = true;
+				break;
+			}
+		}
+
+		// The vertex has at least one file channel, so we must write a checkpoint anyways
+		if (hasFileChannels) {
+			ics = CheckpointState.PARTIAL;
+		} else {
+			// Look for a user annotation
+			ForceCheckpoint forcedCheckpoint = this.environment.getInvokable().getClass()
+				.getAnnotation(ForceCheckpoint.class);
+
+			if (forcedCheckpoint != null) {
+				ics = forcedCheckpoint.checkpoint() ? CheckpointState.PARTIAL : CheckpointState.NONE;
+			}
+
+			// TODO: Consider state annotation here
+		}
+
+		return ics;
 	}
 }

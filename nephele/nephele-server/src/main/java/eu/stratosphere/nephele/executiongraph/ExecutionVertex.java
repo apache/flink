@@ -28,21 +28,13 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
-import eu.stratosphere.nephele.annotations.ForceCheckpoint;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
@@ -50,8 +42,6 @@ import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.AtomicEnum;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.SerializableHashSet;
@@ -74,19 +64,9 @@ public final class ExecutionVertex {
 	private static final Log LOG = LogFactory.getLog(ExecutionVertex.class);
 
 	/**
-	 * The class of the task to be executed by this vertex.
-	 */
-	private final Class<? extends AbstractInvokable> invokableClass;
-
-	/**
 	 * The ID of the vertex.
 	 */
 	private final ExecutionVertexID vertexID;
-
-	/**
-	 * The environment created to execute the vertex's task.
-	 */
-	private final RuntimeEnvironment environment;
 
 	/**
 	 * The group vertex this vertex belongs to.
@@ -131,6 +111,21 @@ public final class ExecutionVertex {
 	private final AtomicEnum<ExecutionState> executionState = new AtomicEnum<ExecutionState>(ExecutionState.CREATED);
 
 	/**
+	 * The output gates attached to this vertex.
+	 */
+	private final ExecutionGate[] outputGates;
+
+	/**
+	 * The input gates attached to his vertex.
+	 */
+	private final ExecutionGate[] inputGates;
+
+	/**
+	 * The index of this vertex in the vertex group.
+	 */
+	private volatile int indexInVertexGroup = 0;
+
+	/**
 	 * Stores the number of times the vertex may be still be started before the corresponding task is considered to be
 	 * failed.
 	 */
@@ -150,35 +145,22 @@ public final class ExecutionVertex {
 	/**
 	 * Create a new execution vertex and instantiates its environment.
 	 * 
-	 * @param jobID
-	 *        the ID of the job this execution vertex is created from
-	 * @param invokableClass
-	 *        the task that is assigned to this execution vertex
 	 * @param executionGraph
 	 *        the execution graph the new vertex belongs to
 	 * @param groupVertex
 	 *        the group vertex the new vertex belongs to
-	 * @param jobConfiguration
-	 *        the configuration object attached to the original {@link JobGraph}
-	 * @throws Exception
-	 *         any exception that might be thrown by the user code during instantiation and registration of input and
-	 *         output channels
+	 * @param numberOfOutputGates
+	 *        the number of output gates attached to this vertex
+	 * @param numberOfInputGates
+	 *        the number of input gates attached to this vertex
 	 */
-	public ExecutionVertex(final JobID jobID, final Class<? extends AbstractInvokable> invokableClass,
-			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
-			final Configuration jobConfiguration) throws Exception {
-		this(new ExecutionVertexID(), invokableClass, executionGraph, groupVertex, new RuntimeEnvironment(jobID,
-			groupVertex.getName(), invokableClass, groupVertex.getConfiguration(), jobConfiguration));
+	public ExecutionVertex(final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
+			final int numberOfOutputGates, final int numberOfInputGates) {
+		this(new ExecutionVertexID(), executionGraph, groupVertex, numberOfOutputGates, numberOfInputGates);
 
 		this.groupVertex.addInitialSubtask(this);
 
-		if (invokableClass == null) {
-			LOG.error("Vertex " + groupVertex.getName() + " does not specify a task");
-		}
-
-		this.environment.instantiateInvokable();
-
-		checkInitialCheckpointState();
+		this.checkpointState.set(this.groupVertex.checkInitialCheckpointState());
 	}
 
 	/**
@@ -186,39 +168,29 @@ public final class ExecutionVertex {
 	 * 
 	 * @param vertexID
 	 *        the ID of the new execution vertex.
-	 * @param invokableClass
-	 *        the task that is assigned to this execution vertex
 	 * @param executionGraph
 	 *        the execution graph the new vertex belongs to
 	 * @param groupVertex
 	 *        the group vertex the new vertex belongs to
-	 * @param environment
-	 *        the environment for the newly created vertex
+	 * @param numberOfOutputGates
+	 *        the number of output gates attached to this vertex
+	 * @param numberOfInputGates
+	 *        the number of input gates attached to this vertex
 	 */
-	private ExecutionVertex(final ExecutionVertexID vertexID, final Class<? extends AbstractInvokable> invokableClass,
-			final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
-			final RuntimeEnvironment environment) {
+	private ExecutionVertex(final ExecutionVertexID vertexID, final ExecutionGraph executionGraph,
+			final ExecutionGroupVertex groupVertex, final int numberOfOutputGates, final int numberOfInputGates) {
+
 		this.vertexID = vertexID;
-		this.invokableClass = invokableClass;
 		this.executionGraph = executionGraph;
 		this.groupVertex = groupVertex;
-		this.environment = environment;
 
 		this.retriesLeft = new AtomicInteger(groupVertex.getNumberOfExecutionRetries());
 
+		this.outputGates = new ExecutionGate[numberOfOutputGates];
+		this.inputGates = new ExecutionGate[numberOfInputGates];
+
 		// Register the vertex itself as a listener for state changes
 		registerExecutionListener(this.executionGraph);
-
-		// Duplication of environment is done in method duplicateVertex
-	}
-
-	/**
-	 * Returns the environment of this execution vertex.
-	 * 
-	 * @return the environment of this execution vertex
-	 */
-	public RuntimeEnvironment getEnvironment() {
-		return this.environment;
 	}
 
 	/**
@@ -258,10 +230,19 @@ public final class ExecutionVertex {
 			newVertexID = new ExecutionVertexID();
 		}
 
-		final RuntimeEnvironment duplicatedEnvironment = this.environment.duplicateEnvironment();
+		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.executionGraph,
+			this.groupVertex, this.outputGates.length, this.inputGates.length);
 
-		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.invokableClass,
-			this.executionGraph, this.groupVertex, duplicatedEnvironment);
+		// Duplicate gates
+		for (int i = 0; i < this.outputGates.length; ++i) {
+			duplicatedVertex.outputGates[i] = new ExecutionGate(duplicatedVertex, this.outputGates[i].getGroupEdge(),
+				false);
+		}
+
+		for (int i = 0; i < this.inputGates.length; ++i) {
+			duplicatedVertex.inputGates[i] = new ExecutionGate(duplicatedVertex, this.inputGates[i].getGroupEdge(),
+				true);
+		}
 
 		// Copy checkpoint state from original vertex
 		duplicatedVertex.checkpointState.set(this.checkpointState.get());
@@ -270,6 +251,40 @@ public final class ExecutionVertex {
 		duplicatedVertex.setAllocatedResource(this.allocatedResource);
 
 		return duplicatedVertex;
+	}
+
+	/**
+	 * Inserts the output gate at the given position.
+	 * 
+	 * @param pos
+	 *        the position to insert the output gate
+	 * @param outputGate
+	 *        the output gate to be inserted
+	 */
+	void insertOutputGate(final int pos, final ExecutionGate outputGate) {
+
+		if (this.outputGates[pos] != null) {
+			throw new IllegalStateException("Output gate at position " + pos + " is not null");
+		}
+
+		this.outputGates[pos] = outputGate;
+	}
+
+	/**
+	 * Inserts the input gate at the given position.
+	 * 
+	 * @param pos
+	 *        the position to insert the input gate
+	 * @param outputGate
+	 *        the input gate to be inserted
+	 */
+	void insertInputGate(final int pos, final ExecutionGate inputGate) {
+
+		if (this.inputGates[pos] != null) {
+			throw new IllegalStateException("Input gate at position " + pos + " is not null");
+		}
+
+		this.inputGates[pos] = inputGate;
 	}
 
 	/**
@@ -483,8 +498,8 @@ public final class ExecutionVertex {
 
 		int numberOfPredecessors = 0;
 
-		for (int i = 0; i < this.environment.getNumberOfInputGates(); i++) {
-			numberOfPredecessors += this.environment.getInputGate(i).getNumberOfInputChannels();
+		for (int i = 0; i < this.inputGates.length; ++i) {
+			numberOfPredecessors += this.inputGates[i].getNumberOfEdges();
 		}
 
 		return numberOfPredecessors;
@@ -500,8 +515,8 @@ public final class ExecutionVertex {
 
 		int numberOfSuccessors = 0;
 
-		for (int i = 0; i < this.environment.getNumberOfOutputGates(); i++) {
-			numberOfSuccessors += this.environment.getOutputGate(i).getNumberOfOutputChannels();
+		for (int i = 0; i < this.outputGates.length; ++i) {
+			numberOfSuccessors += this.outputGates[i].getNumberOfEdges();
 		}
 
 		return numberOfSuccessors;
@@ -513,16 +528,17 @@ public final class ExecutionVertex {
 			throw new IllegalArgumentException("Argument index must be greather or equal to 0");
 		}
 
-		for (int i = 0; i < this.environment.getNumberOfInputGates(); i++) {
+		for (int i = 0; i < this.inputGates.length; ++i) {
 
-			final InputGate<? extends Record> inputGate = this.environment.getInputGate(i);
+			final ExecutionGate inputGate = this.inputGates[i];
+			final int numberOfEdges = inputGate.getNumberOfEdges();
 
-			if (index >= 0 && index < inputGate.getNumberOfInputChannels()) {
+			if (index >= 0 && index < numberOfEdges) {
 
-				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(index);
-				return this.executionGraph.getVertexByChannelID(inputChannel.getConnectedChannelID());
+				final ExecutionEdge edge = inputGate.getEdge(index);
+				return edge.getOutputGate().getVertex();
 			}
-			index -= inputGate.getNumberOfInputChannels();
+			index -= numberOfEdges;
 		}
 
 		return null;
@@ -534,16 +550,17 @@ public final class ExecutionVertex {
 			throw new IllegalArgumentException("Argument index must be greather or equal to 0");
 		}
 
-		for (int i = 0; i < this.environment.getNumberOfOutputGates(); i++) {
+		for (int i = 0; i < this.outputGates.length; ++i) {
 
-			final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
+			final ExecutionGate outputGate = this.outputGates[i];
+			final int numberOfEdges = outputGate.getNumberOfEdges();
 
-			if (index >= 0 && index < outputGate.getNumberOfOutputChannels()) {
+			if (index >= 0 && index < numberOfEdges) {
 
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(index);
-				return this.executionGraph.getVertexByChannelID(outputChannel.getConnectedChannelID());
+				final ExecutionEdge edge = outputGate.getEdge(index);
+				return edge.getInputGate().getVertex();
 			}
-			index -= outputGate.getNumberOfOutputChannels();
+			index -= numberOfEdges;
 		}
 
 		return null;
@@ -572,36 +589,100 @@ public final class ExecutionVertex {
 		return this.groupVertex.isOutputVertex();
 	}
 
+	/**
+	 * Returns the index of this vertex in the vertex group.
+	 * 
+	 * @return the index of this vertex in the vertex group
+	 */
+	public int getIndexInVertexGroup() {
+
+		return this.indexInVertexGroup;
+	}
+
+	/**
+	 * Sets the vertex' index in the vertex group.
+	 * 
+	 * @param indexInVertexGroup
+	 *        the vertex' index in the vertex group
+	 */
+	void setIndexInVertexGroup(final int indexInVertexGroup) {
+
+		this.indexInVertexGroup = indexInVertexGroup;
+	}
+
+	/**
+	 * Returns the number of output gates attached to this vertex.
+	 * 
+	 * @return the number of output gates attached to this vertex
+	 */
+	public int getNumberOfOutputGates() {
+
+		return this.outputGates.length;
+	}
+
+	/**
+	 * Returns the output gate with the given index.
+	 * 
+	 * @param index
+	 *        the index of the output gate to return
+	 * @return the output gate with the given index
+	 */
+	public ExecutionGate getOutputGate(final int index) {
+
+		return this.outputGates[index];
+	}
+
+	/**
+	 * Returns the number of input gates attached to this vertex.
+	 * 
+	 * @return the number of input gates attached to this vertex
+	 */
+	public int getNumberOfInputGates() {
+
+		return this.inputGates.length;
+	}
+
+	/**
+	 * Returns the input gate with the given index.
+	 * 
+	 * @param index
+	 *        the index of the input gate to return
+	 * @return the input gate with the given index
+	 */
+	public ExecutionGate getInputGate(final int index) {
+
+		return this.inputGates[index];
+	}
+
 	public SerializableHashSet<ChannelID> constructInitialActiveOutputChannelsSet() {
 
 		final SerializableHashSet<ChannelID> activeOutputChannels = new SerializableHashSet<ChannelID>();
 
 		synchronized (this) {
 
-			final int numberOfOutputGates = this.environment.getNumberOfOutputGates();
-			for (int i = 0; i < numberOfOutputGates; ++i) {
+			for (int i = 0; i < this.outputGates.length; ++i) {
 
-				final OutputGate<? extends Record> outputGate = this.environment.getOutputGate(i);
+				final ExecutionGate outputGate = this.outputGates[i];
 				final ChannelType channelType = outputGate.getChannelType();
-				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+
+				final int numberOfOutputChannels = outputGate.getNumberOfEdges();
 				for (int j = 0; j < numberOfOutputChannels; ++j) {
-					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+					ExecutionEdge outputChannel = outputGate.getEdge(j);
 					if (channelType == ChannelType.FILE) {
-						activeOutputChannels.add(outputChannel.getID());
+						activeOutputChannels.add(outputChannel.getOutputChannelID());
 						continue;
 					}
 					if (channelType == ChannelType.INMEMORY) {
-						activeOutputChannels.add(outputChannel.getID());
+						activeOutputChannels.add(outputChannel.getOutputChannelID());
 						continue;
 					}
 					if (channelType == ChannelType.NETWORK) {
 
-						final ExecutionVertex connectedVertex = this.executionGraph.getVertexByChannelID(outputChannel
-							.getConnectedChannelID());
+						final ExecutionVertex connectedVertex = outputChannel.getInputGate().getVertex();
 						final ExecutionState state = connectedVertex.getExecutionState();
 						if (state == ExecutionState.READY || state == ExecutionState.STARTING
 							|| state == ExecutionState.RUNNING) {
-							activeOutputChannels.add(outputChannel.getID());
+							activeOutputChannels.add(outputChannel.getOutputChannelID());
 						}
 					}
 				}
@@ -629,7 +710,7 @@ public final class ExecutionVertex {
 		final SerializableHashSet<ChannelID> activeOutputChannels = constructInitialActiveOutputChannelsSet();
 
 		final List<TaskSubmissionWrapper> tasks = new SerializableArrayList<TaskSubmissionWrapper>();
-		final TaskSubmissionWrapper tsw = new TaskSubmissionWrapper(this.vertexID, this.environment,
+		final TaskSubmissionWrapper tsw = new TaskSubmissionWrapper(this.vertexID, null /*this.environment*/,
 			this.executionGraph.getJobConfiguration(), this.checkpointState.get(), activeOutputChannels);
 		tasks.add(tsw);
 
@@ -778,7 +859,14 @@ public final class ExecutionVertex {
 	@Override
 	public String toString() {
 
-		return this.environment.getTaskNameWithIndex();
+		final StringBuilder sb = new StringBuilder(this.groupVertex.getName());
+		sb.append(" (");
+		sb.append(this.indexInVertexGroup + 1);
+		sb.append('/');
+		sb.append(this.groupVertex.getCurrentNumberOfGroupMembers());
+		sb.append(')');
+
+		return sb.toString();
 	}
 
 	/**
@@ -925,38 +1013,5 @@ public final class ExecutionVertex {
 	public ExecutionPipeline getExecutionPipeline() {
 
 		return this.executionPipeline.get();
-	}
-
-	/**
-	 * Checks and if necessary silently updates the initial checkpoint state of the vertex.
-	 */
-	void checkInitialCheckpointState() {
-
-		// Determine the vertex' initial checkpoint state
-		CheckpointState ics = CheckpointState.UNDECIDED;
-		boolean hasFileChannels = false;
-		for (int i = 0; i < this.environment.getNumberOfOutputGates(); ++i) {
-			if (this.environment.getOutputGate(i).getChannelType() == ChannelType.FILE) {
-				hasFileChannels = true;
-				break;
-			}
-		}
-
-		// The vertex has at least one file channel, so we must write a checkpoint anyways
-		if (hasFileChannels) {
-			ics = CheckpointState.PARTIAL;
-		} else {
-			// Look for a user annotation
-			ForceCheckpoint forcedCheckpoint = this.environment.getInvokable().getClass()
-				.getAnnotation(ForceCheckpoint.class);
-
-			if (forcedCheckpoint != null) {
-				ics = forcedCheckpoint.checkpoint() ? CheckpointState.PARTIAL : CheckpointState.NONE;
-			}
-
-			// TODO: Consider state annotation here
-		}
-
-		this.checkpointState.set(ics);
 	}
 }

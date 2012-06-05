@@ -30,8 +30,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
+import eu.stratosphere.nephele.executiongraph.ExecutionEdge;
+import eu.stratosphere.nephele.executiongraph.ExecutionGate;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
@@ -50,11 +51,8 @@ import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * This abstract scheduler must be extended by a scheduler implementations for Nephele. The abstract class defines the
@@ -194,10 +192,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 			final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
 			if (instance instanceof DummyInstance) {
-				LOG.error("Inconsistency: Vertex " + vertex.getName() + "("
-					+ vertex.getEnvironment().getIndexInSubtaskGroup() + "/"
-					+ vertex.getEnvironment().getCurrentNumberOfSubtasks()
-					+ ") is about to be deployed on a DummyInstance");
+				LOG.error("Inconsistency: Vertex " + vertex + " is about to be deployed on a DummyInstance");
 			}
 
 			List<ExecutionVertex> verticesForInstance = verticesToBeDeployed.get(instance);
@@ -209,11 +204,10 @@ public abstract class AbstractScheduler implements InstanceListener {
 			verticesForInstance.add(vertex);
 		}
 
-		final RuntimeEnvironment env = vertex.getEnvironment();
-		final int numberOfOutputGates = env.getNumberOfOutputGates();
+		final int numberOfOutputGates = vertex.getNumberOfOutputGates();
 		for (int i = 0; i < numberOfOutputGates; ++i) {
 
-			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
+			final ExecutionGate outputGate = vertex.getOutputGate(i);
 			boolean deployTarget;
 
 			switch (outputGate.getChannelType()) {
@@ -232,11 +226,10 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 			if (deployTarget) {
 
-				final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
+				final int numberOfOutputChannels = outputGate.getNumberOfEdges();
 				for (int j = 0; j < numberOfOutputChannels; ++j) {
-					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-					final ExecutionVertex connectedVertex = vertex.getExecutionGraph().getVertexByChannelID(
-						outputChannel.getConnectedChannelID());
+					final ExecutionEdge outputChannel = outputGate.getEdge(j);
+					final ExecutionVertex connectedVertex = outputChannel.getInputGate().getVertex();
 					findVerticesToBeDeployed(connectedVertex, verticesToBeDeployed, alreadyVisited);
 				}
 			}
