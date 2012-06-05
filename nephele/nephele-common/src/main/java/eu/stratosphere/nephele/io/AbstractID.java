@@ -32,12 +32,17 @@ public abstract class AbstractID implements IOReadableWritable {
 	/**
 	 * The size of the ID in byte.
 	 */
-	protected static final int SIZE = 16;
+	protected static final int SIZE = Long.SIZE * 2;
 
 	/**
-	 * The buffer storing the actual ID.
+	 * The upper part of the actual ID.
 	 */
-	private final byte[] bytes = new byte[SIZE];
+	private long upperPart;
+
+	/**
+	 * The lower part of the actual ID.
+	 */
+	private long lowerPart;
 
 	/**
 	 * Constructs a new ID with a specific bytes value.
@@ -48,7 +53,8 @@ public abstract class AbstractID implements IOReadableWritable {
 			throw new IllegalArgumentException("Argument bytes must by an array of " + SIZE + " bytes");
 		}
 
-		System.arraycopy(bytes, 0, this.bytes, 0, SIZE);
+		this.lowerPart = byteArrayToLong(bytes, 0);
+		this.upperPart = byteArrayToLong(bytes, Long.SIZE);
 	}
 
 	/**
@@ -56,37 +62,46 @@ public abstract class AbstractID implements IOReadableWritable {
 	 */
 	public AbstractID() {
 
-		for (int i = 0; i < SIZE; i++) {
-			this.bytes[i] = (byte) ((Math.random() * 256.0) + Byte.MIN_VALUE);
-		}
+		this.lowerPart = (long) (Math.random() * Long.MAX_VALUE);
+		this.upperPart = (long) (Math.random() * Long.MAX_VALUE);
 	}
 
 	/**
-	 * Sets the bytes the ID consists of.
+	 * Converts the given byte array to a long.
 	 * 
-	 * @param src
-	 *        the bytes the ID consists of
+	 * @param ba
+	 *        the byte array to be converted
+	 * @param offset
+	 *        the offset indicating at which byte inside the array the conversion shall begin
+	 * @return the long variable
 	 */
-	private void setBytes(final byte[] src) {
+	private static long byteArrayToLong(final byte[] ba, final int offset) {
 
-		if (src == null) {
-			return;
+		long l = 0;
+
+		for (int i = 0; i < Long.SIZE; ++i) {
+			l |= (ba[offset + Long.SIZE - 1 - i] & 0xffL) << (i << 3);
 		}
 
-		if (src.length != SIZE) {
-			return;
-		}
-
-		System.arraycopy(src, 0, this.bytes, 0, SIZE);
+		return l;
 	}
 
 	/**
-	 * Returns the bytes the ID consists of.
+	 * Converts a long to a byte array.
 	 * 
-	 * @return the bytes the ID consists of
+	 * @param l
+	 *        the long variable to be converted
+	 * @param ba
+	 *        the byte array to store the result the of the conversion
+	 * @param offset
+	 *        the offset indicating at what position inside the byte array the result of the conversion shall be stored
 	 */
-	private byte[] getBytes() {
-		return this.bytes;
+	private static void longToByteArray(final long l, final byte[] ba, final int offset) {
+
+		for (int i = 0; i < Long.SIZE; ++i) {
+			final int shift = i << 3; // i * 8
+			ba[offset + Long.SIZE - 1 - i] = (byte) ((l & (0xffL << shift)) >>> shift);
+		}
 	}
 
 	/**
@@ -96,7 +111,8 @@ public abstract class AbstractID implements IOReadableWritable {
 	 *        the source ID
 	 */
 	public void setID(final AbstractID src) {
-		setBytes(src.getBytes());
+		this.lowerPart = src.lowerPart;
+		this.upperPart = src.upperPart;
 	}
 
 	/**
@@ -111,24 +127,12 @@ public abstract class AbstractID implements IOReadableWritable {
 
 		final AbstractID src = (AbstractID) obj;
 
-		final byte[] srcBytes = src.getBytes();
-
-		if (srcBytes == null) {
+		if (src.lowerPart != this.lowerPart) {
 			return false;
 		}
 
-		if (this.bytes == null) {
+		if (src.upperPart != this.upperPart) {
 			return false;
-		}
-
-		if (srcBytes.length != this.bytes.length) {
-			return false;
-		}
-
-		for (int i = 0; i < this.bytes.length; i++) {
-			if (srcBytes[i] != this.bytes[i]) {
-				return false;
-			}
 		}
 
 		return true;
@@ -140,25 +144,7 @@ public abstract class AbstractID implements IOReadableWritable {
 	@Override
 	public int hashCode() {
 
-		int hashCode = 0;
-
-		if (this.bytes == null) {
-			return 0;
-		}
-
-		int tmp = 0;
-		for (int i = 0; i < this.bytes.length; i++) {
-
-			final int shift = (Integer.SIZE - 1 - (i % Integer.SIZE)) * 8;
-			tmp += (this.bytes[i] & 0x000000FF) << shift;
-
-			if ((i % Integer.SIZE) == 0) {
-				hashCode = hashCode ^ tmp;
-				tmp = 0;
-			}
-		}
-
-		return hashCode;
+		return (int) (this.lowerPart ^ (this.upperPart >>> 32));
 	}
 
 	/**
@@ -167,7 +153,8 @@ public abstract class AbstractID implements IOReadableWritable {
 	@Override
 	public void read(final DataInput in) throws IOException {
 
-		in.readFully(this.bytes);
+		this.lowerPart = in.readLong();
+		this.upperPart = in.readLong();
 	}
 
 	/**
@@ -176,9 +163,8 @@ public abstract class AbstractID implements IOReadableWritable {
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
-		// Write the particular bytes
-		out.write(this.bytes);
-
+		out.writeLong(this.lowerPart);
+		out.writeLong(this.upperPart);
 	}
 
 	/**
@@ -187,10 +173,10 @@ public abstract class AbstractID implements IOReadableWritable {
 	@Override
 	public String toString() {
 
-		if (this.bytes == null) {
-			return "null (0)";
-		}
+		final byte[] ba = new byte[SIZE];
+		longToByteArray(this.lowerPart, ba, 0);
+		longToByteArray(this.upperPart, ba, Long.SIZE);
 
-		return StringUtils.byteToHexString(bytes);
+		return StringUtils.byteToHexString(ba);
 	}
 }
