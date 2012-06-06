@@ -26,6 +26,8 @@ import eu.stratosphere.nephele.io.channels.FileBufferManager;
 
 public final class CheckpointDeserializer extends AbstractDeserializer {
 
+	private static final int SIZE_OF_LONG = 8;
+
 	private final AbstractID ownerID;
 
 	private final FileBufferManager fileBufferManager;
@@ -40,6 +42,9 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 		this.distributed = distributed;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	protected boolean readBufferData(final ReadableByteChannel readableByteChannel) throws IOException {
 
@@ -70,13 +75,13 @@ public final class CheckpointDeserializer extends AbstractDeserializer {
 
 		long l = 0;
 
-		if (Long.SIZE > byteBuffer.limit()) {
+		if (SIZE_OF_LONG > byteBuffer.limit()) {
 			throw new IOException("Cannot convert byte buffer to long, not enough data in byte buffer ("
 				+ byteBuffer.limit() + ")");
 		}
 
-		for (int i = 0; i < Long.SIZE; ++i) {
-			l |= (byteBuffer.get((Long.SIZE - 1) - i) & 0xffL) << (i << 3);
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
+			l |= (byteBuffer.get((SIZE_OF_LONG - 1) - i) & 0xffL) << (i << 3);
 		}
 
 		return l;

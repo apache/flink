@@ -32,6 +32,8 @@ import eu.stratosphere.nephele.io.channels.FileBuffer;
  */
 public class CheckpointSerializer extends AbstractSerializer {
 
+	private static final int SIZE_OF_LONG = 8;
+
 	private boolean bufferDataSerializationStarted = false;
 
 	/**
@@ -87,16 +89,16 @@ public class CheckpointSerializer extends AbstractSerializer {
 
 	private void longToByteBuffer(long longToSerialize, ByteBuffer byteBuffer) throws IOException {
 
-		if (Long.SIZE > byteBuffer.capacity()) {
+		if (SIZE_OF_LONG > byteBuffer.capacity()) {
 			throw new IOException("Cannot convert long to byte buffer, buffer is too small (" + byteBuffer.limit()
-				+ ", required " + Long.SIZE + ")");
+				+ ", required " + SIZE_OF_LONG + ")");
 		}
 
-		byteBuffer.limit(Long.SIZE);
+		byteBuffer.limit(SIZE_OF_LONG);
 
-		for (int i = 0; i < Long.SIZE; ++i) {
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
 			final int shift = i << 3; // i * 8
-			byteBuffer.put((Long.SIZE - 1) - i, (byte) ((longToSerialize & (0xffL << shift)) >>> shift));
+			byteBuffer.put((SIZE_OF_LONG - 1) - i, (byte) ((longToSerialize & (0xffL << shift)) >>> shift));
 		}
 	}
 }

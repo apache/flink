@@ -30,9 +30,14 @@ import eu.stratosphere.nephele.util.StringUtils;
 public abstract class AbstractID implements IOReadableWritable {
 
 	/**
+	 * The size of a long in bytes.
+	 */
+	private static final int SIZE_OF_LONG = 8;
+
+	/**
 	 * The size of the ID in byte.
 	 */
-	protected static final int SIZE = Long.SIZE * 2;
+	protected static final int SIZE = 2 * SIZE_OF_LONG;
 
 	/**
 	 * The upper part of the actual ID.
@@ -54,7 +59,7 @@ public abstract class AbstractID implements IOReadableWritable {
 		}
 
 		this.lowerPart = byteArrayToLong(bytes, 0);
-		this.upperPart = byteArrayToLong(bytes, Long.SIZE);
+		this.upperPart = byteArrayToLong(bytes, SIZE_OF_LONG);
 	}
 
 	/**
@@ -79,8 +84,8 @@ public abstract class AbstractID implements IOReadableWritable {
 
 		long l = 0;
 
-		for (int i = 0; i < Long.SIZE; ++i) {
-			l |= (ba[offset + Long.SIZE - 1 - i] & 0xffL) << (i << 3);
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
+			l |= (ba[offset + SIZE_OF_LONG - 1 - i] & 0xffL) << (i << 3);
 		}
 
 		return l;
@@ -98,9 +103,9 @@ public abstract class AbstractID implements IOReadableWritable {
 	 */
 	private static void longToByteArray(final long l, final byte[] ba, final int offset) {
 
-		for (int i = 0; i < Long.SIZE; ++i) {
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
 			final int shift = i << 3; // i * 8
-			ba[offset + Long.SIZE - 1 - i] = (byte) ((l & (0xffL << shift)) >>> shift);
+			ba[offset + SIZE_OF_LONG - 1 - i] = (byte) ((l & (0xffL << shift)) >>> shift);
 		}
 	}
 
@@ -175,7 +180,7 @@ public abstract class AbstractID implements IOReadableWritable {
 
 		final byte[] ba = new byte[SIZE];
 		longToByteArray(this.lowerPart, ba, 0);
-		longToByteArray(this.upperPart, ba, Long.SIZE);
+		longToByteArray(this.upperPart, ba, SIZE_OF_LONG);
 
 		return StringUtils.byteToHexString(ba);
 	}
