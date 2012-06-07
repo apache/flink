@@ -27,7 +27,10 @@ import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.sdaa11.frequent_itemsets.son.json.BasketNodes;
+import eu.stratosphere.sopremo.sdaa11.frequent_itemsets.son.json.FrequentItemsetNodes;
 import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
+import eu.stratosphere.sopremo.sdaa11.util.JsonNodePool;
+import eu.stratosphere.sopremo.sdaa11.util.JsonNodePool.TextNodeFactory;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -103,9 +106,10 @@ public class LocalAPriori extends ElementaryOperator<LocalAPriori> {
 		int minSupport;
 		int maxSetSize;
 
-		private final ObjectNode outputNode = new ObjectNode();
+		private final ObjectNode fisNode = new ObjectNode();
 		private final IArrayNode itemsNode = new ArrayNode();
-		private final TextNode outputTextNode = new TextNode();
+		private final JsonNodePool<TextNode> itemNodePool = new JsonNodePool<TextNode>(
+				new TextNodeFactory());
 		private final IntNode supportNode = new IntNode();
 
 		/*
@@ -118,9 +122,61 @@ public class LocalAPriori extends ElementaryOperator<LocalAPriori> {
 		@Override
 		protected void reduce(final IArrayNode values, final JsonCollector out) {
 
-			final List<FrequentItemset> fis = this
-					.findUnaryFrequentItemSets(values);
+			List<FrequentItemset> fis = this.findUnaryFrequentItemSets(values);
+			this.emit(fis, out);
+			int setSize = 1;
+			while (setSize < this.maxSetSize) {
+				setSize++;
+				final List<FrequentItemset> candidates = FrequentItemset
+						.generateCandidates(fis);
+				fis = this.findFrequentItemsets(candidates, values);
+				if (fis.isEmpty())
+					break;
+				this.emit(fis, out);
+			}
 
+		}
+
+		/**
+		 * @param fis
+		 * @param out
+		 */
+		private void emit(final List<FrequentItemset> allFis,
+				final JsonCollector out) {
+			for (final FrequentItemset fis : allFis) {
+				this.itemsNode.clear();
+				for (final String item : fis.getItems()) {
+					final TextNode itemNode = this.itemNodePool.getNode();
+					itemNode.setValue(item);
+					this.itemsNode.add(itemNode);
+				}
+				this.supportNode.setValue(fis.getSupport());
+				FrequentItemsetNodes.write(this.fisNode, this.itemsNode,
+						this.supportNode);
+				out.collect(this.fisNode);
+			}
+		}
+
+		/**
+		 * @param candidates
+		 * @param values
+		 * @return
+		 */
+		private List<FrequentItemset> findFrequentItemsets(
+				final List<FrequentItemset> candidates, final IArrayNode values) {
+			final Object2IntOpenHashMap<FrequentItemset> counts = new Object2IntOpenHashMap<FrequentItemset>();
+			counts.defaultReturnValue(0);
+
+			for (final IJsonNode value : values) {
+				final IArrayNode items = this.extractItems(value);
+				for (final FrequentItemset fis : candidates)
+					if (fis.isIncludedIn(items)) {
+						final int count = counts.getInt(fis);
+						counts.put(fis, count + 1);
+					}
+			}
+
+			return this.retainFrequentItemsets(counts);
 		}
 
 		/**
@@ -133,9 +189,7 @@ public class LocalAPriori extends ElementaryOperator<LocalAPriori> {
 			final Object2IntOpenHashMap<String> counts = new Object2IntOpenHashMap<String>();
 			counts.defaultReturnValue(0);
 			for (final IJsonNode value : values) {
-				final ObjectNode basket = (ObjectNode) AnnotatorNodes
-						.getAnnotatee((ObjectNode) value);
-				final IArrayNode items = BasketNodes.getItems(basket);
+				final IArrayNode items = this.extractItems(value);
 				for (final IJsonNode item : items) {
 					final String itemValue = ((TextNode) item).getTextValue();
 					final int count = counts.getInt(itemValue);
@@ -143,6 +197,15 @@ public class LocalAPriori extends ElementaryOperator<LocalAPriori> {
 				}
 			}
 
+			return this.createFrequentItemsets(counts);
+		}
+
+		/**
+		 * @param counts
+		 * @return
+		 */
+		private List<FrequentItemset> createFrequentItemsets(
+				final Object2IntOpenHashMap<String> counts) {
 			final List<FrequentItemset> fis = new ArrayList<FrequentItemset>();
 			for (final Entry<String> entry : counts.object2IntEntrySet()) {
 				final int support = entry.getIntValue();
@@ -152,143 +215,34 @@ public class LocalAPriori extends ElementaryOperator<LocalAPriori> {
 							.getIntValue()));
 				}
 			}
-
 			return fis;
 		}
-	}
 
-	public static class FrequentItemset {
-
-		public static List<FrequentItemset> generateCandidates(
-				final List<FrequentItemset> fis) {
-
-			// Do sanity check: All fis should have the same size.
-			int fisSize = -1;
-			final Object2IntOpenHashMap<FrequentItemset> counts = new Object2IntOpenHashMap<FrequentItemset>();
-			for (int i = 0; i < fis.size() - 1; i++) {
-				final FrequentItemset firstFi = fis.get(i);
-				if (fisSize < 0)
-					fisSize = firstFi.items.length;
-				for (int j = i + 1; j < fis.size(); j++) {
-					final FrequentItemset secondFi = fis.get(j);
-					if (secondFi.items.length != fisSize)
-						throw new IllegalArgumentException(
-								"Given frequent itemsets differ in length.");
-					final FrequentItemset candidate = firstFi.union(secondFi);
-					if (candidate != null) {
-						final int count = counts.getInt(candidate);
-						counts.put(candidate, count + 1);
-					}
-				}
-			}
-
-			final List<FrequentItemset> result = new ArrayList<FrequentItemset>();
+		private List<FrequentItemset> retainFrequentItemsets(
+				final Object2IntOpenHashMap<FrequentItemset> counts) {
+			final List<FrequentItemset> retainedFis = new ArrayList<FrequentItemset>();
 			for (final Entry<FrequentItemset> entry : counts
-					.object2IntEntrySet())
-				if (entry.getIntValue() >= fisSize)
-					result.add(entry.getKey());
-			return result;
-		}
-
-		private final String[] items;
-		private final int support;
-
-		/**
-		 * Initializes FrequentItemset.
-		 */
-		public FrequentItemset(final String[] items, final int support) {
-			this.items = items;
-			this.support = support;
-		}
-
-		/**
-		 * Generates a candidate frequent itemset by unioning the items of the
-		 * given itemsets' items. They should differ in only one element. If not
-		 * so, <code>null</code> will be returned instead.
-		 */
-		public FrequentItemset union(final FrequentItemset otherFis) {
-			if (this.items.length != otherFis.items.length)
-				throw new IllegalArgumentException(
-						"Frequent itemsets differ in length.");
-
-			int thisIndex, otherIndex, newIndex;
-			thisIndex = otherIndex = newIndex = 0;
-			final String[] newFisItems = new String[this.items.length + 1];
-
-			while (thisIndex < this.items.length
-					&& otherIndex < otherFis.items.length) {
-				if (newIndex >= newFisItems.length)
-					return null;
-				final String thisItem = this.items[thisIndex];
-				final String otherItem = otherFis.items[otherIndex];
-				final int diff = thisItem.compareTo(otherItem);
-				if (diff <= 0) {
-					newFisItems[newIndex] = thisItem;
-					thisIndex++;
+					.object2IntEntrySet()) {
+				final int support = entry.getIntValue();
+				if (support >= this.minSupport) {
+					final FrequentItemset fis = entry.getKey();
+					fis.setSupport(entry.getIntValue());
+					retainedFis.add(fis);
 				}
-				if (diff >= 0) {
-					newFisItems[newIndex] = otherItem;
-					otherIndex++;
-				}
-				newIndex++;
 			}
-
-			while (thisIndex < this.items.length)
-				newFisItems[newIndex++] = this.items[thisIndex++];
-			while (otherIndex < otherFis.items.length)
-				newFisItems[newIndex++] = otherFis.items[otherIndex++];
-
-			// This is the case if the given items are equal.
-			if (newIndex < this.items.length)
-				return null;
-
-			return new FrequentItemset(newFisItems, 0);
+			return retainedFis;
 		}
 
 		/**
-		 * Returns the items.
-		 * 
-		 * @return the items
+		 * @param value
+		 * @return
 		 */
-		public String[] getItems() {
-			return this.items;
+		private IArrayNode extractItems(final IJsonNode value) {
+			final ObjectNode basket = (ObjectNode) AnnotatorNodes
+					.getAnnotatee((ObjectNode) value);
+			final IArrayNode items = BasketNodes.getItems(basket);
+			return items;
 		}
-
-		/**
-		 * Returns the support.
-		 * 
-		 * @return the support
-		 */
-		public int getSupport() {
-			return this.support;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see java.lang.Object#hashCode()
-		 */
-		@Override
-		public int hashCode() {
-			return Arrays.hashCode(this.items) + this.support;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see java.lang.Object#equals(java.lang.Object)
-		 */
-		@Override
-		public boolean equals(final Object obj) {
-			if (obj == this)
-				return true;
-			if (obj == null || !(obj instanceof FrequentItemset))
-				return false;
-			final FrequentItemset other = (FrequentItemset) obj;
-			return this.support == other.support
-					&& Arrays.equals(this.items, other.items);
-		}
-
 	}
 
 }

@@ -26,10 +26,15 @@ import eu.stratosphere.sopremo.sdaa11.RoundRobinAnnotator;
  */
 public class SON extends CompositeOperator<SON> {
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = -4600530033164134202L;
+
+	public static final int DEFAULT_MIN_SUPPORT = 100;
+	public static final int DEFAULT_MAX_SET_SIZE = 1;
+	public static final int DEFAULT_PARALLELISM = 1;
+
+	private int parallelism = DEFAULT_PARALLELISM;
+	private int minSupport = DEFAULT_MIN_SUPPORT;
+	private int maxSetSize = DEFAULT_MAX_SET_SIZE;
 
 	/*
 	 * (non-Javadoc)
@@ -43,14 +48,83 @@ public class SON extends CompositeOperator<SON> {
 		final Source basketSource = module.getInput(0);
 		final RoundRobinAnnotator annotator = new RoundRobinAnnotator()
 				.withInputs(basketSource);
-		annotator.setMaxAnnotation(10);
+		annotator.setMaxAnnotation(this.parallelism - 1);
 
-		final FindUnaryFrequentItemSets unaryItemSets = new FindUnaryFrequentItemSets()
-				.withInputs(annotator);
+		// final FindUnaryFrequentItemSets unaryItemSets = new
+		// FindUnaryFrequentItemSets()
+		// .withInputs(annotator);
+		//
+		// module.getOutput(0).setInputs(unaryItemSets);
 
-		module.getOutput(0).setInputs(unaryItemSets);
+		final int localMinSupport = this.minSupport / this.parallelism;
+
+		final LocalAPriori aPriori = new LocalAPriori().withInputs(annotator);
+		aPriori.setMinSupport(localMinSupport);
+		aPriori.setMaxSetSize(this.maxSetSize);
+
+		final MatchFrequentItemsets matchFrequentItemsets = new MatchFrequentItemsets()
+				.withInputs(aPriori, basketSource);
+
+		module.getOutput(0).setInput(0, matchFrequentItemsets);
 
 		return module.asElementary();
+	}
+
+	/**
+	 * Returns the parallelism.
+	 * 
+	 * @return the parallelism
+	 */
+	public int getParallelism() {
+		return this.parallelism;
+	}
+
+	/**
+	 * Sets the parallelism to the specified value.
+	 * 
+	 * @param parallelism
+	 *            the parallelism to set
+	 */
+	public void setParallelism(final int parallelism) {
+		this.parallelism = parallelism;
+	}
+
+	/**
+	 * Returns the minSupport.
+	 * 
+	 * @return the minSupport
+	 */
+	public int getMinSupport() {
+		return this.minSupport;
+	}
+
+	/**
+	 * Sets the minSupport to the specified value.
+	 * 
+	 * @param minSupport
+	 *            the minSupport to set
+	 */
+	public void setMinSupport(final int minSupport) {
+		this.minSupport = minSupport;
+	}
+
+	/**
+	 * Returns the maxSetSize.
+	 * 
+	 * @return the maxSetSize
+	 */
+	public int getMaxSetSize() {
+		return this.maxSetSize;
+	}
+
+	/**
+	 * Sets the maxSetSize to the specified value.
+	 * 
+	 * @param maxSetSize
+	 *            the maxSetSize to set
+	 */
+	public void setMaxSetSize(final int maxSetSize) {
+		this.maxSetSize = maxSetSize;
 	}
 
 }

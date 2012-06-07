@@ -32,5 +32,9 @@ public class FrequentItemsetNodes {
 		fisNode.put(ITEMS, items);
 		fisNode.put(SUPPORT, support);
 	}
+	
+	public static IArrayNode getItems(final ObjectNode fisNode) {
+		return (IArrayNode) fisNode.get(ITEMS);
+	}
 
 }
