@@ -34,11 +34,11 @@ public class SONTest {
 	public void testSON() throws IOException {
 		SON son = new SON();
 		son.setParallelism(2);
-		son.setMinSupport(10);
+		son.setMinSupport(200);
 		son.setMaxSetSize(10);
 		final SopremoTestPlan plan = new SopremoTestPlan(son);
 		final List<IJsonNode> baskets = Baskets
-				.loadBaskets(Baskets.BASKETS1_PATH);
+				.loadBaskets(Baskets.BASKETS2_PATH);
 		for (final IJsonNode basket : baskets)
 			plan.getInput(0).add(basket);
 

@@ -39,8 +39,8 @@ public class GenerateBaskets {
 		final String[] vocabulary = "a b c d e f g h i j k l m n o".split(" ");
 		final IArrayNode baskets = new ArrayNode();
 
-		final int numBaskets = 1000;
-		final int numItems = 3;
+		final int numBaskets = 10000;
+		final int numItems = 5;
 
 		final Set<Integer> chosenValueIndexes = new TreeSet<Integer>();
 		IArrayNode itemsNode;

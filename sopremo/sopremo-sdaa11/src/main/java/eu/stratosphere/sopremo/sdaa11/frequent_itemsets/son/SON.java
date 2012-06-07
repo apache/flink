@@ -50,22 +50,22 @@ public class SON extends CompositeOperator<SON> {
 				.withInputs(basketSource);
 		annotator.setMaxAnnotation(this.parallelism - 1);
 
-		// final FindUnaryFrequentItemSets unaryItemSets = new
-		// FindUnaryFrequentItemSets()
-		// .withInputs(annotator);
-		//
-		// module.getOutput(0).setInputs(unaryItemSets);
-
 		final int localMinSupport = this.minSupport / this.parallelism;
 
 		final LocalAPriori aPriori = new LocalAPriori().withInputs(annotator);
 		aPriori.setMinSupport(localMinSupport);
 		aPriori.setMaxSetSize(this.maxSetSize);
 
-		final MatchFrequentItemsets matchFrequentItemsets = new MatchFrequentItemsets()
-				.withInputs(aPriori, basketSource);
+		final MakeCandidatesUnique makeCandidatesUnique = new MakeCandidatesUnique()
+				.withInputs(aPriori);
 
-		module.getOutput(0).setInput(0, matchFrequentItemsets);
+		final MatchFrequentItemsets matchFrequentItemsets = new MatchFrequentItemsets()
+				.withInputs(makeCandidatesUnique, basketSource);
+
+		final SelectFrequentItemsets selectFrequentItemsets = new SelectFrequentItemsets()
+				.withInputs(matchFrequentItemsets);
+
+		module.getOutput(0).setInput(0, selectFrequentItemsets);
 
 		return module.asElementary();
 	}

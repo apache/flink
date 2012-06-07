@@ -34,6 +34,7 @@ import eu.stratosphere.sopremo.type.TextNode;
 public class Baskets {
 
 	public static final String BASKETS1_PATH = "src/test/resources/frequent_itemsets/baskets1";
+	public static final String BASKETS2_PATH = "src/test/resources/frequent_itemsets/baskets2";
 
 	public static IJsonNode asJson(final String... values) {
 		final IArrayNode result = new ArrayNode();
