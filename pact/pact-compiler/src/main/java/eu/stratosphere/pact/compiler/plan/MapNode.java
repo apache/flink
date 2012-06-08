@@ -60,7 +60,7 @@ public class MapNode extends SingleInputNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected MapNode(MapNode template, List<OptimizerNode> pred, List<PactConnection> conn, GlobalProperties globalProps,
+	protected MapNode(MapNode template, OptimizerNode pred, PactConnection conn, GlobalProperties globalProps,
 			LocalProperties localProps) {
 		super(template, pred, conn, globalProps, localProps);
 		setLocalStrategy(LocalStrategy.NONE);
@@ -117,74 +117,52 @@ public class MapNode extends SingleInputNode {
 		List<InterestingProperties> props = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
 			this, 0);
 		
-		for(PactConnection c : this.input) {
-			if (!props.isEmpty()) {
-				c.addAllInterestingProperties(props);
-			} else {
-				c.setNoInterestingProperties();
-			} 
-		}
+		if (!props.isEmpty()) {
+			this.inConn.addAllInterestingProperties(props);
+		} else {
+			this.inConn.setNoInterestingProperties();
+		} 
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#computeValidPlanAlternatives(java.util.List, eu.stratosphere.pact.compiler.costs.CostEstimator, java.util.List)
+	 */
 	@Override
-	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations, CostEstimator estimator, List<OptimizerNode> outputPlans) {
+	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans, CostEstimator estimator, List<OptimizerNode> outputPlans) {
 		
-		for(List<OptimizerNode> predList : alternativeSubPlanCominations) {
-			// we have to check if all input ShipStrategies are the same or at least compatible
-			ShipStrategy ss = ShipStrategy.NONE;
+		// we have to check if all input ShipStrategies are the same or at least compatible
+		ShipStrategy ss = ShipStrategy.NONE;
+
+		// check hint shipping strategy
+		ShipStrategy hintSS = this.inConn.getShipStrategy();
+		if(hintSS == ShipStrategy.BROADCAST || hintSS == ShipStrategy.SFR)
+			// invalid strategy: we do not produce an alternative node
+			return;
+		else
+			ss = hintSS;
+	
+		// if no hint for a strategy was provided, we use the default
+		if(ss == ShipStrategy.NONE)
+			ss = ShipStrategy.FORWARD;
 		
-			for(PactConnection c : this.input) {
-				ShipStrategy newSS = c.getShipStrategy();
-				
-				if(newSS == ShipStrategy.BROADCAST || newSS == ShipStrategy.SFR)
-					// invalid strategy: we do not produce an alternative node
-					continue;
+		for(OptimizerNode subPlan : altSubPlans) {
 		
-				// as long as no ShipStrategy is set we can pick the strategy from the current connection
-				if(ss == ShipStrategy.NONE) {
-					ss = newSS;
-					continue;
-				}
-				
-				// as long as the ShipStrategy is the same everything is fine
-				if(ss == newSS)
-					continue;
-				
-				// incompatible strategies: we do not produce an alternative node
-				continue;
-			}
-		
-			// if no hit for a strategy was provided, we use the default
-			if(ss == ShipStrategy.NONE)
-				ss = ShipStrategy.FORWARD;
+			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, ss);
+			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
 			
-			GlobalProperties gp;
-			LocalProperties lp;
-			if(predList.size() == 1) {
-				gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
-				lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
-			} else {
-				// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
-				gp = new GlobalProperties();
-				lp = new LocalProperties();
-			}
-			
-			
-			MapNode nMap = new MapNode(this, predList, this.input, gp, lp);
-			for(PactConnection cc : nMap.getInputConnections()) {
-				cc.setShipStrategy(ss);
-			}
-		
-			// now, the properties (copied from the inputs) are filtered by the
-			// output contracts
+			MapNode nMap = new MapNode(this, subPlan, this.inConn, gp, lp);
+			nMap.inConn.setShipStrategy(ss);
+					
+			// now, the properties (copied from the inputs) are filtered by the output contracts
 			nMap.getGlobalProperties().filterByNodesConstantSet(this, 0);
 			nMap.getLocalProperties().filterByNodesConstantSet(this, 0);
-
+	
 			// copy the cumulative costs and set the costs of the map itself to zero
 			estimator.costOperator(nMap);
 		
-			outputPlans.add(nMap);			
-		}		
+			outputPlans.add(nMap);
+		}
 	}
 
 	
@@ -194,25 +172,12 @@ public class MapNode extends SingleInputNode {
 	 * @return the number of stub calls.
 	 */
 	protected long computeNumberOfStubCalls() {
-		long sumStubCalls = 0;
-		
-		for(PactConnection c : this.input) {
-			OptimizerNode pred = c.getSourcePact();
-
-			if(pred != null) {
-				// if one input (all of them are unioned) does not know
-				// its stub call count, we a pessimistic and return "unknown" as well
-				if(pred.estimatedNumRecords == -1)
-					return -1;
 				
-				// Map is called once per record
-				// all inputs are union -> we sum up the stubCallCount
-				sumStubCalls += pred.estimatedNumRecords; 
-			}
-			
-		}
+		if(this.getPredNode() != null)
+			return this.getPredNode().estimatedNumRecords;
+		else
+			return -1;
 		
-		return sumStubCalls;
 	}
-	
+
 }

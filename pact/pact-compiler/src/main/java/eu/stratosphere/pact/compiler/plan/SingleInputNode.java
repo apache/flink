@@ -47,11 +47,15 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public abstract class SingleInputNode extends OptimizerNode {
+
+	// ------------- Node Connection
+	
+	protected PactConnection inConn = null; // the input of the node
+	
+	// ------------- Optimizer Cache
 	
 	private List<OptimizerNode> cachedPlans; // a cache for the computed alternative plans
 
-	final protected List<PactConnection> input = new ArrayList<PactConnection>(); // The list of input edges
-	
 	// ------------- Stub Annotations
 	
 	protected FieldSet reads; // set of fields that are read by the stub
@@ -62,7 +66,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 	protected ImplicitOperationMode implOpMode; // implicit operation of the stub
 	
-	protected FieldList keySet; // The set of key fields (order is relevant!)
+	protected FieldList keyList; // The set of key fields (order is relevant!)
 
 	// ------------------------------
 	
@@ -74,7 +78,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
-		this.keySet = new FieldList(pactContract.getKeyColumnNumbers(0));
+		this.keyList = new FieldList(pactContract.getKeyColumnNumbers(0));
 	}
 
 	/**
@@ -84,40 +88,38 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * 
 	 * @param template
 	 *        The node to create a copy of.
-	 * @param pred
+	 * @param predNode
 	 *        The new predecessor.
-	 * @param conn
+	 * @param inConn
 	 *        The old connection to copy properties from.
 	 * @param globalProps
 	 *        The global properties of this copy.
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected SingleInputNode(SingleInputNode template, List<OptimizerNode> pred, List<PactConnection> conn,
+	protected SingleInputNode(SingleInputNode template, OptimizerNode predNode, PactConnection inConn,
 			GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, globalProps, localProps);
 
+		// copy annotations
 		this.reads = template.reads;
 		this.explProjections = template.explProjections;
 		this.explCopies = template.explCopies;
 		this.implOpMode = template.implOpMode;
-		this.keySet = template.keySet;
 		
-		int i = 0;
-		for(PactConnection c: conn) {
-			this.input.add(new PactConnection(c, pred.get(i++), this));
+		// copy key set
+		this.keyList = template.keyList;
+		
+		// copy input connection
+		this.inConn = new PactConnection(inConn, predNode, this);
+		
+		// copy the child's branch-plan map
+		if(predNode.branchPlan != null && predNode.branchPlan.size() > 0) {
+			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(predNode.branchPlan);
+		} else {
+			this.branchPlan = null;
 		}
 
-		// copy the child's branch-plan map
-		if (this.branchPlan == null) {
-			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>();
-		}
-		for(OptimizerNode n : pred) {
-			if(n.branchPlan != null)
-				this.branchPlan.putAll(n.branchPlan);
-		}
-		if(this.branchPlan.size() == 0)
-			this.branchPlan = null;
 	}
 
 	/**
@@ -125,8 +127,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * 
 	 * @return The input connection.
 	 */
-	public List<PactConnection> getInputConnections() {
-		return this.input;
+	public PactConnection getInConn() {
+		return this.inConn;
 	}
 
 	/**
@@ -135,8 +137,21 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * @param conn
 	 *        The input connection to set.
 	 */
-	public void addInputConnection(PactConnection conn) {
-		this.input.add(conn);
+	public void setInConn(PactConnection inConn) {
+		this.inConn = inConn;
+	}
+	
+	/**
+	 * Gets the predecessor of this node.
+	 * 
+	 * @return The predecessor of this node. 
+	 */
+	public OptimizerNode getPredNode() {
+		if(this.inConn != null) {
+			return this.inConn.getSourcePact();
+		} else {
+			return null;
+		}
 	}
 
 	/*
@@ -144,8 +159,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getIncomingConnections()
 	 */
 	@Override
-	public List<List<PactConnection>> getIncomingConnections() {
-		return Collections.singletonList(this.input);
+	public List<PactConnection> getIncomingConnections() {
+		return Collections.singletonList(this.inConn);
 	}
 
 	/*
@@ -158,12 +173,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 		List<Contract> children = ((SingleInputContract<?>) getPactContract()).getInputs();
 		
 		for(Contract child : children) {
-			OptimizerNode pred = contractToNode.get(child);
+			OptimizerNode predNode = contractToNode.get(child);
 	
 			// create a connection
-			PactConnection conn = new PactConnection(pred, this);
-			addInputConnection(conn);
-			pred.addOutgoingConnection(conn);
+			PactConnection conn = new PactConnection(predNode, this);
+			this.setInConn(conn);
+			predNode.addOutConn(conn);
 	
 			// see if an internal hint dictates the strategy to use
 			Configuration conf = getPactContract().getParameters();
@@ -181,6 +196,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 
+	// ----------------- Recursive Optimization
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
@@ -192,38 +209,18 @@ public abstract class SingleInputNode extends OptimizerNode {
 			return this.cachedPlans;
 		}
 
-		// step down to all producer nodes and calculate alternative plans
-		final int inputSize = this.input.size();
-		@SuppressWarnings("unchecked")
-		List<? extends OptimizerNode>[] inPlans = new List[inputSize];
-		for(int i = 0; i < inputSize; ++i) {
-			inPlans[i] = this.input.get(i).getSourcePact().getAlternativePlans(estimator);
-		}
-
-		// build all possible alternative plans for this node
-		List<List<OptimizerNode>> alternativeSubPlanCominations = new ArrayList<List<OptimizerNode>>();
-		getAlternativeSubPlanCombinationsRecursively(inPlans, new ArrayList<OptimizerNode>(0), alternativeSubPlanCominations);
-		
-		for(int i = 0; i < alternativeSubPlanCominations.size(); ++i) {
-			// check, whether the two children have the same
-			// sub-plan in the common part before the branches
-			if (!areBranchCompatible(alternativeSubPlanCominations.get(i), null)) {
-				alternativeSubPlanCominations.remove(i);
-				// as we removed plan #i we have to test at index #i again which
-				// has an new plan now
-				--i;
-			}
-		}
+		// calculate alternative subplans for predecessor
+		List<? extends OptimizerNode> subPlans = this.getPredNode().getAlternativePlans(estimator);  
 
 		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
 
-		computeValidPlanAlternatives(alternativeSubPlanCominations, estimator,  outputPlans);
+		computeValidPlanAlternatives(subPlans, estimator,  outputPlans);
 		
 		// prune the plans
 		prunePlanAlternatives(outputPlans);
 
 		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (this.getOutgoingConnections() != null && this.getOutgoingConnections().size() > 1) {
+		if (this.getOutConns() != null && this.getOutConns().size() > 1) {
 			this.cachedPlans = outputPlans;
 		}
 
@@ -231,15 +228,16 @@ public abstract class SingleInputNode extends OptimizerNode {
 	}
 	
 	/**
-	 * Takes a list with all sub-plan-combinations (each is a list by itself) and produces alternative
-	 * plans for the current node using the single sub-plans-combinations.
+	 * Takes a list with all subplans and produces alternative plans for the current node
 	 *  
-	 * @param alternativeSubPlanCominations	 	List with all sub-plan-combinations
-	 * @param estimator							Cost estimator to be used
-	 * @param outputPlans						The generated output plans (is expected to be a list where new plans can be added)
+	 * @param altSubPlans	Alternative subplans
+	 * @param estimator		Cost estimator to be used
+	 * @param outputPlans	The generated output plans
 	 */
-	protected abstract void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations,
+	protected abstract void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans, 
 			CostEstimator estimator, List<OptimizerNode> outputPlans);
+	
+	// -------------------- Branch Handling
 	
 	/*
 	 * (non-Javadoc)
@@ -252,10 +250,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 
 		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
-		for(PactConnection c : this.input) {
-			result = mergeLists(result, c.getSourcePact().getBranchesForParent(this));
-		}
-
+		// TODO: check if merge of lists is really necessary
+		result = mergeLists(result, this.getPredNode().getBranchesForParent(this)); 
+			
 		this.openBranches = result;
 	}
 
@@ -272,21 +269,17 @@ public abstract class SingleInputNode extends OptimizerNode {
 		boolean descend = visitor.preVisit(this);
 
 		if (descend) {
-			for(PactConnection c : this.input) {
-				OptimizerNode n = c.getSourcePact();
-				if (n != null) {
-					n.accept(visitor);
-				}
+			
+			if(this.getPredNode() != null) {
+				this.getPredNode().accept(visitor);
 			}
-
+			
 			visitor.postVisit(this);
 		}
 	}
 	
 	/**
 	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.pact.compiler.plan.OptimizerNode}.
-	 * Since nodes with multiple inputs may join branched plans, care must be taken not to double-count the costs of the subtree rooted
-	 * at the last unjoined branch.
 	 * 
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setCosts(eu.stratosphere.pact.compiler.Costs)
 	 */
@@ -297,34 +290,80 @@ public abstract class SingleInputNode extends OptimizerNode {
 		// check, if this node has no branch beneath it, no double-counted cost then
 		if (this.lastJoinedBranchNode == null) {
 			return;
+		} else {
+			// TODO: revisit branch handling
+			throw new CompilerException("SingleInputNode should not have a branch node");
 		}
 
-		// we have to look for closing branches for all input-pair-combinations in the union case
-
-		final int sizeInput = this.input.size();
+	}
+	
+	// ------------------------- Estimate Computation
+	
+	/**
+	 * Computes the width of output records.
+	 * 
+	 * @return width of output records
+	 */
+	protected double computeAverageRecordWidth() {
 		
-		// check all all unioned inputs pair combination
-		// all unioned inputs from input1
-		for(int i = 0; i < sizeInput; ++i) {
-			PactConnection pc1 = this.input.get(i);
-			for(int j = i+1; j < sizeInput; ++j) {
-				PactConnection pc2 = this.input.get(j);
+		CompilerHints hints = getPactContract().getCompilerHints();
+		
+		// use hint if available
+		if(hints != null && hints.getAvgBytesPerRecord() != -1) {
+			return hints.getAvgBytesPerRecord();
+		}
 
-				// get the children and check their existence
-				OptimizerNode child1 = pc1.getSourcePact();
-				OptimizerNode child2 = pc2.getSourcePact();
-				
-				if (child1 == null || child2 == null) {
-					continue;
-				}
-				
-				// get the cumulative costs of the last joined branching node
-				OptimizerNode lastCommonChild = child1.branchPlan.get(this.lastJoinedBranchNode);
-				Costs douleCounted = lastCommonChild.getCumulativeCosts();
-				getCumulativeCosts().subtractCosts(douleCounted);
-			}
+		// compute width from output size and cardinality
+		final long numRecords = computeNumberOfStubCalls();
+		
+		long outputSize = 0;
+		if(this.getPredNode() != null) {
+			outputSize = this.getPredNode().estimatedOutputSize;
+		}
+		
+		// compute width only if we have information
+		if(numRecords == -1 || outputSize == -1)
+			return -1;
+		
+		final double width = outputSize / (double)numRecords;
+
+		// a record must have at least one byte...
+		if(width < 1)
+			return 1;
+		else 
+			return width;
+	}
+	
+	// -------------------- Operator Properties
+	
+	public boolean isFieldKept(int input, int fieldNumber) {
+		
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+		
+		if (implOpMode == null) {
+			return false;
+		}
+		
+		switch (implOpMode) {
+		case Projection:
+			return (explCopies == null ? false : 
+				explCopies.contains(fieldNumber));
+		case Copy:
+			return (explProjections == null || explWrites == null ? false :
+				!((new FieldSet(explWrites, explProjections)).contains(fieldNumber)));
+		default:
+				return false;
 		}
 	}
+		
+	public FieldList getKeySet() {
+		return this.keyList;
+	}
+	
+	// --------------------------- Stub Annotation Handling
+	// TODO: decide whether to go for constantField annotation instead of complex expl./impl. operations
 	
 	/*
 	 * (non-Javadoc)
@@ -393,12 +432,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	@Override
 	public void deriveOutputSchema() {
 		
-		if(this.input.size() > 1) {
-			throw new UnsupportedOperationException("Can not compute output schema for unioned inputs");
-		}
 		// compute and set the output schema for the node's input schema
-		this.outputSchema = computeOutputSchema(Collections.singletonList(this.input.get(0).getSourcePact().getOutputSchema()));
-		
+		this.outputSchema = computeOutputSchema(Collections.singletonList(this.getPredNode().getOutputSchema()));
 	}
 	
 	/*
@@ -454,7 +489,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		if(this.reads != null && !inputSchema.containsAll(this.reads))
 			return false;
 		// check that input schema includes all key fields
-		if(this.keySet != null && !inputSchema.containsAll(this.keySet))
+		if(this.keyList != null && !inputSchema.containsAll(this.keyList))
 			return false;
 		// check that implicit operation mode is set
 		if(this.implOpMode == null) {
@@ -491,12 +526,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	@Override
 	public FieldSet getWriteSet(int input) {
-		if(this.input.size() > 1) {
-			throw new UnsupportedOperationException("Can not compute write set for nodes with unioned inputs");
-		}
-		
+				
 		// compute and return write set for the node's input schema
-		return this.getWriteSet(input, Collections.singletonList(this.input.get(0).getSourcePact().getOutputSchema()));
+		return this.getWriteSet(input, Collections.singletonList(this.getPredNode().getOutputSchema()));
 	}
 	
 	/*
@@ -505,9 +537,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	@Override
 	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
-		
-		if(this.input.size() > 1) 
-			throw new IllegalArgumentException("SingleInputNode have only one input");
 		
 		if(input < -1 || input > 0)
 			throw new IndexOutOfBoundsException();
@@ -543,70 +572,4 @@ public abstract class SingleInputNode extends OptimizerNode {
 		
 	}
 	
-	/**
-	 * Computes the width of output records
-	 * 
-	 * @return width of output records
-	 */
-	protected double computeAverageRecordWidth() {
-		CompilerHints hints = getPactContract().getCompilerHints();
-		
-		// use hint if available
-		if(hints != null && hints.getAvgBytesPerRecord() != -1) {
-			return hints.getAvgBytesPerRecord();
-		}
-
-		long numRecords = computeNumberOfStubCalls();
-		// if unioned number of records is unknown,
-		// we are pessimistic and return "unknown" as well
-		if(numRecords == -1)
-			return -1;
-		
-		long outputSize = 0;
-		for(PactConnection c : this.input) {
-			OptimizerNode pred = c.getSourcePact();
-			
-			if(pred != null) {
-				// if one input (all of them are unioned) does not know
-				// its output size, we a pessimistic and return "unknown" as well
-				if(pred.estimatedOutputSize == -1)
-					return -1;
-				
-				outputSize += pred.estimatedOutputSize;
-			}
-		}
-		
-		double result = outputSize / (double)numRecords;
-		// a record must have at least one byte...
-		if(result < 1)
-			return 1;
-		
-		return result;
-	}
-	
-	public boolean isFieldKept(int input, int fieldNumber) {
-		
-		if (input != 0) {
-			throw new IndexOutOfBoundsException();
-		}
-		
-		if (implOpMode == null) {
-			return false;
-		}
-		
-		switch (implOpMode) {
-		case Projection:
-			return (explCopies == null ? false : 
-				explCopies.contains(fieldNumber));
-		case Copy:
-			return (explProjections == null || explWrites == null ? false :
-				!((new FieldSet(explWrites, explProjections)).contains(fieldNumber)));
-		default:
-				return false;
-		}
-	}
-		
-	public FieldList getKeySet() {
-		return this.keySet;
-	}
 }
