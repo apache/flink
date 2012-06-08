@@ -163,7 +163,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private int id = -1; // the id for this node.
 
-	private boolean pFlag = false; // flag for the internal pruning algorithm
+	protected boolean pFlag = false; // flag for the internal pruning algorithm
 
 	// ------------------------------------------------------------------------
 	//                      Constructor / Setup
