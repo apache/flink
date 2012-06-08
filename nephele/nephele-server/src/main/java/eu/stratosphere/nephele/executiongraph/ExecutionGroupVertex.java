@@ -168,6 +168,11 @@ public class ExecutionGroupVertex {
 	private final Configuration configuration;
 
 	/**
+	 * The task class that is assigned to execution vertices of this group
+	 */
+	private final Class<? extends AbstractInvokable> invokableClass;
+
+	/**
 	 * The environment created to execute the vertex's task.
 	 */
 	private final RuntimeEnvironment environment;
@@ -200,7 +205,7 @@ public class ExecutionGroupVertex {
 	 * @param signature
 	 *        the cryptographic signature of the vertex
 	 * @param invokableClass
-	 *        the task that is assigned to execution vertices of this group
+	 *        the task class that is assigned to execution vertices of this group
 	 * @throws Exception
 	 *         throws if an error occurs while instantiating the {@link AbstractInvokable}
 	 */
@@ -232,6 +237,8 @@ public class ExecutionGroupVertex {
 		this.userDefinedVertexToShareInstancesWith = userDefinedVertexToShareInstanceWith;
 		this.configuration = configuration;
 		this.executionSignature = signature;
+
+		this.invokableClass = invokableClass;
 
 		this.environment = new RuntimeEnvironment(executionGraph.getJobID(), name, invokableClass, configuration,
 			executionGraph.getJobConfiguration());
@@ -407,7 +414,8 @@ public class ExecutionGroupVertex {
 		}
 
 		final ExecutionGroupEdge edge = new ExecutionGroupEdge(this, indexOfOutputGate, groupVertex, indexOfInputGate,
-			channelType, userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern, isBroadcast);
+			channelType, userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern,
+			isBroadcast);
 
 		this.forwardLinks.add(edge);
 
@@ -1006,5 +1014,15 @@ public class ExecutionGroupVertex {
 		}
 
 		return ics;
+	}
+
+	/**
+	 * Returns the task class that is assigned to execution vertices of this group.
+	 * 
+	 * @return the task class that is assigned to execution vertices of this group
+	 */
+	Class<? extends AbstractInvokable> getInvokableClass() {
+
+		return this.invokableClass;
 	}
 }

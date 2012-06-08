@@ -39,6 +39,7 @@ import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -330,9 +331,9 @@ public class ExecutionGraph implements ExecutionListener {
 					userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern,
 					isBroadcast);
 
-				final ExecutionGate outputGate = new ExecutionGate(sev, groupEdge, false);
+				final ExecutionGate outputGate = new ExecutionGate(new GateID(), sev, groupEdge, false);
 				sev.insertOutputGate(i, outputGate);
-				final ExecutionGate inputGate = new ExecutionGate(tev, groupEdge, true);
+				final ExecutionGate inputGate = new ExecutionGate(new GateID(), tev, groupEdge, true);
 				tev.insertInputGate(edge.getIndexOfInputGate(), inputGate);
 			}
 		}
@@ -751,14 +752,14 @@ public class ExecutionGraph implements ExecutionListener {
 	public ExecutionVertex getVertexByChannelID(final ChannelID id) {
 
 		final ExecutionEdge edge = this.edgeMap.get(id);
-		if(edge == null) {
+		if (edge == null) {
 			return null;
 		}
-		
-		if(id.equals(edge.getOutputChannelID())) {
+
+		if (id.equals(edge.getOutputChannelID())) {
 			return edge.getOutputGate().getVertex();
 		}
-		
+
 		return edge.getInputGate().getVertex();
 	}
 

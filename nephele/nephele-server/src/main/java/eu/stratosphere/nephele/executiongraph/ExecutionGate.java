@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.executiongraph;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 
@@ -31,6 +32,8 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
  */
 public final class ExecutionGate {
 
+	private final GateID gateID;
+
 	private volatile ExecutionVertex vertex;
 
 	private final ExecutionGroupEdge groupEdge;
@@ -39,11 +42,18 @@ public final class ExecutionGate {
 
 	private final CopyOnWriteArrayList<ExecutionEdge> edges = new CopyOnWriteArrayList<ExecutionEdge>();
 
-	ExecutionGate(final ExecutionVertex vertex, final ExecutionGroupEdge groupEdge, final boolean isInputGate) {
+	ExecutionGate(final GateID gateID, final ExecutionVertex vertex, final ExecutionGroupEdge groupEdge,
+			final boolean isInputGate) {
 
+		this.gateID = gateID;
 		this.vertex = vertex;
 		this.groupEdge = groupEdge;
 		this.isInputGate = isInputGate;
+	}
+
+	public GateID getGateID() {
+
+		return this.gateID;
 	}
 
 	public ExecutionVertex getVertex() {

@@ -47,6 +47,7 @@ import eu.stratosphere.nephele.checkpointing.CheckpointUtils;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.execution.Environment;
@@ -510,19 +511,19 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 * {@inheritDoc}
 	 */
 	@Override
-	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
+	public List<TaskSubmissionResult> submitTasks(final List<TaskDeploymentDescriptor> tasks) throws IOException {
 
 		final List<TaskSubmissionResult> submissionResultList = new SerializableArrayList<TaskSubmissionResult>();
 		final List<Task> tasksToStart = new ArrayList<Task>();
 
 		// Make sure all tasks are fully registered before they are started
-		for (final TaskSubmissionWrapper tsw : tasks) {
-
-			final RuntimeEnvironment re = tsw.getEnvironment();
-			final ExecutionVertexID id = tsw.getVertexID();
-			final Configuration jobConfiguration = tsw.getConfiguration();
-			final CheckpointState initialCheckpointState = tsw.getInitialCheckpointState();
-			final Set<ChannelID> activeOutputChannels = tsw.getActiveOutputChannels();
+		for (final TaskDeploymentDescriptor tdd : tasks) {
+			
+			final RuntimeEnvironment re = new RuntimeEnvironment(tdd);
+			final ExecutionVertexID id = tdd.getVertexID();
+			final Configuration jobConfiguration = tdd.getJobConfiguration();
+			final CheckpointState initialCheckpointState = tdd.getInitialCheckpointState();
+			final Set<ChannelID> activeOutputChannels = null; //TODO: Fix me
 
 			// Register the task
 			final Task task = createAndRegisterTask(id, jobConfiguration, re, initialCheckpointState,

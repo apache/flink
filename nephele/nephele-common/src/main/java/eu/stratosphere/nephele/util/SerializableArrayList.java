@@ -43,6 +43,23 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 	private static final long serialVersionUID = 8196856588290198537L;
 
 	/**
+	 * Constructs an empty list with an initial capacity of ten.
+	 */
+	public SerializableArrayList() {
+		super();
+	}
+
+	/**
+	 * Constructs an empty list with the specified initial capacity.
+	 * 
+	 * @param initialCapacity
+	 *        the initial capacity of the list
+	 */
+	public SerializableArrayList(final int initialCapacity) {
+		super(initialCapacity);
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override

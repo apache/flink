@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.executiongraph;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
@@ -28,23 +29,23 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
 
+import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
+import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.util.AtomicEnum;
 import eu.stratosphere.nephele.util.SerializableArrayList;
-import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
  * An execution vertex represents an instance of a task in a Nephele job. An execution vertex
@@ -235,13 +236,13 @@ public final class ExecutionVertex {
 
 		// Duplicate gates
 		for (int i = 0; i < this.outputGates.length; ++i) {
-			duplicatedVertex.outputGates[i] = new ExecutionGate(duplicatedVertex, this.outputGates[i].getGroupEdge(),
-				false);
+			duplicatedVertex.outputGates[i] = new ExecutionGate(new GateID(), duplicatedVertex,
+				this.outputGates[i].getGroupEdge(), false);
 		}
 
 		for (int i = 0; i < this.inputGates.length; ++i) {
-			duplicatedVertex.inputGates[i] = new ExecutionGate(duplicatedVertex, this.inputGates[i].getGroupEdge(),
-				true);
+			duplicatedVertex.inputGates[i] = new ExecutionGate(new GateID(), duplicatedVertex,
+				this.inputGates[i].getGroupEdge(), true);
 		}
 
 		// Copy checkpoint state from original vertex
@@ -654,44 +655,6 @@ public final class ExecutionVertex {
 		return this.inputGates[index];
 	}
 
-	public SerializableHashSet<ChannelID> constructInitialActiveOutputChannelsSet() {
-
-		final SerializableHashSet<ChannelID> activeOutputChannels = new SerializableHashSet<ChannelID>();
-
-		synchronized (this) {
-
-			for (int i = 0; i < this.outputGates.length; ++i) {
-
-				final ExecutionGate outputGate = this.outputGates[i];
-				final ChannelType channelType = outputGate.getChannelType();
-
-				final int numberOfOutputChannels = outputGate.getNumberOfEdges();
-				for (int j = 0; j < numberOfOutputChannels; ++j) {
-					ExecutionEdge outputChannel = outputGate.getEdge(j);
-					if (channelType == ChannelType.FILE) {
-						activeOutputChannels.add(outputChannel.getOutputChannelID());
-						continue;
-					}
-					if (channelType == ChannelType.INMEMORY) {
-						activeOutputChannels.add(outputChannel.getOutputChannelID());
-						continue;
-					}
-					if (channelType == ChannelType.NETWORK) {
-
-						final ExecutionVertex connectedVertex = outputChannel.getInputGate().getVertex();
-						final ExecutionState state = connectedVertex.getExecutionState();
-						if (state == ExecutionState.READY || state == ExecutionState.STARTING
-							|| state == ExecutionState.RUNNING) {
-							activeOutputChannels.add(outputChannel.getOutputChannelID());
-						}
-					}
-				}
-			}
-		}
-
-		return activeOutputChannels;
-	}
-
 	/**
 	 * Deploys and starts the task represented by this vertex
 	 * on the assigned instance.
@@ -707,12 +670,8 @@ public final class ExecutionVertex {
 			return result;
 		}
 
-		final SerializableHashSet<ChannelID> activeOutputChannels = constructInitialActiveOutputChannelsSet();
-
-		final List<TaskSubmissionWrapper> tasks = new SerializableArrayList<TaskSubmissionWrapper>();
-		final TaskSubmissionWrapper tsw = new TaskSubmissionWrapper(this.vertexID, null /*this.environment*/,
-			this.executionGraph.getJobConfiguration(), this.checkpointState.get(), activeOutputChannels);
-		tasks.add(tsw);
+		final List<TaskDeploymentDescriptor> tasks = new SerializableArrayList<TaskDeploymentDescriptor>();
+		tasks.add(constructDeploymentDescriptor());
 
 		try {
 			final List<TaskSubmissionResult> results = this.allocatedResource.getInstance().submitTasks(tasks);
@@ -1013,5 +972,55 @@ public final class ExecutionVertex {
 	public ExecutionPipeline getExecutionPipeline() {
 
 		return this.executionPipeline.get();
+	}
+
+	/**
+	 * Constructs a new task deployment descriptor for this vertex.
+	 * 
+	 * @return a new task deployment descriptor for this vertex
+	 */
+	public TaskDeploymentDescriptor constructDeploymentDescriptor() {
+
+		final SerializableArrayList<GateDeploymentDescriptor> ogd = new SerializableArrayList<GateDeploymentDescriptor>(
+			this.outputGates.length);
+		for (int i = 0; i < this.outputGates.length; ++i) {
+
+			final ExecutionGate eg = this.outputGates[i];
+			final List<ChannelDeploymentDescriptor> cdd = new ArrayList<ChannelDeploymentDescriptor>(
+				eg.getNumberOfEdges());
+			final int numberOfOutputChannels = eg.getNumberOfEdges();
+			for (int j = 0; j < numberOfOutputChannels; ++j) {
+
+				final ExecutionEdge ee = eg.getEdge(j);
+				cdd.add(new ChannelDeploymentDescriptor(ee.getOutputChannelID(), ee.getInputChannelID()));
+			}
+
+			ogd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), eg.getCompressionLevel(), cdd));
+		}
+
+		final SerializableArrayList<GateDeploymentDescriptor> igd = new SerializableArrayList<GateDeploymentDescriptor>(
+			this.inputGates.length);
+		for (int i = 0; i < this.inputGates.length; ++i) {
+
+			final ExecutionGate eg = this.inputGates[i];
+			final List<ChannelDeploymentDescriptor> cdd = new ArrayList<ChannelDeploymentDescriptor>(
+				eg.getNumberOfEdges());
+			final int numberOfInputChannels = eg.getNumberOfEdges();
+			for (int j = 0; j < numberOfInputChannels; ++j) {
+
+				final ExecutionEdge ee = eg.getEdge(j);
+				cdd.add(new ChannelDeploymentDescriptor(ee.getOutputChannelID(), ee.getInputChannelID()));
+			}
+
+			igd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), eg.getCompressionLevel(), cdd));
+		}
+
+		final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(this.executionGraph.getJobID(),
+			this.vertexID, this.groupVertex.getName(), this.indexInVertexGroup,
+			this.groupVertex.getCurrentNumberOfGroupMembers(), this.executionGraph.getJobConfiguration(),
+			this.groupVertex.getConfiguration(), this.checkpointState.get(), this.groupVertex.getInvokableClass(), ogd,
+			igd);
+
+		return tdd;
 	}
 }

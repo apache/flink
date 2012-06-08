@@ -64,6 +64,7 @@ import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.client.AbstractJobResult.ReturnCode;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.discovery.DiscoveryException;
 import eu.stratosphere.nephele.discovery.DiscoveryService;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
@@ -118,7 +119,6 @@ import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -1206,14 +1206,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
 				}
 
-				final List<TaskSubmissionWrapper> submissionList = new SerializableArrayList<TaskSubmissionWrapper>();
+				final List<TaskDeploymentDescriptor> submissionList = new SerializableArrayList<TaskDeploymentDescriptor>();
 
 				// Check the consistency of the call
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {
 
-					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), null /*vertex.getEnvironment()*/, vertex
-						.getExecutionGraph().getJobConfiguration(), vertex.getCheckpointState(), vertex
-						.constructInitialActiveOutputChannelsSet()));
+					submissionList.add(vertex.constructDeploymentDescriptor());
 
 					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
 				}
