@@ -416,12 +416,22 @@ public class ExecutionGraph implements ExecutionListener {
 
 				final ExecutionVertex tev = vertexMap.get(tjv);
 				final ExecutionGroupVertex tgv = tev.getGroupVertex();
-				final ChannelType channelType = edge.getChannelType();
-				final CompressionLevel compressionLevel = edge.getCompressionLevel();
-				final DistributionPattern distributionPattern = edge.getDistributionPattern();
+				// Use NETWORK as default channel type if nothing else is defined by the user
+				ChannelType channelType = edge.getChannelType();
+				boolean userDefinedChannelType = true;
+				if (channelType == null) {
+					userDefinedChannelType = false;
+					channelType = ChannelType.NETWORK;
+				}
+				// Use NO_COMPRESSION as default compression level if nothing else is defined by the user
+				CompressionLevel compressionLevel = edge.getCompressionLevel();
+				boolean userDefinedCompressionLevel = true;
+				if (compressionLevel == null) {
+					userDefinedCompressionLevel = false;
+					compressionLevel = CompressionLevel.NO_COMPRESSION;
+				}
 
-				final boolean userDefinedChannelType = (channelType != null);
-				final boolean userDefinedCompressionLevel = (compressionLevel != null);
+				final DistributionPattern distributionPattern = edge.getDistributionPattern();
 
 				// Connect the corresponding group vertices and copy the user settings from the job edge
 				final ExecutionGroupEdge groupEdge = sgv.wireTo(tgv, edge.getIndexOfInputGate(), i, channelType,
