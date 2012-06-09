@@ -76,14 +76,10 @@ public final class ExecutionGate {
 		return this.edges.get(index);
 	}
 
-	void addEdges(final Collection<ExecutionEdge> newEdges) {
-
-		this.edges.addAll(newEdges);
-	}
-
-	void removeAllEdges() {
-
+	void replaceAllEdges(final Collection<ExecutionEdge> newEdges) {
+		
 		this.edges.clear();
+		this.edges.addAll(newEdges);
 	}
 
 	public ChannelType getChannelType() {

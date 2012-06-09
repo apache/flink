@@ -139,7 +139,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final OutputChannelContext previousContext = (OutputChannelContext) this.registeredChannels
 					.get(channelID);
 
-				final boolean isActive = activeOutputChannels.contains(channelID);
+				final boolean isActive = true;/*activeOutputChannels.contains(channelID);*/
 
 				final OutputChannelContext outputChannelContext = outputGateContext.createOutputChannelContext(
 					channelID, previousContext, isActive, this.mergeSpilledBuffers);

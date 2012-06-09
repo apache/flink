@@ -85,7 +85,8 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * Mapping of channel IDs to edges.
 	 */
-	private final ConcurrentMap<ChannelID, ExecutionEdge> edgeMap = new ConcurrentHashMap<ChannelID, ExecutionEdge>();
+	private final ConcurrentMap<ChannelID, ExecutionEdge> edgeMap = new ConcurrentHashMap<ChannelID, ExecutionEdge>(
+		1024 * 1024);
 
 	/**
 	 * List of stages in the graph.
@@ -197,13 +198,13 @@ public class ExecutionGraph implements ExecutionListener {
 			}
 		}
 
-		// Second, we create the number of members each group vertex is supposed to have
+		// Second, we create the number of execution vertices each group vertex is supposed to manage
 		Iterator<ExecutionGroupVertex> it2 = new ExecutionGroupVertexIterator(this, true, -1);
 		while (it2.hasNext()) {
 
 			final ExecutionGroupVertex groupVertex = it2.next();
 			if (groupVertex.isNumberOfMembersUserDefined()) {
-				groupVertex.changeNumberOfGroupMembers(groupVertex.getUserDefinedNumberOfMembers());
+				groupVertex.createInitialExecutionVertices(groupVertex.getUserDefinedNumberOfMembers());
 				groupVertex.repairSubtasksPerInstance();
 			}
 		}
@@ -222,6 +223,16 @@ public class ExecutionGraph implements ExecutionListener {
 				if (edge.isCompressionLevelUserDefined()) {
 					edge.changeCompressionLevel(edge.getCompressionLevel());
 				}
+
+				// Create edges between execution vertices
+				createExecutionEdgesForGroupEdge(edge);
+			}
+
+			// Update initial checkpoint state for all group members
+			final CheckpointState ics = groupVertex.checkInitialCheckpointState();
+			final int currentNumberOfGroupMembers = groupVertex.getCurrentNumberOfGroupMembers();
+			for (int i = 0; i < currentNumberOfGroupMembers; ++i) {
+				groupVertex.getGroupMember(i).updateCheckpointState(ics);
 			}
 		}
 
@@ -266,7 +277,7 @@ public class ExecutionGraph implements ExecutionListener {
 		}
 
 		// Create initial edges between the vertices
-		createInitialEdges(temporaryVertexMap);
+		createInitialGroupEdges(temporaryVertexMap);
 
 		// Now that an initial graph is built, apply the user settings
 		applyUserDefinedSettings(temporaryGroupVertexMap);
@@ -278,15 +289,101 @@ public class ExecutionGraph implements ExecutionListener {
 		reconstructExecutionPipelines();
 	}
 
+	private void createExecutionEdgesForGroupEdge(final ExecutionGroupEdge groupEdge) {
+
+		final ExecutionGroupVertex source = groupEdge.getSourceVertex();
+		final int indexOfOutputGate = groupEdge.getIndexOfOutputGate();
+		final ExecutionGroupVertex target = groupEdge.getTargetVertex();
+		final int indexOfInputGate = groupEdge.getIndexOfInputGate();
+
+		final Map<GateID, List<ExecutionEdge>> inputChannelMap = new HashMap<GateID, List<ExecutionEdge>>();
+
+		// Unwire the respective gate of the source vertices
+		final int currentNumberOfSourceNodes = source.getCurrentNumberOfGroupMembers();
+		for (int i = 0; i < currentNumberOfSourceNodes; ++i) {
+
+			final ExecutionVertex sourceVertex = source.getGroupMember(i);
+			final ExecutionGate outputGate = sourceVertex.getOutputGate(indexOfOutputGate);
+			if (outputGate == null) {
+				throw new IllegalStateException("wire: " + sourceVertex.getName()
+					+ " has no output gate with index " + indexOfOutputGate);
+			}
+
+			if (outputGate.getNumberOfEdges() > 0) {
+				throw new IllegalStateException("wire: wire called on source " + sourceVertex.getName() + " (" + i
+					+ "), but number of output channels is " + outputGate.getNumberOfEdges() + "!");
+			}
+
+			final int currentNumberOfTargetNodes = target.getCurrentNumberOfGroupMembers();
+			final List<ExecutionEdge> outputChannels = new ArrayList<ExecutionEdge>();
+
+			for (int j = 0; j < currentNumberOfTargetNodes; ++j) {
+
+				final ExecutionVertex targetVertex = target.getGroupMember(j);
+				final ExecutionGate inputGate = targetVertex.getInputGate(indexOfInputGate);
+				if (inputGate == null) {
+					throw new IllegalStateException("wire: " + targetVertex.getName()
+						+ " has no input gate with index " + indexOfInputGate);
+				}
+
+				if (inputGate.getNumberOfEdges() > 0 && i == 0) {
+					throw new IllegalStateException("wire: wire called on target " + targetVertex.getName() + " ("
+						+ j + "), but number of input channels is " + inputGate.getNumberOfEdges() + "!");
+				}
+
+				// Check if a wire is supposed to be created
+				if (DistributionPatternProvider.createWire(source.getForwardEdge(indexOfOutputGate)
+					.getDistributionPattern(), i, j, source.getCurrentNumberOfGroupMembers(), target
+					.getCurrentNumberOfGroupMembers())) {
+
+					final ExecutionEdge edge = new ExecutionEdge(outputGate, inputGate, groupEdge, new ChannelID(),
+						new ChannelID(), outputGate.getNumberOfEdges(), inputGate.getNumberOfEdges());
+
+					this.edgeMap.put(edge.getOutputChannelID(), edge);
+					this.edgeMap.put(edge.getInputChannelID(), edge);
+
+					outputChannels.add(edge);
+
+					List<ExecutionEdge> inputChannels = inputChannelMap.get(inputGate.getGateID());
+					if (inputChannels == null) {
+						inputChannels = new ArrayList<ExecutionEdge>();
+						inputChannelMap.put(inputGate.getGateID(), inputChannels);
+					}
+
+					inputChannels.add(edge);
+				}
+
+				outputGate.replaceAllEdges(outputChannels);
+			}
+		}
+
+		// Finally, set the channels for the input gates
+		final int currentNumberOfTargetNodes = target.getCurrentNumberOfGroupMembers();
+		for (int i = 0; i < currentNumberOfTargetNodes; ++i) {
+
+			final ExecutionVertex targetVertex = target.getGroupMember(i);
+			final ExecutionGate inputGate = targetVertex.getInputGate(indexOfInputGate);
+
+			final List<ExecutionEdge> inputChannels = inputChannelMap.get(inputGate.getGateID());
+			if (inputChannels == null) {
+				LOG.error("Cannot find input channels for gate ID " + inputGate.getGateID());
+				continue;
+			}
+
+			inputGate.replaceAllEdges(inputChannels);
+		}
+
+	}
+
 	/**
-	 * Creates the initial edges between the vertices
+	 * Creates the initial edges between the group vertices
 	 * 
 	 * @param vertexMap
 	 *        the temporary vertex map
 	 * @throws GraphConversionException
 	 *         if the initial wiring cannot be created
 	 */
-	private void createInitialEdges(final HashMap<AbstractJobVertex, ExecutionVertex> vertexMap)
+	private void createInitialGroupEdges(final HashMap<AbstractJobVertex, ExecutionVertex> vertexMap)
 			throws GraphConversionException {
 
 		Iterator<Map.Entry<AbstractJobVertex, ExecutionVertex>> it = vertexMap.entrySet().iterator();
@@ -339,104 +436,8 @@ public class ExecutionGraph implements ExecutionListener {
 		}
 	}
 
-	void unwire(final ExecutionGroupEdge groupEdge) throws GraphConversionException {
-
-		final ExecutionGroupVertex source = groupEdge.getSourceVertex();
-		final int indexOfOutputGate = groupEdge.getIndexOfOutputGate();
-		final ExecutionGroupVertex target = groupEdge.getTargetVertex();
-		final int indexOfInputGate = groupEdge.getIndexOfInputGate();
-
-		// Unwire the respective gate of the source vertices
-		for (int i = 0; i < source.getCurrentNumberOfGroupMembers(); i++) {
-
-			final ExecutionVertex sourceVertex = source.getGroupMember(i);
-			final ExecutionGate outputGate = sourceVertex.getOutputGate(indexOfOutputGate);
-			if (outputGate == null) {
-				throw new GraphConversionException("unwire: " + sourceVertex.getName()
-					+ " has no output gate with index " + indexOfOutputGate);
-			}
-
-			for (int j = 0; j < outputGate.getNumberOfEdges(); j++) {
-				final ExecutionEdge outputChannel = outputGate.getEdge(j);
-				this.edgeMap.remove(outputChannel.getOutputChannelID());
-			}
-
-			outputGate.removeAllEdges();
-		}
-
-		// Unwire the respective gate of the target vertices
-		for (int i = 0; i < target.getCurrentNumberOfGroupMembers(); i++) {
-
-			final ExecutionVertex targetVertex = target.getGroupMember(i);
-			final ExecutionGate inputGate = targetVertex.getInputGate(indexOfInputGate);
-			if (inputGate == null) {
-				throw new GraphConversionException("unwire: " + targetVertex.getName()
-					+ " has no input gate with index " + indexOfInputGate);
-			}
-
-			for (int j = 0; j < inputGate.getNumberOfEdges(); j++) {
-				final ExecutionEdge inputChannel = inputGate.getEdge(j);
-				this.edgeMap.remove(inputChannel.getInputChannelID());
-			}
-
-			inputGate.removeAllEdges();
-		}
-	}
-
 	void wire(final ExecutionGroupEdge groupEdge) throws GraphConversionException {
 
-		final ExecutionGroupVertex source = groupEdge.getSourceVertex();
-		final int indexOfOutputGate = groupEdge.getIndexOfOutputGate();
-		final ExecutionGroupVertex target = groupEdge.getTargetVertex();
-		final int indexOfInputGate = groupEdge.getIndexOfInputGate();
-
-		// Unwire the respective gate of the source vertices
-		for (int i = 0; i < source.getCurrentNumberOfGroupMembers(); i++) {
-
-			final ExecutionVertex sourceVertex = source.getGroupMember(i);
-			final ExecutionGate outputGate = sourceVertex.getOutputGate(indexOfOutputGate);
-			if (outputGate == null) {
-				throw new GraphConversionException("wire: " + sourceVertex.getName()
-					+ " has no output gate with index " + indexOfOutputGate);
-			}
-			if (outputGate.getNumberOfEdges() > 0) {
-				throw new GraphConversionException("wire: wire called on source " + sourceVertex.getName() + " (" + i
-					+ "), but number of output channels is " + outputGate.getNumberOfEdges() + "!");
-			}
-
-			for (int j = 0; j < target.getCurrentNumberOfGroupMembers(); j++) {
-
-				final ExecutionVertex targetVertex = target.getGroupMember(j);
-				final ExecutionGate inputGate = targetVertex.getInputGate(indexOfInputGate);
-				if (inputGate == null) {
-					throw new GraphConversionException("wire: " + targetVertex.getName()
-						+ " has no input gate with index " + indexOfInputGate);
-				}
-				if (inputGate.getNumberOfEdges() > 0 && i == 0) {
-					throw new GraphConversionException("wire: wire called on target " + targetVertex.getName() + " ("
-						+ j + "), but number of input channels is " + inputGate.getNumberOfEdges() + "!");
-				}
-
-				// Check if a wire is supposed to be created
-				if (DistributionPatternProvider.createWire(source.getForwardEdge(indexOfOutputGate)
-					.getDistributionPattern(), i, j, source.getCurrentNumberOfGroupMembers(), target
-					.getCurrentNumberOfGroupMembers())) {
-					createChannel(outputGate, inputGate, groupEdge);
-				}
-			}
-		}
-	}
-
-	private void createChannel(final ExecutionGate outputGate, final ExecutionGate inputGate,
-			final ExecutionGroupEdge groupEdge) throws GraphConversionException {
-
-		final ExecutionEdge edge = new ExecutionEdge(outputGate, inputGate, groupEdge, new ChannelID(),
-			new ChannelID(), outputGate.getNumberOfEdges(), inputGate.getNumberOfEdges());
-
-		this.edgeMap.put(edge.getOutputChannelID(), edge);
-		this.edgeMap.put(edge.getInputChannelID(), edge);
-
-		// TODO: Insert edges here
 	}
 
 	/**

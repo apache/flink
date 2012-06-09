@@ -92,4 +92,24 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 		this.outputChannelID.read(in);
 		this.inputChannelID.read(in);
 	}
+
+	/**
+	 * Returns the output channel ID attached to this deployment descriptor.
+	 * 
+	 * @return the output channel ID attached to this deployment descriptor
+	 */
+	public ChannelID getOutputChannelID() {
+
+		return this.outputChannelID;
+	}
+
+	/**
+	 * Returns the input channel ID attached to this deployment descriptor.
+	 * 
+	 * @return the input channel ID attached to this deployment descriptor
+	 */
+	public ChannelID getInputChannelID() {
+
+		return this.inputChannelID;
+	}
 }

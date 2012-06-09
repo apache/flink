@@ -518,12 +518,23 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Make sure all tasks are fully registered before they are started
 		for (final TaskDeploymentDescriptor tdd : tasks) {
-			
-			final RuntimeEnvironment re = new RuntimeEnvironment(tdd);
+
 			final ExecutionVertexID id = tdd.getVertexID();
+			RuntimeEnvironment re;
+			try {
+				re = new RuntimeEnvironment(tdd);
+			} catch (Throwable t) {
+				final TaskSubmissionResult result = new TaskSubmissionResult(id,
+					AbstractTaskResult.ReturnCode.DEPLOYMENT_ERROR);
+				result.setDescription(StringUtils.stringifyException(t));
+				LOG.error(result.getDescription());
+				submissionResultList.add(result);
+				continue;
+			}
+
 			final Configuration jobConfiguration = tdd.getJobConfiguration();
 			final CheckpointState initialCheckpointState = tdd.getInitialCheckpointState();
-			final Set<ChannelID> activeOutputChannels = null; //TODO: Fix me
+			final Set<ChannelID> activeOutputChannels = null; // TODO: Fix me
 
 			// Register the task
 			final Task task = createAndRegisterTask(id, jobConfiguration, re, initialCheckpointState,

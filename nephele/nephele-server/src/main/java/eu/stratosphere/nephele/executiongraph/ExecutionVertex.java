@@ -218,11 +218,8 @@ public final class ExecutionVertex {
 	 * @param preserveVertexID
 	 *        <code>true</code> to copy the vertex's ID to the duplicated vertex, <code>false</code> to create a new ID
 	 * @return a duplicate of this execution vertex
-	 * @throws Exception
-	 *         any exception that might be thrown by the user code during instantiation and registration of input and
-	 *         output channels
 	 */
-	public ExecutionVertex duplicateVertex(final boolean preserveVertexID) throws Exception {
+	public ExecutionVertex duplicateVertex(final boolean preserveVertexID) {
 
 		ExecutionVertexID newVertexID;
 		if (preserveVertexID) {
@@ -293,11 +290,8 @@ public final class ExecutionVertex {
 	 * a new vertex ID.
 	 * 
 	 * @return a duplicate of this execution vertex.
-	 * @throws Exception
-	 *         any exception that might be thrown by the user code during instantiation and registration of input and
-	 *         output channels
 	 */
-	public ExecutionVertex splitVertex() throws Exception {
+	public ExecutionVertex splitVertex() {
 
 		return duplicateVertex(false);
 	}

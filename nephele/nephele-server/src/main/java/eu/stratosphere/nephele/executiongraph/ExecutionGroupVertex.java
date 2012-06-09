@@ -37,7 +37,6 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * An ExecutionGroupVertex is created for every JobVertex of the initial job graph. It represents a number of execution
@@ -148,11 +147,6 @@ public class ExecutionGroupVertex {
 	private final CopyOnWriteArrayList<ExecutionGroupEdge> backwardLinks = new CopyOnWriteArrayList<ExecutionGroupEdge>();
 
 	/**
-	 * The execution graph this group vertex belongs to.
-	 */
-	private final ExecutionGraph executionGraph;
-
-	/**
 	 * List of input splits assigned to this group vertex.
 	 */
 	private volatile InputSplit[] inputSplits = null;
@@ -216,9 +210,8 @@ public class ExecutionGroupVertex {
 			final Configuration configuration, final ExecutionSignature signature,
 			final Class<? extends AbstractInvokable> invokableClass) throws Exception {
 
-		this.name = name;
+		this.name = (name != null) ? name : "";
 		this.jobVertexID = jobVertexID;
-		this.executionGraph = executionGraph;
 		this.userDefinedNumberOfMembers = userDefinedNumberOfMembers;
 		this.instanceType = instanceType;
 		this.userDefinedInstanceType = userDefinedInstanceType;
@@ -242,8 +235,6 @@ public class ExecutionGroupVertex {
 
 		this.environment = new RuntimeEnvironment(executionGraph.getJobID(), name, invokableClass, configuration,
 			executionGraph.getJobConfiguration());
-
-		this.environment.instantiateInvokable();
 	}
 
 	/**
@@ -332,6 +323,8 @@ public class ExecutionGroupVertex {
 	 */
 	void setMaxMemberSize(final int maxSize) {
 
+		// TODO: Add checks here
+
 		this.maxMemberSize = maxSize;
 	}
 
@@ -342,6 +335,8 @@ public class ExecutionGroupVertex {
 	 *        the minimum number of members this group vertex must have
 	 */
 	void setMinMemberSize(final int minSize) {
+
+		// TODO: Add checks here
 
 		this.minMemberSize = minSize;
 	}
@@ -487,21 +482,27 @@ public class ExecutionGroupVertex {
 	}
 
 	/**
-	 * Changes the number of members this group vertex currently has.
+	 * Creates the initial execution vertices managed by this group vertex.
 	 * 
-	 * @param newNumberOfMembers
-	 *        the new number of members
+	 * @param initialNumberOfVertices
+	 *        the initial number of execution vertices
 	 * @throws GraphConversionException
-	 *         thrown if the number of members for this group vertex cannot be set to the desired value
+	 *         thrown if the number of execution vertices for this group vertex cannot be set to the desired value
 	 */
-	void changeNumberOfGroupMembers(final int newNumberOfMembers) throws GraphConversionException {
+	void createInitialExecutionVertices(final int initalNumberOfVertices) throws GraphConversionException {
 
-		// If the requested number of members does not change, do nothing
-		if (newNumberOfMembers == this.getCurrentNumberOfGroupMembers()) {
+		// If the requested number of group vertices does not change, do nothing
+		if (initalNumberOfVertices == this.getCurrentNumberOfGroupMembers()) {
 			return;
 		}
 
-		// If the number of members is user defined, prevent overwriting
+		// Make sure the method is only called for the initial setup of the graph
+		if (this.getCurrentNumberOfGroupMembers() != 1) {
+			throw new IllegalStateException(
+				"This method can only be called for the initial setup of the execution graph");
+		}
+
+		// If the number of group vertices is user defined, prevent overwriting
 		if (this.userDefinedNumberOfMembers != -1) {
 			if (this.userDefinedNumberOfMembers == getCurrentNumberOfGroupMembers()) { // Note that
 				// this.userDefinedNumberOfMembers
@@ -512,55 +513,40 @@ public class ExecutionGroupVertex {
 		}
 
 		// Make sure the value of newNumber is valid
-		if (this.getMinimumNumberOfGroupMember() < 1) {
-			throw new GraphConversionException("The minimum number of members is below 1 for group vertex "
-				+ this.getName());
-		}
+		// TODO: Move these checks to some other place
+		/*
+		 * if (this.getMinimumNumberOfGroupMember() < 1) {
+		 * throw new GraphConversionException("The minimum number of members is below 1 for group vertex "
+		 * + this.getName());
+		 * }
+		 * if ((this.getMaximumNumberOfGroupMembers() != -1)
+		 * && (this.getMaximumNumberOfGroupMembers() < this.getMinimumNumberOfGroupMember())) {
+		 * throw new GraphConversionException(
+		 * "The maximum number of members is smaller than the minimum for group vertex " + this.getName());
+		 * }
+		 */
 
-		if ((this.getMaximumNumberOfGroupMembers() != -1)
-			&& (this.getMaximumNumberOfGroupMembers() < this.getMinimumNumberOfGroupMember())) {
-			throw new GraphConversionException(
-				"The maximum number of members is smaller than the minimum for group vertex " + this.getName());
-		}
-
-		if (newNumberOfMembers < this.getMinimumNumberOfGroupMember()) {
+		if (initalNumberOfVertices < this.getMinimumNumberOfGroupMember()) {
 			throw new GraphConversionException("Number of members must be at least "
 				+ this.getMinimumNumberOfGroupMember());
 		}
 
 		if ((this.getMaximumNumberOfGroupMembers() != -1)
-			&& (newNumberOfMembers > this.getMaximumNumberOfGroupMembers())) {
+			&& (initalNumberOfVertices > this.getMaximumNumberOfGroupMembers())) {
 			throw new GraphConversionException("Number of members cannot exceed "
 				+ this.getMaximumNumberOfGroupMembers());
 		}
 
-		// Unwire this vertex before we adjust the number of members
-		unwire();
+		final ExecutionVertex originalVertex = this.getGroupMember(0);
+		int currentNumberOfExecutionVertices = this.getCurrentNumberOfGroupMembers();
 
-		if (newNumberOfMembers < this.getCurrentNumberOfGroupMembers()) {
+		while (currentNumberOfExecutionVertices++ < initalNumberOfVertices) {
 
-			while (this.getCurrentNumberOfGroupMembers() > newNumberOfMembers) {
-
-				this.groupMembers.remove(this.groupMembers.size() - 1);
-			}
-
-		} else {
-
-			while (this.getCurrentNumberOfGroupMembers() < newNumberOfMembers) {
-
-				try {
-					final ExecutionVertex vertex = this.groupMembers.get(0).splitVertex();
-					vertex.setAllocatedResource(new AllocatedResource(DummyInstance
-						.createDummyInstance(this.instanceType), this.instanceType, null));
-					this.groupMembers.add(vertex);
-				} catch (Exception e) {
-					throw new GraphConversionException(StringUtils.stringifyException(e));
-				}
-			}
+			final ExecutionVertex vertex = originalVertex.splitVertex();
+			vertex.setAllocatedResource(new AllocatedResource(DummyInstance
+				.createDummyInstance(this.instanceType), this.instanceType, null));
+			this.groupMembers.add(vertex);
 		}
-
-		// After the number of members is adjusted we start rewiring
-		wire();
 
 		// Update the index and size information attached to the vertices
 		int index = 0;
@@ -568,35 +554,6 @@ public class ExecutionGroupVertex {
 		while (it.hasNext()) {
 			final ExecutionVertex vertex = it.next();
 			vertex.setIndexInVertexGroup(index++);
-		}
-	}
-
-	private void unwire() throws GraphConversionException {
-
-		// Remove all channels to consuming tasks
-		Iterator<ExecutionGroupEdge> it = this.forwardLinks.iterator();
-
-		while (it.hasNext()) {
-			this.executionGraph.unwire(it.next());
-		}
-
-		// Remove all channels from producing tasks
-		it = this.backwardLinks.iterator();
-		while (it.hasNext()) {
-			this.executionGraph.unwire(it.next());
-		}
-	}
-
-	private void wire() throws GraphConversionException {
-
-		Iterator<ExecutionGroupEdge> it = this.forwardLinks.iterator();
-		while (it.hasNext()) {
-			this.executionGraph.wire(it.next());
-		}
-
-		it = this.backwardLinks.iterator();
-		while (it.hasNext()) {
-			this.executionGraph.wire(it.next());
 		}
 	}
 
@@ -818,7 +775,7 @@ public class ExecutionGroupVertex {
 
 	}
 
-	public void repairSubtasksPerInstance() {
+	void repairSubtasksPerInstance() {
 
 		final Iterator<ExecutionVertex> it = this.groupMembers.iterator();
 		int count = 0;

@@ -365,4 +365,48 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 
 		return this.invokableClass;
 	}
+
+	/**
+	 * Returns the number of output gate deployment descriptors contained in this task deployment descriptor.
+	 * 
+	 * @return the number of output gate deployment descriptors
+	 */
+	public int getNumberOfOutputGateDescriptors() {
+
+		return this.outputGates.size();
+	}
+
+	/**
+	 * Returns the output gate descriptor with the given index
+	 * 
+	 * @param index
+	 *        the index if the output gate descriptor to return
+	 * @return the output gate descriptor with the given index
+	 */
+	public GateDeploymentDescriptor getOutputGateDescriptor(final int index) {
+
+		return this.outputGates.get(index);
+	}
+
+	/**
+	 * Returns the number of output gate deployment descriptors contained in this task deployment descriptor.
+	 * 
+	 * @return the number of output gate deployment descriptors
+	 */
+	public int getNumberOfInputGateDescriptors() {
+
+		return this.inputGates.size();
+	}
+
+	/**
+	 * Returns the input gate descriptor with the given index
+	 * 
+	 * @param index
+	 *        the index if the input gate descriptor to return
+	 * @return the input gate descriptor with the given index
+	 */
+	public GateDeploymentDescriptor getInputGateDescriptor(final int index) {
+
+		return this.inputGates.get(index);
+	}
 }

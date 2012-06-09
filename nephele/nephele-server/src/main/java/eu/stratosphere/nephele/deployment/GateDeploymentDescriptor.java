@@ -138,4 +138,39 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 			this.channels.add(cdd);
 		}
 	}
+
+	/**
+	 * Returns the channel type of the gate.
+	 * 
+	 * @return the channel type of the gate
+	 */
+	public ChannelType getChannelType() {
+
+		return this.channelType;
+	}
+
+	/**
+	 * Returns the compression level of the gate.
+	 * 
+	 * @return the compression level of the gate
+	 */
+	public CompressionLevel getCompressionLevel() {
+
+		return this.compressionLevel;
+	}
+
+	/**
+	 * Returns the number of channel deployment descriptors attached to this gate descriptor.
+	 * 
+	 * @return the number of channel deployment descriptors
+	 */
+	public int getNumberOfChannelDescriptors() {
+
+		return this.channels.size();
+	}
+
+	public ChannelDeploymentDescriptor getChannelDescriptor(final int index) {
+
+		return this.channels.get(index);
+	}
 }

@@ -29,6 +29,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
+import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
@@ -37,7 +39,11 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -107,7 +113,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	/**
 	 * Instance of the class to be run in this environment.
 	 */
-	private volatile AbstractInvokable invokable = null;
+	private final AbstractInvokable invokable;
 
 	/**
 	 * The thread executing the task in the environment.
@@ -168,11 +174,13 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 *        the configuration object which was attached to the original {@link JobVertex}
 	 * @param jobConfiguration
 	 *        the configuration object which was attached to the original {@link JobGraph}
+	 * @throws Exception
+	 *         thrown if an error occurs while instantiating the invokable class
 	 */
 	public RuntimeEnvironment(final JobID jobID, final String taskName,
 			final Class<? extends AbstractInvokable> invokableClass, final Configuration taskConfiguration,
-			final Configuration jobConfiguration) {
-		
+			final Configuration jobConfiguration) throws Exception {
+
 		this.jobID = jobID;
 		this.taskName = taskName;
 		this.invokableClass = invokableClass;
@@ -180,6 +188,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.jobConfiguration = jobConfiguration;
 		this.indexInSubtaskGroup = 0;
 		this.currentNumberOfSubtasks = 0;
+
+		this.invokable = this.invokableClass.newInstance();
+		this.invokable.setEnvironment(this);
+		this.invokable.registerInputOutput();
 	}
 
 	/**
@@ -187,8 +199,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * 
 	 * @param tdd
 	 *        the task deployment description
+	 * @throws Exception
+	 *         thrown if an error occurs while instantiating the invokable class
 	 */
-	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd) {
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd) throws Exception {
 
 		this.jobID = tdd.getJobID();
 		this.taskName = tdd.getTaskName();
@@ -197,6 +212,80 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.taskConfiguration = tdd.getTaskConfiguration();
 		this.indexInSubtaskGroup = tdd.getIndexInSubtaskGroup();
 		this.currentNumberOfSubtasks = tdd.getCurrentNumberOfSubtasks();
+
+		this.invokable = this.invokableClass.newInstance();
+		this.invokable.setEnvironment(this);
+		this.invokable.registerInputOutput();
+
+		if (!this.unboundOutputGateIDs.isEmpty() && LOG.isErrorEnabled()) {
+			LOG.error("Inconsistency: " + this.unboundOutputGateIDs.size() + " unbound output gate IDs left");
+		}
+
+		if (!this.unboundInputGateIDs.isEmpty() && LOG.isErrorEnabled()) {
+			LOG.error("Inconsistency: " + this.unboundInputGateIDs.size() + " unbound output gate IDs left");
+		}
+
+		final int noogdd = tdd.getNumberOfOutputGateDescriptors();
+		for (int i = 0; i < noogdd; ++i) {
+			final GateDeploymentDescriptor gdd = tdd.getOutputGateDescriptor(i);
+			final OutputGate og = this.outputGates.get(i);
+			final ChannelType channelType = gdd.getChannelType();
+			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
+			og.setChannelType(channelType);
+
+			final int nocdd = gdd.getNumberOfChannelDescriptors();
+			for (int j = 0; j < nocdd; ++j) {
+
+				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
+				AbstractOutputChannel<? extends Record> outputChannel;
+				switch (channelType) {
+				case FILE:
+					outputChannel = og.createFileOutputChannel(og, cdd.getOutputChannelID(), compressionLevel);
+					break;
+				case NETWORK:
+					outputChannel = og.createNetworkOutputChannel(og, cdd.getOutputChannelID(), compressionLevel);
+					break;
+				case INMEMORY:
+					outputChannel = og.createInMemoryOutputChannel(og, cdd.getOutputChannelID(), compressionLevel);
+					break;
+				default:
+					throw new IllegalStateException("Unknown channel type");
+				}
+
+				outputChannel.setConnectedChannelID(cdd.getInputChannelID());
+			}
+		}
+
+		final int noigdd = tdd.getNumberOfInputGateDescriptors();
+		for (int i = 0; i < noigdd; ++i) {
+			final GateDeploymentDescriptor gdd = tdd.getInputGateDescriptor(i);
+			final InputGate ig = this.inputGates.get(i);
+			final ChannelType channelType = gdd.getChannelType();
+			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
+			ig.setChannelType(channelType);
+
+			final int nicdd = gdd.getNumberOfChannelDescriptors();
+			for (int j = 0; j < nicdd; ++j) {
+
+				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
+				AbstractInputChannel<? extends Record> inputChannel;
+				switch (channelType) {
+				case FILE:
+					inputChannel = ig.createFileInputChannel(ig, cdd.getInputChannelID(), compressionLevel);
+					break;
+				case NETWORK:
+					inputChannel = ig.createNetworkInputChannel(ig, cdd.getInputChannelID(), compressionLevel);
+					break;
+				case INMEMORY:
+					inputChannel = ig.createInMemoryInputChannel(ig, cdd.getInputChannelID(), compressionLevel);
+					break;
+				default:
+					throw new IllegalStateException("Unknown channel type");
+				}
+
+				inputChannel.setConnectedChannelID(cdd.getOutputChannelID());
+			}
+		}
 	}
 
 	/**
@@ -231,40 +320,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	public GateID getNextUnboundOutputGateID() {
 
 		return this.unboundOutputGateIDs.poll();
-	}
-
-	/**
-	 * Creates a new instance of the Nephele task and registers it with its environment.
-	 * 
-	 * @throws Exception
-	 *         any exception that might be thrown by the user code during instantiation and registration of input and
-	 *         output channels
-	 */
-	public void instantiateInvokable() throws Exception {
-
-		// Test and set, protected by synchronized block
-		synchronized (this) {
-
-			if (this.invokableClass == null) {
-				LOG.fatal("InvokableClass is null");
-				return;
-			}
-
-			try {
-				this.invokable = this.invokableClass.newInstance();
-			} catch (InstantiationException e) {
-				LOG.error(e);
-			} catch (IllegalAccessException e) {
-				LOG.error(e);
-			}
-		}
-
-		this.invokable.setEnvironment(this);
-		this.invokable.registerInputOutput();
-
-		if (this.jobID == null) {
-			LOG.warn("jobVertexID is null");
-		}
 	}
 
 	/**
