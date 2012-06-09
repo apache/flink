@@ -39,8 +39,6 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -237,22 +235,21 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			for (int j = 0; j < nocdd; ++j) {
 
 				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
-				AbstractOutputChannel<? extends Record> outputChannel;
 				switch (channelType) {
 				case FILE:
-					outputChannel = og.createFileOutputChannel(og, cdd.getOutputChannelID(), compressionLevel);
+					og.createFileOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID(), compressionLevel);
 					break;
 				case NETWORK:
-					outputChannel = og.createNetworkOutputChannel(og, cdd.getOutputChannelID(), compressionLevel);
+					og.createNetworkOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID(),
+						compressionLevel);
 					break;
 				case INMEMORY:
-					outputChannel = og.createInMemoryOutputChannel(og, cdd.getOutputChannelID(), compressionLevel);
+					og.createInMemoryOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID(),
+						compressionLevel);
 					break;
 				default:
 					throw new IllegalStateException("Unknown channel type");
 				}
-
-				outputChannel.setConnectedChannelID(cdd.getInputChannelID());
 			}
 		}
 
@@ -268,22 +265,21 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			for (int j = 0; j < nicdd; ++j) {
 
 				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
-				AbstractInputChannel<? extends Record> inputChannel;
 				switch (channelType) {
 				case FILE:
-					inputChannel = ig.createFileInputChannel(ig, cdd.getInputChannelID(), compressionLevel);
+					ig.createFileInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID(), compressionLevel);
 					break;
 				case NETWORK:
-					inputChannel = ig.createNetworkInputChannel(ig, cdd.getInputChannelID(), compressionLevel);
+					ig.createNetworkInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID(),
+						compressionLevel);
 					break;
 				case INMEMORY:
-					inputChannel = ig.createInMemoryInputChannel(ig, cdd.getInputChannelID(), compressionLevel);
+					ig.createInMemoryInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID(),
+						compressionLevel);
 					break;
 				default:
 					throw new IllegalStateException("Unknown channel type");
 				}
-
-				inputChannel.setConnectedChannelID(cdd.getOutputChannelID());
 			}
 		}
 	}

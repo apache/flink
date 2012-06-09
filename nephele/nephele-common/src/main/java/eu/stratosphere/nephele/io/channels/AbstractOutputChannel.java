@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 
@@ -40,23 +38,25 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public abstract class AbstractOutputChannel<T extends Record> extends AbstractChannel {
 
-	private OutputGate<T> outputGate = null;
+	private final OutputGate<T> outputGate;
 
 	/**
 	 * Creates a new output channel object.
 	 * 
 	 * @param outputGate
-	 *        the output gate this channel is connected to.
+	 *        the output gate this channel is connected to
 	 * @param channelIndex
-	 *        the channel's index at the associated output gate
+	 *        the index of the channel in the output gate
 	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 *        the ID of the channel
+	 * @param connectedChannelID
+	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 */
-	public AbstractOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			CompressionLevel compressionLevel) {
-		super(channelIndex, channelID, compressionLevel);
+	public AbstractOutputChannel(final OutputGate<T> outputGate, final int channelIndex, final ChannelID channelID,
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
+		super(channelIndex, channelID, connectedChannelID, compressionLevel);
 		this.outputGate = outputGate;
 	}
 
@@ -91,18 +91,6 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 	 *         thrown if an I/O error occurs while requesting the close operation
 	 */
 	public abstract void requestClose() throws IOException, InterruptedException;
-
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		super.read(in);
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		super.write(out);
-	}
 
 	// TODO: See if type safety can be improved here
 	@SuppressWarnings("unchecked")
