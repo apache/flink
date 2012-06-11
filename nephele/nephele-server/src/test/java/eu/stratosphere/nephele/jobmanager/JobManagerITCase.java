@@ -1008,7 +1008,7 @@ public class JobManagerITCase {
 	public void testExecutionWithLargeDoP() {
 
 		// The degree of parallelism to be used by tasks in this job.
-		final int numberOfSubtasks = 128;
+		final int numberOfSubtasks = 64;
 
 		File inputFile1 = null;
 		File inputFile2 = null;
