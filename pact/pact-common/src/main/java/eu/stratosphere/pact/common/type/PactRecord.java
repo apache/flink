@@ -1332,10 +1332,10 @@ public final class PactRecord implements Value
 			if (this.position < this.end) {
 				// read until a newline is found
 				StringBuilder bld = new StringBuilder();
-				char curr = readChar();
+				char curr = (char) readUnsignedByte();
 				while (position < this.end && curr != '\n') {
 					bld.append(curr);
-					curr = readChar();
+					curr = (char) readUnsignedByte();
 				}
 				// trim a trailing carriage return
 				int len = bld.length();

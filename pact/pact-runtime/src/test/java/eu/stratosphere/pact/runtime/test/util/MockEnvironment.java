@@ -22,11 +22,11 @@ import java.util.List;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.MutableRecordDeserializerFactory;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -89,26 +89,30 @@ public class MockEnvironment extends RuntimeEnvironment
 		return this.jobId;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer) {
-
-		return this.inputs.remove(0);
+	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
+			final RecordDeserializerFactory<T> deserializer)
+	{
+		return (InputGate<T>) this.inputs.remove(0);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public OutputGate<? extends Record> createOutputGate(GateID gateID, Class<? extends Record> outputClass,
-			ChannelSelector<? extends Record> selector, boolean isBroadcast) {
-
-		return this.outputs.remove(0);
+	public <T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
+			ChannelSelector<T> selector, boolean isBroadcast)
+	{
+		return (OutputGate<T>) this.outputs.remove(0);
 	}
 
-	private static class MockInputGate extends RuntimeInputGate<PactRecord> {
-
+	// --------------------------------------------------------------------------------------------
+	
+	private static class MockInputGate extends RuntimeInputGate<PactRecord>
+	{
 		private MutableObjectIterator<PactRecord> it;
 
 		public MockInputGate(int id, MutableObjectIterator<PactRecord> it) {
-			super(new JobID(), new GateID(), new DefaultRecordDeserializer<PactRecord>(PactRecord.class), id);
+			super(new JobID(), new GateID(), MutableRecordDeserializerFactory.<PactRecord>get(), id);
 			this.it = it;
 		}
 
@@ -122,9 +126,11 @@ public class MockEnvironment extends RuntimeEnvironment
 			}
 		}
 	}
-
-	private static class MockOutputGate extends RuntimeOutputGate<PactRecord> {
-
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private static class MockOutputGate extends RuntimeOutputGate<PactRecord>
+	{
 		private List<PactRecord> out;
 
 		public MockOutputGate(int index, List<PactRecord> outList) {
@@ -136,7 +142,5 @@ public class MockEnvironment extends RuntimeEnvironment
 		public void writeRecord(PactRecord record) throws IOException, InterruptedException {
 			out.add(record.createCopy());
 		}
-
 	}
-
 }
