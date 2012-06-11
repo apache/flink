@@ -54,10 +54,13 @@ public abstract class TaskTestBase {
 
 	MockEnvironment mockEnv;
 
+	MockInputSplitProvider inputSplitProvider;
+
 	public void initEnvironment(long memorySize) {
 
 		this.memorySize = memorySize;
-		this.mockEnv = new MockEnvironment(this.memorySize);
+		this.inputSplitProvider = new MockInputSplitProvider();
+		this.mockEnv = new MockEnvironment(this.memorySize, this.inputSplitProvider);
 
 		PowerMockito.mockStatic(LibraryCacheManager.class);
 		try {
@@ -118,8 +121,7 @@ public abstract class TaskTestBase {
 		dsConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, inPath);
 		dsConfig.setStubParameter(DelimitedInputFormat.RECORD_DELIMITER, delimiter);
 
-		final MockInputSplitProvider inputSplitProvider = new MockInputSplitProvider(inPath, 5);
-		this.mockEnv.setInputSplitProvider(inputSplitProvider);
+		this.inputSplitProvider.addInputSplits(inPath, 5);
 
 		inTask.setEnvironment(this.mockEnv);
 		inTask.registerInputOutput();

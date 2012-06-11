@@ -68,12 +68,12 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	/**
 	 * The configuration of the job the task belongs to.
 	 */
-	private final Configuration jobConfiguration;
+	private Configuration jobConfiguration;
 
 	/**
 	 * The task's configuration object.
 	 */
-	private final Configuration taskConfiguration;
+	private Configuration taskConfiguration;
 
 	/**
 	 * The task's initial checkpoint state.
@@ -207,8 +207,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		StringRecord.writeString(out, this.taskName);
 		out.writeInt(this.indexInSubtaskGroup);
 		out.writeInt(this.currentNumberOfSubtasks);
-		this.jobConfiguration.write(out);
-		this.taskConfiguration.write(out);
 		EnumUtils.writeEnum(out, this.initialCheckpointState);
 
 		// Write out the names of the required jar files
@@ -226,6 +224,9 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 
 		StringRecord.writeString(out, this.invokableClass.getName());
 
+		this.jobConfiguration.write(out);
+		this.taskConfiguration.write(out);
+
 		this.outputGates.write(out);
 		this.inputGates.write(out);
 	}
@@ -242,8 +243,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		this.taskName = StringRecord.readString(in);
 		this.indexInSubtaskGroup = in.readInt();
 		this.currentNumberOfSubtasks = in.readInt();
-		this.jobConfiguration.read(in);
-		this.taskConfiguration.read(in);
 		this.initialCheckpointState = EnumUtils.readEnum(in, CheckpointState.class);
 
 		// Read names of required jar files
@@ -271,6 +270,11 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 			throw new IOException("Class " + invokableClassName + " not found in one of the supplied jar files: "
 				+ StringUtils.stringifyException(cnfe));
 		}
+
+		this.jobConfiguration = new Configuration(cl);
+		this.jobConfiguration.read(in);
+		this.taskConfiguration = new Configuration(cl);
+		this.taskConfiguration.read(in);
 
 		this.outputGates.read(in);
 		this.inputGates.read(in);

@@ -25,6 +25,8 @@ import eu.stratosphere.nephele.template.InputSplitProvider;
 /**
  * The mock input split provider implements the {@link InputSplitProvider} interface to serve input splits to the test
  * jobs.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -33,7 +35,7 @@ public class MockInputSplitProvider implements InputSplitProvider {
 	/**
 	 * The input splits to be served during the test.
 	 */
-	private final InputSplit[] inputSplits;
+	private volatile InputSplit[] inputSplits;
 
 	/**
 	 * Index pointing to the next input split to be served.
@@ -41,33 +43,32 @@ public class MockInputSplitProvider implements InputSplitProvider {
 	private int nextSplit = 0;
 
 	/**
-	 * Constructs a new mock input split provider.
+	 * Generates a set of input splits from an input path
 	 * 
 	 * @param path
 	 *        the path of the local file to generate the input splits from
 	 * @param noSplits
 	 *        the number of input splits to be generated from the given input file
 	 */
-	public MockInputSplitProvider(final String path, int noSplits) {
+	public void addInputSplits(final String path, final int noSplits) {
 
-		this.inputSplits = new InputSplit[noSplits];
-		String[] hosts = { "localhost" };
+		final InputSplit[] tmp = new InputSplit[noSplits];
+		final String[] hosts = { "localhost" };
 
-		String localPath = path.substring(7, path.length());
-		File inFile = new File(localPath);
+		final String localPath = path.substring(7, path.length());
+		final File inFile = new File(localPath);
 
-		long splitLength = inFile.length() / noSplits;
+		final long splitLength = inFile.length() / noSplits;
 		long pos = 0;
 
 		for (int i = 0; i < noSplits - 1; i++) {
-			this.inputSplits[i] =
-				new FileInputSplit(i, new Path(path), pos, splitLength, hosts);
+			tmp[i] = new FileInputSplit(i, new Path(path), pos, splitLength, hosts);
 			pos += splitLength;
 		}
 
-		this.inputSplits[noSplits - 1] =
-			new FileInputSplit(noSplits - 1, new Path(path), pos, inFile.length() - pos, hosts);
+		tmp[noSplits - 1] = new FileInputSplit(noSplits - 1, new Path(path), pos, inFile.length() - pos, hosts);
 
+		this.inputSplits = tmp;
 	}
 
 	/**

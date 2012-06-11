@@ -96,12 +96,12 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	/**
 	 * The memory manager of the current environment (currently the one associated with the executing TaskManager).
 	 */
-	private volatile MemoryManager memoryManager;
+	private final MemoryManager memoryManager;
 
 	/**
 	 * The io manager of the current environment (currently the one associated with the executing TaskManager).
 	 */
-	private volatile IOManager ioManager;
+	private final IOManager ioManager;
 
 	/**
 	 * Class of the task to run in this environment.
@@ -136,7 +136,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	/**
 	 * The input split provider that can be queried for new input splits.
 	 */
-	private volatile InputSplitProvider inputSplitProvider = null;
+	private final InputSplitProvider inputSplitProvider;
 
 	/**
 	 * The observer object for the task's execution.
@@ -186,6 +186,9 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.jobConfiguration = jobConfiguration;
 		this.indexInSubtaskGroup = 0;
 		this.currentNumberOfSubtasks = 0;
+		this.memoryManager = null;
+		this.ioManager = null;
+		this.inputSplitProvider = null;
 
 		this.invokable = this.invokableClass.newInstance();
 		this.invokable.setEnvironment(this);
@@ -197,11 +200,18 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * 
 	 * @param tdd
 	 *        the task deployment description
+	 * @param memoryManager
+	 *        the task manager's memory manager component
+	 * @param ioManager
+	 *        the task manager's I/O manager component
+	 * @param inputSplitProvider
+	 *        the input split provider for this environment
 	 * @throws Exception
 	 *         thrown if an error occurs while instantiating the invokable class
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd) throws Exception {
+	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd, final MemoryManager memoryManager,
+			final IOManager ioManager, final InputSplitProvider inputSplitProvider) throws Exception {
 
 		this.jobID = tdd.getJobID();
 		this.taskName = tdd.getTaskName();
@@ -210,6 +220,9 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.taskConfiguration = tdd.getTaskConfiguration();
 		this.indexInSubtaskGroup = tdd.getIndexInSubtaskGroup();
 		this.currentNumberOfSubtasks = tdd.getCurrentNumberOfSubtasks();
+		this.memoryManager = memoryManager;
+		this.ioManager = ioManager;
+		this.inputSplitProvider = inputSplitProvider;
 
 		this.invokable = this.invokableClass.newInstance();
 		this.invokable.setEnvironment(this);
@@ -631,31 +644,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	}
 
 	/**
-	 * Sets the {@link IOManager}.
-	 * 
-	 * @param memoryManager
-	 *        the new {@link IOManager}
-	 */
-	public void setIOManager(final IOManager ioManager) {
-		this.ioManager = ioManager;
-	}
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memoryManager;
-	}
-
-	/**
-	 * Sets the {@link MemoryManager}.
-	 * 
-	 * @param memoryManager
-	 *        the new {@link MemoryManager}
-	 */
-	public void setMemoryManager(final MemoryManager memoryManager) {
-		this.memoryManager = memoryManager;
 	}
 
 	/**
@@ -727,16 +720,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 */
 	public void setExecutionObserver(final ExecutionObserver executionObserver) {
 		this.executionObserver = executionObserver;
-	}
-
-	/**
-	 * Sets the input split provider for this environment.
-	 * 
-	 * @param inputSplitProvider
-	 *        the input split provider for this environment
-	 */
-	public void setInputSplitProvider(final InputSplitProvider inputSplitProvider) {
-		this.inputSplitProvider = inputSplitProvider;
 	}
 
 	/**

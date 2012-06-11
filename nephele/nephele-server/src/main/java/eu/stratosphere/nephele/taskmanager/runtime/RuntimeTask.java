@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
-import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
@@ -42,7 +41,6 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public final class RuntimeTask implements Task, ExecutionObserver {
@@ -339,33 +337,6 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	public ExecutionVertexID getVertexID() {
 
 		return this.vertexID;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerMemoryManager(final MemoryManager memoryManager) {
-
-		this.environment.setMemoryManager(memoryManager);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerIOManager(final IOManager ioManager) {
-
-		this.environment.setIOManager(ioManager);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputSplitProvider(final InputSplitProvider inputSplitProvider) {
-
-		this.environment.setInputSplitProvider(inputSplitProvider);
 	}
 
 	/**
