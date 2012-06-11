@@ -12,7 +12,6 @@ import eu.stratosphere.pact.common.plan.PactModule;
  * 
  * @author Arvid Heise
  */
-@InputCardinality(min = 1, max = Integer.MAX_VALUE)
 public abstract class CompositeOperator<Self extends CompositeOperator<Self>> extends Operator<Self> {
 	private static final Log LOG = LogFactory.getLog(CompositeOperator.class);
 
@@ -27,8 +26,20 @@ public abstract class CompositeOperator<Self extends CompositeOperator<Self>> ex
 	 * @param numberOfOutputs
 	 *        the number of outputs
 	 */
-	public CompositeOperator(final int numberOfOutputs) {
-		super(numberOfOutputs);
+	public CompositeOperator(final int numberOfInputs, final int numberOfOutputs) {
+		super(numberOfInputs, numberOfInputs, numberOfOutputs, numberOfOutputs);
+	}
+
+	/**
+	 * Initializes the CompositeOperator with the given number of inputs.
+	 * 
+	 * @param minInputs
+	 *        the minimum number of inputs
+	 * @param maxInputs
+	 *        the maximum number of inputs
+	 */
+	public CompositeOperator(int minInputs, int maxInputs, int minOutputs, int maxOutputs) {
+		super(minInputs, maxInputs, minOutputs, maxOutputs);
 	}
 
 	/**

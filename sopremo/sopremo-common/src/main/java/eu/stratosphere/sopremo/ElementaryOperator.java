@@ -72,7 +72,7 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * 
  * @author Arvid Heise
  */
-@InputCardinality(min = 1, max = 1)
+@OutputCardinality(min = 1, max = 1)
 public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> extends Operator<Self> {
 	private static final org.apache.commons.logging.Log LOG = LogFactory.getLog(ElementaryOperator.class);
 
@@ -85,20 +85,33 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	private static final long serialVersionUID = 4504792171699882490L;
 
 	/**
-	 * Initializes the ElementaryOperator with the given number of outputs.
-	 * 
-	 * @param numberOfOutputs
-	 *        the number of outputs
-	 */
-	public ElementaryOperator(final int numberOfOutputs) {
-		super(numberOfOutputs);
-	}
-
-	/**
-	 * Initializes the ElementaryOperator with the number of outputs set to 1.
+	 * Initializes the ElementaryOperator with the number of outputs set to 1. The {@link InputCardinality} annotation
+	 * must be set with this constructor.
 	 */
 	public ElementaryOperator() {
 		super();
+	}
+
+	/**
+	 * Initializes the ElementaryOperator with the given number of inputs.
+	 * 
+	 * @param minInputs
+	 *        the minimum number of inputs
+	 * @param maxInputs
+	 *        the maximum number of inputs
+	 */
+	public ElementaryOperator(int minInputs, int maxInputs) {
+		super(minInputs, maxInputs, 1, 1);
+	}
+
+	/**
+	 * Initializes the ElementaryOperator with the given number of inputs.
+	 * 
+	 * @param inputs
+	 *        the number of inputs
+	 */
+	public ElementaryOperator(int inputs) {
+		this(inputs, inputs);
 	}
 
 	{

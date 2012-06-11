@@ -24,7 +24,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
-@InputCardinality(min = 0, max = 0)
+@InputCardinality(0)
 public class Source extends ElementaryOperator<Source> {
 	/**
 	 * 
@@ -94,11 +94,11 @@ public class Source extends ElementaryOperator<Source> {
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
-		final String inputPath = this.inputPath, name = this.inputPath;
+		final String inputPath = this.inputPath, name = getName();
 		GenericDataSource<?> contract;
 		if (this.isAdhoc()) {
 			contract = new GenericDataSource<GeneratorInputFormat>(
-					GeneratorInputFormat.class, name);
+					GeneratorInputFormat.class, String.format("Adhoc %s", name));
 			SopremoUtil.serialize(contract.getParameters(),
 					GeneratorInputFormat.ADHOC_EXPRESSION_PARAMETER_KEY,
 					this.adhocExpression);

@@ -222,7 +222,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 	@Test(expected = java.lang.NullPointerException.class)
 	public void testSetInputsWithNull() {
 		@SuppressWarnings({ "serial", "rawtypes" })
-		final Operator<?> fixture = new ElementaryOperator() {
+		final Operator<?> fixture = new ElementaryOperator(1, 1) {
 		};
 		final List<? extends JsonStream> inputs = null;
 
@@ -275,6 +275,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 	}
 
 	@InputCardinality(min = 1, max = 2)
+	@OutputCardinality(1)
 	static class OpImpl extends Operator<OpImpl> {
 		/**
 		 * 

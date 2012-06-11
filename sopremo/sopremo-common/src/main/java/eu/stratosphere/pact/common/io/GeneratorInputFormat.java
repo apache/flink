@@ -17,7 +17,8 @@ package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
+import java.util.Iterator;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.GenericInputSplit;
@@ -29,6 +30,7 @@ import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
@@ -36,31 +38,34 @@ import eu.stratosphere.sopremo.type.NullNode;
  * Input format that reads values from the config and outputs them.
  * 
  * @author skruse
+ * @author Arvid Heise
  */
 public class GeneratorInputFormat extends GenericInputFormat {
 
 	/**
 	 * 
 	 */
-	private final EvaluationContext CONTEXT = new EvaluationContext();
+	private EvaluationContext context;
 
 	/**
 	 * Config key which describes the adhoc expression.
 	 */
-	public static final String ADHOC_EXPRESSION_PARAMETER_KEY = "pact.input.generator.expression";
+	public static final String ADHOC_EXPRESSION_PARAMETER_KEY = "sopremo.source.generator.expression";
 
 	/**
-	 * Contains the values that are loaded from the configuration's value list.
+	 * Iterates over all values.
 	 */
-	protected List<IJsonNode> values;
+	private Iterator<IJsonNode> valueIterator;
+
+	private int numValues = 1;
 
 	/**
 	 * Indices that describe the currently opened input split.
 	 */
-	private int index, start, end;
+	private int start;
 
 	/**
-	 * Schema loeaded from config.
+	 * Schema loaded from config.
 	 */
 	private Schema schema;
 
@@ -68,37 +73,35 @@ public class GeneratorInputFormat extends GenericInputFormat {
 	public void configure(final Configuration parameters) {
 		super.configure(parameters);
 
-		this.schema = SopremoUtil.deserialize(parameters, IOConstants.SCHEMA,
-				Schema.class);
-		final EvaluationExpression expression = SopremoUtil.deserialize(
-				parameters, ADHOC_EXPRESSION_PARAMETER_KEY,
-				EvaluationExpression.class);
-		final IJsonNode node = expression.evaluate(NullNode.getInstance(),
-				null, this.CONTEXT);
-		final ArrayNode arrayNode = JsonUtil.asArray(node);
+		this.schema = SopremoUtil.deserialize(parameters, IOConstants.SCHEMA, Schema.class);
+		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
+		final EvaluationExpression expression =
+			SopremoUtil.deserialize(parameters, ADHOC_EXPRESSION_PARAMETER_KEY, EvaluationExpression.class);
+		IJsonNode value = expression.evaluate(NullNode.getInstance(), null, this.context);
 
-		this.values = new ArrayList<IJsonNode>(arrayNode.size());
-		for (final IJsonNode member : arrayNode)
-			this.values.add(member);
-
+		if (value.isArray()) {
+			numValues = ((ArrayNode) value).size();
+			this.valueIterator = ((IArrayNode) value).iterator();
+		}
+		else
+			this.valueIterator = Arrays.asList(value).iterator();
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * 
 	 * @see
 	 * eu.stratosphere.pact.common.io.GenericInputFormat#createInputSplits(int)
 	 */
 	@Override
 	public GeneratorInputSplit[] createInputSplits(final int minNumSplits)
 			throws IOException {
-		final int numInputSplits = Math.min(minNumSplits, this.values.size());
+		final int numInputSplits = Math.min(minNumSplits, this.numValues);
 		final GeneratorInputSplit[] inputSplits = new GeneratorInputSplit[numInputSplits];
 
 		int start = 0;
 		int end;
 		for (int i = 0; i < numInputSplits; i++) {
-			end = (i + 1) * this.values.size() / numInputSplits;
+			end = (i + 1) * this.numValues / numInputSplits;
 			inputSplits[i] = new GeneratorInputSplit(i, start, end);
 			start = end;
 		}
@@ -108,7 +111,6 @@ public class GeneratorInputFormat extends GenericInputFormat {
 
 	/*
 	 * (non-Javadoc)
-	 * 
 	 * @see
 	 * eu.stratosphere.pact.common.io.GenericInputFormat#getInputSplitType()
 	 */
@@ -119,7 +121,6 @@ public class GeneratorInputFormat extends GenericInputFormat {
 
 	/*
 	 * (non-Javadoc)
-	 * 
 	 * @see
 	 * eu.stratosphere.pact.common.io.GenericInputFormat#open(eu.stratosphere
 	 * .nephele.template.GenericInputSplit)
@@ -135,13 +136,11 @@ public class GeneratorInputFormat extends GenericInputFormat {
 		// reused
 		final GeneratorInputSplit generatorSplit = (GeneratorInputSplit) split;
 		this.start = generatorSplit.start;
-		this.index = this.start;
-		this.end = generatorSplit.end;
 	}
 
 	@Override
 	public boolean reachedEnd() throws IOException {
-		return this.index >= this.end;
+		return !this.valueIterator.hasNext();
 	}
 
 	@Override
@@ -149,15 +148,15 @@ public class GeneratorInputFormat extends GenericInputFormat {
 		if (this.reachedEnd())
 			throw new IOException("End of input split is reached");
 
-		final IJsonNode value = this.values.get(this.index++);
-		this.schema.jsonToRecord(value, record, this.CONTEXT);
-
+		final IJsonNode value = this.valueIterator.next();
+		PactRecord result = this.schema.jsonToRecord(value, record, this.context);
+		if(result != record)
+			result.copyTo(record);
 		return true;
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * 
 	 * @see eu.stratosphere.pact.common.io.InputFormat#close()
 	 */
 	@Override

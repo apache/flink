@@ -11,7 +11,7 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-@Name(verb = "project")
+@Name(verb = "transform")
 public class Projection extends ElementaryOperator<Projection> {
 	/**
 	 * 

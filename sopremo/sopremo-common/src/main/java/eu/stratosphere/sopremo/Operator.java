@@ -36,8 +36,6 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * 
  * @author Arvid Heise
  */
-@InputCardinality(min = 1, max = 1)
-@OutputCardinality(min = 1, max = 1)
 public abstract class Operator<Self extends Operator<Self>> extends AbstractSopremoType implements
 		SerializableSopremoType, JsonStream, Cloneable, BeanInfo {
 
@@ -58,24 +56,37 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	private int minInputs, maxInputs, minOutputs, maxOutputs;
 
 	/**
-	 * Initializes the Operator with the number of outputs set to 1.
+	 * Initializes the Operator with the annotations.
 	 */
 	public Operator() {
-		this(1);
+		final InputCardinality inputs = ReflectUtil.getAnnotation(this.getClass(), InputCardinality.class);
+		if (inputs == null)
+			throw new IllegalStateException("No InputCardinality annotation found");
+		final OutputCardinality outputs = ReflectUtil.getAnnotation(this.getClass(), OutputCardinality.class);
+		if (outputs == null)
+			throw new IllegalStateException("No OutputCardinality annotation found");
+		this.setNumberOfInputs(inputs.value() != -1 ? inputs.value() : inputs.min(),
+			inputs.value() != -1 ? inputs.value() : inputs.max());
+		this.setNumberOfOutputs(outputs.value() != -1 ? outputs.value() : outputs.min(),
+			outputs.value() != -1 ? outputs.value() : outputs.max());
+		this.name = this.getClass().getSimpleName();
 	}
 
 	/**
-	 * Initializes the Operator with the given number of outputs.
+	 * Initializes the Operator with the given number of inputs and outputs.
 	 * 
-	 * @param numberOfOutputs
-	 *        the number of outputs
+	 * @param minInputs
+	 *        the minimum number of inputs
+	 * @param maxInputs
+	 *        the maximum number of inputs
+	 * @param minOutputs
+	 *        the minimum number of outputs
+	 * @param maxOutputs
+	 *        the maximum number of outputs
 	 */
-	public Operator(final int numberOfOutputs) {
-		this.setNumberOfOutputs(numberOfOutputs);
-		final InputCardinality inputs = ReflectUtil.getAnnotation(this.getClass(), InputCardinality.class);
-		this.setNumberOfInputs(inputs.min(), inputs.max());
-		final OutputCardinality outputs = ReflectUtil.getAnnotation(this.getClass(), OutputCardinality.class);
-		this.setNumberOfOutputs(outputs.min(), outputs.max());
+	public Operator(final int minInputs, final int maxInputs, final int minOutputs, final int maxOutputs) {
+		this.setNumberOfInputs(minInputs, maxInputs);
+		this.setNumberOfOutputs(minOutputs, maxOutputs);
 		this.name = this.getClass().getSimpleName();
 	}
 
@@ -314,8 +325,11 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * 
 	 * @return all outputs of this operator
 	 */
-	public List<JsonStream> getOutputs() {
-		return new ArrayList<JsonStream>(this.outputs);
+	public List<JsonStream> getOutputs() {		
+		final ArrayList<JsonStream> outputs = new ArrayList<JsonStream>(this.maxOutputs);
+		for(int index = 0; index < this.maxOutputs; index++)
+			outputs.add(getOutput(index));
+		return outputs;
 	}
 
 	@Override
@@ -357,7 +371,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 
 	private void checkSize(final int index, final int max, final List<?> list) {
 		if (index >= max)
-			throw new IndexOutOfBoundsException();
+			throw new IndexOutOfBoundsException(String.format("index %s >= max %s", index, max));
 		CollectionUtil.ensureSize(list, index + 1);
 	}
 

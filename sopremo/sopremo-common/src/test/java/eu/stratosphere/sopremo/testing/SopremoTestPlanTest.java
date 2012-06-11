@@ -189,7 +189,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		testPlan.run();
 	}
 
-	@InputCardinality(min = 2, max = 2)
+	@InputCardinality(2)
 	public static class CartesianProduct extends ElementaryOperator<CartesianProduct> {
 		/**
 		 * 
@@ -204,6 +204,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		}
 	}
 
+	@InputCardinality(1)
 	public static class Identity extends ElementaryOperator<Identity> {
 		/**
 		 * 
@@ -267,6 +268,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 * Expected input: { line: "word1 word2 word1" }<br>
 	 * Output: [{ word: "word1"}, { word: "word2"}, { word: "word1"}]
 	 */
+	@InputCardinality(1)
 	public static class TokenizeLine extends ElementaryOperator<TokenizeLine> {
 		/**
 		 * 
@@ -297,6 +299,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 * Expected input: [{ word: "word1"}, { word: "word1"}] <br>
 	 * Output: [{ word: "word1", count: 2}]
 	 */
+	@InputCardinality(1)
 	public static class CountWords extends ElementaryOperator<CountWords> {
 		/**
 		 * 
