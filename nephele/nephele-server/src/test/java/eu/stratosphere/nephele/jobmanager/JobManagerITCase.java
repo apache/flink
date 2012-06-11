@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
@@ -1007,7 +1008,7 @@ public class JobManagerITCase {
 	public void testExecutionWithLargeDoP() {
 
 		// The degree of parallelism to be used by tasks in this job.
-		final int numberOfSubtasks = 1024;
+		final int numberOfSubtasks = 128;
 
 		File inputFile1 = null;
 		File inputFile2 = null;
@@ -1061,9 +1062,9 @@ public class JobManagerITCase {
 			f1.setVertexToShareInstancesWith(o1);
 
 			// connect vertices
-			i1.connectTo(f1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
-			i2.connectTo(f1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
-			f1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
+			i1.connectTo(f1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
+			i2.connectTo(f1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
+			f1.connectTo(o1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
 
 			// add jar
 			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
@@ -1077,8 +1078,10 @@ public class JobManagerITCase {
 				fail(e.getMessage());
 			}
 
-			// Finally, make sure the output file is empty
-			assertEquals(0L, outputFile.length());
+			// Finally, make sure Nephele created a directory as output
+			assertTrue(outputFile.isDirectory());
+
+			// Make s
 
 		} catch (JobGraphDefinitionException jgde) {
 			fail(jgde.getMessage());
@@ -1094,6 +1097,13 @@ public class JobManagerITCase {
 				inputFile2.delete();
 			}
 			if (outputFile != null) {
+				if (outputFile.isDirectory()) {
+					final String[] files = outputFile.list();
+					final String outputDir = outputFile.getAbsolutePath();
+					for (final String file : files) {
+						new File(outputDir + File.separator + file).delete();
+					}
+				}
 				outputFile.delete();
 			}
 			if (jarFile != null) {

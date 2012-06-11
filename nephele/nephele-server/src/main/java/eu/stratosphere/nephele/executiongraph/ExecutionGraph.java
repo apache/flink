@@ -332,15 +332,17 @@ public class ExecutionGraph implements ExecutionListener {
 				}
 
 				// Check if a wire is supposed to be created
-				if (DistributionPatternProvider.createWire(source.getForwardEdge(indexOfOutputGate)
-					.getDistributionPattern(), i, j, source.getCurrentNumberOfGroupMembers(), target
-					.getCurrentNumberOfGroupMembers())) {
+				if (DistributionPatternProvider.createWire(groupEdge.getDistributionPattern(),
+					i, j, currentNumberOfSourceNodes, currentNumberOfTargetNodes)) {
 
-					final ExecutionEdge edge = new ExecutionEdge(outputGate, inputGate, groupEdge, new ChannelID(),
-						new ChannelID(), outputGate.getNumberOfEdges(), inputGate.getNumberOfEdges());
+					final ChannelID outputChannelID = new ChannelID();
+					final ChannelID inputChannelID = new ChannelID();
 
-					this.edgeMap.put(edge.getOutputChannelID(), edge);
-					this.edgeMap.put(edge.getInputChannelID(), edge);
+					final ExecutionEdge edge = new ExecutionEdge(outputGate, inputGate, groupEdge, outputChannelID,
+						inputChannelID, outputGate.getNumberOfEdges(), inputGate.getNumberOfEdges());
+
+					this.edgeMap.put(outputChannelID, edge);
+					this.edgeMap.put(inputChannelID, edge);
 
 					outputChannels.add(edge);
 
@@ -352,9 +354,9 @@ public class ExecutionGraph implements ExecutionListener {
 
 					inputChannels.add(edge);
 				}
-
-				outputGate.replaceAllEdges(outputChannels);
 			}
+
+			outputGate.replaceAllEdges(outputChannels);
 		}
 
 		// Finally, set the channels for the input gates
@@ -444,10 +446,6 @@ public class ExecutionGraph implements ExecutionListener {
 				tev.insertInputGate(edge.getIndexOfInputGate(), inputGate);
 			}
 		}
-	}
-
-	void wire(final ExecutionGroupEdge groupEdge) throws GraphConversionException {
-
 	}
 
 	/**

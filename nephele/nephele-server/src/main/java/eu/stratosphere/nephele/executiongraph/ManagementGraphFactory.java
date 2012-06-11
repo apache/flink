@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.managementgraph.ManagementEdge;
@@ -122,11 +123,11 @@ public class ManagementGraphFactory {
 			final ExecutionVertex ev = iterator.next();
 			final ManagementGroupVertex parent = groupMap.get(ev.getGroupVertex());
 
+			final AbstractInstance instance = ev.getAllocatedResource().getInstance();
 			final ManagementVertex managementVertex = new ManagementVertex(parent, ev.getID().toManagementVertexID(),
-				(ev.getAllocatedResource().getInstance().getInstanceConnectionInfo() != null) ? ev
-					.getAllocatedResource().getInstance().getInstanceConnectionInfo().toString() : ev
-					.getAllocatedResource().getInstance().toString(), ev.getAllocatedResource().getInstance().getType()
-					.toString(), ev.getCheckpointState().toString(), ev.getIndexInVertexGroup());
+				(instance.getInstanceConnectionInfo() != null) ? instance.getInstanceConnectionInfo().toString()
+					: instance.toString(), instance.getType().toString(), ev.getCheckpointState().toString(),
+				ev.getIndexInVertexGroup());
 			managementVertex.setExecutionState(ev.getExecutionState());
 			vertexMap.put(ev, managementVertex);
 
