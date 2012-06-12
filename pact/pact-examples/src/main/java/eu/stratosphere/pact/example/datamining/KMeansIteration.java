@@ -37,18 +37,8 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopiesSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjectionsFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -351,13 +341,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	@ReadsFirst(fields={1})
-	@ImplicitOperationFirst(implicitOperation=ImplicitOperationMode.Copy)
-	@ExplicitProjectionsFirst(fields={})
-	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Projection)
-	@ExplicitCopiesSecond(fields={})
-	@ExplicitModifications(fields={2,3})
-	@OutCardBounds(lowerBound=1, upperBound=1)
+	@ConstantFieldsFirst(fields={0,1})
 	public static class ComputeDistance extends	CrossStub
 	{
 		private final PactDouble distance = new PactDouble();
@@ -391,11 +375,6 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	@Reads(fields={1,2,3})
-	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Projection)
-	@ExplicitCopies(fields={})
-	@ExplicitModifications(fields={0,1,2})
-	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class FindNearestCenter extends ReduceStub
 	{
@@ -484,11 +463,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * @author Fabian Hueske
 	 */
 	
-	@Reads(fields={1,2})
-	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
-	@ExplicitProjections(fields={2})
-	@ExplicitModifications(fields={0,1})
-	@OutCardBounds(lowerBound=1, upperBound=1)
+	@ConstantFields(fields={0})
 	@Combinable
 	public static class RecomputeClusterCenter extends ReduceStub
 	{

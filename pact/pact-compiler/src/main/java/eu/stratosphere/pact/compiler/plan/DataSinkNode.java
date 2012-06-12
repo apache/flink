@@ -401,75 +401,22 @@ public class DataSinkNode extends OptimizerNode {
 	
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readCopyProjectionAnnotations()
-	 */
-	@Override
-	protected void readCopyProjectionAnnotations() {
-		// DO NOTHING		
-	}
-
-	/*
-	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
 	 */
 	@Override
-	protected void readReadsAnnotation() {
+	protected void readConstantAnnotation() {
 		// DO NOTHING
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#deriveOutputSchema()
-	 */
-	@Override
-	public void deriveOutputSchema() {
-		// DataSink has no output
-		// DO NOTHING
-	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
-	 */
-	@Override
-	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
-		return new FieldSet();
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
-	 */
-	@Override
-	public FieldSet getWriteSet(int input) {
-		return null;
-	}
-
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
 	 */
 	@Override
-	public FieldSet getReadSet(int input) {
+	public FieldSet getConstantSet(int input) {
 		return null;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
-	 */
-	@Override
-	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
-		return null;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
-	 */
-	@Override
-	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
-		return false;
-	}
 	
 }

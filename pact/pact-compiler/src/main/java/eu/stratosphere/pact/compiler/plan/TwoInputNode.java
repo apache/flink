@@ -25,15 +25,8 @@ import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopiesFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopiesSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjectionsFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjectionsSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -64,21 +57,9 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 	// ------------- Stub Annotations
 	
-	protected FieldSet reads1; // set of fields that are read by the stub
+	protected FieldSet constant1; // set of fields that are left unchanged by the stub
 	
-	protected FieldSet explProjections1; // set of fields that are explicitly projected from the first input
-	
-	protected FieldSet explCopies1; // set of fields that are copied from the first input to output 
-	
-	protected ImplicitOperationMode implOpMode1; // implicit operation of the stub on the first input
-	
-	protected FieldSet reads2; // set of fields that are read by the stub
-	
-	protected FieldSet explProjections2; // set of fields that are explicitly projected from the second input
-	
-	protected FieldSet explCopies2; // set of fields that are copied from the second input to output 
-	
-	protected ImplicitOperationMode implOpMode2; // implicit operation of the stub on the second input
+	protected FieldSet constant2; // set of fields that are left unchanged by the stub
 	
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
@@ -119,14 +100,8 @@ public abstract class TwoInputNode extends OptimizerNode
 	{
 		super(template, globalProps, localProps);
 		
-		this.reads1 = template.reads1;
-		this.reads2 = template.reads2;
-		this.explCopies1 = template.explCopies1;
-		this.explCopies2 = template.explCopies2;
-		this.explProjections1 = template.explProjections1;
-		this.explProjections2 = template.explProjections2;
-		this.implOpMode1 = template.implOpMode1;
-		this.implOpMode2 = template.implOpMode2;
+		this.constant1 = template.constant1;
+		this.constant2 = template.constant2;
 		this.keySet1 = template.keySet1;
 		this.keySet2 = template.keySet2;
 
@@ -455,398 +430,47 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
 	 */
 	@Override
-	protected void readReadsAnnotation() {
+	protected void readConstantAnnotation() {
 		DualInputContract<?> c = (DualInputContract<?>)super.getPactContract();
 		
 		// get readSet annotation from stub
-		ReadsFirst readSet1Annotation = c.getUserCodeClass().getAnnotation(ReadsFirst.class);
-		ReadsSecond readSet2Annotation = c.getUserCodeClass().getAnnotation(ReadsSecond.class);
+		ConstantFieldsFirst constantSet1Annotation = c.getUserCodeClass().getAnnotation(ConstantFieldsFirst.class);
+		ConstantFieldsSecond constantSet2Annotation = c.getUserCodeClass().getAnnotation(ConstantFieldsSecond.class);
 		
 		// extract readSets from annotations
-		if(readSet1Annotation == null) {
-			this.reads1 = null;
+		if(constantSet1Annotation == null) {
+			this.constant1 = null;
 		} else {
-			this.reads1 = new FieldSet(readSet1Annotation.fields());
+			this.constant1 = new FieldSet(constantSet1Annotation.fields());
 		}
 		
-		if(readSet2Annotation == null) {
-			this.reads2 = null;
+		if(constantSet2Annotation == null) {
+			this.constant2 = null;
 		} else {
-			this.reads2 = new FieldSet(readSet2Annotation.fields());
+			this.constant2 = new FieldSet(constantSet2Annotation.fields());
 		}
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readCopyProjectionAnnotations()
-	 */
-	@Override
-	protected void readCopyProjectionAnnotations() {
-		DualInputContract<?> c = (DualInputContract<?>)super.getPactContract();
-		
-		// get updateSet annotation from stub
-		ImplicitOperationFirst implOp1Annotation = c.getUserCodeClass().getAnnotation(ImplicitOperationFirst.class);
-		ImplicitOperationSecond implOp2Annotation = c.getUserCodeClass().getAnnotation(ImplicitOperationSecond.class);
-		
-		// set sets to null by default
-		this.implOpMode1 = null;
-		this.explCopies1 = null;
-		this.explProjections1 = null;
-		
-		if(implOp1Annotation != null) {
-			switch(implOp1Annotation.implicitOperation()) {
-			case Copy:
-				// implicit copy -> we have explicit projection
-				ExplicitProjectionsFirst explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjectionsFirst.class);
-				if(explProjAnnotation != null) {
-					this.implOpMode1 = ImplicitOperationMode.Copy;
-					this.explProjections1 = new FieldSet(explProjAnnotation.fields());
-				}
-				break;
-			case Projection:
-				// implicit projection -> we have explicit copies
-				ExplicitCopiesFirst explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopiesFirst.class);
-				if(explCopyjAnnotation != null) {
-					this.implOpMode1 = ImplicitOperationMode.Projection;
-					this.explCopies1 = new FieldSet(explCopyjAnnotation.fields());
-				}
-				break;
-			}
-		}
-		
-		// set sets to null by default
-		this.implOpMode2 = null;
-		this.explCopies2 = null;
-		this.explProjections2 = null;
-
-		if(implOp2Annotation != null) {
-			switch(implOp2Annotation.implicitOperation()) {
-			case Copy:
-				// implicit copy -> we have explicit projection
-				ExplicitProjectionsSecond explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjectionsSecond.class);
-				if(explProjAnnotation != null) {
-					this.implOpMode2 = ImplicitOperationMode.Copy;
-					this.explProjections2 = new FieldSet(explProjAnnotation.fields());
-				}
-				break;
-			case Projection:
-				// implicit projection -> we have explicit copies
-				ExplicitCopiesSecond explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopiesSecond.class);
-				if(explCopyjAnnotation != null) {
-					this.implOpMode2 = ImplicitOperationMode.Projection;
-					this.explCopies2 = new FieldSet(explCopyjAnnotation.fields());
-				}
-				break;
-			}
-		}
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
-	 */
-	@Override
-	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
-
-		if(inputSchemas.size() != 2)
-			throw new IllegalArgumentException("TwoInputNode requires exactly 2 input nodes");
-		
-		// fields that are kept constant from the inputs
-		FieldSet constFields1 = null;
-		FieldSet constFields2 = null;
-		
-		// explicit writes must be defined
-		if(explWrites == null) {
-			return null;
-		}
-		
-		if(implOpMode1 == null) {
-			constFields1 = null;
-		} else {
-			
-			switch(implOpMode1) {
-			case Copy:
-				// implicit copy -> we keep everything, except for explicit projections
-				if(this.explProjections1 != null) {
-					constFields1 = new FieldSet(inputSchemas.get(0));
-					constFields1.removeAll(this.explProjections1);
-					
-				} else {
-					constFields1 = null;
-				}
-				break;
-			case Projection:
-				// implicit projection -> we keep only explicit copies
-				constFields1 = this.explCopies1;
-				break;
-			}
-		}
-		
-		if(implOpMode2 == null) {
-			constFields2 = null;
-		} else {
-			
-			switch(implOpMode2) {
-			case Copy:
-				// implicit copy -> we keep everything, except for explicit projections
-				if(this.explProjections2 != null) {
-					constFields2 = new FieldSet(inputSchemas.get(1));
-					constFields2.removeAll(this.explProjections2);
-				} else {
-					constFields2 = null;
-				}
-				break;
-			case Projection:
-				// implicit projection -> we keep only explicit copies
-				constFields2 = this.explCopies2;
-				break;
-			}
-		}
-		
-		if(constFields1 != null && constFields2 != null) {
-			// output schema are kept fields plus explicit writes
-			return new FieldSet(constFields1, new FieldSet(constFields2, this.explWrites));
-		} else {
-			return null;
-		}
-		
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#deriveOutputSchema()
-	 */
-	@Override
-	public void deriveOutputSchema() {
-		
-		// collect input schema of node
-		List<FieldSet> inputSchemas = new ArrayList<FieldSet>(2);
-		inputSchemas.add(this.getFirstPredNode().getOutputSchema());
-		inputSchemas.add(this.getSecondPredNode().getOutputSchema());
-		
-		// compute output schema given the node's input schemas
-		this.outputSchema = computeOutputSchema(inputSchemas);
-		
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
-	 */
-	@Override
-	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
-		
-		if(input < 0 || input > 1)
-			throw new IndexOutOfBoundsException("TwoInputNode has inputs 0 or 1");
-		
-		// check for first input
-		if(input == 0) {
-			// check that we can perform all required reads on the input schema
-			if(this.reads1 != null && !inputSchema.containsAll(this.reads1))
-				return false;
-			// check that the input schema contains all keys
-			if(this.keySet1 != null && !inputSchema.containsAll(this.keySet1))
-				return false;
-			// check that implicit mode is set
-			if(this.implOpMode1 == null) {
-				return false;
-			}
-			// check that explicit projections can be performed
-			if(this.implOpMode1 == ImplicitOperationMode.Copy && 
-					!inputSchema.containsAll(this.explProjections1))
-				return false;
-			// check that explicit copies can be performed
-			if(this.implOpMode1 == ImplicitOperationMode.Projection &&
-					!inputSchema.containsAll(this.explCopies1))
-				return false;
-		// check for second input
-		} else {
-			// check that we can perform all required reads on the input schema
-			if(this.reads2 != null && !inputSchema.containsAll(this.reads2))
-				return false;
-			// check that the input schema contains all keys
-			if(this.keySet2 != null && !inputSchema.containsAll(this.keySet2))
-				return false;
-			// check that implicit mode is set
-			if(this.implOpMode2 == null) {
-				return false;
-			}
-			// check that explicit projections can be performed
-			if(this.implOpMode2 == ImplicitOperationMode.Copy && 
-					!inputSchema.containsAll(this.explProjections2))
-				return false;
-			// check that explicit copies can be performed
-			if(this.implOpMode2 == ImplicitOperationMode.Projection &&
-					!inputSchema.containsAll(this.explCopies2))
-				return false;
-		}
-		
-		return true;
-	}
 
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
 	 */
 	@Override
-	public FieldSet getReadSet(int input) {
+	public FieldSet getConstantSet(int input) {
 
 		switch(input) {
 		case 0:
-			return this.reads1;
+			return this.constant1;
 		case 1:
-			return this.reads2;
+			return this.constant2;
 		case -1:
-			return new FieldSet(this.reads1, this.reads2);
+			return new FieldSet(this.constant1, this.constant2);
 		default:
 			throw new IndexOutOfBoundsException();
 		}
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
-	 */
-	@Override
-	public FieldSet getWriteSet(int input) {
-		
-		// get the input schemas of the node
-		List<FieldSet> inputSchemas = new ArrayList<FieldSet>(2);
-		inputSchemas.add(this.getFirstPredNode().getOutputSchema());
-		inputSchemas.add(this.getSecondPredNode().getOutputSchema());
-		
-		// compute and return the write set for the node's input schemas
-		return this.getWriteSet(input, inputSchemas);
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
-	 */
-	@Override
-	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
-
-		if(inputSchemas.size() != 2)
-			throw new IllegalArgumentException("TwoInputNode requires exactly 2 input nodes");
-		
-		switch(input) {
-		// compute write set for first input
-		case 0:
-			if(implOpMode1 != null) {
-				switch(implOpMode1) {
-				case Copy:
-					// implicit copy -> write set are all explicit projections plus writes
-					if(this.explProjections1 != null) {
-						return new FieldSet(this.explProjections1, this.explWrites);
-					} else {
-						return null;
-					}
-				case Projection:
-					// implicit projection -> write set are all input fields minus copied fields plus writes
-					if(this.explCopies1 != null) {
-						
-						FieldSet writeSet = new FieldSet(inputSchemas.get(0));
-						writeSet.removeAll(this.explCopies1);
-						writeSet.addAll(this.explWrites);
-						return writeSet;
-						
-					} else {
-						return null;
-					}
-				default:
-					return null;
-				}
-			} else {
-				return null;
-			}
-		// compute write set for second input
-		case 1:
-			if(implOpMode2 != null) {
-				switch(implOpMode2) {
-				case Copy:
-					// implicit copy -> write set are all explicit projections plus writes
-					if(this.explProjections2 != null) {
-						return new FieldSet(this.explProjections2, this.explWrites);
-					} else {
-						return null;
-					}
-				case Projection:
-					// implicit projection -> write set are all input fields minus copied fields plus writes
-					if(this.explCopies2 != null) {
-						
-						FieldSet writeSet = new FieldSet(inputSchemas.get(1));
-						writeSet.removeAll(this.explCopies2);
-						writeSet.addAll(this.explWrites);
-						return writeSet;
-						
-					} else {
-						return null;
-					}
-				default:
-					return null;
-				}
-			} else {
-				return null;
-			}
-		// compute write set for both inputs
-		case -1:
-			if(this.implOpMode1 != null && this.implOpMode2 != null && this.explWrites != null) {
-				
-				// sets of projected (and hence written) fields
-				FieldSet projection1 = null;
-				FieldSet projection2 = null;
-				
-				switch(this.implOpMode1) {
-				case Copy:
-					// implicit copy -> explicit projection
-					projection1 = this.explProjections1;
-					break;
-				case Projection:
-					// implicit projection -> input schema minus copied fields
-					if(this.explCopies1 != null) {
-						projection1 = new FieldSet(inputSchemas.get(0));
-						projection1.removeAll(this.explCopies1);
-					} else {
-						return null;
-					}
-					break;
-				default:
-					return null;
-				}
-				
-				switch(this.implOpMode2) {
-				case Copy:
-					// implicit copy -> explicit projection
-					projection2 = this.explProjections2;
-					break;
-				case Projection:
-					// implicit projection -> input schema minus copied fields
-					if(this.explCopies2 != null) {
-						projection2 = new FieldSet(inputSchemas.get(0));
-						projection2.removeAll(this.explCopies2);
-					} else {
-						return null;
-					}
-					break;
-				default:
-					return null;
-				}
-		
-				if(projection1 != null && projection2 != null) {
-					// write set are projected and explicitly written fields
-					return new FieldSet(projection1, new FieldSet(projection2, this.explWrites));
-	
-				} else {
-					return null;
-				}
-				
-			} else {
-				return null;
-			}
-		default:
-			throw new IndexOutOfBoundsException();
-		}
-	}
 	
 	/**
 	 * Computes the width of output records
@@ -903,31 +527,17 @@ public abstract class TwoInputNode extends OptimizerNode
 		
 		switch(input) {
 		case 0:
-			if (implOpMode1 == null) {
+			if (this.constant1 == null) {
 				return false;
 			}
-			switch (implOpMode1) {
-			case Projection:
-				return (explCopies1 == null ? false : this.explCopies1.contains(fieldNumber));
-			case Copy:
-				return (explProjections1 == null || explWrites == null ? false : 
-					!(new FieldSet(this.explWrites, this.explProjections1)).contains(fieldNumber));
-			default:
-				return false;
-			}
+			
+			return this.constant1.contains(fieldNumber);
 		case 1:
-			if (implOpMode2 == null) {
+			if (this.constant2 == null) {
 				return false;
 			}
-			switch (implOpMode2) {
-			case Projection:
-				return (explCopies2 == null ? false : this.explCopies2.contains(fieldNumber));
-			case Copy:
-				return (explProjections2 == null || explWrites == null ? false : 
-					!(new FieldSet(explWrites, explProjections2)).contains(fieldNumber));
-			default:
-				return false;
-			}
+			
+			return this.constant2.contains(fieldNumber);
 		default:
 			throw new IndexOutOfBoundsException();
 		}

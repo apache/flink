@@ -36,8 +36,6 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
@@ -117,14 +115,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	// ------------------------------------------------------------------------
 
 	private final Contract pactContract; // The contract (Reduce / Match / DataSource / ...)
-	
-	protected int stubOutCardLB; // The lower bound of the stubs output cardinality
-	
-	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
-	
-	protected FieldSet explWrites; // The set of explicitly written fields
-	
-	protected FieldSet outputSchema; // The fields are present in the output records
 	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
@@ -221,18 +211,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.degreeOfParallelism = toClone.degreeOfParallelism;
 		this.instancesPerMachine = toClone.instancesPerMachine;
 		
-		this.stubOutCardLB = toClone.stubOutCardLB;
-		this.stubOutCardUB = toClone.stubOutCardUB;
-		
 		if (toClone.uniqueFields != null && toClone.uniqueFields.size() > 0) {
 			for (FieldSet uniqueField : toClone.uniqueFields) {
 				this.uniqueFields.add((FieldSet)uniqueField.clone());
 			}
 		}
 		
-		this.explWrites = toClone.explWrites;
-		this.outputSchema = toClone.outputSchema == null ? null : (FieldSet)toClone.outputSchema.clone(); 
-
 		// check, if this node branches. if yes, this candidate must be associated with
 		// the branching template node.
 		if (toClone.isBranching()) {
@@ -678,7 +662,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		
 		CompilerHints hints = getPactContract().getCompilerHints();
 
-		computeUniqueFields();
+//		computeUniqueFields();
 		
 		// check if preceding nodes are available
 		if (!allPredsAvailable) {
@@ -1199,28 +1183,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * Reads all stub annotations
 	 */
 	private void readStubAnnotations() {
-		this.readReadsAnnotation();
-		this.readCopyProjectionAnnotations();
-		this.readWritesAnnotation();
-		this.readOutputCardBoundAnnotation();
+		this.readConstantAnnotation();
 		this.readUniqueFieldsAnnotation();
 	}
 
-	/**
-	 * Reads the explicit writes stub annotation
-	 */
-	protected void readWritesAnnotation() {
-
-		// get readSet annotation from stub
-		ExplicitModifications addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(ExplicitModifications.class);
-		
-		// extract addSet from annotation
-		if(addSetAnnotation == null) {
-			this.explWrites = null;
-		} else {
-			this.explWrites = new FieldSet(addSetAnnotation.fields());
-		}
-	}
 	
 	protected void readUniqueFieldsAnnotation() {
 		if (pactContract.getCompilerHints() != null) {
@@ -1232,121 +1198,28 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 
 	/**
-	 * Reads the output cardinality stub annotations
+	 * Reads all constant stub annotations.
+	 * Constant stub annotations are defined per input.
 	 */
-	protected void readOutputCardBoundAnnotation() {
-		
-		// get readSet annotation from stub
-		OutCardBounds outCardAnnotation = pactContract.getUserCodeClass().getAnnotation(OutCardBounds.class);
-		
-		// extract addSet from annotation
-		if(outCardAnnotation == null) {
-			this.stubOutCardLB = OutCardBounds.UNKNOWN;
-			this.stubOutCardUB = OutCardBounds.UNKNOWN;
-		} else {
-			this.stubOutCardLB = outCardAnnotation.lowerBound();
-			this.stubOutCardUB = outCardAnnotation.upperBound();
-		}
-	}
+	protected abstract void readConstantAnnotation();
 	
-	/**
-	 * Reads all reads stub annotations.
-	 * Reads stub annotations are defined per input.
-	 */
-	protected abstract void readReadsAnnotation();
-	
-	/**
-	 * Reads the copy and projection stub annotations.
-	 * These annotations are defined per input.
-	 */
-	protected abstract void readCopyProjectionAnnotations();
-	
-	/**
-	 * Reads and sets the output schema of the node.
-	 * The schema can change if the input schema changes.
-	 */
-	public abstract void deriveOutputSchema();
 	
 	// ------------------------------------------------------------------------
 	// Access of stub annotations
 	// ------------------------------------------------------------------------
 	
-	/**
-	 * Returns the lower output cardinality bound of the node.
-	 * 
-	 * @return the lower output cardinality bound of the node.
-	 */
-	public int getStubOutCardLowerBound() {
-		return this.stubOutCardLB;
-	}
-	
-	/**
-	 * Returns the upper output cardinality bound of the node.
-	 * 
-	 * @return the upper output cardinality bound of the node.
-	 */
-	public int getStubOutCardUpperBound() {
-		return this.stubOutCardUB;
-	}
-	
-	/**
-	 * Returns the output schema of the node.
-	 * 
-	 * @return the output schema of the node.
-	 */
-	public FieldSet getOutputSchema() {
-		return this.outputSchema;
-	}
-	
-	/**
-	 * Computes the output schema of the node for given input schemas (one per input).
-	 * 
-	 * @param inputSchemas A list of input schemas. Element 0 of the list refers to the first input, and so on.
-	 * @return The output schema of the node for the given input schemas.
-	 */
-	public abstract FieldSet computeOutputSchema(List<FieldSet> inputSchemas);
 
-	/**
-	 * Determines whether the node can on the given input schema for the specified input.
-	 * 
-	 * @param input The input for which the input schema is assumed.
-	 * @param inputSchema The input schema for the specified input
-	 * @return True, if the node can operate on the the schema for the specified input, false otherwise.
-	 */
-	public abstract boolean isValidInputSchema(int input, FieldSet inputSchema);
 	
 	/**
-	 * Gives the read set of the node. 
-	 * The read set is used to decide about reordering of nodes.
+	 * Gives the constant set of the node. 
+	 * The constant set is used to decide about reordering of nodes.
 	 * 
-	 * @param id of input for which the read set should be returned. 
-	 *        -1 if the unioned read set over all inputs is requested. 
+	 * @param id of input for which the constant set should be returned. 
+	 *        -1 if the unioned constant set over all inputs is requested. 
 	 *  
-	 * @return the read set for the requested input(s)
+	 * @return the constant set for the requested input(s)
 	 */
-	public abstract FieldSet getReadSet(int input);
-	
-	/**
-	 * Give the write set of the node.
-	 * The write set is used to decide about reordering of nodes.
-	 * 
-	 * @param id of input for which the write set should be returned. 
-	 *        -1 if the unioned write set over all inputs is requested. 
-	 *  
-	 * @return the write set for the requested input(s)
-	 */
-	public abstract FieldSet getWriteSet(int input);
-	
-	/**
-	 * Give the write set of the node.
-	 * 
-	 * @param id of input for which the write set should be returned. 
-	 *        -1 if the unioned write set over all inputs is requested. 
-	 * @param inputNodes for which the write set should be computed 
-	 *  
-	 * @return the write set for the requested input(s)
-	 */
-	public abstract FieldSet getWriteSet(int input, List<FieldSet> inputSchemas);
+	public abstract FieldSet getConstantSet(int input);
 	
 	protected static final class UnclosedBranchDescriptor
 	{
@@ -1422,30 +1295,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return keyColumns;
 	}
 	
-	public void computeUniqueFields() {
-		
-		if (stubOutCardUB > 1 || stubOutCardUB < 0) {
-			return;
-		}
-		
-		//check for inputs
-		for (int i = 0; i < getIncomingConnections().size(); i++) {
-		
-			Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(i);
-			for (FieldSet uniqueField : uniqueInChild) {
-				if (keepsUniqueProperty(uniqueField, i)) {
-					this.uniqueFields.add(uniqueField);
-				}
-			}
-		}
-		
-		//check which uniqueness properties are created by this node
-		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
-		if (uniqueFields != null ) {
-			this.uniqueFields.addAll(uniqueFields);
-		}
-		
-	}
 	
 	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
 		for (Integer uniqueField : uniqueSet) {

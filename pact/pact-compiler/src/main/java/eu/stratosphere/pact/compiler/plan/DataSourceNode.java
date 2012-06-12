@@ -25,7 +25,6 @@ import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.generic.io.InputFormat;
-import eu.stratosphere.pact.common.io.OutputSchemaProvider;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
@@ -313,68 +312,14 @@ public class DataSourceNode extends OptimizerNode
 		return false;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readCopyProjectionAnnotations()
-	 */
-	@Override
-	protected void readCopyProjectionAnnotations() {
-		// DO NOTHING		
-	}
 
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
 	 */
 	@Override
-	protected void readReadsAnnotation() {
+	protected void readConstantAnnotation() {
 		// DO NOTHING
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#deriveOutputSchema()
-	 */
-	@SuppressWarnings("unchecked")
-	@Override
-	public void deriveOutputSchema() {
-		
-		this.outputSchema = this.computeOutputSchema(Collections.EMPTY_LIST);
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
-	 */
-	@Override
-	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
-		
-		if(inputSchemas.size() > 0)
-			throw new IllegalArgumentException("DataSourceNode do not have input nodes");
-		
-		// get the input format class
-		@SuppressWarnings("unchecked")
-		Class<InputFormat<?, ?>> clazz = (Class<InputFormat<?, ?>>)((GenericDataSource<? extends InputFormat<?, ?>>)getPactContract()).getFormatClass();
-		
-		InputFormat<?, ?> inputFormat;
-		try {
-			inputFormat = clazz.newInstance();
-			
-			if(inputFormat instanceof OutputSchemaProvider) {
-				
-				inputFormat.configure(getPactContract().getParameters());
-				return new FieldSet(((OutputSchemaProvider) inputFormat).getOutputSchema());
-			} else {
-				return null;
-			}
-			
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		}
-		return null;
-		
 	}
 	
 	/*
@@ -382,34 +327,8 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
 	 */
 	@Override
-	public FieldSet getReadSet(int input) {
+	public FieldSet getConstantSet(int input) {
 		return null;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
-	 */
-	@Override
-	public FieldSet getWriteSet(int input) {
-		return null;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
-	 */
-	@Override
-	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
-		return null;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
-	 */
-	@Override
-	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
-		return false;
-	}
 }

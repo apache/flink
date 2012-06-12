@@ -26,11 +26,7 @@ import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -58,13 +54,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 
 	// ------------- Stub Annotations
 	
-	protected FieldSet reads; // set of fields that are read by the stub
-	
-	protected FieldSet explProjections; // set of fields that are explicitly projected by the stub
-	
-	protected FieldSet explCopies; // set of fields that explicitly copied from input to output 
-	
-	protected ImplicitOperationMode implOpMode; // implicit operation of the stub
+	protected FieldSet constantSet; // set of fields that are left unchanged by the stub
 	
 	protected FieldList keyList; // The set of key fields (order is relevant!)
 
@@ -102,10 +92,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		super(template, globalProps, localProps);
 
 		// copy annotations
-		this.reads = template.reads;
-		this.explProjections = template.explProjections;
-		this.explCopies = template.explCopies;
-		this.implOpMode = template.implOpMode;
+		this.constantSet = template.constantSet;
 		
 		// copy key set
 		this.keyList = template.keyList;
@@ -342,20 +329,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throw new IndexOutOfBoundsException();
 		}
 		
-		if (implOpMode == null) {
+		if (this.constantSet == null) {
 			return false;
 		}
 		
-		switch (implOpMode) {
-		case Projection:
-			return (explCopies == null ? false : 
-				explCopies.contains(fieldNumber));
-		case Copy:
-			return (explProjections == null || explWrites == null ? false :
-				!((new FieldSet(explWrites, explProjections)).contains(fieldNumber)));
-		default:
-				return false;
-		}
+		return this.constantSet.contains(fieldNumber);
 	}
 		
 	public FieldList getKeySet() {
@@ -370,141 +348,20 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readReadsAnnotation()
 	 */
 	@Override
-	protected void readReadsAnnotation() {
+	protected void readConstantAnnotation() {
 		
 		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
 		
 		// get readSet annotation from stub
-		Reads readSetAnnotation = c.getUserCodeClass().getAnnotation(Reads.class);
+		ConstantFields constantSet = c.getUserCodeClass().getAnnotation(ConstantFields.class);
 		
 		// extract readSet from annotation
-		if(readSetAnnotation == null) {
-			this.reads = null;
+		if(constantSet == null) {
+			this.constantSet = null;
 			return;
 		} else {
-			this.reads = new FieldSet(readSetAnnotation.fields());
+			this.constantSet = new FieldSet(constantSet.fields());
 		}
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readCopyProjectionAnnotations()
-	 */
-	@Override
-	protected void readCopyProjectionAnnotations() {
-
-		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
-		
-		// get updateSet annotation from stub
-		ImplicitOperation implOpAnnotation = c.getUserCodeClass().getAnnotation(ImplicitOperation.class);
-		
-		this.implOpMode = null;
-		this.explCopies = null;
-		this.explProjections = null;
-		
-		// extract readSet from annotation
-		if(implOpAnnotation != null) {
-			switch(implOpAnnotation.implicitOperation()) {
-			case Copy:
-				// implicit copies -> we have explicit projection
-				ExplicitProjections explProjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitProjections.class);
-				if(explProjAnnotation != null) {
-					this.implOpMode = ImplicitOperationMode.Copy;
-					this.explProjections = new FieldSet(explProjAnnotation.fields());
-				}
-				break;
-			case Projection:
-				// implicit projections -> we have explicit copies
-				ExplicitCopies explCopyjAnnotation = c.getUserCodeClass().getAnnotation(ExplicitCopies.class);
-				if(explCopyjAnnotation != null) {
-					this.implOpMode = ImplicitOperationMode.Projection;
-					this.explCopies = new FieldSet(explCopyjAnnotation.fields());
-				}
-				break;
-			}
-		}
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#deriveOutputSchema()
-	 */
-	@Override
-	public void deriveOutputSchema() {
-		
-		// compute and set the output schema for the node's input schema
-		this.outputSchema = computeOutputSchema(Collections.singletonList(this.getPredNode().getOutputSchema()));
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
-	 */
-	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
-		
-		if(inputSchemas.size() != 1)
-			throw new IllegalArgumentException("SingleInputNode must have exactly one input");
-		
-		if(implOpMode == null) {
-			return null;
-		} else {
-			
-			switch(implOpMode) {
-			case Copy:
-				// implicit copy -> output schema are input fields minus explicitly projected fields plus explicit writes
-				if(this.explProjections != null && this.explWrites != null) {
-					
-					FieldSet outputSchema = new FieldSet(inputSchemas.get(0));
-					outputSchema.removeAll(this.explProjections);
-					outputSchema.addAll(this.explWrites);
-					return outputSchema;
-					
-				} else {
-					return null;
-				}
-			case Projection:
-				// implicit projection -> output schema are explicitly copied and written fields
-				if(this.explCopies != null && this.explWrites != null) {
-					return new FieldSet(this.explCopies, this.explWrites);
-				} else {
-					return null;
-				}
-			default:
-				return null;
-			}
-		}
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isValidInputSchema(int, int[])
-	 */
-	@Override
-	public boolean isValidInputSchema(int input, FieldSet inputSchema) {
-		
-		if(input != 0)
-			throw new IndexOutOfBoundsException("SingleInputNode must have exactly one input");
-		
-		// check that input schema includes all read fields
-		if(this.reads != null && !inputSchema.containsAll(this.reads))
-			return false;
-		// check that input schema includes all key fields
-		if(this.keyList != null && !inputSchema.containsAll(this.keyList))
-			return false;
-		// check that implicit operation mode is set
-		if(this.implOpMode == null) {
-			return false;
-		}
-		// check that input schema has explicitly projected fields
-		if(this.implOpMode == ImplicitOperationMode.Copy && 
-				!inputSchema.containsAll(this.explProjections))
-			return false;
-		// check that input schema has explicitly copied fields
-		if(this.implOpMode == ImplicitOperationMode.Projection &&
-				!inputSchema.containsAll(this.explCopies))
-			return false;
-		
-		return true;
 	}
 	
 	/*
@@ -512,64 +369,13 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
 	 */
 	@Override
-	public FieldSet getReadSet(int input) {
+	public FieldSet getConstantSet(int input) {
 		
 		if(input < -1 || input > 0)
 			throw new IndexOutOfBoundsException();
 		
-		return this.reads;
+		return this.constantSet;
 	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int)
-	 */
-	@Override
-	public FieldSet getWriteSet(int input) {
-				
-		// compute and return write set for the node's input schema
-		return this.getWriteSet(input, Collections.singletonList(this.getPredNode().getOutputSchema()));
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getWriteSet(int, java.util.List)
-	 */
-	@Override
-	public FieldSet getWriteSet(int input, List<FieldSet> inputSchemas) {
-		
-		if(input < -1 || input > 0)
-			throw new IndexOutOfBoundsException();
-		
-		// check that implicit operation mode is set
-		if(this.implOpMode == null) {
-			return null;
-		}
-		
-		switch(this.implOpMode) {
-		case Copy:
-			// implicit copy -> write set are explicitly projected and written fields
-			if(this.explProjections != null) {
-				return new FieldSet(this.explProjections, this.explWrites);
-			} else {
-				return null;
-			}
-		case Projection:
-			// implicit projection -> write set is input schema minus explicit copies plus explicit writes
-			if(this.explCopies != null) {
-				
-				FieldSet writeSet = new FieldSet(inputSchemas.get(0));
-				writeSet.removeAll(this.explCopies);
-				writeSet.addAll(this.explWrites);
-				return writeSet;
 
-			} else {
-				return null;
-			}
-		default:
-			return null;
-		}
-		
-	}
 	
 }
