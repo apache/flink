@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.google.common.collect.Maps;
+import eu.stratosphere.pact.iterative.nephele.samples.DoNothingStub;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -72,12 +73,6 @@ public class CounterTask extends AbstractStateCommunicatingTask {
   @Override
   public int getNumberOfInputs() {
     return 1;
-  }
-
-  @Override
-  public Class getStubType() {
-    //TODO implement
-    return null;
   }
 
   @Override

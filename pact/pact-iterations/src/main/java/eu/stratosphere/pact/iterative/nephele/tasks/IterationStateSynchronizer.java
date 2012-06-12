@@ -1,5 +1,6 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
+import eu.stratosphere.pact.iterative.nephele.samples.DoNothingStub;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -60,13 +61,6 @@ public class IterationStateSynchronizer extends AbstractStateCommunicatingTask {
 
   @Override
   public void cleanup() throws Exception {}
-
-
-  @Override
-  public Class getStubType() {
-    //TODO implement
-    return null;
-  }
 
   @Override
   public boolean requiresComparatorOnInput() {

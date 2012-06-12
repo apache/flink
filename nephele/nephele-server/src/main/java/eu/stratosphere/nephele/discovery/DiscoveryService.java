@@ -58,7 +58,8 @@ public class DiscoveryService implements Runnable {
 	/**
 	 * Network port of the discovery listens on for incoming connections.
 	 */
-	private static final int DISCOVERYPORT = 7001;
+	//private static final int DISCOVERYPORT = 7001;
+  private static final int DISCOVERYPORT = 7007;
 
 	/**
 	 * Number of retries before discovery is considered to be failed.
@@ -240,11 +241,10 @@ public class DiscoveryService implements Runnable {
 	 *         of network difficulties
 	 */
 	private void startService() throws DiscoveryException {
-
 		try {
 			this.serverSocket = new DatagramSocket(DISCOVERYPORT, this.ipcAddress);
 		} catch (SocketException e) {
-			throw new DiscoveryException(e.toString());
+			throw new DiscoveryException(e);
 		}
 
 		LOG.info("Discovery service socket is bound to " + this.serverSocket.getLocalSocketAddress());
@@ -399,7 +399,7 @@ public class DiscoveryService implements Runnable {
 			}
 
 		} catch (IOException ioe) {
-			throw new DiscoveryException(StringUtils.stringifyException(ioe));
+			throw new DiscoveryException(ioe);
 		} finally {
 			if (socket != null) {
 				socket.close();

@@ -99,12 +99,6 @@ public class AsynchronousIterationTail extends AbstractStateCommunicatingTask {
   }
 
   @Override
-  public Class getStubType() {
-    //TODO implement
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
-  }
-
-  @Override
   public boolean requiresComparatorOnInput() {
     //TODO implement
     return false;  //To change body of implemented methods use File | Settings | File Templates.

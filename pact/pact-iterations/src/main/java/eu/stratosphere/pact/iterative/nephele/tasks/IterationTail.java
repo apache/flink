@@ -4,6 +4,7 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.iterative.nephele.samples.DoNothingStub;
 import eu.stratosphere.pact.iterative.nephele.util.BackTrafficQueueStore;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateTracker;
@@ -85,12 +86,6 @@ public class IterationTail extends AbstractStateCommunicatingTask {
 
   @Override
   public void cleanup() throws Exception {}
-
-  @Override
-  public Class getStubType() {
-    //TODO implement
-    return null;
-  }
 
   @Override
   public boolean requiresComparatorOnInput() {

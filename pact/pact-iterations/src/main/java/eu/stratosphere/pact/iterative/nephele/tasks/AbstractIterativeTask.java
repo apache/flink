@@ -1,8 +1,10 @@
 package eu.stratosphere.pact.iterative.nephele.tasks;
 
 import com.google.common.base.Preconditions;
+import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.iterative.nephele.util.ChannelStateEvent.ChannelState;
@@ -27,8 +29,29 @@ public abstract class AbstractIterativeTask extends AbstractStateCommunicatingTa
 //    iterStateGates = getIterationOutputGates();
 //  }
 
+
+  @Override
+  public void prepare() throws Exception {
+    System.out.println("Starting preparation of " + getClass().getSimpleName() + " with " + getNumberOfInputs() + " inputs");
+    int numInputs = getNumberOfInputs();
+    stateListeners = new ChannelStateTracker[numInputs];
+
+    for (int i = 0; i < numInputs; i++) {
+      stateListeners[i] = Preconditions.checkNotNull(
+          initStateTracking((InputGate<PactRecord>) getEnvironment().getInputGate(i)));
+    }
+
+    iterStateGates = getIterationOutputGates();
+  }
+
   @Override
   public void run() throws Exception {
+
+    Preconditions.checkNotNull(inputs, "Inputs cannot be null");
+    Preconditions.checkNotNull(stateListeners, "stateListeners cannot be null");
+    Preconditions.checkState(inputs.length > 0 && stateListeners.length == inputs.length,
+        "Must have at least one input");
+
     MutableObjectIterator<Value> input = inputs[0];
     ChannelStateTracker stateListener = stateListeners[0];
 

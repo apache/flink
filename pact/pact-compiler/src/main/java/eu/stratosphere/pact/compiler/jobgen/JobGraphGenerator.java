@@ -1195,11 +1195,11 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			keyTypes = null;
 		}
 
-		final TaskConfig configForOutpuShipStrategy;
+		final TaskConfig configForOutputShipStrategy;
 		switch (connection.getTempMode()) {
 		case NONE:
 			outputVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
-			configForOutpuShipStrategy = outputConfig;
+			configForOutputShipStrategy = outputConfig;
 			break;
 		case TEMP_SENDER_SIDE:
 			// create tempTask
@@ -1207,10 +1207,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			int instancesPerMachine = connection.getSourcePact().getInstancesPerMachine();
 
 			JobTaskVertex tempVertex = generateTempVertex(
-			// source pact stub contains out key and value
-				connection.getSourcePact().getPactContract().getUserCodeClass(),
-				// keep parallelization of source pact
-				degreeOfParallelism, instancesPerMachine);
+          // source pact stub contains out key and value
+          connection.getSourcePact().getPactContract().getUserCodeClass(),
+          // keep parallelization of source pact
+          degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
 			outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
@@ -1223,7 +1223,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			// set strategies in task configs
 			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-			configForOutpuShipStrategy = tempConfig;
+			configForOutputShipStrategy = tempConfig;
 
 			break;
 		case TEMP_RECEIVER_SIDE:
@@ -1232,10 +1232,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			// create tempVertex
 			tempVertex = generateTempVertex(
-			// source pact stub contains out key and value
-				connection.getSourcePact().getPactContract().getUserCodeClass(),
-				// keep parallelization of target pact
-				degreeOfParallelism, instancesPerMachine);
+          // source pact stub contains out key and value
+          connection.getSourcePact().getPactContract().getUserCodeClass(),
+          // keep parallelization of target pact
+          degreeOfParallelism, instancesPerMachine);
 
 			// insert tempVertex between outputVertex and inputVertex and connect them
 			outputVertex.connectTo(tempVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
@@ -1248,19 +1248,19 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			// set strategies in task configs
 			tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-			configForOutpuShipStrategy = outputConfig;
+			configForOutputShipStrategy = outputConfig;
 			break;
 		default:
 			throw new CompilerException("Invalid connection temp mode: " + connection.getTempMode());
 		}
 		
 		// set strategies in task configs
-		configForOutpuShipStrategy.addOutputShipStrategy(connection.getShipStrategy());
+		configForOutputShipStrategy.addOutputShipStrategy(connection.getShipStrategy());
 		if (! (keyPositions == null || keyTypes == null || keyPositions.length == 0 || keyTypes.length == 0)) {
-			final int outputNum = configForOutpuShipStrategy.getNumOutputs() - 1;
-			configForOutpuShipStrategy.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, outputNum);
-			PactRecordComparatorFactory.writeComparatorSetupToConfig(configForOutpuShipStrategy.getConfiguration(),
-				configForOutpuShipStrategy.getPrefixForOutputParameters(outputNum), keyPositions, keyTypes);
+			final int outputNum = configForOutputShipStrategy.getNumOutputs() - 1;
+			configForOutputShipStrategy.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, outputNum);
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(configForOutputShipStrategy.getConfiguration(),
+          configForOutputShipStrategy.getPrefixForOutputParameters(outputNum), keyPositions, keyTypes);
 		}
 	}
 

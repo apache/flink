@@ -195,9 +195,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// First of all, start discovery manager
 		try {
+      LOG.error("discovery manager: " + ipcAddress + " " + ipcPort);
 			DiscoveryService.startDiscoveryService(ipcAddress, ipcPort);
 		} catch (DiscoveryException e) {
-			LOG.error("Cannot start discovery manager: " + StringUtils.stringifyException(e));
+			//LOG.error("Cannot start discovery manager: " + StringUtils.stringifyException(e));
+      LOG.error("Cannot start discovery manager: ", e);
 			System.exit(FAILURERETURNCODE);
 		}
 

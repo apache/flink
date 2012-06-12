@@ -317,7 +317,8 @@ public class ExecutionGraph implements ExecutionListener {
 
 		if (jobVertex.getNumberOfBackwardConnections() != ev.getEnvironment().getNumberOfInputGates()) {
 			throw new GraphConversionException("Job and execution vertex " + jobVertex.getName()
-				+ " have different number of inputs");
+				+ " have different number of inputs: " + jobVertex.getNumberOfBackwardConnections() + ", "
+        + ev.getEnvironment().getNumberOfInputGates());
 		}
 
 		// Now assign identifiers to gates and check type
