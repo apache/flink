@@ -15,7 +15,7 @@
 
 package eu.stratosphere.nephele.io;
 
-import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
+import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -45,6 +45,6 @@ public class ImmutableRecordDeserializerFactory<T extends Record> implements Rec
 	@Override
 	public RecordDeserializer<T> createDeserializer()
 	{
-		return new DeserializationBuffer<T>(this.recordType);
+		return new DefaultDeserializer<T>(this.recordType);
 	}
 }

@@ -32,7 +32,7 @@ import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.StringRecord;
 
 /**
- * This class checks the functionality of the {@link SerializationBuffer} class and the {@link DeserializationBuffer}
+ * This class checks the functionality of the {@link SerializationBuffer} class and the {@link DefaultDeserializer}
  * class
  * 
  * @author marrus
@@ -113,7 +113,7 @@ public class BufferTest {
 			e.printStackTrace();
 		}
 
-		DeserializationBuffer<IntegerRecord> intDeserialitionBuffer = new DeserializationBuffer<IntegerRecord>(IntegerRecord.class, true);
+		DefaultDeserializer<IntegerRecord> intDeserialitionBuffer = new DefaultDeserializer<IntegerRecord>(IntegerRecord.class, true);
 		IntegerRecord record = new IntegerRecord();
 		// Deserialze a Record
 		try {
@@ -167,7 +167,7 @@ public class BufferTest {
 			e.printStackTrace();
 		}
 
-		DeserializationBuffer<StringRecord> stringDeserialitionBuffer = new DeserializationBuffer<StringRecord>(StringRecord.class, true);
+		DefaultDeserializer<StringRecord> stringDeserialitionBuffer = new DefaultDeserializer<StringRecord>(StringRecord.class, true);
 		StringRecord record = new StringRecord();
 		// Deserialize and check record are correct
 		try {
