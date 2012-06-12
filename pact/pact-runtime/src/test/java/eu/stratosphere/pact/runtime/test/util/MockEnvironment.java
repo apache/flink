@@ -274,7 +274,7 @@ public class MockEnvironment implements Environment {
 	@Override
 	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
 
-		throw new IllegalStateException("registerOutputGate called on MockEnvironment");
+		// Nothing to do here
 	}
 
 	/**
@@ -283,7 +283,7 @@ public class MockEnvironment implements Environment {
 	@Override
 	public void registerInputGate(final InputGate<? extends Record> inputGate) {
 
-		throw new IllegalStateException("registerInputGate called on MockEnvironment");
+		// Nothing to do here
 	}
 
 	/**
