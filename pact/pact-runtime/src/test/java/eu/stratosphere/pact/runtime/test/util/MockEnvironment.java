@@ -340,4 +340,20 @@ public class MockEnvironment implements Environment {
 		throw new IllegalStateException("getInputChannelIDsOfGate called on MockEnvironment");
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.execution.Environment#getInputGate(int)
+	 */
+	@Override
+	public InputGate<? extends Record> getInputGate(int pos) {
+		throw new IllegalStateException("getInputGate called on MockEnvironment");
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.execution.Environment#getOutputGate(int)
+	 */
+	@Override
+	public OutputGate<? extends Record> getOutputGate(int pos) {
+		throw new IllegalStateException("getOutputGate called on MockEnvironment");
+	}
+
 }
