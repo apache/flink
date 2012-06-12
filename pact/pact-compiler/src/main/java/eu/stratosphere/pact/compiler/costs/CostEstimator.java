@@ -22,7 +22,6 @@ import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
-import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 
 /**
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
@@ -215,13 +214,11 @@ public abstract class CostEstimator {
 			break;
 		case NESTEDLOOP_STREAMED_OUTER_FIRST:
 			getStreamedNestedLoopsCosts(n, primConn, secConn,
-				SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS * SpillingResettableIterator.MIN_BUFFER_SIZE,
-				locCost);
+				128 * 1024, locCost);
 			break;
 		case NESTEDLOOP_STREAMED_OUTER_SECOND:
 			getStreamedNestedLoopsCosts(n, secConn, primConn,
-				SpillingResettableIterator.MINIMUM_NUMBER_OF_BUFFERS * SpillingResettableIterator.MIN_BUFFER_SIZE,
-				locCost);
+				128 * 1024, locCost);
 			break;
 		default:
 			throw new CompilerException("Unknown local strategy: " + n.getLocalStrategy().name());

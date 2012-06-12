@@ -27,23 +27,28 @@ import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.pact.common.generic.io.OutputFormat;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
+import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
  * DataSinkTask which is executed by a Nephele task manager.
  * The task hands the data to an output format.
  * 
- * @see eu.stratosphere.pact.common.io.OutputFormat
+ * @see eu.eu.stratosphere.pact.common.generic.io.OutputFormat
  * 
  * @author Fabian Hueske
  */
-public class DataSinkTask extends AbstractOutputTask
+public class DataSinkTask<IT> extends AbstractOutputTask
 {
 	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
 	
@@ -55,13 +60,19 @@ public class DataSinkTask extends AbstractOutputTask
 	// --------------------------------------------------------------------------------------------
 	
 	// input reader
-	private MutableObjectIterator<PactRecord> reader;
+	private MutableObjectIterator<IT> reader;
 
 	// OutputFormat instance
-	private OutputFormat format;
+	private OutputFormat<IT> format;
+	
+	// The serializer for the input type
+	private TypeSerializer<IT> inputTypeSerializer;
 
 	// task configuration
 	private TaskConfig config;
+	
+	// class loader for user code
+	private ClassLoader userCodeClassLoader;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -77,6 +88,7 @@ public class DataSinkTask extends AbstractOutputTask
 
 		// initialize OutputFormat
 		initOutputFormat();
+		
 		// initialize input reader
 		initInputReader();
 
@@ -93,9 +105,9 @@ public class DataSinkTask extends AbstractOutputTask
 		if (LOG.isInfoEnabled())
 			LOG.info(getLogString("Start PACT code"));
 
-		final MutableObjectIterator<PactRecord> reader = this.reader;
-		final OutputFormat format = this.format;
-		final PactRecord record = new PactRecord();
+		final MutableObjectIterator<IT> reader = this.reader;
+		final OutputFormat<IT> format = this.format;
+		final IT record = this.inputTypeSerializer.createInstance();
 		
 		try {
 			// check if task has been canceled
@@ -110,10 +122,22 @@ public class DataSinkTask extends AbstractOutputTask
 			// open
 			format.open(this.getEnvironment().getIndexInSubtaskGroup() + 1);
 
-			// work
-			while (!this.taskCanceled && reader.next(record))
-			{
-				format.writeRecord(record);
+			// work!
+			// special case the pact record / file variant
+			if (record.getClass() == PactRecord.class && format instanceof FileOutputFormat) {
+				@SuppressWarnings("unchecked")
+				final MutableObjectIterator<PactRecord> pi = (MutableObjectIterator<PactRecord>) reader;
+				final PactRecord pr = (PactRecord) record;
+				final FileOutputFormat pf = (FileOutputFormat) format;
+				while (!this.taskCanceled && pi.next(pr))
+				{
+					pf.writeRecord(pr);
+				}				
+			} else {
+				while (!this.taskCanceled && reader.next(record))
+				{
+					format.writeRecord(record);
+				}
 			}
 			
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
@@ -168,6 +192,16 @@ public class DataSinkTask extends AbstractOutputTask
 		if (LOG.isWarnEnabled())
 			LOG.warn(getLogString("Cancelling PACT code"));
 	}
+	
+	/**
+	 * Sets the class-loader to be used to load the user code.
+	 * 
+	 * @param cl The class-loader to be used to load the user code.
+	 */
+	public void setUserCodeClassLoader(ClassLoader cl)
+	{
+		this.userCodeClassLoader = cl;
+	}
 
 	/**
 	 * Initializes the OutputFormat implementation and configuration.
@@ -178,19 +212,24 @@ public class DataSinkTask extends AbstractOutputTask
 	 */
 	private void initOutputFormat()
 	{
+		if (this.userCodeClassLoader == null) {
+			try {
+				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			} catch (IOException ioe) {
+				throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
+			}
+		}
 		// obtain task configuration (including stub parameters)
 		this.config = new TaskConfig(getTaskConfiguration());
 
 		// obtain stub implementation class
 		try {
-			ClassLoader cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			Class<? extends OutputFormat> formatClass = this.config.getStubClass(OutputFormat.class, cl);
+			@SuppressWarnings("unchecked")
+			final Class<? extends OutputFormat<IT>> clazz = (Class<? extends OutputFormat<IT>>) (Class<?>) OutputFormat.class;
+			final Class<? extends OutputFormat<IT>> formatClass = this.config.getStubClass(clazz, this.userCodeClassLoader);
 			
 			// obtain instance of stub implementation
 			this.format = InstantiationUtil.instantiate(formatClass, OutputFormat.class);
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
 		}
 		catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("OutputFormat implementation class was not found.", cnfe);
@@ -217,8 +256,37 @@ public class DataSinkTask extends AbstractOutputTask
 	 */
 	private void initInputReader()
 	{
+		// get data type serializer
+		final Class<? extends TypeSerializerFactory<IT>> serializerFactoryClass;
+		try {
+			serializerFactoryClass = this.config.getSerializerFactoryForInput(0, this.userCodeClassLoader);
+		} catch (ClassNotFoundException cnfex) {
+			throw new RuntimeException("The serializer factory noted in the configuration could not be loaded.", cnfex);
+		}
+						
+		
+		final TypeSerializerFactory<IT> serializerFactory;
+		if (serializerFactoryClass == null) {
+			// fall back to PactRecord
+			@SuppressWarnings("unchecked")
+			TypeSerializerFactory<IT> ps = (TypeSerializerFactory<IT>) PactRecordSerializerFactory.get();
+			serializerFactory = ps;
+		} else {
+			@SuppressWarnings("unchecked")
+			Class<TypeSerializerFactory<IT>> clazz = (Class<TypeSerializerFactory<IT>>) (Class<?>) TypeSerializerFactory.class;
+			serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, clazz);
+		}
+		
+		this.inputTypeSerializer = serializerFactory.getSerializer();
+		
 		// create reader
-		this.reader = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
+		if (serializerFactory.getDataType().equals(PactRecord.class)) {
+			@SuppressWarnings("unchecked")
+			MutableObjectIterator<IT> it = (MutableObjectIterator<IT>) new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this)); 
+			this.reader = it;
+		} else {
+			this.reader = new NepheleReaderIterator<IT>(new MutableRecordReader<DeserializationDelegate<IT>>(this), this.inputTypeSerializer);
+		}
 	}
 	
 	// ------------------------------------------------------------------------

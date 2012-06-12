@@ -23,10 +23,11 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.pact.common.generic.GenericMatcher;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypePairComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 
@@ -37,29 +38,45 @@ import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class BuildSecondHashMatchIterator implements MatchTaskIterator
-{
-private final MemoryManager memManager;
+public final class BuildSecondHashMatchIterator<V1, V2, O> implements MatchTaskIterator<V1, V2, O>
+{	
+	private final MutableHashTable<V2, V1> hashJoin;
 	
-	private final HashJoin hashJoin;
+	private final V2 nextBuildSideObject;
 	
-	private PactRecord nextBuildSideObject; 
+	private final V2 tempBuildSideRecord;
 	
-	private PactRecord probeCopy = new PactRecord();
+	private final V1 probeCopy;
+	
+	private final TypeSerializer<V1> probeSideSerializer;
+	
+	private final MemoryManager memManager;
+	
+	private final MutableObjectIterator<V1> firstInput;
+	
+	private final MutableObjectIterator<V2> secondInput;
 	
 	private volatile boolean running = true;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public BuildSecondHashMatchIterator(MutableObjectIterator<PactRecord> firstInput, MutableObjectIterator<PactRecord> secondInput,
-			int[] buildSideKeyFields, int[] probeSideKeyFields, Class<? extends Key>[] keyClasses, MemoryManager memManager, IOManager ioManager,
-			AbstractInvokable ownerTask, long totalMemory)
+	public BuildSecondHashMatchIterator(MutableObjectIterator<V1> firstInput, MutableObjectIterator<V2> secondInput,
+			TypeSerializer<V1> serializer1, TypeComparator<V1> comparator1,
+			TypeSerializer<V2> serializer2, TypeComparator<V2> comparator2,
+			TypePairComparator<V1, V2> pairComparator,
+			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
 	throws MemoryAllocationException
 	{		
 		this.memManager = memManager;
-		this.nextBuildSideObject = new PactRecord();
+		this.firstInput = firstInput;
+		this.secondInput = secondInput;
+		this.probeSideSerializer = serializer1;
 		
-		this.hashJoin = BuildFirstHashMatchIterator.getHashJoin(secondInput, firstInput, buildSideKeyFields, probeSideKeyFields, keyClasses, 
+		this.nextBuildSideObject = serializer2.createInstance();
+		this.tempBuildSideRecord = serializer2.createInstance();
+		this.probeCopy = serializer1.createInstance();
+		
+		this.hashJoin = BuildFirstHashMatchIterator.getHashJoin(serializer2, comparator2, serializer1, comparator1, pairComparator,
 			memManager, ioManager, ownerTask, totalMemory);
 	}
 	
@@ -71,7 +88,7 @@ private final MemoryManager memManager;
 	@Override
 	public void open() throws IOException, MemoryAllocationException, InterruptedException
 	{
-		this.hashJoin.open();
+		this.hashJoin.open(this.secondInput, this.firstInput);
 	}
 
 	/* (non-Javadoc)
@@ -80,7 +97,11 @@ private final MemoryManager memManager;
 	@Override
 	public void close()
 	{
-		List<MemorySegment> segments = this.hashJoin.close();
+		// close the join
+		this.hashJoin.close();
+		
+		// free the memory
+		final List<MemorySegment> segments = this.hashJoin.getFreedMemory();
 		this.memManager.release(segments);
 	}
 
@@ -88,47 +109,43 @@ private final MemoryManager memManager;
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#callWithNextKey(eu.stratosphere.pact.common.stub.MatchStub, eu.stratosphere.pact.common.stub.Collector)
 	 */
 	@Override
-	public boolean callWithNextKey(MatchStub matchFunction, Collector collector)
+	public boolean callWithNextKey(GenericMatcher<V1, V2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		if (this.hashJoin.nextRecord())
 		{
 			// we have a next record, get the iterators to the probe and build side values
-			final HashJoin.HashBucketIterator buildSideIterator = this.hashJoin.getBuildSideIterator();
-			PactRecord probeRecord = this.hashJoin.getCurrentProbeRecord();
-			PactRecord nextBuildSidePair = this.nextBuildSideObject;
+			final MutableHashTable.HashBucketIterator<V2, V1> buildSideIterator = this.hashJoin.getBuildSideIterator();
+			final V2 nextBuildSideRecord = this.nextBuildSideObject;
 			
 			// get the first build side value
-			if (buildSideIterator.next(nextBuildSidePair)) {
-				PactRecord tmpPair = new PactRecord();
+			if (buildSideIterator.next(nextBuildSideRecord)) {
+				final V2 tmpRec = this.tempBuildSideRecord;
+				final V1 probeRecord = this.hashJoin.getCurrentProbeRecord();
 				
 				// check if there is another build-side value
-				if (buildSideIterator.next(tmpPair)) {
+				if (buildSideIterator.next(tmpRec)) {
 					// more than one build-side value --> copy the probe side
-					probeRecord.copyTo(this.probeCopy);
+					final V1 probeCopy = this.probeCopy;
+					this.probeSideSerializer.copyTo(probeRecord, probeCopy);
 					
 					// call match on the first pair
-					matchFunction.match(probeRecord, nextBuildSidePair, collector);
+					matchFunction.match(probeCopy, nextBuildSideRecord, collector);
 					
 					// call match on the second pair
-					probeRecord = new PactRecord();
-					this.probeCopy.copyTo(probeRecord);
-					matchFunction.match(probeRecord, tmpPair, collector);
+					this.probeSideSerializer.copyTo(probeRecord, probeCopy);
+					matchFunction.match(probeCopy, tmpRec, collector);
 					
-					tmpPair = new PactRecord();
-					while (this.running && buildSideIterator.next(tmpPair)) {
+					while (this.running && buildSideIterator.next(nextBuildSideRecord)) {
 						// call match on the next pair
-						probeRecord = new PactRecord();
-						this.probeCopy.copyTo(probeRecord);
-						matchFunction.match(probeRecord, tmpPair, collector);
-						tmpPair = new PactRecord();
+						// make sure we restore the value of the probe side record
+						this.probeSideSerializer.copyTo(probeRecord, probeCopy);
+						matchFunction.match(probeCopy, nextBuildSideRecord, collector);
 					}
-					this.nextBuildSideObject = tmpPair;
 				}
 				else {
 					// only single pair matches
-					this.nextBuildSideObject = tmpPair;
-					matchFunction.match(probeRecord, nextBuildSidePair, collector);
+					matchFunction.match(probeRecord, nextBuildSideRecord, collector);
 				}
 			}
 			return true;
@@ -137,15 +154,19 @@ private final MemoryManager memManager;
 			return false;
 		}
 	}
-
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#abort()
 	 */
 	@Override
 	public void abort()
 	{
+		// close the join
 		this.running = false;
-		List<MemorySegment> segments = this.hashJoin.close();
+		this.hashJoin.close();
+		
+		// free the memory
+		final List<MemorySegment> segments = this.hashJoin.getFreedMemory();
 		this.memManager.release(segments);
 	}
 }

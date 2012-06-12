@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.common.stubs;
 
+import eu.stratosphere.pact.common.generic.AbstractStub;
+import eu.stratosphere.pact.common.generic.GenericMapper;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
@@ -26,7 +28,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * 
  * @author Fabian Hueske
  */
-public abstract class MapStub extends Stub
+public abstract class MapStub extends AbstractStub implements GenericMapper<PactRecord, PactRecord>
 {
 	/**
 	 * This method must be implemented to provide a user implementation of a mapper.
@@ -39,6 +41,6 @@ public abstract class MapStub extends Stub
 	 *                   runtime catches an exception, it aborts the map task and lets the fail-over logic
 	 *                   decide whether to retry the mapper execution.
 	 */
-	public abstract void map(PactRecord record, Collector out) throws Exception;
-	
+	@Override
+	public abstract void map(PactRecord record, Collector<PactRecord> out) throws Exception;
 }

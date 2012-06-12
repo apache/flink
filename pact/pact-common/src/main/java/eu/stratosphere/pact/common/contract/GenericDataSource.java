@@ -17,7 +17,7 @@ package eu.stratosphere.pact.common.contract;
 
 import java.lang.annotation.Annotation;
 
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation;
 
@@ -27,7 +27,7 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation;
  * 
  * @param T The type of input format invoked by instances of this data source.
  */
-public class GenericDataSource<T extends InputFormat<?>> extends Contract 
+public class GenericDataSource<T extends InputFormat<?, ?>> extends Contract 
 	implements StubAnnotationConfigurable
 {
 	private static String DEFAULT_NAME = "<Unnamed Generic Data Source>";

@@ -15,12 +15,16 @@
 
 package eu.stratosphere.pact.example.graph;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -28,6 +32,7 @@ import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
 
@@ -134,34 +139,89 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		}
 	}
 
-	/**
-	 * Builds triads (open triangles) from two edges that share the same key.
-	 * A triad is represented as an EdgeList with two elements.
-	 * 
-	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
-	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
-	 */
-	public static class BuildTriads extends MatchStub {
-
+//	/**
+//	 * Builds triads (open triangles) from two edges that share the same key.
+//	 * A triad is represented as an EdgeList with two elements.
+//	 * 
+//	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
+//	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
+//	 */
+//	public static class BuildTriads extends MatchStub {
+//
+//		private final PactString joinVertex = new PactString();
+//		private final PactString endVertex1 = new PactString();
+//		private final PactString endVertex2 = new PactString();
+//		
+//		@Override
+//		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
+//			
+//			value1.getFieldInto(0, joinVertex);
+//			value1.getFieldInto(1, endVertex1);
+//			value2.getFieldInto(1, endVertex2);
+//			
+//			if (endVertex1.compareTo(endVertex2) <= 0) {
+//				value1.setField(2, endVertex2);
+//				out.collect(value1);
+//			} else {
+//				value2.setField(2, endVertex1);
+//				out.collect(value2);
+//			}
+//			
+//		}		
+//	}
+	
+	public static class BuildTriads extends ReduceStub
+	{
+		private final ArrayList<PactString> strings = new ArrayList<PactString>(32);
+		private final PactRecord result = new PactRecord();
 		private final PactString joinVertex = new PactString();
-		private final PactString endVertex1 = new PactString();
-		private final PactString endVertex2 = new PactString();
 		
+		public BuildTriads() {
+			this.strings.add(new PactString());
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.ReduceStub#reduce(java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)
+		 */
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out) throws Exception {
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
+			throws Exception
+		{
+			// get the first record and the key
+			final PactRecord rec = records.next();
+			final PactString key = rec.getField(0, this.joinVertex);
+			rec.getFieldInto(1, this.strings.get(0));
 			
-			value1.getFieldInto(0, joinVertex);
-			value1.getFieldInto(1, endVertex1);
-			value2.getFieldInto(1, endVertex2);
+			this.result.setField(0, key);
 			
-			if (endVertex1.compareTo(endVertex2) <= 0) {
-				value1.setField(2, endVertex2);
-				out.collect(value1);
-			} else {
-				value2.setField(2, endVertex1);
-				out.collect(value2);
+			int numStrings = 1;
+			while (records.hasNext()) {
+				final PactRecord next = records.next();
+				
+				final PactString target;
+				if (numStrings >= this.strings.size()) {
+					target = new PactString();
+					this.strings.add(target);
+				} else {
+					target = this.strings.get(numStrings);
+				}
+				
+				next.getFieldInto(1, target);
+				
+				for (int i = 0; i < numStrings; i++) {
+					final PactString other = this.strings.get(i);
+					if (other.compareTo(target) < 0) {
+						this.result.setField(1, other);
+						this.result.setField(2, target);
+						out.collect(this.result);
+					} else {
+						next.setField(2, other);
+						out.collect(next);
+					}
+				}
+				
+				numStrings++;
 			}
-			
 		}		
 	}
 
@@ -177,7 +237,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(CloseTriads.class);
 
 		@Override
-		public void match(PactRecord triad, PactRecord missingEdge, Collector out) throws Exception {
+		public void match(PactRecord triad, PactRecord missingEdge, Collector<PactRecord> out) throws Exception {
 			
 			LOG.debug("Emit: " + missingEdge);
 			
@@ -197,25 +257,20 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String edgeInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
-		int waves = (args.length > 3 ? Integer.parseInt(args[3]) : 1);
 
 		FileDataSource edges = new FileDataSource(EdgeInFormat.class, edgeInput, "BTC Edges");
-		edges.setDegreeOfParallelism(noSubTasks);
-		//edges.setOutputContract(UniqueKey.class);
 		
-		MatchContract buildTriads = new MatchContract(BuildTriads.class, PactString.class, 0, 0, "Build Triads");
-		buildTriads.getParameters().setString("selfMatch.crossMode", "TRIANGLE_CROSS_EXCL_DIAG");
-		buildTriads.setDegreeOfParallelism(noSubTasks * waves);
-
+//		MatchContract buildTriads = new MatchContract(BuildTriads.class, PactString.class, 0, 0, "Build Triads");
+//		buildTriads.getParameters().setString("selfMatch.crossMode", "TRIANGLE_CROSS_EXCL_DIAG");
+		ReduceContract buildTriads = new ReduceContract(BuildTriads.class, PactString.class, 0, "Build Triads");
+		
 		@SuppressWarnings("unchecked")
 		MatchContract closeTriads = new MatchContract(CloseTriads.class, new Class[] {PactString.class, PactString.class}, new int[] {1, 2}, new int[] {0, 1}, "Close Triads");
 		closeTriads.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_REPARTITION");
 		closeTriads.setParameter("INPUT_RIGHT_SHIP_STRATEGY", "SHIP_REPARTITION");
 		closeTriads.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_SECOND");
-		closeTriads.setDegreeOfParallelism(noSubTasks * waves);
 
 		FileDataSink triangles = new FileDataSink(RecordOutputFormat.class, output, "Output");
-		triangles.setDegreeOfParallelism(noSubTasks);
 		triangles.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
 		triangles.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, " ");
 		triangles.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
@@ -226,11 +281,13 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		triangles.setInput(closeTriads);
 		closeTriads.setSecondInput(edges);
 		closeTriads.setFirstInput(buildTriads);
-		buildTriads.setFirstInput(edges);
-		buildTriads.setSecondInput(edges);
+		buildTriads.setInput(edges);
+//		buildTriads.setFirstInput(edges);
+//		buildTriads.setSecondInput(edges);
 
-		return new Plan(triangles, "Enumerate Triangles");
-
+		Plan plan = new Plan(triangles, "Enumerate Triangles");
+		plan.setDefaultParallelism(noSubTasks);
+		return plan;
 	}
 
 	/*

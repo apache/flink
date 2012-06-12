@@ -15,28 +15,32 @@
 
 package eu.stratosphere.pact.runtime.resettable;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.services.iomanager.Buffer;
+import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.runtime.io.RandomAccessInputView;
+import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
+import eu.stratosphere.pact.runtime.util.MathUtils;
 import eu.stratosphere.pact.runtime.util.MemoryBlockIterator;
 
 /**
  * Base class for iterators that fetch a block of data into main memory and offer resettable
  * access to the data in that block.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  * @author Fabian Hueske
  */
-abstract class AbstractBlockResettableIterator implements MemoryBlockIterator
+abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 {
 	public static final Log LOG = LogFactory.getLog(AbstractBlockResettableIterator.class);
 	
@@ -44,48 +48,63 @@ abstract class AbstractBlockResettableIterator implements MemoryBlockIterator
 	
 	// ------------------------------------------------------------------------
 	
-	protected final MemoryManager memoryManager;
+	protected final RandomAccessInputView readView;
 	
-	protected final List<MemorySegment> emptySegments;
-
-	protected final List<Buffer.Input> fullBuffers;
+	protected final SimpleCollectingOutputView collectingView;
 	
-	protected final List<Buffer.Input> consumedBuffers;
+	protected final TypeSerializer<T> serializer;
 	
-	protected Buffer.Input bufferCurrentlyRead;
+	protected int numRecordsInBuffer;
 	
-	protected Buffer.Output bufferCurrentlyFilled;
+	protected int numRecordsReturned;
 	
-	protected boolean noMoreBlocks;
+	protected final ArrayList<MemorySegment> emptySegments;
+	
+	protected final ArrayList<MemorySegment> fullSegments;
+	
+	private final MemoryManager memoryManager;
 	
 	protected volatile boolean closed;		// volatile since it may be asynchronously set to abort after current block
 	
 	// ------------------------------------------------------------------------
 	
-	protected AbstractBlockResettableIterator(MemoryManager memoryManager, long availableMemory, int nrOfBuffers, 
-			AbstractInvokable ownerTask)
+	protected AbstractBlockResettableIterator(TypeSerializer<T> serializer, MemoryManager memoryManager,
+			long availableMemory, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
-		if (nrOfBuffers < 1) {
-			throw new IllegalArgumentException("BlockResettableIterator needs at least one element.");
-		}
-		if (availableMemory < MIN_BUFFER_SIZE) {
-			throw new IllegalArgumentException("Block Resettable iterator requires at leat " + MIN_BUFFER_SIZE + " bytes of memory.");
+		if (availableMemory < memoryManager.getPageSize()) {
+			throw new IllegalArgumentException("Block Resettable iterator requires at leat one page of memory");
 		}
 		
 		this.memoryManager = memoryManager;
+		this.serializer = serializer;
 		
-		// allocate the memory buffers
-		this.emptySegments = this.memoryManager.allocate(ownerTask, availableMemory, nrOfBuffers, MIN_BUFFER_SIZE);
-		this.fullBuffers = new ArrayList<Buffer.Input>();
-		this.consumedBuffers = new ArrayList<Buffer.Input>();
+		availableMemory = memoryManager.roundDownToPageSizeMultiple(availableMemory);
+		final int numPages = MathUtils.checkedDownCast(availableMemory / memoryManager.getPageSize());
+		if (numPages < 1) {
+			throw new IllegalArgumentException("The given amount of memory is smaller than one memory page.");
+		}
+		
+		this.emptySegments = new ArrayList<MemorySegment>(numPages);
+		this.fullSegments = new ArrayList<MemorySegment>(numPages);
+		memoryManager.allocatePages(ownerTask, emptySegments, numPages);
+		
+		this.collectingView = new SimpleCollectingOutputView(this.fullSegments, 
+						new ListMemorySegmentSource(this.emptySegments), memoryManager.getPageSize());
+		this.readView = new RandomAccessInputView(this.fullSegments, memoryManager.getPageSize());
 		
 		if (LOG.isDebugEnabled())
-			LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
+			LOG.debug("Iterator initalized using " + numPages + " memory buffers (" + availableMemory + " bytes of memory.");
 	}
 	
 	// --------------------------------------------------------------------------------------------
 
+	public void open()
+	{
+		if (LOG.isDebugEnabled())
+			LOG.debug("Block Resettable Iterator opened.");
+	}
+	
 	/**
 	 * 
 	 */
@@ -95,70 +114,27 @@ abstract class AbstractBlockResettableIterator implements MemoryBlockIterator
 			throw new IllegalStateException("Iterator was closed.");
 		}
 		
-		// if some full buffers remain, remember them
-		List<Buffer.Input> fullBuffsLeft = null;
-		if (!this.fullBuffers.isEmpty()) {
-			fullBuffsLeft = new ArrayList<Buffer.Input>(this.fullBuffers.size());
-			fullBuffsLeft.addAll(this.fullBuffers);
-			this.fullBuffers.clear();
-		}
-
-		// we need to rewind all consumed buffers and add them again to the full buffers
-		for (int i = 0; i < this.consumedBuffers.size(); i++) {
-			Buffer.Input in = this.consumedBuffers.get(i);
-			in.rewind();
-			this.fullBuffers.add(in);
-		}
-		this.consumedBuffers.clear();
-		
-		// add the currently read buffer
-		if (this.bufferCurrentlyRead != null) {
-			this.bufferCurrentlyRead.rewind();
-			this.fullBuffers.add(this.bufferCurrentlyRead);
-			this.bufferCurrentlyRead = null;
-		}
-		
-		// re-add the left buffers
-		if (fullBuffsLeft != null) {
-			this.fullBuffers.addAll(fullBuffsLeft);
-		}
-		
-		// if we are currently filling a buffer, add it
-		if (this.bufferCurrentlyFilled != null) {
-			final int pos = this.bufferCurrentlyFilled.getPosition();
-			final Buffer.Input in = new Buffer.Input(this.bufferCurrentlyFilled.dispose());
-			in.reset(pos);
-			this.fullBuffers.add(in);
-			this.bufferCurrentlyFilled = null;
-		}
-		
-		// take the first input buffer
-		this.bufferCurrentlyRead = this.fullBuffers.remove(0);
+		this.readView.setReadPosition(0);
+		this.numRecordsReturned = 0;
 	}
 	
-	/**
-	 * Checks, whether the input that is blocked by this iterator, has further elements
-	 * available. This method may be used to forecast (for example at the point where a
-	 * block is full) whether there will be more data (possibly in another block).
-	 * 
-	 * @return True, if there will be more data, false otherwise.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.util.MemoryBlockIterator#nextBlock()
 	 */
-	public boolean hasFurtherInput()
+	@Override
+	public boolean nextBlock() throws IOException
 	{
-		return !this.noMoreBlocks; 
-	}
-	
-	/**
-	 * Opens the block resettable iterator. This method will cause the iterator to start asynchronously 
-	 * reading the input and prepare the first block.
-	 */
-	public void open() throws IOException
-	{
-		if (LOG.isDebugEnabled())
-			LOG.debug("Iterator opened.");
+		this.numRecordsInBuffer = 0;
 		
-		// move the first = next block
-		nextBlock();
+		// add the full segments to the empty ones
+		for (int i = this.fullSegments.size() - 1; i >= 0; i--) {
+			this.emptySegments.add(this.fullSegments.remove(i));
+		}
+		
+		// reset the views
+		this.collectingView.reset();
+		this.readView.setReadPosition(0);
+		return true;
 	}
 	
 	/**
@@ -175,56 +151,43 @@ abstract class AbstractBlockResettableIterator implements MemoryBlockIterator
 			this.closed = true;
 		}
 		
-		// remove all blocks
-		List<MemorySegment> toReturn = new ArrayList<MemorySegment>(this.emptySegments.size() + 
-				this.fullBuffers.size() + this.consumedBuffers.size() + 2);
-
-		// collect empty segments
-		toReturn.addAll(this.emptySegments);
-		this.emptySegments.clear();
+		this.numRecordsInBuffer = 0;
+		this.numRecordsReturned = 0;
 		
-		// collect all other segments
-		collectAllBuffers(toReturn);
+		// add the full segments to the empty ones
+		for (int i = this.fullSegments.size() - 1; i >= 0; i--) {
+			this.emptySegments.add(this.fullSegments.remove(i));
+		}
 		
 		// release the memory segment
-		this.memoryManager.release(toReturn);
+		this.memoryManager.release(this.emptySegments);
+		this.emptySegments.clear();
 		
 		if (LOG.isDebugEnabled())
-			LOG.debug("Iterator closed.");
+			LOG.debug("Block Resettable Iterator closed.");
 	}
 	
+	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * Takes all buffers in the list of full buffers and consumed buffers,
-	 * as well as the currently written and currently read buffers, and disposes
-	 * them, putting their backing memory segment in the given list.
-	 * 
-	 * @param target The list to collect the buffers in. 
-	 */
-	protected void collectAllBuffers(List<MemorySegment> target)
+	protected boolean writeNextRecord(T record) throws IOException
 	{
-		// collect full buffers
-		while (!this.fullBuffers.isEmpty()) {
-			Buffer.Input in = this.fullBuffers.remove(this.fullBuffers.size() - 1);
-			target.add(in.dispose());
+		try {
+			this.serializer.serialize(record, this.collectingView);
+			this.numRecordsInBuffer++;
+			return true;
+		} catch (EOFException eofex) {
+			return false;
 		}
-		
-		// collect consumed segments
-		while (!this.consumedBuffers.isEmpty()) {
-			Buffer.Input in = this.consumedBuffers.remove(this.consumedBuffers.size() - 1);
-			target.add(in.dispose());
-		}
-		
-		// return the currently read buffer
-		if (this.bufferCurrentlyRead != null) {
-			target.add(this.bufferCurrentlyRead.dispose());
-			this.bufferCurrentlyRead = null;
-		}
-		
-		// return the currently filled buffer
-		if (this.bufferCurrentlyFilled != null) {
-			target.add(this.bufferCurrentlyFilled.dispose());
-			this.bufferCurrentlyFilled = null;
+	}
+	
+	protected boolean getNextRecord(T target) throws IOException
+	{
+		if (this.numRecordsReturned < this.numRecordsInBuffer) {
+			this.numRecordsReturned++;
+			this.serializer.deserialize(target, this.readView);
+			return true;
+		} else {
+			return false;
 		}
 	}
 }

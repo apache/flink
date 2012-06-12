@@ -63,7 +63,7 @@ public class LineItemFilter extends MapStub {
 	}
 
 	@Override
-	public void map(PactRecord record, Collector out) throws Exception {
+	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 		Tuple value = record.getField(1, Tuple.class);
 		
 		if (value != null && value.getNumberOfColumns() >= 11) {

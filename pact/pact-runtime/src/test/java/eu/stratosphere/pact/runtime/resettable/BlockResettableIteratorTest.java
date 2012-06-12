@@ -26,8 +26,10 @@ import org.junit.Test;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import junit.framework.Assert;
@@ -44,6 +46,8 @@ public class BlockResettableIteratorTest
 	private Iterator<PactRecord> reader;
 
 	private List<PactRecord> objects;
+	
+	private final TypeSerializer<PactRecord> serializer = PactRecordSerializer.get();
 
 	@Before
 	public void startup() {
@@ -78,7 +82,8 @@ public class BlockResettableIteratorTest
 	{
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
-		BlockResettableIterator iterator = new BlockResettableIterator(memman, reader, BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, 1, memOwner);
+		final BlockResettableIterator<PactRecord> iterator = new BlockResettableIterator<PactRecord>(
+				this.memman, this.reader, this.serializer, this.memman.getPageSize(), memOwner);
 		// open the iterator
 		iterator.open();
 		
@@ -116,7 +121,8 @@ public class BlockResettableIteratorTest
 	{
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
-		BlockResettableIterator iterator = new BlockResettableIterator(memman, reader,2 * BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, 2, memOwner);
+		final BlockResettableIterator<PactRecord> iterator = new BlockResettableIterator<PactRecord>(
+				this.memman, this.reader, this.serializer, 2 * this.memman.getPageSize(), memOwner);
 		// open the iterator
 		iterator.open();
 		
@@ -151,11 +157,12 @@ public class BlockResettableIteratorTest
 	}
 
 	@Test
-	public void testTripleBufferedBlockResettableIterator() throws Exception
+	public void testTwelveFoldBufferedBlockResettableIterator() throws Exception
 	{
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
-		BlockResettableIterator iterator = new BlockResettableIterator(memman, reader, 3 * BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, 3, memOwner);
+		final BlockResettableIterator<PactRecord> iterator = new BlockResettableIterator<PactRecord>(
+				this.memman, this.reader, this.serializer, 12 * this.memman.getPageSize(), memOwner);
 		// open the iterator
 		iterator.open();
 		

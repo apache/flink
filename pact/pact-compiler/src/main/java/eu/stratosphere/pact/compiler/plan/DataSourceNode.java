@@ -24,7 +24,7 @@ import java.util.Map.Entry;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.OutputSchemaProvider;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
@@ -141,11 +141,11 @@ public class DataSourceNode extends OptimizerNode
 		if (statistics != null)
 		{
 			// instantiate the input format, as this is needed by the statistics 
-			InputFormat<?> format = null;
+			InputFormat<?, ?> format = null;
 			String inFormatDescription = "<unknown>";
 			
 			try {
-				Class<? extends InputFormat<?>> formatClass = getPactContract().getFormatClass();
+				Class<? extends InputFormat<?, ?>> formatClass = getPactContract().getFormatClass();
 				format = formatClass.newInstance();
 				format.configure(getPactContract().getParameters());
 			}
@@ -352,7 +352,6 @@ public class DataSourceNode extends OptimizerNode
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputSchema(java.util.List)
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
 	public FieldSet computeOutputSchema(List<FieldSet> inputSchemas) {
 		
@@ -360,9 +359,10 @@ public class DataSourceNode extends OptimizerNode
 			throw new IllegalArgumentException("DataSourceNode do not have input nodes");
 		
 		// get the input format class
-		Class<InputFormat<?>> clazz = (Class<InputFormat<?>>)((GenericDataSource<? extends InputFormat<?>>)getPactContract()).getFormatClass();
+		@SuppressWarnings("unchecked")
+		Class<InputFormat<?, ?>> clazz = (Class<InputFormat<?, ?>>)((GenericDataSource<? extends InputFormat<?, ?>>)getPactContract()).getFormatClass();
 		
-		InputFormat<?> inputFormat;
+		InputFormat<?, ?> inputFormat;
 		try {
 			inputFormat = clazz.newInstance();
 			

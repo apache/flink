@@ -35,7 +35,7 @@ public class SupplierMap extends MapStub {
 	 *
 	 */
 	@Override
-	public void map(PactRecord record, Collector out) throws Exception {
+	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 		suppKey = record.getField(0, suppKey);
 		inputTuple = record.getField(1, inputTuple);
 		

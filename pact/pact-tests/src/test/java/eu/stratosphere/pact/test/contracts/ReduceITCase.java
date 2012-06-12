@@ -90,7 +90,7 @@ public class ReduceITCase extends TestBase
 		private PactString combineValue = new PactString();
 
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector out) throws Exception {
+		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 		
 			int sum = 0;
 			PactRecord record = new PactRecord();
@@ -108,7 +108,7 @@ public class ReduceITCase extends TestBase
 		}
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 		
 			int sum = 0;
 			PactRecord record = new PactRecord();

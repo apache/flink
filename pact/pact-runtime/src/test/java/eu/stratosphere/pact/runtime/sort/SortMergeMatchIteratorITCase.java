@@ -23,21 +23,25 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypePairComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -69,41 +73,46 @@ public class SortMergeMatchIteratorITCase
 	// dummy abstract task
 	private final AbstractTask parentTask = new DummyInvokable();
 
-	// memory and io manager
-	private static IOManager ioManager;
-
+	private IOManager ioManager;
 	private MemoryManager memoryManager;
+	
+	private TypeSerializer<PactRecord> serializer1;
+	private TypeSerializer<PactRecord> serializer2;
+	private TypeComparator<PactRecord> comparator1;
+	private TypeComparator<PactRecord> comparator2;
+	private TypePairComparator<PactRecord, PactRecord> pairComparator;
+	
 
-
-	@BeforeClass
-	public static void beforeClass() {
-		ioManager = new IOManager();
-	}
-
-	@AfterClass
-	public static void afterClass() {
-		if (ioManager != null) {
-			ioManager.shutdown();
-			if (!ioManager.isProperlyShutDown()) {
-				Assert.fail("I/O manager failed to properly shut down.");
-			}
-			ioManager = null;
-		}
-		
-	}
-
+	@SuppressWarnings("unchecked")
 	@Before
-	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+	public void beforeTest()
+	{
+		this.serializer1 = PactRecordSerializer.get();
+		this.serializer2 = PactRecordSerializer.get();
+		this.comparator1 = new PactRecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
+		this.comparator2 = new PactRecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
+		this.pairComparator = new PactRecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
+		
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.ioManager = new IOManager();
 	}
 
 	@After
-	public void afterTest() {
-		if (memoryManager != null) {
+	public void afterTest()
+	{
+		if (this.ioManager != null) {
+			this.ioManager.shutdown();
+			if (!this.ioManager.isProperlyShutDown()) {
+				Assert.fail("I/O manager failed to properly shut down.");
+			}
+			this.ioManager = null;
+		}
+		
+		if (this.memoryManager != null) {
 			Assert.assertTrue("Memory Leak: Not all memory has been returned to the memory manager.",
-				memoryManager.verifyEmpty());
-			memoryManager.shutdown();
-			memoryManager = null;
+				this.memoryManager.verifyEmpty());
+			this.memoryManager.shutdown();
+			this.memoryManager = null;
 		}
 	}
 
@@ -124,7 +133,7 @@ public class SortMergeMatchIteratorITCase
 			
 			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector collector = new DiscardingOutputCollector();
+			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -133,11 +142,11 @@ public class SortMergeMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-						memoryManager, ioManager, input1, input2, 
-						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+					new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+						input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
+						this.pairComparator, this.memoryManager, this.ioManager, 
+						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, this.parentTask);
 	
 			iterator.open();			
 			
@@ -173,7 +182,7 @@ public class SortMergeMatchIteratorITCase
 			
 			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector collector = new DiscardingOutputCollector();
+			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -182,10 +191,10 @@ public class SortMergeMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-						memoryManager, ioManager, input1, input2, 
-						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
+			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
+					this.pairComparator, this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_FIRST_MERGE, parentTask);
 	
 			iterator.open();
@@ -222,7 +231,7 @@ public class SortMergeMatchIteratorITCase
 			
 			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector collector = new DiscardingOutputCollector();
+			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -231,10 +240,10 @@ public class SortMergeMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-						memoryManager, ioManager, input1, input2, 
-						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
+			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
+					this.pairComparator, this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_SECOND_MERGE, parentTask);
 	
 			iterator.open();
@@ -271,7 +280,7 @@ public class SortMergeMatchIteratorITCase
 			
 			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector collector = new DiscardingOutputCollector();
+			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			// reset the generators
 			generator1.reset();
@@ -280,10 +289,10 @@ public class SortMergeMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			@SuppressWarnings("unchecked")
-			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-						memoryManager, ioManager, input1, input2, 
-						new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
+			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
+					this.pairComparator, this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
 			iterator.open();
@@ -363,15 +372,15 @@ public class SortMergeMatchIteratorITCase
 			
 			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector collector = new DiscardingOutputCollector();
+			final Collector<PactRecord> collector = new DiscardingOutputCollector();
 	
 			
 			// we create this sort-merge iterator with little memory for the block-nested-loops fall-back to make sure it
 			// needs to spill for the duplicate keys
-			@SuppressWarnings("unchecked")
-			SortMergeMatchIterator iterator = new SortMergeMatchIterator(
-				memoryManager, ioManager, input1, input2, 
-				new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class},
+			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
+					this.pairComparator, this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, 0.00016f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
 	
 			iterator.open();
@@ -489,7 +498,7 @@ public class SortMergeMatchIteratorITCase
 		}
 		
 		@Override
-		public void match(PactRecord rec1, PactRecord rec2, Collector out)
+		public void match(PactRecord rec1, PactRecord rec2, Collector<PactRecord> out)
 		{
 			TestData.Key key = rec1.getField(0, TestData.Key.class);
 			TestData.Value value1 = rec1.getField(1, TestData.Value.class);

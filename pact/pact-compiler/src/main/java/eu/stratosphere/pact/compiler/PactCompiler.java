@@ -63,7 +63,6 @@ import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
-import eu.stratosphere.pact.runtime.task.HistogramTask;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -1026,9 +1025,11 @@ public class PactCompiler {
 					}
 					
 					for (PactConnection conn : node.getOutgoingConnections()) {
-						if(conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
-							node.getPactContract().getParameters().setInteger(HistogramTask.HISTOGRAM_MEMORY, memoryPerTask);
-							LOG.debug("Assigned "+(memoryPerTask)+" MB for histogram building during range partitioning");
+						if (conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
+							throw new RuntimeException("Range Partitioning currently not implemented.");
+//							node.getPactContract().getParameters().setInteger(HistogramTask.HISTOGRAM_MEMORY, memoryPerTask);
+//							if (LOG.isDebugEnabled())
+//								LOG.debug("Assigned "+(memoryPerTask)+" MB for histogram building during range partitioning");
 						}
 					}
 				}

@@ -15,8 +15,6 @@
 
 package eu.stratosphere.pact.common.stubs;
 
-import eu.stratosphere.pact.common.type.PactRecord;
-
 /**
  * Collects the output of PACT first-order user function implemented as {@link Stub}.
  * The collected data is forwards to the next contract.
@@ -24,17 +22,17 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * @author Erik Nijkamp
  * @author Fabian Hueske
  */
-public interface Collector
+public interface Collector<T>
 {	
 	/**
 	 * Emits a record from the invoking PACT first-order user function implemented as {@link Stub}.
 	 * 
 	 * @param record The record to collect.
 	 */
-	void collect(PactRecord record);
-
+	void collect(T record);
+	
 	/**
-	 * Closes the collector.
+	 * Closes the collector, flushing any buffered data.
 	 */
 	void close();
 }

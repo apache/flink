@@ -16,16 +16,13 @@
 package eu.stratosphere.pact.runtime.sort;
 
 import java.io.IOException;
-import java.util.Comparator;
 
-import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-
 
 /**
  * The {@link AsynchronousPartialSorterCollector} is a simple sort implementation that sorts
@@ -37,9 +34,9 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  * 
  * @author Stephan Ewen
  */
-public class AsynchronousPartialSorterCollector extends AsynchronousPartialSorter
+public class AsynchronousPartialSorterCollector<E> extends AsynchronousPartialSorter<E>
 {
-	private InputDataCollector collector;
+	private InputDataCollector<E> collector;
 	
 	// ------------------------------------------------------------------------
 	// Constructor
@@ -49,25 +46,22 @@ public class AsynchronousPartialSorterCollector extends AsynchronousPartialSorte
 	 * 
 	 * 
 	 * @param memoryManager The memory manager from which to allocate the memory.
-	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
-	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
-	 * @param keyComparators The comparator used to define the order among the keys.
-	 * @param keyPositions The logical positions of the keys in the records.
-	 * @param keyClasses The types of the keys.
-	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param serializer The type serializer.
+	 * @param comparator The type comparator establishing the order relation.
+	 * @param totalMemory The total amount of memory dedicated to sorting.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public AsynchronousPartialSorterCollector(
-			MemoryManager memoryManager, IOManager ioManager, long totalMemory,
-			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			AbstractInvokable parentTask)
+	public AsynchronousPartialSorterCollector(MemoryManager memoryManager,
+			AbstractInvokable parentTask, 
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
+			long totalMemory)
 	throws IOException, MemoryAllocationException
 	{
-		super(memoryManager, ioManager, totalMemory, keyComparators, keyPositions, keyClasses, null, parentTask);
+		super(memoryManager, null, parentTask, serializer, comparator, totalMemory);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -77,21 +71,20 @@ public class AsynchronousPartialSorterCollector extends AsynchronousPartialSorte
 	 * 
 	 * @return The collector that writes into the sort buffers.
 	 */
-	public InputDataCollector getInputCollector() {
+	public InputDataCollector<E> getInputCollector() {
 		return this.collector;
 	}
 
-	// ------------------------------------------------------------------------
-	// Factory Methods
-	// ------------------------------------------------------------------------
-
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.sort.UnilateralSortMerger#getReadingThread(eu.stratosphere.pact.runtime.sort.ExceptionHandler, eu.stratosphere.pact.common.util.MutableObjectIterator, eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.CircularQueues, eu.stratosphere.nephele.template.AbstractInvokable, eu.stratosphere.pact.runtime.plugable.TypeSerializers, long)
+	 */
 	@Override
-	protected ThreadBase getReadingThread(ExceptionHandler<IOException> exceptionHandler, 
-			MutableObjectIterator<PactRecord> reader, CircularQueues queues, AbstractInvokable parentTask, long startSpillingBytes)
+	protected ThreadBase<E> getReadingThread(ExceptionHandler<IOException> exceptionHandler,
+		MutableObjectIterator<E> reader, CircularQueues<E> queues, AbstractInvokable parentTask,
+		TypeSerializer<E> serializer, long startSpillingBytes)
 	{
-		this.collector = new InputDataCollector(queues, startSpillingBytes);
-		
-		return new DummyThread(exceptionHandler, queues, parentTask);
+		this.collector = new InputDataCollector<E>(queues, startSpillingBytes);
+		return null;
 	}
 	
 	/* (non-Javadoc)

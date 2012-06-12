@@ -145,7 +145,7 @@ public class CoGroupITCase extends TestBase
 		
 		@Override
 		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector out) {
+				Iterator<PactRecord> records2, Collector<PactRecord> out) {
 			// TODO Auto-generated method stub
 			
 			int sum = 0;

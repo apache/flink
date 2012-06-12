@@ -117,12 +117,26 @@ public abstract class ChannelAccess<T, R extends IORequest>
 	}
 	
 	/**
+	 * Checks the exception state of this channel. The channel is erroneous, if one of its requests could not
+	 * be processed correctly.
+	 * 
+	 * @throws IOException Thrown, if the channel is erroneous. The thrown exception contains the original exception
+	 *                     that defined the erroneous state as its cause.
+	 */
+	public final void checkErroneous() throws IOException
+	{
+		if (this.exception != null) {
+			throw new IOException("The channel is erroneous.", this.exception);
+		}
+	}
+	
+	/**
 	 * Deletes this channel by physically removing the file beneath it.
 	 * This method may only be called on a closed channel.
 	 */
 	public void deleteChannel()
 	{
-		if (fileChannel.isOpen()) {
+		if (this.fileChannel.isOpen()) {
 			throw new IllegalStateException("Cannot delete a channel that is open.");
 		}
 	
@@ -142,8 +156,9 @@ public abstract class ChannelAccess<T, R extends IORequest>
 	 * for that buffer.
 	 * 
 	 * @param buffer The buffer to be processed.
+	 * @param ex The exception that occurred in the I/O threads when processing the buffer's request.
 	 */
-	protected final void handleProcessedBuffer(T buffer, IOException ex) {
+	final void handleProcessedBuffer(T buffer, IOException ex) {
 		
 		if (ex != null && this.exception == null) {
 			this.exception = ex;
@@ -151,19 +166,4 @@ public abstract class ChannelAccess<T, R extends IORequest>
 		
 		returnBuffer(buffer);
 	}
-	
-	/**
-	 * Checks the exception state of this channel. The channel is erroneous, if one of its requests could not
-	 * be processed correctly.
-	 * 
-	 * @throws IOException Thrown, if the channel is erroneous. The thrown exception contains the original exception
-	 *                     that defined the erroneous state as its cause.
-	 */
-	protected final void checkErroneous() throws IOException
-	{
-		if (this.exception != null) {
-			throw new IOException("The channel is erroneous.", this.exception);
-		}
-	}
-	
 }

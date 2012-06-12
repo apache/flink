@@ -33,7 +33,7 @@ public class PartsuppMap extends MapStub {
 	 *
 	 */
 	@Override
-	public void map(PactRecord record, Collector out) throws Exception {
+	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 		inputTuple = record.getField(1, inputTuple);
 		inputTuple.project((0 << 0) | (1 << 1) | (0 << 2) | (1 << 3) | (0 << 4));
 		record.setField(1, inputTuple);

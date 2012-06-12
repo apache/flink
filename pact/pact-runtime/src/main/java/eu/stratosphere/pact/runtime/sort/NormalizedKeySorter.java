@@ -15,17 +15,19 @@
 
 package eu.stratosphere.pact.runtime.sort;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
+import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
-import eu.stratosphere.pact.runtime.plugable.TypeAccessors;
-import eu.stratosphere.pact.runtime.util.MathUtils;
-import eu.stratosphere.pact.runtime.util.MemorySegmentListIterator;
+import eu.stratosphere.pact.runtime.io.RandomAccessInputView;
+import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
 
 /**
  * 
@@ -46,17 +48,23 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 
 	private final byte[] swapBuffer;
 	
-	private final TypeAccessors<T> accessors;
+	private final TypeSerializer<T> serializer;
+	
+	private final TypeComparator<T> comparator;
+	
+	private final SimpleCollectingOutputView recordCollector;
+	
+	private final RandomAccessInputView recordBuffer;
+	
+	private final RandomAccessInputView recordBufferForComparison;
+	
+	private MemorySegment currentSortIndexSegment;
 	
 	private final ArrayList<MemorySegment> freeMemory;
 	
-	private final Iterator<MemorySegment> memorySource;
-	
 	private final ArrayList<MemorySegment> sortIndex;
 	
-	private final ArrayList<MemorySegment> recordBuffers;
-	
-	private MemorySegment currentSortIndexSegment;
+	private final ArrayList<MemorySegment> recordBufferSegments;
 	
 	private long currentDataBufferOffset;
 	
@@ -70,13 +78,11 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	
 	private final int indexEntrySize;
 	
-	private final int segmentSizeMask;
-	
 	private final int indexEntriesPerSegment;
 	
 	private final int lastIndexEntryOffset;
 	
-	private final int segmentSizeBits;
+	private final int segmentSize;
 	
 	private final int totalNumBuffers;
 	
@@ -87,19 +93,21 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
 
-	public NormalizedKeySorter(TypeAccessors<T> accessors, List<MemorySegment> memory)
+	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory)
 	{
-		this(accessors, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN);
+		this(serializer, comparator, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN);
 	}
 	
-	public NormalizedKeySorter(TypeAccessors<T> accessors, List<MemorySegment> memory, int maxNormalizedKeyBytes)
+	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
+			List<MemorySegment> memory, int maxNormalizedKeyBytes)
 	{
-		if (accessors == null || memory == null)
+		if (serializer == null || comparator == null || memory == null)
 			throw new NullPointerException();
 		if (maxNormalizedKeyBytes < 0)
 			throw new IllegalArgumentException("Maximal number of normalized key bytes must not be negative.");
 		
-		this.accessors = accessors;
+		this.serializer = serializer;
+		this.comparator = comparator;
 		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
@@ -107,12 +115,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		if (this.totalNumBuffers < MIN_REQUIRED_BUFFERS) {
 			throw new IllegalArgumentException("Normalized-Key sorter requires at least " + MIN_REQUIRED_BUFFERS + " memory buffers.");
 		}
-		final int segmentSize = memory.get(0).size();
-		if ( (segmentSize & segmentSize - 1) != 0) {
-			throw new IllegalArgumentException("Normalized-Key-Sort requires buffers whose size is a power of 2.");
-		}
-		this.segmentSizeMask = segmentSize - 1;
-		this.segmentSizeBits = MathUtils.log2floor(segmentSize);
+		this.segmentSize = memory.get(0).size();
 		
 		if (memory instanceof ArrayList<?>) {
 			this.freeMemory = (ArrayList<MemorySegment>) memory;
@@ -121,16 +124,21 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 			this.freeMemory = new ArrayList<MemorySegment>(memory.size());
 			this.freeMemory.addAll(memory);
 		}
-		this.memorySource = new MemorySegmentListIterator(this.freeMemory);
 		
 		// create the buffer collections
 		this.sortIndex = new ArrayList<MemorySegment>(16);
-		this.recordBuffers = new ArrayList<MemorySegment>(16);
+		this.recordBufferSegments = new ArrayList<MemorySegment>(16);
+		
+		// the views for the record collections
+		this.recordCollector = new SimpleCollectingOutputView(this.recordBufferSegments,
+			new ListMemorySegmentSource(this.freeMemory), this.segmentSize);
+		this.recordBuffer = new RandomAccessInputView(this.recordBufferSegments, this.segmentSize);
+		this.recordBufferForComparison = new RandomAccessInputView(this.recordBufferSegments, this.segmentSize);
 		
 		// set up normalized key characteristics
-		if (this.accessors.supportsNormalizedKey()) {
-			this.numKeyBytes = Math.min(this.accessors.getNormalizeKeyLen(), maxNormalizedKeyBytes);
-			this.normalizedKeyFullyDetermines = !this.accessors.isNormalizedKeyPrefixOnly(this.numKeyBytes);
+		if (this.comparator.supportsNormalizedKey()) {
+			this.numKeyBytes = Math.min(this.comparator.getNormalizeKeyLen(), maxNormalizedKeyBytes);
+			this.normalizedKeyFullyDetermines = !this.comparator.isNormalizedKeyPrefixOnly(this.numKeyBytes);
 		}
 		else {
 			this.numKeyBytes = 0;
@@ -144,7 +152,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		this.swapBuffer = new byte[this.indexEntrySize];
 		
 		// set to initial state
-		reset();
+		this.currentSortIndexSegment = nextMemorySegment();
+		this.sortIndex.add(this.currentSortIndexSegment);
 	}
 
 	// -------------------------------------------------------------------------
@@ -164,16 +173,14 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		
 		// return all memory
 		this.freeMemory.addAll(this.sortIndex);
-		this.freeMemory.addAll(this.recordBuffers);
+		this.freeMemory.addAll(this.recordBufferSegments);
 		this.sortIndex.clear();
-		this.recordBuffers.clear();
+		this.recordBufferSegments.clear();
 		
 		// grab first buffers
 		this.currentSortIndexSegment = nextMemorySegment();
 		this.sortIndex.add(this.currentSortIndexSegment);
-		final MemorySegment dbs = nextMemorySegment();
-		dbs.outputView.reset();
-		this.recordBuffers.add(dbs);
+		this.recordCollector.reset();
 	}
 
 	/**
@@ -194,9 +201,9 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	public List<MemorySegment> dispose()
 	{
 		this.freeMemory.addAll(this.sortIndex);
-		this.freeMemory.addAll(this.recordBuffers);
+		this.freeMemory.addAll(this.recordBufferSegments);
 		
-		this.recordBuffers.clear();
+		this.recordBufferSegments.clear();
 		this.sortIndex.clear();
 		
 		return this.freeMemory;
@@ -209,7 +216,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 */
 	public long getCapacity()
 	{
-		return ((long) this.totalNumBuffers) * (this.segmentSizeMask + 1);
+		return ((long) this.totalNumBuffers) * this.segmentSize;
 	}
 	
 	/**
@@ -235,7 +242,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 */
 	public void getRecord(T target, int logicalPosition) throws IOException
 	{
-		getRecordFromBuffer(target, readDataBufferOffset(logicalPosition));
+		getRecordFromBuffer(target, readPointer(logicalPosition));
 	}
 
 	/**
@@ -254,32 +261,32 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				this.currentSortIndexSegment = nextMemorySegment();
 				this.sortIndex.add(this.currentSortIndexSegment);
 				this.currentSortIndexOffset = 0;
-				this.sortIndexBytes += this.segmentSizeMask + 1;
+				this.sortIndexBytes += this.segmentSize;
 			}
 			else return false;
 		}
 		
 		// add the pointer and the normalized key
 		this.currentSortIndexSegment.putLong(this.currentSortIndexOffset, this.currentDataBufferOffset);
-		this.accessors.putNormalizedKey(record, this.currentSortIndexSegment.getBackingArray(), this.currentSortIndexSegment.translateOffset(this.currentSortIndexOffset + OFFSET_LEN), this.numKeyBytes);
+		this.comparator.putNormalizedKey(record, this.currentSortIndexSegment.getBackingArray(), this.currentSortIndexSegment.translateOffset(this.currentSortIndexOffset + OFFSET_LEN), this.numKeyBytes);
 		
 		// serialize the record into the data buffers
-		long bytes = this.accessors.serialize(record, this.recordBuffers.get(this.recordBuffers.size() - 1).outputView, this.memorySource, this.recordBuffers);
-		
-		if (bytes >= 0) {
-			this.currentSortIndexOffset += indexEntrySize;
+		try {
+			long bytes = this.serializer.serialize(record, this.recordCollector);
+			this.currentSortIndexOffset += this.indexEntrySize;
 			this.currentDataBufferOffset += bytes;
 			this.numRecords++;
 			return true;
+		} catch (EOFException eofex) {
+			return false;
 		}
-		else return false;
 	}
 	
 	// ------------------------------------------------------------------------
 	//                           Access Utilities
 	// ------------------------------------------------------------------------
 	
-	private final long readDataBufferOffset(int logicalPosition)
+	private final long readPointer(int logicalPosition)
 	{
 		if (logicalPosition < 0 | logicalPosition >= this.numRecords) {
 			throw new IndexOutOfBoundsException();
@@ -293,18 +300,20 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	
 	private final void getRecordFromBuffer(T target, long pointer) throws IOException
 	{
-		final int buffer = (int) (pointer >>> this.segmentSizeBits);
-		final int offset = (int) (pointer & this.segmentSizeMask);
-		this.accessors.deserialize(target, this.recordBuffers, buffer, offset);
+		this.recordBuffer.setReadPosition(pointer);
+		this.serializer.deserialize(target, this.recordBuffer);
 	}
 	
 	private final int compareRecords(long pointer1, long pointer2)
 	{
-		final int bufferI = (int) (pointer1 >>> this.segmentSizeBits);
-		final int offsetI = (int) (pointer1 & this.segmentSizeMask);
-		final int bufferJ = (int) (pointer2 >>> this.segmentSizeBits);
-		final int offsetJ = (int) (pointer2 & this.segmentSizeMask);
-		return this.accessors.compare(this.recordBuffers, this.recordBuffers, bufferI, bufferJ, offsetI, offsetJ);
+		this.recordBuffer.setReadPosition(pointer1);
+		this.recordBufferForComparison.setReadPosition(pointer2);
+		
+		try {
+			return this.comparator.compare(this.recordBuffer, this.recordBufferForComparison);
+		} catch (IOException ioex) {
+			throw new RuntimeException("Error comparing two records.", ioex);
+		}
 	}
 	
 	private final boolean memoryAvailable()
@@ -450,9 +459,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				// full segment
 				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
 					final long pointer = currentIndexSegment.getLong(offset);
-					final int buffer = (int) (pointer >>> this.segmentSizeBits);
-					final int segmentOffset = (int) (pointer & this.segmentSizeMask);
-					this.accessors.copy(this.recordBuffers, buffer, segmentOffset, output);
+					this.recordBuffer.setReadPosition(pointer);
+					this.serializer.copy(this.recordBuffer, output);
 					
 				}
 				recordsLeft -= this.indexEntriesPerSegment;
@@ -461,9 +469,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				for (; recordsLeft > 0; recordsLeft--, offset += this.indexEntrySize)
 				{
 					final long pointer = currentIndexSegment.getLong(offset);
-					final int buffer = (int) (pointer >>> this.segmentSizeBits);
-					final int segmentOffset = (int) (pointer & this.segmentSizeMask);
-					this.accessors.copy(this.recordBuffers, buffer, segmentOffset, output);
+					this.recordBuffer.setReadPosition(pointer);
+					this.serializer.copy(this.recordBuffer, output);
 				}
 			}
 		}
@@ -490,9 +497,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				// full segment
 				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
 					final long pointer = currentIndexSegment.getLong(offset);
-					final int buffer = (int) (pointer >>> this.segmentSizeBits);
-					final int segmentOffset = (int) (pointer & this.segmentSizeMask);
-					this.accessors.copy(this.recordBuffers, buffer, segmentOffset, output);
+					this.recordBuffer.setReadPosition(pointer);
+					this.serializer.copy(this.recordBuffer, output);
 				}
 				num -= this.indexEntriesPerSegment;
 			} else {
@@ -500,9 +506,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				for (; num > 0 && offset <= this.lastIndexEntryOffset; num--, offset += this.indexEntrySize)
 				{
 					final long pointer = currentIndexSegment.getLong(offset);
-					final int buffer = (int) (pointer >>> this.segmentSizeBits);
-					final int segmentOffset = (int) (pointer & this.segmentSizeMask);
-					this.accessors.copy(this.recordBuffers, buffer, segmentOffset, output);
+					this.recordBuffer.setReadPosition(pointer);
+					this.serializer.copy(this.recordBuffer, output);
 				}
 			}
 			offset = 0;

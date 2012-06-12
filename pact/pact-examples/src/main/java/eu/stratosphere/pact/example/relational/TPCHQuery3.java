@@ -116,7 +116,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY
 		 */
 		@Override
-		public void map(final PactRecord record, final Collector out)
+		public void map(final PactRecord record, final Collector<PactRecord> out)
 		{
 			
 			orderStatus = record.getField(2, PactString.class);
@@ -161,7 +161,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 5:EXTENDEDPRICE
 		 */
 		@Override
-		public void match(PactRecord order, PactRecord lineitem, Collector out)
+		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out)
 		{
 			order.setField(5, lineitem.getField(1, PactDouble.class));
 			out.collect(order);
@@ -186,7 +186,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		private final PactDouble extendedPrice = new PactDouble();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> values, Collector out)
+		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out)
 		{
 			PactRecord rec = null;
 			double partExtendedPriceSum = 0;
@@ -205,7 +205,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		 * Creates partial sums on the price attribute for each data batch.
 		 */
 		@Override
-		public void combine(Iterator<PactRecord> values, Collector out)
+		public void combine(Iterator<PactRecord> values, Collector<PactRecord> out)
 		{
 			reduce(values, out);
 		}

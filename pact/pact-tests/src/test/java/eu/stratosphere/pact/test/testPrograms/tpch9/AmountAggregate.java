@@ -40,7 +40,7 @@ public class AmountAggregate extends ReduceStub
 	 */
 	
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector out) throws Exception
+	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
 	{
 		PactRecord record = null;
 		float amount = 0;
@@ -61,7 +61,7 @@ public class AmountAggregate extends ReduceStub
 	 * Creates partial sums of "amount" for each data batch:
 	 */
 	@Override
-	public void combine(Iterator<PactRecord> records, Collector out) throws Exception
+	public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
 	{
 		reduce(records, out);
 	}

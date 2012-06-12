@@ -37,7 +37,7 @@ public class SuppliersJoin extends MatchStub {
 	 *
 	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector out)
+	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
 			throws Exception {
 		suppKey = value1.getField(1, suppKey);
 		nationVal = value2.getField(1, nationVal);

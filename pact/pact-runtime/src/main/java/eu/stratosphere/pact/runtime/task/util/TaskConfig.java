@@ -22,7 +22,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
+import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
@@ -80,27 +82,27 @@ public class TaskConfig
 	private static final String STUB_CLASS = "pact.stub.class";
 
 	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
-
-	private static final String INPUT_SHIP_STRATEGY = "pact.input.ship.strategy";
 	
-	private static final String INPUT_SHIP_NUM_KEYS = "pact.input.numkeys";
-	
-	private static final String INPUT_SHIP_KEY_POS_PREFIX = "pact.input.keypos.";
-	
-	private static final String INPUT_SHIP_KEY_CLASS_PREFIX = "pact.input.keyclass.";
-
-	private static final String OUTPUT_SHIP_STRATEGY_PREFIX = "pact.output.shipstrategy.";
-	
-	private static final String OUTPUT_SHIP_NUM_KEYS_PREFIX = "pact.output.numkeys.";
-	
-	private static final String OUTPUT_SHIP_KEY_POS_PREFIX = "pact.output.keypos.";
-	
-	private static final String OUTPUT_SHIP_KEY_CLASS_PREFIX = "pact.output.keyclass.";
-
 	private static final String LOCAL_STRATEGY = "pact.local.strategy";
 
-	private static final String NUM_INPUTS = "pact.inputs.number";
-
+	private static final String NUM_OUTPUTS = "pact.outputs.num";
+	
+	private static final String OUTPUT_SHIP_STRATEGY_PREFIX = "pact.out.shipstrategy.";
+	
+	private static final String OUTPUT_TYPE_SERIALIZER_FACTORY = "pact.out.serializer";
+	
+	private static final String OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX = "pact.out.comparator.";
+	
+	private static final String OUTPUT_PARAMETERS_PREFIX = "pact.out.param.";
+	
+	private static final String INPUT_TYPE_SERIALIZER_FACTORY_PREFIX = "pact.in.serializer.";
+	
+	private static final String INPUT_TYPE_COMPARATOR_FACTORY_PREFIX = "pact.in.comparator.";
+	
+	private static final String INPUT_PARAMETERS_PREFIX = "pact.in.param.";
+	
+	private static final String INPUT_PAIR_COMPARATOR_FACTORY = "pact.in.paircomp";
+	
 	/*
 	 * If one input has multiple predecessors (bag union), multiple
 	 * inputs must be grouped together. For a map or reduce there is
@@ -112,15 +114,9 @@ public class TaskConfig
 	 * Hence, "pact.inputs.number" would be 3, "pact.size.inputGroup.1"
 	 * would be 2, and "pact.size.inputGroup.2" would be 1.
 	 */
-	private static final String INPUT_GROUP_SIZE = "pact.size.inputGroup.";
-
-	private static final String NUM_OUTPUTS = "pact.outputs.number";
-
-	private static final String SIZE_MEMORY = "pact.memory.size";
-
-	private static final String NUM_FILEHANDLES = "pact.filehandles.num";
+	private static final String INPUT_GROUP_SIZE_PREFIX = "pact.size.inputGroup.";
 	
-	private static final String SORT_SPILLING_THRESHOLD = "pact.sort.spillthreshold";
+	private static final String NUM_INPUTS = "pact.inputs.number";
 	
 	private static final String CHAINING_NUM_STUBS = "pact.chaining.num";
 	
@@ -129,6 +125,12 @@ public class TaskConfig
 	private static final String CHAINING_TASK_PREFIX = "pact.chaining.task.";
 	
 	private static final String CHAINING_TASKNAME_PREFIX = "pact.chaining.taskname.";
+	
+	private static final String SIZE_MEMORY = "pact.memory.size";
+
+	private static final String NUM_FILEHANDLES = "pact.filehandles.num";
+	
+	private static final String SORT_SPILLING_THRESHOLD = "pact.sort.spillthreshold";
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -138,6 +140,10 @@ public class TaskConfig
 	public TaskConfig(Configuration config)
 	{
 		this.config = config;
+	}
+	
+	public Configuration getConfiguration() {
+		return this.config;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -183,111 +189,101 @@ public class TaskConfig
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                                   Input Shipping
-	// --------------------------------------------------------------------------------------------
-
-	public void addInputShipStrategy(ShipStrategy strategy, int groupIndex) {
-		int inputCnt = this.config.getInteger(NUM_INPUTS, 0);
-		this.config.setString(INPUT_SHIP_STRATEGY + (inputCnt++), strategy.name());
-		this.config.setInteger(NUM_INPUTS, inputCnt);
-
-		String grp = INPUT_GROUP_SIZE + groupIndex;
-		this.config.setInteger(grp, this.config.getInteger(grp, 0)+1);
-	}
-	
-	public int getNumInputs() {
-		return config.getInteger(NUM_INPUTS, -1);
-	}
-
-	public ShipStrategy getInputShipStrategy(int inputId) {
-		int inputCnt = this.config.getInteger(NUM_INPUTS, -1);
-		if (!(inputId < inputCnt)) {
-			return null;
-		}
-		return ShipStrategy.valueOf(this.config.getString(INPUT_SHIP_STRATEGY + inputId, ""));
-	}
-	
-	// --------------------------------------------------------------------------------------------
 	//                                 Local Strategies
 	// --------------------------------------------------------------------------------------------
-
+	
 	public void setLocalStrategy(LocalStrategy strategy) {
-		this.config.setString(LOCAL_STRATEGY, strategy.name());
+		this.config.setInteger(LOCAL_STRATEGY, strategy.ordinal());
 	}
 
-	public LocalStrategy getLocalStrategy() {
-		String lsName = this.config.getString(LOCAL_STRATEGY, null);
-		return lsName != null ? LocalStrategy.valueOf(lsName) : LocalStrategy.NONE;
-	}
-	
-	public void setLocalStrategyKeyTypes(Class<? extends Key>[] keyTypes)
+	public LocalStrategy getLocalStrategy()
 	{
-		int numKeysYet = this.config.getInteger(INPUT_SHIP_NUM_KEYS, -1);
-		if (numKeysYet == -1) {
-			this.config.setInteger(INPUT_SHIP_NUM_KEYS, keyTypes.length);
-		}
-		else if (keyTypes.length != numKeysYet) {
-			throw new IllegalArgumentException("The number of key classes does not match the number of keys set by a previous parameter.");
-		}
-
-		for (int i = 0; i < keyTypes.length; i++) {
-			this.config.setString(INPUT_SHIP_KEY_CLASS_PREFIX + i, keyTypes[i].getName());
+		final int ls = this.config.getInteger(LOCAL_STRATEGY, -1);
+		if (ls == -1) {
+			return LocalStrategy.NONE;
+		} else if (ls < 0 || ls >= LocalStrategy.values().length) {
+			throw new CorruptConfigurationException("Illegal local strategy in configuration: " + ls);
+		} else {
+			return LocalStrategy.values()[ls];
 		}
 	}
 	
-	public void setLocalStrategyKeyTypes(int inputNum, int[] keyPositions)
-	{			
-		int numKeysYet = this.config.getInteger(INPUT_SHIP_NUM_KEYS, -1);
-		if (numKeysYet == -1) {
-			this.config.setInteger(INPUT_SHIP_NUM_KEYS, keyPositions.length);
-		}
-		else if (keyPositions.length != numKeysYet) {
-			throw new IllegalArgumentException("The number of positions does not match the number of keys set by a previous parameter.");
-		}
-		
-		for (int i = 0; i < keyPositions.length; i++) {
-			this.config.setInteger(INPUT_SHIP_KEY_POS_PREFIX + inputNum + '.' + i, keyPositions[i]);
-		}
+	// --------------------------------------------------------------------------------------------
+	//                               Inputs and dependent Parameters
+	// --------------------------------------------------------------------------------------------
+	
+	public void setSerializerFactoryForInput(Class<? extends TypeSerializerFactory<?>> clazz, int inputNum)
+	{
+		this.config.setString(INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum, clazz.getName());
 	}
 	
-	public int[] getLocalStrategyKeyPositions(int inputNum)
-	{		
-		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS , -1);
-		if (numKeys <= 0) {
+	public void setComparatorFactoryForInput(Class<? extends TypeComparatorFactory<?>> clazz, int inputNum)
+	{
+		this.config.setString(INPUT_TYPE_COMPARATOR_FACTORY_PREFIX + inputNum, clazz.getName());
+	}
+	
+	public void setPairComparatorFactory(Class<? extends TypePairComparatorFactory<?, ?>> clazz)
+	{
+		this.config.setString(INPUT_PAIR_COMPARATOR_FACTORY, clazz.getName());
+	}
+	
+	public <T> Class<? extends TypeSerializerFactory<T>> getSerializerFactoryForInput(int inputNum, ClassLoader cl)
+	throws ClassNotFoundException
+	{
+		final String className = this.config.getString(INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum, null);
+		if (className == null) {
 			return null;
-		}
-		
-		final int[] keyPos = new int[numKeys];
-		for (int i = 0; i < numKeys; i++) {
-			int p = this.config.getInteger(INPUT_SHIP_KEY_POS_PREFIX + inputNum + '.' + i, -1);
-			if (p >= 0) {
-				keyPos[i] = p;
-			} else {
-				throw new IllegalStateException("Config is invalid - contained number of keys, but no positions for keys."); 
+		} else {
+			@SuppressWarnings("unchecked")
+			final Class<TypeSerializerFactory<T>> superClass = (Class<TypeSerializerFactory<T>>) (Class<?>) TypeSerializerFactory.class;
+			try {
+				return Class.forName(className, true, cl).asSubclass(superClass);
+			} catch (ClassCastException ccex) {
+				throw new CorruptConfigurationException("The class noted in the configuration as the serializer factory " +
+						"is no subclass of TypeSerializerFactory.");
 			}
 		}
-		return keyPos;
 	}
 	
-	public Class<? extends Key>[] getLocalStrategyKeyClasses(ClassLoader cl)
-	throws ClassNotFoundException, ClassCastException
+	public <T> Class<? extends TypeComparatorFactory<T>> getComparatorFactoryForInput(int inputNum, ClassLoader cl)
+	throws ClassNotFoundException
 	{
-		final int numKeys = this.config.getInteger(INPUT_SHIP_NUM_KEYS, -1);
-		if (numKeys <= 0) {
+		final String className = this.config.getString(INPUT_TYPE_COMPARATOR_FACTORY_PREFIX + inputNum, null);
+		if (className == null) {
 			return null;
-		}
-		
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyTypes = (Class<? extends Key>[]) new Class[numKeys];
-		for (int i = 0; i < numKeys; i++) {
-			String name = this.config.getString(INPUT_SHIP_KEY_CLASS_PREFIX + i, null);
-			if (name != null) {
-				keyTypes[i] = Class.forName(name, true, cl).asSubclass(Key.class);
-			} else {
-				throw new IllegalStateException("Config is invalid - contained number of keys, but no types for keys."); 
+		} else {
+			@SuppressWarnings("unchecked")
+			final Class<TypeComparatorFactory<T>> superClass = (Class<TypeComparatorFactory<T>>) (Class<?>) TypeComparatorFactory.class;
+			try {
+				return Class.forName(className, true, cl).asSubclass(superClass);
+			} catch (ClassCastException ccex) {
+				throw new CorruptConfigurationException("The class noted in the configuration as the comparator factory " +
+						"is no subclass of TypeComparatorFactory.");
 			}
 		}
-		return keyTypes;
+	}
+	
+	public <T1, T2> Class<? extends TypePairComparatorFactory<T1, T2>> getPairComparatorFactory(ClassLoader cl)
+		throws ClassNotFoundException
+		{
+			final String className = this.config.getString(INPUT_PAIR_COMPARATOR_FACTORY, null);
+			if (className == null) {
+				return null;
+			} else {
+				@SuppressWarnings("unchecked")
+				final Class<TypePairComparatorFactory<T1, T2>> superClass = (Class<TypePairComparatorFactory<T1, T2>>) (Class<?>) TypePairComparatorFactory.class;
+				try {
+					return Class.forName(className, true, cl).asSubclass(superClass);
+				} catch (ClassCastException ccex) {
+					throw new CorruptConfigurationException("The class noted in the configuration as the pair comparator factory " +
+							"is no subclass of TypePairComparatorFactory.");
+				}
+			}
+		}
+	
+	public String getPrefixForInputParameters(int inputNum)
+	{
+		return INPUT_PARAMETERS_PREFIX + inputNum + '.';
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -296,96 +292,108 @@ public class TaskConfig
 
 	public void addOutputShipStrategy(ShipStrategy strategy)
 	{
-		int outputCnt = this.config.getInteger(NUM_OUTPUTS, 0);
-		this.config.setString(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt, strategy.name());
-		outputCnt++;
-		this.config.setInteger(NUM_OUTPUTS, outputCnt);
+		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, 0);
+		this.config.setInteger(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt, strategy.ordinal());
+		this.config.setInteger(NUM_OUTPUTS, outputCnt + 1);
 	}
 	
-	public void addOutputShipStrategy(ShipStrategy strategy, int[] keyPositions, Class<? extends Key>[] keyTypes)
+	public int getNumOutputs()
 	{
-		int outputCnt = config.getInteger(NUM_OUTPUTS, 0);
-		
-		this.config.setString(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt, strategy.name());		
-		this.config.setInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputCnt, keyPositions.length);
-		for (int i = 0; i < keyPositions.length; i++) {
-			this.config.setInteger(OUTPUT_SHIP_KEY_POS_PREFIX + outputCnt + '.' + i, keyPositions[i]);
-			this.config.setString(OUTPUT_SHIP_KEY_CLASS_PREFIX + outputCnt + '.' + i, keyTypes[i].getName());
-		}
-		outputCnt++;
-		this.config.setInteger(NUM_OUTPUTS, outputCnt);
-	}
-	
-	public int getNumOutputs() {
 		return this.config.getInteger(NUM_OUTPUTS, -1);
 	}
 
 	public ShipStrategy getOutputShipStrategy(int outputId)
 	{
-		int outputCnt = this.config.getInteger(NUM_OUTPUTS, -1);
-		if (!(outputId < outputCnt)) {
-			return null;
+		// check how many outputs are encoded in the config
+		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, -1);
+		if (outputCnt < 1) {
+			throw new CorruptConfigurationException("No output ship strategies are specified in the configuration.");
 		}
-		return ShipStrategy.valueOf(this.config.getString(OUTPUT_SHIP_STRATEGY_PREFIX + outputId, ""));
+		
+		// sanity range checks
+		if (outputId < 0 || outputId >= outputCnt) {
+			throw new IllegalArgumentException("Invalid index for output shipping strategy.");
+		}
+		
+		final int strategy = this.config.getInteger(OUTPUT_SHIP_STRATEGY_PREFIX + outputId, -1);
+		if (strategy == -1) {
+			throw new CorruptConfigurationException("No output shipping strategy in configuration for output "
+																			+ outputId);
+		} else if (strategy < 0 || strategy >= ShipStrategy.values().length) {
+			throw new CorruptConfigurationException("Illegal output shipping strategy in configuration for output "
+																			+ outputId + ": " + strategy);
+		} else {
+			return ShipStrategy.values()[strategy];
+		}
 	}
 	
-	public int[] getOutputShipKeyPositions(int outputId)
+	public void setSerializerFactoryForOutput(Class<? extends TypeSerializerFactory<?>> clazz)
 	{
-		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, -1);
-		if (!(outputId < outputCnt)) {
-			return null;
-		}
-		
-		final int numKeys = this.config.getInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputId, -1);
-		if (numKeys <= 0) {
-			return null;
-		}
-		
-		final int[] keyPos = new int[numKeys];
-		for (int i = 0; i < numKeys; i++) {
-			int p = this.config.getInteger(OUTPUT_SHIP_KEY_POS_PREFIX + outputId + '.' + i, -1);
-			if (p >= 0) {
-				keyPos[i] = p;
-			} else {
-				throw new IllegalStateException("Config is invalid - contained number of keys, but no positions for keys."); 
-			}
-		}
-		return keyPos;
+		this.config.setString(OUTPUT_TYPE_SERIALIZER_FACTORY, clazz.getName());
 	}
 	
-	public Class<? extends Key>[] getOutputShipKeyTypes(int outputId, ClassLoader cl)
-	throws ClassNotFoundException, ClassCastException
+	public void setComparatorFactoryForOutput(Class<? extends TypeComparatorFactory<?>> clazz, int outputNum)
 	{
-		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, -1);
-		if (!(outputId < outputCnt)) {
+		this.config.setString(OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX + outputNum, clazz.getName());
+	}
+	
+	public <T> Class<? extends TypeSerializerFactory<T>> getSerializerFactoryForOutput(ClassLoader cl)
+		throws ClassNotFoundException
+	{
+		final String className = this.config.getString(OUTPUT_TYPE_SERIALIZER_FACTORY, null);
+		if (className == null) {
 			return null;
-		}
-		
-		final int numKeys = this.config.getInteger(OUTPUT_SHIP_NUM_KEYS_PREFIX + outputId, -1);
-		if (numKeys <= 0) {
-			return null;
-		}
-		
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyTypes = (Class<? extends Key>[]) new Class[numKeys];
-		for (int i = 0; i < numKeys; i++) {
-			String name = this.config.getString(OUTPUT_SHIP_KEY_CLASS_PREFIX + outputId + '.' + i, null);
-			if (name != null) {
-				keyTypes[i] = Class.forName(name, true, cl).asSubclass(Key.class);
-			} else {
-				throw new IllegalStateException("Config is invalid - contained number of keys, but no types for keys."); 
+		} else {
+			@SuppressWarnings("unchecked")
+			final Class<TypeSerializerFactory<T>> superClass = (Class<TypeSerializerFactory<T>>) (Class<?>) TypeSerializerFactory.class;
+			try {
+				return Class.forName(className, true, cl).asSubclass(superClass);
+			} catch (ClassCastException ccex) {
+				throw new CorruptConfigurationException("The class noted in the configuration as the serializer factory " +
+						"is no subclass of TypeSerializerFactory.");
 			}
 		}
-		return keyTypes;
+	}
+		
+	public <T> Class<? extends TypeComparatorFactory<T>> getComparatorFactoryForOutput(int outputNum, ClassLoader cl)
+		throws ClassNotFoundException
+	{
+		final String className = this.config.getString(OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX + outputNum, null);
+		if (className == null) {
+			return null;
+		} else {
+			@SuppressWarnings("unchecked")
+			final Class<TypeComparatorFactory<T>> superClass = (Class<TypeComparatorFactory<T>>) (Class<?>) TypeComparatorFactory.class;
+			try {
+				return Class.forName(className, true, cl).asSubclass(superClass);
+			} catch (ClassCastException ccex) {
+				throw new CorruptConfigurationException("The class noted in the configuration as the comparator factory " +
+						"is no subclass of TypeComparatorFactory.");
+			}
+		}
+	}
+	
+	public String getPrefixForOutputParameters(int outputNum)
+	{
+		return OUTPUT_PARAMETERS_PREFIX + outputNum + '.';
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	//                       Parameters to configure the memory and I/O behavior
 	// --------------------------------------------------------------------------------------------
 
-	public int getGroupSize(int groupIndex) {
-		return this.config.getInteger(INPUT_GROUP_SIZE + groupIndex, -1);
+	public int getNumInputs() {
+		return config.getInteger(NUM_INPUTS, -1);
 	}
+	
+	public int getGroupSize(int groupIndex) {
+		return this.config.getInteger(INPUT_GROUP_SIZE_PREFIX + groupIndex, -1);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                       Parameters to configure the memory and I/O behavior
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Sets the amount of memory dedicated to the task's input preparation (sorting / hashing).
 	 * 
@@ -463,7 +471,7 @@ public class TaskConfig
 		return this.config.getInteger(CHAINING_NUM_STUBS, 0);
 	}
 	
-	public void addChainedTask(Class<? extends ChainedTask> chainedTaskClass, TaskConfig conf, String taskName)
+	public void addChainedTask(@SuppressWarnings("rawtypes") Class<? extends ChainedTask> chainedTaskClass, TaskConfig conf, String taskName)
 	{
 		int numChainedYet = this.config.getInteger(CHAINING_NUM_STUBS, 0);
 		
@@ -479,14 +487,16 @@ public class TaskConfig
 		return new TaskConfig(new DelegatingConfiguration(this.config, CHAINING_TASKCONFIG_PREFIX + chainPos + '.'));
 	}
 
-	public Class<? extends ChainedTask> getChainedTask(int chainPos)
+	public Class<? extends ChainedTask<?, ?>> getChainedTask(int chainPos)
 	throws ClassNotFoundException, ClassCastException
 	{
 		String className = this.config.getString(CHAINING_TASK_PREFIX + chainPos, null);
 		if (className == null)
 			throw new IllegalStateException("Chained Task Class missing");
 		
-		return Class.forName(className).asSubclass(ChainedTask.class);
+		@SuppressWarnings("unchecked")
+		final Class<ChainedTask<?, ?>> clazz = (Class<ChainedTask<?, ?>>) (Class<?>) ChainedTask.class;
+		return Class.forName(className).asSubclass(clazz);
 	}
 	
 	public String getChainedTaskName(int chainPos)
