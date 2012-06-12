@@ -243,9 +243,10 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	 */
 	@Override
 	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		return this.wrappedInputGate.createNetworkInputChannel(inputGate, channelID, compressionLevel);
+		return this.wrappedInputGate.createNetworkInputChannel(inputGate, channelID, connectedChannelID,
+			compressionLevel);
 	}
 
 	/**
@@ -253,9 +254,9 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	 */
 	@Override
 	public FileInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		return this.wrappedInputGate.createFileInputChannel(inputGate, channelID, compressionLevel);
+		return this.wrappedInputGate.createFileInputChannel(inputGate, channelID, connectedChannelID, compressionLevel);
 	}
 
 	/**
@@ -263,9 +264,10 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	 */
 	@Override
 	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		return this.wrappedInputGate.createInMemoryInputChannel(inputGate, channelID, compressionLevel);
+		return this.wrappedInputGate.createInMemoryInputChannel(inputGate, channelID, connectedChannelID,
+			compressionLevel);
 	}
 
 	/**

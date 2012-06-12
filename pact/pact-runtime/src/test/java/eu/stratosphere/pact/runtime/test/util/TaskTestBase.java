@@ -42,12 +42,15 @@ public abstract class TaskTestBase
 {
 	protected long memorySize = 0;
 
+	protected MockInputSplitProvider inputSplitProvider;
+
 	protected MockEnvironment mockEnv;
 
 	public void initEnvironment(long memorySize)
 	{
 		this.memorySize = memorySize;
-		this.mockEnv = new MockEnvironment(this.memorySize);
+		this.inputSplitProvider = new MockInputSplitProvider();
+		this.mockEnv = new MockEnvironment(this.memorySize, this.inputSplitProvider);
 	}
 
 	public void addInput(MutableObjectIterator<PactRecord> input, int groupId) {
@@ -62,7 +65,7 @@ public abstract class TaskTestBase
 	public TaskConfig getTaskConfig() {
 		return new TaskConfig(this.mockEnv.getTaskConfiguration());
 	}
-	
+
 	public Configuration getConfiguration() {
 		return this.mockEnv.getTaskConfiguration();
 	}
@@ -71,11 +74,11 @@ public abstract class TaskTestBase
 	{
 		new TaskConfig(this.mockEnv.getTaskConfiguration()).setStubClass(stubClass);
 		task.setEnvironment(this.mockEnv);
-		
+
 		if (task instanceof AbstractPactTask<?, ?>) {
 			((AbstractPactTask<?, ?>) task).setUserCodeClassLoader(getClass().getClassLoader());
 		}
-		
+
 		task.registerInputOutput();
 	}
 
@@ -88,32 +91,31 @@ public abstract class TaskTestBase
 			Class<? extends FileOutputFormat> stubClass, String outPath)
 	{
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
-		
+
 		dsConfig.setStubClass(stubClass);
 		dsConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outPath);
-	
+
 		outTask.setEnvironment(this.mockEnv);
-		
+
 		if (outTask instanceof DataSinkTask<?>) {
 			((DataSinkTask<?>) outTask).setUserCodeClassLoader(getClass().getClassLoader());
 		}
-		
+
 		outTask.registerInputOutput();
 	}
 
 	public void registerFileInputTask(AbstractInputTask<?> inTask,
 			Class<? extends DelimitedInputFormat> stubClass, String inPath, String delimiter)
 	{
-		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration()); 
+		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		dsConfig.setStubClass(stubClass);
 		dsConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, inPath);
 		dsConfig.setStubParameter(DelimitedInputFormat.RECORD_DELIMITER, delimiter);
 
-		final MockInputSplitProvider inputSplitProvider = new MockInputSplitProvider(inPath, 5);
-		this.mockEnv.setInputSplitProvider(inputSplitProvider);
+		this.inputSplitProvider.addInputSplits(inPath, 5);
 
 		inTask.setEnvironment(this.mockEnv);
-		
+
 		if (inTask instanceof DataSourceTask<?>) {
 			((DataSourceTask<?>) inTask).setUserCodeClassLoader(getClass().getClassLoader());
 		}

@@ -121,8 +121,8 @@ public class FileOutputChannelTest {
 		when(this.uncompressedDataBuffer.remaining()).thenReturn(0);
 
 		// setup test-object
-		FileOutputChannel<StringRecord> fileOutputChannel = new FileOutputChannel<StringRecord>(outGate, 1, null,
-			CompressionLevel.NO_COMPRESSION);
+		FileOutputChannel<StringRecord> fileOutputChannel = new FileOutputChannel<StringRecord>(outGate, 1,
+			new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION);
 		fileOutputChannel.setByteBufferedOutputChannelBroker(outputBroker);
 
 		Whitebox.setInternalState(fileOutputChannel, "serializationBuffer", this.serializationBuffer);

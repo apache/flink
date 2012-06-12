@@ -19,7 +19,6 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
@@ -318,20 +317,16 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		// Read the execution state
 		this.executionState = EnumUtils.readEnum(in, ExecutionState.class);
 
-		// Read number of input gates and record types
+		// Read number of input gates
 		int numberOfInputGates = in.readInt();
 		for (int i = 0; i < numberOfInputGates; i++) {
-
-			final String recordType = StringRecord.readString(in);
-			new ManagementGate(this, new ManagementGateID(), i, true, recordType);
+			new ManagementGate(this, new ManagementGateID(), i, true);
 		}
 
-		// Read number of input gates and record types
+		// Read number of input gates
 		int numberOfOutputGates = in.readInt();
 		for (int i = 0; i < numberOfOutputGates; i++) {
-
-			final String recordType = StringRecord.readString(in);
-			new ManagementGate(this, new ManagementGateID(), i, false, recordType);
+			new ManagementGate(this, new ManagementGateID(), i, false);
 		}
 
 		this.instanceName = StringRecord.readString(in);
@@ -348,23 +343,11 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		// Write the execution state
 		EnumUtils.writeEnum(out, this.executionState);
 
-		// Write out number of input gates and record types
+		// Write out number of input gates
 		out.writeInt(this.inputGates.size());
-		Iterator<ManagementGate> it = this.inputGates.iterator();
-		while (it.hasNext()) {
 
-			final ManagementGate managementGate = it.next();
-			StringRecord.writeString(out, managementGate.getRecordType());
-		}
-
-		// Write out number of output gates and record types
+		// Write out number of output gates
 		out.writeInt(this.outputGates.size());
-		it = this.outputGates.iterator();
-		while (it.hasNext()) {
-
-			final ManagementGate managementGate = it.next();
-			StringRecord.writeString(out, managementGate.getRecordType());
-		}
 
 		StringRecord.writeString(out, this.instanceName);
 		StringRecord.writeString(out, this.instanceType);

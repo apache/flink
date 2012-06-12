@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
-import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
@@ -40,7 +39,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public final class ReplayTask implements Task {
@@ -354,30 +352,6 @@ public final class ReplayTask implements Task {
 				break;
 			}
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerMemoryManager(final MemoryManager memoryManager) {
-		// Nothing to do here
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerIOManager(final IOManager ioManager) {
-		// Nothing to do here
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputSplitProvider(final InputSplitProvider inputSplitProvider) {
-		// Nothing to do here
 	}
 
 	/**

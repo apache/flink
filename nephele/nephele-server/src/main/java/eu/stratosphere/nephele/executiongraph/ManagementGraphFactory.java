@@ -19,12 +19,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import eu.stratosphere.nephele.io.Gate;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.managementgraph.ManagementEdge;
 import eu.stratosphere.nephele.managementgraph.ManagementEdgeID;
 import eu.stratosphere.nephele.managementgraph.ManagementGate;
@@ -34,7 +31,6 @@ import eu.stratosphere.nephele.managementgraph.ManagementGroupEdge;
 import eu.stratosphere.nephele.managementgraph.ManagementGroupVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementStage;
 import eu.stratosphere.nephele.managementgraph.ManagementVertex;
-import eu.stratosphere.nephele.types.Record;
 
 public class ManagementGraphFactory {
 
@@ -120,32 +116,32 @@ public class ManagementGraphFactory {
 
 		ExecutionGraphIterator iterator = new ExecutionGraphIterator(executionGraph, true);
 		final Map<ExecutionVertex, ManagementVertex> vertexMap = new HashMap<ExecutionVertex, ManagementVertex>();
-		final Map<Gate<? extends Record>, ManagementGate> gateMap = new HashMap<Gate<? extends Record>, ManagementGate>();
+		final Map<ExecutionGate, ManagementGate> gateMap = new HashMap<ExecutionGate, ManagementGate>();
 
 		while (iterator.hasNext()) {
 
 			final ExecutionVertex ev = iterator.next();
 			final ManagementGroupVertex parent = groupMap.get(ev.getGroupVertex());
 
+			final AbstractInstance instance = ev.getAllocatedResource().getInstance();
 			final ManagementVertex managementVertex = new ManagementVertex(parent, ev.getID().toManagementVertexID(),
-				(ev.getAllocatedResource().getInstance().getInstanceConnectionInfo() != null) ? ev
-					.getAllocatedResource().getInstance().getInstanceConnectionInfo().toString() : ev
-					.getAllocatedResource().getInstance().toString(), ev.getAllocatedResource().getInstance().getType()
-					.toString(), ev.getCheckpointState().toString(), ev.getEnvironment().getIndexInSubtaskGroup());
+				(instance.getInstanceConnectionInfo() != null) ? instance.getInstanceConnectionInfo().toString()
+					: instance.toString(), instance.getType().toString(), ev.getCheckpointState().toString(),
+				ev.getIndexInVertexGroup());
 			managementVertex.setExecutionState(ev.getExecutionState());
 			vertexMap.put(ev, managementVertex);
 
-			for (int i = 0; i < ev.getEnvironment().getNumberOfOutputGates(); i++) {
-				final OutputGate<? extends Record> outputGate = ev.getEnvironment().getOutputGate(i);
-				final ManagementGate managementGate = new ManagementGate(managementVertex,
-					new ManagementGateID(), i, false, outputGate.getType().toString());
+			for (int i = 0; i < ev.getNumberOfOutputGates(); i++) {
+				final ExecutionGate outputGate = ev.getOutputGate(i);
+				final ManagementGate managementGate = new ManagementGate(managementVertex, new ManagementGateID(), i,
+					false);
 				gateMap.put(outputGate, managementGate);
 			}
 
-			for (int i = 0; i < ev.getEnvironment().getNumberOfInputGates(); i++) {
-				final InputGate<? extends Record> inputGate = ev.getEnvironment().getInputGate(i);
-				final ManagementGate managementGate = new ManagementGate(managementVertex,
-					new ManagementGateID(), i, true, "");
+			for (int i = 0; i < ev.getNumberOfInputGates(); i++) {
+				final ExecutionGate inputGate = ev.getInputGate(i);
+				final ManagementGate managementGate = new ManagementGate(managementVertex, new ManagementGateID(), i,
+					true);
 				gateMap.put(inputGate, managementGate);
 			}
 		}
@@ -157,25 +153,23 @@ public class ManagementGraphFactory {
 
 			final ExecutionVertex source = iterator.next();
 
-			for (int i = 0; i < source.getEnvironment().getNumberOfOutputGates(); i++) {
+			for (int i = 0; i < source.getNumberOfOutputGates(); i++) {
 
-				final OutputGate<? extends Record> outputGate = source.getEnvironment().getOutputGate(i);
+				final ExecutionGate outputGate = source.getOutputGate(i);
 				final ManagementGate manangementOutputGate = gateMap.get(outputGate);
+				final ChannelType channelType = outputGate.getChannelType();
+				final CompressionLevel compressionLevel = outputGate.getCompressionLevel();
 
-				for (int j = 0; j < outputGate.getNumberOfOutputChannels(); j++) {
+				for (int j = 0; j < outputGate.getNumberOfEdges(); j++) {
 
-					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
+					final ExecutionEdge outputChannel = outputGate.getEdge(j);
 
-					final ChannelID inputChannelID = outputChannel.getConnectedChannelID();
+					final ManagementGate managementInputGate = gateMap.get(outputChannel.getInputGate());
 
-					final AbstractInputChannel<? extends Record> inputChannel = executionGraph
-						.getInputChannelByID(inputChannelID);
-					final ManagementGate managementInputGate = gateMap.get(inputChannel.getInputGate());
-					
-					final ManagementEdgeID sourceEdgeID = new ManagementEdgeID(outputChannel.getID());
-					final ManagementEdgeID targetEdgeID = new ManagementEdgeID(inputChannelID);
+					final ManagementEdgeID sourceEdgeID = new ManagementEdgeID(outputChannel.getOutputChannelID());
+					final ManagementEdgeID targetEdgeID = new ManagementEdgeID(outputChannel.getInputChannelID());
 					new ManagementEdge(sourceEdgeID, targetEdgeID, manangementOutputGate, j, managementInputGate,
-						inputChannel.getChannelIndex(), inputChannel.getType(), inputChannel.getCompressionLevel());
+						outputChannel.getInputGateIndex(), channelType, compressionLevel);
 				}
 			}
 		}

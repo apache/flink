@@ -21,7 +21,6 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.util.EnumUtils;
@@ -39,7 +38,7 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	/**
 	 * Contains next-hop instances, this instance must forward multicast transmissions to.
 	 */
-	private final SerializableArrayList<InstanceConnectionInfo> remoteTargets = new SerializableArrayList<InstanceConnectionInfo>();
+	private final SerializableArrayList<RemoteReceiver> remoteTargets = new SerializableArrayList<RemoteReceiver>();
 
 	/**
 	 * Contains local ChannelIDs, multicast packets must be forwarded to.
@@ -50,7 +49,7 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		this.returnCode = ReturnCode.NOT_FOUND;
 	}
 
-	public void addRemoteTarget(InstanceConnectionInfo remote) {
+	public void addRemoteTarget(final RemoteReceiver remote) {
 		this.remoteTargets.add(remote);
 	}
 
@@ -62,7 +61,7 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		this.returnCode = code;
 	}
 
-	public List<InstanceConnectionInfo> getRemoteTargets() {
+	public List<RemoteReceiver> getRemoteTargets() {
 		return this.remoteTargets;
 	}
 
@@ -104,7 +103,7 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		return (this.returnCode == ReturnCode.FOUND_AND_RECEIVER_READY);
 	}
 
-	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(ChannelID targetChannelID) {
+	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(final ChannelID targetChannelID) {
 
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
 		response.setReturnCode(ReturnCode.FOUND_AND_RECEIVER_READY);
@@ -113,11 +112,11 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		return response;
 	}
 
-	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(InstanceConnectionInfo instanceConnectionInfo) {
+	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(final RemoteReceiver remoteReceiver) {
 
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
 		response.setReturnCode(ReturnCode.FOUND_AND_RECEIVER_READY);
-		response.addRemoteTarget(instanceConnectionInfo);
+		response.addRemoteTarget(remoteReceiver);
 
 		return response;
 	}
@@ -157,8 +156,8 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 			returnstring.append(i + "\n");
 		}
 		returnstring.append("remote targets: (total: " + this.remoteTargets.size() + "):\n");
-		for (InstanceConnectionInfo i : this.remoteTargets) {
-			returnstring.append(i + "\n");
+		for (final RemoteReceiver rr : this.remoteTargets) {
+			returnstring.append(rr + "\n");
 		}
 		return returnstring.toString();
 	}

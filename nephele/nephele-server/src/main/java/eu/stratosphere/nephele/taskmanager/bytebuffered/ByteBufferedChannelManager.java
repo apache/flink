@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -140,7 +139,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				final OutputChannelContext previousContext = (OutputChannelContext) this.registeredChannels
 					.get(channelID);
 
-				final boolean isActive = activeOutputChannels.contains(channelID);
+				final boolean isActive = true;/*activeOutputChannels.contains(channelID);*/
 
 				final OutputChannelContext outputChannelContext = outputGateContext.createOutputChannelContext(
 					channelID, previousContext, isActive, this.mergeSpilledBuffers);
@@ -386,8 +385,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		if (receiverList.hasRemoteReceivers()) {
 
-			final List<InetSocketAddress> remoteReceivers = receiverList.getRemoteReceivers();
-			for (final InetSocketAddress remoteReceiver : remoteReceivers) {
+			final List<RemoteReceiver> remoteReceivers = receiverList.getRemoteReceivers();
+			for (final RemoteReceiver remoteReceiver : remoteReceivers) {
 
 				TransferEnvelope dup = null;
 				try {
@@ -426,11 +425,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			channelContext.queueTransferEnvelope(transferEnvelope);
 		}
 
-		final Iterator<InetSocketAddress> remoteIt = receiverList.getRemoteReceivers().iterator();
+		final Iterator<RemoteReceiver> remoteIt = receiverList.getRemoteReceivers().iterator();
 
 		while (remoteIt.hasNext()) {
 
-			final InetSocketAddress remoteReceiver = remoteIt.next();
+			final RemoteReceiver remoteReceiver = remoteIt.next();
 			this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope);
 		}
 
@@ -514,7 +513,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				if (receiverList.hasRemoteReceivers()) {
 					sb.append("Remote receivers:\n");
-					final Iterator<InetSocketAddress> it = receiverList.getRemoteReceivers().iterator();
+					final Iterator<RemoteReceiver> it = receiverList.getRemoteReceivers().iterator();
 					while (it.hasNext()) {
 						sb.append("\t\t" + it.next() + "\n");
 					}

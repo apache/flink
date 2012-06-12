@@ -34,11 +34,6 @@ import eu.stratosphere.nephele.util.ManagementTestUtils;
 public class ManagementGraphTest {
 
 	/**
-	 * The name of the record type used during the tests.
-	 */
-	private static final String RECORD_TYPE = "TestRecord";
-
-	/**
 	 * The state of the checkpoint for these tests.
 	 */
 	private static final String CHECKPOINT_STATE = "NONE";
@@ -178,7 +173,6 @@ public class ManagementGraphTest {
 
 		assertEquals(origGate.getIndex(), copyGate.getIndex());
 		assertEquals(origGate.isInputGate(), copyGate.isInputGate());
-		assertEquals(origGate.getRecordType(), copyGate.getRecordType());
 		assertEquals(origGate.getNumberOfForwardEdges(), copyGate.getNumberOfForwardEdges());
 		assertEquals(origGate.getNumberOfBackwardEdges(), copyGate.getNumberOfBackwardEdges());
 
@@ -276,18 +270,18 @@ public class ManagementGraphTest {
 			"medium", CHECKPOINT_STATE, 0);
 
 		// Input/output gates
-		final ManagementGate outputGate1_1 = new ManagementGate(vertex1_1, new ManagementGateID(), 0, false, RECORD_TYPE);
+		final ManagementGate outputGate1_1 = new ManagementGate(vertex1_1, new ManagementGateID(), 0, false);
 
-		final ManagementGate inputGate2_1 = new ManagementGate(vertex2_1, new ManagementGateID(), 0, true, RECORD_TYPE);
-		final ManagementGate outputGate2_1 = new ManagementGate(vertex2_1, new ManagementGateID(), 0, false, RECORD_TYPE);
+		final ManagementGate inputGate2_1 = new ManagementGate(vertex2_1, new ManagementGateID(), 0, true);
+		final ManagementGate outputGate2_1 = new ManagementGate(vertex2_1, new ManagementGateID(), 0, false);
 
-		final ManagementGate inputGate2_2 = new ManagementGate(vertex2_2, new ManagementGateID(), 0, true, RECORD_TYPE);
-		final ManagementGate outputGate2_2 = new ManagementGate(vertex2_2, new ManagementGateID(), 0, false, RECORD_TYPE);
+		final ManagementGate inputGate2_2 = new ManagementGate(vertex2_2, new ManagementGateID(), 0, true);
+		final ManagementGate outputGate2_2 = new ManagementGate(vertex2_2, new ManagementGateID(), 0, false);
 
-		final ManagementGate inputGate3_1 = new ManagementGate(vertex3_1, new ManagementGateID(), 0, true, RECORD_TYPE);
-		final ManagementGate outputGate3_1 = new ManagementGate(vertex3_1, new ManagementGateID(), 0, false, RECORD_TYPE);
+		final ManagementGate inputGate3_1 = new ManagementGate(vertex3_1, new ManagementGateID(), 0, true);
+		final ManagementGate outputGate3_1 = new ManagementGate(vertex3_1, new ManagementGateID(), 0, false);
 
-		final ManagementGate inputGate4_1 = new ManagementGate(vertex4_1, new ManagementGateID(), 0, true, RECORD_TYPE);
+		final ManagementGate inputGate4_1 = new ManagementGate(vertex4_1, new ManagementGateID(), 0, true);
 
 		// Group Edges
 		new ManagementGroupEdge(groupVertex1, 0, groupVertex2, 0, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);

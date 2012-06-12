@@ -73,7 +73,7 @@ public abstract class AbstractDeserializer {
 
 	private EventList deserializedEventList = null;
 
-	public void read(ReadableByteChannel readableByteChannel) throws IOException {
+	public void read(ReadableByteChannel readableByteChannel) throws IOException, NoBufferAvailableException {
 
 		while (true) {
 
@@ -237,10 +237,14 @@ public abstract class AbstractDeserializer {
 	 * @return <code>true</code> if more buffer data need to be read from the stream, <code>false</code> otherwise
 	 * @throws IOException
 	 *         thrown if an I/O error occurred while reading data from the stream
+	 * @throws NoBufferAvailableException
+	 *         thrown if the deserialization process could not be continued due to a lack of buffers
 	 */
-	protected abstract boolean readBufferData(ReadableByteChannel readableByteChannel) throws IOException;
+	protected abstract boolean readBufferData(ReadableByteChannel readableByteChannel) throws IOException,
+			NoBufferAvailableException;
 
-	private boolean readBuffer(ReadableByteChannel readableByteChannel) throws IOException {
+	private boolean readBuffer(final ReadableByteChannel readableByteChannel) throws IOException,
+			NoBufferAvailableException {
 
 		if (!this.bufferExistanceDeserialized) {
 

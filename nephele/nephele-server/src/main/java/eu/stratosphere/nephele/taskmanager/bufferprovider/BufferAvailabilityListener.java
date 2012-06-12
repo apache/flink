@@ -13,25 +13,19 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.taskmanager.bufferprovider;
 
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.types.Record;
+/**
+ * This interface must be implemented to receive a notification from a {@link BufferProvider} when an empty
+ * {@link Buffer} has
+ * become available again.
+ * 
+ * @author warneke
+ */
+public interface BufferAvailabilityListener {
 
-public final class InMemoryOutputChannel<T extends Record> extends AbstractByteBufferedOutputChannel<T> {
-
-	public InMemoryOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			ChannelID connectedChannelID, CompressionLevel compressionLevel) {
-		super(outputGate, channelIndex, channelID, connectedChannelID, CompressionLevel.NO_COMPRESSION);
-	}
-
-	@Override
-	public ChannelType getType() {
-
-		return ChannelType.INMEMORY;
-	}
-
+	/**
+	 * Indicates that at least one {@link Buffer} has become available again.
+	 */
+	void bufferAvailable();
 }

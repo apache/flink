@@ -108,20 +108,21 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 */
 	void close() throws IOException, InterruptedException;
 
-
 	/**
 	 * Creates a new network input channel and assigns it to the given input gate.
 	 * 
 	 * @param inputGate
 	 *        the input gate the channel shall be assigned to
 	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 *        the ID of the channel
+	 * @param connectedChannelID
+	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 * @return the new network input channel
 	 */
 	NetworkInputChannel<T> createNetworkInputChannel(InputGate<T> inputGate, ChannelID channelID,
-			CompressionLevel compressionLevel);
+			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
 	 * Creates a new file input channel and assigns it to the given input gate.
@@ -129,13 +130,15 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 * @param inputGate
 	 *        the input gate the channel shall be assigned to
 	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 *        the ID of the channel
+	 * @param connectedChannelID
+	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 * @return the new file input channel
 	 */
 	FileInputChannel<T> createFileInputChannel(InputGate<T> inputGate, ChannelID channelID,
-			CompressionLevel compressionLevel);
+			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
 	 * Creates a new in-memory input channel and assigns it to the given input gate.
@@ -143,13 +146,15 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 * @param inputGate
 	 *        the input gate the channel shall be assigned to
 	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 *        the ID of the channel
+	 * @param connectedChannelID
+	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 * @return the new in-memory input channel
 	 */
 	InMemoryInputChannel<T> createInMemoryInputChannel(InputGate<T> inputGate, ChannelID channelID,
-			CompressionLevel compressionLevel);
+			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
 	 * Removes all input channels from the input gate.
