@@ -16,17 +16,15 @@
 package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
 
 /**
  * A transfer envelope receiver list contains all recipients of a transfer envelope. Their are three different types of
@@ -41,21 +39,12 @@ public class TransferEnvelopeReceiverList {
 
 	private final List<ChannelID> localReceivers;
 
-	private final List<InetSocketAddress> remoteReceivers;
+	private final List<RemoteReceiver> remoteReceivers;
 
 	public TransferEnvelopeReceiverList(final ConnectionInfoLookupResponse cilr) {
 
 		this.localReceivers = Collections.unmodifiableList(cilr.getLocalTargets());
-
-		final List<InetSocketAddress> tmpList = new ArrayList<InetSocketAddress>(cilr.getRemoteTargets().size());
-
-		final Iterator<InstanceConnectionInfo> remoteIt = cilr.getRemoteTargets().iterator();
-		while (remoteIt.hasNext()) {
-			final InstanceConnectionInfo ici = remoteIt.next();
-			tmpList.add(new InetSocketAddress(ici.getAddress(), ici.getDataPort()));
-		}
-
-		this.remoteReceivers = Collections.unmodifiableList(tmpList);
+		this.remoteReceivers = Collections.unmodifiableList(cilr.getRemoteTargets());
 	}
 
 	public TransferEnvelopeReceiverList(final ChannelContext channelContext) {
@@ -87,7 +76,7 @@ public class TransferEnvelopeReceiverList {
 		return (this.localReceivers.size() + this.remoteReceivers.size());
 	}
 
-	public List<InetSocketAddress> getRemoteReceivers() {
+	public List<RemoteReceiver> getRemoteReceivers() {
 
 		return this.remoteReceivers;
 	}

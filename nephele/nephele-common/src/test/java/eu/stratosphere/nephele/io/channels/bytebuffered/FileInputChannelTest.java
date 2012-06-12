@@ -119,8 +119,7 @@ public class FileInputChannelTest {
 
 		// setup test-object
 		final FileInputChannel<StringRecord> fileInputChannel = new FileInputChannel<StringRecord>(inGate, 1,
-			this.deserializer,
-			null, CompressionLevel.NO_COMPRESSION);
+			this.deserializer, new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION);
 		fileInputChannel.setInputChannelBroker(inputBroker);
 
 		Whitebox.setInternalState(fileInputChannel, "deserializationBuffer", this.deserializationBuffer);

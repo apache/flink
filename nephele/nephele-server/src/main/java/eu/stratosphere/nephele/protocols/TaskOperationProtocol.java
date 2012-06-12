@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
@@ -29,7 +30,6 @@ import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 
 /**
  * The task submission protocol is implemented by the task manager and allows the job manager
@@ -49,7 +49,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	List<TaskSubmissionResult> submitTasks(List<TaskSubmissionWrapper> tasks) throws IOException;
+	List<TaskSubmissionResult> submitTasks(List<TaskDeploymentDescriptor> tasks) throws IOException;
 
 	/**
 	 * Advises the task manager to cancel the task with the given ID.

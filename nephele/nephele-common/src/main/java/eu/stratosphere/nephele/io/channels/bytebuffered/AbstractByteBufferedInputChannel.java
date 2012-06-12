@@ -84,13 +84,16 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * @param type
 	 *        the type of record transported through this channel
 	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 *        the ID of the channel
+	 * @param connectedChannelID
+	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 */
-	public AbstractByteBufferedInputChannel(InputGate<T> inputGate, int channelIndex,
-			RecordDeserializer<T> deserializer, ChannelID channelID, CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, channelID, compressionLevel);
+	public AbstractByteBufferedInputChannel(final InputGate<T> inputGate, final int channelIndex,
+			final RecordDeserializer<T> deserializer, final ChannelID channelID, final ChannelID connectedChannelID,
+			final CompressionLevel compressionLevel) {
+		super(inputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
 		this.deserializationBuffer = new DeserializationBuffer<T>(deserializer, false);
 
 		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel, this);

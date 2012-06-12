@@ -42,35 +42,33 @@ public final class DefaultDeserializer extends AbstractDeserializer {
 	 * {@inheritDoc}
 	 */
 	@Override
-	protected boolean readBufferData(final ReadableByteChannel readableByteChannel) throws IOException {
+	protected boolean readBufferData(final ReadableByteChannel readableByteChannel) throws IOException,
+			NoBufferAvailableException {
 
 		if (getBuffer() == null) {
 
-			try {
-				// Find buffer provider for this channel
-				if (!getDeserializedJobID().equals(this.lastDeserializedJobID)
-					|| !getDeserializedSourceID().equals(this.lastDeserializedSourceID)) {
+			// Find buffer provider for this channel
+			if (!getDeserializedJobID().equals(this.lastDeserializedJobID)
+				|| !getDeserializedSourceID().equals(this.lastDeserializedSourceID)) {
 
+				try {
 					this.bufferProvider = this.bufferProviderBroker.getBufferProvider(getDeserializedJobID(),
 						getDeserializedSourceID());
-
-					this.lastDeserializedJobID = getDeserializedJobID();
-					this.lastDeserializedSourceID = getDeserializedSourceID();
-				}
-
-				setBuffer(this.bufferProvider.requestEmptyBufferBlocking(getSizeOfBuffer()));
-
-				if (getBuffer() == null) {
-
-					Thread.sleep(100);
-					// Wait for 100 milliseconds, so the NIO thread won't do busy
-					// waiting...
-
+				} catch (InterruptedException e) {
 					return true;
 				}
-			} catch (InterruptedException e) {
-				return true;
+
+				this.lastDeserializedJobID = getDeserializedJobID();
+				this.lastDeserializedSourceID = getDeserializedSourceID();
 			}
+
+			final Buffer buf = this.bufferProvider.requestEmptyBuffer(getSizeOfBuffer());
+
+			if (buf == null) {
+				throw new NoBufferAvailableException(this.bufferProvider);
+			}
+
+			setBuffer(buf);
 
 		} else {
 

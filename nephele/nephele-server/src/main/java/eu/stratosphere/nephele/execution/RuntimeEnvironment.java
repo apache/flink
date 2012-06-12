@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.execution;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -31,17 +29,16 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
+import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -51,8 +48,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -64,7 +59,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class RuntimeEnvironment implements Environment, Runnable, IOReadableWritable {
+public class RuntimeEnvironment implements Environment, Runnable {
 
 	/**
 	 * The log object used for debugging.
@@ -101,22 +96,22 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	/**
 	 * The memory manager of the current environment (currently the one associated with the executing TaskManager).
 	 */
-	private volatile MemoryManager memoryManager;
+	private final MemoryManager memoryManager;
 
 	/**
 	 * The io manager of the current environment (currently the one associated with the executing TaskManager).
 	 */
-	private volatile IOManager ioManager;
+	private final IOManager ioManager;
 
 	/**
 	 * Class of the task to run in this environment.
 	 */
-	private volatile Class<? extends AbstractInvokable> invokableClass = null;
+	private final Class<? extends AbstractInvokable> invokableClass;
 
 	/**
 	 * Instance of the class to be run in this environment.
 	 */
-	private volatile AbstractInvokable invokable = null;
+	private final AbstractInvokable invokable;
 
 	/**
 	 * The thread executing the task in the environment.
@@ -126,22 +121,22 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	/**
 	 * The ID of the job this task belongs to.
 	 */
-	private volatile JobID jobID = null;
-
-	/**
-	 * The task configuration encapsulated in the environment object.
-	 */
-	private volatile Configuration taskConfiguration = null;
+	private final JobID jobID;
 
 	/**
 	 * The job configuration encapsulated in the environment object.
 	 */
-	private volatile Configuration jobConfiguration = null;
+	private final Configuration jobConfiguration;
+
+	/**
+	 * The task configuration encapsulated in the environment object.
+	 */
+	private final Configuration taskConfiguration;
 
 	/**
 	 * The input split provider that can be queried for new input splits.
 	 */
-	private volatile InputSplitProvider inputSplitProvider = null;
+	private final InputSplitProvider inputSplitProvider;
 
 	/**
 	 * The observer object for the task's execution.
@@ -149,19 +144,19 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	private volatile ExecutionObserver executionObserver = null;
 
 	/**
-	 * The current number of subtasks the respective task is split into.
-	 */
-	private volatile int currentNumberOfSubtasks = 1;
-
-	/**
 	 * The index of this subtask in the subtask group.
 	 */
-	private volatile int indexInSubtaskGroup = 0;
+	private final int indexInSubtaskGroup;
+
+	/**
+	 * The current number of subtasks the respective task is split into.
+	 */
+	private final int currentNumberOfSubtasks;
 
 	/**
 	 * The name of the task running in this environment.
 	 */
-	private volatile String taskName;
+	private final String taskName;
 
 	/**
 	 * Creates a new runtime environment object which contains the runtime information for the encapsulated Nephele
@@ -177,21 +172,129 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 *        the configuration object which was attached to the original {@link JobVertex}
 	 * @param jobConfiguration
 	 *        the configuration object which was attached to the original {@link JobGraph}
+	 * @throws Exception
+	 *         thrown if an error occurs while instantiating the invokable class
 	 */
 	public RuntimeEnvironment(final JobID jobID, final String taskName,
 			final Class<? extends AbstractInvokable> invokableClass, final Configuration taskConfiguration,
-			final Configuration jobConfiguration) {
+			final Configuration jobConfiguration) throws Exception {
+
 		this.jobID = jobID;
 		this.taskName = taskName;
 		this.invokableClass = invokableClass;
 		this.taskConfiguration = taskConfiguration;
 		this.jobConfiguration = jobConfiguration;
+		this.indexInSubtaskGroup = 0;
+		this.currentNumberOfSubtasks = 0;
+		this.memoryManager = null;
+		this.ioManager = null;
+		this.inputSplitProvider = null;
+
+		this.invokable = this.invokableClass.newInstance();
+		this.invokable.setEnvironment(this);
+		this.invokable.registerInputOutput();
 	}
 
 	/**
-	 * Empty constructor used to deserialize the object.
+	 * Constructs a runtime environment from a task deployment description.
+	 * 
+	 * @param tdd
+	 *        the task deployment description
+	 * @param memoryManager
+	 *        the task manager's memory manager component
+	 * @param ioManager
+	 *        the task manager's I/O manager component
+	 * @param inputSplitProvider
+	 *        the input split provider for this environment
+	 * @throws Exception
+	 *         thrown if an error occurs while instantiating the invokable class
 	 */
-	public RuntimeEnvironment() {
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd, final MemoryManager memoryManager,
+			final IOManager ioManager, final InputSplitProvider inputSplitProvider) throws Exception {
+
+		this.jobID = tdd.getJobID();
+		this.taskName = tdd.getTaskName();
+		this.invokableClass = tdd.getInvokableClass();
+		this.jobConfiguration = tdd.getJobConfiguration();
+		this.taskConfiguration = tdd.getTaskConfiguration();
+		this.indexInSubtaskGroup = tdd.getIndexInSubtaskGroup();
+		this.currentNumberOfSubtasks = tdd.getCurrentNumberOfSubtasks();
+		this.memoryManager = memoryManager;
+		this.ioManager = ioManager;
+		this.inputSplitProvider = inputSplitProvider;
+
+		this.invokable = this.invokableClass.newInstance();
+		this.invokable.setEnvironment(this);
+		this.invokable.registerInputOutput();
+
+		if (!this.unboundOutputGateIDs.isEmpty() && LOG.isErrorEnabled()) {
+			LOG.error("Inconsistency: " + this.unboundOutputGateIDs.size() + " unbound output gate IDs left");
+		}
+
+		if (!this.unboundInputGateIDs.isEmpty() && LOG.isErrorEnabled()) {
+			LOG.error("Inconsistency: " + this.unboundInputGateIDs.size() + " unbound output gate IDs left");
+		}
+
+		final int noogdd = tdd.getNumberOfOutputGateDescriptors();
+		for (int i = 0; i < noogdd; ++i) {
+			final GateDeploymentDescriptor gdd = tdd.getOutputGateDescriptor(i);
+			final OutputGate og = this.outputGates.get(i);
+			final ChannelType channelType = gdd.getChannelType();
+			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
+			og.setChannelType(channelType);
+
+			final int nocdd = gdd.getNumberOfChannelDescriptors();
+			for (int j = 0; j < nocdd; ++j) {
+
+				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
+				switch (channelType) {
+				case FILE:
+					og.createFileOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID(), compressionLevel);
+					break;
+				case NETWORK:
+					og.createNetworkOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID(),
+						compressionLevel);
+					break;
+				case INMEMORY:
+					og.createInMemoryOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID(),
+						compressionLevel);
+					break;
+				default:
+					throw new IllegalStateException("Unknown channel type");
+				}
+			}
+		}
+
+		final int noigdd = tdd.getNumberOfInputGateDescriptors();
+		for (int i = 0; i < noigdd; ++i) {
+			final GateDeploymentDescriptor gdd = tdd.getInputGateDescriptor(i);
+			final InputGate ig = this.inputGates.get(i);
+			final ChannelType channelType = gdd.getChannelType();
+			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
+			ig.setChannelType(channelType);
+
+			final int nicdd = gdd.getNumberOfChannelDescriptors();
+			for (int j = 0; j < nicdd; ++j) {
+
+				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
+				switch (channelType) {
+				case FILE:
+					ig.createFileInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID(), compressionLevel);
+					break;
+				case NETWORK:
+					ig.createNetworkInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID(),
+						compressionLevel);
+					break;
+				case INMEMORY:
+					ig.createInMemoryInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID(),
+						compressionLevel);
+					break;
+				default:
+					throw new IllegalStateException("Unknown channel type");
+				}
+			}
+		}
 	}
 
 	/**
@@ -226,40 +329,6 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	public GateID getNextUnboundOutputGateID() {
 
 		return this.unboundOutputGateIDs.poll();
-	}
-
-	/**
-	 * Creates a new instance of the Nephele task and registers it with its environment.
-	 * 
-	 * @throws Exception
-	 *         any exception that might be thrown by the user code during instantiation and registration of input and
-	 *         output channels
-	 */
-	public void instantiateInvokable() throws Exception {
-
-		// Test and set, protected by synchronized block
-		synchronized (this) {
-
-			if (this.invokableClass == null) {
-				LOG.fatal("InvokableClass is null");
-				return;
-			}
-
-			try {
-				this.invokable = this.invokableClass.newInstance();
-			} catch (InstantiationException e) {
-				LOG.error(e);
-			} catch (IllegalAccessException e) {
-				LOG.error(e);
-			}
-		}
-
-		this.invokable.setEnvironment(this);
-		this.invokable.registerInputOutput();
-
-		if (this.jobID == null) {
-			LOG.warn("jobVertexID is null");
-		}
 	}
 
 	/**
@@ -476,252 +545,6 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 		}
 	}
 
-	// TODO: See if type safety can be improved here
-	/**
-	 * {@inheritDoc}
-	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		// Read job vertex id
-		this.jobID = new JobID();
-		this.jobID.read(in);
-
-		// Read the task name
-		this.taskName = StringRecord.readString(in);
-
-		// Read names of required jar files
-		final String[] requiredJarFiles = new String[in.readInt()];
-		for (int i = 0; i < requiredJarFiles.length; i++) {
-			requiredJarFiles[i] = StringRecord.readString(in);
-		}
-
-		// Now register data with the library manager
-		LibraryCacheManager.register(this.jobID, requiredJarFiles);
-
-		// Get ClassLoader from Library Manager
-		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.jobID);
-
-		// Read the name of the invokable class;
-		final String invokableClassName = StringRecord.readString(in);
-
-		if (invokableClassName == null) {
-			throw new IOException("invokableClassName is null");
-		}
-
-		try {
-			this.invokableClass = (Class<? extends AbstractInvokable>) Class.forName(invokableClassName, true, cl);
-		} catch (ClassNotFoundException cnfe) {
-			throw new IOException("Class " + invokableClassName + " not found in one of the supplied jar files: "
-				+ StringUtils.stringifyException(cnfe));
-		}
-
-		final int numOuputGates = in.readInt();
-
-		for (int i = 0; i < numOuputGates; i++) {
-
-			final GateID gateID = new GateID();
-			gateID.read(in);
-			this.unboundOutputGateIDs.add(gateID);
-		}
-
-		final int numInputGates = in.readInt();
-
-		for (int i = 0; i < numInputGates; i++) {
-
-			final GateID gateID = new GateID();
-			gateID.read(in);
-			this.unboundInputGateIDs.add(gateID);
-		}
-
-		// The configuration objects
-		this.taskConfiguration = new Configuration(cl);
-		this.taskConfiguration.read(in);
-		this.jobConfiguration = new Configuration(cl);
-		this.jobConfiguration.read(in);
-
-		// The current of number subtasks
-		this.currentNumberOfSubtasks = in.readInt();
-		// The index in the subtask group
-		this.indexInSubtaskGroup = in.readInt();
-
-		// Finally, instantiate the invokable object
-		try {
-			instantiateInvokable();
-		} catch (Exception e) {
-			throw new IOException(StringUtils.stringifyException(e));
-		}
-
-		// Output channels
-		for (int i = 0; i < numOuputGates; ++i) {
-			final OutputGate<? extends Record> outputGate = this.outputGates.get(i);
-			final int numberOfOutputChannels = in.readInt();
-			ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-			outputGate.setChannelType(channelType);
-
-			for (int j = 0; j < numberOfOutputChannels; ++j) {
-				final ChannelID channelID = new ChannelID();
-				channelID.read(in);
-				final ChannelID connectedChannelID = new ChannelID();
-				connectedChannelID.read(in);
-				channelType = EnumUtils.readEnum(in, ChannelType.class);
-				final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-
-				AbstractOutputChannel<? extends Record> outputChannel = null;
-
-				switch (channelType) {
-				case INMEMORY:
-					outputChannel = outputGate.createInMemoryOutputChannel((OutputGate) outputGate, channelID,
-						compressionLevel);
-					break;
-				case NETWORK:
-					outputChannel = outputGate.createNetworkOutputChannel((OutputGate) outputGate, channelID,
-						compressionLevel);
-					break;
-				case FILE:
-					outputChannel = outputGate.createFileOutputChannel((OutputGate) outputGate, channelID,
-						compressionLevel);
-					break;
-				}
-
-				if (outputChannel == null) {
-					throw new IOException("Unable to create output channel for channel ID " + channelID);
-				}
-
-				outputChannel.setConnectedChannelID(connectedChannelID);
-			}
-		}
-
-		// Input channels
-		for (int i = 0; i < numInputGates; ++i) {
-			final InputGate<? extends Record> inputGate = this.inputGates.get(i);
-			final int numberOfInputChannels = in.readInt();
-			ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-			inputGate.setChannelType(channelType);
-
-			for (int j = 0; j < numberOfInputChannels; ++j) {
-				final ChannelID channelID = new ChannelID();
-				channelID.read(in);
-				final ChannelID connectedChannelID = new ChannelID();
-				connectedChannelID.read(in);
-				channelType = EnumUtils.readEnum(in, ChannelType.class);
-				final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-
-				AbstractInputChannel<? extends Record> inputChannel = null;
-
-				switch (channelType) {
-				case INMEMORY:
-					inputChannel = inputGate.createInMemoryInputChannel((InputGate) inputGate, channelID,
-						compressionLevel);
-					break;
-				case NETWORK:
-					inputChannel = inputGate.createNetworkInputChannel((InputGate) inputGate, channelID,
-						compressionLevel);
-					break;
-				case FILE:
-					inputChannel = inputGate.createFileInputChannel((InputGate) inputGate, channelID, compressionLevel);
-					break;
-				}
-
-				if (inputChannel == null) {
-					throw new IOException("Unable to create output channel for channel ID " + channelID);
-				}
-
-				inputChannel.setConnectedChannelID(connectedChannelID);
-			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		// Write out job vertex id
-		if (this.jobID == null) {
-			throw new IOException("this.jobID is null");
-		}
-
-		this.jobID.write(out);
-
-		// Write the task name
-		StringRecord.writeString(out, this.taskName);
-
-		// Write out the names of the required jar files
-		final String[] requiredJarFiles = LibraryCacheManager.getRequiredJarFiles(this.jobID);
-
-		out.writeInt(requiredJarFiles.length);
-		for (int i = 0; i < requiredJarFiles.length; i++) {
-			StringRecord.writeString(out, requiredJarFiles[i]);
-		}
-
-		// Write out the name of the invokable class
-		if (this.invokableClass == null) {
-			throw new IOException("this.invokableClass is null");
-		}
-
-		StringRecord.writeString(out, this.invokableClass.getName());
-
-		// Output gates
-		final int numberOfOutputGates = this.outputGates.size();
-		out.writeInt(numberOfOutputGates);
-		for (int i = 0; i < numberOfOutputGates; ++i) {
-			final OutputGate<? extends Record> outputGate = this.outputGates.get(i);
-			outputGate.getGateID().write(out);
-		}
-
-		// Input gates
-		final int numberOfInputGates = this.inputGates.size();
-		out.writeInt(numberOfInputGates);
-		for (int i = 0; i < numberOfInputGates; i++) {
-			final InputGate<? extends Record> inputGate = this.inputGates.get(i);
-			inputGate.getGateID().write(out);
-		}
-
-		// The configuration objects
-		this.taskConfiguration.write(out);
-		this.jobConfiguration.write(out);
-
-		// The current of number subtasks
-		out.writeInt(this.currentNumberOfSubtasks);
-		// The index in the subtask group
-		out.writeInt(this.indexInSubtaskGroup);
-
-		// Output channels
-		for (int i = 0; i < numberOfOutputGates; ++i) {
-			final OutputGate<? extends Record> outputGate = this.outputGates.get(i);
-			final int numberOfOutputChannels = outputGate.getNumberOfOutputChannels();
-			out.writeInt(numberOfOutputChannels);
-			EnumUtils.writeEnum(out, outputGate.getChannelType());
-
-			for (int j = 0; j < numberOfOutputChannels; ++j) {
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-				outputChannel.getID().write(out);
-				outputChannel.getConnectedChannelID().write(out);
-				EnumUtils.writeEnum(out, outputChannel.getType());
-				EnumUtils.writeEnum(out, outputChannel.getCompressionLevel());
-			}
-		}
-
-		// Input channels
-		for (int i = 0; i < numberOfInputGates; ++i) {
-			final InputGate<? extends Record> inputGate = this.inputGates.get(i);
-			final int numberOfInputChannels = inputGate.getNumberOfInputChannels();
-			out.writeInt(numberOfInputChannels);
-			EnumUtils.writeEnum(out, inputGate.getChannelType());
-
-			for (int j = 0; j < numberOfInputChannels; ++j) {
-				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
-				inputChannel.getID().write(out);
-				inputChannel.getConnectedChannelID().write(out);
-				EnumUtils.writeEnum(out, inputChannel.getType());
-				EnumUtils.writeEnum(out, inputChannel.getCompressionLevel());
-			}
-		}
-	}
-
 	/**
 	 * Blocks until all output channels are closed.
 	 * 
@@ -814,37 +637,6 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	}
 
 	/**
-	 * Returns a duplicate (deep copy) of this environment object. However, duplication
-	 * does not cover the gates arrays. They must be manually reconstructed.
-	 * 
-	 * @return a duplicate (deep copy) of this environment object
-	 * @throws Exception
-	 *         any exception that might be thrown by the user code during instantiation and registration of input and
-	 *         output channels
-	 */
-	public RuntimeEnvironment duplicateEnvironment() throws Exception {
-
-		final RuntimeEnvironment duplicatedEnvironment = new RuntimeEnvironment();
-		duplicatedEnvironment.invokableClass = this.invokableClass;
-		duplicatedEnvironment.jobID = this.jobID;
-		duplicatedEnvironment.taskName = this.taskName;
-		Thread tmpThread = null;
-		synchronized (this) {
-			tmpThread = this.executingThread;
-		}
-		synchronized (duplicatedEnvironment) {
-			duplicatedEnvironment.executingThread = tmpThread;
-		}
-		duplicatedEnvironment.taskConfiguration = this.taskConfiguration;
-		duplicatedEnvironment.jobConfiguration = this.jobConfiguration;
-
-		// We instantiate the invokable of the new environment
-		duplicatedEnvironment.instantiateInvokable();
-
-		return duplicatedEnvironment;
-	}
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -853,31 +645,11 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	}
 
 	/**
-	 * Sets the {@link IOManager}.
-	 * 
-	 * @param memoryManager
-	 *        the new {@link IOManager}
-	 */
-	public void setIOManager(final IOManager ioManager) {
-		this.ioManager = ioManager;
-	}
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memoryManager;
-	}
-
-	/**
-	 * Sets the {@link MemoryManager}.
-	 * 
-	 * @param memoryManager
-	 *        the new {@link MemoryManager}
-	 */
-	public void setMemoryManager(final MemoryManager memoryManager) {
-		this.memoryManager = memoryManager;
 	}
 
 	/**
@@ -906,34 +678,12 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	}
 
 	/**
-	 * Sets the current number of subtasks the respective task is split into.
-	 * 
-	 * @param currentNumberOfSubtasks
-	 *        the current number of subtasks the respective task is split into
-	 */
-	public void setCurrentNumberOfSubtasks(final int currentNumberOfSubtasks) {
-
-		this.currentNumberOfSubtasks = currentNumberOfSubtasks;
-	}
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public int getIndexInSubtaskGroup() {
 
 		return this.indexInSubtaskGroup;
-	}
-
-	/**
-	 * Sets the index of this subtask in the subtask group.
-	 * 
-	 * @param indexInSubtaskGroup
-	 *        the index of this subtask in the subtask group
-	 */
-	public void setIndexInSubtaskGroup(final int indexInSubtaskGroup) {
-
-		this.indexInSubtaskGroup = indexInSubtaskGroup;
 	}
 
 	private void changeExecutionState(final ExecutionState newExecutionState, final String optionalMessage) {
@@ -971,16 +721,6 @@ public class RuntimeEnvironment implements Environment, Runnable, IOReadableWrit
 	 */
 	public void setExecutionObserver(final ExecutionObserver executionObserver) {
 		this.executionObserver = executionObserver;
-	}
-
-	/**
-	 * Sets the input split provider for this environment.
-	 * 
-	 * @param inputSplitProvider
-	 *        the input split provider for this environment
-	 */
-	public void setInputSplitProvider(final InputSplitProvider inputSplitProvider) {
-		this.inputSplitProvider = inputSplitProvider;
 	}
 
 	/**

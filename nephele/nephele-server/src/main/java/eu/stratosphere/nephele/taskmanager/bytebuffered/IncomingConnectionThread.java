@@ -18,15 +18,20 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.NoBufferAvailableException;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public class IncomingConnectionThread extends Thread {
@@ -37,7 +42,34 @@ public class IncomingConnectionThread extends Thread {
 
 	private final Selector selector;
 
+	private final Queue<SelectionKey> pendingReadEventSubscribeRequests = new ArrayDeque<SelectionKey>();
+
 	private final ServerSocketChannel listeningSocket;
+
+	private static final class IncomingConnectionBufferAvailListener implements BufferAvailabilityListener {
+
+		private final Queue<SelectionKey> pendingReadEventSubscribeRequests;
+
+		private final SelectionKey key;
+
+		private IncomingConnectionBufferAvailListener(final Queue<SelectionKey> pendingReadEventSubscribeRequests,
+				final SelectionKey key) {
+
+			this.pendingReadEventSubscribeRequests = pendingReadEventSubscribeRequests;
+			this.key = key;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void bufferAvailable() {
+
+			synchronized (this.pendingReadEventSubscribeRequests) {
+				this.pendingReadEventSubscribeRequests.add(this.key);
+			}
+		}
+	}
 
 	public IncomingConnectionThread(ByteBufferedChannelManager byteBufferedChannelManager,
 			boolean isListeningThread, InetSocketAddress listeningAddress) throws IOException {
@@ -62,13 +94,28 @@ public class IncomingConnectionThread extends Thread {
 
 		while (!this.isInterrupted()) {
 
+			synchronized (this.pendingReadEventSubscribeRequests) {
+				while (!this.pendingReadEventSubscribeRequests.isEmpty()) {
+					final SelectionKey key = this.pendingReadEventSubscribeRequests.poll();
+					final IncomingConnection incomingConnection = (IncomingConnection) key.attachment();
+					final SocketChannel socketChannel = (SocketChannel) key.channel();
+
+					try {
+						final SelectionKey newKey = socketChannel.register(this.selector, SelectionKey.OP_READ);
+						newKey.attach(incomingConnection);
+					} catch (ClosedChannelException e) {
+						incomingConnection.reportTransmissionProblem(key, e);
+					}
+				}
+			}
+
 			try {
-				selector.select(500);
+				this.selector.select(500);
 			} catch (IOException e) {
 				LOG.error(e);
 			}
 
-			final Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
+			final Iterator<SelectionKey> iter = this.selector.selectedKeys().iterator();
 
 			while (iter.hasNext()) {
 				final SelectionKey key = iter.next();
@@ -138,14 +185,6 @@ public class IncomingConnectionThread extends Thread {
 		final IncomingConnection incomingConnection = (IncomingConnection) key.attachment();
 		try {
 			incomingConnection.read();
-
-			/*
-			 * if(Math.random() < 0.005f) {
-			 * System.out.println("GENERATING I/O EXCEPTION3");
-			 * throw new IOException("Auto generated I/O exception");
-			 * }
-			 */
-
 		} catch (EOFException eof) {
 			if (incomingConnection.isCloseUnexpected()) {
 				final SocketChannel socketChannel = (SocketChannel) key.channel();
@@ -158,7 +197,29 @@ public class IncomingConnectionThread extends Thread {
 		} catch (IOException ioe) {
 			incomingConnection.reportTransmissionProblem(key, ioe);
 		} catch (InterruptedException e) {
+			// Nothing to do here
+		} catch (NoBufferAvailableException e) {
+			// There are no buffers available, unsubscribe from read event
+			final SocketChannel socketChannel = (SocketChannel) key.channel();
+			try {
+				final SelectionKey newKey = socketChannel.register(this.selector, 0);
+				newKey.attach(incomingConnection);
+			} catch (ClosedChannelException e1) {
+				incomingConnection.reportTransmissionProblem(key, e1);
+			}
 
+			final BufferAvailabilityListener bal = new IncomingConnectionBufferAvailListener(
+				this.pendingReadEventSubscribeRequests, key);
+			if (!e.getBufferProvider().registerBufferAvailabilityListener(bal)) {
+				// In the meantime, a buffer has become available again, subscribe to read event again
+
+				try {
+					final SelectionKey newKey = socketChannel.register(this.selector, SelectionKey.OP_READ);
+					newKey.attach(incomingConnection);
+				} catch (ClosedChannelException e1) {
+					incomingConnection.reportTransmissionProblem(key, e1);
+				}
+			}
 		}
 	}
 }

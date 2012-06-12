@@ -125,7 +125,7 @@ final class WriteThread extends Thread {
 		this.numberOfConnectedChannels = numberOfConnectedChannels;
 		this.queuedEnvelopes = new ArrayBlockingQueue<TransferEnvelope>(256);
 
-		final boolean dist = CheckpointUtils.createDistributedCheckpoint();
+		final boolean dist = CheckpointUtils.allowDistributedCheckpoints();
 
 		if (dist) {
 			final Path p = CheckpointUtils.getDistributedCheckpointPath();

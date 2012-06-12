@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
@@ -159,50 +158,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		this.inputChannels.clear();
 	}
 
-	public AbstractInputChannel<T> replaceChannel(ChannelID oldChannelID, ChannelType newChannelType) {
-
-		AbstractInputChannel<T> oldInputChannel = null;
-
-		for (int i = 0; i < this.inputChannels.size(); i++) {
-			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
-			if (inputChannel.getID().equals(oldChannelID)) {
-				oldInputChannel = inputChannel;
-				break;
-			}
-		}
-
-		if (oldInputChannel == null) {
-			return null;
-		}
-
-		AbstractInputChannel<T> newInputChannel = null;
-
-		switch (newChannelType) {
-		case FILE:
-			newInputChannel = new FileInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
-			break;
-		case INMEMORY:
-			newInputChannel = new InMemoryInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
-			break;
-		case NETWORK:
-			newInputChannel = new NetworkInputChannel<T>(this, oldInputChannel.getChannelIndex(), deserializer,
-				oldInputChannel.getID(), oldInputChannel.getCompressionLevel());
-			break;
-		default:
-			LOG.error("Unknown input channel type");
-			return null;
-		}
-
-		newInputChannel.setConnectedChannelID(oldInputChannel.getConnectedChannelID());
-
-		this.inputChannels.set(newInputChannel.getChannelIndex(), newInputChannel);
-
-		return newInputChannel;
-	}
-
-
 	/**
 	 * {@inheritDoc}
 	 */
@@ -239,10 +194,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializer, channelID, compressionLevel);
+			this.deserializer, channelID, connectedChannelID, compressionLevel);
 		addInputChannel(enic);
 
 		return enic;
@@ -253,10 +208,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public FileInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializer, channelID, compressionLevel);
+			this.deserializer, channelID, connectedChannelID, compressionLevel);
 		addInputChannel(efic);
 
 		return efic;
@@ -267,10 +222,10 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 */
 	@Override
 	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializer, channelID, compressionLevel);
+			this.deserializer, channelID, connectedChannelID, compressionLevel);
 		addInputChannel(eimic);
 
 		return eimic;
