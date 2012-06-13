@@ -42,13 +42,13 @@ public class TextInputFormat extends DelimitedInputFormat
 	private static final Log LOG = LogFactory.getLog(TextInputFormat.class);
 	
 	
-	private final PactString theString = new PactString();
+	protected final PactString theString = new PactString();
 	
-	private CharsetDecoder decoder;
+	protected CharsetDecoder decoder;
 	
-	private ByteBuffer byteWrapper;
+	protected ByteBuffer byteWrapper;
 	
-	private boolean ascii;
+	protected boolean ascii;
 	
 	
 	// --------------------------------------------------------------------------------------------

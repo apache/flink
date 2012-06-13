@@ -126,10 +126,15 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 	 */
 	protected long length;
 	
+	/**
+	 * The the minimal split size, set by the configure() method.
+	 */
+	protected long minSplitSize; 
 	
-	protected long minSplitSize;				// the minimal split size
-	
-	protected int numSplits;					// the desired number of splits
+	/**
+	 * The desired number of splits, as set by the configure() method.
+	 */
+	protected int numSplits;
 
 	// --------------------------------------------------------------------------------------------
 	

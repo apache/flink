@@ -70,25 +70,25 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private byte[] readBuffer;
+	protected byte[] readBuffer;
 	
-	private byte[] targetBuffer;
+	protected byte[] targetBuffer;
 
-	private byte[] wrapBuffer;
+	protected byte[] wrapBuffer;
 
-	private int readPos;
+	protected int readPos;
 
-	private int limit;
+	protected int limit;
 
-	private byte[] delimiter = new byte[] { '\n' };
+	protected byte[] delimiter = new byte[] { '\n' };
 
-	private boolean overLimit;
+	protected boolean overLimit;
 
-	private boolean end;
+	protected boolean end;
 	
-	private int bufferSize = -1;
+	protected int bufferSize = -1;
 	
-	private int numLineSamples;										// the number of lines to sample for statistics
+	protected int numLineSamples;										// the number of lines to sample for statistics
 	
 	// --------------------------------------------------------------------------------------------
 	
