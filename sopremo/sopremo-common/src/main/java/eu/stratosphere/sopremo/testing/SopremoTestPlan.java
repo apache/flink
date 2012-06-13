@@ -351,7 +351,7 @@ public class SopremoTestPlan {
 		sopremoPlan.setSinks(this.getOutputOperators(0, this.expectedOutputs.length));
 		this.testPlan = new TestPlan(sopremoPlan.assemblePact());
 
-		Schema schema = sopremoPlan.getSchema();
+		final Schema schema = sopremoPlan.getSchema();
 		for (final Input input : this.inputs)
 			input.prepare(this.testPlan, schema);
 		for (final ExpectedOutput output : this.expectedOutputs)
@@ -420,10 +420,10 @@ public class SopremoTestPlan {
 		 * @param testPlan
 		 *        the {@link TestPlan} where the actual output values should be loaded from
 		 */
-		void load(TestPlan testPlan) {
+		void load(final TestPlan testPlan) {
 			this.actualRecords = testPlan.getActualOutput(this.getIndex());
 
-			FileDataSink sink = testPlan.getSinks().get(this.getIndex());
+			final FileDataSink sink = testPlan.getSinks().get(this.getIndex());
 			this.schema = SopremoUtil.deserialize(sink.getParameters(), IOConstants.SCHEMA, Schema.class);
 		}
 
@@ -460,7 +460,7 @@ public class SopremoTestPlan {
 			try {
 				if (!FileSystem.get(new URI(this.file)).exists(new Path(this.file)))
 					throw new FileNotFoundException();
-			} catch (URISyntaxException e) {
+			} catch (final URISyntaxException e) {
 				throw new IllegalArgumentException(String.format("File %s is not a valid URI", file));
 			}
 
@@ -481,16 +481,16 @@ public class SopremoTestPlan {
 			return this.add(JsonUtil.createArrayNode(values));
 		}
 
-		void prepare(TestPlan testPlan, Schema schema) {
+		void prepare(final TestPlan testPlan, final Schema schema) {
 			if (this.operator instanceof MockupSource) {
-				TestRecords testRecords = this.getTestRecords(testPlan, schema);
+				final TestRecords testRecords = this.getTestRecords(testPlan, schema);
 				testRecords.setSchema(schema.getPactSchema());
 				if (this.isEmpty())
 					testRecords.setEmpty();
 				else if (this.file != null)
 					testRecords.fromFile(JsonInputFormat.class, this.file);
 				else
-					for (IJsonNode node : this.values)
+					for (final IJsonNode node : this.values)
 						testRecords.add(schema.jsonToRecord(node, null, null));
 			}
 		}
@@ -514,13 +514,13 @@ public class SopremoTestPlan {
 			if (this.isEmpty())
 				return Collections.EMPTY_LIST.iterator();
 			if (this.file != null)
-				return iteratorFromFile(this.file);
+				return this.iteratorFromFile(this.file);
 			return this.values.iterator();
 		}
 
 		protected Iterator<IJsonNode> iteratorFromFile(final String file) {
 			try {
-				FSDataInputStream stream = FileSystem.get(new URI(file)).open(new Path(file));
+				final FSDataInputStream stream = FileSystem.get(new URI(file)).open(new Path(file));
 				final JsonParser parser = new JsonParser(stream);
 				return new AbstractIterator<IJsonNode>() {
 					/*
@@ -533,15 +533,15 @@ public class SopremoTestPlan {
 							return this.noMoreElements();
 						try {
 							return parser.readValueAsTree();
-						} catch (IOException e) {
+						} catch (final IOException e) {
 							throw new IllegalStateException(String.format("Cannot parse json file %s",
 								file), e);
 						}
 					}
 				};
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				throw new IllegalStateException(String.format("Cannot open json file %s", this.file), e);
-			} catch (URISyntaxException e) {
+			} catch (final URISyntaxException e) {
 				// should definitely not happen, checked in #load
 				throw new IllegalStateException();
 			}
@@ -626,7 +626,7 @@ public class SopremoTestPlan {
 		 * .TestPlan)
 		 */
 		@Override
-		TestRecords getTestRecords(TestPlan testPlan, Schema schema) {
+		TestRecords getTestRecords(final TestPlan testPlan, final Schema schema) {
 			return testPlan.getExpectedOutput(this.getIndex(), schema.getPactSchema());
 		}
 	}
@@ -653,7 +653,7 @@ public class SopremoTestPlan {
 		 * .TestPlan, eu.stratosphere.sopremo.serialization.Schema)
 		 */
 		@Override
-		TestRecords getTestRecords(TestPlan testPlan, Schema schema) {
+		TestRecords getTestRecords(final TestPlan testPlan, final Schema schema) {
 			return testPlan.getInput(this.getIndex());
 		}
 
@@ -666,7 +666,7 @@ public class SopremoTestPlan {
 			if (this.operator != null && !(this.operator instanceof MockupSource)) {
 				if (this.operator.isAdhoc())
 					return JsonUtil.asArray(this.operator.getAdhocValues()).iterator();
-				return iteratorFromFile(this.operator.getInputPath());
+				return this.iteratorFromFile(this.operator.getInputPath());
 			}
 			return super.iterator();
 		}
