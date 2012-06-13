@@ -55,7 +55,7 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 			@Override
 			protected IJsonNode loadNext() {
 				while (this.lastIndex < LazyHeadArrayNode.this.schema.getHeadSize()) {
-					if (!LazyHeadArrayNode.this.record.isNull(lastIndex)) {
+					if (!LazyHeadArrayNode.this.record.isNull(this.lastIndex)) {
 						IJsonNode value = SopremoUtil.unwrap(LazyHeadArrayNode.this.record.getField(this.lastIndex,
 							JsonNodeWrapper.class));
 						this.lastIndex++;
@@ -168,7 +168,7 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 			throw new NullPointerException();
 
 		for (int i = 0; i < this.schema.getHeadSize(); i++)
-			if (this.record.isNull(i) && !node.isMissing()) {
+			if (this.record.isNull(i)) {
 				this.record.setField(i, SopremoUtil.wrap(node));
 				return this;
 			}
@@ -182,12 +182,8 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 		if (element == null)
 			throw new NullPointerException();
 
-		if (element.isMissing())
-			this.remove(index);
-
-		if (index < 0 || index > this.size()) {
-			throw new IndexOutOfBoundsException();
-		}
+		if (index < 0 || index > this.size()) 
+			throw new ArrayIndexOutOfBoundsException(index);
 
 		if (index < this.schema.getHeadSize()) {
 			for (int i = this.schema.getHeadSize() - 1; i >= index; i--)
@@ -228,17 +224,6 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 	public IJsonNode set(int index, IJsonNode node) {
 		if (node == null)
 			throw new NullPointerException();
-
-		if (node.isMissing())
-			return this.remove(index);
-
-		if (index < 0 || index >= this.size()) {
-			if (index == this.size()) {
-				this.add(node);
-				return MissingNode.getInstance();
-			}
-			throw new IndexOutOfBoundsException();
-		}
 
 		if (index < this.schema.getHeadSize()) {
 			for (int i = 0; i < index; i++)
@@ -313,9 +298,8 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IArrayNode addAll(IJsonNode[] nodes) {
-		for (IJsonNode node : nodes) {
+		for (IJsonNode node : nodes) 
 			this.add(node);
-		}
 		return this;
 	}
 

@@ -21,7 +21,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.util.IdentitySet;
 
 /**
@@ -127,6 +126,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 		return this.outputNodes[index];
 	}
 
+	@Override
 	public OutputNode getInternalOutputNodes(int index) {
 		return this.internalOutputNodes.get(index);
 	}

@@ -274,8 +274,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		final Operator<Self> clone = this.clone();
 		for (int index = 0; index < this.getInputs().size(); index++)
 			clone.setInput(index, module.getInput(index));
-		for (int index = 0; index < this.getOutputs().size(); index++)
-			module.getOutput(index).setInput(index, clone.getOutput(index));
+		final List<JsonStream> outputs = clone.getOutputs();
+		for (int index = 0; index < outputs.size(); index++)
+			module.getOutput(index).setInput(index, outputs.get(index));
 		return module;
 	}
 

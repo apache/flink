@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.ListIterator;
 
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * @author Michael Hopstock
@@ -60,7 +61,10 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	 */
 	@Override
 	public int size() {
-		return this.children.size();
+		int size = this.children.size();
+		while (size > 0 && this.children.get(size - 1).isMissing())
+			size--;
+		return size;
 	}
 
 	/*
@@ -72,9 +76,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		if (node == null)
 			throw new NullPointerException();
 
-		if (!node.isMissing()) {
-			this.children.add(node);
-		}
+		this.children.add(node);
 
 		return this;
 	}
@@ -88,11 +90,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 		if (element == null)
 			throw new NullPointerException();
 
-		if (element.isMissing()) {
-			this.children.remove(index);
-		} else {
-			this.children.add(index, element);
-		}
+		this.children.add(index, element);
 
 		return this;
 	}
@@ -116,6 +114,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	public IJsonNode set(final int index, final IJsonNode node) {
 		if (node == null)
 			throw new NullPointerException();
+		CollectionUtil.ensureSize(this.children, index + 1, MissingNode.getInstance());
 		return this.children.set(index, node);
 	}
 
@@ -205,9 +204,8 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.children.size());
 
-		for (final IJsonNode child : this.children) {
+		for (final IJsonNode child : this.children)
 			SopremoUtil.serializeNode(out, child);
-		}
 	}
 
 	@Override
@@ -233,6 +231,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	/**
 	 * Checks if this node is currently empty.
 	 */
+	@Override
 	public boolean isEmpty() {
 		return this.children.isEmpty();
 	}
@@ -310,9 +309,8 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 
 	@Override
 	public IArrayNode addAll(IArrayNode node) {
-		for (IJsonNode n : node) {
+		for (IJsonNode n : node)
 			this.add(n);
-		}
 		return this;
 	}
 
