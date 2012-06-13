@@ -14,16 +14,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.testing;
 
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 /**
  * @author Arvid Heise
  */
 public class ConcurrentUtil {
-	private static ThreadPoolExecutor Executor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.NANOSECONDS,
-		new LinkedBlockingDeque<Runnable>(), new DaemonThreadFactory());
+	private static ScheduledExecutorService Executor = new ScheduledThreadPoolExecutor(1, new DaemonThreadFactory());
 
 	public static void invokeLater(Runnable runnable) {
 		Executor.execute(runnable);
