@@ -24,7 +24,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -37,16 +37,17 @@ import eu.stratosphere.nephele.types.StringRecord;
  * 
  * @author marrus
  */
-public class BufferTest {
-	static File file = new File("./tmp");
+public class BufferTest
+{
+	private File file = new File("./tmp");
 
-	static FileInputStream fileinstream;
+	private FileInputStream fileinstream;
 
-	static FileOutputStream filestream;
+	private FileOutputStream filestream;
 
-	static FileChannel writeable;
+	private FileChannel writeable;
 
-	static FileChannel readable;
+	private FileChannel readable;
 
 	/**
 	 * Set up files and stream for testing
@@ -68,8 +69,8 @@ public class BufferTest {
 	 * 
 	 * @throws IOException
 	 */
-	@AfterClass
-	public static void after() throws IOException {
+	@After
+	public void after() throws IOException {
 		fileinstream.close();
 		writeable.close();
 		readable.close();
@@ -81,16 +82,18 @@ public class BufferTest {
 	 * Tests serialization and deserialization of an {@link IntegerRecord}
 	 */
 	@Test
-	public void testIntSerialize() {
-		SerializationBuffer<IntegerRecord> intSerializationBuffer = new SerializationBuffer<IntegerRecord>();
-		int i = 0;
-		IntegerRecord intRecord = new IntegerRecord(i);
+	public void testIntSerialize()
+	{
+		final SerializationBuffer<IntegerRecord> intSerializationBuffer = new SerializationBuffer<IntegerRecord>();
+		final int NUM = 0xab627ef;
+		
+		IntegerRecord intRecord = new IntegerRecord(NUM);
 		// Serialize a record.
 		try {
 			intSerializationBuffer.serialize(intRecord);
 		} catch (IOException e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 		// Last record is still in buffer, serializing another should throw IOException
 		try {
@@ -98,32 +101,33 @@ public class BufferTest {
 			fail();
 		} catch (IOException e) {
 		}
+		
 		// Read from buffer (written in file)
 		try {
 			intSerializationBuffer.read(writeable);
 		} catch (IOException e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 		// Now a new Record can be serialized
 		try {
 			intSerializationBuffer.serialize(intRecord);
 		} catch (IOException e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 
 		DefaultDeserializer<IntegerRecord> intDeserialitionBuffer = new DefaultDeserializer<IntegerRecord>(IntegerRecord.class, true);
 		IntegerRecord record = new IntegerRecord();
-		// Deserialze a Record
+		// Deserialize a Record
 		try {
 			record = intDeserialitionBuffer.readData(record, readable);
 		} catch (IOException e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 		// Check it contains the right value
-		assertEquals(i, record.getValue());
+		assertEquals(NUM, record.getValue());
 		// File empty, another read should throw IOException
 		try {
 			record = intDeserialitionBuffer.readData(record, readable);
@@ -137,51 +141,54 @@ public class BufferTest {
 	 * Tests serialization and deserialization of an {@link StringRecord}
 	 */
 	@Test
-	public void testStringSerialize() {
-		SerializationBuffer<StringRecord> stringSerializationBuffer = new SerializationBuffer<StringRecord>();
-		String str = "abc";
+	public void testStringSerialize()
+	{
+		final SerializationBuffer<StringRecord> stringSerializationBuffer = new SerializationBuffer<StringRecord>();
+		final String str = "abc";
+		
 		StringRecord stringrecord = new StringRecord(str);
+		
 		// Serialize a record.
 		try {
 			stringSerializationBuffer.serialize(stringrecord);
 		} catch (IOException e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 		// Read from buffer (write in file)
 		try {
 			stringSerializationBuffer.read(writeable);
 		} catch (IOException e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 		// Serialize next Record.
 		// Read from buffer (write in file)
-		String str2 = "abcdef";
+		final String str2 = "abcdef";
 		stringrecord = new StringRecord(str2);
 		try {
 			stringSerializationBuffer.serialize(stringrecord);
 			stringSerializationBuffer.read(writeable);
 		} catch (IOException e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 
-		DefaultDeserializer<StringRecord> stringDeserialitionBuffer = new DefaultDeserializer<StringRecord>(StringRecord.class, true);
+		final DefaultDeserializer<StringRecord> stringDeserialitionBuffer = new DefaultDeserializer<StringRecord>(StringRecord.class, true);
 		StringRecord record = new StringRecord();
 		// Deserialize and check record are correct
 		try {
 			record = stringDeserialitionBuffer.readData(record, readable);
 		} catch (IOException e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 		assertEquals(str, record.toString());
 		try {
 			record = stringDeserialitionBuffer.readData(record, readable);
 		} catch (IOException e) {
-			fail();
 			e.printStackTrace();
+			fail();
 		}
 		assertEquals(str2, record.toString());
 	}

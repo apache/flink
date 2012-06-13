@@ -67,6 +67,10 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 */
 	private final Decompressor decompressor;
 
+	/**
+	 * The exception observed in this channel while processing the buffers. Checked and thrown
+	 * per-buffer.
+	 */
 	private volatile IOException ioException;
 
 	/**

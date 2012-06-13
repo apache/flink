@@ -593,11 +593,11 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 		@Override
 		public int readInt() throws EOFException {
 			if (this.position < this.limit - 3) {
-				int num = ((this.source[this.position + 0] & 0xff) << 24) |
-						  ((this.source[this.position + 1] & 0xff) << 16) |
-						  ((this.source[this.position + 2] & 0xff) <<  8) |
-						  ((this.source[this.position + 3] & 0xff) );
-				this.position += 2;
+				final int num = ((this.source[this.position + 0] & 0xff) << 24) |
+								((this.source[this.position + 1] & 0xff) << 16) |
+								((this.source[this.position + 2] & 0xff) <<  8) |
+								((this.source[this.position + 3] & 0xff) );
+				this.position += 4;
 				return num;
 			} else {
 				throw new EOFException();
@@ -610,14 +610,16 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 		@Override
 		public long readLong() throws EOFException {
 			if (this.position < this.limit - 7) {
-				return (((long) this.source[this.position + 0] & 0xff) << 56)
-					 | (((long) this.source[this.position + 1] & 0xff) << 48)
-					 | (((long) this.source[this.position + 2] & 0xff) << 40)
-					 | (((long) this.source[this.position + 3] & 0xff) << 32)
-					 | (((long) this.source[this.position + 4] & 0xff) << 24)
-					 | (((long) this.source[this.position + 5] & 0xff) << 16)
-					 | (((long) this.source[this.position + 6] & 0xff) << 8)
-					 | (((long) this.source[this.position + 7] & 0xff) << 0);
+				final long num = (((long) this.source[this.position + 0] & 0xff) << 56) |
+								 (((long) this.source[this.position + 1] & 0xff) << 48) |
+								 (((long) this.source[this.position + 2] & 0xff) << 40) |
+								 (((long) this.source[this.position + 3] & 0xff) << 32) |
+								 (((long) this.source[this.position + 4] & 0xff) << 24) |
+								 (((long) this.source[this.position + 5] & 0xff) << 16) |
+								 (((long) this.source[this.position + 6] & 0xff) <<  8) |
+								 (((long) this.source[this.position + 7] & 0xff) <<  0);
+				this.position += 8;
+				return num;
 			} else {
 				throw new EOFException();
 			}
@@ -743,6 +745,7 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 				}
 			}
 			// The number of chars produced may be less than utflen
+			this.position += utflen;
 			return new String(chararr, 0, chararr_count);
 		}
 
