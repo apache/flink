@@ -757,15 +757,21 @@ public class SopremoTestPlan {
 		}
 	}
 
+	/**
+	 * Creates a mocked {@link Source}. This source simply reads the data from a temporary file.
+	 */
 	public static class MockupSource extends Source {
 
-		/**
-		 * 
-		 */
 		private static final long serialVersionUID = -7149952920902388869L;
 
 		private final int index;
 
+		/**
+		 * Initializes a MockupSource with the given.
+		 * 
+		 * @param index
+		 *        the index
+		 */
 		public MockupSource(final int index) {
 			super("mockup-input" + index);
 			this.index = index;
