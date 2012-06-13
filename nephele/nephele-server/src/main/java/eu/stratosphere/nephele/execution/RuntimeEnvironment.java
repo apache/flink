@@ -36,7 +36,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -442,13 +442,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public OutputGate<? extends Record> createOutputGate(final GateID gateID, Class<? extends Record> outputClass,
-			final ChannelSelector<? extends Record> selector, final boolean isBroadcast) {
-
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		final RuntimeOutputGate<? extends Record> rog = (RuntimeOutputGate<? extends Record>) new RuntimeOutputGate(
-			getJobID(), gateID, outputClass, getNumberOfOutputGates(), selector, isBroadcast);
-
+	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID, Class<T> outputClass,
+			final ChannelSelector<T> selector, final boolean isBroadcast)
+	{
+		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gateID, outputClass,
+															getNumberOfOutputGates(), selector, isBroadcast);
 		return rog;
 	}
 
@@ -456,13 +454,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer) {
-
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		final RuntimeInputGate<? extends Record> rig = (RuntimeInputGate<? extends Record>) new RuntimeInputGate(
-			getJobID(), gateID, deserializer, getNumberOfInputGates());
-
+	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
+										final RecordDeserializerFactory<T> deserializerFactory)
+	{
+		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory, getNumberOfInputGates());
 		return rig;
 	}
 

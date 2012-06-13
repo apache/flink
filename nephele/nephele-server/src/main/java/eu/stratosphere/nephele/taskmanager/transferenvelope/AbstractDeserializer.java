@@ -21,10 +21,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 
 import eu.stratosphere.nephele.event.task.EventList;
-import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
+import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 public abstract class AbstractDeserializer {
@@ -44,14 +43,14 @@ public abstract class AbstractDeserializer {
 
 	private DeserializationState deserializationState = DeserializationState.NOTDESERIALIZED;
 
-	private final DeserializationBuffer<ChannelID> channelIDDeserializationBuffer = new DeserializationBuffer<ChannelID>(
-		new DefaultRecordDeserializer<ChannelID>(ChannelID.class), true);
+	private final DefaultDeserializer<ChannelID> channelIDDeserializationBuffer = new DefaultDeserializer<ChannelID>(
+			ChannelID.class, true);
 
-	private final DeserializationBuffer<JobID> jobIDDeserializationBuffer = new DeserializationBuffer<JobID>(
-			new DefaultRecordDeserializer<JobID>(JobID.class), true);
+	private final DefaultDeserializer<JobID> jobIDDeserializationBuffer = new DefaultDeserializer<JobID>(
+			JobID.class, true);
 
-	private final DeserializationBuffer<EventList> notificationListDeserializationBuffer = new DeserializationBuffer<EventList>(
-		new DefaultRecordDeserializer<EventList>(EventList.class), true);
+	private final DefaultDeserializer<EventList> notificationListDeserializationBuffer = new DefaultDeserializer<EventList>(
+			EventList.class, true);
 
 	private final ByteBuffer tempBuffer = ByteBuffer.allocate(8); // TODO: Make this configurable
 

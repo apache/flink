@@ -50,17 +50,17 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implements InputGate<T> {
-
+public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implements InputGate<T>
+{
 	/**
 	 * The log object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(InputGate.class);
 
 	/**
-	 * The deserializer used to construct records from byte streams.
+	 * The deserializer factory used to instantiate the deserializers that construct records from byte streams.
 	 */
-	private final RecordDeserializer<T> deserializer;
+	private final RecordDeserializerFactory<T> deserializerFactory;
 
 	/**
 	 * The list of input channels attached to this input gate.
@@ -100,20 +100,16 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 *        the ID of the job this input gate belongs to
 	 * @param gateID
 	 *        the ID of the gate
-	 * @param inputClass
-	 *        the class of the record that can be transported through this gate
+	 * @param deserializerFactory
+	 *        The factory used to instantiate the deserializers that construct records from byte streams.
 	 * @param index
 	 *        the index assigned to this input gate at the {@link Environment} object
-	 * @param distributionPattern
-	 *        the distribution pattern to determine the concrete wiring between to groups of vertices
 	 */
-	public RuntimeInputGate(final JobID jobID, final GateID gateID, final RecordDeserializer<T> deserializer,
-			final int index) {
-
+	public RuntimeInputGate(final JobID jobID, final GateID gateID,
+						final RecordDeserializerFactory<T> deserializerFactory, final int index)
+	{
 		super(jobID, gateID, index);
-
-		this.deserializer = deserializer;
-
+		this.deserializerFactory = deserializerFactory;
 	}
 
 	/**
@@ -197,7 +193,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializer, channelID, connectedChannelID, compressionLevel);
+			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
 		addInputChannel(enic);
 
 		return enic;
@@ -211,7 +207,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializer, channelID, connectedChannelID, compressionLevel);
+			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
 		addInputChannel(efic);
 
 		return efic;
@@ -225,7 +221,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializer, channelID, connectedChannelID, compressionLevel);
+			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
 		addInputChannel(eimic);
 
 		return eimic;
@@ -370,13 +366,13 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	}
 
 	/**
-	 * Returns the {@link RecordDeserializer} used by this input gate.
+	 * Returns the {@link RecordDeserializerFactory} used by this input gate.
 	 * 
-	 * @return the {@link RecordDeserializer} used by this input gate
+	 * @return The {@link RecordDeserializerFactory} used by this input gate.
 	 */
-	public RecordDeserializer<T> getRecordDeserializer() {
-
-		return this.deserializer;
+	public RecordDeserializerFactory<T> getRecordDeserializerFactory()
+	{
+		return this.deserializerFactory;
 	}
 
 	/**
@@ -394,7 +390,6 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	@Override
 	public void activateInputChannels() throws IOException, InterruptedException {
 		// TODO Auto-generated method stub
-
 	}
 
 	/**

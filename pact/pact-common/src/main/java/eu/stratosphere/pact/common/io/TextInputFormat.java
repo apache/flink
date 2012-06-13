@@ -67,11 +67,11 @@ public class TextInputFormat extends DelimitedInputFormat
 			throw new RuntimeException("Unsupported charset: " + charsetName);
 		}
 		
-		this.decoder = Charset.forName(charsetName).newDecoder();
-		this.byteWrapper = ByteBuffer.allocate(1);
-		
 		if (charsetName.equals("ISO-8859-1") || charsetName.equalsIgnoreCase("ASCII")) {
 			this.ascii = true;
+		} else {
+			this.decoder = Charset.forName(charsetName).newDecoder();
+			this.byteWrapper = ByteBuffer.allocate(1);
 		}
 	}
 

@@ -36,12 +36,11 @@ import org.powermock.core.classloader.annotations.SuppressStaticInitializationFo
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
-import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.AbstractChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
+import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Decompressor;
@@ -61,16 +60,13 @@ public class FileInputChannelTest {
 	private Buffer uncompressedDataBuffer;
 
 	@Mock
-	DeserializationBuffer<StringRecord> deserializationBuffer;
+	DefaultDeserializer<StringRecord> deserializationBuffer;
 
 	@Mock
 	ChannelID id;
 
 	@Mock
 	ChannelID connected;
-
-	@Mock
-	DefaultRecordDeserializer<StringRecord> deserializer;
 
 	/**
 	 * Set up mocks
@@ -119,7 +115,7 @@ public class FileInputChannelTest {
 
 		// setup test-object
 		final FileInputChannel<StringRecord> fileInputChannel = new FileInputChannel<StringRecord>(inGate, 1,
-			this.deserializer, new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION);
+			this.deserializationBuffer, new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION);
 		fileInputChannel.setInputChannelBroker(inputBroker);
 
 		Whitebox.setInternalState(fileInputChannel, "deserializationBuffer", this.deserializationBuffer);
