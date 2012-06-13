@@ -71,8 +71,6 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	// --------------------------------------------------------------------------------------------
 	
 	protected byte[] readBuffer;
-	
-	protected byte[] targetBuffer;
 
 	protected byte[] wrapBuffer;
 
@@ -81,6 +79,10 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	protected int limit;
 
 	protected byte[] delimiter = new byte[] { '\n' };
+	
+	private byte[] currBuffer;
+	private int currOffset;
+	private int currLen;
 
 	protected boolean overLimit;
 
@@ -341,7 +343,6 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
 		this.readBuffer = new byte[this.bufferSize];
 		this.wrapBuffer = new byte[256];
-		this.targetBuffer = new byte[128];
 
 		this.readPos = 0;
 		this.overLimit = false;
@@ -376,12 +377,11 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	@Override
 	public boolean nextRecord(PactRecord record) throws IOException
 	{
-		int numBytes = readLine();
-		if (numBytes == -1) {
+		if (readLine()) {
+			return readRecord(record, this.currBuffer, this.currOffset, this.currLen);
+		} else {
 			this.end = true;
 			return false;
-		} else {
-			return readRecord(record, this.targetBuffer, 0, numBytes);
 		}
 	}
 
@@ -401,9 +401,10 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 
 	// --------------------------------------------------------------------------------------------
 
-	private int readLine() throws IOException {
+	private boolean readLine() throws IOException
+	{
 		if (this.stream == null || this.overLimit) {
-			return -1;
+			return false;
 		}
 
 		int countInWrapBuffer = 0;
@@ -415,11 +416,10 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			if (this.readPos >= this.limit) {
 				if (!fillBuffer()) {
 					if (countInWrapBuffer > 0) {
-						ensureTargetBufferSize(countInWrapBuffer);
-						System.arraycopy(this.wrapBuffer, 0, this.targetBuffer, 0, countInWrapBuffer);
-						return countInWrapBuffer;
+						setResult(this.wrapBuffer, 0, countInWrapBuffer);
+						return true;
 					} else {
-						return -1;
+						return false;
 					}
 				}
 			}
@@ -443,20 +443,20 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 
 				// copy to byte array
 				if (countInWrapBuffer > 0) {
-					ensureTargetBufferSize(countInWrapBuffer + count);
-					if (count >= 0) {
-						System.arraycopy(this.wrapBuffer, 0, this.targetBuffer, 0, countInWrapBuffer);
-						System.arraycopy(this.readBuffer, 0, this.targetBuffer, countInWrapBuffer, count);
-						return countInWrapBuffer + count;
-					} else {
-						// count < 0
-						System.arraycopy(this.wrapBuffer, 0, this.targetBuffer, 0, countInWrapBuffer + count);
-						return countInWrapBuffer + count;
+					// check wrap buffer size
+					if (this.wrapBuffer.length < countInWrapBuffer + count) {
+						final byte[] nb = new byte[countInWrapBuffer + count];
+						System.arraycopy(this.wrapBuffer, 0, nb, 0, countInWrapBuffer);
+						this.wrapBuffer = nb;
 					}
+					if (count >= 0) {
+						System.arraycopy(this.readBuffer, 0, this.wrapBuffer, countInWrapBuffer, count);
+					}
+					setResult(this.wrapBuffer, 0, countInWrapBuffer + count);
+					return true;
 				} else {
-					ensureTargetBufferSize(count);
-					System.arraycopy(this.readBuffer, startPos, this.targetBuffer, 0, count);
-					return count;
+					setResult(this.readBuffer, startPos, count);
+					return true;
 				}
 			} else {
 				count = this.limit - startPos;
@@ -473,6 +473,12 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 				countInWrapBuffer += count;
 			}
 		}
+	}
+	
+	private final void setResult(byte[] buffer, int offset, int len) {
+		this.currBuffer = buffer;
+		this.currOffset = offset;
+		this.currLen = len;
 	}
 
 	private final boolean fillBuffer() throws IOException {
@@ -493,13 +499,6 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			this.readPos = 0;
 			this.limit = read;
 			return true;
-		}
-	}
-	
-	private final void ensureTargetBufferSize(int minSize)
-	{
-		if (this.targetBuffer.length < minSize) {
-			this.targetBuffer = new byte[minSize];
 		}
 	}
 }
