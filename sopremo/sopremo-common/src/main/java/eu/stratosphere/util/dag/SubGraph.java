@@ -42,6 +42,16 @@ public interface SubGraph<Node, InputNode extends Node, OutputNode extends Node>
 	public abstract InputNode getInput(int index);
 
 	/**
+	 * Sets the input at the specified position.
+	 * 
+	 * @param index
+	 *        the index of the input
+	 * @param input
+	 *        the input at the specified position
+	 */
+	public void setInput(final int index, final InputNode input);
+
+	/**
 	 * Returns all inputs of this PactModule.
 	 * 
 	 * @return all inputs
@@ -56,6 +66,25 @@ public interface SubGraph<Node, InputNode extends Node, OutputNode extends Node>
 	 * @return the output at the specified position
 	 */
 	public abstract OutputNode getOutput(int index);
+
+	/**
+	 * Returns the internal output at the specified position.
+	 * 
+	 * @param index
+	 *        the index of the output
+	 * @return the internal output at the specified position
+	 */
+	public OutputNode getInternalOutputNodes(int index);
+	
+	/**
+	 * Sets the output at the specified position.
+	 * 
+	 * @param index
+	 *        the index of the output
+	 * @param input
+	 *        the output at the specified position
+	 */
+	public void setOutput(final int index, final OutputNode output);
 
 	/**
 	 * Returns all outputs of this Subgraph.

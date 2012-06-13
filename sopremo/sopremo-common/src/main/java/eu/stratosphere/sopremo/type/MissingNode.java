@@ -42,7 +42,8 @@ public class MissingNode extends JsonNode implements IPrimitiveNode {
 
 	@Override
 	public boolean equals(final Object o) {
-		throw new UnsupportedOperationException("MissingNode");
+		return this == o;
+		// throw new UnsupportedOperationException("MissingNode");
 	}
 
 	@Override
@@ -78,7 +79,7 @@ public class MissingNode extends JsonNode implements IPrimitiveNode {
 	}
 
 	private Object readResolve() {
-		return getInstance();
+		return Instance;
 	}
 
 	@Override

@@ -15,16 +15,22 @@
 package eu.stratosphere.sopremo.sdaa11.clustering;
 
 import eu.stratosphere.sopremo.CompositeOperator;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
-import eu.stratosphere.sopremo.sdaa11.clustering.main.PointMapper;
-import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
+import eu.stratosphere.sopremo.sdaa11.clustering.initial.SequentialClustering;
+import eu.stratosphere.sopremo.sdaa11.clustering.main.RepresentationUpdate;
+import eu.stratosphere.sopremo.sdaa11.clustering.postprocessing.PostProcess;
+import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeAssembler;
 
 /**
  * @author skruse
- *
+ * 
  */
+@InputCardinality(min = 2, max = 2)
+@OutputCardinality(min = 4, max = 4)
 public class Clustering extends CompositeOperator<Clustering> {
 
 	private static final long serialVersionUID = -747074302410053877L;
@@ -32,29 +38,178 @@ public class Clustering extends CompositeOperator<Clustering> {
 	public static final int SAMPLE_INPUT_INDEX = 0;
 	public static final int REST_INPUT_INDEX = 1;
 
-	/* (non-Javadoc)
+	private int maxInitialClusterSize = SequentialClustering.DEFAULT_MAX_SIZE;
+	private int maxInitialClusterRadius = SequentialClustering.DEFAULT_MAX_RADIUS;
+	private int treeWidth = TreeAssembler.DEFAULT_TREE_WIDTH;
+	private int representationDetail = RepresentationUpdate.DEFAULT_REPRESENTATION_DETAIL;
+	private int maxFinalClusterRadius = RepresentationUpdate.DEFAULT_MAX_CLUSTER_RADIUS;
+	private int maxClustroidShift = RepresentationUpdate.DEFAULT_MAX_CLUSTROID_SHIFT;
+	private int minPointCount = RepresentationUpdate.DEFAULT_MIN_POINT_COUNT;
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
-	public SopremoModule asElementaryOperators() {
-		SopremoModule module = new SopremoModule(getName(), 2, 4);
-		
-		Operator<?> sampleInput = module.getInput(SAMPLE_INPUT_INDEX);
-		Operator<?> restInput = module.getInput(REST_INPUT_INDEX);
-		
-		Operator<?> initialClustering = new InitialClustering();
-		initialClustering.setInput(0, sampleInput);
-		
-		Operator<?> treeCreator = new TreeCreator();
-		treeCreator.setInput(0, initialClustering.getOutput(0));
-		
-		Operator<?> pointMapper = new PointMapper();
-		pointMapper.setInput(0, treeCreator.getOutput(0));
-		pointMapper.setInput(1, restInput);
-		
-		// TODO
-		
-		return module;
+	public ElementarySopremoModule asElementaryOperators() {
+		final SopremoModule module = new SopremoModule(this.getName(), 2, 4);
+
+		final Operator<?> sampleInput = module.getInput(SAMPLE_INPUT_INDEX);
+		final Operator<?> restInput = module.getInput(REST_INPUT_INDEX);
+
+		final SimpleClustering simpleClustering = new SimpleClustering()
+				.withInputs(sampleInput, restInput);
+		simpleClustering.setMaxClustroidShift(this.maxClustroidShift);
+		simpleClustering.setMaxFinalClusterRadius(this.maxFinalClusterRadius);
+		simpleClustering
+				.setMaxInitialClusterRadius(this.maxInitialClusterRadius);
+		simpleClustering.setMaxInitialClusterSize(this.maxInitialClusterSize);
+		simpleClustering.setMinPointCount(this.minPointCount);
+		simpleClustering.setRepresentationDetail(this.representationDetail);
+		simpleClustering.setTreeWidth(this.treeWidth);
+
+		final PostProcess postProcess = new PostProcess()
+				.withInputs(simpleClustering.getOutputs());
+		postProcess.setRepresentationDetail(this.representationDetail);
+
+		for (int index = 0; index < 4; index++)
+			module.getOutput(index).setInput(0, postProcess.getOutput(index));
+
+		return module.asElementary();
+	}
+
+	/**
+	 * Returns the maxInitialClusterSize.
+	 * 
+	 * @return the maxInitialClusterSize
+	 */
+	public int getMaxInitialClusterSize() {
+		return this.maxInitialClusterSize;
+	}
+
+	/**
+	 * Sets the maxInitialClusterSize to the specified value.
+	 * 
+	 * @param maxInitialClusterSize
+	 *            the maxInitialClusterSize to set
+	 */
+	public void setMaxInitialClusterSize(final int maxInitialClusterSize) {
+		this.maxInitialClusterSize = maxInitialClusterSize;
+	}
+
+	/**
+	 * Returns the maxInitialClusterRadius.
+	 * 
+	 * @return the maxInitialClusterRadius
+	 */
+	public int getMaxInitialClusterRadius() {
+		return this.maxInitialClusterRadius;
+	}
+
+	/**
+	 * Sets the maxInitialClusterRadius to the specified value.
+	 * 
+	 * @param maxInitialClusterRadius
+	 *            the maxInitialClusterRadius to set
+	 */
+	public void setMaxInitialClusterRadius(final int maxInitialClusterRadius) {
+		this.maxInitialClusterRadius = maxInitialClusterRadius;
+	}
+
+	/**
+	 * Returns the treeWidth.
+	 * 
+	 * @return the treeWidth
+	 */
+	public int getTreeWidth() {
+		return this.treeWidth;
+	}
+
+	/**
+	 * Sets the treeWidth to the specified value.
+	 * 
+	 * @param treeWidth
+	 *            the treeWidth to set
+	 */
+	public void setTreeWidth(final int treeWidth) {
+		this.treeWidth = treeWidth;
+	}
+
+	/**
+	 * Returns the representationDetail.
+	 * 
+	 * @return the representationDetail
+	 */
+	public int getRepresentationDetail() {
+		return this.representationDetail;
+	}
+
+	/**
+	 * Sets the representationDetail to the specified value.
+	 * 
+	 * @param representationDetail
+	 *            the representationDetail to set
+	 */
+	public void setRepresentationDetail(final int representationDetail) {
+		this.representationDetail = representationDetail;
+	}
+
+	/**
+	 * Returns the maxFinalClusterRadius.
+	 * 
+	 * @return the maxFinalClusterRadius
+	 */
+	public int getMaxFinalClusterRadius() {
+		return this.maxFinalClusterRadius;
+	}
+
+	/**
+	 * Sets the maxFinalClusterRadius to the specified value.
+	 * 
+	 * @param maxFinalClusterRadius
+	 *            the maxFinalClusterRadius to set
+	 */
+	public void setMaxFinalClusterRadius(final int maxFinalClusterRadius) {
+		this.maxFinalClusterRadius = maxFinalClusterRadius;
+	}
+
+	/**
+	 * Returns the maxClustroidShift.
+	 * 
+	 * @return the maxClustroidShift
+	 */
+	public int getMaxClustroidShift() {
+		return this.maxClustroidShift;
+	}
+
+	/**
+	 * Sets the maxClustroidShift to the specified value.
+	 * 
+	 * @param maxClustroidShift
+	 *            the maxClustroidShift to set
+	 */
+	public void setMaxClustroidShift(final int maxClustroidShift) {
+		this.maxClustroidShift = maxClustroidShift;
+	}
+
+	/**
+	 * Returns the minPointCount.
+	 * 
+	 * @return the minPointCount
+	 */
+	public int getMinPointCount() {
+		return this.minPointCount;
+	}
+
+	/**
+	 * Sets the minPointCount to the specified value.
+	 * 
+	 * @param minPointCount
+	 *            the minPointCount to set
+	 */
+	public void setMinPointCount(final int minPointCount) {
+		this.minPointCount = minPointCount;
 	}
 
 }

@@ -9,9 +9,10 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
-import eu.stratosphere.sopremo.sdaa11.Annotator;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.ClusterQueue.ClusterPair;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.ClusterNodes;
+import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -22,20 +23,15 @@ public class SequentialClustering extends
 		ElementaryOperator<SequentialClustering> {
 
 	private static final long serialVersionUID = 5563265035325926095L;
-	
-	public static final String SCHEMA_ID = "id";
 
-	public static final String SCHEMA_POINTS = "points";
-
-	public static final String SCHEMA_CLUSTROID = "clustroid";
-
-	
+	public static final int DEFAULT_MAX_RADIUS = 500;
+	public static final int DEFAULT_MAX_SIZE = 1000;
 
 	/** The maximum radius of a cluster. */
-	private int maxRadius;
+	private int maxRadius = DEFAULT_MAX_RADIUS;
 
 	/** The maximum number of points of a cluster. */
-	private int maxSize;
+	private int maxSize = DEFAULT_MAX_SIZE;
 
 	public int getMaxRadius() {
 		return this.maxRadius;
@@ -54,8 +50,23 @@ public class SequentialClustering extends
 	}
 
 	@Override
-	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		return Arrays.asList(new ObjectAccess(Annotator.DUMMY_KEY));
+	public List<? extends EvaluationExpression> getKeyExpressions(
+			final int inputIndex) {
+		if (inputIndex != 0)
+			throw new IllegalArgumentException("Illegal input index: "
+					+ inputIndex);
+		return Arrays.asList(new ObjectAccess(AnnotatorNodes.ANNOTATION));
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see eu.stratosphere.sopremo.AbstractSopremoType#toString()
+	 */
+	@Override
+	public String toString() {
+		return "SequentialClustering[maxRadius=" + this.maxRadius + ";maxSize"
+				+ this.maxSize + "]";
 	}
 
 	public static class Implementation extends SopremoReduce {
@@ -67,8 +78,16 @@ public class SequentialClustering extends
 		private final List<HierarchicalCluster> clusters = new ArrayList<HierarchicalCluster>();
 		private int idCounter = 0;
 
+		private final ObjectNode outputNode = new ObjectNode();
+		private final TextNode idNode = new TextNode();
+		private final IArrayNode pointsNode = new ArrayNode();
+		private final ObjectNode clustroidNode = new ObjectNode();
+
 		@Override
 		protected void reduce(final IArrayNode values, final JsonCollector out) {
+
+			System.out.println("Sequential clustering: " + values);
+
 			this.addPoints(values);
 			this.cluster();
 			this.emitClusters(out);
@@ -77,7 +96,7 @@ public class SequentialClustering extends
 		private void addPoints(final IArrayNode values) {
 			for (final IJsonNode value : values) {
 				final Point point = new Point();
-				point.read(Annotator.deannotate(value));
+				point.read(AnnotatorNodes.getAnnotatee((ObjectNode) value));
 				this.queue.add(new BaseCluster(point, String.valueOf(this
 						.createNewId())));
 			}
@@ -88,6 +107,8 @@ public class SequentialClustering extends
 			// left.
 			while (this.queue.getNumberOfClusters() > 1) {
 				final ClusterPair pair = this.queue.getFirstElement();
+				if (pair.getDistance() > this.maxRadius)
+					break;
 				final HierarchicalCluster cluster1 = pair.getCluster1();
 				final HierarchicalCluster cluster2 = pair.getCluster2();
 
@@ -129,17 +150,17 @@ public class SequentialClustering extends
 		private void emit(final HierarchicalCluster cluster,
 				final JsonCollector out) {
 			if (cluster.isFinal()) {
-				final ArrayNode pointsNode = new ArrayNode();
+				this.pointsNode.clear();
 				for (final Point point : cluster.getPoints())
-					pointsNode.add(point.write((IJsonNode) null));
+					this.pointsNode.add(point.write((IJsonNode) null));
 
-				final ObjectNode clusterNode = new ObjectNode();
-				clusterNode.put(SCHEMA_ID, new TextNode(cluster.getId()));
-				clusterNode.put(SCHEMA_CLUSTROID,
-						cluster.getClustroid().write((IJsonNode) null));
-				clusterNode.put(SCHEMA_POINTS, pointsNode);
+				this.idNode.setValue(cluster.getId());
 
-				out.collect(clusterNode);
+				cluster.getClustroid().write(this.clustroidNode);
+
+				ClusterNodes.write(this.outputNode, this.idNode,
+						this.clustroidNode, this.pointsNode);
+				out.collect(this.outputNode);
 			} else
 				for (final HierarchicalCluster child : cluster.getChildren())
 					this.emit(child, out);

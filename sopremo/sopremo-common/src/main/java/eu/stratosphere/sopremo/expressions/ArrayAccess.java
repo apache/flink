@@ -6,6 +6,7 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 /**
@@ -83,6 +84,9 @@ public class ArrayAccess extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		if (!node.isArray())
+			return MissingNode.getInstance();
+
 		if (this.isSelectingAll()) {
 			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 
@@ -193,5 +197,39 @@ public class ArrayAccess extends EvaluationExpression {
 		if (index < 0)
 			return size + index;
 		return index;
+	}
+
+	/**
+	 * Returns an optimal expression that returns an array that aggregates the given indices.<br>
+	 * Please note that the result of this expression is always an array in contrast to ArrayAccess with only one
+	 * index.
+	 * 
+	 * @param indices
+	 *        the indices in the original array that should be concatenated to a new array
+	 * @return an optimal expression that evaluates to an array
+	 */
+	public static EvaluationExpression arrayWithIndices(final int... indices) {
+		switch (indices.length) {
+		case 0:
+			return new ArrayCreation();
+		case 1:
+			return new ArrayCreation(new ArrayAccess(indices[0]));
+		default:
+			boolean monoton = true;
+			int step = indices[1] - indices[0];
+			if (Math.abs(step) != 1)
+				monoton = false;
+
+			for (int index = 2; monoton && index < indices.length; index += step)
+				monoton = indices[index] - indices[index - 1] == step;
+
+			if (monoton)
+				return new ArrayAccess(indices[0], indices[indices.length - 1]);
+
+			ArrayAccess[] accesses = new ArrayAccess[indices.length];
+			for (int index = 0; index < indices.length; index++)
+				accesses[index] = new ArrayAccess(indices[index]);
+			return new ArrayCreation();
+		}
 	}
 }

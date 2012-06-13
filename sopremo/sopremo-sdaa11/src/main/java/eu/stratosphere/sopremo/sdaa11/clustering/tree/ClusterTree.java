@@ -13,129 +13,136 @@ import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
 public class ClusterTree implements Serializable, JsonSerializable {
-	
+
+	private static final String JSON_KEY_ROOT = "root";
+	private static final String JSON_KEY_DEGREE = "degree";
+
 	private static final long serialVersionUID = -2054155381249234100L;
 
 	private InnerNode root;
 	private int degree;
-	
-	public ClusterTree() { }
-	
-	public ClusterTree(int degree) {
-		this.degree = degree;
-		this.root = createInnerNode();
+
+	public ClusterTree() {
 	}
 
-	public Leaf createLeaf(Point clustroid, String clusterId) {
+	public ClusterTree(final int degree) {
+		this.degree = degree;
+		this.root = this.createInnerNode();
+	}
+
+	public Leaf createLeaf(final Point clustroid, final String clusterId) {
 		return new Leaf(this, clustroid, clusterId);
 	}
 
 	public InnerNode createInnerNode() {
-		return new InnerNode(this, degree);
+		return new InnerNode(this, this.degree);
 	}
-	
-	public void add(Point clustroid, String clusterId) {
-		root.add(createLeaf(clustroid, clusterId));
+
+	public void add(final Point clustroid, final String clusterId) {
+		this.root.add(this.createLeaf(clustroid, clusterId));
 	}
 
 	/* Hack'n'slay */
-	private void printTree(INode node, int indent, StringBuilder sb) {
-		for (int i = 0; i < indent; i++) {
+	private void printTree(final INode node, final int indent,
+			final StringBuilder sb) {
+		for (int i = 0; i < indent; i++)
 			sb.append("  ");
-		}
 		sb.append(node).append("\n");
 		if (node instanceof InnerNode) {
-			InnerNode innerNode = (InnerNode) node;
-			for (INode subnode : innerNode.getSubnodes()) {
-				printTree(subnode, indent + 1, sb);
-			}
+			final InnerNode innerNode = (InnerNode) node;
+			for (final INode subnode : innerNode.getSubnodes())
+				this.printTree(subnode, indent + 1, sb);
 		}
 	}
 
-	public void remove(INode node) {
-		if (root.equals(node)) {
-			root = createInnerNode();
-		}
-		root.remove(node);
+	public void remove(final INode node) {
+		if (this.root.equals(node))
+			this.root = this.createInnerNode();
+		this.root.remove(node);
 	}
 
-	public String findIdOfClusterNextTo(Point point) {
-		return root.findLeafNextTo(point).getClusterId();
+	public String findIdOfClusterNextTo(final Point point) {
+		return this.root.findLeafNextTo(point).getClusterId();
 	}
-	
-	
-	public InnerNode merge(INode node1, INode node2) {
-		InnerNode mergedNode = createInnerNode();
-		addAll(node1, mergedNode);
-		addAll(node2, mergedNode);
+
+	public AbstractNode merge(final INode node1, final INode node2) {
+		final AbstractNode mergedNode = this.createInnerNode();
+		this.addAll(node1, mergedNode);
+		this.addAll(node2, mergedNode);
 		return mergedNode;
 	}
 
-	private void addAll(INode node, InnerNode mergedNode) {
-		if (node instanceof Leaf) {
+	private void addAll(final INode node, final AbstractNode mergedNode) {
+		if (node instanceof Leaf)
 			mergedNode.add(node);
-		} else {
-			InnerNode innerNode = (InnerNode) node;
-			for (INode subnode : innerNode.getSubnodes()) {
+		else {
+			final InnerNode innerNode = (InnerNode) node;
+			for (final INode subnode : innerNode.getSubnodes())
 				mergedNode.add(subnode);
-			}
 		}
 	}
 
 	public Collection<Leaf> getLeafs() {
-		return root.getLeafs();
+		return this.root.getLeafs();
 	}
 
 	public List<Point> getClustroids() {
-		Collection<Leaf> leafs = getLeafs();
-		List<Point> clustroids = new ArrayList<Point>(leafs.size());
-		for (Leaf leaf : leafs) {
+		final Collection<Leaf> leafs = this.getLeafs();
+		final List<Point> clustroids = new ArrayList<Point>(leafs.size());
+		for (final Leaf leaf : leafs)
 			clustroids.add(leaf.getClustroid());
-		}
 		return clustroids;
 	}
 
 	public List<String> getClusterIds() {
-		Collection<Leaf> leafs = getLeafs();
-		List<String> ids = new ArrayList<String>(leafs.size());
-		for (Leaf leaf : leafs) {
+		final Collection<Leaf> leafs = this.getLeafs();
+		final List<String> ids = new ArrayList<String>(leafs.size());
+		for (final Leaf leaf : leafs)
 			ids.add(leaf.getClusterId());
-		}
 		return ids;
 	}
 
-	public InnerNode getRootNode() {
-		return root;
+	public AbstractNode getRootNode() {
+		return this.root;
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder();
+		final StringBuilder sb = new StringBuilder();
 		sb.append("GRGPF Tree: \n");
-		printTree(root, 0, sb);
+		this.printTree(this.root, 0, sb);
 		return sb.toString();
 	}
 
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#write(eu.stratosphere.sopremo.type.IJsonNode)
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * eu.stratosphere.sopremo.sdaa11.JsonSerializable#write(eu.stratosphere
+	 * .sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode write(IJsonNode node) {
-		ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
-		objectNode.put("degree", new IntNode(degree));
-		objectNode.put("root", root.write(null));
+	public IJsonNode write(final IJsonNode node) {
+		final ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
+		objectNode.put(JSON_KEY_DEGREE, new IntNode(this.degree));
+		objectNode.put(JSON_KEY_ROOT, this.root.write(null));
 		return objectNode;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#read(eu.stratosphere.sopremo.type.IJsonNode)
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * eu.stratosphere.sopremo.sdaa11.JsonSerializable#read(eu.stratosphere.
+	 * sopremo.type.IJsonNode)
 	 */
 	@Override
-	public void read(IJsonNode node) {
-		degree = JsonUtil2.getField(node, "degree", IntNode.class).getIntValue();
-		root = createInnerNode();
-		root.read(JsonUtil2.getField(node, "root", ObjectNode.class));
+	public void read(final IJsonNode node) {
+		this.degree = JsonUtil2.getField(node, JSON_KEY_DEGREE, IntNode.class)
+				.getIntValue();
+		this.root = this.createInnerNode();
+		this.root.read(JsonUtil2
+				.getField(node, JSON_KEY_ROOT, ObjectNode.class));
 	}
 
 }

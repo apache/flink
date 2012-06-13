@@ -43,8 +43,10 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 	@Override
 	public void read(final DataInput in) throws IOException {
 		try {
-			this.value = Type.values()[in.readInt()].getClazz().newInstance();
+			final int typeIndex = in.readByte();
+			this.value = Type.values()[typeIndex].getClazz().newInstance();
 			this.value.read(in);
+			this.value = this.value.canonicalize();
 		} catch (final InstantiationException e) {
 			e.printStackTrace();
 		} catch (final IllegalAccessException e) {
@@ -54,7 +56,7 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 
 	@Override
 	public void write(final DataOutput out) throws IOException {
-		out.writeInt(this.value.getType().ordinal());
+		out.writeByte(this.value.getType().ordinal());
 		this.value.write(out);
 	}
 

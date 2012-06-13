@@ -21,6 +21,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.util.IdentitySet;
 
 /**
@@ -77,6 +78,18 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 		this.internalOutputNodes.add(output);
 	}
 
+	/**
+	 * Returns the internalOutputNodes.
+	 * 
+	 * @return the internalOutputNodes
+	 */
+	@SuppressWarnings("unchecked")
+	public OutputNode[] getInternalOutputNodes() {
+		return this.internalOutputNodes.toArray((OutputNode[]) Array.newInstance(
+			this.outputNodes.getClass().getComponentType(),
+			this.internalOutputNodes.size()));
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public OutputNode[] getAllOutputs() {
@@ -96,6 +109,11 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	}
 
 	@Override
+	public void setInput(int index, InputNode input) {
+		this.inputNodes[index] = input;
+	}
+
+	@Override
 	public InputNode[] getInputs() {
 		return this.inputNodes;
 	}
@@ -107,6 +125,15 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	@Override
 	public OutputNode getOutput(final int index) {
 		return this.outputNodes[index];
+	}
+
+	public OutputNode getInternalOutputNodes(int index) {
+		return this.internalOutputNodes.get(index);
+	}
+	
+	@Override
+	public void setOutput(int index, OutputNode output) {
+		this.outputNodes[index] = output;
 	}
 
 	@Override

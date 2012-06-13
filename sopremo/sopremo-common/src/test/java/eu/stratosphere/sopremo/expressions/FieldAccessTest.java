@@ -9,6 +9,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.MissingNode;
 
 public class FieldAccessTest extends EvaluableExpressionTest<ObjectAccess> {
 	@Override
@@ -24,14 +25,16 @@ public class FieldAccessTest extends EvaluableExpressionTest<ObjectAccess> {
 		Assert.assertEquals(createValueNode(42), result);
 	}
 
-	@Test(expected = EvaluationException.class)
-	public void shouldFailIfArrayOfPrimitives() {
-		new ObjectAccess("fieldName").evaluate(createArrayNode(1, 2, 3), null, this.context);
+	@Test
+	public void shouldReturnMissingNodeIfArray() {
+		final IJsonNode result = new ObjectAccess("fieldName").evaluate(createArrayNode(1, 2, 3), null, this.context);
+		Assert.assertSame(MissingNode.getInstance(), result);
 	}
 
-	@Test(expected = EvaluationException.class)
-	public void shouldFailIfNoObjectOrArray() {
-		new ObjectAccess("fieldName").evaluate(createValueNode(42), null, this.context);
+	@Test
+	public void shouldFailIfPrimitive() {
+		final IJsonNode result = new ObjectAccess("fieldName").evaluate(createValueNode(42), null, this.context);
+		Assert.assertSame(MissingNode.getInstance(), result);
 	}
 
 }

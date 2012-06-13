@@ -12,41 +12,39 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo;
+package eu.stratosphere.sopremo.sdaa11.clustering.json;
 
-import org.junit.Test;
-
-import eu.stratosphere.pact.testing.TestPlan;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
-import eu.stratosphere.sopremo.testing.SopremoTestPlan;
-import eu.stratosphere.sopremo.testing.SopremoTestPlanTest.Identity;
-import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
- *
+ * 
  */
-public class SourceTest2 {
-	
-	@Test
-	public void testAnnotator() {
-		
-		
-		Identity identity = new Identity();
-		Source source = new Source(new ConstantExpression(2));
-		Sink sink = new Sink();
+public class ClusterNodes {
 
-		sink.setInput(0, identity);
-		identity.setInput(0, source);
+	public static final String ID = "id";
+	public static final String CLUSTROID = "clstrd";
+	public static final String POINTS = "points";
 
-		SopremoPlan plan = new SopremoPlan();
-		plan.setContext(new EvaluationContext());
-		plan.setSinks(sink);
+	public static void write(final ObjectNode clusterNode,
+			final TextNode idNode, final ObjectNode clustroidNode,
+			final IArrayNode pointsNode) {
+		clusterNode.put(ID, idNode).put(CLUSTROID, clustroidNode)
+				.put(POINTS, pointsNode);
+	}
 
-		TestPlan testPlan = new TestPlan(plan.assemblePact());
-		testPlan.run();
-		
+	public static TextNode getId(final ObjectNode clusterNode) {
+		return (TextNode) clusterNode.get(ID);
+	}
+
+	public static ObjectNode getClustroid(final ObjectNode clusterNode) {
+		return (ObjectNode) clusterNode.get(CLUSTROID);
+	}
+
+	public static IArrayNode getPoints(final ObjectNode clusterNode) {
+		return (IArrayNode) clusterNode.get(POINTS);
 	}
 
 }

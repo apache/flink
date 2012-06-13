@@ -79,7 +79,10 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 	 */
 	@Override
 	public void open(final Configuration parameters) throws Exception {
-		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
+		// We need to pass our class loader since the default class loader is
+		// not able to resolve classes coming from the Sopremo user jar file.
+		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT,
+				EvaluationContext.class, this.getClass().getClassLoader());
 		this.collector = new JsonCollector(this.context.getInputSchema(0));
 		this.cachedIterator1 = new RecordToJsonIterator(this.context.getInputSchema(0));
 		this.cachedIterator2 = new RecordToJsonIterator(this.context.getInputSchema(1));

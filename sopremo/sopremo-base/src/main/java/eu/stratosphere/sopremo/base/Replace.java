@@ -1,27 +1,32 @@
 package eu.stratosphere.sopremo.base;
 
-import java.util.Arrays;
-import java.util.Iterator;
-
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.Name;
+import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.base.replace.ArrayReplaceWithDefaultValue;
+import eu.stratosphere.sopremo.base.replace.ArrayStrictReplace;
+import eu.stratosphere.sopremo.base.replace.ArrayStrictReplace.ElementStrictReplace;
+import eu.stratosphere.sopremo.base.replace.ReplaceBase;
+import eu.stratosphere.sopremo.base.replace.ReplaceWithDefaultValue;
+import eu.stratosphere.sopremo.base.replace.StrictReplace;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.SingletonExpression;
+import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.SopremoCoGroup;
-import eu.stratosphere.sopremo.pact.SopremoMatch;
+import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.NumericNode;
 
 @InputCardinality(min = 2, max = 2)
 @Name(verb = "replace")
@@ -51,9 +56,27 @@ public class Replace extends CompositeOperator<Replace> {
 		}
 	};
 
+	public final static EvaluationExpression KEEP_VALUE = new SingletonExpression("<keep>") {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1652841463219871730L;
+
+		@Override
+		public IJsonNode evaluate(IJsonNode node, IJsonNode target, EvaluationContext context) {
+			throw new EvaluationException("Tag expression");
+		}
+
+		@Override
+		protected Object readResolve() {
+			return KEEP_VALUE;
+		}
+	};
+
 	private EvaluationExpression dictionaryKeyExtraction = new ArrayAccess(0),
 			dictionaryValueExtraction = new ArrayAccess(1),
-			defaultExpression = FILTER_RECORDS;
+			defaultExpression = KEEP_VALUE;
 
 	private boolean arrayElementsReplacement = false;
 
@@ -76,46 +99,59 @@ public class Replace extends CompositeOperator<Replace> {
 	}
 
 	@Override
-	public SopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators() {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
 
+		EvaluationExpression defaultExpression =
+			this.defaultExpression == KEEP_VALUE ? this.replaceExpression : this.defaultExpression;
 		if (this.arrayElementsReplacement) {
-			// final ArraySplit arraySplit = new ArraySplit().
-			// withArrayPath(this.replaceExpression).
-			// withKeyProjection(new ArrayAccess(0)).
-			// withValueProjection(new ArrayAccess(1, 2)).
-			// withInputs(sopremoModule.getInput(0));
-			//
-			// final Operator<?> replacedElements = this.defaultExpression == FILTER_RECORDS ?
+			final ArraySplit arraySplit =
+				new ArraySplit().
+					withArrayPath(this.replaceExpression).
+					withSplitProjection(ArraySplit.ResultField.Element, ArraySplit.ResultField.Index,
+						ArraySplit.ResultField.Array).
+					withInputs(sopremoModule.getInput(0));
+
+			Replace replacedElements = new Replace().
+				withInputs(arraySplit, sopremoModule.getInput(1)).
+				withDefaultExpression(this.defaultExpression).
+				withDictionaryValueExtraction(dictionaryValueExtraction).
+				withDictionaryKeyExtraction(dictionaryKeyExtraction).
+				withReplaceExpression(new ArrayAccess(0));
+
+			// final ReplaceBase<?> replacedElements = this.defaultExpression == FILTER_RECORDS ?
 			// new ElementStrictReplace().withInputs(arraySplit, right) :
 			// new ElementReplaceWithDefault().withDefaultExpression(this.defaultExpression).withInputs(arraySplit,
 			// right);
-			//
-			// final AssembleArray arrayDictionary = new AssembleArray().withInputs(replacedElements);
-			//
-			// final Replace arrayLookup = new Replace();
-			// arrayLookup.setInputs(sopremoModule.getInput(0), arrayDictionary);
-			// arrayLookup.setReplaceExpression(this.replaceExpression);
-			// Selection emptyArrays = new Selection().
-			// withCondition(new UnaryExpression(this.replaceExpression, true)).
-			// withInputs(sopremoModule.getInput(0));
-			// sopremoModule.getOutput(0).setInput(0, new UnionAll().withInputs(arrayLookup, emptyArrays));
-		} else {
-			ElementaryOperator<?> replaceAtom;
-			if (this.defaultExpression == FILTER_RECORDS)
-				replaceAtom = new StrictReplace().withInputKeyExtractor(this.replaceExpression);
-			else
-				replaceAtom = new ReplaceWithDefaultValue().
-					withDefaultExpression(this.defaultExpression).
-					withInputKeyExtractor(this.replaceExpression);
 
-			replaceAtom.setKeyExpressions(Arrays.asList(
-				new PathExpression(new InputSelection(0), getReplaceExpression()),
-				new PathExpression(new InputSelection(1), getDictionaryKeyExtraction())));
+			final AssembleArray arrayDictionary = new AssembleArray().
+				withInputs(replacedElements);
+
+			final Replace arrayLookup = new Replace().
+				withInputs(sopremoModule.getInput(0), arrayDictionary).
+				withReplaceExpression(this.replaceExpression);
+			// empty arrays will not be replaced
+			Selection emptyArrays = new Selection().
+				withCondition(new UnaryExpression(this.replaceExpression, true)).
+				withInputs(sopremoModule.getInput(0));
+			sopremoModule.getOutput(0).setInput(0, new UnionAll().withInputs(arrayLookup, emptyArrays));
+		} else {
+			ReplaceBase<?> replaceAtom;
+			if (defaultExpression == FILTER_RECORDS)
+				replaceAtom = new StrictReplace();
+			else
+				replaceAtom = new ReplaceWithDefaultValue().withDefaultExpression(this.defaultExpression);
+
+			replaceAtom.withInputs(sopremoModule.getInputs()).
+				withReplaceExpression(this.replaceExpression).
+				withDictionaryValueExtraction(this.dictionaryValueExtraction).
+				withKeyExpressions(0, getReplaceExpression()).
+				withKeyExpressions(1, getDictionaryKeyExtraction());
 			sopremoModule.getOutput(0).setInput(0,
 				replaceAtom.withInputs(sopremoModule.getInput(0), sopremoModule.getInput(1)));
 		}
-		return sopremoModule;
+
+		return sopremoModule.asElementary();
 	}
 
 	@Override
@@ -247,208 +283,34 @@ public class Replace extends CompositeOperator<Replace> {
 		return this;
 	}
 
-	//
-	// public static class AssembleArray extends ElementaryOperator<AssembleArray> {
-	// /**
-	// *
-	// */
-	// private static final long serialVersionUID = 7334161941683036846L;
-	//
-	// public static class Implementation extends SopremoReduce {
-	// /*
-	// * (non-Javadoc)
-	// * @see eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere.sopremo.type.IArrayNode,
-	// * eu.stratosphere.sopremo.pact.JsonCollector)
-	// */
-	// @Override
-	// protected void reduce(IArrayNode values, JsonCollector out) {
-	// IJsonNode[] array = new IJsonNode[((IArrayNode) key).size()];
-	// int replacedCount = 0;
-	// for (IJsonNode value : values) {
-	// int index = ((NumericNode) ((IArrayNode) value).get(0)).getIntValue();
-	// IJsonNode element = ((IArrayNode) value).get(1);
-	// array[index] = element;
-	// replacedCount++;
-	// }
-	//
-	// // all values replaced
-	// if (replacedCount == array.length)
-	// out.collect(key, JsonUtil.asArray(array));
-	// }
-	// }
-	// }
-	//
-	// @InputCardinality(min = 2, max = 2)
-	// public static class ElementReplaceWithDefault extends ElementaryOperator<ElementReplaceWithDefault> {
-	// /**
-	// *
-	// */
-	// private static final long serialVersionUID = 7334161941683036846L;
-	//
-	// private EvaluationExpression defaultExpression = FILTER_RECORDS;
-	//
-	// public void setDefaultExpression(EvaluationExpression defaultExpression) {
-	// if (defaultExpression == null)
-	// throw new NullPointerException("defaultExpression must not be null");
-	//
-	// this.defaultExpression = defaultExpression;
-	// }
-	//
-	// public ElementReplaceWithDefault withDefaultExpression(EvaluationExpression defaultExpression) {
-	// this.setDefaultExpression(defaultExpression);
-	// return this;
-	// }
-	//
-	// public EvaluationExpression getDefaultExpression() {
-	// return this.defaultExpression;
-	// }
-	//
-	// public static class Implementation extends SopremoCoGroup {
-	//
-	// private EvaluationExpression defaultExpression;
-	//
-	// @Override
-	// protected void coGroup(JsonNode key, ArrayNode values1, ArrayNode values2, JsonCollector out) {
-	//
-	// final Iterator<JsonNode> replaceValueIterator = values2.iterator();
-	// JsonNode replaceValue = replaceValueIterator.hasNext() ? replaceValueIterator.next() : null;
-	//
-	// final Iterator<JsonNode> valueIterator = values1.iterator();
-	// final EvaluationContext context = this.getContext();
-	// while (valueIterator.hasNext()) {
-	// JsonNode value = valueIterator.next();
-	// final JsonNode index = ((ArrayNode) value).get(0);
-	// JsonNode replacement = replaceValue != null ? replaceValue :
-	// this.defaultExpression.evaluate(
-	// ((ArrayNode) ((ArrayNode) value).get(1)).get(((IntNode) index).getIntValue()), context);
-	// out.collect(((ArrayNode) value).get(1), JsonUtil.asArray(index, replacement));
-	// }
-	// }
-	// }
-	// }
-	//
-	// @InputCardinality(min = 2, max = 2)
-	// public static class ElementStrictReplace extends ElementaryOperator<ElementStrictReplace> {
-	// /**
-	// *
-	// */
-	// private static final long serialVersionUID = 7334161941683036846L;
-	//
-	// public static class Implementation extends SopremoMatch {
-	// @Override
-	// protected void match(final IJsonNode value1, final IJsonNode value2, final JsonCollector out) {
-	// out.collect(((IArrayNode) value1).get(1), JsonUtil.asArray(((IArrayNode) value1).get(0), value2));
-	// }
-	// }
-	// }
-
-	@InputCardinality(min = 2, max = 2)
-	public static class ReplaceWithDefaultValue extends ElementaryOperator<ReplaceWithDefaultValue> {
+	public static class AssembleArray extends ElementaryOperator<AssembleArray> {
 		/**
-		 * 
-		 */
+	 *
+	 */
 		private static final long serialVersionUID = 7334161941683036846L;
 
-		private EvaluationExpression inputKeyExtractor = EvaluationExpression.VALUE;
-
-		private EvaluationExpression defaultExpression = FILTER_RECORDS;
-
-		public void setInputKeyExtractor(EvaluationExpression inputKeyExtractor) {
-			if (inputKeyExtractor == null)
-				throw new NullPointerException("inputKeyExtractor must not be null");
-
-			this.inputKeyExtractor = inputKeyExtractor;
-		}
-
-		public void setDefaultExpression(EvaluationExpression defaultExpression) {
-			if (defaultExpression == null)
-				throw new NullPointerException("defaultExpression must not be null");
-
-			this.defaultExpression = defaultExpression;
-		}
-
-		public ReplaceWithDefaultValue withInputKeyExtractor(EvaluationExpression prop) {
-			this.setInputKeyExtractor(prop);
-			return this;
-		}
-
-		public ReplaceWithDefaultValue withDefaultExpression(EvaluationExpression prop) {
-			this.setDefaultExpression(prop);
-			return this;
-		}
-
-		public EvaluationExpression getDefaultExpression() {
-			return this.defaultExpression;
-		}
-
-		public EvaluationExpression getInputKeyExtractor() {
-			return this.inputKeyExtractor;
-		}
-
-		public static class Implementation extends SopremoCoGroup {
-			private EvaluationExpression inputKeyExtractor;
-
-			private EvaluationExpression defaultExpression;
-
+		public static class Implementation extends SopremoReduce {
 			/*
 			 * (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.pact.SopremoCoGroup#coGroup(eu.stratosphere.sopremo.type.IArrayNode,
-			 * eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 * @see eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere.sopremo.type.IArrayNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out) {
-				final Iterator<IJsonNode> replaceValueIterator = values2.iterator();
-				IJsonNode replaceValue = replaceValueIterator.hasNext() ? replaceValueIterator.next() : null;
-
-				final Iterator<IJsonNode> valueIterator = values1.iterator();
-				final EvaluationContext context = this.getContext();
-				while (valueIterator.hasNext()) {
-					IJsonNode value = valueIterator.next();
-					IJsonNode replacement = replaceValue != null ? replaceValue :
-						this.defaultExpression.evaluate(this.inputKeyExtractor.evaluate(value, context), context);
-					out.collect(this.inputKeyExtractor.set(value, replacement, context));
+			protected void reduce(IArrayNode values, JsonCollector out) {
+				IJsonNode[] array = new IJsonNode[((IArrayNode) key).size()];
+				int replacedCount = 0;
+				for (IJsonNode value : values) {
+					int index = ((NumericNode) ((IArrayNode) value).get(0)).getIntValue();
+					IJsonNode element = ((IArrayNode) value).get(1);
+					array[index] = element;
+					replacedCount++;
 				}
+
+				// all values replaced
+				if (replacedCount == array.length)
+					out.collect(key, JsonUtil.asArray(array));
 			}
 		}
 	}
 
-	@InputCardinality(min = 2, max = 2)
-	public static class StrictReplace extends ElementaryOperator<StrictReplace> {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 7334161941683036846L;
-
-		private EvaluationExpression inputKeyExtractor;
-
-		public void setInputKeyExtractor(EvaluationExpression inputKeyExtractor) {
-			if (inputKeyExtractor == null)
-				throw new NullPointerException("inputKeyExtractor must not be null");
-
-			this.inputKeyExtractor = inputKeyExtractor;
-		}
-
-		public EvaluationExpression getInputKeyExtractor() {
-			return this.inputKeyExtractor;
-		}
-
-		public StrictReplace withInputKeyExtractor(EvaluationExpression prop) {
-			this.setInputKeyExtractor(prop);
-			return this;
-		}
-
-		public static class Implementation extends SopremoMatch {
-			private EvaluationExpression inputKeyExtractor;
-
-			/*
-			 * (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.pact.SopremoMatch#match(eu.stratosphere.sopremo.type.IJsonNode,
-			 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
-			 */
-			@Override
-			protected void match(IJsonNode value1, IJsonNode value2, JsonCollector out) {
-				out.collect(this.inputKeyExtractor.set(value1, value2, this.getContext()));
-			}
-		}
-	}
 }

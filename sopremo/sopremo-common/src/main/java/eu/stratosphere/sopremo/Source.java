@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -22,7 +24,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
-@InputCardinality(min = 0, max = 0)
+@InputCardinality(0)
 public class Source extends ElementaryOperator<Source> {
 	/**
 	 * 
@@ -92,16 +94,25 @@ public class Source extends ElementaryOperator<Source> {
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
-		final String inputPath = this.inputPath, name = this.inputPath;
+		final String inputPath = this.inputPath, name = getName();
 		GenericDataSource<?> contract;
 		if (this.isAdhoc()) {
 			contract = new GenericDataSource<GeneratorInputFormat>(
-					GeneratorInputFormat.class, name);
+					GeneratorInputFormat.class, String.format("Adhoc %s", name));
 			SopremoUtil.serialize(contract.getParameters(),
 					GeneratorInputFormat.ADHOC_EXPRESSION_PARAMETER_KEY,
 					this.adhocExpression);
-		} else
+		} else {
+			try {
+				URI validURI = new URI(inputPath);
+				if (validURI.getScheme() == null)
+					throw new IllegalStateException("Source does not have a valid schema: " + inputPath);
+			} catch (URISyntaxException e) {
+				throw new IllegalStateException("Source does not have a valid path: " + inputPath, e);
+			}
+			
 			contract = new FileDataSource(this.inputFormat, inputPath, name);
+		}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
 		if (this.inputFormat == JsonInputFormat.class)
 			contract.setDegreeOfParallelism(1);

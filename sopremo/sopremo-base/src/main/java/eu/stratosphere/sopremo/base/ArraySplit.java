@@ -5,6 +5,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
+import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -26,14 +27,18 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 	 */
 	private static final long serialVersionUID = -2967507260239105002L;
 
-	private EvaluationExpression arrayPath = EvaluationExpression.VALUE, elementProjection = new ArrayAccess(0);
+	private EvaluationExpression arrayPath = EvaluationExpression.VALUE, splitProjection = new ArrayAccess(0);
+
+	public enum ResultField {
+		Element, Index, Array, WholeValue;
+	};
 
 	public EvaluationExpression getArrayPath() {
 		return this.arrayPath;
 	}
 
-	public EvaluationExpression getElementProjection() {
-		return this.elementProjection;
+	public EvaluationExpression getSplitProjection() {
+		return this.splitProjection;
 	}
 
 	public ArraySplit withArrayPath(EvaluationExpression arrayPath) {
@@ -47,8 +52,30 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 	 * @param valueProjection
 	 * @return this
 	 */
-	public ArraySplit withValueProjection(EvaluationExpression valueProjection) {
-		this.setElementProjection(valueProjection);
+	public ArraySplit withSplitProjection(EvaluationExpression valueProjection) {
+		this.setSplitProjection(valueProjection);
+		return this;
+	}
+
+	/**
+	 * (element, index, array, node) -&gt; value
+	 * 
+	 * @param elementProjection
+	 */
+	public void setSplitProjection(EvaluationExpression elementProjection) {
+		if (elementProjection == null)
+			throw new NullPointerException("elementProjection must not be null");
+		this.splitProjection = elementProjection;
+	}
+
+	/**
+	 * (element, index, array, node) -&gt; value
+	 * 
+	 * @param valueProjection
+	 * @return this
+	 */
+	public ArraySplit withSplitProjection(ResultField... fields) {
+		this.setSplitProjection(fields);
 		return this;
 	}
 
@@ -57,16 +84,21 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 	 * 
 	 * @param valueProjection
 	 */
-	public void setElementProjection(EvaluationExpression valueProjection) {
-		this.elementProjection = valueProjection;
+	public void setSplitProjection(ResultField... fields) {
+		int[] indices = new int[fields.length];
+		for (int index = 0; index < indices.length; index++) 
+			indices[index] = fields[index].ordinal();
+		this.setSplitProjection(ArrayAccess.arrayWithIndices(indices));
 	}
 
 	public static class Implementation extends SopremoMap {
-		private EvaluationExpression arrayPath, elementProjection;
+		private CachingExpression<IArrayNode> arrayPath;
+
+		private EvaluationExpression elementProjection;
 
 		@Override
 		protected void map(final IJsonNode value, JsonCollector out) {
-			final IJsonNode array = this.arrayPath.evaluate(value, this.getContext());
+			final IArrayNode array = this.arrayPath.evaluate(value, null, this.getContext());
 			if (!array.isArray())
 				throw new EvaluationException("Cannot split non-array");
 
@@ -74,10 +106,11 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 			final EvaluationContext context = this.getContext();
 			IntNode indexNode = IntNode.valueOf(0);
 			ArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), indexNode, array, value);
-			for (IJsonNode element : (IArrayNode) array) {
+			for (IJsonNode element : array) {
 				contextNode.set(0, element);
-				indexNode.setValue(index++);
-				out.collect(this.elementProjection.evaluate(contextNode, context));
+				indexNode.setValue(index);
+				out.collect(this.elementProjection.evaluate(contextNode, null, context));
+				index++;
 			}
 		}
 	}

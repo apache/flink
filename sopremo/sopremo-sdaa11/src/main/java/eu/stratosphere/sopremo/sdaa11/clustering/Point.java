@@ -2,10 +2,12 @@ package eu.stratosphere.sopremo.sdaa11.clustering;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.PointNodes;
 import eu.stratosphere.sopremo.sdaa11.clustering.util.SortedJaccardDistance;
 import eu.stratosphere.sopremo.sdaa11.util.FastStringComparator;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -14,7 +16,8 @@ import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
-public class Point implements Serializable, Cloneable, Comparable<Point>, JsonSerializable {
+public class Point implements Serializable, Cloneable, Comparable<Point>,
+		JsonSerializable {
 
 	private static final long serialVersionUID = 8916618314991854207L;
 
@@ -23,6 +26,10 @@ public class Point implements Serializable, Cloneable, Comparable<Point>, JsonSe
 	private int rowsum = 0;
 
 	public Point() {
+	}
+
+	public Point(final String key, final String... values) {
+		this(key, Arrays.asList(values));
 	}
 
 	public Point(final String key, final List<String> values) {
@@ -100,33 +107,34 @@ public class Point implements Serializable, Cloneable, Comparable<Point>, JsonSe
 		return FastStringComparator.INSTANCE.compare(this.key, otherPoint.key);
 	}
 
-	public IJsonNode write(IJsonNode node) {
+	@Override
+	public IJsonNode write(final IJsonNode node) {
 		ObjectNode objectNode;
 		if (node == null || !(node instanceof ObjectNode))
 			objectNode = new ObjectNode();
 		else
 			objectNode = (ObjectNode) node;
 
-		objectNode.put("id", new TextNode(this.key));
 		final ArrayNode valuesNode = new ArrayNode();
 		for (final String value : this.values)
 			valuesNode.add(new TextNode(value));
-		objectNode.put("values", valuesNode);
-		objectNode.put("rowsum", new IntNode(this.rowsum));
-		
+		PointNodes.write(objectNode, new TextNode(this.key), valuesNode,
+				new IntNode(this.rowsum));
+
 		return objectNode;
 	}
-	
-	public void read(IJsonNode node) {
-		if (node == null || !(node instanceof ObjectNode)) {
-			throw new IllegalArgumentException("Illegal point node: "+node);
-		}
-		ObjectNode objectNode = (ObjectNode) node;
-		key = ((TextNode) objectNode.get("id")).getJavaValue();
-		values = new ArrayList<String>();
-		for (IJsonNode valuesNode : (ArrayNode) objectNode.get("values")) {
-			values.add(((TextNode) valuesNode).getJavaValue());
-		}
-		rowsum = ((IntNode) objectNode.get("rowsum")).getJavaValue();
+
+	@Override
+	public void read(final IJsonNode node) {
+		if (node == null || !(node instanceof ObjectNode))
+			throw new IllegalArgumentException("Illegal point node: " + node);
+		final ObjectNode objectNode = (ObjectNode) node;
+		System.out.println("Reading point from " + node);
+
+		this.key = PointNodes.getId(objectNode).getJavaValue();
+		this.values = new ArrayList<String>();
+		for (final IJsonNode valuesNode : PointNodes.getValues(objectNode))
+			this.values.add(((TextNode) valuesNode).getTextValue());
+		this.rowsum = PointNodes.getRowsum(objectNode).getIntValue();
 	}
 }

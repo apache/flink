@@ -15,6 +15,7 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 
 import java.util.Arrays;
+import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -22,25 +23,21 @@ import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.RepresentationNodes;
 import eu.stratosphere.sopremo.sdaa11.clustering.tree.ClusterTree;
+import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
- *
+ * 
  */
 public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
-	
+
 	private static final long serialVersionUID = -1439186245691893155L;
-	
-	public static final IntNode DUMMY_NODE = new IntNode(0);
-	
-	public static final String DUMMY_KEY = "dummy";
-	
+
 	public static final int DEFAULT_TREE_WIDTH = 10;
 
 	/**
@@ -54,25 +51,27 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 	 * @return the treeWidth
 	 */
 	public int getTreeWidth() {
-		return treeWidth;
+		return this.treeWidth;
 	}
 
 	/**
 	 * Sets the treeWidth to the specified value.
-	 *
-	 * @param treeWidth the treeWidth to set
+	 * 
+	 * @param treeWidth
+	 *            the treeWidth to set
 	 */
-	public void setTreeWidth(int treeWidth) {
-	
+	public void setTreeWidth(final int treeWidth) {
+
 		this.treeWidth = treeWidth;
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
-	 */
+
 	@Override
-	public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-		return Arrays.asList(new ObjectAccess(DUMMY_KEY));
+	public List<? extends EvaluationExpression> getKeyExpressions(
+			final int inputIndex) {
+		if (inputIndex != 0)
+			throw new IllegalArgumentException("Illegal input index: "
+					+ inputIndex);
+		return Arrays.asList(new ObjectAccess(AnnotatorNodes.FLAT_ANNOTATION));
 	}
 
 	public static class Implementation extends SopremoReduce {
@@ -81,25 +80,34 @@ public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 		 * @see TreeAssembler#treeWidth
 		 */
 		private int treeWidth;
-		
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see
+		 * eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere
+		 * .sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
 		 */
 		@Override
-		protected void reduce(IArrayNode values, JsonCollector out) {
-			ClusterTree tree = new ClusterTree(treeWidth);
+		protected void reduce(final IArrayNode values, final JsonCollector out) {
 
-			for (IJsonNode value : values) {
-				ObjectNode clusterDescriptorNode = (ObjectNode) value;
-				String clusterName = ((TextNode) clusterDescriptorNode.get("id")).getJavaValue();
-				Point clustroid = new Point();
-				clustroid.read(clusterDescriptorNode.get("clustroid"));
+			System.out.println("Assembling tree from: " + values);
+
+			final ClusterTree tree = new ClusterTree(this.treeWidth);
+
+			for (final IJsonNode value : values) {
+				final ObjectNode representationNode = (ObjectNode) value;
+				final String clusterName = RepresentationNodes.getId(
+						representationNode).getJavaValue();
+				final Point clustroid = new Point();
+				clustroid.read(RepresentationNodes
+						.getClustroid(representationNode));
 				tree.add(clustroid, clusterName);
 			}
-			
-			out.collect(tree.write(null));		
+
+			out.collect(tree.write(null));
 		}
-		
+
 	}
-	
+
 }

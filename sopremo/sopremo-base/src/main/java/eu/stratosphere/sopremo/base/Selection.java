@@ -11,7 +11,7 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-@Name(verb = "select")
+@Name(verb = "filter")
 public class Selection extends ElementaryOperator<Selection> {
 	/**
 	 * 
@@ -69,7 +69,7 @@ public class Selection extends ElementaryOperator<Selection> {
 
 		@Override
 		protected void map(final IJsonNode value, final JsonCollector out) {
-			if (this.condition.evaluate(value, this.getContext()) == BooleanNode.TRUE)
+			if (this.condition.evaluate(value, null, this.getContext()) == BooleanNode.TRUE)
 				out.collect(value);
 		}
 

@@ -482,15 +482,17 @@ public class SopremoTestPlan {
 		}
 
 		void prepare(TestPlan testPlan, Schema schema) {
-			TestRecords testRecords = this.getTestRecords(testPlan, schema);
-			testRecords.setSchema(schema.getPactSchema());
-			if (this.isEmpty())
-				testRecords.setEmpty();
-			else if (this.file != null)
-				testRecords.fromFile(JsonInputFormat.class, this.file);
-			else
-				for (IJsonNode node : this.values)
-					testRecords.add(schema.jsonToRecord(node, null, null));
+			if (this.operator instanceof MockupSource) {
+				TestRecords testRecords = this.getTestRecords(testPlan, schema);
+				testRecords.setSchema(schema.getPactSchema());
+				if (this.isEmpty())
+					testRecords.setEmpty();
+				else if (this.file != null)
+					testRecords.fromFile(JsonInputFormat.class, this.file);
+				else
+					for (IJsonNode node : this.values)
+						testRecords.add(schema.jsonToRecord(node, null, null));
+			}
 		}
 
 		abstract TestRecords getTestRecords(TestPlan testPlan, Schema schema);
@@ -668,37 +670,6 @@ public class SopremoTestPlan {
 			}
 			return super.iterator();
 		}
-
-		// void sync(final TestPlan testPlan, Schema schema) {
-		// PactRecord record = null;
-		// if (operator.isAdhoc())
-		// for (final IJsonNode node : (IArrayNode) operator.getAdhocValues())
-		// testPlan.getInput(this.getIndex()).add(record = schema.jsonToRecord(node, record));
-		// else {
-		// Configuration configuration = new Configuration();
-		// SopremoUtil.serialize(configuration, IOConstants.SCHEMA, schema);
-		// testPlan.getInput(this.getIndex()).fromFile(JsonInputFormat.class, this.file, configuration);
-		// }
-		// }
-
-		// /*
-		// * (non-Javadoc)
-		// * @see eu.stratosphere.sopremo.testing.SopremoTestPlan.Channel#iterator()
-		// */
-		// @Override
-		// public Iterator<IJsonNode> iterator() {
-		//
-		// if (operator.isAdhoc())
-		// return super.iterator();
-		//
-		// Schema schema = this.getSchema();
-		// final TestRecords testPairs = new TestRecords(schema.getPactSchema());
-		// testPairs.fromFile(JsonInputFormat.class, operator.getInputName(), configuration);
-		// for (final PactRecord record : testPairs)
-		// this.inputs[index].add(Schema.Default.recordToJson(record, null));
-		// testPairs.close();
-		//
-		// }
 	}
 
 	/**

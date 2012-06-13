@@ -15,17 +15,36 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 
 import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
+import eu.stratosphere.sopremo.Source;
 
 /**
  * @author skruse
- *
+ * 
+ *         Assembles tree, additionally outputs stripped cluster representations
+ *         Inputs:<br>
+ *         <ol>
+ *         <li>Clusters</li>
+ *         </ol>
+ *         Outputs:<br>
+ *         <ol>
+ *         <li>Tree</li>
+ *         <li>Cluster representations</li>
+ *         </ol>
+ * 
  */
+@OutputCardinality(min = 2, max = 2)
+// TODO: Check why this does not work
 public class TreeCreator extends CompositeOperator<TreeCreator> {
 
 	private static final long serialVersionUID = 1450138351751038162L;
-	
+
+	public TreeCreator() {
+		super(2);
+	}
+
 	/**
 	 * Specifies the degree of the created tree.
 	 */
@@ -37,36 +56,42 @@ public class TreeCreator extends CompositeOperator<TreeCreator> {
 	 * @return the treeWidth
 	 */
 	public int getTreeWidth() {
-		return treeWidth;
+		return this.treeWidth;
 	}
 
 	/**
 	 * Sets the treeWidth to the specified value.
-	 *
-	 * @param treeWidth the treeWidth to set
+	 * 
+	 * @param treeWidth
+	 *            the treeWidth to set
 	 */
-	public void setTreeWidth(int treeWidth) {
-	
+	public void setTreeWidth(final int treeWidth) {
 		this.treeWidth = treeWidth;
 	}
 
-
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.CompositeOperator#asElementaryOperators()
 	 */
 	@Override
-	public SopremoModule asElementaryOperators() {
-		final SopremoModule module = new SopremoModule(this.getName(), 1, 1);
+	public ElementarySopremoModule asElementaryOperators() {
+		final SopremoModule module = new ElementarySopremoModule(
+				this.getName(), 1, 2);
 
-		final Operator<?> input = module.getInput(0);
-		final ClusterToTreePreparation preparation = new ClusterToTreePreparation().withInputs(input);
+		final Source input = module.getInput(0);
+
+		final ClusterToTreePreparation preparation = new ClusterToTreePreparation()
+				.withInputs(input);
+
 		final TreeAssembler assembler = new TreeAssembler()
 				.withInputs(preparation);
-		assembler.setTreeWidth(treeWidth);
+		assembler.setTreeWidth(this.treeWidth);
 
 		module.getOutput(0).setInput(0, assembler);
+		module.getOutput(1).setInput(0, preparation);
 
-		return module;
+		return module.asElementary();
 	}
 
 }

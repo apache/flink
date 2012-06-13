@@ -256,6 +256,7 @@ public class ArrayNode extends JsonNode implements IArrayNode {
 	 * 
 	 * @return the created IJsonNode[]
 	 */
+	@Override
 	public IJsonNode[] toArray() {
 		return this.children.toArray(new IJsonNode[this.children.size()]);
 	}

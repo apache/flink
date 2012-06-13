@@ -95,10 +95,10 @@ public class GeneralSchema implements Schema {
 		if (target == null) {
 			target = new PactRecord(this.mappings.size() + 1);
 		}
-		target.setField(this.mappings.size(), value.clone());
+		target.setField(this.mappings.size(), SopremoUtil.wrap(value));
 
 		for (int i = 0; i < this.mappings.size(); i++) {
-			target.setField(i, this.mappings.get(i).evaluate(value, null, context));
+			target.setField(i, SopremoUtil.wrap(this.mappings.get(i).evaluate(value, null, context)));
 		}
 
 		return target;
@@ -106,8 +106,7 @@ public class GeneralSchema implements Schema {
 
 	@Override
 	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
-		IJsonNode source = (IJsonNode) SopremoUtil.unwrap(record.getField(record.getNumFields() - 1,
-			JsonNodeWrapper.class));
+		IJsonNode source = SopremoUtil.unwrap(record.getField(this.mappings.size(), JsonNodeWrapper.class));
 
 		if (target == null) {
 			return source;

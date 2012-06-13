@@ -18,7 +18,6 @@ import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -109,7 +108,8 @@ public class ElementaryOperatorTest {
 		assertEquals(OperatorWithOneStub.Implementation.class,
 			new OperatorWithOneStub().getStubClass());
 	}
-
+	
+	@InputCardinality(1)
 	static class OperatorWithInstanceStub extends ElementaryOperator<OperatorWithInstanceStub> {
 		private static final long serialVersionUID = 1L;
 
@@ -124,11 +124,13 @@ public class ElementaryOperatorTest {
 			}
 		}
 	}
-
+	
+	@InputCardinality(1)
 	static class OperatorWithNoStubs extends ElementaryOperator<OperatorWithNoStubs> {
 		private static final long serialVersionUID = 1L;
 	}
 
+	@InputCardinality(1)
 	static class OperatorWithOneStub extends ElementaryOperator<OperatorWithOneStub> {
 		private static final long serialVersionUID = 1L;
 
@@ -144,17 +146,17 @@ public class ElementaryOperatorTest {
 		}
 	}
 
+	@InputCardinality(1)
 	static class OperatorWithTwoStubs extends ElementaryOperator<OperatorWithTwoStubs> {
 		private static final long serialVersionUID = 1L;
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
+		/**
+		 * Initializes ElementaryOperatorTest.OperatorWithTwoStubs.
 		 */
-		@Override
-		public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-			return Arrays.asList(new ObjectAccess("someField"));
+		public OperatorWithTwoStubs() {
+			setKeyExpressions(0, new ObjectAccess("someField"));
 		}
-		
+
 		static class Implementation1 extends SopremoReduce {
 			/*
 			 * (non-Javadoc)
@@ -177,14 +179,16 @@ public class ElementaryOperatorTest {
 			}
 		}
 	}
-
+	
+	@InputCardinality(1)
 	static class OperatorWithUnknownStub extends ElementaryOperator<OperatorWithUnknownStub> {
 		private static final long serialVersionUID = 1L;
 
 		static class Implementation extends Stub {
 		}
 	}
-
+	
+	@InputCardinality(1)
 	static class UninstanceableContract extends SingleInputContract<Stub> {
 
 		public UninstanceableContract(final Class<? extends Stub> clazz, final String name) {

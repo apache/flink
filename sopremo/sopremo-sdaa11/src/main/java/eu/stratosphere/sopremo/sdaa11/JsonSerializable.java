@@ -18,11 +18,12 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * @author skruse
- *
+ * 
  */
 public interface JsonSerializable {
-	
+
 	IJsonNode write(IJsonNode node);
+
 	void read(IJsonNode node);
 
 }

@@ -21,8 +21,4 @@ package eu.stratosphere.nephele.template;
  * @author warneke
  */
 public abstract class AbstractTask extends AbstractInvokable {
-	/**
-	 * Configuration key
-	 */
-	public static final String TASK_ID = "pact.task.id";
 }

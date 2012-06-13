@@ -4,8 +4,6 @@ import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
-import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -18,7 +16,7 @@ import eu.stratosphere.sopremo.type.IArrayNode;
  * 
  * @author Arvid Heise
  */
-@Name(verb = "difference")
+@Name(verb = "subtract")
 public class Difference extends SetOperation<Difference> {
 
 	/**
@@ -32,7 +30,7 @@ public class Difference extends SetOperation<Difference> {
 	 * eu.stratosphere.sopremo.JsonStream)
 	 */
 	@Override
-	protected Operator<?> createBinaryOperations(JsonStream leftInput, JsonStream rightInput) {
+	protected ElementaryOperator<?> createBinaryOperations(JsonStream leftInput, JsonStream rightInput) {
 		return new TwoInputDifference().withInputs(leftInput, rightInput);
 	}
 
@@ -42,15 +40,6 @@ public class Difference extends SetOperation<Difference> {
 		 * 
 		 */
 		private static final long serialVersionUID = 2331712414222089266L;
-
-		/*
-		 * (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions()
-		 */
-		@Override
-		public Iterable<? extends EvaluationExpression> getKeyExpressions() {
-			return ALL_KEYS;
-		}
 
 		public static class Implementation extends SopremoCoGroup {
 			@Override

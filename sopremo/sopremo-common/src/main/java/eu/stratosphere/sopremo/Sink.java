@@ -7,7 +7,8 @@ import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
-@OutputCardinality(min = 0, max = 0)
+@InputCardinality(1)
+@OutputCardinality(0)
 public class Sink extends ElementaryOperator<Sink> {
 	/**
 	 * 
@@ -19,7 +20,6 @@ public class Sink extends ElementaryOperator<Sink> {
 	private Class<? extends FileOutputFormat> outputFormat;
 
 	public Sink(final Class<? extends FileOutputFormat> outputFormat, final String outputName) {
-		super(0);
 		this.outputFormat = outputFormat;
 		this.outputName = outputName;
 	}
@@ -61,8 +61,8 @@ public class Sink extends ElementaryOperator<Sink> {
 	}
 
 	@Override
-	public SopremoModule toElementaryOperators() {
-		final SopremoModule module = new SopremoModule(this.getName(), 1, 0);
+	public ElementarySopremoModule asElementaryOperators() {
+		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), 1, 0);
 		final Sink clone = (Sink) this.clone();
 		module.addInternalOutput(clone);
 		clone.setInput(0, module.getInput(0));

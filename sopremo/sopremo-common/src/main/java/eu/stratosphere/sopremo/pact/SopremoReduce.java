@@ -31,7 +31,10 @@ public abstract class SopremoReduce extends ReduceStub {
 	 */
 	@Override
 	public void open(final Configuration parameters) throws Exception {
-		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
+		// We need to pass our class loader since the default class loader is
+		// not able to resolve classes coming from the Sopremo user jar file.
+		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT,
+				EvaluationContext.class, this.getClass().getClassLoader());
 		this.cachedIterator = new RecordToJsonIterator(this.context.getInputSchema(0));
 		this.collector = new JsonCollector(this.context.getOutputSchema(0));
 		SopremoUtil.configureStub(this, parameters);

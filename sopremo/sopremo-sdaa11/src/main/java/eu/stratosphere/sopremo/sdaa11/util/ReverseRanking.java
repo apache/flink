@@ -12,29 +12,32 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.sdaa11.clustering.postprocessing;
-
-import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.pact.JsonCollector;
-import eu.stratosphere.sopremo.pact.SopremoCoGroup;
-import eu.stratosphere.sopremo.type.IArrayNode;
+package eu.stratosphere.sopremo.sdaa11.util;
 
 /**
  * @author skruse
- *
+ * 
  */
-public class RepresentationUpdate extends ElementaryOperator<RepresentationUpdate> {
+public class ReverseRanking<T> extends Ranking<T> {
 
-	public static class Implementation extends SopremoCoGroup {
-
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.pact.SopremoCoGroup#coGroup(eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
-		 */
-		@Override
-		protected void coGroup(IArrayNode values1, IArrayNode values2,
-				JsonCollector out) {
-		}
-		
+	/**
+	 * Initializes ReverseRanking.
+	 * 
+	 * @param capacity
+	 * @param memberClass
+	 */
+	public ReverseRanking(final int capacity) {
+		super(capacity);
 	}
-	
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see eu.stratosphere.sopremo.sdaa11.util.Ranking#isHigher(int, int)
+	 */
+	@Override
+	protected boolean isHigher(final int rank1, final int rank2) {
+		return rank1 > rank2;
+	}
+
 }

@@ -14,85 +14,87 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
-
 public class InnerNode extends AbstractNode {
-	
+
 	private static final long serialVersionUID = -1271061202394454550L;
 
 	private static class Entry implements Serializable {
 
 		private static final long serialVersionUID = 6320924514526694129L;
-		
-		private Entry(INode subnode) {
+
+		private Entry(final INode subnode) {
 			this(subnode, -1);
 		}
-		private Entry(INode subnode, int rowsum) {
+
+		private Entry(final INode subnode, final int rowsum) {
 			this.subnode = subnode;
 		}
-		private INode subnode;
+
+		private final INode subnode;
 		private int rowsum;
+
 		private Point getPoint() {
-			return subnode.getRepresentantive();
+			return this.subnode.getRepresentantive();
 		}
 
 	}
-	
-	private Entry[] entries;
+
+	private final Entry[] entries;
 	private Point representative;
-	
-	public InnerNode(ClusterTree tree, int degree) {
+
+	public InnerNode(final ClusterTree tree, final int degree) {
 		super(tree);
 		this.entries = new Entry[degree];
 	}
 
-	private INode findClosestChild(Point point) {
+	private INode findClosestChild(final Point point) {
 		int minDistance = -1;
 		INode subnode = null;
-		for (Entry entry : entries) {
+		for (final Entry entry : this.entries)
 			if (entry != null) {
-				int tempDistance = point.getDistance(entry.getPoint());
+				final int tempDistance = point.getDistance(entry.getPoint());
 				if (minDistance < 0 || tempDistance < minDistance) {
 					minDistance = tempDistance;
 					subnode = entry.subnode;
 				}
 			}
-		}
-		if (subnode == null) {
+		if (subnode == null)
 			throw new IllegalStateException("Did not find a subnode");
-		}
 		return subnode;
 	}
 
 	@Override
-	public void add(INode node) {
-		int freeIndex = findFreeIndex();
+	public void add(final INode node) {
+		final int freeIndex = this.findFreeIndex();
 		if (freeIndex < 0) {
-			int substitutionIndex = findSubstitutionIndex(node.getRepresentantive());
-			if (substitutionIndex == -1) {
-				addToChild(node);
-			} else {
-				Entry oldEntry = entries[substitutionIndex];
-				setEntry(substitutionIndex, node);
-				addToChild(oldEntry.subnode);
+			final int substitutionIndex = this.findSubstitutionIndex(node
+					.getRepresentantive());
+			if (substitutionIndex == -1)
+				this.addToChild(node);
+			else {
+				final Entry oldEntry = this.entries[substitutionIndex];
+				this.setEntry(substitutionIndex, node);
+				this.addToChild(oldEntry.subnode);
 			}
-		} else {
-			setEntry(freeIndex, node);
-		}
+		} else
+			this.setEntry(freeIndex, node);
 	}
-	
+
 	private int findFreeIndex() {
-		for (int i = 0; i < entries.length; i++) {
-			if (entries[i] == null) return i;
-		}
+		for (int i = 0; i < this.entries.length; i++)
+			if (this.entries[i] == null)
+				return i;
 		return -1;
 	}
-	
-	private int findSubstitutionIndex(Point representative) {
-		int[] substitutionRowsums = calculateSubstitutionRowsums(representative);
+
+	private int findSubstitutionIndex(final Point representative) {
+		final int[] substitutionRowsums = this
+				.calculateSubstitutionRowsums(representative);
 		int highestDistance = 0;
 		int substitutionIndex = -1;
-		for (int i=0; i < entries.length; i++) {
-			int distance = substitutionRowsums[i] - entries[i].rowsum;
+		for (int i = 0; i < this.entries.length; i++) {
+			final int distance = substitutionRowsums[i]
+					- this.entries[i].rowsum;
 			if (distance > highestDistance) {
 				highestDistance = distance;
 				substitutionIndex = i;
@@ -101,239 +103,237 @@ public class InnerNode extends AbstractNode {
 		return substitutionIndex;
 	}
 
-	private int calculateRowsum(int withoutIndex, Point point) {
+	private int calculateRowsum(final int withoutIndex, final Point point) {
 		int rowsum = 0;
-		for (int i=0; i < entries.length; i++) {
-			if (withoutIndex == i || entries[i] == null) {
+		for (int i = 0; i < this.entries.length; i++) {
+			if (withoutIndex == i || this.entries[i] == null)
 				continue;
-			}
-			int distance = point.getDistance(entries[i].getPoint());
+			final int distance = point.getDistance(this.entries[i].getPoint());
 			rowsum += distance * distance;
 		}
 		return rowsum;
 	}
-	
-	private int[] calculateSubstitutionRowsums(Point point) {
-		int[] rowsums = new int[entries.length];
-		for (int i=0; i < entries.length; i++) {
-			if (entries[i] == null) {
+
+	private int[] calculateSubstitutionRowsums(final Point point) {
+		final int[] rowsums = new int[this.entries.length];
+		for (int i = 0; i < this.entries.length; i++)
+			if (this.entries[i] == null)
 				rowsums[i] = -1;
-			} else {
-				rowsums[i] = calculateRowsum(i, point);
-			}
-		}
+			else
+				rowsums[i] = this.calculateRowsum(i, point);
 		return rowsums;
 	}
-	
-	private void setEntry(int index, INode subnode) {
-		if (entries[index] != null) {
-			freeEntry(index);
-		}
-		entries[index] = new Entry(subnode);
+
+	private void setEntry(final int index, final INode subnode) {
+		if (this.entries[index] != null)
+			this.freeEntry(index);
+		this.entries[index] = new Entry(subnode);
 		subnode.setParent(this);
-		updateRepresentative();
+		this.updateRepresentative();
 	}
-	
-	private void freeEntry(int index) {
-		entries[index].subnode.setParent(null);
-		entries[index] = null;
-		if (parent != null && isEmpty()) {
-			parent.remove(this);
-		} else {
-			updateRepresentative();
-		}
+
+	private void freeEntry(final int index) {
+		this.entries[index].subnode.setParent(null);
+		this.entries[index] = null;
+		if (this.parent != null && this.isEmpty())
+			this.parent.remove(this);
+		else
+			this.updateRepresentative();
 	}
-	
+
 	private boolean isEmpty() {
-		return collectSetIndexes().isEmpty();
+		return this.collectSetIndexes().isEmpty();
 	}
 
 	/**
 	 * Lets nearest child add the given node.
+	 * 
 	 * @param node
 	 */
-	private void addToChild(INode node) {
-		INode closestChild = findClosestChild(node.getRepresentantive());
-		int index = findIndex(closestChild);
-		freeEntry(index);
-		InnerNode mergedNode = tree.merge(node, closestChild);
-		setEntry(index, mergedNode);
+	private void addToChild(final INode node) {
+		final INode closestChild = this.findClosestChild(node
+				.getRepresentantive());
+		final int index = this.findIndex(closestChild);
+		this.freeEntry(index);
+		final AbstractNode mergedNode = this.tree.merge(node, closestChild);
+		this.setEntry(index, mergedNode);
 	}
-	
 
 	public Collection<INode> getSubnodes() {
-		Collection<INode> subnodes = new ArrayList<INode>(entries.length);
-		for (Entry entry : entries) {
-			if (entry != null) {
+		final Collection<INode> subnodes = new ArrayList<INode>(
+				this.entries.length);
+		for (final Entry entry : this.entries)
+			if (entry != null)
 				subnodes.add(entry.subnode);
-			}
-		}
 		return subnodes;
 	}
-	
 
-	private int findIndex(INode node) {
-		for (int i = 0; i < entries.length; i++) {
-			Entry entry = entries[i];
-			if (entry != null && entry.subnode == node) {
+	private int findIndex(final INode node) {
+		for (int i = 0; i < this.entries.length; i++) {
+			final Entry entry = this.entries[i];
+			if (entry != null && entry.subnode == node)
 				return i;
-			}
 		}
 		throw new IllegalArgumentException("No such subnode");
 	}
 
-	private int[][] calculateDistanceMatrix(List<Integer> indexes) {
-		return calculateDistanceMatrix(indexes, entries);
+	private int[][] calculateDistanceMatrix(final List<Integer> indexes) {
+		return this.calculateDistanceMatrix(indexes, this.entries);
 	}
-	
-	private int[][] calculateDistanceMatrix(List<Integer> indexes, Entry[] entries) {
-		int[][] distances = new int[indexes.size()][indexes.size()];
+
+	private int[][] calculateDistanceMatrix(final List<Integer> indexes,
+			final Entry[] entries) {
+		final int[][] distances = new int[indexes.size()][indexes.size()];
 		for (int i = 0; i < indexes.size() - 1; i++) {
-			Point point1 = entries[indexes.get(i)].getPoint();
+			final Point point1 = entries[indexes.get(i)].getPoint();
 			for (int j = i + 1; j < indexes.size(); j++) {
-				Point point2 = entries[indexes.get(j)].getPoint();
-				distances[i][j] = distances[j][i] = 
-						point1.getDistance(point2);
+				final Point point2 = entries[indexes.get(j)].getPoint();
+				distances[i][j] = distances[j][i] = point1.getDistance(point2);
 			}
 		}
 		return distances;
 	}
 
 	private List<Integer> collectSetIndexes() {
-		return collectSetIndexes(entries);
+		return this.collectSetIndexes(this.entries);
 	}
-	
-	private List<Integer> collectSetIndexes(Entry[] entries) {
-		List<Integer> indexes = new ArrayList<Integer>(entries.length);
-		for (int i = 0; i < entries.length; i++) {
-			if (entries[i] != null) {
+
+	private List<Integer> collectSetIndexes(final Entry[] entries) {
+		final List<Integer> indexes = new ArrayList<Integer>(entries.length);
+		for (int i = 0; i < entries.length; i++)
+			if (entries[i] != null)
 				indexes.add(i);
-			}
-		}
 		return indexes;
 	}
 
+	@Override
 	public Collection<Leaf> getLeafs() {
-		List<Leaf> leafs = new ArrayList<Leaf>();
-		for (Entry entry : entries) {
-			if (entry != null) {
+		final List<Leaf> leafs = new ArrayList<Leaf>();
+		for (final Entry entry : this.entries)
+			if (entry != null)
 				leafs.addAll(entry.subnode.getLeafs());
-			}
-		}
 		return leafs;
 	}
 
 	@Override
 	public Point getRepresentantive() {
-		return representative;
+		return this.representative;
 	}
-	
+
 	@Override
 	public void updateRepresentative() {
-		Point oldRepresentative = representative;
-		representative = calculateRepresentantive();
-		if (parent != null && !representative.equals(oldRepresentative)) {
-			parent.updateRepresentative();
-		}
+		final Point oldRepresentative = this.representative;
+		this.representative = this.calculateRepresentantive();
+		if (this.parent != null
+				&& !this.representative.equals(oldRepresentative))
+			this.parent.updateRepresentative();
 	}
-	
+
 	private Point calculateRepresentantive() {
 		// trivial cases: 0 or 1 entry
-		List<Integer> setIndexes = collectSetIndexes();
-		if (setIndexes.isEmpty()) {
+		final List<Integer> setIndexes = this.collectSetIndexes();
+		if (setIndexes.isEmpty())
 			return null;
-		} else if (setIndexes.size() == 1) {
-			return entries[setIndexes.get(0)].getPoint();
-		}
-		
+		else if (setIndexes.size() == 1)
+			return this.entries[setIndexes.get(0)].getPoint();
+
 		// other cases: search point with minimum distance from others
-		int[][] distanceMatrix = calculateDistanceMatrix(setIndexes);
+		final int[][] distanceMatrix = this.calculateDistanceMatrix(setIndexes);
 		int minSum = -1;
 		int candidate = -1;
 		for (int i = 0; i < setIndexes.size() - 1; i++) {
 			int sum = 0;
-			for (int j = i + 1; j < setIndexes.size(); j++) {
+			for (int j = i + 1; j < setIndexes.size(); j++)
 				sum += distanceMatrix[i][j];
-			}
 			if (sum < minSum || minSum < 0) {
 				minSum = sum;
 				candidate = i;
 			}
 		}
-		return entries[setIndexes.get(candidate)].getPoint();
+		return this.entries[setIndexes.get(candidate)].getPoint();
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder();
+		final StringBuilder sb = new StringBuilder();
 		String separator = "";
 		sb.append("InnerNode[");
-		for (Entry entry : entries) {
+		for (final Entry entry : this.entries)
 			if (entry != null) {
 				sb.append(separator).append(entry.getPoint());
 				separator = ";";
 			}
-		}
 		return sb.append("]").toString();
 	}
 
-	public void replace(INode oldNode, INode newNode) {
-		int index = findIndex(oldNode);
-		setEntry(index, newNode);
+	public void replace(final INode oldNode, final INode newNode) {
+		final int index = this.findIndex(oldNode);
+		this.setEntry(index, newNode);
 	}
 
-	public void remove(INode node) {
-		int index = findIndex(node);
-		freeEntry(index);
+	public void remove(final INode node) {
+		final int index = this.findIndex(node);
+		this.freeEntry(index);
 	}
 
 	@Override
-	public Leaf findLeafNextTo(Point point) {
-		return findClosestChild(point).findLeafNextTo(point);
+	public Leaf findLeafNextTo(final Point point) {
+		return this.findClosestChild(point).findLeafNextTo(point);
 	}
 
 	private List<Entry> collectSetEntries() {
-		List<Integer> setIndexes = collectSetIndexes();
-		List<Entry> result = new ArrayList<InnerNode.Entry>(setIndexes.size());
-		for (int i : setIndexes) {
-			result.add(entries[i]);
-		}
+		final List<Integer> setIndexes = this.collectSetIndexes();
+		final List<Entry> result = new ArrayList<InnerNode.Entry>(
+				setIndexes.size());
+		for (final int i : setIndexes)
+			result.add(this.entries[i]);
 		return result;
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#read(eu.stratosphere.sopremo.type.IJsonNode)
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * eu.stratosphere.sopremo.sdaa11.JsonSerializable#read(eu.stratosphere.
+	 * sopremo.type.IJsonNode)
 	 */
 	@Override
-	public void read(IJsonNode node) {
-		representative = new Point();
-		representative.read(JsonUtil2.getField(node, "representative", ObjectNode.class));
+	public void read(final IJsonNode node) {
+		this.representative = new Point();
+		this.representative.read(JsonUtil2.getField(node,
+				JSON_KEY_REPRESENTATIVE, ObjectNode.class));
 		int i = 0;
-		for (IJsonNode member : JsonUtil2.getField(node, "children", IArrayNode.class)) {
-			entries[i++] = readEntry(member);
-		}
+		for (final IJsonNode member : JsonUtil2.getField(node,
+				JSON_KEY_CHILDREN, IArrayNode.class))
+			this.entries[i++] = this.readEntry(member);
 	}
-	
-	private Entry readEntry(IJsonNode node) {
-		int rowsum = JsonUtil2.getField(node, "rowsum", IntNode.class).getIntValue();
+
+	private Entry readEntry(final IJsonNode node) {
+		final int rowsum = JsonUtil2.getField(node, JSON_KEY_ROWSUM,
+				IntNode.class).getIntValue();
 		INode subnode;
-		if (JsonUtil2.getField(node, "containsLeaf", BooleanNode.class).getBooleanValue()) {
-			subnode = tree.createLeaf(null, null);
-		} else {
-			subnode = tree.createInnerNode();
-		}
-		subnode.read(JsonUtil2.getField(node, "child", IJsonNode.class));
+		if (JsonUtil2.getField(node, JSON_KEY_HAS_LEAF, BooleanNode.class)
+				.getBooleanValue())
+			subnode = this.tree.createLeaf(null, null);
+		else
+			subnode = this.tree.createInnerNode();
+		subnode.read(JsonUtil2.getField(node, JSON_KEY_CHILD, IJsonNode.class));
 		return new Entry(subnode, rowsum);
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.sdaa11.JsonSerializable#write(eu.stratosphere.sopremo.type.IJsonNode)
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * eu.stratosphere.sopremo.sdaa11.JsonSerializable#write(eu.stratosphere
+	 * .sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode write(IJsonNode node) {
-		ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
-		objectNode.put("representative", representative.write(null));
-		objectNode.put("children", writeEntries());
+	public IJsonNode write(final IJsonNode node) {
+		final ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
+		objectNode
+				.put(JSON_KEY_REPRESENTATIVE, this.representative.write(null));
+		objectNode.put(JSON_KEY_CHILDREN, this.writeEntries());
 		return objectNode;
 	}
 
@@ -341,20 +341,19 @@ public class InnerNode extends AbstractNode {
 	 * @return
 	 */
 	private IJsonNode writeEntries() {
-		ArrayNode array = new ArrayNode();
-		for (Entry entry : collectSetEntries()) {
-			array.add(writeEntry(entry, null));
-		}
+		final ArrayNode array = new ArrayNode();
+		for (final Entry entry : this.collectSetEntries())
+			array.add(this.writeEntry(entry, null));
 		return array;
 	}
-	
-	private IJsonNode writeEntry(Entry entry, IJsonNode node) {
-		ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
-		objectNode.put("rowsum", new IntNode(entry.rowsum));
-		objectNode.put("containsLeaf", BooleanNode.valueOf(entry.subnode instanceof Leaf));
-		objectNode.put("child", entry.subnode.write(null));
+
+	private IJsonNode writeEntry(final Entry entry, final IJsonNode node) {
+		final ObjectNode objectNode = JsonUtil2.reuseObjectNode(node);
+		objectNode.put(JSON_KEY_ROWSUM, new IntNode(entry.rowsum));
+		objectNode.put(JSON_KEY_HAS_LEAF,
+				BooleanNode.valueOf(entry.subnode instanceof Leaf));
+		objectNode.put(JSON_KEY_CHILD, entry.subnode.write(null));
 		return objectNode;
 	}
-	
-	
+
 }

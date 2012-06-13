@@ -14,32 +14,64 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.sdaa11.util;
 
+import eu.stratosphere.sopremo.sdaa11.JsonSerializable;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
- *
+ * 
  */
 public class JsonUtil2 {
-	
-	public static ObjectNode reuseObjectNode(IJsonNode node) {
+
+	public static ObjectNode reuseObjectNode(final IJsonNode node) {
 		if (node == null || !(node instanceof ObjectNode))
 			return new ObjectNode();
 		return (ObjectNode) node;
 	}
-	
-	public static boolean isObjectNode(IJsonNode node) {
+
+	public static boolean isObjectNode(final IJsonNode node) {
 		return node != null && node instanceof ObjectNode;
 	}
-	
+
 	@SuppressWarnings("unchecked")
-	public static <T> T getField(IJsonNode node, String field, Class<T> type) {
+	public static <T> T getField(final IJsonNode node, final String field,
+			final Class<T> type) {
 		return (T) ((ObjectNode) node).get(field);
 	}
-	
-	public static IJsonNode getField(IJsonNode node, String field) {
+
+	public static IJsonNode getField(final IJsonNode node, final String field) {
 		return ((ObjectNode) node).get(field);
+	}
+
+	public static void copyStrings(final IArrayNode array,
+			final Iterable<String> values) {
+		array.clear();
+		for (final String value : values)
+			array.add(new TextNode(value));
+	}
+
+	public static void copyStrings(final IArrayNode array,
+			final String... values) {
+		array.clear();
+		for (final String value : values)
+			array.add(new TextNode(value));
+	}
+
+	public static void copy(final IArrayNode array,
+			final Iterable<JsonSerializable> values) {
+		array.clear();
+		for (final JsonSerializable value : values)
+			array.add(value.write(null));
+	}
+
+	public static void copyToArray(final IArrayNode array,
+			final JsonSerializable... values) {
+		array.clear();
+		for (final JsonSerializable value : values)
+			array.add(value.write(null));
 	}
 
 }

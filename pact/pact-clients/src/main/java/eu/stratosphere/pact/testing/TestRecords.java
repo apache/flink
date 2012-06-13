@@ -745,6 +745,8 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	}
 
 	public static String toString(PactRecord record, Class<? extends Value>[] schema) {
+		if (record == null)
+			return "null";
 		StringBuilder builder = new StringBuilder("(");
 		for (int index = 0; index < record.getNumFields(); index++) {
 			if (index > 0)
