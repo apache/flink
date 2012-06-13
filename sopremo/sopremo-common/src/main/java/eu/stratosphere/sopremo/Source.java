@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -16,8 +14,6 @@ import eu.stratosphere.pact.common.io.GeneratorInputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.io.JsonGenerator;
-import eu.stratosphere.sopremo.io.JsonProcessingException;
 import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -98,10 +94,10 @@ public class Source extends ElementaryOperator<Source> {
 		GenericDataSource<?> contract;
 		if (this.isAdhoc()) {
 			contract = new GenericDataSource<GeneratorInputFormat>(
-					GeneratorInputFormat.class, String.format("Adhoc %s", name));
+				GeneratorInputFormat.class, String.format("Adhoc %s", name));
 			SopremoUtil.serialize(contract.getParameters(),
-					GeneratorInputFormat.ADHOC_EXPRESSION_PARAMETER_KEY,
-					this.adhocExpression);
+				GeneratorInputFormat.ADHOC_EXPRESSION_PARAMETER_KEY,
+				this.adhocExpression);
 		} else {
 			try {
 				URI validURI = new URI(inputPath);
@@ -110,7 +106,7 @@ public class Source extends ElementaryOperator<Source> {
 			} catch (URISyntaxException e) {
 				throw new IllegalStateException("Source does not have a valid path: " + inputPath, e);
 			}
-			
+
 			contract = new FileDataSource(this.inputFormat, inputPath, name);
 		}
 		final PactModule pactModule = new PactModule(this.toString(), 0, 1);
@@ -120,11 +116,11 @@ public class Source extends ElementaryOperator<Source> {
 		for (final Entry<String, Object> parameter : this.parameters.entrySet())
 			if (parameter.getValue() instanceof Serializable)
 				SopremoUtil
-						.serialize(contract.getParameters(),
-								parameter.getKey(),
-								(Serializable) parameter.getValue());
+					.serialize(contract.getParameters(),
+						parameter.getKey(),
+						(Serializable) parameter.getValue());
 		SopremoUtil.serialize(contract.getParameters(), IOConstants.SCHEMA,
-				context.getOutputSchema(0));
+			context.getOutputSchema(0));
 		pactModule.getOutput(0).setInput(contract);
 		// pactModule.setInput(0, contract);
 		return pactModule;
@@ -140,13 +136,6 @@ public class Source extends ElementaryOperator<Source> {
 		this.parameters.put(key, value);
 	}
 
-	private void writeValues(final File tempFile) throws IOException,
-			JsonProcessingException {
-		final JsonGenerator writer = new JsonGenerator(tempFile);
-		writer.writeTree(this.getAdhocValues());
-		writer.close();
-	}
-
 	@Override
 	public boolean equals(final Object obj) {
 		if (this == obj)
@@ -157,9 +146,9 @@ public class Source extends ElementaryOperator<Source> {
 			return false;
 		final Source other = (Source) obj;
 		return (this.inputPath == null ? other.inputFormat == null
-				: this.inputPath.equals(other.inputPath))
-				&& (this.adhocExpression == null ? this.adhocExpression == null
-						: this.adhocExpression.equals(other.adhocExpression));
+			: this.inputPath.equals(other.inputPath))
+			&& (this.adhocExpression == null ? this.adhocExpression == null
+				: this.adhocExpression.equals(other.adhocExpression));
 	}
 
 	public EvaluationExpression getAdhocExpression() {
@@ -170,7 +159,7 @@ public class Source extends ElementaryOperator<Source> {
 		if (!this.isAdhoc())
 			throw new IllegalStateException();
 		return this.getAdhocExpression().evaluate(NullNode.getInstance(), null,
-				new EvaluationContext());
+			new EvaluationContext());
 	}
 
 	public String getInputName() {
@@ -182,11 +171,11 @@ public class Source extends ElementaryOperator<Source> {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime
-				* result
-				+ (this.adhocExpression == null ? 0 : this.adhocExpression
-						.hashCode());
+			* result
+			+ (this.adhocExpression == null ? 0 : this.adhocExpression
+				.hashCode());
 		result = prime * result
-				+ (this.inputPath == null ? 0 : this.inputPath.hashCode());
+			+ (this.inputPath == null ? 0 : this.inputPath.hashCode());
 		return result;
 	}
 

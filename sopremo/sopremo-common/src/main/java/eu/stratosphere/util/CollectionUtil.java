@@ -15,8 +15,7 @@ public class CollectionUtil {
 	 *        the desired minimum size
 	 */
 	public static void ensureSize(final Collection<?> collection, final int size) {
-		while (collection.size() < size)
-			collection.add(null);
+		ensureSize(collection, size, null);
 	}
 
 	/**
@@ -44,5 +43,20 @@ public class CollectionUtil {
 				});
 			}
 		};
+	}
+
+	/**
+	 * Pads the given collection with the given default value until the collection has at least the given size.
+	 * 
+	 * @param collection
+	 *        the collection to pad
+	 * @param size
+	 *        the desired minimum size
+	 * @param defaultValue
+	 *        the default value
+	 */
+	public static <T> void ensureSize(Collection<T> collection, int size, T defaultValue) {
+		while (collection.size() < size)
+			collection.add(defaultValue);
 	}
 }
