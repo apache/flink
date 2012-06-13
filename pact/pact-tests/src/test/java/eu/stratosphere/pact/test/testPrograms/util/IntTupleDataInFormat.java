@@ -26,8 +26,10 @@ public class IntTupleDataInFormat extends DelimitedInputFormat {
 	public static final int DELIMITER = '|';
 
 	@Override
-	public boolean readRecord(PactRecord target, byte[] line, int numBytes) {
-		int readPos = 0;
+	public boolean readRecord(PactRecord target, byte[] line, int offset, int numBytes)
+	{
+		final int limit = offset + numBytes;
+		int readPos = offset;
 
 		// allocate the offsets array
 		short[] offsets = new short[MAX_COLUMNS];
@@ -37,7 +39,7 @@ public class IntTupleDataInFormat extends DelimitedInputFormat {
 
 		int startPos = readPos;
 
-		while (readPos < numBytes) {
+		while (readPos < limit) {
 			if (line[readPos++] == DELIMITER) {
 				offsets[col++] = (short) (countInWrapBuffer + readPos - startPos);
 			}

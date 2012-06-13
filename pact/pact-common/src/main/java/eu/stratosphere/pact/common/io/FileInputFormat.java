@@ -119,12 +119,12 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 	/**
 	 * The start of the split that this parallel instance must consume.
 	 */
-	protected long start;
+	protected long splitStart;
 
 	/**
 	 * The length of the split that this parallel instance must consume.
 	 */
-	protected long length;
+	protected long splitLength;
 	
 	/**
 	 * The the minimal split size, set by the configure() method.
@@ -347,11 +347,11 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 		
 		final FileInputSplit fileSplit = (FileInputSplit) split;
 		
-		this.start = fileSplit.getStart();
-		this.length = fileSplit.getLength();
+		this.splitStart = fileSplit.getStart();
+		this.splitLength = fileSplit.getLength();
 
 		if (LOG.isDebugEnabled())
-			LOG.debug("Opening input split " + fileSplit.getPath() + " [" + start + "," + length + "]");
+			LOG.debug("Opening input split " + fileSplit.getPath() + " [" + this.splitStart + "," + this.splitLength + "]");
 
 		
 		// open the split in an asynchronous thread
@@ -363,12 +363,12 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 		}
 		catch (Throwable t) {
 			throw new IOException("Error opening the Input Split " + fileSplit.getPath() + 
-					" [" + start + "," + length + "]: " + t.getMessage(), t);
+					" [" + splitStart + "," + splitLength + "]: " + t.getMessage(), t);
 		}
 
 		// get FSDataInputStream
 		this.stream = isot.getFSDataInputStream();
-		this.stream.seek(this.start);
+		this.stream.seek(this.splitStart);
 	}
 	
 	/**

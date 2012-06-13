@@ -312,9 +312,9 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(RDFTripleInFormat.class);
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
-			
-			String lineStr = new String(bytes);
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
+		{	
+			String lineStr = new String(bytes, offset, numBytes);
 			// replace reduce whitespaces and trim
 			lineStr = lineStr.replaceAll("\\s+", " ").trim();
 			// build whitespace tokenizer
@@ -358,14 +358,14 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	public static class PathInFormat extends DelimitedInputFormat{
-
+	public static class PathInFormat extends DelimitedInputFormat
+	{
 		private static final Log LOG = LogFactory.getLog(PathInFormat.class);
 
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
-
-			String lineStr = new String(bytes);
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
+		{
+			String lineStr = new String(bytes, offset, numBytes);
 			StringTokenizer st = new StringTokenizer(lineStr, "|");
 			
 			// path must have at least 4 tokens (fromNode, toNode, length, hopCnt)

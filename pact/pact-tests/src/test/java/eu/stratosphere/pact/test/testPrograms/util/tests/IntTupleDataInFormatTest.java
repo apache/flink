@@ -23,8 +23,8 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.test.testPrograms.util.IntTupleDataInFormat;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 
-public class IntTupleDataInFormatTest {
-
+public class IntTupleDataInFormatTest
+{
 	@Test
 	public void testReadLineKeyValuePairOfPactIntegerTupleByteArray() {
 		
@@ -51,7 +51,7 @@ public class IntTupleDataInFormatTest {
 			
 			byte[] tupleBytes = testTuples[i].getBytes();
 			
-			inFormat.readRecord(rec, tupleBytes, tupleBytes.length);
+			inFormat.readRecord(rec, tupleBytes, 0, tupleBytes.length);
 			
 			Assert.isTrue(rec.getField(0, PactInteger.class).equals(new PactInteger(expectedKeys[i])) , "Expected Key: "+expectedKeys[i]+" != Returned Key: "+rec.getField(0, PactInteger.class));
 			Assert.isTrue(rec.getField(1, Tuple.class).getNumberOfColumns() == expectedAttrCnt[i], "Expected Attr Cnt: "+expectedAttrCnt[i]+" != Returned Attr Cnt: "+rec.getField(1, Tuple.class));

@@ -75,17 +75,19 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		private final PactString rdfObj = new PactString();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
-
-			int startPos = 0;
-			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, numBytes, ' ', rdfSubj, '"');
-			if(startPos < 0) 
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
+		{
+			final int limit = offset + numBytes;
+			int startPos = offset;
+			
+			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, limit, ' ', rdfSubj, '"');
+			if (startPos < 0) 
 				return false;
-			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, numBytes, ' ', rdfPred, '"');
-			if(startPos < 0 || !rdfPred.getValue().equals("<http://xmlns.com/foaf/0.1/knows>")) 
+			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, limit, ' ', rdfPred, '"');
+			if (startPos < 0 || !rdfPred.getValue().equals("<http://xmlns.com/foaf/0.1/knows>")) 
 				return false;
-			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, numBytes, ' ', rdfObj, '"');
-			if(startPos < 0) 
+			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, limit, ' ', rdfObj, '"');
+			if (startPos < 0) 
 				return false;
 
 			if (rdfSubj.compareTo(rdfObj) <= 0) {
@@ -101,7 +103,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			return true;	
 		}
 		
-		private int parseVarLengthEncapsulatedStringField(byte[] bytes, int startPos, int length, char delim, PactString field, char encaps) {
+		private int parseVarLengthEncapsulatedStringField(byte[] bytes, int startPos, int limit, char delim, PactString field, char encaps) {
 			
 			boolean isEncaps = false;
 			
@@ -111,9 +113,9 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			
 			if(isEncaps) {
 				// encaps string
-				for(int i=startPos; i<length; i++) {
-					if(bytes[i] == encaps) {
-						if(bytes[i+1] == delim) {
+				for (int i = startPos; i < limit; i++) {
+					if (bytes[i] == encaps) {
+						if (bytes[i+1] == delim) {
 							field.setValueAscii(bytes, startPos, i-startPos+1);
 							return i+2;
 						}
@@ -123,13 +125,13 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			} else {
 				// non-encaps string
 				int i;
-				for(i=startPos; i<length; i++) {
-					if(bytes[i] == delim) {
+				for (i = startPos; i < limit; i++) {
+					if (bytes[i] == delim) {
 						field.setValueAscii(bytes, startPos, i-startPos);
 						return i+1;
 					}
 				}
-				if(i == length) {
+				if (i == limit) {
 					field.setValueAscii(bytes, startPos, i-startPos);
 					return i+1;
 				} else {

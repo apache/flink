@@ -101,7 +101,7 @@ public class CoGroupITCase extends TestBase
 		private final PactString valueString = new PactString();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 			this.keyString.setValueAscii(bytes, 0, 1);
 			this.valueString.setValueAscii(bytes, 2, 1);
 			target.setField(0, keyString);

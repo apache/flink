@@ -8,13 +8,10 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
- *
- *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
-public class BinaryIntInputFormat extends FixedLengthInputFormat {
-
-
+public class BinaryIntInputFormat extends FixedLengthInputFormat
+{
 	public static final String PAYLOAD_SIZE_PARAMETER_KEY = "int.file.inputformat.payloadSize";
 	
 	private final PactInteger key = new PactInteger();

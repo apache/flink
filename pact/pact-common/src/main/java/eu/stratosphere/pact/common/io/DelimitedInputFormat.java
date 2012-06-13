@@ -101,7 +101,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	 * @param bytes The serialized record.
 	 * @return returns whether the record was successfully deserialized
 	 */
-	public abstract boolean readRecord(PactRecord target, byte[] bytes, int numBytes);
+	public abstract boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -347,8 +347,8 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 		this.overLimit = false;
 		this.end = false;
 
-		if (this.start != 0) {
-			this.stream.seek(this.start);
+		if (this.splitStart != 0) {
+			this.stream.seek(this.splitStart);
 			readLine();
 			
 			// if the first partial record already pushes the stream over the limit of our split, then no
@@ -381,7 +381,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			this.end = true;
 			return false;
 		} else {
-			return readRecord(record, this.targetBuffer, numBytes);
+			return readRecord(record, this.targetBuffer, 0, numBytes);
 		}
 	}
 
@@ -476,8 +476,8 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	}
 
 	private final boolean fillBuffer() throws IOException {
-		int toRead = this.length > this.readBuffer.length ? this.readBuffer.length : (int) this.length;
-		if (this.length <= 0) {
+		int toRead = this.splitLength > this.readBuffer.length ? this.readBuffer.length : (int) this.splitLength;
+		if (this.splitLength <= 0) {
 			toRead = this.readBuffer.length;
 			this.overLimit = true;
 		}
@@ -489,7 +489,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			this.stream = null;
 			return false;
 		} else {
-			this.length -= read;
+			this.splitLength -= read;
 			this.readPos = 0;
 			this.limit = read;
 			return true;

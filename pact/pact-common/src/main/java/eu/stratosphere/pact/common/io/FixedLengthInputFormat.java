@@ -161,13 +161,13 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 		super.open(split);
 		
 		// adjust the stream positions for boundary splits
-		int recordOffset = (int) (this.start % this.recordLength);
+		int recordOffset = (int) (this.splitStart % this.recordLength);
 		if(recordOffset != 0) {
 			// move start to next boundary
-			super.stream.seek(this.start + recordOffset);			
+			super.stream.seek(this.splitStart + recordOffset);			
 		}
-		this.streamPos = this.start + recordOffset;
-		this.streamEnd = this.start + this.length;
+		this.streamPos = this.splitStart + recordOffset;
+		this.streamEnd = this.splitStart + this.splitLength;
 		this.streamEnd += this.streamEnd % this.recordLength;
 		
 		// adjust readBufferSize

@@ -80,12 +80,12 @@ public class TextInputFormat extends DelimitedInputFormat
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
 	 */
-	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes)
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
 	{
 		PactString str = this.theString;
 		
 		if (this.ascii) {
-			str.setValueAscii(bytes, 0, numBytes);
+			str.setValueAscii(bytes, offset, numBytes);
 		}
 		else {
 			ByteBuffer byteWrapper = this.byteWrapper;
@@ -93,7 +93,7 @@ public class TextInputFormat extends DelimitedInputFormat
 				byteWrapper = ByteBuffer.wrap(bytes, 0, bytes.length);
 				this.byteWrapper = byteWrapper;
 			}
-			byteWrapper.position(0);
+			byteWrapper.position(offset);
 			byteWrapper.limit(numBytes);
 				
 			try {
@@ -102,7 +102,7 @@ public class TextInputFormat extends DelimitedInputFormat
 			}
 			catch (CharacterCodingException e) {
 				byte[] copy = new byte[numBytes];
-				System.arraycopy(bytes, 0, copy, 0, numBytes);
+				System.arraycopy(bytes, offset, copy, 0, numBytes);
 				LOG.warn("Line could not be encoded: " + Arrays.toString(copy), e);
 				return false;
 			}
