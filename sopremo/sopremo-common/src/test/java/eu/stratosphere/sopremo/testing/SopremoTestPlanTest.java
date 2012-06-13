@@ -190,6 +190,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			addArray("test1", "test4").
 			addArray("test2", "test3").
 			addArray("test2", "test4");
+		testPlan.trace();
 		testPlan.run();
 	}
 

@@ -39,6 +39,41 @@ import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.IteratorUtil;
 import eu.stratosphere.util.dag.OneTimeTraverser;
 
+/**
+ * The primary resource to test one or more implemented {@link Operator}s. It is created in a unit test and performs the
+ * following operations.
+ * <ul>
+ * <li>Adds {@link MockupSource}s and {@link MockupSink}s if not explicitly specified,
+ * <li>locally runs the {@link Operator}s,
+ * <li>checks the results against the expectations specified in {@link #getExpectedOutput(int)}, and
+ * <li>provides comfortable access to the results with {@link #getActualOutput(int)}. <br>
+ * To investigate the execution of the Operators the execution steps can be traced. The typical usage is inside a unit
+ * test and might look like one of the following examples. <br>
+ * <b>Test complete plan<br>
+ * <code><pre>
+ * Source source = new Source(...);
+ * 
+ * Identity projection = new Identity();
+ * projection.setInputs(source);
+ * 
+ * Sink sink = new Sink(...);
+ * sink.setInputs(projection);
+ * 
+ * SopremoTestPlan testPlan = new SopremoTestPlan(sink);
+ * testPlan.run();
+ * </pre></code> <b>SopremoTestPlan with MockupSource and MockupSink<br>
+ * <code><pre>
+ * Identity identity = new Identity();
+ * SopremoTestPlan testPlan = new SopremoTestPlan(identity);
+ * testPlan.getInput(0).
+ * 	addValue(value1).
+ * 	addValue(value2);
+ * testPlan.getExpectedOutput(0).
+ * 	addValue(value1).
+ * 	addValue(value2);
+ * testPlan.run();
+ * </pre></code>
+ */
 public class SopremoTestPlan {
 	private Input[] inputs;
 
@@ -52,10 +87,26 @@ public class SopremoTestPlan {
 
 	private boolean trace;
 
+	/**
+	 * Initializes a SopremoTestPlan with the given number of in/outputs. All inputs are initialized with {@link Input}s
+	 * and all expected/actual outputs are initialized with {@link ExpectedOutput}s/{@link ActualOutput}s.
+	 * 
+	 * @param numInputs
+	 *        the number of inputs that should be initialized
+	 * @param numOutputs
+	 *        the number of outputs that should be initialized
+	 */
 	public SopremoTestPlan(final int numInputs, final int numOutputs) {
 		this.initInputsAndOutputs(numInputs, numOutputs);
 	}
 
+	/**
+	 * Initializes a SopremoTestPlan with the given {@link Operator}s. For each Operator that has no source or no sink,
+	 * {@link MockupSource}s and {@link MockupSink}s are automatically set.
+	 * 
+	 * @param sinks
+	 *        the Operators that should be executed
+	 */
 	public SopremoTestPlan(final Operator<?>... sinks) {
 		final List<JsonStream> unconnectedOutputs = new ArrayList<JsonStream>();
 		final List<Operator<?>> unconnectedInputs = new ArrayList<Operator<?>>();
@@ -65,7 +116,8 @@ public class SopremoTestPlan {
 				unconnectedOutputs.add(operator);
 		}
 
-		for (final Operator<?> operator : OneTimeTraverser.INSTANCE.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
+		for (final Operator<?> operator : OneTimeTraverser.INSTANCE
+			.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
 			if (operator instanceof Source)
 				unconnectedInputs.add(operator);
 			else
@@ -101,6 +153,9 @@ public class SopremoTestPlan {
 		}
 	}
 
+	/**
+	 * If called, the execution of the Operators will be traced by {@link SopremoUtil}.
+	 */
 	public void trace() {
 		this.trace = true;
 	}
@@ -118,10 +173,27 @@ public class SopremoTestPlan {
 			&& Arrays.equals(this.actualOutputs, other.actualOutputs);
 	}
 
+	/**
+	 * Returns the output of the operator that is associated with the given index. The return value is only meaningful
+	 * after a {@link #run()}.
+	 * 
+	 * @param index
+	 *        the index of the operator
+	 * @return the output of the execution of the specified operator
+	 */
 	public ActualOutput getActualOutput(final int index) {
 		return this.actualOutputs[index];
 	}
 
+	/**
+	 * Returns the output of the operator that is associated with the given {@link JsonStream}. The return value is only
+	 * meaningful
+	 * after a {@link #run()}. Should no operator have an association with the given stream: null will be returned.
+	 * 
+	 * @param stream
+	 *        the stream
+	 * @return the output of the execution of the specified operator
+	 */
 	public ActualOutput getActualOutputForStream(final JsonStream stream) {
 		for (final ActualOutput output : this.actualOutputs)
 			if (output.getOperator().getInput(0) == stream.getSource())
@@ -129,22 +201,55 @@ public class SopremoTestPlan {
 		return null;
 	}
 
+	/**
+	 * Returns the {@link EvaluationContext} of this plan.
+	 * 
+	 * @return the context
+	 */
 	public EvaluationContext getEvaluationContext() {
 		return this.evaluationContext;
 	}
 
+	/**
+	 * Returns the expected output of the operator that is associated with the given index.
+	 * 
+	 * @param index
+	 *        the index of the operator
+	 * @return the expected output
+	 */
 	public ExpectedOutput getExpectedOutput(final int index) {
 		return this.expectedOutputs[index];
 	}
 
+	/**
+	 * Returns the expected output of the operator that is associated with the given {@link JsonStream}.
+	 * 
+	 * @param stream
+	 *        the stream
+	 * @return the expected output
+	 */
 	public ExpectedOutput getExpectedOutputForStream(final JsonStream stream) {
 		return this.expectedOutputs[this.getActualOutputForStream(stream).getIndex()];
 	}
 
+	/**
+	 * Returns the input for the given index.
+	 * 
+	 * @param index
+	 *        the index
+	 * @return the input at the specified index
+	 */
 	public Input getInput(final int index) {
 		return this.inputs[index];
 	}
 
+	/**
+	 * Returns the input that is associated with the given stream.
+	 * 
+	 * @param stream
+	 *        the stream
+	 * @return the input
+	 */
 	public Input getInputForStream(final JsonStream stream) {
 		for (final Input input : this.inputs)
 			if (input.getOperator().getOutput(0) == stream.getSource())
@@ -152,10 +257,26 @@ public class SopremoTestPlan {
 		return null;
 	}
 
+	/**
+	 * Returns the input operator for the given index.
+	 * 
+	 * @param index
+	 *        the index
+	 * @return the input operator
+	 */
 	public Source getInputOperator(final int index) {
 		return this.getInput(index).getOperator();
 	}
 
+	/**
+	 * Returns all input operators for the given range of indices.
+	 * 
+	 * @param from
+	 *        the start index (inclusive)
+	 * @param to
+	 *        the end index (exclusive)
+	 * @return array of the input operators
+	 */
 	public Source[] getInputOperators(final int from, final int to) {
 		final Source[] operators = new Source[to - from];
 		for (int index = 0; index < operators.length; index++)
@@ -163,10 +284,26 @@ public class SopremoTestPlan {
 		return operators;
 	}
 
+	/**
+	 * Returns the output operator for the given index.
+	 * 
+	 * @param index
+	 *        the index
+	 * @return the output operator
+	 */
 	public Sink getOutputOperator(final int index) {
 		return this.getActualOutput(index).getOperator();
 	}
 
+	/**
+	 * Returns alls output operators for the given range of indices.
+	 * 
+	 * @param from
+	 *        the start index (inclusive)
+	 * @param to
+	 *        the end index (exclusive)
+	 * @return array of the output operators
+	 */
 	public Sink[] getOutputOperators(final int from, final int to) {
 		final Sink[] operators = new Sink[to - from];
 		for (int index = 0; index < operators.length; index++)
@@ -184,6 +321,14 @@ public class SopremoTestPlan {
 		return result;
 	}
 
+	/**
+	 * Initializes the given number of in-/outputs.
+	 * 
+	 * @param numInputs
+	 *        the number of inputs
+	 * @param numOutputs
+	 *        the number of outputs
+	 */
 	protected void initInputsAndOutputs(final int numInputs, final int numOutputs) {
 		this.inputs = new Input[numInputs];
 		for (int index = 0; index < numInputs; index++)
@@ -196,6 +341,10 @@ public class SopremoTestPlan {
 			this.actualOutputs[index] = new ActualOutput(index);
 	}
 
+	/**
+	 * Executes all operators. If expected values have been specified, the actual outputs values are
+	 * compared to the expected values.
+	 */
 	public void run() {
 		final SopremoPlan sopremoPlan = new SopremoPlan();
 		sopremoPlan.setContext(this.evaluationContext);
@@ -216,10 +365,28 @@ public class SopremoTestPlan {
 			output.load(this.testPlan);
 	}
 
+	/**
+	 * Sets the input operator of the specified index. The operator that is saved at the specified index will be
+	 * overwritten.
+	 * 
+	 * @param index
+	 *        the index where the operator should be saved
+	 * @param operator
+	 *        the new operator
+	 */
 	public void setInputOperator(final int index, final Source operator) {
 		this.inputs[index].setOperator(operator);
 	}
 
+	/**
+	 * Sets the output operator of the specified index. The operator that is saved at the specified index will be
+	 * overwritten.
+	 * 
+	 * @param index
+	 *        the index where the operator should be saved
+	 * @param operator
+	 *        the new operator
+	 */
 	public void setOutputOperator(final int index, final Sink operator) {
 		this.actualOutputs[index].setOperator(operator);
 	}
@@ -229,15 +396,30 @@ public class SopremoTestPlan {
 		return SopremoModule.valueOf("", this.getOutputOperators(0, this.actualOutputs.length)).toString();
 	}
 
+	/**
+	 * Represents the actual output of a {@link SopremoTestPlan}.
+	 */
 	public static class ActualOutput extends InternalChannel<Sink, ActualOutput> {
 		private TestRecords actualRecords;
 
 		private Schema schema;
 
+		/**
+		 * Initializes an ActualOutput with the given index.
+		 * 
+		 * @param index
+		 *        the index that should be used
+		 */
 		public ActualOutput(final int index) {
 			super(new MockupSink(index), index);
 		}
 
+		/**
+		 * Loads the actual output values into this ActualOutput.
+		 * 
+		 * @param testPlan
+		 *        the {@link TestPlan} where the actual output values should be loaded from
+		 */
 		void load(TestPlan testPlan) {
 			this.actualRecords = testPlan.getActualOutput(this.getIndex());
 
@@ -320,11 +502,6 @@ public class SopremoTestPlan {
 			return (C) this;
 		}
 
-		/**
-		 * Returns the empty.
-		 * 
-		 * @return the empty
-		 */
 		public boolean isEmpty() {
 			return this.empty;
 		}
@@ -425,7 +602,17 @@ public class SopremoTestPlan {
 		}
 	}
 
+	/**
+	 * Represents the expected output of a {@link SopremotestPlan}.
+	 */
 	public static class ExpectedOutput extends ModifiableChannel<Source, ExpectedOutput> {
+
+		/**
+		 * Initializes an ExpectedOutput with the given index.
+		 * 
+		 * @param index
+		 *        the index
+		 */
 		public ExpectedOutput(final int index) {
 			super(new MockupSource(index), index);
 		}
@@ -442,7 +629,17 @@ public class SopremoTestPlan {
 		}
 	}
 
+	/**
+	 * Represents the input of a {@link SopremoTestPlan}.
+	 */
 	public static class Input extends ModifiableChannel<Source, Input> {
+
+		/**
+		 * Initializes an Input with the given index.
+		 * 
+		 * @param index
+		 *        the index
+		 */
 		public Input(final int index) {
 			super(new MockupSource(index), index);
 		}
@@ -504,14 +701,21 @@ public class SopremoTestPlan {
 		// }
 	}
 
+	/**
+	 * Creates a mocked {@link Sink}. This sink simply writes the received data to a temporary file.
+	 */
 	public static class MockupSink extends Sink {
-		/**
-		 * 
-		 */
+
 		private static final long serialVersionUID = -8095218927711236381L;
 
 		private final int index;
 
+		/**
+		 * Initializes a MockupSink with the given index.
+		 * 
+		 * @param index
+		 *        the index
+		 */
 		public MockupSink(final int index) {
 			super("mockup-output" + index);
 			this.index = index;
