@@ -174,7 +174,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 *        the index of the input
 	 * @return this
 	 */
-	public Self withKeyExpressions(int index, EvaluationExpression... keyExpressions) {
+	public Self withKeyExpression(int index, EvaluationExpression... keyExpressions) {
 		setKeyExpressions(index, keyExpressions);
 		return self();
 	}
@@ -376,7 +376,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 			for (int index : globalSchema.indicesOf(expression))
 				keyIndices.add(index);
 		if (keyIndices.isEmpty())
-			throw new IllegalStateException("The given operator needs to specify key expressions");
+			throw new IllegalStateException(String.format("Needs to specify key expressions: %s", getClass()));
 		return keyIndices.toIntArray();
 	}
 

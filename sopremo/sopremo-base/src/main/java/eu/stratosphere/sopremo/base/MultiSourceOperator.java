@@ -8,12 +8,16 @@ import java.util.Map;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.NullNode;
 
+@InputCardinality(min = 1, max = Integer.MAX_VALUE)
+@OutputCardinality(1)
 public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>> extends CompositeOperator<Self> {
 
 	/**
@@ -134,6 +138,11 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 
 		this.keyExpressions.put(input.getSource(), keyExpressions);
 	}
+	protected Self withKeyExpressions(final int inputIndex, final List<? extends EvaluationExpression> keyExpressions) {
+		this.setKeyExpressions(inputIndex, keyExpressions);
+		return this.self();
+	}
+
 
 	protected void setValueProjection(final int inputIndex, final EvaluationExpression valueProjection) {
 		this.setValueProjection(this.getSafeInput(inputIndex), valueProjection);
@@ -150,11 +159,6 @@ public abstract class MultiSourceOperator<Self extends MultiSourceOperator<Self>
 	protected Self withValueProjection(final int inputIndex, final EvaluationExpression valueProjection) {
 		this.setValueProjection(inputIndex, valueProjection);
 		return (Self) this;
-	}
-
-	protected Self withKeyExpressions(final int inputIndex, final List<? extends EvaluationExpression> keyExpressions) {
-		this.setKeyExpressions(inputIndex, keyExpressions);
-		return this.self();
 	}
 
 	protected Self withValueProjection(final EvaluationExpression valueProjection) {

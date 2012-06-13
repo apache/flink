@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.base;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
@@ -21,6 +22,7 @@ import eu.stratosphere.sopremo.type.NullNode;
  * 
  * @author Arvid Heise
  */
+@InputCardinality(1)
 public class ArraySplit extends ElementaryOperator<ArraySplit> {
 	/**
 	 * 
@@ -94,7 +96,7 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 	public static class Implementation extends SopremoMap {
 		private CachingExpression<IArrayNode> arrayPath;
 
-		private EvaluationExpression elementProjection;
+		private EvaluationExpression splitProjection;
 
 		@Override
 		protected void map(final IJsonNode value, JsonCollector out) {
@@ -109,7 +111,7 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 			for (IJsonNode element : array) {
 				contextNode.set(0, element);
 				indexNode.setValue(index);
-				out.collect(this.elementProjection.evaluate(contextNode, null, context));
+				out.collect(this.splitProjection.evaluate(contextNode, null, context));
 				index++;
 			}
 		}

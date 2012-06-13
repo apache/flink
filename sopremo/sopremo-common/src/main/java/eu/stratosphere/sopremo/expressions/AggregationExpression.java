@@ -94,7 +94,8 @@ public class AggregationExpression extends EvaluationExpression {
 		this.function.toString(builder);
 		builder.append('(');
 		if (this.preprocessing != EvaluationExpression.VALUE)
-			builder.append(this.preprocessing);
+			this.preprocessing.toString(builder);
+//			builder.append(this.preprocessing);
 		builder.append(')');
 	}
 }

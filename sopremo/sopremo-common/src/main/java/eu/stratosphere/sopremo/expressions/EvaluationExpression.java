@@ -1,5 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Set;
@@ -26,7 +28,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	/**
 	 * Used for secondary information during plan creation only.
 	 */
-	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
+	private transient Set<ExpressionTag> tags;
 
 	/**
 	 * Represents an expression that returns the input node without any modifications. The constant is mostly used for
@@ -55,6 +57,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		}
 	};
 
+	// TODO: move to constant expression
 	public static final EvaluationExpression NULL = new ConstantExpression(NullNode.getInstance()) {
 
 		/**
@@ -67,8 +70,20 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		}
 	};
 
+	/**
+	 * Initializes EvaluationExpression.
+	 */
+	public EvaluationExpression() {
+		this.tags = new IdentitySet<ExpressionTag>();
+	}
+
 	public void addTag(final ExpressionTag tag) {
 		this.tags.add(tag);
+	}
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		this.tags = new IdentitySet<ExpressionTag>();
 	}
 
 	@Override
