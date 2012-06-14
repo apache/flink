@@ -24,6 +24,9 @@ public class IntTupleDataInFormat extends DelimitedInputFormat {
 	public static final int MAX_COLUMNS = 20;
 
 	public static final int DELIMITER = '|';
+	
+	private final PactInteger key = new PactInteger();
+	private final short[] offsets = new short[MAX_COLUMNS];
 
 	@Override
 	public boolean readRecord(PactRecord target, byte[] line, int offset, int numBytes)
@@ -32,23 +35,21 @@ public class IntTupleDataInFormat extends DelimitedInputFormat {
 		int readPos = offset;
 
 		// allocate the offsets array
-		short[] offsets = new short[MAX_COLUMNS];
+		final short[] offsets = this.offsets;
+		offsets[0] = (short) offset;
 
 		int col = 1; // the column we are in
-		int countInWrapBuffer = 0; // the number of characters in the wrapping buffer
-
-		int startPos = readPos;
 
 		while (readPos < limit) {
 			if (line[readPos++] == DELIMITER) {
-				offsets[col++] = (short) (countInWrapBuffer + readPos - startPos);
+				offsets[col++] = (short) (readPos);
 			}
 		}
 
-		Tuple value = new Tuple(line, offsets, col - 1);
-		PactInteger key = new PactInteger((int) value.getLongValueAt(0));
+		final Tuple value = new Tuple(line, offsets, col - 1);
+		this.key.setValue((int) value.getLongValueAt(0));
 		
-		target.setField(0, key);
+		target.setField(0, this.key);
 		target.setField(1, value);
 
 		return true;

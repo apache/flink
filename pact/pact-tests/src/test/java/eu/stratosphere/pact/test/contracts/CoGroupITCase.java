@@ -95,15 +95,15 @@ public class CoGroupITCase extends TestBase
 		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_4.txt", COGROUP_RIGHT_IN_4);
 	}
 
-	public static class CoGroupTestInFormat extends DelimitedInputFormat {
-
+	public static class CoGroupTestInFormat extends DelimitedInputFormat
+	{
 		private final PactString keyString = new PactString();
 		private final PactString valueString = new PactString();
 		
 		@Override
 		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
-			this.keyString.setValueAscii(bytes, 0, 1);
-			this.valueString.setValueAscii(bytes, 2, 1);
+			this.keyString.setValueAscii(bytes, offset, 1);
+			this.valueString.setValueAscii(bytes, offset + 2, 1);
 			target.setField(0, keyString);
 			target.setField(1, valueString);
 			
