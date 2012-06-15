@@ -1,10 +1,10 @@
 package eu.stratosphere.sopremo.base;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
@@ -13,9 +13,10 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
@@ -65,7 +66,26 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		}
 	};
 
-	private EvaluationExpression enumerationExpression = EvaluationExpression.AS_KEY;
+	private static final EvaluationExpression AUTO = new EvaluationExpression() {
+		private static final long serialVersionUID = -5506784974227617703L;
+
+		public IJsonNode set(IJsonNode node, IJsonNode value, EvaluationContext context) {
+			if (node.isObject()) {
+				((IObjectNode) node).put("id", value);
+				return node;
+			}
+			ObjectNode objectNode = new ObjectNode();
+			objectNode.put("id", value);
+			objectNode.put("value", node);
+			return objectNode;
+		}
+
+		public IJsonNode evaluate(IJsonNode node, IJsonNode target, EvaluationContext context) {
+			return node;
+		}
+	};
+
+	private EvaluationExpression enumerationExpression = AUTO;
 
 	private EvaluationExpression idGeneration = CONCATENATION;
 
@@ -109,29 +129,27 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 	}
 
 	public static class Implementation extends SopremoMap {
-		private EvaluationExpression enumerationExpression, idGeneration;
+		private EvaluationExpression enumerationExpression;
 
-		private long counter;
+		private CachingExpression<IJsonNode> idGeneration;
+
+		private LongNode counter;
 
 		private ArrayNode params;
 
 		@Override
-		public void configure(final Configuration parameters) {
-			super.configure(parameters);
-			final IntNode taskId = new IntNode(parameters.getInteger(AbstractTask.TASK_ID, 0));
-			this.counter = 0;
-			this.params = JsonUtil.asArray(taskId, LongNode.valueOf(this.counter));
+		public void open(Configuration parameters) {
+			super.open(parameters);
+			final IntNode taskId = new IntNode(parameters.getInteger("pact.parallel.task.id", 0));
+			this.counter = LongNode.valueOf(0);
+			this.params = JsonUtil.asArray(taskId, this.counter);
 		}
 
 		@Override
-		protected void map(final JsonNode key, final JsonNode value, final JsonCollector out) {
-			this.params.set(1, LongNode.valueOf(this.counter++));
-			final JsonNode id = this.idGeneration.evaluate(this.params, this.getContext());
-
-			if (this.enumerationExpression == EvaluationExpression.AS_KEY)
-				out.collect(id, value);
-			else
-				out.collect(key, this.enumerationExpression.evaluate(JsonUtil.asArray(value, id), this.getContext()));
+		protected void map(final IJsonNode value, final JsonCollector out) {
+			this.counter.setValue(this.counter.getLongValue() + 1);
+			final IJsonNode id = this.idGeneration.evaluate(this.params, this.getContext());
+			out.collect(this.enumerationExpression.set(value, id, getContext()));
 		}
 	}
 
