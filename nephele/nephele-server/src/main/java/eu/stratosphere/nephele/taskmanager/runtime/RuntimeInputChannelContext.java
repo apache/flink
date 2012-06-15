@@ -231,8 +231,8 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 				}
 
 				if (!this.isReexecuted || sequenceNumber > expectedSequenceNumber) {
-					if (LOG.isWarnEnabled()) {
-						LOG.warn("Input channel " + getChannelName() + " expected envelope " + expectedSequenceNumber
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Input channel " + getChannelName() + " expected envelope " + expectedSequenceNumber
 							+ " but received " + sequenceNumber);
 					}
 				}
