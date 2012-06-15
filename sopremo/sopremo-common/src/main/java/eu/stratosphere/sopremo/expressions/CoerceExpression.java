@@ -70,6 +70,15 @@ public class CoerceExpression extends EvaluationExpression {
 		// TODO Reuse target
 		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, target, context), this.targetType);
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.valueExpression = this.valueExpression.transformRecursively(function);
+		return function.call(this);
+	}
 
 	@Override
 	public void toString(final StringBuilder builder) {

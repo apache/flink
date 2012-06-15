@@ -52,6 +52,16 @@ public class AndExpression extends BooleanExpression {
 
 		return BooleanNode.TRUE;
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		for (int index = 0; index < this.expressions.length; index++)
+			this.expressions[index] = this.expressions[index].transformRecursively(function);
+		return function.call(this);
+	}
 
 	/**
 	 * Returns the expressions.

@@ -106,6 +106,15 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	 */
 	public List<EvaluationExpression> getFragments() {
 		return this.fragments;
+	}	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		for (int index = 0; index < fragments.size(); index++)
+			fragments.set(index, fragments.get(index).transformRecursively(function));
+		return function.call(this);
 	}
 
 	@Override
@@ -152,25 +161,25 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		this.fragments = normalize(children);
 	}
 
-	@Override
-	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-		super.replace(toReplace, replaceFragment);
-
-		final PathExpression pathToFind = PathExpression.ensurePathExpression(toReplace);
-		final PathExpression replacePath = PathExpression.ensurePathExpression(replaceFragment);
-		int size = this.fragments.size() - pathToFind.fragments.size() + 1;
-		final int findSize = pathToFind.fragments.size();
-		findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
-			for (int index = 0; index < findSize; index++)
-				if (!this.fragments.get(startIndex + index).equals(pathToFind.fragments.get(index)))
-					continue findStartIndex;
-
-			this.fragments.subList(startIndex, startIndex + findSize).clear();
-			this.fragments.addAll(startIndex, replacePath.fragments);
-			size -= findSize - replacePath.fragments.size();
-			// startIndex += replacePath.fragments.size();
-		}
-	}
+//	@Override
+//	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
+//		super.replace(toReplace, replaceFragment);
+//
+//		final PathExpression pathToFind = PathExpression.ensurePathExpression(toReplace);
+//		final PathExpression replacePath = PathExpression.ensurePathExpression(replaceFragment);
+//		int size = this.fragments.size() - pathToFind.fragments.size() + 1;
+//		final int findSize = pathToFind.fragments.size();
+//		findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
+//			for (int index = 0; index < findSize; index++)
+//				if (!this.fragments.get(startIndex + index).equals(pathToFind.fragments.get(index)))
+//					continue findStartIndex;
+//
+//			this.fragments.subList(startIndex, startIndex + findSize).clear();
+//			this.fragments.addAll(startIndex, replacePath.fragments);
+//			size -= findSize - replacePath.fragments.size();
+//			// startIndex += replacePath.fragments.size();
+//		}
+//	}
 
 	@Override
 	public void toString(final StringBuilder builder) {

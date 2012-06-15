@@ -76,6 +76,15 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		this.partials.add(partial);
 		return partial;
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		// partials are transformed separately, where appropriate
+		return function.call(this);
+	}
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {

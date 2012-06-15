@@ -68,7 +68,16 @@ public class ArrayCreation extends ContainerExpression {
 			((IArrayNode) target).add(expression.evaluate(node, ((IArrayNode) target).get(index++), context));
 
 		return target;
-
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		for (int index = 0; index < this.elements.length; index++)
+			this.elements[index] = this.elements[index].transformRecursively(function);
+		return function.call(this);
 	}
 
 	@Override

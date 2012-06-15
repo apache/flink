@@ -17,7 +17,7 @@ public class AggregationExpression extends EvaluationExpression {
 
 	private final AggregationFunction function;
 
-	private final EvaluationExpression preprocessing;
+	private EvaluationExpression preprocessing;
 
 	/**
 	 * Initializes an AggregationExpression with the given {@link AggregationFunction}.
@@ -50,6 +50,15 @@ public class AggregationExpression extends EvaluationExpression {
 		for (final IJsonNode node : (IArrayNode) nodes)
 			this.function.aggregate(this.preprocessing.evaluate(node, null, context), context);
 		return this.function.getFinalAggregate();
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.preprocessing = this.preprocessing.transformRecursively(function);
+		return function.call(this);
 	}
 
 	/**

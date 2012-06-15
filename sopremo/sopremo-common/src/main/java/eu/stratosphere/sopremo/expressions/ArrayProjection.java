@@ -16,7 +16,7 @@ public class ArrayProjection extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = 8420269355727456913L;
 
-	private final EvaluationExpression expression;
+	private EvaluationExpression expression;
 
 	/**
 	 * Initializes an ArrayProjection with the given {@link EvaluationExpression}.
@@ -57,6 +57,18 @@ public class ArrayProjection extends EvaluationExpression {
 			((IArrayNode) target).add(this.expression.evaluate(array.get(index), ((IArrayNode) target).get(index),
 				context));
 		return target;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.expression = this.expression.transformRecursively(function);
+		return function.call(this);
 	}
 
 	@Override
