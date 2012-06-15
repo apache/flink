@@ -174,7 +174,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	 *        the index of the input
 	 * @return this
 	 */
-	public Self withKeyExpressions(int index, EvaluationExpression... keyExpressions) {
+	public Self withKeyExpression(int index, EvaluationExpression... keyExpressions) {
 		setKeyExpressions(index, keyExpressions);
 		return self();
 	}
@@ -274,8 +274,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		final Operator<Self> clone = this.clone();
 		for (int index = 0; index < this.getInputs().size(); index++)
 			clone.setInput(index, module.getInput(index));
-		for (int index = 0; index < this.getOutputs().size(); index++)
-			module.getOutput(index).setInput(index, clone.getOutput(index));
+		final List<JsonStream> outputs = clone.getOutputs();
+		for (int index = 0; index < outputs.size(); index++)
+			module.getOutput(index).setInput(index, outputs.get(index));
 		return module;
 	}
 
@@ -375,7 +376,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 			for (int index : globalSchema.indicesOf(expression))
 				keyIndices.add(index);
 		if (keyIndices.isEmpty())
-			throw new IllegalStateException("The given operator needs to specify key expressions");
+			throw new IllegalStateException(String.format("Needs to specify key expressions: %s", getClass()));
 		return keyIndices.toIntArray();
 	}
 

@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.util.dag.DependencyAwareGraphTraverser;
 import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
 import eu.stratosphere.util.dag.GraphTraverseListener;
@@ -45,7 +44,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 	 * @return an operator view of this SopremoModule
 	 */
 	public Operator<?> asOperator() {
-		return new ModuleOperator(this.getOutputs().length, this.getInputs());
+		return new ModuleOperator(this.getInputs(), this.getOutputs());
 	}
 
 	@Override
@@ -131,10 +130,16 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 		 */
 		private static final long serialVersionUID = 632583661549969648L;
 
-		private ModuleOperator(final int numberOfOutputs, final JsonStream[] inputs) {
-			super(numberOfOutputs);
-			this.setNumberOfInputs(inputs.length);
+		/**
+		 * Initializes ModuleOperator.
+		 * 
+		 * @param inputs
+		 * @param outputs
+		 */
+		public ModuleOperator(Source[] inputs, Sink[] outputs) {
+			super(inputs.length, outputs.length);
 			this.setInputs(inputs);
+			this.setOutputs(outputs);
 		}
 
 		/*
@@ -160,18 +165,20 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 
 		public ElementarySopremoModule assemble(SopremoModule sopremoModule) {
 			this.convertDAGToModules(sopremoModule);
-
-			this.connectModules();
-
+			
 			final int sinkCount = sopremoModule.getOutputs().length;
 			final int sourceCount = sopremoModule.getInputs().length;
 			final ElementarySopremoModule elementarySopremoModule =
 				new ElementarySopremoModule(sopremoModule.getName(), sourceCount, sinkCount);
-
+			// replace sources
 			for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++)
-				elementarySopremoModule.setInput(sourceIndex, sopremoModule.getInput(sourceIndex));
+				this.modules.get(sopremoModule.getInput(sourceIndex)).getOutput(0).setInput(0, elementarySopremoModule.getInput(sourceIndex));
+
+			this.connectModules();
+
 			for (int sinkIndex = 0; sinkIndex < sinkCount; sinkIndex++)
-				elementarySopremoModule.setOutput(sinkIndex, sopremoModule.getOutput(sinkIndex));
+				elementarySopremoModule.getOutput(sinkIndex).setInput(0,
+					this.modules.get(sopremoModule.getOutput(sinkIndex)).getInternalOutputNodes(0).getInput(0));
 			for (Sink sink : sopremoModule.getInternalOutputNodes())
 				elementarySopremoModule.addInternalOutput(this.modules.get(sink).getInternalOutputNodes(0));
 
@@ -179,7 +186,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 		}
 
 		private void convertDAGToModules(SopremoModule sopremoModule) {
-			DependencyAwareGraphTraverser.INSTANCE.traverse(sopremoModule.getAllOutputs(),
+			OneTimeTraverser.INSTANCE.traverse(sopremoModule.getAllOutputs(),
 				OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 					@Override
 					public void nodeTraversed(final Operator<?> node) {
@@ -202,7 +209,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 					operatorInputToModuleOutput.put(module.getInput(index).getOutput(0), input);
 				}
 
-				DependencyAwareGraphTraverser.INSTANCE.traverse(module.getAllOutputs(),
+				OneTimeTraverser.INSTANCE.traverse(module.getAllOutputs(),
 					OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 						@Override
 						public void nodeTraversed(final Operator<?> innerNode) {

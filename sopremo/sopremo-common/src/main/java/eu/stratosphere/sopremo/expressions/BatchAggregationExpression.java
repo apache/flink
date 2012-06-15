@@ -79,10 +79,9 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-
 		if (this.lastInputCounter == context.getInputCounter())
 			return this.lastResult;
+		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
 
 		this.lastInputCounter = context.getInputCounter();
 

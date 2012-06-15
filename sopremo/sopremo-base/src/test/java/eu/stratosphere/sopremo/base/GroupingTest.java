@@ -6,10 +6,12 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.DefaultFunctions;
+import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ArrayProjection;
 import eu.stratosphere.sopremo.expressions.BatchAggregationExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
@@ -17,9 +19,9 @@ import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
-@Ignore
 public class GroupingTest extends SopremoTest<Grouping> {
 	@Override
 	protected Grouping createDefaultInstance(final int index) {
@@ -75,8 +77,10 @@ public class GroupingTest extends SopremoTest<Grouping> {
 			addObject("item", "poster", "count", 100, "costPerItem", 500, "dept_id", 2).
 			addObject("item", "poster", "count", 10, "costPerItem", 300, "dept_id", 3);
 		sopremoPlan.getExpectedOutput(0).
-			addObject("dept", 1, "deptName", "development", "emps", new int[] { 1, 2, 4, 7 }, "numEmps", 4, "expenses", 100).
-			addObject("dept", 2, "deptName", "marketing", "emps", new int[] { 3, 6 }, "numEmps", 2, "expenses", 20000 + 50000).
+			addObject("dept", 1, "deptName", "development", "emps", new int[] { 1, 2, 4, 7 }, "numEmps", 4, "expenses",
+				100).
+			addObject("dept", 2, "deptName", "marketing", "emps", new int[] { 3, 6 }, "numEmps", 2, "expenses",
+				20000 + 50000).
 			addObject("dept", 3, "deptName", "sales", "emps", new int[] { 5 }, "numEmps", 1, "expenses", 1000 + 3000);
 
 		sopremoPlan.run();
@@ -92,10 +96,10 @@ public class GroupingTest extends SopremoTest<Grouping> {
 		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("dept",
 			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.FIRST), new ObjectAccess("dept")));
-		transformation.addMapping("deptName", createPath("1", "[0]", "name"));
+		transformation.addMapping("deptName", new PathExpression(new InputSelection(0), new ArrayAccess(0),
+			new ObjectAccess("name")));
 		transformation.addMapping("emps",
-			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.SORT,
-				new ObjectAccess("id"))));
+			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.SORT, JsonUtil.createPath("id"))));
 		transformation.addMapping("numEmps",
 			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.COUNT)));
 
@@ -133,9 +137,9 @@ public class GroupingTest extends SopremoTest<Grouping> {
 		final ObjectCreation transformation = new ObjectCreation();
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 		transformation.addMapping("d",
-			new PathExpression(batch.add(DefaultFunctions.FIRST), new ObjectAccess("dept")));
+			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.FIRST), new ObjectAccess("dept")));
 		transformation.addMapping("total",
-			new PathExpression(batch.add(DefaultFunctions.SUM, new ObjectAccess("income"))));
+			new PathExpression(new InputSelection(0), batch.add(DefaultFunctions.SUM, new ObjectAccess("income"))));
 
 		final Grouping aggregation = new Grouping().withResultProjection(transformation);
 		aggregation.setInputs(sopremoPlan.getInputOperator(0));

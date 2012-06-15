@@ -12,18 +12,30 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.testing;
+package eu.stratosphere.sopremo.base.replace;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import eu.stratosphere.sopremo.expressions.CachingExpression;
+import eu.stratosphere.sopremo.pact.JsonCollector;
+import eu.stratosphere.sopremo.pact.SopremoMatch;
+import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * @author Arvid Heise
  */
-public class ConcurrentUtil {
-	private static ScheduledExecutorService Executor = new ScheduledThreadPoolExecutor(1, new DaemonThreadFactory());
+public class ArrayElementStrictReplace extends ArrayElementReplaceBase<ArrayElementStrictReplace> {
+	private static final long serialVersionUID = -3657489526504410342L;
 
-	public static void invokeLater(Runnable runnable) {
-		Executor.execute(runnable);
+	public static class Implementation extends SopremoMatch {
+
+		private CachingExpression<IJsonNode> dictionaryValueExtraction;
+
+		private int index = 0;
+
+		@Override
+		protected void match(final IJsonNode value1, final IJsonNode value2, final JsonCollector out) {
+			((IArrayNode) value1).set(this.index, this.dictionaryValueExtraction.evaluate(value2, getContext()));
+			out.collect(value1);
+		}
 	}
 }

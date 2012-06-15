@@ -12,18 +12,27 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.testing;
+package eu.stratosphere.sopremo.base;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.Arrays;
+
+import eu.stratosphere.sopremo.JsonStream;
+import eu.stratosphere.sopremo.expressions.ArrayCreation;
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 /**
+ * Some convenience method to implement complex operators.
+ * 
  * @author Arvid Heise
  */
-public class ConcurrentUtil {
-	private static ScheduledExecutorService Executor = new ScheduledThreadPoolExecutor(1, new DaemonThreadFactory());
-
-	public static void invokeLater(Runnable runnable) {
-		Executor.execute(runnable);
+public class OperatorUtil {
+	public static JsonStream positionEncode(JsonStream input, int index, int maxIndex) {
+		final EvaluationExpression[] elements = new EvaluationExpression[maxIndex];
+		Arrays.fill(elements, ConstantExpression.MISSING);
+		elements[index] = EvaluationExpression.VALUE;
+		return new Projection().
+			withTransformation(new ArrayCreation(elements)).
+			withInputs(input);
 	}
 }

@@ -12,18 +12,25 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.pact.testing;
-
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+package eu.stratosphere.sopremo.base.replace;
 
 /**
- * @author Arvid Heise
+ * @author arv
  */
-public class ConcurrentUtil {
-	private static ScheduledExecutorService Executor = new ScheduledThreadPoolExecutor(1, new DaemonThreadFactory());
+public abstract class ArrayElementReplaceBase<Self extends ArrayElementReplaceBase<Self>> extends ReplaceBase<Self> {
 
-	public static void invokeLater(Runnable runnable) {
-		Executor.execute(runnable);
+	private static final long serialVersionUID = 6961112483200602037L;
+
+	private int index = 0;
+
+	public int getIndex() {
+		return this.index;
+	}
+
+	public void setIndex(int index) {
+		if (index < 0)
+			throw new NullPointerException("index must be > 0");
+
+		this.index = index;
 	}
 }

@@ -102,10 +102,11 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		@Override
 		public void executionStateChanged(final ExecutionState executionState, final String optionalMessage) {
-			// // Finally propagate the state change to the job manager
-			// MockTaskManager. this.executionStateChanged(environment.getJobID(), id, this, newExecutionState,
-			// optionalMessage);
-
+			// Don't propagate state CANCELING back to the job manager
+			if (executionState == ExecutionState.CANCELING) {
+				return;
+			}
+			
 			final ExecutionGraph eg = MockTaskManager.INSTANCE.jobGraphs.get(this.environment.getJobID());
 			if (eg == null) {
 				LOG.error("Cannot find execution graph for ID " + this.environment.getJobID() + " to change state to "

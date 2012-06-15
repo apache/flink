@@ -55,16 +55,18 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 
 	private int minInputs, maxInputs, minOutputs, maxOutputs;
 
+	private static Map<Class<?>, Info> beanInfos = new IdentityHashMap<Class<?>, Operator.Info>();
+
 	/**
 	 * Initializes the Operator with the annotations.
 	 */
 	public Operator() {
 		final InputCardinality inputs = ReflectUtil.getAnnotation(this.getClass(), InputCardinality.class);
 		if (inputs == null)
-			throw new IllegalStateException("No InputCardinality annotation found");
+			throw new IllegalStateException("No InputCardinality annotation found @ " + getClass());
 		final OutputCardinality outputs = ReflectUtil.getAnnotation(this.getClass(), OutputCardinality.class);
 		if (outputs == null)
-			throw new IllegalStateException("No OutputCardinality annotation found");
+			throw new IllegalStateException("No OutputCardinality annotation found @ " + getClass());
 		this.setNumberOfInputs(inputs.value() != -1 ? inputs.value() : inputs.min(),
 			inputs.value() != -1 ? inputs.value() : inputs.max());
 		this.setNumberOfOutputs(outputs.value() != -1 ? outputs.value() : outputs.min(),
@@ -90,6 +92,8 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		this.name = this.getClass().getSimpleName();
 	}
 
+	public abstract ElementarySopremoModule asElementaryOperators();
+
 	/**
 	 * Converts this operator to a {@link PactModule} using the provided {@link EvaluationContext}.
 	 * 
@@ -98,32 +102,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * @return the {@link PactModule} representing this operator
 	 */
 	public abstract PactModule asPactModule(EvaluationContext context);
-
-	@Override
-	public Operator<Self> clone() {
-		try {
-			@SuppressWarnings("unchecked")
-			final Operator<Self> clone = (Operator<Self>) super.clone();
-			clone.inputs = new ArrayList<JsonStream>(this.inputs);
-			clone.outputs = new ArrayList<JsonStream>(this.outputs);
-			return clone;
-		} catch (final CloneNotSupportedException e) {
-			// cannot happen
-			return null;
-		}
-	}
-
-	@Override
-	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
-		final Operator<?> other = (Operator<?>) obj;
-		return this.name.equals(other.name);
-	}
 
 	// /**
 	// * Initializes the Operator with the given number of outputs and the given input {@link JsonStream}s. A JsonStream
@@ -183,6 +161,33 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	// }
 
 	@Override
+	public Operator<Self> clone() {
+		try {
+			@SuppressWarnings("unchecked")
+			final Operator<Self> clone = (Operator<Self>) super.clone();
+			clone.inputs = new ArrayList<JsonStream>(this.inputs);
+			clone.outputs = new ArrayList<JsonStream>(this.outputs);
+			Collections.fill(clone.outputs, null);
+			return clone;
+		} catch (final CloneNotSupportedException e) {
+			// cannot happen
+			return null;
+		}
+	}
+
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		final Operator<?> other = (Operator<?>) obj;
+		return this.name.equals(other.name);
+	}
+
+	@Override
 	public BeanInfo[] getAdditionalBeanInfo() {
 		return this.getBeanInfo().getAdditionalBeanInfo();
 	}
@@ -190,15 +195,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	@Override
 	public BeanDescriptor getBeanDescriptor() {
 		return this.getBeanInfo().getBeanDescriptor();
-	}
-
-	private static Map<Class<?>, Info> beanInfos = new IdentityHashMap<Class<?>, Operator.Info>();
-
-	private BeanInfo getBeanInfo() {
-		Info beanInfo = beanInfos.get(this.getClass());
-		if (beanInfo == null)
-			beanInfos.put(this.getClass(), beanInfo = new Info(this.getClass()));
-		return beanInfo;
 	}
 
 	@Override
@@ -231,13 +227,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 */
 	public JsonStream getInput(final int index) {
 		return this.inputs.get(index);
-	}
-
-	protected JsonStream getSafeInput(final int inputIndex) {
-		final JsonStream input = this.getInput(inputIndex);
-		if (input == null)
-			throw new IllegalStateException("inputs must be set first");
-		return input;
 	}
 
 	/**
@@ -325,10 +314,10 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * 
 	 * @return all outputs of this operator
 	 */
-	public List<JsonStream> getOutputs() {		
+	public List<JsonStream> getOutputs() {
 		final ArrayList<JsonStream> outputs = new ArrayList<JsonStream>(this.maxOutputs);
-		for(int index = 0; index < this.maxOutputs; index++)
-			outputs.add(getOutput(index));
+		for (int index = 0; index < this.maxOutputs; index++)
+			outputs.add(this.getOutput(index));
 		return outputs;
 	}
 
@@ -369,12 +358,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		this.inputs.set(index, input == null ? null : input.getSource());
 	}
 
-	private void checkSize(final int index, final int max, final List<?> list) {
-		if (index >= max)
-			throw new IndexOutOfBoundsException(String.format("index %s >= max %s", index, max));
-		CollectionUtil.ensureSize(list, index + 1);
-	}
-
 	/**
 	 * Replaces the current list of inputs with the given list of {@link JsonStream}s.
 	 * 
@@ -383,12 +366,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 */
 	public void setInputs(final JsonStream... inputs) {
 		this.setInputs(Arrays.asList(inputs));
-	}
-
-	protected void checkInput(final JsonStream input) {
-		// current constraint, may be removed later
-		if (input != null && input.getSource().getOperator() == this)
-			throw new IllegalArgumentException("Cyclic reference");
 	}
 
 	/**
@@ -411,20 +388,42 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	}
 
 	/**
-	 * Replaces the current list of inputs with the given list of {@link JsonStream}s.
+	 * Sets the name of this operator.
 	 * 
-	 * @param inputs
-	 *        the new inputs
-	 * @return this
+	 * @param name
+	 *        the new name of this operator
 	 */
-	public Self withInputs(final List<? extends JsonStream> inputs) {
-		this.setInputs(inputs);
-		return this.self();
+	public void setName(final String name) {
+		if (name == null)
+			throw new NullPointerException("name must not be null");
+
+		this.name = name;
 	}
 
-	@SuppressWarnings("unchecked")
-	protected final Self self() {
-		return (Self) this;
+	/**
+	 * Sets the name of this operator.
+	 * 
+	 * @param name
+	 *        the new name of this operator
+	 */
+	public Self withName(final String name) {
+		setName(name);
+		return self();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(final StringBuilder builder) {
+		builder.append(this.getName());
+	}
+
+	public void validate() throws IllegalStateException {
+		for (int index = 0; index < this.inputs.size(); index++)
+			if (this.inputs.get(index) == null)
+				throw new IllegalStateException("unconnected input " + index);
 	}
 
 	/**
@@ -439,6 +438,46 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		return this.self();
 	}
 
+	/**
+	 * Replaces the current list of inputs with the given list of {@link JsonStream}s.
+	 * 
+	 * @param inputs
+	 *        the new inputs
+	 * @return this
+	 */
+	public Self withInputs(final List<? extends JsonStream> inputs) {
+		this.setInputs(inputs);
+		return this.self();
+	}
+
+	protected void checkInput(final JsonStream input) {
+		// current constraint, may be removed later
+		if (input != null && input.getSource().getOperator() == this)
+			throw new IllegalArgumentException("Cyclic reference");
+	}
+
+	protected void checkOutput(final JsonStream input) {
+		// current constraint, may be removed later
+		if (input != null && input.getSource().getOperator() == this)
+			throw new IllegalArgumentException("Cyclic reference");
+	}
+
+	protected JsonStream getSafeInput(final int inputIndex) {
+		final JsonStream input = this.getInput(inputIndex);
+		if (input == null)
+			throw new IllegalStateException("inputs must be set first");
+		return input;
+	}
+
+	@SuppressWarnings("unchecked")
+	protected final Self self() {
+		return (Self) this;
+	}
+
+	protected void setNumberOfInputs(final int num) {
+		this.setNumberOfInputs(num, num);
+	}
+
 	protected void setNumberOfInputs(final int min, final int max) {
 		if (min > max)
 			throw new IllegalArgumentException();
@@ -447,33 +486,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		this.minInputs = min;
 		this.maxInputs = max;
 		CollectionUtil.ensureSize(this.inputs, this.minInputs);
-	}
-
-	protected void setNumberOfOutputs(final int min, final int max) {
-		if (min > max)
-			throw new IllegalArgumentException();
-		if (min < 0 || max < 0)
-			throw new IllegalArgumentException();
-		this.minOutputs = min;
-		this.maxOutputs = max;
-		CollectionUtil.ensureSize(this.outputs, this.minOutputs);
-	}
-
-	protected void setNumberOfInputs(final int num) {
-		this.setNumberOfInputs(num, num);
-	}
-
-	/**
-	 * Sets the name of this operator.
-	 * 
-	 * @param name
-	 *        the new name of this operator
-	 */
-	public void setName(final String name) {
-		if (name == null)
-			throw new NullPointerException("name must not be null");
-
-		this.name = name;
 	}
 
 	/**
@@ -490,21 +502,71 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 				this.outputs.add(new Output(index));
 	}
 
-	public abstract ElementarySopremoModule asElementaryOperators();
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
-	 */
-	@Override
-	public void toString(final StringBuilder builder) {
-		builder.append(this.getName());
+	protected void setNumberOfOutputs(final int min, final int max) {
+		if (min > max)
+			throw new IllegalArgumentException();
+		if (min < 0 || max < 0)
+			throw new IllegalArgumentException();
+		this.minOutputs = min;
+		this.maxOutputs = max;
+		CollectionUtil.ensureSize(this.outputs, this.minOutputs);
 	}
 
-	public void validate() throws IllegalStateException {
-		for (int index = 0; index < this.inputs.size(); index++)
-			if (this.inputs.get(index) == null)
-				throw new IllegalStateException("unconnected input " + index);
+	/**
+	 * Replaces the output at the given location with the given {@link JsonStream}s.
+	 * 
+	 * @param index
+	 *        the index of the output
+	 * @param output
+	 *        the new output
+	 */
+	protected void setOutput(final int index, final JsonStream output) {
+		this.checkSize(index, this.maxOutputs, this.outputs);
+
+		this.checkOutput(output);
+		this.outputs.set(index, output == null ? null : output.getSource());
+	}
+
+	/**
+	 * Replaces the current list of outputs with the given list of {@link JsonStream}s.
+	 * 
+	 * @param outputs
+	 *        the new outputs
+	 */
+	protected void setOutputs(final JsonStream... outputs) {
+		this.setOutputs(Arrays.asList(outputs));
+	}
+
+	/**
+	 * Replaces the current list of outputs with the given list of {@link JsonStream}s.
+	 * 
+	 * @param outputs
+	 *        the new outputs
+	 */
+	protected void setOutputs(final List<? extends JsonStream> outputs) {
+		if (outputs == null)
+			throw new NullPointerException("outputs must not be null");
+		if (this.minOutputs > outputs.size() || outputs.size() > this.maxOutputs)
+			throw new IndexOutOfBoundsException();
+
+		this.outputs.clear();
+		for (final JsonStream output : outputs) {
+			this.checkOutput(output);
+			this.outputs.add(output == null ? null : output.getSource());
+		}
+	}
+
+	private void checkSize(final int index, final int max, final List<?> list) {
+		if (index >= max)
+			throw new IndexOutOfBoundsException(String.format("index %s >= max %s", index, max));
+		CollectionUtil.ensureSize(list, index + 1);
+	}
+
+	private BeanInfo getBeanInfo() {
+		Info beanInfo = beanInfos.get(this.getClass());
+		if (beanInfo == null)
+			beanInfos.put(this.getClass(), beanInfo = new Info(this.getClass()));
+		return beanInfo;
 	}
 
 	public static class Info extends SimpleBeanInfo {
@@ -528,6 +590,16 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 			this.setNames(this.classDescriptor, clazz.getAnnotation(Name.class));
 
 			this.findProperties(clazz);
+		}
+
+		@Override
+		public BeanDescriptor getBeanDescriptor() {
+			return this.classDescriptor;
+		}
+
+		@Override
+		public PropertyDescriptor[] getPropertyDescriptors() {
+			return this.properties;
 		}
 
 		@SuppressWarnings("rawtypes")
@@ -562,16 +634,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 			//
 			// }
 			// }
-		}
-
-		@Override
-		public BeanDescriptor getBeanDescriptor() {
-			return this.classDescriptor;
-		}
-
-		@Override
-		public PropertyDescriptor[] getPropertyDescriptors() {
-			return this.properties;
 		}
 
 		private void setNames(final FeatureDescriptor description, final Name annotation) {
