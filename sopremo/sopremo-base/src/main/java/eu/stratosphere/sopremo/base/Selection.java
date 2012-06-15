@@ -11,7 +11,7 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-@Name(verb = "select")
+@Name(verb = "filter")
 public class Selection extends ElementaryOperator<Selection> {
 	/**
 	 * 

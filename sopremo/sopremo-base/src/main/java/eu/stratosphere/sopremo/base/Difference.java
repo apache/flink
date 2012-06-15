@@ -16,7 +16,7 @@ import eu.stratosphere.sopremo.type.IArrayNode;
  * 
  * @author Arvid Heise
  */
-@Name(verb = "difference")
+@Name(verb = "subtract")
 public class Difference extends SetOperation<Difference> {
 
 	/**

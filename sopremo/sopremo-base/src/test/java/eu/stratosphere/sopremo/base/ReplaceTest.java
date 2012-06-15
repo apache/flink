@@ -21,8 +21,9 @@ public class ReplaceTest extends SopremoTest<Replace> {
 	protected Replace createDefaultInstance(int index) {
 		return new Replace().withReplaceExpression(new ArrayAccess(index));
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.SopremoTest#initVerifier(nl.jqno.equalsverifier.EqualsVerifier)
 	 */
 	@Override

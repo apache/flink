@@ -72,7 +72,7 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		private final int index;
 
 		public CompositeOperatorImpl(final int index) {
-			super(1);
+			super(3, 1);
 			this.index = index;
 		}
 

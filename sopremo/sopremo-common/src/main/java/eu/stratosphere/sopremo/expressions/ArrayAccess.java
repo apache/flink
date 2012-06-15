@@ -200,10 +200,15 @@ public class ArrayAccess extends EvaluationExpression {
 	}
 
 	/**
+	 * Returns an optimal expression that returns an array that aggregates the given indices.<br>
+	 * Please note that the result of this expression is always an array in contrast to ArrayAccess with only one
+	 * index.
+	 * 
 	 * @param indices
-	 * @return
+	 *        the indices in the original array that should be concatenated to a new array
+	 * @return an optimal expression that evaluates to an array
 	 */
-	public static EvaluationExpression valueOf(final int[] indices) {
+	public static EvaluationExpression arrayWithIndices(final int... indices) {
 		switch (indices.length) {
 		case 0:
 			return new ArrayCreation();

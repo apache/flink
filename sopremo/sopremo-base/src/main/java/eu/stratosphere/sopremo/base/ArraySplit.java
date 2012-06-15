@@ -27,14 +27,18 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 	 */
 	private static final long serialVersionUID = -2967507260239105002L;
 
-	private EvaluationExpression arrayPath = EvaluationExpression.VALUE, elementProjection = new ArrayAccess(0);
+	private EvaluationExpression arrayPath = EvaluationExpression.VALUE, splitProjection = new ArrayAccess(0);
+
+	public enum ResultField {
+		Element, Index, Array, WholeValue;
+	};
 
 	public EvaluationExpression getArrayPath() {
 		return this.arrayPath;
 	}
 
-	public EvaluationExpression getElementProjection() {
-		return this.elementProjection;
+	public EvaluationExpression getSplitProjection() {
+		return this.splitProjection;
 	}
 
 	public ArraySplit withArrayPath(EvaluationExpression arrayPath) {
@@ -48,8 +52,30 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 	 * @param valueProjection
 	 * @return this
 	 */
-	public ArraySplit withValueProjection(EvaluationExpression valueProjection) {
-		this.setElementProjection(valueProjection);
+	public ArraySplit withSplitProjection(EvaluationExpression valueProjection) {
+		this.setSplitProjection(valueProjection);
+		return this;
+	}
+
+	/**
+	 * (element, index, array, node) -&gt; value
+	 * 
+	 * @param elementProjection
+	 */
+	public void setSplitProjection(EvaluationExpression elementProjection) {
+		if (elementProjection == null)
+			throw new NullPointerException("elementProjection must not be null");
+		this.splitProjection = elementProjection;
+	}
+
+	/**
+	 * (element, index, array, node) -&gt; value
+	 * 
+	 * @param valueProjection
+	 * @return this
+	 */
+	public ArraySplit withSplitProjection(ResultField... fields) {
+		this.setSplitProjection(fields);
 		return this;
 	}
 
@@ -58,15 +84,18 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 	 * 
 	 * @param valueProjection
 	 */
-	public void setElementProjection(EvaluationExpression valueProjection) {
-		this.elementProjection = valueProjection;
+	public void setSplitProjection(ResultField... fields) {
+		int[] indices = new int[fields.length];
+		for (int index = 0; index < indices.length; index++) 
+			indices[index] = fields[index].ordinal();
+		this.setSplitProjection(ArrayAccess.arrayWithIndices(indices));
 	}
 
 	public static class Implementation extends SopremoMap {
 		private CachingExpression<IArrayNode> arrayPath;
-		
+
 		private EvaluationExpression elementProjection;
-		
+
 		@Override
 		protected void map(final IJsonNode value, JsonCollector out) {
 			final IArrayNode array = this.arrayPath.evaluate(value, null, this.getContext());
