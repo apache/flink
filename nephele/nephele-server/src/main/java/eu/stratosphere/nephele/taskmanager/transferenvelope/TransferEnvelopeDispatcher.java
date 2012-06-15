@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
+import java.io.IOException;
+
 /**
  * A transfer envelope dispatcher receives {@link TransferEnvelopes} and sends them to all of this destinations.
  * 
@@ -29,9 +31,10 @@ public interface TransferEnvelopeDispatcher {
 	 * @param transferEnvelope
 	 *        the transfer envelope to be processed
 	 */
-	void processEnvelopeFromOutputChannel(TransferEnvelope transferEnvelope);
+	void processEnvelopeFromOutputChannel(TransferEnvelope transferEnvelope) throws IOException, InterruptedException;
 
-	void processEnvelopeFromInputChannel(TransferEnvelope transferEnvelope);
+	void processEnvelopeFromInputChannel(TransferEnvelope transferEnvelope) throws IOException, InterruptedException;
 
-	void processEnvelopeFromNetwork(TransferEnvelope transferEnvelope, boolean freeSourceBuffer);
+	void processEnvelopeFromNetwork(TransferEnvelope transferEnvelope, boolean freeSourceBuffer) throws IOException,
+			InterruptedException;
 }
