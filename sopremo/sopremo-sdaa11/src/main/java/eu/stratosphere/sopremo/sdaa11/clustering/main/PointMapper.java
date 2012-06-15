@@ -34,7 +34,7 @@ import eu.stratosphere.sopremo.type.TextNode;
  * </ol>
  * Outputs:
  * <ol>
- * 	<li>Assigned points</li>
+ * <li>Assigned points</li>
  * </ol>
  * 
  * @author skruse
@@ -65,8 +65,8 @@ public class PointMapper extends ElementaryOperator<PointMapper> {
 		protected void cross(final IJsonNode pointNode,
 				final IJsonNode treeNode, final JsonCollector out) {
 
-//			System.out.println("Cross tree " + treeNode);
-//			System.out.println("x point " + pointNode);
+			// System.out.println("Cross tree " + treeNode);
+			// System.out.println("x point " + pointNode);
 			final ClusterTree tree = new ClusterTree();
 			tree.read(treeNode);
 

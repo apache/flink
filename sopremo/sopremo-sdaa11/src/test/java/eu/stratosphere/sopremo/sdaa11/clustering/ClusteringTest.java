@@ -65,26 +65,26 @@ public class ClusteringTest {
 
 		System.out.println("Stable clusters:");
 		for (final IJsonNode outputNode : plan.getActualOutput(0))
-			System.out.println("> "+outputNode);
-		
+			System.out.println("> " + outputNode);
+
 		int count = 0;
 		System.out.println();
 		System.out.println("Stable points:");
 		for (final IJsonNode outputNode : plan.getActualOutput(1))
-//			System.out.println("> "+outputNode);
+			// System.out.println("> "+outputNode);
 			count++;
 		System.out.println(count);
 
 		System.out.println();
 		System.out.println("Unstable clusters:");
 		for (final IJsonNode outputNode : plan.getActualOutput(2))
-			System.out.println("> "+outputNode);
+			System.out.println("> " + outputNode);
 
 		count = 0;
 		System.out.println();
 		System.out.println("Unstable points:");
 		for (final IJsonNode outputNode : plan.getActualOutput(3))
-//			System.out.println("> "+outputNode);
+			// System.out.println("> "+outputNode);
 			count++;
 		System.out.println(count);
 

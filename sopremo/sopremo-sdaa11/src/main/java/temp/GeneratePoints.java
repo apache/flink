@@ -31,8 +31,8 @@ import eu.stratosphere.sopremo.type.TextNode;
  */
 public class GeneratePoints {
 
-	public static boolean ESCAPE_CHARS = false; 
-	
+	public static boolean ESCAPE_CHARS = false;
+
 	/**
 	 * @param args
 	 */
@@ -67,9 +67,8 @@ public class GeneratePoints {
 		}
 
 		String jsonString = points.toString();
-		if (ESCAPE_CHARS) {
+		if (ESCAPE_CHARS)
 			jsonString = jsonString.replaceAll("\\\"", "\\\\\"");
-		}
 		System.out.println(jsonString);
 	}
 

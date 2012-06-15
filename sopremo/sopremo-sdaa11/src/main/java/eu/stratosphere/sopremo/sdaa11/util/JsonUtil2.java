@@ -41,8 +41,8 @@ public class JsonUtil2 {
 			final Class<T> type) {
 		try {
 			return (T) ((ObjectNode) node).get(field);
-		} catch (ClassCastException e) {
-			System.err.println("Wrong field type in: "+node);
+		} catch (final ClassCastException e) {
+			System.err.println("Wrong field type in: " + node);
 			throw e;
 		}
 	}

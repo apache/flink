@@ -34,27 +34,34 @@ public class MakeCandidatesUnique extends
 
 	private static final long serialVersionUID = 9185462670688421449L;
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions(int)
 	 */
 	@Override
-	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
-		if (inputIndex != 0) {
-			throw new IllegalArgumentException("Illegal input index: "+inputIndex);
-		}
+	public List<? extends EvaluationExpression> getKeyExpressions(
+			final int inputIndex) {
+		if (inputIndex != 0)
+			throw new IllegalArgumentException("Illegal input index: "
+					+ inputIndex);
 		return Arrays.asList(new ObjectAccess(FrequentItemsetNodes.ITEMS));
 	}
-	
+
 	public static class Implementation extends SopremoReduce {
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see
+		 * eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere
+		 * .sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
 		 */
 		@Override
-		protected void reduce(IArrayNode values, JsonCollector out) {
+		protected void reduce(final IArrayNode values, final JsonCollector out) {
 			out.collect(values.get(0));
-			
+
 		}
-		
+
 	}
 }

@@ -188,10 +188,11 @@ public class RepresentationUpdate extends
 			final ObjectNode representationNode = (ObjectNode) representationsNode
 					.get(0);
 
-			final String id = JsonUtil2.getField(representationNode, RepresentationNodes.ID,
-					TextNode.class).getJavaValue();
+			final String id = JsonUtil2.getField(representationNode,
+					RepresentationNodes.ID, TextNode.class).getJavaValue();
 			final Point oldClustroid = new Point();
-			oldClustroid.read(representationNode.get(RepresentationNodes.CLUSTROID));
+			oldClustroid.read(representationNode
+					.get(RepresentationNodes.CLUSTROID));
 
 			// TODO: Evaluate whether starting with an empty representation
 			// yields better results
@@ -272,8 +273,9 @@ public class RepresentationUpdate extends
 			this.flagNode.setValue(flag);
 			this.oldIdNode.setValue(oldId);
 			clustroid.write(this.pointNode);
-			RepresentationNodes.write(outputNode, idNode, oldIdNode, pointNode);
-			RepresentationNodes.setFlag(outputNode, flagNode);
+			RepresentationNodes.write(this.outputNode, this.idNode,
+					this.oldIdNode, this.pointNode);
+			RepresentationNodes.setFlag(this.outputNode, this.flagNode);
 
 			collector.collect(this.outputNode);
 		}

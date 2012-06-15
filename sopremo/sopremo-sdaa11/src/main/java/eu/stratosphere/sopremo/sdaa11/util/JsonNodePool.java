@@ -22,42 +22,45 @@ import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
- *
+ * 
  */
 public class JsonNodePool<Node extends IJsonNode> {
-	
-	private IJsonNodeFactory<Node> factory;
-	private List<Node> nodes = new ArrayList<Node>();
+
+	private final IJsonNodeFactory<Node> factory;
+	private final List<Node> nodes = new ArrayList<Node>();
 	private int index = 0;
-	
+
 	/**
 	 * Initializes JsonNodePool.
-	 *
+	 * 
 	 * @param factory
 	 */
-	public JsonNodePool(IJsonNodeFactory<Node> factory) {
+	public JsonNodePool(final IJsonNodeFactory<Node> factory) {
 		this.factory = factory;
 	}
-	
+
 	public Node getNode() {
-		while (index >= nodes.size()) {
-			nodes.add(factory.createJsonNode());
-		}
-		return nodes.get(index++);
+		while (this.index >= this.nodes.size())
+			this.nodes.add(this.factory.createJsonNode());
+		return this.nodes.get(this.index++);
 	}
-	
+
 	public void reset() {
-		index = 0;
+		this.index = 0;
 	}
 
 	public static interface IJsonNodeFactory<Node extends IJsonNode> {
 		Node createJsonNode();
 	}
-	
+
 	public static class TextNodeFactory implements IJsonNodeFactory<TextNode> {
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.sdaa11.util.JsonNodePool.IJsonNodeFactory#createJsonNode()
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see
+		 * eu.stratosphere.sopremo.sdaa11.util.JsonNodePool.IJsonNodeFactory
+		 * #createJsonNode()
 		 */
 		@Override
 		public TextNode createJsonNode() {

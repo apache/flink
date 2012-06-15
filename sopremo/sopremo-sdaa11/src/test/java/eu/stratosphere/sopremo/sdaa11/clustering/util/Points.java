@@ -54,7 +54,7 @@ public class Points {
 		} finally {
 			try {
 				reader.close();
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				e.printStackTrace();
 			}
 		}

@@ -32,7 +32,7 @@ public class SONTest {
 
 	@Test
 	public void testSON() throws IOException {
-		SON son = new SON();
+		final SON son = new SON();
 		son.setParallelism(2);
 		son.setMinSupport(200);
 		son.setMaxSetSize(10);

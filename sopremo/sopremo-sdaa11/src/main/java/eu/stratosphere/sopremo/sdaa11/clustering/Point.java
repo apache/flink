@@ -129,7 +129,7 @@ public class Point implements Serializable, Cloneable, Comparable<Point>,
 		if (node == null || !(node instanceof ObjectNode))
 			throw new IllegalArgumentException("Illegal point node: " + node);
 		final ObjectNode objectNode = (ObjectNode) node;
-//		System.out.println("Reading point from " + node);
+		// System.out.println("Reading point from " + node);
 
 		this.key = PointNodes.getId(objectNode).getJavaValue();
 		this.values = new ArrayList<String>();

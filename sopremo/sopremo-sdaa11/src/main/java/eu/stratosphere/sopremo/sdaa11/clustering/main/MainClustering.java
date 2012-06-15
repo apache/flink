@@ -71,7 +71,8 @@ public class MainClustering extends CompositeOperator<MainClustering> {
 		final ClusterDisassemble disassemble = new ClusterDisassemble()
 				.withInputs(initialClustersInput);
 
-		final PointMapper pointMapper = new PointMapper().withInputs(restPointsInput, treeInput);
+		final PointMapper pointMapper = new PointMapper().withInputs(
+				restPointsInput, treeInput);
 
 		final UnionAll pointUnionAll = new UnionAll().withInputs(disassemble,
 				pointMapper);
@@ -82,7 +83,7 @@ public class MainClustering extends CompositeOperator<MainClustering> {
 		representationUpdate.setMinPointCount(this.minPointCount);
 		representationUpdate.setMaxClustroidShift(this.maxClustroidShift);
 		representationUpdate.setRepresentationDetail(this.representationDetail);
-		
+
 		module.getOutput(0).setInputs(pointUnionAll);
 		module.getOutput(1).setInputs(representationUpdate);
 

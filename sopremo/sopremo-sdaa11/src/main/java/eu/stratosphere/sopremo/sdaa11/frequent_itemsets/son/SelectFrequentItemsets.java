@@ -39,17 +39,20 @@ public class SelectFrequentItemsets extends
 		ElementaryOperator<SelectFrequentItemsets> {
 
 	private static final long serialVersionUID = 7424999307415466657L;
-	
+
 	private int minSupport = 0;
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions(int)
 	 */
 	@Override
-	public List<? extends EvaluationExpression> getKeyExpressions(int inputIndex) {
-		if (inputIndex != 0) {
-			throw new IllegalArgumentException("Illegal input index: "+inputIndex);
-		}
+	public List<? extends EvaluationExpression> getKeyExpressions(
+			final int inputIndex) {
+		if (inputIndex != 0)
+			throw new IllegalArgumentException("Illegal input index: "
+					+ inputIndex);
 		return Arrays.asList(new ObjectAccess(FrequentItemsetNodes.ITEMS));
 	}
 
@@ -59,42 +62,49 @@ public class SelectFrequentItemsets extends
 	 * @return the minSupport
 	 */
 	public int getMinSupport() {
-		return minSupport;
+		return this.minSupport;
 	}
 
 	/**
 	 * Sets the minSupport to the specified value.
-	 *
-	 * @param minSupport the minSupport to set
+	 * 
+	 * @param minSupport
+	 *            the minSupport to set
 	 */
-	public void setMinSupport(int minSupport) {
+	public void setMinSupport(final int minSupport) {
 		this.minSupport = minSupport;
 	}
-	
-	public static class Implementation extends SopremoReduce {
-		
-		int minSupport;
-		
-		private ObjectNode fisNode = new ObjectNode();
-		private IntNode supportNode = new IntNode();
-		private IArrayNode itemsNode = new ArrayNode();
-		private JsonNodePool<TextNode> itemNodePool = new JsonNodePool<TextNode>(new TextNodeFactory());
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
+	public static class Implementation extends SopremoReduce {
+
+		int minSupport;
+
+		private final ObjectNode fisNode = new ObjectNode();
+		private final IntNode supportNode = new IntNode();
+		private IArrayNode itemsNode = new ArrayNode();
+		private final JsonNodePool<TextNode> itemNodePool = new JsonNodePool<TextNode>(
+				new TextNodeFactory());
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see
+		 * eu.stratosphere.sopremo.pact.SopremoReduce#reduce(eu.stratosphere
+		 * .sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
 		 */
 		@Override
-		protected void reduce(IArrayNode values, JsonCollector out) {
-			int support = values.size();
-			if (support >= minSupport) {
-				ObjectNode value = (ObjectNode) values.get(0);
-				supportNode.setValue(support);
-				itemsNode = FrequentItemsetNodes.getItems(value);
-				FrequentItemsetNodes.write(fisNode, itemsNode, supportNode);
-				out.collect(fisNode);
+		protected void reduce(final IArrayNode values, final JsonCollector out) {
+			final int support = values.size();
+			if (support >= this.minSupport) {
+				final ObjectNode value = (ObjectNode) values.get(0);
+				this.supportNode.setValue(support);
+				this.itemsNode = FrequentItemsetNodes.getItems(value);
+				FrequentItemsetNodes.write(this.fisNode, this.itemsNode,
+						this.supportNode);
+				out.collect(this.fisNode);
 			}
 		}
-		
+
 	}
 
 }

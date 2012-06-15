@@ -60,7 +60,7 @@ public class AnnotatorNodes {
 	public static IntNode getFlatAnnotation(final ObjectNode node) {
 		return (IntNode) node.get(FLAT_ANNOTATION);
 	}
-	
+
 	public static void removeFlatAnnotation(final ObjectNode node) {
 		node.remove(FLAT_ANNOTATION);
 	}

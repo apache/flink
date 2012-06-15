@@ -52,10 +52,10 @@ public class RoundRobinAnnotator extends
 			this.currentAnnotation = this.currentAnnotation >= this.maxAnnotation ? 0
 					: this.currentAnnotation + 1;
 			this.annotationNode.setValue(this.currentAnnotation);
-//			System.out.println("Annotating " + value + " with "
-//					+ this.annotationNode);
+			// System.out.println("Annotating " + value + " with "
+			// + this.annotationNode);
 			AnnotatorNodes.annotate(this.output, this.annotationNode, value);
-//			System.out.println(this.output);
+			// System.out.println(this.output);
 			out.collect(this.output);
 		}
 
