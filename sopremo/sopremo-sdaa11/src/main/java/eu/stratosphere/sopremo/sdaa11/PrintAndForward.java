@@ -12,42 +12,54 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
+package eu.stratosphere.sopremo.sdaa11;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.sdaa11.clustering.json.ClusterNodes;
-import eu.stratosphere.sopremo.sdaa11.clustering.json.RepresentationNodes;
-import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.sopremo.type.TextNode;
 
 /**
- * This operator simply takes clusters, strips off all of its points except for
- * the clustroid and additionally adds a dummy reduce key.
+ * Prints a JSON stream and forwards it.
  * 
- * @see TreeCreator
- * @see TreeAssembler
  * @author skruse
  * 
  */
 @InputCardinality(value = 1)
 @OutputCardinality(value = 1)
-public class ClusterToTreePreparation extends
-		ElementaryOperator<ClusterToTreePreparation> {
+public class PrintAndForward extends ElementaryOperator<PrintAndForward> {
 
-	private static final long serialVersionUID = -5035298968776097883L;
+	private static final long serialVersionUID = 5955630169271456512L;
 
-	private static final IntNode DUMMY_ANNOTATION = new IntNode(42);
+	private String tag = "[some_tag]";
+
+	/**
+	 * Returns the tag.
+	 * 
+	 * @return the tag
+	 */
+	public String getTag() {
+		return this.tag;
+	}
+
+	/**
+	 * Sets the tag to the specified value.
+	 * 
+	 * @param tag
+	 *            the tag to set
+	 */
+	public void setTag(final String tag) {
+		if (tag == null)
+			throw new NullPointerException("tag must not be null");
+
+		this.tag = tag;
+	}
 
 	public static class Implementation extends SopremoMap {
 
-		ObjectNode outputNode = new ObjectNode();
+		String tag;
 
 		/*
 		 * (non-Javadoc)
@@ -58,16 +70,10 @@ public class ClusterToTreePreparation extends
 		 */
 		@Override
 		protected void map(final IJsonNode value, final JsonCollector out) {
-
-			// TODO: check whether it is better to just modify the incoming node
-			final ObjectNode clusterNode = (ObjectNode) value;
-			final TextNode idNode = ClusterNodes.getId(clusterNode);
-			final ObjectNode clustroidNode = ClusterNodes
-					.getClustroid(clusterNode);
-			RepresentationNodes.write(this.outputNode, idNode, clustroidNode);
-			AnnotatorNodes.flatAnnotate(this.outputNode, DUMMY_ANNOTATION);
-
-			out.collect(this.outputNode);
+			System.out.print(this.tag);
+			System.out.print(' ');
+			System.out.println(value);
+			out.collect(value);
 		}
 
 	}

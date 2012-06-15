@@ -26,6 +26,14 @@ import eu.stratosphere.sopremo.sdaa11.clustering.postprocessing.PostProcess;
 import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeAssembler;
 
 /**
+ * 
+ * Inputs:
+ * <ol>
+ * 	<li>Sample points</li>
+ * 	<li>Remaining points</li>
+ * </ol>
+ * Outputs: See {@link PostProcess}
+ * 
  * @author skruse
  * 
  */

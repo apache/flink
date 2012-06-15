@@ -57,7 +57,6 @@ public class ClusterDisassemble extends ElementaryOperator<ClusterDisassemble> {
 		@Override
 		protected void map(final IJsonNode node, final JsonCollector out) {
 
-			System.out.println("Disassembling " + node);
 			final ObjectNode clusterNode = (ObjectNode) node;
 
 			final TextNode idNode = ClusterNodes.getId(clusterNode);

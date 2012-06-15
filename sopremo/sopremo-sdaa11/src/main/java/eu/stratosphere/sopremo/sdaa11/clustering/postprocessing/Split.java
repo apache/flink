@@ -14,11 +14,18 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.sdaa11.clustering.postprocessing;
 
+import java.util.Arrays;
+import java.util.List;
+
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.OutputCardinality;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.PointNodes;
 import eu.stratosphere.sopremo.sdaa11.clustering.json.RepresentationNodes;
 import eu.stratosphere.sopremo.sdaa11.clustering.main.ClusterRepresentation;
 import eu.stratosphere.sopremo.sdaa11.clustering.main.RepresentationUpdate;
@@ -37,8 +44,29 @@ import eu.stratosphere.sopremo.type.TextNode;
  * @author skruse
  * 
  */
-@InputCardinality(min = 2, max = 2)
+@InputCardinality(value = 2)
+@OutputCardinality(value = 1)
 public class Split extends ElementaryOperator<Split> {
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see eu.stratosphere.sopremo.ElementaryOperator#getKeyExpressions(int)
+	 */
+	@Override
+	public List<? extends EvaluationExpression> getKeyExpressions(
+			final int inputIndex) {
+		switch (inputIndex) {
+		case 0:
+			return Arrays
+					.asList(new ObjectAccess(RepresentationNodes.PARENT_ID));
+		case 1:
+			return Arrays.asList(new ObjectAccess(PointNodes.CLUSTER_ID));
+		default:
+			throw new IllegalArgumentException("Illegal input index: "
+					+ inputIndex);
+		}
+	}
 
 	/**
 	 * 
@@ -89,10 +117,14 @@ public class Split extends ElementaryOperator<Split> {
 		@Override
 		protected void coGroup(final IArrayNode representationNodes,
 				final IArrayNode pointNodes, final JsonCollector out) {
-			if (representationNodes.size() != 2)
+			final int representationCount = representationNodes.size();
+			if (representationCount == 0)
+				return;
+			else if (representationCount != 2)
 				throw new IllegalArgumentException(
 						"Expected 2 representations, found "
-								+ representationNodes.size());
+								+ representationCount + " and "
+								+ pointNodes.size() + " points ");
 			final ObjectNode representationNode1 = (ObjectNode) representationNodes
 					.get(0);
 			final ObjectNode representationNode2 = (ObjectNode) representationNodes

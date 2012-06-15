@@ -33,8 +33,8 @@ public class Points {
 
 	volatile private static int pointCount = 0;
 
-	public static final String POINTS1_PATH = "src/test/resources/clustering/points1";
-	public static final String POINTS2_PATH = "src/test/resources/clustering/points12";
+	public static final String REST1_PATH = "src/test/resources/clustering/rest1.json";
+	public static final String SAMPLE1_PATH = "src/test/resources/clustering/sample1.json";
 
 	public static IJsonNode asJson(final String... values) {
 		return new Point(String.valueOf(pointCount++), values).write(null);
@@ -52,7 +52,11 @@ public class Points {
 				pointNodes.add(parser.readValueAsTree());
 			return pointNodes;
 		} finally {
-			reader.close();
+			try {
+				reader.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 	}
 

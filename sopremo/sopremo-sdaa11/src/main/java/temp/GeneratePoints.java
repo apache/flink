@@ -31,6 +31,8 @@ import eu.stratosphere.sopremo.type.TextNode;
  */
 public class GeneratePoints {
 
+	public static boolean ESCAPE_CHARS = false; 
+	
 	/**
 	 * @param args
 	 */
@@ -48,7 +50,7 @@ public class GeneratePoints {
 		final Random random = new Random();
 
 		for (int pointIndex = 0; pointIndex < numPoints; pointIndex++) {
-			idNode = new TextNode(String.format("point%03d", pointIndex));
+			idNode = new TextNode(String.format("sample%03d", pointIndex));
 
 			chosenValueIndexes.clear();
 			while (chosenValueIndexes.size() < numValues)
@@ -64,7 +66,11 @@ public class GeneratePoints {
 
 		}
 
-		System.out.println(points.toString().replaceAll("\\\"", "\\\\\""));
+		String jsonString = points.toString();
+		if (ESCAPE_CHARS) {
+			jsonString = jsonString.replaceAll("\\\"", "\\\\\"");
+		}
+		System.out.println(jsonString);
 	}
 
 }

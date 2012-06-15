@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.sdaa11.clustering.main;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.sdaa11.clustering.Point;
@@ -26,10 +27,21 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
+ * Inputs:
+ * <ol>
+ * <li>Points</li>
+ * <li>Tree</li>
+ * </ol>
+ * Outputs:
+ * <ol>
+ * 	<li>Assigned points</li>
+ * </ol>
+ * 
  * @author skruse
  * 
  */
-@InputCardinality(min = 2, max = 2)
+@InputCardinality(value = 2)
+@OutputCardinality(value = 1)
 public class PointMapper extends ElementaryOperator<PointMapper> {
 
 	private static final long serialVersionUID = -1539853388756701551L;
@@ -53,8 +65,8 @@ public class PointMapper extends ElementaryOperator<PointMapper> {
 		protected void cross(final IJsonNode pointNode,
 				final IJsonNode treeNode, final JsonCollector out) {
 
-			System.out.println("Cross tree " + treeNode);
-			System.out.println("x point " + pointNode);
+//			System.out.println("Cross tree " + treeNode);
+//			System.out.println("x point " + pointNode);
 			final ClusterTree tree = new ClusterTree();
 			tree.read(treeNode);
 
@@ -67,7 +79,6 @@ public class PointMapper extends ElementaryOperator<PointMapper> {
 			PointNodes
 					.assignCluster((ObjectNode) pointNode, this.clusterIdNode);
 
-			System.out.println(pointNode);
 			out.collect(pointNode);
 		}
 

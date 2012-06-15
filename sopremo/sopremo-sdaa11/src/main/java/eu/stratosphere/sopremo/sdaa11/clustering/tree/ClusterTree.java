@@ -138,8 +138,13 @@ public class ClusterTree implements Serializable, JsonSerializable {
 	 */
 	@Override
 	public void read(final IJsonNode node) {
+		try {
 		this.degree = JsonUtil2.getField(node, JSON_KEY_DEGREE, IntNode.class)
 				.getIntValue();
+		} catch (ClassCastException e) {
+			System.out.println("Erronous node: "+node);
+			throw e;
+		}
 		this.root = this.createInnerNode();
 		this.root.read(JsonUtil2
 				.getField(node, JSON_KEY_ROOT, ObjectNode.class));

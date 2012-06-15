@@ -23,9 +23,7 @@ public class Annotator extends ElementaryOperator<Annotator> {
 
 		@Override
 		protected void map(final IJsonNode value, final JsonCollector out) {
-			System.out.println("Annotating " + value);
 			AnnotatorNodes.annotate(this.output, ANNOTATION_VALUE, value);
-			System.out.println(this.output);
 			out.collect(this.output);
 		}
 

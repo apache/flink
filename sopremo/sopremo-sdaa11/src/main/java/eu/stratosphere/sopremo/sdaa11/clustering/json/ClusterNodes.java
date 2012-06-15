@@ -44,7 +44,12 @@ public class ClusterNodes {
 	}
 
 	public static IArrayNode getPoints(final ObjectNode clusterNode) {
-		return (IArrayNode) clusterNode.get(POINTS);
+		try {
+			return (IArrayNode) clusterNode.get(POINTS);
+		} catch (ClassCastException e) {
+			System.err.println(clusterNode);
+			throw e;
+		}
 	}
 
 }

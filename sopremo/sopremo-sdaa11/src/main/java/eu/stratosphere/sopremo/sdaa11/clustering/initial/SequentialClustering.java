@@ -89,9 +89,6 @@ public class SequentialClustering extends
 
 		@Override
 		protected void reduce(final IArrayNode values, final JsonCollector out) {
-
-			System.out.println("Sequential clustering: " + values);
-
 			this.addPoints(values);
 			this.cluster();
 			this.emitClusters(out);

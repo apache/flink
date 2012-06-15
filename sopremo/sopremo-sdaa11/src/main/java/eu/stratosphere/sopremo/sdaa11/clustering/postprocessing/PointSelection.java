@@ -23,6 +23,8 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.PointNodes;
+import eu.stratosphere.sopremo.sdaa11.clustering.json.RepresentationNodes;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
@@ -41,10 +43,10 @@ public class PointSelection extends ElementaryOperator<PointSelection> {
 	 * 
 	 */
 	private static final List<ObjectAccess> POINT_KEY_EXPRESSIONS = Arrays
-			.asList(new ObjectAccess("oldId"));
+			.asList(new ObjectAccess(PointNodes.CLUSTER_ID));
 
 	private static final List<ObjectAccess> REPRESENTATION_KEY_EXPRESSION = Arrays
-			.asList(new ObjectAccess("id"));
+			.asList(new ObjectAccess(RepresentationNodes.PARENT_ID));
 
 	/**
 	 * 

@@ -39,7 +39,12 @@ public class JsonUtil2 {
 	@SuppressWarnings("unchecked")
 	public static <T> T getField(final IJsonNode node, final String field,
 			final Class<T> type) {
-		return (T) ((ObjectNode) node).get(field);
+		try {
+			return (T) ((ObjectNode) node).get(field);
+		} catch (ClassCastException e) {
+			System.err.println("Wrong field type in: "+node);
+			throw e;
+		}
 	}
 
 	public static IJsonNode getField(final IJsonNode node, final String field) {

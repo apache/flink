@@ -20,7 +20,9 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
@@ -66,6 +68,8 @@ public class InitialClusteringAndTreeCreationTest {
 				.write(null);
 	}
 
+	@InputCardinality(value = 1)
+	@OutputCardinality(value = 1)
 	public static class TestOperator extends CompositeOperator<TestOperator> {
 
 		private static final long serialVersionUID = 1L;

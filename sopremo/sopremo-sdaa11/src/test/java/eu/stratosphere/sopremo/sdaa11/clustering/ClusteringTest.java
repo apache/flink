@@ -15,7 +15,6 @@
 package eu.stratosphere.sopremo.sdaa11.clustering;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
@@ -24,12 +23,12 @@ import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.sdaa11.clustering.initial.InitialClustering;
 import eu.stratosphere.sopremo.sdaa11.clustering.main.ClusterRest;
 import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeCreator;
 import eu.stratosphere.sopremo.sdaa11.clustering.util.Points;
-import eu.stratosphere.sopremo.serialization.NaiveSchemaFactory;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
@@ -39,40 +38,60 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  */
 public class ClusteringTest {
 
-	private int pointCount = 0;
-
 	@Test
 	public void testClustering() throws IOException {
 
 		final Clustering clustering = new Clustering();
-		final ElementarySopremoModule module = clustering
-				.asElementaryOperators();
-		module.inferSchema(new NaiveSchemaFactory());
+		clustering.setMaxInitialClusterRadius(100);
+		clustering.setMaxFinalClusterRadius(10);
+		clustering.setMaxInitialClusterSize(100);
+		clustering.setMinPointCount(20);
+		clustering.setRepresentationDetail(10);
+		clustering.setTreeWidth(10);
+		clustering.setMaxClustroidShift(1000);
 		final SopremoTestPlan plan = new SopremoTestPlan(clustering);
 
-		final List<IJsonNode> input1Nodes = Points
-				.loadPoints(Points.POINTS1_PATH);
-		for (final IJsonNode inputNode : input1Nodes)
+		final List<IJsonNode> restNodes = Points
+				.loadPoints(Points.SAMPLE1_PATH);
+		for (final IJsonNode inputNode : restNodes)
 			plan.getInput(0).add(inputNode);
 
-		final List<IJsonNode> input2Nodes = Points
-				.loadPoints(Points.POINTS2_PATH);
-		for (final IJsonNode inputNode : input2Nodes)
+		final List<IJsonNode> sampleNodes = Points
+				.loadPoints(Points.REST1_PATH);
+		for (final IJsonNode inputNode : sampleNodes)
 			plan.getInput(1).add(inputNode);
 
 		plan.run();
 
+		System.out.println("Stable clusters:");
 		for (final IJsonNode outputNode : plan.getActualOutput(0))
-			System.out.println(outputNode);
+			System.out.println("> "+outputNode);
+		
+		int count = 0;
+		System.out.println();
+		System.out.println("Stable points:");
+		for (final IJsonNode outputNode : plan.getActualOutput(1))
+//			System.out.println("> "+outputNode);
+			count++;
+		System.out.println(count);
+
+		System.out.println();
+		System.out.println("Unstable clusters:");
+		for (final IJsonNode outputNode : plan.getActualOutput(2))
+			System.out.println("> "+outputNode);
+
+		count = 0;
+		System.out.println();
+		System.out.println("Unstable points:");
+		for (final IJsonNode outputNode : plan.getActualOutput(3))
+//			System.out.println("> "+outputNode);
+			count++;
+		System.out.println(count);
 
 	}
 
-	private IJsonNode createPoint(final String... values) {
-		return new Point("point" + this.pointCount++, Arrays.asList(values))
-				.write(null);
-	}
-
-	@InputCardinality(min = 2, max = 2)
+	@InputCardinality(value = 2)
+	@OutputCardinality(value = 1)
 	public static class TestOperator extends CompositeOperator<TestOperator> {
 
 		private static final long serialVersionUID = 1L;
