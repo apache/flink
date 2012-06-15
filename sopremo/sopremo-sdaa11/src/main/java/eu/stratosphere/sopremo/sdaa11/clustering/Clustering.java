@@ -29,8 +29,8 @@ import eu.stratosphere.sopremo.sdaa11.clustering.treecreation.TreeAssembler;
  * @author skruse
  * 
  */
-@InputCardinality(min = 2, max = 2)
-@OutputCardinality(min = 4, max = 4)
+@InputCardinality(value = 2)
+@OutputCardinality(value = 4)
 public class Clustering extends CompositeOperator<Clustering> {
 
 	private static final long serialVersionUID = -747074302410053877L;
@@ -45,10 +45,6 @@ public class Clustering extends CompositeOperator<Clustering> {
 	private int maxFinalClusterRadius = RepresentationUpdate.DEFAULT_MAX_CLUSTER_RADIUS;
 	private int maxClustroidShift = RepresentationUpdate.DEFAULT_MAX_CLUSTROID_SHIFT;
 	private int minPointCount = RepresentationUpdate.DEFAULT_MIN_POINT_COUNT;
-
-	public Clustering() {
-		super(4);
-	}
 
 	/*
 	 * (non-Javadoc)

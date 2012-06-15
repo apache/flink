@@ -40,8 +40,8 @@ import eu.stratosphere.sopremo.Source;
  * @author skruse
  * 
  */
-@InputCardinality(min = 4, max = 4)
-@OutputCardinality(min = 2, max = 2)
+@InputCardinality(value = 4)
+@OutputCardinality(value = 2)
 public class MainClustering extends CompositeOperator<MainClustering> {
 
 	/**
@@ -52,10 +52,6 @@ public class MainClustering extends CompositeOperator<MainClustering> {
 	private int maxClusterRadius = RepresentationUpdate.DEFAULT_MAX_CLUSTER_RADIUS;
 	private int maxClustroidShift = RepresentationUpdate.DEFAULT_MAX_CLUSTROID_SHIFT;
 	private int minPointCount = RepresentationUpdate.DEFAULT_MIN_POINT_COUNT;
-
-	public MainClustering() {
-		super(2);
-	}
 
 	/*
 	 * (non-Javadoc)

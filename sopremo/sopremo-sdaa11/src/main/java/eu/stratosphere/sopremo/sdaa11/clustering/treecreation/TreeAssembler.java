@@ -18,6 +18,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -34,6 +36,8 @@ import eu.stratosphere.sopremo.type.ObjectNode;
  * @author skruse
  * 
  */
+@InputCardinality(value = 1)
+@OutputCardinality(value = 1)
 public class TreeAssembler extends ElementaryOperator<TreeAssembler> {
 
 	private static final long serialVersionUID = -1439186245691893155L;

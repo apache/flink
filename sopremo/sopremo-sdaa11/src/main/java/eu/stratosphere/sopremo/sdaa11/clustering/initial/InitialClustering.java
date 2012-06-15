@@ -2,7 +2,9 @@ package eu.stratosphere.sopremo.sdaa11.clustering.initial;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.sdaa11.Annotator;
 
 /**
@@ -18,6 +20,8 @@ import eu.stratosphere.sopremo.sdaa11.Annotator;
  * @author skruse
  * 
  */
+@InputCardinality(value = 1)
+@OutputCardinality(value = 1)
 public class InitialClustering extends CompositeOperator<InitialClustering> {
 
 	private static final long serialVersionUID = 9084919057903474256L;

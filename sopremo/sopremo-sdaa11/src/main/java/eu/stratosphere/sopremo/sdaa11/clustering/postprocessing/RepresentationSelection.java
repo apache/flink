@@ -15,6 +15,8 @@
 package eu.stratosphere.sopremo.sdaa11.clustering.postprocessing;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -25,6 +27,8 @@ import eu.stratosphere.sopremo.type.ObjectNode;
  * @author skruse
  * 
  */
+@InputCardinality(value = 1)
+@OutputCardinality(value = 1)
 public class RepresentationSelection extends
 		ElementaryOperator<RepresentationSelection> {
 

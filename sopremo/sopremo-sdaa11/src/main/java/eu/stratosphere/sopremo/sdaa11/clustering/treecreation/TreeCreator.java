@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.sdaa11.clustering.treecreation;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
@@ -35,15 +36,12 @@ import eu.stratosphere.sopremo.Source;
  *         </ol>
  * 
  */
-@OutputCardinality(min = 2, max = 2)
+@InputCardinality(value = 1)
+@OutputCardinality(value = 2)
 // TODO: Check why this does not work <-- ??
 public class TreeCreator extends CompositeOperator<TreeCreator> {
 
 	private static final long serialVersionUID = 1450138351751038162L;
-
-	public TreeCreator() {
-		super(2);
-	}
 
 	/**
 	 * Specifies the degree of the created tree.

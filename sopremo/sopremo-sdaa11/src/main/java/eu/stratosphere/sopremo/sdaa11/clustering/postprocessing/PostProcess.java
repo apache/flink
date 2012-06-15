@@ -44,8 +44,8 @@ import eu.stratosphere.sopremo.sdaa11.clustering.main.RepresentationUpdate;
  * @author skruse
  * 
  */
-@InputCardinality(min = 2, max = 2)
-@OutputCardinality(min = 4, max = 4)
+@InputCardinality(value = 2)
+@OutputCardinality(value = 4)
 public class PostProcess extends CompositeOperator<PostProcess> {
 
 	/**
@@ -54,10 +54,6 @@ public class PostProcess extends CompositeOperator<PostProcess> {
 	private static final long serialVersionUID = -1517888414053098096L;
 
 	private int representationDetail = RepresentationUpdate.DEFAULT_REPRESENTATION_DETAIL;
-
-	public PostProcess() {
-		super(4);
-	}
 
 	/*
 	 * (non-Javadoc)

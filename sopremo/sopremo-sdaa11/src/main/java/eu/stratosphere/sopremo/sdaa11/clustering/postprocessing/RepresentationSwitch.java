@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.sdaa11.clustering.postprocessing;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
@@ -39,7 +40,8 @@ import eu.stratosphere.sopremo.sdaa11.clustering.main.ClusterRepresentation;
  * 
  * 
  */
-@OutputCardinality(min = 3, max = 3)
+@InputCardinality(value = 1)
+@OutputCardinality(value = 3)
 @Name(noun = "Representation Switch")
 public class RepresentationSwitch extends
 		CompositeOperator<RepresentationSwitch> {
@@ -48,10 +50,6 @@ public class RepresentationSwitch extends
 	 * 
 	 */
 	private static final long serialVersionUID = 7105199259028835295L;
-
-	public RepresentationSwitch() {
-		super(3);
-	}
 
 	/*
 	 * (non-Javadoc)

@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.pact.JsonCollector;
@@ -19,6 +21,8 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
+@InputCardinality(value = 1)
+@OutputCardinality(value = 1)
 public class SequentialClustering extends
 		ElementaryOperator<SequentialClustering> {
 
