@@ -88,8 +88,10 @@ public class PostProcess extends CompositeOperator<PostProcess> {
 				.withInputs(unstableRepresentations, split);
 		module.getOutput(2).setInputs(priorReclusterRepresentations);
 
+		final CanonicalizeRepresentations canonicalizeRepresentations = new CanonicalizeRepresentations()
+				.withInputs(splitRepresentations);
 		final UnionAll reclusterRepresentations = new UnionAll().withInputs(
-				unstableRepresentations, splitRepresentations);
+				unstableRepresentations, canonicalizeRepresentations);
 		final PointSelection unstablePointSelection = new PointSelection()
 				.withInputs(pointSource, reclusterRepresentations);
 		module.getOutput(3).setInput(0, unstablePointSelection);

@@ -42,13 +42,13 @@ public class ClusteringTest {
 	public void testClustering() throws IOException {
 
 		final Clustering clustering = new Clustering();
-		clustering.setMaxInitialClusterRadius(100);
-		clustering.setMaxFinalClusterRadius(10);
-		clustering.setMaxInitialClusterSize(100);
+		clustering.setMaxInitialClusterRadius(300);
+		clustering.setMaxFinalClusterRadius(300);
+		clustering.setMaxInitialClusterSize(500);
 		clustering.setMinPointCount(20);
 		clustering.setRepresentationDetail(10);
 		clustering.setTreeWidth(10);
-		clustering.setMaxClustroidShift(1000);
+		clustering.setMaxClustroidShift(100);
 		final SopremoTestPlan plan = new SopremoTestPlan(clustering);
 
 		final List<IJsonNode> restNodes = Points
