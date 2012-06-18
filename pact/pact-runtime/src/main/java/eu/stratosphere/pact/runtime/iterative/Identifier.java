@@ -1,12 +1,15 @@
 package eu.stratosphere.pact.runtime.iterative;
 
+import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
+/** Identifier object for a subtask */
 public class Identifier {
 
   private final String id;
 
   public Identifier(JobID jobID, int subTaskID) {
+    Preconditions.checkNotNull(jobID);
     id = jobID.toString() + "#" + subTaskID;
   }
 

@@ -6,7 +6,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
 
-/** A concurrent datastructure that allows the handover of an object between a pair of threads*/
+/** a concurrent datastructure that allows the handover of an object between a pair of threads*/
 public class Broker<K, V> {
 
   private final ConcurrentMap<K, HandOver<V>> mediations = Maps.newConcurrentMap();
@@ -26,12 +26,15 @@ public class Broker<K, V> {
   /** can be used for a blocking hand over of an object to share */
   static class HandOver<V> {
 
+    /** single element queue for executing the hand over */
     private final BlockingQueue<V> queue = new ArrayBlockingQueue<V>(1);
 
+    /** provision of the object to share */
     public void handIn(V obj) {
       queue.offer(obj);
     }
 
+    /** blocking retrieval of the object to share */
     public V get() {
       try {
         return queue.take();
