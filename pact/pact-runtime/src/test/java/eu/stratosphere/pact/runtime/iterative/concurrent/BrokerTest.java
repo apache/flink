@@ -1,6 +1,10 @@
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
 import com.google.common.collect.Maps;
+<<<<<<< HEAD
+=======
+import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+>>>>>>> 5b312a2547c631cbf3316cd822d7f3925d36dbd6
 import org.junit.Test;
 
 import java.util.Random;
@@ -113,4 +117,8 @@ public class BrokerTest {
   }
 
 
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 5b312a2547c631cbf3316cd822d7f3925d36dbd6

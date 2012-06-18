@@ -21,19 +21,19 @@
         <value>emi-E9B11C08</value>
     </property>
     <property>
-        <key>channel.network.compressor</key>
+        <key>backChannel.network.compressor</key>
         <value>de.tu_berlin.cit.nephele.io.compression.lzo.LzoCompressor</value>
     </property>
     <property>
-        <key>channel.network.decompressor</key>
+        <key>backChannel.network.decompressor</key>
         <value>de.tu_berlin.cit.nephele.io.compression.lzo.LzoDecompressor</value>
     </property>
     <property>
-        <key>channel.file.compressor</key>
+        <key>backChannel.file.compressor</key>
         <value>de.tu_berlin.cit.nephele.io.compression.lzo.LzoCompressor</value>
     </property>
     <property>
-        <key>channel.file.decompressor</key>
+        <key>backChannel.file.decompressor</key>
         <value>de.tu_berlin.cit.nephele.io.compression.lzo.LzoDecompressor</value>
     </property>
     <property>

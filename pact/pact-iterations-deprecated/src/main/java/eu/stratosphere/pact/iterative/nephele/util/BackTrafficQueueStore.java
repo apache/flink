@@ -26,7 +26,7 @@ public class BackTrafficQueueStore {
     synchronized(iterOpenMap) {
       synchronized(iterEndMap) {
 
-        Preconditions.checkState(iterOpenMap.containsKey(getIdentifier(jobID, subTaskId)), "Internal error");
+        Preconditions.checkState(!iterOpenMap.containsKey(getIdentifier(jobID, subTaskId)), "Internal error");
 
         BlockingQueue<Object> openQueue = new ArrayBlockingQueue<Object>(1);
         BlockingQueue<Object> endQueue = new ArrayBlockingQueue<Object>(1);

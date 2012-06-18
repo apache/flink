@@ -9,6 +9,7 @@ import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.iterative.nephele.util.DeserializingIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
+import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -43,7 +44,7 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
 
   protected volatile boolean finished = false;
 
-  protected OutputCollector outputCollector;
+  protected PactRecordOutputCollector outputCollector;
 
   @Override
   public void prepare() throws Exception {
@@ -67,8 +68,8 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
     config.setMemorySize(config.getMemorySize() * 4 / 5);
 
     //TODO refactor the collectors
-    Preconditions.checkState(output instanceof OutputCollector);
-    outputCollector = (OutputCollector) output;
+    Preconditions.checkState(output instanceof PactRecordOutputCollector);
+    outputCollector = (PactRecordOutputCollector) output;
   }
 
   @Override
@@ -81,25 +82,19 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
 
     //Setup variables for easier access to the correct output gates / writers
     //Create output collector for intermediate results
-    OutputCollector innerOutput = new OutputCollector(Arrays.asList(getIterationRecordWriters()),
-        outputCollector.getSerializer());
-
-    CountingOutputCollector statsOutputCollector = new CountingOutputCollector(innerOutput);
+    PactRecordOutputCollector innerOutput = new PactRecordOutputCollector(Arrays.asList(getIterationRecordWriters()));
 
     //Create output collector for final iteration output
-    OutputCollector taskOutput = new OutputCollector(Arrays.asList(outputCollector.getWriter(0)),
-        outputCollector.getSerializer());
+    PactRecordOutputCollector taskOutput = new PactRecordOutputCollector(Arrays.asList(outputCollector.getWriter(0)));
 
     //Gates where the iterative channel state is send to
     OutputGate<? extends Record>[] iterStateGates = getIterationOutputGates();
 
     //Allocate memory for update queue
-    LOG.info("Update memory: " + updateBufferSize + ", numSegments: " +
-        (int) (updateBufferSize / MEMORY_SEGMENT_SIZE));
+    LOG.info("Update memory: " + updateBufferSize + ", numSegments: " + updateBufferSize);
 //    List<MemorySegment> updateMemory = getEnvironment().getMemoryManager().allocateStrict(this,
 //            (int) (updateBufferSize / MEMORY_SEGMENT_SIZE), MEMORY_SEGMENT_SIZE);
-    List<MemorySegment> updateMemory = getEnvironment().getMemoryManager().allocatePages(this,
-              (int) (updateBufferSize / MEMORY_SEGMENT_SIZE));
+    List<MemorySegment> updateMemory = getEnvironment().getMemoryManager().allocatePages(this, updateBufferSize);
 
       SerializedUpdateBuffer buffer = new SerializedUpdateBuffer(updateMemory, MEMORY_SEGMENT_SIZE,
         getEnvironment().getIOManager());
@@ -117,13 +112,12 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
       LOG.info(constructLogString("Starting Iteration: -1", getEnvironment().getTaskName(), this));
     }
     //Process all input records by passing them to the processInput method (supplied by the user)
-    MutableObjectIterator<Value> input = inputs[0];
-    CountingIterator statsIter = new CountingIterator(input);
-    processInput(statsIter, statsOutputCollector);
+    MutableObjectIterator<PactRecord> input = getInput(0);
+    processInput(input, innerOutput);
 
     //Send iterative close event to indicate that this round is finished
-    sendCounter("iter.received.messages", statsIter.getCount());
-    sendCounter("iter.send.messages", statsOutputCollector.getCount());
+//    sendCounter("iter.received.messages", statsIter.getCount());
+//    sendCounter("iter.send.messages", statsOutputCollector.getCount());
     publishState(ChannelState.CLOSED, iterStateGates);
     //AbstractIterativeTask.publishState(ChannelState.CLOSED, terminationOutputGate);
 
@@ -137,16 +131,15 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
         updatesBuffer = (SerializedUpdateBuffer) BackTrafficQueueStore.getInstance().receiveIterationEnd(
             getEnvironment().getJobID(), getEnvironment().getIndexInSubtaskGroup());
       } catch (InterruptedException ex) {
-        throw new RuntimeException("Internal Error");
+        throw new RuntimeException("Internal Error", ex);
       }
 
-      //Wait until also other parallel subtasks have terminated and
-      //a termination decision has been made
+      //Wait until also other parallel subtasks have terminated and a termination decision has been made
       try {
         channelStateListener.waitForUpdate();
         terminationStateListener.waitForUpdate();
-      } catch (InterruptedException ex) {
-        throw new RuntimeException("Internal Error");
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Internal Error", e);
       }
 
 
@@ -158,7 +151,7 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
           if (LOG.isInfoEnabled()) {
             LOG.info(constructLogString("Starting Iteration: " + iterationCounter, getEnvironment().getTaskName(), this));
           }
-          statsIter = new CountingIterator(new DeserializingIterator(updatesBuffer.switchBuffers()));
+          input = new DeserializingIterator(updatesBuffer.switchBuffers());
 
           BackTrafficQueueStore.getInstance().publishUpdateBuffer(getEnvironment().getJobID(),
               getEnvironment().getIndexInSubtaskGroup(), buffer);
@@ -167,11 +160,10 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
           publishState(ChannelState.OPEN, iterStateGates);
 
           //Call stub function to process updates
-          statsOutputCollector = new CountingOutputCollector(innerOutput);
-          processUpdates(statsIter, statsOutputCollector);
+          processUpdates(input, innerOutput);
 
-          sendCounter("iter.received.messages", statsIter.getCount());
-          sendCounter("iter.send.messages", statsOutputCollector.getCount());
+//          sendCounter("iter.received.messages", statsIter.getCount());
+//          sendCounter("iter.send.messages", statsOutputCollector.getCount());
           publishState(ChannelState.CLOSED, iterStateGates);
 
           updatesBuffer = null;
@@ -201,11 +193,11 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
         getEnvironment().getIndexInSubtaskGroup());
   }
 
-  public abstract void finish(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception;
+  public abstract void finish(MutableObjectIterator<PactRecord> iter, PactRecordOutputCollector output) throws Exception;
 
-  public abstract void processInput(MutableObjectIterator<Value> iter, Collector output) throws Exception;
+  public abstract void processInput(MutableObjectIterator<PactRecord> iter, PactRecordOutputCollector output) throws Exception;
 
-  public abstract void processUpdates(MutableObjectIterator<Value> iter, Collector output) throws Exception;
+  public abstract void processUpdates(MutableObjectIterator<PactRecord> iter, PactRecordOutputCollector output) throws Exception;
 
   public static String constructLogString(String message, String taskName, AbstractInvokable parent) {
     StringBuilder bld = new StringBuilder(128);
@@ -220,11 +212,11 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
     return bld.toString();
   }
 
-  protected AbstractRecordWriter<Value>[] getIterationRecordWriters() {
+  protected AbstractRecordWriter<PactRecord>[] getIterationRecordWriters() {
     int numIterOutputs = config.getNumOutputs() - numInternalOutputs;
 
     @SuppressWarnings("unchecked")
-    AbstractRecordWriter<Value>[] writers = new AbstractRecordWriter[numIterOutputs];
+    AbstractRecordWriter<PactRecord>[] writers = new AbstractRecordWriter[numIterOutputs];
     for (int i = 0; i < numIterOutputs; i++) {
       writers[i]  = outputCollector.getWriter(numInternalOutputs + i);
     }
@@ -259,7 +251,7 @@ public abstract class IterationHead extends AbstractStateCommunicatingTask {
   }
 
   protected class ClosedListener implements EventListener {
-    volatile Object object = new Object();
+    final Object object = new Object();
     volatile ChannelState state;
     volatile boolean updated = false;
 

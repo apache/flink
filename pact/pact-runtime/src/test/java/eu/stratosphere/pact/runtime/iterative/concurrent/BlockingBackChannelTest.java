@@ -4,6 +4,10 @@ import com.google.common.collect.Lists;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.pact.runtime.iterative.SerializedUpdateBuffer;
+<<<<<<< HEAD
+=======
+import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
+>>>>>>> 5b312a2547c631cbf3316cd822d7f3925d36dbd6
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -133,4 +137,8 @@ public class BlockingBackChannelTest {
     }
   }
 
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 5b312a2547c631cbf3316cd822d7f3925d36dbd6
