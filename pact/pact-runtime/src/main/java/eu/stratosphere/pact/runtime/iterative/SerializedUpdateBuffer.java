@@ -1,12 +1,4 @@
-package eu.stratosphere.pact.iterative.nephele.util;
-
-import java.io.EOFException;
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
+package eu.stratosphere.pact.runtime.iterative;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -17,6 +9,14 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
 import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  *
@@ -71,7 +71,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
   }
 
   public SerializedUpdateBuffer(List<MemorySegment> memSegments, int segmentSize, IOManager ioManager) {
-    super(memSegments.remove(memSegments.size()-1), segmentSize, HEADER_LENGTH);
+    super(memSegments.remove(memSegments.size() - 1), segmentSize, HEADER_LENGTH);
 
     totalNumBuffers = memSegments.size() + 1;
     Preconditions.checkArgument(totalNumBuffers >= 3, "SerializedUpdateBuffer needs at least 3 memory segments.");

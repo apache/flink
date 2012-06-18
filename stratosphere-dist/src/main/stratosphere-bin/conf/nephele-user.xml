@@ -51,7 +51,7 @@
 
         <!-- The number of network buffers used by the TaskManager -->
         <property>
-                <key>channel.network.numberOfBuffers</key>
+                <key>backChannel.network.numberOfBuffers</key>
                 <value>2048</value>
         </property>
 
@@ -170,19 +170,19 @@
 	                                  Compression
 	      ======================================================================== -->
 	<property>
-		<key>channel.compression.lightClass</key> 
+		<key>backChannel.compression.lightClass</key>
 		<value>eu.stratosphere.nephele.io.compression.library.quicklz.QuicklzLibrary</value> 
 	</property>
 	<property>
-		<key>channel.compression.mediumClass</key> 
+		<key>backChannel.compression.mediumClass</key>
 		<value>eu.stratosphere.nephele.io.compression.library.zlib.ZlibLibrary</value> 
 	</property>
 	<property>
-		<key>channel.compression.heavyClass</key> 
+		<key>backChannel.compression.heavyClass</key>
 		<value>eu.stratosphere.nephele.io.compression.library.lzma.LzmaLibrary</value> 
 	</property>
 	<property>
-		<key>channel.compression.dynamicClass</key> 
+		<key>backChannel.compression.dynamicClass</key>
 		<value>eu.stratosphere.nephele.io.compression.library.dynamic.DynamicLibrary</value> 
 	</property>
 </configuration>

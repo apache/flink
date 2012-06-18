@@ -22,6 +22,7 @@ import eu.stratosphere.pact.iterative.nephele.tasks.IterationHead;
 import eu.stratosphere.pact.iterative.nephele.util.IterationIterator;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 public class SimpleIterativeTask {
@@ -45,6 +46,7 @@ public class SimpleIterativeTask {
     JobInputVertex sourceVertex = NepheleUtil.createInput(EdgeInput.class, input, graph, dop);
 
     JobTaskVertex iterationStart = NepheleUtil.createTask(DummyIterationHead.class, graph, dop);
+    NepheleUtil.setMemorySize(iterationStart, 1);
 
     JobTaskVertex forward = NepheleUtil.createTask(DummyIterativeForward.class, graph, dop);
     forward.setVertexToShareInstancesWith(sourceVertex);
@@ -55,8 +57,8 @@ public class SimpleIterativeTask {
     NepheleUtil.connectBoundedRoundsIterationLoop(sourceVertex, sinkVertex, new JobTaskVertex[] { forward }, forward,
         iterationStart, ShipStrategy.FORWARD, 100, graph);
 
-    graph.addJar(new Path("/home/ssc/Entwicklung/projects/stratosphere-iterations/pact/pact-iterations/target/pact-iterations-0.2.jar"));
-    graph.addJar(new Path("/home/ssc/.m2/repository/com/google/guava/guava/r09/guava-r09.jar"));
+    //graph.addJar(new Path("/home/ssc/Entwicklung/projects/stratosphere-iterations/pact/pact-iterations/target/pact-iterations-0.2.jar"));
+    //graph.addJar(new Path("/home/ssc/.m2/repository/com/google/guava/guava/r09/guava-r09.jar"));
     NepheleUtil.submit(graph, NepheleUtil.getConfiguration());
   }
 
@@ -97,14 +99,14 @@ public class SimpleIterativeTask {
     private PactRecord record = new PactRecord();
 
     @Override
-    public void finish(MutableObjectIterator<Value> iter, OutputCollector output) throws Exception {
+    public void finish(MutableObjectIterator<PactRecord> iter, PactRecordOutputCollector output) throws Exception {
       while (iter.next(record)) {
         output.collect(record);
       }
     }
 
     @Override
-    public void processInput(MutableObjectIterator<Value> iter, Collector output) throws Exception {
+    public void processInput(MutableObjectIterator<PactRecord> iter, PactRecordOutputCollector output) throws Exception {
       while (iter.next(record)) {}
 
       //Inject two dummy records in the iteration process
@@ -115,7 +117,7 @@ public class SimpleIterativeTask {
     }
 
     @Override
-    public void processUpdates(MutableObjectIterator<Value> iter, Collector output) throws Exception {
+    public void processUpdates(MutableObjectIterator<PactRecord> iter, PactRecordOutputCollector output) throws Exception {
       PactRecord record = new PactRecord();
       while (iter.next(record)) {
         output.collect(record);

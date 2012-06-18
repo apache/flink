@@ -38,9 +38,9 @@ public class NepheleUtil {
 
   // config dir parameters
   //private static final String DEFAULT_CONFIG_DIRECTORY = "/home/mkaufmann/stratosphere-0.2/conf";
-  private static final String DEFAULT_CONFIG_DIRECTORY =
-      "/home/ssc/Entwicklung/projects/stratosphere-iterations/stratosphere-dist/target/" +
-      "stratosphere-dist-0.2-bin/stratosphere-0.2/conf";
+  private static final String DEFAULT_CONFIG_DIRECTORY = "/home/ssc/Desktop/nephele/";
+      //"/home/ssc/Entwicklung/projects/stratosphere-iterations/stratosphere-dist/target/" +
+      //"stratosphere-dist-0.2-bin/stratosphere-0.2/conf";
   private static final String ENV_CONFIG_DIRECTORY = "NEPHELE_CONF_DIR";
   public static final String TASK_MEMORY = "iter.task.memory";
 

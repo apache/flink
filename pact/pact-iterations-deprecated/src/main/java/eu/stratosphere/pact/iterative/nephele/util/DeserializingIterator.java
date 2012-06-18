@@ -4,14 +4,14 @@ import java.io.EOFException;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.pact.common.type.PactRecord;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
-@Deprecated
-public class DeserializingIterator implements MutableObjectIterator<Value> {
+public class DeserializingIterator implements MutableObjectIterator<PactRecord> {
 
   protected static final Log LOG = LogFactory.getLog(DeserializingIterator.class);
 
@@ -22,7 +22,7 @@ public class DeserializingIterator implements MutableObjectIterator<Value> {
   }
 
   @Override
-  public boolean next(Value target) throws IOException {
+  public boolean next(PactRecord target) throws IOException {
     try {
       target.read(input);
     } catch (EOFException ex) {
