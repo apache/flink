@@ -9,7 +9,7 @@ public class BlockingBackChannelBroker extends Broker<Identifier, BlockingBackCh
 
   private BlockingBackChannelBroker() {}
 
-  /** retriefve singleton instance */
+  /** retrieve singleton instance */
   public static Broker<Identifier, BlockingBackChannel> instance() {
     return INSTANCE;
   }
