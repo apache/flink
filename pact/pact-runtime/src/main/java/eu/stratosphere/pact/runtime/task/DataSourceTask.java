@@ -32,8 +32,8 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -67,7 +67,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	private TaskConfig config;
 	
 	// tasks chained to this data source
-	private ArrayList<ChainedTask<?, ?>> chainedTasks;
+	private ArrayList<ChainedDriver<?, ?>> chainedTasks;
 	
 	private ClassLoader userCodeClassLoader;
 
@@ -157,10 +157,10 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 								output.collect(pactRecord);
 							}
 						}
-					} else if (this.output instanceof ChainedMapTask) {
+					} else if (this.output instanceof ChainedMapDriver) {
 						// PactRecord going to a chained map task
 						@SuppressWarnings("unchecked")
-						final ChainedMapTask<PactRecord, ?> output = (ChainedMapTask<PactRecord, ?>) this.output;
+						final ChainedMapDriver<PactRecord, ?> output = (ChainedMapDriver<PactRecord, ?>) this.output;
 						
 						// as long as there is data to read
 						while (!this.taskCanceled && !inFormat.reachedEnd()) {
@@ -196,10 +196,10 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 							}
 						}
 					}
-					else if (this.output instanceof ChainedMapTask)
+					else if (this.output instanceof ChainedMapDriver)
 					{
 						@SuppressWarnings("unchecked")
-						final ChainedMapTask<OT, ?> output = (ChainedMapTask<OT, ?>) this.output;
+						final ChainedMapDriver<OT, ?> output = (ChainedMapDriver<OT, ?>) this.output;
 						
 						// as long as there is data to read
 						while (!this.taskCanceled && !format.reachedEnd()) {
@@ -333,7 +333,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 */
 	private void initOutputs(ClassLoader cl) throws Exception
 	{
-		this.chainedTasks = new ArrayList<ChainedTask<?, ?>>();
+		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.output = AbstractPactTask.initOutputs(this, cl, this.config, this.chainedTasks);
 	}
 	

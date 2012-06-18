@@ -40,7 +40,7 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 /**
  * @author Stephan Ewen
  */
-public class ChainedCombineTask<T> implements ChainedTask<T, T>
+public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 {
 	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024; // the minimal amount of memory for the task to operate
 	
@@ -330,7 +330,7 @@ public class ChainedCombineTask<T> implements ChainedTask<T, T>
 				}
 			}
 			catch (Throwable t) {
-				ChainedCombineTask.this.exception = new Exception("The combiner failed due to an exception.", t);
+				ChainedCombineDriver.this.exception = new Exception("The combiner failed due to an exception.", t);
 			}
 		}
 		

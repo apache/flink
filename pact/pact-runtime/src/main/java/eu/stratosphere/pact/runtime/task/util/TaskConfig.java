@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
@@ -164,16 +164,6 @@ public class TaskConfig
 		return Class.forName(stubClassName, true, cl).asSubclass(stubClass);
 	}
 
-  @Deprecated
-  public <T> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl, Class invokingTask)
-      throws ClassNotFoundException, ClassCastException
-  {
-    String stubClassName = this.config.getString(STUB_CLASS, null);
-    if (stubClassName == null) {
-      throw new IllegalStateException("stub class missing in " + invokingTask.getName());
-    }
-    return Class.forName(stubClassName, true, cl).asSubclass(stubClass);
-  }
 	
 	// --------------------------------------------------------------------------------------------
 	//                                User Code Parameters
@@ -482,7 +472,7 @@ public class TaskConfig
 		return this.config.getInteger(CHAINING_NUM_STUBS, 0);
 	}
 	
-	public void addChainedTask(@SuppressWarnings("rawtypes") Class<? extends ChainedTask> chainedTaskClass, TaskConfig conf, String taskName)
+	public void addChainedTask(@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> chainedTaskClass, TaskConfig conf, String taskName)
 	{
 		int numChainedYet = this.config.getInteger(CHAINING_NUM_STUBS, 0);
 		
@@ -498,7 +488,7 @@ public class TaskConfig
 		return new TaskConfig(new DelegatingConfiguration(this.config, CHAINING_TASKCONFIG_PREFIX + chainPos + '.'));
 	}
 
-	public Class<? extends ChainedTask<?, ?>> getChainedTask(int chainPos)
+	public Class<? extends ChainedDriver<?, ?>> getChainedTask(int chainPos)
 	throws ClassNotFoundException, ClassCastException
 	{
 		String className = this.config.getString(CHAINING_TASK_PREFIX + chainPos, null);
@@ -506,7 +496,7 @@ public class TaskConfig
 			throw new IllegalStateException("Chained Task Class missing");
 		
 		@SuppressWarnings("unchecked")
-		final Class<ChainedTask<?, ?>> clazz = (Class<ChainedTask<?, ?>>) (Class<?>) ChainedTask.class;
+		final Class<ChainedDriver<?, ?>> clazz = (Class<ChainedDriver<?, ?>>) (Class<?>) ChainedDriver.class;
 		return Class.forName(className).asSubclass(clazz);
 	}
 	

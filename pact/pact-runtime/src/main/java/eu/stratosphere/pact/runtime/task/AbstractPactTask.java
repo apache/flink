@@ -45,7 +45,7 @@ import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
@@ -81,7 +81,7 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	
 	protected ClassLoader userCodeClassLoader;
 	
-	protected ArrayList<ChainedTask<?, ?>> chainedTasks;
+	protected ArrayList<ChainedDriver<?, ?>> chainedTasks;
 	
 	protected volatile boolean running;
 	
@@ -308,9 +308,8 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 
 		// obtain stub implementation class
 		try {
-      System.out.println("fetching stub for " + getClass().getSimpleName());
-      @SuppressWarnings("unchecked")
-			Class<S> stubClass = (Class<S>) this.config.getStubClass(stubSuperClass, this.userCodeClassLoader, getClass());
+			@SuppressWarnings("unchecked")
+			Class<S> stubClass = (Class<S>) this.config.getStubClass(stubSuperClass, this.userCodeClassLoader);
 			this.stub = InstantiationUtil.instantiate(stubClass, stubSuperClass);
 		}
 		catch (ClassNotFoundException cnfe) {
@@ -423,7 +422,7 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	 */
 	protected void initOutputs() throws Exception
 	{
-		this.chainedTasks = new ArrayList<ChainedTask<?, ?>>();
+		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks);
 	}
 	
@@ -683,7 +682,7 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	 */
 
 	@SuppressWarnings("unchecked")
-	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config, List<ChainedTask<?, ?>> chainedTasksTarget)
+	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config, List<ChainedDriver<?, ?>> chainedTasksTarget)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -703,9 +702,9 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 			for (int i = numChained - 1; i >= 0; --i)
 			{
 				// get the task first
-				final ChainedTask<?, ?> ct;
+				final ChainedDriver<?, ?> ct;
 				try {
-					Class<? extends ChainedTask<?, ?>> ctc = (Class<? extends ChainedTask<?, ?>>) config.getChainedTask(i);
+					Class<? extends ChainedDriver<?, ?>> ctc = (Class<? extends ChainedDriver<?, ?>>) config.getChainedTask(i);
 					ct = ctc.newInstance();
 				}
 				catch (Exception ex) {
@@ -790,11 +789,11 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the opening encounters an exception.
 	 */
-	public static void openChainedTasks(List<ChainedTask<?, ?>> tasks, AbstractInvokable parent) throws Exception
+	public static void openChainedTasks(List<ChainedDriver<?, ?>> tasks, AbstractInvokable parent) throws Exception
 	{
 		// start all chained tasks
 		for (int i = 0; i < tasks.size(); i++) {
-			final ChainedTask<?, ?> task = tasks.get(i);
+			final ChainedDriver<?, ?> task = tasks.get(i);
 			if (LOG.isInfoEnabled())
 				LOG.info(constructLogString("Start PACT code", task.getTaskName(), parent));
 			task.openTask();
@@ -809,10 +808,10 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the closing encounters an exception.
 	 */
-	public static void closeChainedTasks(List<ChainedTask<?, ?>> tasks, AbstractInvokable parent) throws Exception
+	public static void closeChainedTasks(List<ChainedDriver<?, ?>> tasks, AbstractInvokable parent) throws Exception
 	{
 		for (int i = 0; i < tasks.size(); i++) {
-			final ChainedTask<?, ?> task = tasks.get(i);
+			final ChainedDriver<?, ?> task = tasks.get(i);
 			task.closeTask();
 			
 			if (LOG.isInfoEnabled())
@@ -822,12 +821,12 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	}
 	
 	/**
-	 * Cancels all tasks via their {@link ChainedTask#cancelTask()} method. Any occurring exception
+	 * Cancels all tasks via their {@link ChainedDriver#cancelTask()} method. Any occurring exception
 	 * and error is suppressed, such that the canceling method of every task is invoked in all cases.
 	 * 
 	 * @param tasks The tasks to be canceled.
 	 */
-	public static void cancelChainedTasks(List<ChainedTask<?, ?>> tasks)
+	public static void cancelChainedTasks(List<ChainedDriver<?, ?>> tasks)
 	{
 		for (int i = 0; i < tasks.size(); i++) {
 			try {

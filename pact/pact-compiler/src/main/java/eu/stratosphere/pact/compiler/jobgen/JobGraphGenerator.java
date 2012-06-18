@@ -60,18 +60,18 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.task.CoGroupTask;
-import eu.stratosphere.pact.runtime.task.CombineTask;
-import eu.stratosphere.pact.runtime.task.CrossTask;
+import eu.stratosphere.pact.runtime.task.CoGroupDriver;
+import eu.stratosphere.pact.runtime.task.CombineDriver;
+import eu.stratosphere.pact.runtime.task.CrossDriver;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
-import eu.stratosphere.pact.runtime.task.MapTask;
-import eu.stratosphere.pact.runtime.task.MatchTask;
-import eu.stratosphere.pact.runtime.task.ReduceTask;
-import eu.stratosphere.pact.runtime.task.TempTask;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineTask;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
+import eu.stratosphere.pact.runtime.task.MapDriver;
+import eu.stratosphere.pact.runtime.task.MatchDriver;
+import eu.stratosphere.pact.runtime.task.ReduceDriver;
+import eu.stratosphere.pact.runtime.task.TempDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
@@ -407,13 +407,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			mapVertex = null;
 			mapConfig = new TaskConfig(new Configuration());
 			
-			this.chainedTasks.put(mapNode, new TaskInChain(ChainedMapTask.class, mapConfig, mc.getName()));
+			this.chainedTasks.put(mapNode, new TaskInChain(ChainedMapDriver.class, mapConfig, mc.getName()));
 		}
 		else {
 			// create task vertex
 			mapVertex = new JobTaskVertex(mapNode.getPactContract().getName(), this.jobGraph);
 			// set task class
-			mapVertex.setTaskClass(MapTask.class);
+			mapVertex.setTaskClass(MapDriver.class);
 			// get task configuration object
 			mapConfig = new TaskConfig(mapVertex.getConfiguration());
 		}
@@ -452,11 +452,11 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		if (isChainable(combineNode)) {
 			combineVertex = null;
 			combineConfig = new TaskConfig(new Configuration());
-			this.chainedTasks.put(combineNode, new TaskInChain(ChainedCombineTask.class,
+			this.chainedTasks.put(combineNode, new TaskInChain(ChainedCombineDriver.class,
 											combineConfig, "Combiner for " + rc.getName()));
 		} else {
 			combineVertex = new JobTaskVertex("Combiner for " + combineNode.getPactContract().getName(), this.jobGraph);
-			combineVertex.setTaskClass(CombineTask.class);
+			combineVertex.setTaskClass(CombineDriver.class);
 			combineConfig = new TaskConfig(combineVertex.getConfiguration());
 		}
 		
@@ -488,7 +488,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// create task vertex
 		JobTaskVertex reduceVertex = new JobTaskVertex(reduceNode.getPactContract().getName(), this.jobGraph);
 		// set task class
-		reduceVertex.setTaskClass(ReduceTask.class);
+		reduceVertex.setTaskClass(ReduceDriver.class);
 
 		// get task configuration object
 		TaskConfig reduceConfig = new TaskConfig(reduceVertex.getConfiguration());
@@ -554,35 +554,35 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		switch (matchNode.getLocalStrategy())
 		{
 		case SORT_BOTH_MERGE:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchVertex.setTaskClass(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 			break;
 		case SORT_FIRST_MERGE:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchVertex.setTaskClass(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 			break;
 		case SORT_SECOND_MERGE:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchVertex.setTaskClass(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 			break;
 		case MERGE:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchVertex.setTaskClass(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.MERGE);
 			break;
 		case HYBRIDHASH_FIRST:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchVertex.setTaskClass(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 			break;
 		case HYBRIDHASH_SECOND:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchVertex.setTaskClass(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 			break;
 		case MMHASH_FIRST:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchVertex.setTaskClass(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_FIRST);
 			break;
 		case MMHASH_SECOND:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchVertex.setTaskClass(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_SECOND);
 			break;
 //		case SORT_SELF_NESTEDLOOP:
@@ -616,7 +616,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// create task vertex
 		JobTaskVertex crossVertex = new JobTaskVertex(crossNode.getPactContract().getName(), this.jobGraph);
 		// set task class
-		crossVertex.setTaskClass(CrossTask.class);
+		crossVertex.setTaskClass(CrossDriver.class);
 
 		// get task configuration object
 		TaskConfig crossConfig = new TaskConfig(crossVertex.getConfiguration());
@@ -662,7 +662,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// create task vertex
 		JobTaskVertex coGroupVertex = new JobTaskVertex(coGroupNode.getPactContract().getName(), this.jobGraph);
 		// set task class
-		coGroupVertex.setTaskClass(CoGroupTask.class);
+		coGroupVertex.setTaskClass(CoGroupDriver.class);
 
 		// get task configuration object
 		TaskConfig coGroupConfig = new TaskConfig(coGroupVertex.getConfiguration());
@@ -802,7 +802,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// create task vertex
 		JobTaskVertex tempVertex = new JobTaskVertex("TempVertex", this.jobGraph);
 		// set task class
-		tempVertex.setTaskClass(TempTask.class);
+		tempVertex.setTaskClass(TempDriver.class);
 
 		// get task configuration object
 		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
@@ -1298,7 +1298,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	
 	private static final class TaskInChain
 	{
-		private final Class<? extends ChainedTask<?, ?>> chainedTask;
+		private final Class<? extends ChainedDriver<?, ?>> chainedTask;
 		
 		private final TaskConfig taskConfig;
 		
@@ -1307,13 +1307,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		private AbstractJobVertex containingVertex;
 
 		@SuppressWarnings("unchecked")
-		TaskInChain(@SuppressWarnings("rawtypes") Class<? extends ChainedTask> chainedTask, TaskConfig taskConfig, String taskName) {
-			this.chainedTask = (Class<? extends ChainedTask<?, ?>>) chainedTask;
+		TaskInChain(@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> chainedTask, TaskConfig taskConfig, String taskName) {
+			this.chainedTask = (Class<? extends ChainedDriver<?, ?>>) chainedTask;
 			this.taskConfig = taskConfig;
 			this.taskName = taskName;
 		}
 		
-		public Class<? extends ChainedTask<?, ?>> getChainedTask() {
+		public Class<? extends ChainedDriver<?, ?>> getChainedTask() {
 			return this.chainedTask;
 		}
 		

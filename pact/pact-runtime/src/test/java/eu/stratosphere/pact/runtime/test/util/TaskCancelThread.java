@@ -15,23 +15,38 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import junit.framework.Assert;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import junit.framework.Assert;
 
-public class TaskCancelThread extends Thread {
-
-	final private int cancelTimeout;
-	final private Thread interruptedThread;
-	final private AbstractInvokable canceledTask;
+public class TaskCancelThread extends Thread
+{
+	private final DriverTestBase<?> cancelDriver;
+	private final AbstractInvokable cancelTask;
+	private final Thread interruptedThread;
 	
-	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, AbstractInvokable canceledTask) {
+	private final int cancelTimeout;
+	
+	
+	
+	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, DriverTestBase<?> canceledTask)
+	{
 		this.cancelTimeout = cancelTimeout;
 		this.interruptedThread = interruptedThread;
-		this.canceledTask = canceledTask;
+		this.cancelDriver = canceledTask;
+		this.cancelTask = null;
+	}
+	
+	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, AbstractInvokable canceledTask)
+	{
+		this.cancelTimeout = cancelTimeout;
+		this.interruptedThread = interruptedThread;
+		this.cancelDriver = null;
+		this.cancelTask = canceledTask;
 	}
 	
 	@Override
-	public void run() {
+	public void run()
+	{
 		try {
 			Thread.sleep(this.cancelTimeout*1000);
 		} catch (InterruptedException e) {
@@ -39,7 +54,13 @@ public class TaskCancelThread extends Thread {
 		}
 		
 		try {
-			this.canceledTask.cancel();
+			if (this.cancelDriver != null) {
+				this.cancelDriver.cancel();
+			}
+			if (this.cancelTask != null) {
+				this.cancelTask.cancel();
+			}
+			
 			this.interruptedThread.interrupt();
 		} catch (Exception e) {
 			Assert.fail("Canceling task failed");

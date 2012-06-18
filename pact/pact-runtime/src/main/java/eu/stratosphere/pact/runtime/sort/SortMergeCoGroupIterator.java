@@ -24,7 +24,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
 import eu.stratosphere.pact.common.generic.types.TypePairComparator;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
@@ -83,7 +83,7 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 	
 	private final LocalStrategy localStrategy;
 	
-	private final AbstractTask parentTask;
+	private final AbstractInvokable parentTask;
 
 	private final long memoryPerChannel;
 
@@ -99,7 +99,7 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2,
 			TypePairComparator<T1, T2> pairComparator,
 			long memory, int maxNumFileHandles, float spillingThreshold,
-			LocalStrategy localStrategy, AbstractTask parentTask)
+			LocalStrategy localStrategy, AbstractInvokable parentTask)
 	{		
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;

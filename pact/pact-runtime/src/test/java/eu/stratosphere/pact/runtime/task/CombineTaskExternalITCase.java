@@ -27,35 +27,40 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
+import eu.stratosphere.pact.common.generic.GenericReducer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
-import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 
-public class CombineTaskExternalITCase extends TaskTestBase
+public class CombineTaskExternalITCase extends DriverTestBase<GenericReducer<PactRecord, ?>>
 {
-
 	private static final Log LOG = LogFactory.getLog(CombineTaskExternalITCase.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
+	final List<PactRecord> outList = new ArrayList<PactRecord>();
+	
+	
+	public CombineTaskExternalITCase() {
+		super(3*1024*1024);
+	}
 
+	
 	@Test
 	public void testSingleLevelMergeCombineTask() {
 
-		int keyCnt = 8192;
+		int keyCnt = 40000;
 		int valCnt = 8;
 		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addOutput(this.outList);
 		
-		CombineTask<PactRecord> testTask = new CombineTask<PactRecord>();
+		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
@@ -63,13 +68,10 @@ public class CombineTaskExternalITCase extends TaskTestBase
 		final int[] keyPos = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
-		
-		super.registerTask(testTask, MockCombiningReduceStub.class);
+		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
@@ -82,7 +84,7 @@ public class CombineTaskExternalITCase extends TaskTestBase
 		
 		// wee need to do the final aggregation manually in the test, because the
 		// combiner is not guaranteed to do that
-		HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
+		final HashMap<PactInteger, PactInteger> aggMap = new HashMap<PactInteger, PactInteger>();
 		for (PactRecord record : this.outList) {
 			PactInteger key = new PactInteger();
 			PactInteger value = new PactInteger();
@@ -110,14 +112,13 @@ public class CombineTaskExternalITCase extends TaskTestBase
 	@Test
 	public void testMultiLevelMergeCombineTask() {
 
-		int keyCnt = 32768;
+		int keyCnt = 100000;
 		int valCnt = 8;
 		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addOutput(this.outList);
 		
-		CombineTask<PactRecord> testTask = new CombineTask<PactRecord>();
+		CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
@@ -125,13 +126,10 @@ public class CombineTaskExternalITCase extends TaskTestBase
 		final int[] keyPos = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
-		
-		super.registerTask(testTask, MockCombiningReduceStub.class);
+		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");

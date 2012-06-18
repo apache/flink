@@ -41,14 +41,14 @@ import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.task.ReduceTask;
+import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
 
 /**
  * The {@link CombiningUnilateralSortMerger} is part of a merge-sort implementation.
- * The {@link ReduceTask} requires a grouping of the incoming key-value pairs by key. Typically grouping is achieved by
+ * The {@link ReduceDriver} requires a grouping of the incoming key-value pairs by key. Typically grouping is achieved by
  * determining a total order for the given set of pairs (sorting). Thereafter an iteration over the ordered set is
  * performed and each time the key changes the consecutive objects are united into a new group. Reducers have a combining feature
  * can reduce the data before it is written to disk. In order to implement a combining Reducer, the 

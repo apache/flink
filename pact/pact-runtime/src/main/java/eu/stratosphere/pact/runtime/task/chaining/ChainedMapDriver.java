@@ -27,7 +27,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 /**
  * @author Stephan Ewen
  */
-public class ChainedMapTask<IT, OT> implements ChainedTask<IT, OT>
+public class ChainedMapDriver<IT, OT> implements ChainedDriver<IT, OT>
 {
 	private GenericMapper<IT, OT> mapper;
 	

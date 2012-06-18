@@ -16,7 +16,7 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.task.MapTask;
+import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.MapTaskTest.MockMapStub;
 import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -62,12 +62,12 @@ public class ChainTaskTest extends TaskTestBase
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(), 
 				combineConfig.getPrefixForInputParameters(0), new int[]{0}, new Class[]{ PactInteger.class });
 			
-			super.getTaskConfig().addChainedTask(ChainedCombineTask.class, combineConfig, "combine");
+			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}
 		
 		// chained map+combine
 		{
-			MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
+			MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
 			
 			super.registerTask(testTask, MockMapStub.class);
 			
@@ -117,12 +117,12 @@ public class ChainTaskTest extends TaskTestBase
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(), 
 				combineConfig.getPrefixForInputParameters(0), new int[]{0}, new Class[]{ PactInteger.class });
 			
-			super.getTaskConfig().addChainedTask(ChainedCombineTask.class, combineConfig, "combine");
+			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}
 		
 		// chained map+combine
 		{
-			MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
+			MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
 			
 			super.registerTask(testTask, MockMapStub.class);
 
