@@ -6,34 +6,22 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.expressions.AndExpression;
+import eu.stratosphere.sopremo.expressions.BinaryBooleanExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
-public class TwoSourceJoinTest extends SopremoTest<Join> {
-	@Override
-	protected Join createDefaultInstance(final int index) {
-		final ObjectCreation transformation = new ObjectCreation();
-		transformation.addMapping("field", createPath("0", "[" + index + "]"));
-		final EvaluationExpression condition = new ComparativeExpression(createPath("0", "id"),
-			BinaryOperator.EQUAL, createPath("1", "userid"));
-		return new Join().
-			withJoinCondition(condition).
-			withResultProjection(transformation);
-	}
-
+public class TwoSourceJoinTest extends SopremoTest<TwoSourceJoin> {
 	@Test
-	public void shouldPerformAntiJoin() {
+	public void shouldPerformAntiTwoSourceJoin() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final AndExpression condition = new AndExpression(new ElementInSetExpression(
-			createPath("0", "DeptName"), Quantor.EXISTS_NOT_IN, createPath("1", "Name")));
-		final Join join = new Join().withJoinCondition(condition);
+		final BinaryBooleanExpression condition = new ElementInSetExpression(
+			createPath("0", "DeptName"), Quantor.EXISTS_NOT_IN, createPath("1", "Name"));
+		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition);
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -52,12 +40,12 @@ public class TwoSourceJoinTest extends SopremoTest<Join> {
 	}
 
 	@Test
-	public void shouldPerformEquiJoin() {
+	public void shouldPerformEquiTwoSourceJoin() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final AndExpression condition = new AndExpression(new ComparativeExpression(createPath("0", "id"),
-			BinaryOperator.EQUAL, createPath("1", "userid")));
-		final Join join = new Join().withJoinCondition(condition);
+		final BinaryBooleanExpression condition = new ComparativeExpression(createPath("0", "id"),
+			BinaryOperator.EQUAL, createPath("1", "userid"));
+		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition);
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -78,15 +66,15 @@ public class TwoSourceJoinTest extends SopremoTest<Join> {
 	}
 
 	@Test
-	public void shouldPerformFullOuterJoin() {
+	public void shouldPerformFullOuterTwoSourceJoin() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		// here we set outer join flag
-		final EvaluationExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.RETAIN);
-		final EvaluationExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.RETAIN);
-		final AndExpression condition = new AndExpression(new ComparativeExpression(leftJoinKey,
-			BinaryOperator.EQUAL, rightJoinKey));
-		final Join join = new Join().withJoinCondition(condition);
+		final EvaluationExpression leftTwoSourceJoinKey = createPath("0", "id").withTag(ExpressionTag.RETAIN);
+		final EvaluationExpression rightTwoSourceJoinKey = createPath("1", "userid").withTag(ExpressionTag.RETAIN);
+		final BinaryBooleanExpression condition = new ComparativeExpression(leftTwoSourceJoinKey,
+			BinaryOperator.EQUAL, rightTwoSourceJoinKey);
+		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition);
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -110,14 +98,14 @@ public class TwoSourceJoinTest extends SopremoTest<Join> {
 	}
 
 	@Test
-	public void shouldPerformLeftOuterJoin() {
+	public void shouldPerformLeftOuterTwoSourceJoin() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		// here we set outer join flag
-		final EvaluationExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.RETAIN);
-		final AndExpression condition = new AndExpression(new ComparativeExpression(leftJoinKey,
-			BinaryOperator.EQUAL, createPath("1", "userid")));
-		final Join join = new Join().withJoinCondition(condition);
+		final EvaluationExpression leftTwoSourceJoinKey = createPath("0", "id").withTag(ExpressionTag.RETAIN);
+		final BinaryBooleanExpression condition = new ComparativeExpression(leftTwoSourceJoinKey,
+			BinaryOperator.EQUAL, createPath("1", "userid"));
+		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition);
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -139,14 +127,14 @@ public class TwoSourceJoinTest extends SopremoTest<Join> {
 	}
 
 	@Test
-	public void shouldPerformRightOuterJoin() {
+	public void shouldPerformRightOuterTwoSourceJoin() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		// here we set outer join flag
-		final EvaluationExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.RETAIN);
-		final AndExpression condition = new AndExpression(new ComparativeExpression(createPath("0", "id"),
-			BinaryOperator.EQUAL, rightJoinKey));
-		final Join join = new Join().withJoinCondition(condition);
+		final EvaluationExpression rightTwoSourceJoinKey = createPath("1", "userid").withTag(ExpressionTag.RETAIN);
+		final BinaryBooleanExpression condition = new ComparativeExpression(createPath("0", "id"),
+			BinaryOperator.EQUAL, rightTwoSourceJoinKey);
+		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition);
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -169,13 +157,12 @@ public class TwoSourceJoinTest extends SopremoTest<Join> {
 	}
 
 	@Test
-	public void shouldPerformSemiJoin() {
+	public void shouldPerformSemiTwoSourceJoin() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final AndExpression condition = new AndExpression(new ElementInSetExpression(createPath("0",
-			"DeptName"), Quantor.EXISTS_IN,
-			createPath("1", "Name")));
-		final Join join = new Join().withJoinCondition(condition);
+		final BinaryBooleanExpression condition = new ElementInSetExpression(createPath("0",
+			"DeptName"), Quantor.EXISTS_IN, createPath("1", "Name"));
+		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition);
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -194,13 +181,12 @@ public class TwoSourceJoinTest extends SopremoTest<Join> {
 	}
 
 	@Test
-	public void shouldPerformThetaJoin() {
+	public void shouldPerformThetaTwoSourceJoin() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
-		final AndExpression condition = new AndExpression(new ComparativeExpression(createPath("0", "id"),
-			BinaryOperator.LESS, createPath("1",
-				"userid")));
-		final Join join = new Join().withJoinCondition(condition);
+		final BinaryBooleanExpression condition = new ComparativeExpression(createPath("0", "id"),
+			BinaryOperator.LESS, createPath("1", "userid"));
+		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition);
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).

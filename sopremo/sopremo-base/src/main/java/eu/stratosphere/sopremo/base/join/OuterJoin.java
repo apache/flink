@@ -12,7 +12,7 @@ public class OuterJoin extends TwoSourceJoinBase<OuterJoin> {
 	}
 
 	public Mode getMode() {
-		return mode;
+		return this.mode;
 	}
 
 	/**
@@ -56,7 +56,7 @@ public class OuterJoin extends TwoSourceJoinBase<OuterJoin> {
 
 	@Override
 	protected Class<? extends Stub> getStubClass() {
-		switch (mode) {
+		switch (this.mode) {
 		case BOTH:
 			return FullOuterJoin.Implementation.class;
 		case RIGHT:

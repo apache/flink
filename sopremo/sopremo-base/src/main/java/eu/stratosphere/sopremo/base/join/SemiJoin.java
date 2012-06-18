@@ -8,6 +8,15 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 public class SemiJoin extends TwoSourceJoinBase<SemiJoin> {
 	private static final long serialVersionUID = -7624313431291367616L;
 
+	/**
+	 * Initializes SemiJoin.
+	 *
+	 */
+	public SemiJoin() {
+		setKeyExpressions(0, ALL_KEYS);
+		setKeyExpressions(1, ALL_KEYS);
+	}
+	
 	public static class Implementation extends SopremoCoGroup {
 		@Override
 		protected void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out) {

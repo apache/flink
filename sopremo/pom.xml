@@ -97,6 +97,5 @@
     <modules>
         <module>sopremo-common</module>
         <module>sopremo-base</module>
-        <module>sopremo-cleansing</module>
     </modules>
 </project>

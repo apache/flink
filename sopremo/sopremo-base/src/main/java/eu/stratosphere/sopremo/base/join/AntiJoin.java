@@ -8,6 +8,15 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 public class AntiJoin extends TwoSourceJoinBase<AntiJoin> {
 	private static final long serialVersionUID = 2672827253341673832L;
 
+	/**
+	 * Initializes AntiJoin.
+	 *
+	 */
+	public AntiJoin() {
+		setKeyExpressions(0, ALL_KEYS);
+		setKeyExpressions(1, ALL_KEYS);
+	}
+	
 	public static class Implementation extends SopremoCoGroup {
 		/* (non-Javadoc)
 		 * @see eu.stratosphere.sopremo.pact.SopremoCoGroup#coGroup(eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)

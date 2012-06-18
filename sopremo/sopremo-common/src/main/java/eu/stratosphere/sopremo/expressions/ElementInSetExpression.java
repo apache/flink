@@ -12,7 +12,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * Determines a set contains an element or not.
  */
 @OptimizerHints(scope = Scope.ANY, iterating = true)
-public class ElementInSetExpression extends BooleanExpression {
+public class ElementInSetExpression extends BinaryBooleanExpression {
 	/**
 	 * 
 	 */

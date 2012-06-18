@@ -14,6 +14,7 @@ import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.expressions.AndExpression;
+import eu.stratosphere.sopremo.expressions.BinaryBooleanExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
@@ -146,11 +147,15 @@ public class Join extends CompositeOperator<Join> {
 	}
 
 	private TwoSourceJoin getTwoSourceJoinForExpression(final EvaluationExpression condition, SopremoModule module) {
+		if (!(condition instanceof BinaryBooleanExpression))
+			throw new IllegalArgumentException(String.format("Can only join over binary conditions: %s", condition));
+
+		BinaryBooleanExpression binaryCondition = (BinaryBooleanExpression) condition;
 		List<EvaluationExpression> inputSelections = condition.findAll(new IsInstancePredicate(InputSelection.class));
 		if (inputSelections.size() != 2)
 			throw new IllegalArgumentException(String.format("Condition must refer to two source: %s", condition));
 		return new TwoSourceJoin().
-			withCondition(condition).
+			withCondition(binaryCondition).
 			withInputs(module.getInput(((InputSelection) inputSelections.get(0)).getIndex()),
 				module.getInput(((InputSelection) inputSelections.get(1)).getIndex()));
 	}

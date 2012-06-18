@@ -375,8 +375,12 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		for (EvaluationExpression expression : keyExpressions)
 			for (int index : globalSchema.indicesOf(expression))
 				keyIndices.add(index);
-		if (keyIndices.isEmpty())
+		if (keyIndices.isEmpty()) {
+			if(keyExpressions.iterator().hasNext())
+				throw new IllegalStateException(String.format("Operator %s did not specify key expression that it now requires", getClass()));
+				
 			throw new IllegalStateException(String.format("Needs to specify key expressions: %s", getClass()));
+		}
 		return keyIndices.toIntArray();
 	}
 
