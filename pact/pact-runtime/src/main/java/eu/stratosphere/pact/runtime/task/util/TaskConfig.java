@@ -164,17 +164,6 @@ public class TaskConfig
 		return Class.forName(stubClassName, true, cl).asSubclass(stubClass);
 	}
 
-  @Deprecated
-  public <T> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl, Class invokingTask)
-      throws ClassNotFoundException, ClassCastException
-  {
-    String stubClassName = this.config.getString(STUB_CLASS, null);
-    if (stubClassName == null) {
-      throw new IllegalStateException("stub class missing in " + invokingTask.getName());
-    }
-    return Class.forName(stubClassName, true, cl).asSubclass(stubClass);
-  }
-	
 	// --------------------------------------------------------------------------------------------
 	//                                User Code Parameters
 	// --------------------------------------------------------------------------------------------

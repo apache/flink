@@ -308,9 +308,8 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 
 		// obtain stub implementation class
 		try {
-      System.out.println("fetching stub for " + getClass().getSimpleName());
       @SuppressWarnings("unchecked")
-			Class<S> stubClass = (Class<S>) this.config.getStubClass(stubSuperClass, this.userCodeClassLoader, getClass());
+			Class<S> stubClass = (Class<S>) this.config.getStubClass(stubSuperClass, this.userCodeClassLoader);
 			this.stub = InstantiationUtil.instantiate(stubClass, stubSuperClass);
 		}
 		catch (ClassNotFoundException cnfe) {
