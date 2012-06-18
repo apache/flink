@@ -26,7 +26,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import eu.stratosphere.nephele.annotations.ForceCheckpoint;
+import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
@@ -53,7 +55,8 @@ public class ExecutionGroupVertex {
 	 * The default number of retries in case of an error before the task represented by this vertex is considered as
 	 * failed.
 	 */
-	private final int DEFAULT_NUMBER_OF_EXECUTION_RETRIES = 2;
+	private static final int DEFAULT_EXECUTION_RETRIES = GlobalConfiguration.getInteger(
+			ConfigConstants.JOB_EXECUTION_RETRIES_KEY, ConfigConstants.DEFAULT_JOB_EXECUTION_RETRIES);
 
 	/**
 	 * The name of the vertex.
@@ -225,7 +228,7 @@ public class ExecutionGroupVertex {
 		if (numberOfExecutionRetries >= 0) {
 			this.numberOfExecutionRetries = numberOfExecutionRetries;
 		} else {
-			this.numberOfExecutionRetries = DEFAULT_NUMBER_OF_EXECUTION_RETRIES;
+			this.numberOfExecutionRetries = DEFAULT_EXECUTION_RETRIES;
 		}
 		this.userDefinedVertexToShareInstancesWith = userDefinedVertexToShareInstanceWith;
 		this.configuration = configuration;

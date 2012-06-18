@@ -137,24 +137,24 @@ public class DistClusterProvider extends ClusterProvider {
 
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.test.util.minicluster.ClusterProvider#getJobClient(eu.stratosphere.nephele.jobgraph.JobGraph, java.lang.String)
+	 */
 	@Override
-	public void submitJobAndWait(JobGraph jobGraph, String jarFilePath) throws Exception {
-
+	public JobClient getJobClient(JobGraph jobGraph, String jarFilePath) throws Exception
+	{
 		if (jarFilePath == null) {
 			throw new Exception("jar file path not specified");
 		}
-		Path testJarFile = new Path(jarFilePath);
-
+		
+		final Path testJarFile = new Path(jarFilePath);
 		jobGraph.addJar(testJarFile);
+		
 		// set up job configuration
-		Configuration configuration = jobGraph.getJobConfiguration();
+		final Configuration configuration = jobGraph.getJobConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, this.jobManagerHostName);
-		configuration.setBoolean(ConfigConstants.JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY, false);
 
-		// submit job to Nephele
-		JobClient jobClient = new JobClient(jobGraph, configuration);
-		jobClient.submitJobAndWait();
-
+		return new JobClient(jobGraph, configuration);
 	}
 
 }
