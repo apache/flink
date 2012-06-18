@@ -23,11 +23,11 @@ import java.util.Set;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.MutableRecordDeserializerFactory;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -40,8 +40,8 @@ import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
-public class MockEnvironment implements Environment {
-
+public class MockEnvironment implements Environment
+{
 	private final MemoryManager memManager;
 
 	private final IOManager ioManager;
@@ -58,8 +58,8 @@ public class MockEnvironment implements Environment {
 
 	private final JobID jobID = new JobID();
 
-	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider) {
-
+	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider)
+{
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
 		this.inputs = new LinkedList<RuntimeInputGate<PactRecord>>();
@@ -85,7 +85,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public Configuration getTaskConfiguration() {
-
 		return this.taskConfiguration;
 	}
 
@@ -94,7 +93,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public MemoryManager getMemoryManager() {
-
 		return this.memManager;
 	}
 
@@ -103,7 +101,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public IOManager getIOManager() {
-
 		return this.ioManager;
 	}
 
@@ -112,33 +109,16 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public JobID getJobID() {
-
 		return this.jobID;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer) {
 
-		return this.inputs.remove(0);
-	}
-
-	@Override
-	public OutputGate<? extends Record> createOutputGate(GateID gateID, Class<? extends Record> outputClass,
-			ChannelSelector<? extends Record> selector, boolean isBroadcast) {
-
-		return this.outputs.remove(0);
-	}
-
-	private static class MockInputGate extends RuntimeInputGate<PactRecord> {
-
+	private static class MockInputGate extends RuntimeInputGate<PactRecord>
+	{
 		private MutableObjectIterator<PactRecord> it;
 
 		public MockInputGate(int id, MutableObjectIterator<PactRecord> it) {
-			super(new JobID(), new GateID(), new DefaultRecordDeserializer<PactRecord>(PactRecord.class), id);
+			super(new JobID(), new GateID(), MutableRecordDeserializerFactory.<PactRecord>get(), id);
 			this.it = it;
 		}
 
@@ -153,8 +133,8 @@ public class MockEnvironment implements Environment {
 		}
 	}
 
-	private static class MockOutputGate extends RuntimeOutputGate<PactRecord> {
-
+	private static class MockOutputGate extends RuntimeOutputGate<PactRecord>
+	{
 		private List<PactRecord> out;
 
 		public MockOutputGate(int index, List<PactRecord> outList) {
@@ -166,7 +146,6 @@ public class MockEnvironment implements Environment {
 		public void writeRecord(PactRecord record) throws IOException, InterruptedException {
 			out.add(record.createCopy());
 		}
-
 	}
 
 	/**
@@ -174,7 +153,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public Configuration getJobConfiguration() {
-
 		return this.jobConfiguration;
 	}
 
@@ -183,7 +161,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public int getCurrentNumberOfSubtasks() {
-
 		return 0;
 	}
 
@@ -192,7 +169,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public int getIndexInSubtaskGroup() {
-
 		return 1;
 	}
 
@@ -201,7 +177,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public void userThreadStarted(final Thread userThread) {
-
 		// Nothing to do here
 	}
 
@@ -210,7 +185,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public void userThreadFinished(final Thread userThread) {
-
 		// Nothing to do here
 	}
 
@@ -219,7 +193,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public InputSplitProvider getInputSplitProvider() {
-
 		return this.inputSplitProvider;
 	}
 
@@ -228,7 +201,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public String getTaskName() {
-
 		return null;
 	}
 
@@ -237,7 +209,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public GateID getNextUnboundInputGateID() {
-
 		return null;
 	}
 
@@ -246,7 +217,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public GateID getNextUnboundOutputGateID() {
-
 		return null;
 	}
 
@@ -255,7 +225,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public int getNumberOfOutputGates() {
-
 		return this.outputs.size();
 	}
 
@@ -264,7 +233,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public int getNumberOfInputGates() {
-
 		return this.inputs.size();
 	}
 
@@ -273,7 +241,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
-
 		// Nothing to do here
 	}
 
@@ -282,7 +249,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public void registerInputGate(final InputGate<? extends Record> inputGate) {
-
 		// Nothing to do here
 	}
 
@@ -291,7 +257,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public Set<ChannelID> getOutputChannelIDs() {
-
 		throw new IllegalStateException("getOutputChannelIDs called on MockEnvironment");
 	}
 
@@ -300,7 +265,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public Set<ChannelID> getInputChannelIDs() {
-
 		throw new IllegalStateException("getInputChannelIDs called on MockEnvironment");
 	}
 
@@ -309,7 +273,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public Set<GateID> getOutputGateIDs() {
-
 		throw new IllegalStateException("getOutputGateIDs called on MockEnvironment");
 	}
 
@@ -318,7 +281,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public Set<GateID> getInputGateIDs() {
-
 		throw new IllegalStateException("getInputGateIDs called on MockEnvironment");
 	}
 
@@ -327,7 +289,6 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
-
 		throw new IllegalStateException("getOutputChannelIDsOfGate called on MockEnvironment");
 	}
 
@@ -336,8 +297,29 @@ public class MockEnvironment implements Environment {
 	 */
 	@Override
 	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
-
 		throw new IllegalStateException("getInputChannelIDsOfGate called on MockEnvironment");
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.execution.Environment#createOutputGate(eu.stratosphere.nephele.io.GateID, java.lang.Class, eu.stratosphere.nephele.io.ChannelSelector, boolean)
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
+			ChannelSelector<T> selector, boolean isBroadcast)
+	{
+		return (OutputGate<T>) this.outputs.remove(0);
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.execution.Environment#createInputGate(eu.stratosphere.nephele.io.GateID, eu.stratosphere.nephele.io.RecordDeserializerFactory)
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T extends Record> InputGate<T> createInputGate(GateID gateID,
+			RecordDeserializerFactory<T> deserializerFactory)
+	{
+		return (InputGate<T>) this.inputs.remove(0);
 	}
 
 }

@@ -269,20 +269,21 @@ public abstract class BinaryInputFormat extends FileInputFormat {
 	 * @see eu.stratosphere.pact.common.io.FileInputFormat#open(eu.stratosphere.nephele.fs.FileInputSplit)
 	 */
 	@Override
-	public void open(FileInputSplit split) throws IOException {
+	public void open(FileInputSplit split) throws IOException
+	{
 		super.open(split);
 
 		final long blockSize = this.blockSize == NATIVE_BLOCK_SIZE ?
 			this.filePath.getFileSystem().getDefaultBlockSize() : this.blockSize;
 
 		this.blockInfo = this.createBlockInfo();
-		if (this.length > this.blockInfo.getInfoSize()) {
-			this.stream.seek(this.start + this.length - this.blockInfo.getInfoSize());
+		if (this.splitLength > this.blockInfo.getInfoSize()) {
+			this.stream.seek(this.splitStart + this.splitLength - this.blockInfo.getInfoSize());
 			DataInputStream infoStream = new DataInputStream(this.stream);
 			this.blockInfo.read(infoStream);
 		}
 
-		this.stream.seek(this.start + this.blockInfo.getFirstRecordStart());
+		this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
 		this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockSize);
 		this.dataInputStream = new DataInputStream(this.blockBasedInput);
 		this.readRecords = 0;

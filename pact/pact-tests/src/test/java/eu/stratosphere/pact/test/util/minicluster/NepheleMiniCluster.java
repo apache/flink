@@ -72,18 +72,12 @@ public class NepheleMiniCluster {
 	// Public methods
 	// ------------------------------------------------------------------------
 
-	public void submitJobAndWait(JobGraph jobGraph) throws Exception {
-		Configuration configuration = jobGraph.getJobConfiguration();
-
-		// local ip as job manager (localhost or 127.0.0.1 does not work)
+	public JobClient getJobClient(JobGraph jobGraph) throws Exception
+	{
+		final Configuration configuration = jobGraph.getJobConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 
-		// terminate job logic is broken
-		configuration.setBoolean(ConfigConstants.JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY, false);
-
-		// submit
-		JobClient jobClient = new JobClient(jobGraph, configuration);
-		jobClient.submitJobAndWait();
+		return new JobClient(jobGraph, configuration);
 	}
 
 	// ------------------------------------------------------------------------
@@ -136,6 +130,10 @@ public class NepheleMiniCluster {
 					"        <key>" + ConfigConstants.TASK_MANAGER_DATA_PORT_KEY + "</key>",
 					"        <value>" + dataPort + "</value>",
 					"    </property>",
+					"    <property>",
+					"        <key>" + ConfigConstants.JOB_EXECUTION_RETRIES_KEY + "</key>",
+					"        <value>0</value>",
+					"    </property>",					
 					"    <property>",
 					"        <key>taskmanager.setup.usediscovery</key>",
 					"        <value>false</value>",

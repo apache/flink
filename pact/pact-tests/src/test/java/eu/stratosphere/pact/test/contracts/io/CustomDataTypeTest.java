@@ -110,7 +110,7 @@ public class CustomDataTypeTest extends TestBase
 		}
 	}
 	
-	public static final class BlackholeOutputFormat extends OutputFormat<PactRecord>
+	public static final class BlackholeOutputFormat implements OutputFormat<PactRecord>
 	{
 		@Override
 		public void configure(Configuration parameters) {

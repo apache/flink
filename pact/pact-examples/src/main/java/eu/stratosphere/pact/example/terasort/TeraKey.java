@@ -48,8 +48,8 @@ public final class TeraKey implements Key {
 	 * @param srcBuf
 	 *        the source buffer to read the key from
 	 */
-	public TeraKey(final byte[] srcBuf) {
-		System.arraycopy(srcBuf, 0, this.key, 0, KEY_SIZE);
+	public TeraKey(final byte[] srcBuf, int offset) {
+		System.arraycopy(srcBuf, offset, this.key, 0, KEY_SIZE);
 	}
 
 	/**

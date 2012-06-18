@@ -30,6 +30,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.RecordReader;
@@ -69,7 +70,8 @@ public class NepheleMiniClusterITCase extends TestCase {
 	@Test
 	public void test() throws Exception {
 		preSubmit();
-		nephele.submitJobAndWait(getJobGraph());
+		final JobClient client = this.nephele.getJobClient(getJobGraph());
+		client.submitJobAndWait();
 		postSubmit();
 	}
 	
