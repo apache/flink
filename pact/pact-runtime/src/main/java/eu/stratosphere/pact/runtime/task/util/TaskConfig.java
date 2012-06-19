@@ -154,7 +154,7 @@ public class TaskConfig
 	//                                     Pact Driver
 	// --------------------------------------------------------------------------------------------
 	
-	public void setDriver(Class<? extends PactDriver<?, ?>> driver) {
+	public void setDriver(@SuppressWarnings("rawtypes") Class<? extends PactDriver> driver) {
 		this.config.setString(DRIVER_CLASS, driver.getName());
 	}
 	

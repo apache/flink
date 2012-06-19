@@ -29,6 +29,8 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
@@ -62,9 +64,9 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  *
  * @author Stephan Ewen
  */
-public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
+public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements PactTaskContext<S, OT>
 {
-	protected static final Log LOG = LogFactory.getLog(AbstractPactTask.class);
+	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
 	
 	protected PactDriver<S, OT> driver;
 	
@@ -97,7 +99,7 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	public void registerInputOutput()
 	{
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Start registering input and output."));
+			LOG.debug(formatLogString("Start registering input and output."));
 		}
 		
 		// get the classloader first. the classloader might have been set before by mock environments during testing
@@ -139,7 +141,7 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 		}
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Finished registering input and output."));
+			LOG.debug(formatLogString("Finished registering input and output."));
 		}
 	}
 	
@@ -150,7 +152,16 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	public void invoke() throws Exception
 	{
 		if (LOG.isInfoEnabled())
-			LOG.info(getLogString("Start PACT code."));
+			LOG.info(formatLogString("Start PACT code."));
+		
+		// setup the driver
+		try {
+			this.driver.setup(this);
+		}
+		catch (Throwable t) {
+			throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() + 
+				"' , caused an error: " + t.getMessage(), t);
+		}
 		
 		boolean stubOpen = false;
 		this.running = true;
@@ -158,7 +169,7 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 		try {
 			// run the data preparation
 			try {
-				prepare();
+				this.driver.prepare();
 			}
 			catch (Throwable t) {
 				// if the preparation caused an error, clean up
@@ -168,7 +179,7 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 			}
 			
 			// start all chained tasks
-			AbstractPactTask.openChainedTasks(this.chainedTasks, this);
+			RegularPactTask.openChainedTasks(this.chainedTasks, this);
 			
 			// open stub implementation
 			try {
@@ -186,7 +197,7 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 			}
 			
 			// run the user code
-			run();
+			this.driver.run();
 			
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
 			if (this.running) {
@@ -197,7 +208,7 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 			this.output.close();
 			
 			// close all chained tasks letting them report failure
-			AbstractPactTask.closeChainedTasks(this.chainedTasks, this);
+			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -208,24 +219,24 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 				catch (Throwable t) {}
 			}
 			
-			AbstractPactTask.cancelChainedTasks(this.chainedTasks);
+			RegularPactTask.cancelChainedTasks(this.chainedTasks);
 			
 			// drop exception, if the task was canceled
 			if (this.running) {
-				AbstractPactTask.logAndThrowException(ex, this);
+				RegularPactTask.logAndThrowException(ex, this);
 			}
 		}
 		finally {
-			cleanup();
+			this.driver.cleanup();
 		}
 
 		if (this.running) {
 			if (LOG.isInfoEnabled())
-				LOG.info(getLogString("Finished PACT code."));
+				LOG.info(formatLogString("Finished PACT code."));
 		}
 		else {
 			if (LOG.isWarnEnabled())
-				LOG.warn(getLogString("PACT code cancelled."));
+				LOG.warn(formatLogString("PACT code cancelled."));
 		}
 	}
 	
@@ -237,7 +248,7 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	{
 		this.running = false;
 		if (LOG.isWarnEnabled())
-			LOG.warn(getLogString("Cancelling PACT code"));
+			LOG.warn(formatLogString("Cancelling PACT code"));
 	}
 	
 	/**
@@ -278,14 +289,16 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	
 	/**
 	 * Creates the record readers for the number of inputs as defined by {@link #getNumberOfInputs()}.
+	 * 
+	 * This method requires that the task configuration, the driver, and the user-code class loader are set.
 	 */
 	protected void initInputs() throws Exception
 	{
-		final int numInputs = getNumberOfInputs();
+		final int numInputs = this.driver.getNumberOfInputs();
 		
 		final MutableObjectIterator<?>[] inputs = new MutableObjectIterator[numInputs];
 		final TypeSerializer<?>[] inputSerializers = new TypeSerializer[numInputs];
-		final TypeComparator<?>[] inputComparators = requiresComparatorOnInput() ? 
+		final TypeComparator<?>[] inputComparators = this.driver.requiresComparatorOnInput() ? 
 											new TypeComparator[numInputs] : null;
 		
 		for (int i = 0; i < numInputs; i++)
@@ -344,7 +357,7 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 			}
 			
 			//  ---------------- create the comparator ---------------------
-			if (requiresComparatorOnInput()) {
+			if (this.driver.requiresComparatorOnInput()) {
 				final Class<? extends TypeComparatorFactory<?>> comparatorFactoryClass = 
 							this.config.getComparatorFactoryForInput(i, this.userCodeClassLoader);
 	
@@ -383,48 +396,121 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                                         Utilities
-	// --------------------------------------------------------------------------------------------
+	//                                   Task Context Signature
+	// -------------------------------------------------------------------------------------------
 	
-	/**
-	 * Utility function that composes a string for logging purposes. The string includes the given message and
-	 * the index of the task in its task group together with the number of tasks in the task group.
-	 *  
-	 * @param message The main message for the log.
-	 * @return The string ready for logging.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getTaskConfig()
 	 */
-	protected String getLogString(String message)
-	{
-		return constructLogString(message, this.getEnvironment().getTaskName(), this);
+	@Override
+	public TaskConfig getTaskConfig() {
+		return this.config;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getUserCodeClassLoader()
+	 */
+	@Override
+	public ClassLoader getUserCodeClassLoader() {
+		return this.userCodeClassLoader;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getMemoryManager()
+	 */
+	@Override
+	public MemoryManager getMemoryManager() {
+		return getEnvironment().getMemoryManager();
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getIOManager()
+	 */
+	@Override
+	public IOManager getIOManager() {
+		return getEnvironment().getIOManager();
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getStub()
+	 */
+	@Override
+	public S getStub() {
+		return this.stub;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getOutputCollector()
+	 */
+	@Override
+	public Collector<OT> getOutputCollector() {
+		return this.output;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getOwningNepheleTask()
+	 */
+	@Override
+	public AbstractInvokable getOwningNepheleTask() {
+		return this;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#formatLogString(java.lang.String)
+	 */
+	@Override
+	public String formatLogString(String message) {
+		return constructLogString(message, getEnvironment().getTaskName(), this);
 	}
 	
-	@SuppressWarnings("unchecked")
-	protected <X> MutableObjectIterator<X> getInput(int index)
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInput(int)
+	 */
+	@Override
+	public <X> MutableObjectIterator<X> getInput(int index)
 	{
-		if (index < 0 || index > getNumberOfInputs()) {
+		if (index < 0 || index > this.driver.getNumberOfInputs()) {
 			throw new IndexOutOfBoundsException();
 		}
-		return (MutableObjectIterator<X>) this.inputs[index];
+		
+		@SuppressWarnings("unchecked")
+		final MutableObjectIterator<X> in = (MutableObjectIterator<X>) this.inputs[index];
+		return in;
 	}
 	
-	@SuppressWarnings("unchecked")
-	protected <X> TypeSerializer<X> getInputSerializer(int index)
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInputSerializer(int)
+	 */
+	@Override
+	public <X> TypeSerializer<X> getInputSerializer(int index)
 	{
-		if (index < 0 || index > getNumberOfInputs()) {
+		if (index < 0 || index > this.driver.getNumberOfInputs()) {
 			throw new IndexOutOfBoundsException();
 		}
-		return (TypeSerializer<X>) this.inputSerializers[index];
+		
+		@SuppressWarnings("unchecked")
+		final TypeSerializer<X> serializer = (TypeSerializer<X>) this.inputSerializers[index];
+		return serializer;
 	}
 	
-	@SuppressWarnings("unchecked")
-	protected <X> TypeComparator<X> getInputComparator(int index)
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInputComparator(int)
+	 */
+	@Override
+	public <X> TypeComparator<X> getInputComparator(int index)
 	{
-		if (index < 0 || index > getNumberOfInputs()) {
+		if (this.inputComparators == null) {
+			throw new IllegalStateException("Comparators have not been created!");
+		}
+		else if (index < 0 || index > this.driver.getNumberOfInputs()) {
 			throw new IndexOutOfBoundsException();
 		}
-		return (TypeComparator<X>) this.inputComparators[index];
+		
+		@SuppressWarnings("unchecked")
+		final TypeComparator<X> comparator = (TypeComparator<X>) this.inputComparators[index];
+		return comparator;
 	}
-	
 	
 	// ============================================================================================
 	//                                     Static Utilities
@@ -449,7 +535,7 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	 */
 	public static String constructLogString(String message, String taskName, AbstractInvokable parent)
 	{
-		StringBuilder bld = new StringBuilder(128);	
+		final StringBuilder bld = new StringBuilder(128);	
 		bld.append(message);
 		bld.append(':').append(' ');
 		bld.append(taskName);
@@ -636,7 +722,6 @@ public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategy.
 	 */
-
 	@SuppressWarnings("unchecked")
 	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config, List<ChainedDriver<?, ?>> chainedTasksTarget)
 	throws Exception

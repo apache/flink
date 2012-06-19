@@ -117,7 +117,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		
 		try {
 			// start all chained tasks
-			AbstractPactTask.openChainedTasks(this.chainedTasks, this);
+			RegularPactTask.openChainedTasks(this.chainedTasks, this);
 			
 			// get input splits to read
 			final Iterator<InputSplit> splitIterator = getInputSplits();
@@ -235,7 +235,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 			this.output.close();
 			
 			// close all chained tasks letting them report failure
-			AbstractPactTask.closeChainedTasks(this.chainedTasks, this);
+			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -243,11 +243,11 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 				this.format.close();
 			} catch (Throwable t) {}
 			
-			AbstractPactTask.cancelChainedTasks(this.chainedTasks);
+			RegularPactTask.cancelChainedTasks(this.chainedTasks);
 			
 			// drop exception, if the task was canceled
 			if (!this.taskCanceled) {
-				AbstractPactTask.logAndThrowException(ex, this);
+				RegularPactTask.logAndThrowException(ex, this);
 			}
 		}
 
@@ -298,7 +298,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		// instantiate the stub
 		@SuppressWarnings("unchecked")
 		Class<InputFormat<OT, InputSplit>> superClass = (Class<InputFormat<OT, InputSplit>>) (Class<?>) InputFormat.class;
-		this.format = AbstractPactTask.instantiateUserCode(this.config, cl, superClass);
+		this.format = RegularPactTask.instantiateUserCode(this.config, cl, superClass);
 		
 		// get the factory for the type serializer
 		try {
@@ -334,7 +334,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	private void initOutputs(ClassLoader cl) throws Exception
 	{
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.output = AbstractPactTask.initOutputs(this, cl, this.config, this.chainedTasks);
+		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -418,6 +418,6 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 */
 	private String getLogString(String message, String taskName)
 	{
-		return AbstractPactTask.constructLogString(message, taskName, this);
+		return RegularPactTask.constructLogString(message, taskName, this);
 	}
 }

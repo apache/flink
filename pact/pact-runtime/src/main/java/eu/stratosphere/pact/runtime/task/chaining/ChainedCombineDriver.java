@@ -31,7 +31,7 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorterCollector;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.InputDataCollector;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
@@ -83,7 +83,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 		this.parent = parent;
 		
 		@SuppressWarnings("unchecked")
-		final GenericReducer<T, ?> combiner = AbstractPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
+		final GenericReducer<T, ?> combiner = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
 		this.combiner = combiner;
 	}
 	
@@ -101,7 +101,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 		if(this.parent.getEnvironment().getTaskName() != null) {
 			stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
 		}
-		AbstractPactTask.openUserCode(this.combiner, stubConfig);
+		RegularPactTask.openUserCode(this.combiner, stubConfig);
 		
 		// ----------------- Set up the asynchronous sorter -------------------------
 		
@@ -211,7 +211,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 		if (this.canceled)
 			return;
 		
-		AbstractPactTask.closeUserCode(this.combiner);
+		RegularPactTask.closeUserCode(this.combiner);
 	}
 	
 	/* (non-Javadoc)

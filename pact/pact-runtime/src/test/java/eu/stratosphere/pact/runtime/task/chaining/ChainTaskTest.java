@@ -11,6 +11,7 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.generic.GenericMapper;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -19,6 +20,7 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.MapTaskTest.MockMapStub;
 import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
@@ -67,9 +69,10 @@ public class ChainTaskTest extends TaskTestBase
 		
 		// chained map+combine
 		{
-			MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
+			final RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord> testTask = 
+										new RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord>();
 			
-			super.registerTask(testTask, MockMapStub.class);
+			super.registerTask(testTask, MapDriver.class, MockMapStub.class);
 			
 			try {
 				testTask.invoke();
@@ -122,9 +125,10 @@ public class ChainTaskTest extends TaskTestBase
 		
 		// chained map+combine
 		{
-			MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
+			final RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord> testTask = 
+										new RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord>();
 			
-			super.registerTask(testTask, MockMapStub.class);
+			super.registerTask(testTask, MapDriver.class, MockMapStub.class);
 
 			boolean stubFailed = false;
 			

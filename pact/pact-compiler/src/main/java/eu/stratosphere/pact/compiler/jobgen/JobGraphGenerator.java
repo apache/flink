@@ -35,7 +35,6 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.pact.common.contract.AbstractPact;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -68,6 +67,7 @@ import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.MatchDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.TempDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
@@ -412,10 +412,12 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		else {
 			// create task vertex
 			mapVertex = new JobTaskVertex(mapNode.getPactContract().getName(), this.jobGraph);
-			// set task class
-			mapVertex.setTaskClass(MapDriver.class);
 			// get task configuration object
 			mapConfig = new TaskConfig(mapVertex.getConfiguration());
+			
+			// set task class and driver
+			mapVertex.setTaskClass(RegularPactTask.class);
+			mapConfig.setDriver(MapDriver.class);
 		}
 		
 		// set user code class
@@ -456,8 +458,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 											combineConfig, "Combiner for " + rc.getName()));
 		} else {
 			combineVertex = new JobTaskVertex("Combiner for " + combineNode.getPactContract().getName(), this.jobGraph);
-			combineVertex.setTaskClass(CombineDriver.class);
 			combineConfig = new TaskConfig(combineVertex.getConfiguration());
+			
+			combineVertex.setTaskClass(RegularPactTask.class);
+			combineConfig.setDriver(CombineDriver.class);
 		}
 		
 		combineConfig.setStubClass(combineNode.getPactContract().getUserCodeClass());
@@ -487,11 +491,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	{
 		// create task vertex
 		JobTaskVertex reduceVertex = new JobTaskVertex(reduceNode.getPactContract().getName(), this.jobGraph);
-		// set task class
-		reduceVertex.setTaskClass(ReduceDriver.class);
-
 		// get task configuration object
 		TaskConfig reduceConfig = new TaskConfig(reduceVertex.getConfiguration());
+		
+		// set task class
+		reduceVertex.setTaskClass(RegularPactTask.class);
+		reduceConfig.setDriver(ReduceDriver.class);
+		
 		// set user code class
 		reduceConfig.setStubClass(reduceNode.getPactContract().getUserCodeClass());
 		
@@ -532,14 +538,14 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 */
 	private JobTaskVertex generateMatchVertex(OptimizerNode matchNode) throws CompilerException
 	{
-		MatchContract matchContract = ((MatchNode) matchNode).getPactContract();
+		final MatchContract matchContract = ((MatchNode) matchNode).getPactContract();
 		
 		// create task vertex
-		JobTaskVertex matchVertex = new JobTaskVertex(matchNode.getPactContract().getName(), this.jobGraph);
-		
+		final JobTaskVertex matchVertex = new JobTaskVertex(matchNode.getPactContract().getName(), this.jobGraph);
 		// get task configuration object
-		TaskConfig matchConfig = new TaskConfig(matchVertex.getConfiguration());
+		final TaskConfig matchConfig = new TaskConfig(matchVertex.getConfiguration());
 		
+		matchVertex.setTaskClass(RegularPactTask.class);
 		matchConfig.setStubClass(matchNode.getPactContract().getUserCodeClass());
 		
 		// write key parameters
@@ -554,35 +560,35 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		switch (matchNode.getLocalStrategy())
 		{
 		case SORT_BOTH_MERGE:
-			matchVertex.setTaskClass(MatchDriver.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 			break;
 		case SORT_FIRST_MERGE:
-			matchVertex.setTaskClass(MatchDriver.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 			break;
 		case SORT_SECOND_MERGE:
-			matchVertex.setTaskClass(MatchDriver.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 			break;
 		case MERGE:
-			matchVertex.setTaskClass(MatchDriver.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.MERGE);
 			break;
 		case HYBRIDHASH_FIRST:
-			matchVertex.setTaskClass(MatchDriver.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 			break;
 		case HYBRIDHASH_SECOND:
-			matchVertex.setTaskClass(MatchDriver.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 			break;
 		case MMHASH_FIRST:
-			matchVertex.setTaskClass(MatchDriver.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_FIRST);
 			break;
 		case MMHASH_SECOND:
-			matchVertex.setTaskClass(MatchDriver.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_SECOND);
 			break;
 //		case SORT_SELF_NESTEDLOOP:
@@ -612,14 +618,17 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobTaskVertex generateCrossVertex(OptimizerNode crossNode) throws CompilerException {
+	private JobTaskVertex generateCrossVertex(OptimizerNode crossNode) throws CompilerException
+	{
 		// create task vertex
-		JobTaskVertex crossVertex = new JobTaskVertex(crossNode.getPactContract().getName(), this.jobGraph);
-		// set task class
-		crossVertex.setTaskClass(CrossDriver.class);
-
+		final JobTaskVertex crossVertex = new JobTaskVertex(crossNode.getPactContract().getName(), this.jobGraph);
 		// get task configuration object
-		TaskConfig crossConfig = new TaskConfig(crossVertex.getConfiguration());
+		final TaskConfig crossConfig = new TaskConfig(crossVertex.getConfiguration());
+		
+		// set task class
+		crossVertex.setTaskClass(RegularPactTask.class);
+		crossConfig.setDriver(CrossDriver.class);
+		
 		// set user code class
 		crossConfig.setStubClass(crossNode.getPactContract().getUserCodeClass());
 
@@ -655,17 +664,19 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobTaskVertex generateCoGroupVertex(OptimizerNode coGroupNode) throws CompilerException {
-
-		CoGroupContract coGroupContract = ((CoGroupNode) coGroupNode).getPactContract();
+	private JobTaskVertex generateCoGroupVertex(OptimizerNode coGroupNode) throws CompilerException
+	{
+		final CoGroupContract coGroupContract = ((CoGroupNode) coGroupNode).getPactContract();
 		
 		// create task vertex
-		JobTaskVertex coGroupVertex = new JobTaskVertex(coGroupNode.getPactContract().getName(), this.jobGraph);
-		// set task class
-		coGroupVertex.setTaskClass(CoGroupDriver.class);
-
+		final JobTaskVertex coGroupVertex = new JobTaskVertex(coGroupNode.getPactContract().getName(), this.jobGraph);
 		// get task configuration object
-		TaskConfig coGroupConfig = new TaskConfig(coGroupVertex.getConfiguration());
+		final TaskConfig coGroupConfig = new TaskConfig(coGroupVertex.getConfiguration());
+		
+		// set task class
+		coGroupVertex.setTaskClass(RegularPactTask.class);
+		coGroupConfig.setDriver(CoGroupDriver.class);
+		
 		// set user code class
 		coGroupConfig.setStubClass(coGroupNode.getPactContract().getUserCodeClass());
 		
@@ -798,14 +809,18 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @param dop
 	 * @return
 	 */
-	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop, int instancesPerMachine) {
+	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop, int instancesPerMachine)
+	{
 		// create task vertex
-		JobTaskVertex tempVertex = new JobTaskVertex("TempVertex", this.jobGraph);
-		// set task class
-		tempVertex.setTaskClass(TempDriver.class);
-
+		final JobTaskVertex tempVertex = new JobTaskVertex("TempVertex", this.jobGraph);
 		// get task configuration object
-		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
+		final TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
+		
+		
+		// set task class
+		tempVertex.setTaskClass(RegularPactTask.class);
+		tempConfig.setDriver(TempDriver.class);
+		
 		// set key and value classes
 		tempConfig.setStubClass(stubClass);
 
@@ -928,7 +943,6 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ connection.getTargetPact().getPactType().name());
 		}
 
-		// TODO: implement SFR
 		throw new UnsupportedOperationException("SFR shipping strategy not supported yet");
 	}
 	
