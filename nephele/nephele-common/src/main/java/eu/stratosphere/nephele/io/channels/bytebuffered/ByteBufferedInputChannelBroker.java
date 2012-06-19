@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 
 public interface ByteBufferedInputChannelBroker {
 
-	public void releaseConsumedReadBuffer();
+	public void releaseConsumedReadBuffer(Buffer buffer);
 
 	public Buffer getReadBufferToConsume();
 

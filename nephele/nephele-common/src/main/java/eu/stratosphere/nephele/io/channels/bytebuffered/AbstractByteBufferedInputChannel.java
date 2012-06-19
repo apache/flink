@@ -217,9 +217,10 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 	private void releasedConsumedReadBuffer() {
 
-		this.inputChannelBroker.releaseConsumedReadBuffer();
 		// Keep track of number of bytes transmitted through this channel
 		this.amountOfDataTransmitted += this.dataBuffer.size();
+
+		this.inputChannelBroker.releaseConsumedReadBuffer(this.dataBuffer);
 		this.dataBuffer = null;
 	}
 

@@ -44,45 +44,9 @@ public class DynamicDecompressor implements Decompressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void decompress() throws IOException {
+	public Buffer decompress(final Buffer compressedData) throws IOException {
 
-		this.decompressors[this.selectedDecompressor].decompress();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Buffer getCompressedDataBuffer() {
-
-		return this.decompressors[this.selectedDecompressor].getCompressedDataBuffer();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Buffer getUncompresssedDataBuffer() {
-
-		return this.decompressors[this.selectedDecompressor].getUncompresssedDataBuffer();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setCompressedDataBuffer(Buffer buffer) {
-
-		this.decompressors[this.selectedDecompressor].setCompressedDataBuffer(buffer);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setUncompressedDataBuffer(Buffer buffer) {
-
-		this.decompressors[this.selectedDecompressor].setUncompressedDataBuffer(buffer);
+		return this.decompressors[this.selectedDecompressor].decompress(compressedData);
 	}
 
 	/**

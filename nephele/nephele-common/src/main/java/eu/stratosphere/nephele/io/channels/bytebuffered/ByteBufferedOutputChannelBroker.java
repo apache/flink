@@ -35,15 +35,17 @@ public interface ByteBufferedOutputChannelBroker {
 	Buffer requestEmptyWriteBuffer() throws InterruptedException, IOException;
 
 	/**
-	 * Returns a filled write buffers to the broker. The broker will take care
-	 * of the buffers and transfer the one with the user data to the connected input channel on a best effort basis.
+	 * Returns a filled write buffer to the broker. The broker will take care
+	 * of the buffers and transfer the user data to the connected input channel on a best effort basis.
 	 * 
+	 * @param buffer
+	 *        the buffer to be returned to the broker
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the buffers to be released
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while releasing the buffers
 	 */
-	void releaseWriteBuffer() throws IOException, InterruptedException;
+	void releaseWriteBuffer(Buffer buffer) throws IOException, InterruptedException;
 
 	/**
 	 * Checks if there is still data created by this output channel that must be transfered to the corresponding input

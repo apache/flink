@@ -29,7 +29,6 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -74,8 +73,11 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		this.isReexecuted = (envelopeConsumptionLog.getNumberOfInitialLogEntries() > 0L);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public BufferPairResponse getReadBufferToConsume() {
+	public Buffer getReadBufferToConsume() {
 
 		TransferEnvelope transferEnvelope = null;
 
@@ -113,16 +115,16 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 			return null;
 		}
 
-		// TODO: Fix implementation breaks compression, fix it later on
-		final BufferPairResponse response = new BufferPairResponse(null, transferEnvelope.getBuffer()); // No need to
-
 		// Moved event processing to releaseConsumedReadBuffer method // copy anything
 
-		return response;
+		return transferEnvelope.getBuffer();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void releaseConsumedReadBuffer() {
+	public void releaseConsumedReadBuffer(final Buffer buffer) {
 
 		TransferEnvelope transferEnvelope = null;
 		synchronized (this.queuedEnvelopes) {
@@ -149,18 +151,12 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		// Notify the channel that an envelope has been consumed
 		this.envelopeConsumptionLog.reportEnvelopeConsumed(this.byteBufferedInputChannel);
 
-		final Buffer consumedBuffer = transferEnvelope.getBuffer();
-		if (consumedBuffer == null) {
-			LOG.error("Inconsistency: consumed read buffer is null!");
-			return;
-		}
-
-		if (consumedBuffer.remaining() > 0) {
-			LOG.error("consumedReadBuffer has " + consumedBuffer.remaining() + " unconsumed bytes left!!");
+		if (buffer.remaining() > 0) {
+			LOG.error("consumedReadBuffer has " + buffer.remaining() + " unconsumed bytes left!!");
 		}
 
 		// Recycle consumed read buffer
-		consumedBuffer.recycleBuffer();
+		buffer.recycleBuffer();
 	}
 
 	/**

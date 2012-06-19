@@ -156,7 +156,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		// Keep track of number of bytes transmitted through this channel
 		this.amountOfDataTransmitted += this.dataBuffer.size();
 
-		this.outputChannelBroker.releaseWriteBuffer();
+		this.outputChannelBroker.releaseWriteBuffer(this.dataBuffer);
 		this.dataBuffer = null;
 	}
 

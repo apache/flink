@@ -45,29 +45,7 @@ public abstract class AbstractDecompressor implements Decompressor {
 		this.compressionLibrary = compressionLibrary;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Buffer getCompressedDataBuffer() {
-
-		return this.compressedBuffer;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Buffer getUncompresssedDataBuffer() {
-
-		return this.uncompressedBuffer;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setCompressedDataBuffer(Buffer buffer) {
+	protected void setCompressedDataBuffer(Buffer buffer) {
 
 		if (buffer == null) {
 			this.compressedBuffer = null;
@@ -83,11 +61,7 @@ public abstract class AbstractDecompressor implements Decompressor {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setUncompressedDataBuffer(Buffer buffer) {
+	protected void setUncompressedDataBuffer(Buffer buffer) {
 
 		if (buffer == null) {
 			this.uncompressedBuffer = null;
@@ -120,7 +94,7 @@ public abstract class AbstractDecompressor implements Decompressor {
 	}
 
 	@Override
-	public void decompress() throws IOException {
+	public Buffer decompress(final Buffer compressedData) throws IOException {
 
 		if (this.uncompressedDataBuffer.position() > 0) {
 			throw new IllegalStateException("Uncompressed data buffer is expected to be empty");
@@ -137,6 +111,8 @@ public abstract class AbstractDecompressor implements Decompressor {
 
 		// Make sure the framework considers the buffer to be fully consumed
 		this.compressedDataBuffer.position(this.compressedDataBuffer.limit());
+
+		return null;
 	}
 
 	protected int bufferToInt(ByteBuffer buffer, int offset) {

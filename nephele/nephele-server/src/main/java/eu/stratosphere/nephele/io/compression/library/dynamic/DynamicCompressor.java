@@ -53,48 +53,11 @@ public class DynamicCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void compress() throws IOException {
+	public Buffer compress(final Buffer uncompressedData) throws IOException {
 
-		this.compressors[this.selectedCompressor].compress();
+		this.sizeOfLastUncompressedBuffer = uncompressedData.size();
 
-		this.sizeOfLastUncompressedBuffer = this.compressors[this.selectedCompressor].getUncompresssedDataBuffer()
-			.size();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Buffer getCompressedDataBuffer() {
-
-		return this.compressors[this.selectedCompressor].getCompressedDataBuffer();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Buffer getUncompresssedDataBuffer() {
-
-		return this.compressors[this.selectedCompressor].getUncompresssedDataBuffer();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setCompressedDataBuffer(Buffer buffer) {
-
-		this.compressors[this.selectedCompressor].setCompressedDataBuffer(buffer);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setUncompressedDataBuffer(Buffer buffer) {
-
-		this.compressors[this.selectedCompressor].setUncompressedDataBuffer(buffer);
+		return this.compressors[this.selectedCompressor].compress(uncompressedData);
 	}
 
 	@Override

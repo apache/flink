@@ -45,24 +45,6 @@ public abstract class AbstractCompressor implements Compressor {
 	}
 
 	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final Buffer getCompressedDataBuffer() {
-
-		return this.compressedBuffer;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final Buffer getUncompresssedDataBuffer() {
-
-		return this.uncompressedBuffer;
-	}
-
-	/**
 	 * Checks if the provided buffer is backed by memory and
 	 * returns the encapsulated {@link ByteBuffer} object.
 	 * 
@@ -81,11 +63,7 @@ public abstract class AbstractCompressor implements Compressor {
 		return memoryBuffer.getByteBuffer();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final void setCompressedDataBuffer(Buffer buffer) {
+	protected final void setCompressedDataBuffer(final Buffer buffer) {
 
 		if (buffer == null) {
 			this.compressedBuffer = null;
@@ -98,11 +76,7 @@ public abstract class AbstractCompressor implements Compressor {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final void setUncompressedDataBuffer(Buffer buffer) {
+	protected final void setUncompressedDataBuffer(final Buffer buffer) {
 
 		if (buffer == null) {
 			this.uncompressedBuffer = null;
@@ -115,8 +89,12 @@ public abstract class AbstractCompressor implements Compressor {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public final void compress() throws IOException {
+	public final Buffer compress(final Buffer uncompressedData) throws IOException {
+		
 		this.compressedDataBuffer.clear();
 		this.uncompressedDataBufferLength = this.uncompressedDataBuffer.position();
 
@@ -129,6 +107,8 @@ public abstract class AbstractCompressor implements Compressor {
 
 		// If everything went ok, prepare buffers for next run
 		this.uncompressedBuffer.finishWritePhase();
+		
+		return null;
 	}
 
 	protected abstract int compressBytesDirect(int offset);
