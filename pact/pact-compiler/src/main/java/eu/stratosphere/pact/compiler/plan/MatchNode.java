@@ -730,6 +730,7 @@ public class MatchNode extends TwoInputNode {
 	 * 
 	 * @return	{@code true} if branches are equal, {@code false} otherwise.
 	 */
+	@SuppressWarnings("unused")
 	private boolean areBranchesEqual(List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2) {
 		final int size1 = allPreds1.size();
 		final int size2 = allPreds2.size();

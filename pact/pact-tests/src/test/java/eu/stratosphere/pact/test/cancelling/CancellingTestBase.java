@@ -15,18 +15,23 @@
 
 package eu.stratosphere.pact.test.cancelling;
 
+import static junit.framework.Assert.fail;
+
 import java.util.Iterator;
+
+import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.junit.Test;
+import org.apache.hadoop.fs.FileSystem;
+import org.junit.After;
+import org.junit.Before;
 
 import eu.stratosphere.nephele.client.AbstractJobResult;
 import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobProgressResult;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -36,51 +41,74 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
-import eu.stratosphere.pact.test.util.TestBase;
+import eu.stratosphere.pact.test.util.Constants;
+import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
+import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
 
 /**
  * 
  */
-public abstract class CancellingTestBase extends TestBase {
-
+public abstract class CancellingTestBase
+{
 	private static final Log LOG = LogFactory.getLog(CancellingTestBase.class);
 
-	/**
-	 * Defines the number of seconds after which the cancel request is issued to the job manager, starting from the
-	 * point in time when the job is submitted.
-	 */
-	private static final int CANCEL_INITIATED_INTERVAL = 10;
-
+	private static final int MINIMUM_HEAP_SIZE_MB = 192;
+	
 	/**
 	 * Defines the number of seconds after which an issued cancel request is expected to have taken effect (i.e. the job
 	 * is canceled), starting from the point in time when the cancel request is issued.
 	 */
-	private static final int CANCEL_FINISHED_INTERVAL = 10;
+	private static final int DEFAULT_CANCEL_FINISHED_INTERVAL = 10 * 1000;
+
+	// --------------------------------------------------------------------------------------------
+	
+	protected ClusterProvider cluster;
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private void verifyJvmOptions()
+	{
+		final long heap = Runtime.getRuntime().maxMemory() >> 20;
+		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
+				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
+		Assert.assertTrue("IPv4 stack required - set JVM option: -Djava.net.preferIPv4Stack=true", "true".equals(System
+				.getProperty("java.net.preferIPv4Stack")));
+	}
+
+	@Before
+	public void startCluster() throws Exception
+	{
+		verifyJvmOptions();
+		LOG.info("######################### starting cluster #########################");
+		this.cluster = ClusterProviderPool.getInstance(Constants.DEFAULT_TEST_CONFIG);
+	}
+
+	@After
+	public void stopCluster() throws Exception
+	{
+		LOG.info("######################### stopping cluster config #########################");
+		cluster.stopCluster();
+		ClusterProviderPool.removeInstance(Constants.DEFAULT_TEST_CONFIG);
+		FileSystem.closeAll();
+		System.gc();
+	}
 
 	// --------------------------------------------------------------------------------------------
 
-	public CancellingTestBase() {
-		this(new Configuration());
+	public void runAndCancelJob(Plan plan, int msecsTillCanceling) throws Exception
+	{
+		runAndCancelJob(plan, msecsTillCanceling, DEFAULT_CANCEL_FINISHED_INTERVAL);
 	}
-
-	public CancellingTestBase(final Configuration config) {
-		super(config);
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	@Test
-	public void testJob() throws Exception {
-		// pre-submit
-		preSubmit();
-
+		
+	public void runAndCancelJob(Plan plan, int msecsTillCanceling, int maxTimeTillCanceled) throws Exception
+	{
 		try {
 			// submit job
-			final JobGraph jobGraph = getJobGraph();
+			final JobGraph jobGraph = getJobGraph(plan);
 
 			final long startingTime = System.currentTimeMillis();
 			long cancelTime = -1L;
-			final JobClient client = cluster.getJobClient(jobGraph, getJarFilePath());
+			final JobClient client = cluster.getJobClient(jobGraph, null);
 			final JobSubmissionResult submissionResult = client.submitJob();
 			if (submissionResult.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
 				throw new IllegalStateException(submissionResult.getDescription());
@@ -104,7 +132,7 @@ public abstract class CancellingTestBase extends TestBase {
 				if (cancelTime < 0L) {
 
 					// Cancel job
-					if (startingTime + (CANCEL_INITIATED_INTERVAL * 1000L) < now) {
+					if (startingTime + msecsTillCanceling < now) {
 
 						LOG.info("Issuing cancel request");
 
@@ -124,9 +152,9 @@ public abstract class CancellingTestBase extends TestBase {
 				} else {
 
 					// Job has already been canceled
-					if (cancelTime + (CANCEL_FINISHED_INTERVAL * 1000L) < now) {
+					if (cancelTime + maxTimeTillCanceled < now) {
 						throw new IllegalStateException("Cancelling of job took " + (now - cancelTime)
-							+ " milliseconds, only " + CANCEL_FINISHED_INTERVAL + " seconds are allowed");
+							+ " milliseconds, only " + maxTimeTillCanceled + " milliseconds are allowed");
 					}
 				}
 
@@ -188,39 +216,13 @@ public abstract class CancellingTestBase extends TestBase {
 			fail(StringUtils.stringifyException(e));
 			return;
 		}
-
-		// post-submit
-		postSubmit();
 	}
 
-	@Override
-	protected JobGraph getJobGraph() throws Exception {
-		final Plan testPlan = getTestPlan();
-		testPlan.setDefaultParallelism(4);
-
+	private JobGraph getJobGraph(final Plan plan) throws Exception
+	{
 		final PactCompiler pc = new PactCompiler();
-		final OptimizedPlan op = pc.compile(testPlan);
+		final OptimizedPlan op = pc.compile(plan);
 		final JobGraphGenerator jgg = new JobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
-
-	// --------------------------------------------------------------------------------------------
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.test.util.TestBase#preSubmit()
-	 */
-	@Override
-	protected void preSubmit() throws Exception {
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.test.util.TestBase#postSubmit()
-	 */
-	@Override
-	protected void postSubmit() throws Exception {
-	}
-
-	protected abstract Plan getTestPlan() throws Exception;
 }
