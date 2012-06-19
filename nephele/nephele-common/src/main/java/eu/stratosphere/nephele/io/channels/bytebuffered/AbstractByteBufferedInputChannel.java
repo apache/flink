@@ -53,12 +53,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	/**
 	 * Buffer for the uncompressed (raw) data.
 	 */
-	private Buffer uncompressedDataBuffer;
-	
-	/**
-	 * Buffer for the compressed data.
-	 */
-	private Buffer compressedDataBuffer;
+	private Buffer dataBuffer;
 
 	private ByteBufferedInputChannelBroker inputChannelBroker;
 
@@ -77,9 +72,8 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * Stores the number of bytes read through this input channel since its instantiation.
 	 */
 	private long amountOfDataTransmitted;
-	
+
 	private volatile boolean brokerAggreedToCloseChannel;
-	
 
 	/**
 	 * Creates a new network input channel.
@@ -99,8 +93,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 */
 	public AbstractByteBufferedInputChannel(final InputGate<T> inputGate, final int channelIndex,
 			final RecordDeserializer<T> deserializer, final ChannelID channelID, final ChannelID connectedChannelID,
-			final CompressionLevel compressionLevel)
-	{
+			final CompressionLevel compressionLevel) {
 		super(inputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
 		this.deserializer = deserializer;
 		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel, this);
@@ -115,48 +108,42 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 */
 	private T deserializeNextRecord(final T target) throws IOException {
 
-		if (this.uncompressedDataBuffer == null) {
+		if (this.dataBuffer == null) {
 
 			if (this.ioException != null) {
 				throw this.ioException;
 			}
 
-			requestReadBuffersFromBroker();
+			requestReadBufferFromBroker();
 
-			if (this.uncompressedDataBuffer == null) {
+			if (this.dataBuffer == null) {
 				return null;
 			}
 
 			if (this.decompressor != null) {
-				this.decompressor.decompress();
+				this.dataBuffer = this.decompressor.decompress(this.dataBuffer);
 			}
 		}
 
-		final T nextRecord = this.deserializer.readData(target, this.uncompressedDataBuffer);
+		final T nextRecord = this.deserializer.readData(target, this.dataBuffer);
 
-		if (this.uncompressedDataBuffer.remaining() == 0) {
+		if (this.dataBuffer.remaining() == 0) {
 			releasedConsumedReadBuffer();
 		}
 
 		return nextRecord;
 	}
 
-	private void requestReadBuffersFromBroker() {
+	private void requestReadBufferFromBroker() {
 
 		// this.leasedReadBuffer = this.inputChannelBroker.getReadBufferToConsume();
-		final BufferPairResponse bufferPair = this.inputChannelBroker.getReadBufferToConsume();
+		final Buffer buffer = this.inputChannelBroker.getReadBufferToConsume();
 
-		if (bufferPair == null) {
+		if (buffer == null) {
 			return;
 		}
 
-		this.compressedDataBuffer = bufferPair.getCompressedDataBuffer();
-		this.uncompressedDataBuffer = bufferPair.getUncompressedDataBuffer();
-
-		if (this.decompressor != null) {
-			this.decompressor.setCompressedDataBuffer(this.compressedDataBuffer);
-			this.decompressor.setUncompressedDataBuffer(this.uncompressedDataBuffer);
-		}
+		this.dataBuffer = buffer;
 	}
 
 	/**
@@ -178,9 +165,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	@Override
 	public boolean isClosed() throws IOException {
 
-		// TODO: check for decompressor
-
-		if (this.uncompressedDataBuffer != null) {
+		if (this.dataBuffer != null) {
 			return false;
 		}
 
@@ -202,7 +187,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	public void close() throws IOException, InterruptedException {
 
 		this.deserializer.clear();
-		if (this.uncompressedDataBuffer != null) {
+		if (this.dataBuffer != null) {
 			releasedConsumedReadBuffer();
 		}
 
@@ -211,8 +196,8 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			if (!this.brokerAggreedToCloseChannel) {
 				while (!this.brokerAggreedToCloseChannel) {
 
-					requestReadBuffersFromBroker();
-					if (this.uncompressedDataBuffer != null || this.compressedDataBuffer != null) {
+					requestReadBufferFromBroker();
+					if (this.dataBuffer != null) {
 						releasedConsumedReadBuffer();
 					}
 					Thread.sleep(500);
@@ -234,9 +219,8 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 		this.inputChannelBroker.releaseConsumedReadBuffer();
 		// Keep track of number of bytes transmitted through this channel
-		this.amountOfDataTransmitted += this.uncompressedDataBuffer.size();
-		this.uncompressedDataBuffer = null;
-		this.compressedDataBuffer = null;
+		this.amountOfDataTransmitted += this.dataBuffer.size();
+		this.dataBuffer = null;
 	}
 
 	public void setInputChannelBroker(ByteBufferedInputChannelBroker inputChannelBroker) {

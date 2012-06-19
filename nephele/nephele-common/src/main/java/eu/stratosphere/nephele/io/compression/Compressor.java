@@ -23,40 +23,15 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 public interface Compressor {
 
 	/**
-	 * Method to compress the data from the uncompressed Data-Buffer to the compressed Data-Buffer.
-	 */
-	void compress() throws IOException;
-
-	/**
-	 * Get the uncompressed Data-Buffer.
+	 * Compresses the data included in the given buffer.
 	 * 
-	 * @return the Data-Buffer used to store the uncompressed/input data.
+	 * @param uncompressedData
+	 *        the buffer containing the uncompressed data
+	 * @return the buffer containing the compressed buffers
+	 * @throws IOException
+	 *         thrown if an error occurs during the compression
 	 */
-	Buffer getUncompresssedDataBuffer();
-
-	/**
-	 * Get the compressed Data-Buffer.
-	 * 
-	 * @return the Data-Buffer used to store the compressed/output data.
-	 */
-	Buffer getCompressedDataBuffer();
-
-	/**
-	 * Sets the uncompressed data buffer.
-	 * 
-	 * @param buffer
-	 *        the buffer which contains the uncompressed data
-	 */
-	void setUncompressedDataBuffer(Buffer buffer);
-
-	/**
-	 * Set the compressed Data-Buffer. This method is used together with NetworkOutputChannels, where we
-	 * use multiply Buffers for the compressed Data.
-	 * 
-	 * @param buffer
-	 *        the Data-Buffer used to store the compressed/output data
-	 */
-	void setCompressedDataBuffer(Buffer buffer);
+	Buffer compress(Buffer uncompressedData) throws IOException;
 
 	/**
 	 * Returns the current internal compression library index. The index points to the

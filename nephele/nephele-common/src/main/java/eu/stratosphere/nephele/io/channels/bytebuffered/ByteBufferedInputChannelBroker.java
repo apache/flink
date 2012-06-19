@@ -18,12 +18,13 @@ package eu.stratosphere.nephele.io.channels.bytebuffered;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.io.channels.Buffer;
 
 public interface ByteBufferedInputChannelBroker {
 
 	public void releaseConsumedReadBuffer();
 
-	public BufferPairResponse getReadBufferToConsume();
+	public Buffer getReadBufferToConsume();
 
 	/**
 	 * Forwards the given event to the connected network output channel on a best effort basis.

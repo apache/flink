@@ -88,7 +88,6 @@ public class FileOutputChannelTest {
 		final StringRecord record = new StringRecord("abc");
 		final Decompressor decompressorMock = mock(Decompressor.class);
 		this.uncompressedDataBuffer = mock(Buffer.class);
-		BufferPairResponse bufferPair = new BufferPairResponse(this.uncompressedDataBuffer, this.uncompressedDataBuffer);
 		// BufferPairResponse bufferPair = mock(BufferPairResponse.class);
 		// when(bufferPair.getUncompressedDataBuffer()).thenReturn(this.uncompressedDataBuffer,
 		// this.uncompressedDataBuffer, this.uncompressedDataBuffer,null);
@@ -103,7 +102,7 @@ public class FileOutputChannelTest {
 		@SuppressWarnings("unchecked")
 		final OutputGate<StringRecord> outGate = mock(OutputGate.class);
 		final ByteBufferedOutputChannelBroker outputBroker = mock(ByteBufferedOutputChannelBroker.class);
-		when(outputBroker.requestEmptyWriteBuffers()).thenReturn(bufferPair);
+		when(outputBroker.requestEmptyWriteBuffer()).thenReturn(this.uncompressedDataBuffer);
 
 		when(outputBroker.hasDataLeftToTransmit()).thenReturn(true);
 

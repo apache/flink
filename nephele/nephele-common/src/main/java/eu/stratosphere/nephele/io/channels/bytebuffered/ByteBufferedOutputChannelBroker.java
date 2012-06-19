@@ -18,20 +18,21 @@ package eu.stratosphere.nephele.io.channels.bytebuffered;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.io.channels.Buffer;
 
 public interface ByteBufferedOutputChannelBroker {
 
 	/**
-	 * Requests empty write buffers from the broker. This method will block
-	 * until the requested write buffers are available.
+	 * Requests an empty write buffer from the broker. This method will block
+	 * until the requested write buffer is available.
 	 * 
-	 * @return one or possibly two byte buffers to write in, depending on whether compression is enabled or not
+	 * @return the byte buffers to write in
 	 * @throws InterruptedException
-	 *         thrown if the connected task is interrupted while waiting for the buffers
+	 *         thrown if the connected task is interrupted while waiting for the buffer
 	 * @throws IOException
-	 *         thrown if an error occurs while requesting the empty write buffers.
+	 *         thrown if an error occurs while requesting the empty write buffer.
 	 */
-	BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException, IOException;
+	Buffer requestEmptyWriteBuffer() throws InterruptedException, IOException;
 
 	/**
 	 * Returns a filled write buffers to the broker. The broker will take care
@@ -42,7 +43,7 @@ public interface ByteBufferedOutputChannelBroker {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while releasing the buffers
 	 */
-	void releaseWriteBuffers() throws IOException, InterruptedException;
+	void releaseWriteBuffer() throws IOException, InterruptedException;
 
 	/**
 	 * Checks if there is still data created by this output channel that must be transfered to the corresponding input

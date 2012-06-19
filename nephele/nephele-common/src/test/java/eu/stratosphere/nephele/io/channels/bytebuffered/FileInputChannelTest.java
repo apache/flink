@@ -43,7 +43,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
-import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -87,9 +86,7 @@ public class FileInputChannelTest {
 	@PrepareForTest(CompressionLoader.class)
 	public void deserializeNextRecordTest() throws IOException, InterruptedException {
 		StringRecord record = new StringRecord("abc");
-		Decompressor decompressorMock = mock(Decompressor.class);
 		this.uncompressedDataBuffer = mock(Buffer.class);
-		BufferPairResponse bufferPair = new BufferPairResponse(this.uncompressedDataBuffer, this.uncompressedDataBuffer);
 		// BufferPairResponse bufferPair = mock(BufferPairResponse.class);
 		// when(bufferPair.getUncompressedDataBuffer()).thenReturn(this.uncompressedDataBuffer,
 		// this.uncompressedDataBuffer, null);
@@ -97,13 +94,12 @@ public class FileInputChannelTest {
 		PowerMockito.mockStatic(CompressionLoader.class);
 		when(
 			CompressionLoader.getDecompressorByCompressionLevel(Matchers.any(CompressionLevel.class),
-				Matchers.any(FileInputChannel.class))).thenReturn(
-			decompressorMock);
+				Matchers.any(FileInputChannel.class))).thenReturn(null);
 
 		@SuppressWarnings("unchecked")
 		final InputGate<StringRecord> inGate = mock(InputGate.class);
 		final ByteBufferedInputChannelBroker inputBroker = mock(ByteBufferedInputChannelBroker.class);
-		when(inputBroker.getReadBufferToConsume()).thenReturn(bufferPair);
+		when(inputBroker.getReadBufferToConsume()).thenReturn(this.uncompressedDataBuffer);
 		try {
 			when(
 				this.deserializationBuffer.readData(Matchers.any(StringRecord.class),
