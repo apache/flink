@@ -32,7 +32,7 @@ public class ChainTaskTest extends TaskTestBase
 
 	private static final Log LOG = LogFactory.getLog(ChainTaskTest.class);
 	
-	private List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 		
 	@SuppressWarnings("unchecked")
 	@Test
@@ -138,20 +138,18 @@ public class ChainTaskTest extends TaskTestBase
 		}		
 	}
 	
-	public static class MockFailingCombineStub extends ReduceStub {
-
-		int cnt = 0;
+	public static final class MockFailingCombineStub extends ReduceStub
+	{
+		private int cnt = 0;
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
-				throws Exception {
-			if(++this.cnt>=5) {
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
+		{
+			if (++this.cnt >= 5) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			while(records.hasNext())
-				out.collect(records.next());			
+				out.collect(records.next());
 		}
-		
 	}
-	
 }

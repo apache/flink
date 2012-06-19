@@ -61,11 +61,12 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * of the user code.
  *
  * @author Stephan Ewen
- * @author Fabian Hueske
  */
-public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
+public class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 {
 	protected static final Log LOG = LogFactory.getLog(AbstractPactTask.class);
+	
+	protected PactDriver<S, OT> driver;
 	
 	protected S stub;
 	
@@ -86,56 +87,6 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	protected volatile boolean running;
 	
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Gets the number of inputs (= Nephele Gates and Readers) that the task has.
-	 * 
-	 * @return The number of inputs.
-	 */
-	public abstract int getNumberOfInputs();
-	
-	/**
-	 * Gets the class of the stub type that is run by this task. For example, a <tt>MapTask</tt> should return
-	 * <code>MapStub.class</code>.   
-	 * 
-	 * @return The class of the stub type run by the task.
-	 */
-	public abstract Class<S> getStubType();
-	
-	/**
-	 * Flag indicating whether the inputs require always comparators or not.
-	 * 
-	 * @return True, if the initialization should look for and create comparators, false otherwise.
-	 */
-	public abstract boolean requiresComparatorOnInput();
-	
-	/**
-	 * This method is called before the user code is opened. An exception thrown by this method
-	 * signals failure of the task.
-	 * 
-	 * @throws Exception Exceptions may be forwarded and signal task failure.
-	 */
-	public abstract void prepare() throws Exception;
-	
-	/**
-	 * The main operation method of the task. It should call the user code with the data subsets until
-	 * the input is depleted.
-	 * 
-	 * @throws Exception Any exception thrown by this method signals task failure. Because exceptions in the user
-	 *                   code typically signal situations where this instance in unable to proceed, exceptions
-	 *                   from the user code should be forwarded.
-	 */
-	public abstract void run() throws Exception; 
-	
-	/**
-	 * This method is invoked in any case (clean termination and exception) at the end of the tasks operation.
-	 * 
-	 * @throws Exception Exceptions may be forwarded.
-	 */
-	public abstract void cleanup() throws Exception;
-	
-	
-	// --------------------------------------------------------------------------------------------
 	//                                  Nephele Task Interface
 	// --------------------------------------------------------------------------------------------
 	
@@ -149,6 +100,7 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 			LOG.debug(getLogString("Start registering input and output."));
 		}
 		
+		// get the classloader first. the classloader might have been set before by mock environments during testing
 		if (this.userCodeClassLoader == null) {
 			try {
 				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
@@ -157,9 +109,16 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 				throw new RuntimeException("The ClassLoader for the user code could not be instantiated from the library cache.", ioe);
 			}
 		}
-
+		
+		// obtain task configuration (including stub parameters)
+		this.config = new TaskConfig(getTaskConfiguration());
+		
+		// now get the driver class, which drives the actual pact
+		final Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
+		this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
+		
 		try {
-			initConfigAndStub(getStubType());
+			initStub(this.driver.getStubType());
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the user code and the configuration failed" +
 				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
@@ -301,11 +260,8 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	 * @throws RuntimeException Thrown, if the stub class could not be loaded, instantiated,
 	 *                          or caused an exception while being configured.
 	 */
-	protected void initConfigAndStub(Class<? super S> stubSuperClass) throws Exception
+	protected void initStub(Class<? super S> stubSuperClass) throws Exception
 	{
-		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getTaskConfiguration());
-
 		// obtain stub implementation class
 		try {
 			@SuppressWarnings("unchecked")

@@ -103,7 +103,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 		}
 		AbstractPactTask.openUserCode(this.combiner, stubConfig);
 		
-		// ----------------- Set up the asynchonous sorter -------------------------
+		// ----------------- Set up the asynchronous sorter -------------------------
 		
 		final long availableMemory = this.config.getMemorySize();
 		LocalStrategy ls = config.getLocalStrategy();
