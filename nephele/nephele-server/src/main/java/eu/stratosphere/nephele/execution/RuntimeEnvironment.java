@@ -243,6 +243,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			final ChannelType channelType = gdd.getChannelType();
 			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
 			og.setChannelType(channelType);
+			og.setCompressionLevel(compressionLevel);
 
 			final int nocdd = gdd.getNumberOfChannelDescriptors();
 			for (int j = 0; j < nocdd; ++j) {
@@ -273,6 +274,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			final ChannelType channelType = gdd.getChannelType();
 			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
 			ig.setChannelType(channelType);
+			ig.setCompressionLevel(compressionLevel);
 
 			final int nicdd = gdd.getNumberOfChannelDescriptors();
 			for (int j = 0; j < nicdd; ++j) {
@@ -443,8 +445,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 */
 	@Override
 	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID, Class<T> outputClass,
-			final ChannelSelector<T> selector, final boolean isBroadcast)
-	{
+			final ChannelSelector<T> selector, final boolean isBroadcast) {
 		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gateID, outputClass,
 															getNumberOfOutputGates(), selector, isBroadcast);
 		return rog;
@@ -455,9 +456,9 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 */
 	@Override
 	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
-										final RecordDeserializerFactory<T> deserializerFactory)
-	{
-		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory, getNumberOfInputGates());
+										final RecordDeserializerFactory<T> deserializerFactory) {
+		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory,
+			getNumberOfInputGates());
 		return rig;
 	}
 

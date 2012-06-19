@@ -15,31 +15,13 @@
 
 package eu.stratosphere.nephele.io.compression;
 
-import java.util.HashSet;
-import java.util.Set;
+public interface CompressionLibrary {
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
+	Compressor createNewCompressor(CompressionBufferProvider bufferProvider) throws CompressionException;
 
-abstract class AbstractCacheEntry {
+	Decompressor createNewDecompressor(CompressionBufferProvider bufferProvider) throws CompressionException;
 
-	private final Set<ChannelID> assignedChannels = new HashSet<ChannelID>();
+	int getUncompressedBufferSize(int compressedBufferSize);
 
-	void addAssignedChannel(final ChannelID channelID) {
-
-		if (!this.assignedChannels.add(channelID)) {
-			throw new IllegalStateException(channelID + " has already been added to the set of assigned channels");
-		}
-	}
-
-	void removeAssignedChannel(final ChannelID channelID) {
-
-		if (!this.assignedChannels.remove(channelID)) {
-			throw new IllegalStateException(channelID + " has not been in the set of assigned channels");
-		}
-	}
-
-	boolean hasAssignedChannels() {
-
-		return (!this.assignedChannels.isEmpty());
-	}
+	String getLibraryName();
 }

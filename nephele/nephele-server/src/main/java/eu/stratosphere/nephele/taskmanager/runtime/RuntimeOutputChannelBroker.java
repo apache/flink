@@ -24,6 +24,7 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
+import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
@@ -71,7 +72,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 
 	RuntimeOutputChannelBroker(final BufferProvider bufferProvider,
 			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel,
-			final AbstractOutputChannelForwarder next) {
+			final AbstractOutputChannelForwarder next, final Compressor compressor) {
 
 		super(next);
 
@@ -82,6 +83,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 		this.bufferProvider = bufferProvider;
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
+		this.byteBufferedOutputChannel.setCompressor(compressor);
 	}
 
 	public void setForwardingChain(final OutputChannelForwardingChain forwardingChain) {

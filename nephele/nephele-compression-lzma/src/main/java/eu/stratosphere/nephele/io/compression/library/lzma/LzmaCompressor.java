@@ -15,8 +15,8 @@
 
 package eu.stratosphere.nephele.io.compression.library.lzma;
 
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.AbstractCompressor;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 
 /**
  * This class provides an interface for compressing byte-buffers with the native lzma library
@@ -26,17 +26,11 @@ import eu.stratosphere.nephele.io.compression.AbstractCompressor;
  */
 public class LzmaCompressor extends AbstractCompressor {
 
-	public LzmaCompressor(AbstractCompressionLibrary compressionLibrary) {
-		super(compressionLibrary);
+	public LzmaCompressor(final CompressionBufferProvider bufferProvider) {
+		super(bufferProvider);
 	}
 
 	native static void initIDs();
 
 	protected native int compressBytesDirect(int offset);
-
-	@Override
-	protected void freeInternalResources() {
-		// TODO Auto-generated method stub
-		
-	}
 }

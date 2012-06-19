@@ -25,6 +25,8 @@ import eu.stratosphere.nephele.io.compression.Decompressor;
 
 public abstract class AbstractDecompressor implements Decompressor {
 
+	private final CompressionBufferProvider bufferProvider;
+	
 	private Buffer uncompressedBuffer;
 
 	protected Buffer compressedBuffer;
@@ -39,10 +41,8 @@ public abstract class AbstractDecompressor implements Decompressor {
 
 	protected final static int SIZE_LENGTH = 8;
 
-	private final AbstractCompressionLibrary compressionLibrary;
-
-	public AbstractDecompressor(final AbstractCompressionLibrary compressionLibrary) {
-		this.compressionLibrary = compressionLibrary;
+	protected AbstractDecompressor(final CompressionBufferProvider bufferProvider) {
+		this.bufferProvider = bufferProvider;
 	}
 
 	protected void setCompressedDataBuffer(Buffer buffer) {
@@ -143,13 +143,8 @@ public abstract class AbstractDecompressor implements Decompressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void shutdown(final ChannelID channelID) {
+	public void shutdown() {
 
-		if (this.compressionLibrary.canBeShutDown(this, channelID)) {
-			freeInternalResources();
-		}
-
+		// The default implementation does nothing
 	}
-
-	protected abstract void freeInternalResources();
 }

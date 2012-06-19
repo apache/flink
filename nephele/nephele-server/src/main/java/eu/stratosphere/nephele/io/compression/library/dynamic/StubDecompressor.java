@@ -15,35 +15,38 @@
 
 package eu.stratosphere.nephele.io.compression.library.dynamic;
 
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
-import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
+import java.io.IOException;
 
-public class StubDecompressor extends AbstractDecompressor {
+import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.compression.Decompressor;
 
-	StubDecompressor(AbstractCompressionLibrary compressionLibrary) {
-		super(compressionLibrary);
+public class StubDecompressor implements Decompressor {
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Buffer decompress(final Buffer compressedData) throws IOException {
+
+		return compressedData;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected int decompressBytesDirect(int offset) {
+	public void setCurrentInternalDecompressionLibraryIndex(final int index) {
 
-		// System.out.println("Compressed buffer length: " + this.compressedDataBuffer);
-
-		this.uncompressedDataBufferLength = this.compressedDataBuffer.limit();
-		this.uncompressedDataBuffer.position(0);
-		this.uncompressedDataBuffer.limit(this.uncompressedDataBufferLength);
-
-		this.uncompressedDataBuffer.put(this.compressedDataBuffer);
-
-		// System.out.println("Uncompressed buffer position: " + this.uncompressedDataBuffer.position());
-
-		return this.uncompressedDataBuffer.position() - SIZE_LENGTH; // TODO: Improve code style here
+		// Nothing to do here
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected void freeInternalResources() {
-		// TODO Auto-generated method stub
-		
+	public void shutdown() {
+
+		// Nothing to do here
 	}
 
 }

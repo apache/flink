@@ -15,30 +15,34 @@
 
 package eu.stratosphere.nephele.io.compression.library.dynamic;
 
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
-import eu.stratosphere.nephele.io.compression.AbstractCompressor;
+import java.io.IOException;
 
-public class StubCompressor extends AbstractCompressor {
+import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.compression.Compressor;
 
-	StubCompressor(final AbstractCompressionLibrary compressionLibrary) {
-		super(compressionLibrary);
+public class StubCompressor implements Compressor {
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Buffer compress(final Buffer uncompressedData) throws IOException {
+
+		return uncompressedData;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getCurrentInternalCompressionLibraryIndex() {
+
+		return 0;
 	}
 
 	@Override
-	protected int compressBytesDirect(int offset) {
+	public void shutdown() {
 
-		if (this.compressedDataBuffer.position() > 0) {
-			throw new IllegalStateException("compressedBuffer has position > 0");
-		}
-
-		this.uncompressedDataBuffer.flip();
-		this.compressedDataBuffer.put(this.uncompressedDataBuffer);
-
-		return this.compressedDataBuffer.position();
-	}
-
-	@Override
-	protected void freeInternalResources() {
 		// Nothing to do here
 	}
 

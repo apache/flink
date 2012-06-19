@@ -15,16 +15,15 @@
 
 package eu.stratosphere.nephele.io.compression.library.lzma;
 
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.util.NativeCodeLoader;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class LzmaLibrary extends AbstractCompressionLibrary {
+public class LzmaLibrary implements CompressionLibrary {
 
 	/**
 	 * The file name of the native lzma library.
@@ -46,8 +45,11 @@ public class LzmaLibrary extends AbstractCompressionLibrary {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int getUncompressedBufferSize(int compressedBufferSize) {
+	public int getUncompressedBufferSize(final int compressedBufferSize) {
 
 		/*
 		 * Calculate size of compressed data buffer according to
@@ -57,22 +59,30 @@ public class LzmaLibrary extends AbstractCompressionLibrary {
 		return (compressedBufferSize / 65) * 64;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String getLibraryName() {
 		return "LZMA";
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Compressor initNewCompressor(AbstractByteBufferedOutputChannel<?> outputChannel)
-			throws CompressionException {
+	public Compressor createNewCompressor(final CompressionBufferProvider bufferProvider) throws CompressionException {
 
-		return new LzmaCompressor(this);
+		return new LzmaCompressor(bufferProvider);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Decompressor initNewDecompressor(AbstractByteBufferedInputChannel<?> inputChannel)
+	public Decompressor createNewDecompressor(final CompressionBufferProvider bufferProvider)
 			throws CompressionException {
 
-		return new LzmaDecompressor(this);
+		return new LzmaDecompressor(bufferProvider);
 	}
 }

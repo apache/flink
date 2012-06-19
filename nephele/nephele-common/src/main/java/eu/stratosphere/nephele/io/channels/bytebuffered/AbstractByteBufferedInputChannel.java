@@ -28,7 +28,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.types.Record;
 
@@ -58,9 +57,9 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	private ByteBufferedInputChannelBroker inputChannelBroker;
 
 	/**
-	 * The Decompressor-Object to decompress incoming data
+	 * The decompressor object to decompress incoming data
 	 */
-	private final Decompressor decompressor;
+	private Decompressor decompressor = null;
 
 	/**
 	 * The exception observed in this channel while processing the buffers. Checked and thrown
@@ -96,7 +95,6 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			final CompressionLevel compressionLevel) {
 		super(inputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
 		this.deserializer = deserializer;
-		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel, this);
 	}
 
 	/**
@@ -226,6 +224,10 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 	public void setInputChannelBroker(ByteBufferedInputChannelBroker inputChannelBroker) {
 		this.inputChannelBroker = inputChannelBroker;
+	}
+
+	public void setDecompressor(final Decompressor decompressor) {
+		this.decompressor = decompressor;
 	}
 
 	public void checkForNetworkEvents() {

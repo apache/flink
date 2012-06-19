@@ -29,7 +29,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.types.Record;
 
@@ -84,8 +83,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	protected AbstractByteBufferedOutputChannel(final OutputGate<T> outputGate, final int channelIndex,
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
-
-		this.compressor = CompressionLoader.getCompressorByCompressionLevel(compressionLevel, this);
 	}
 
 	/**
@@ -231,6 +228,17 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	public void setByteBufferedOutputChannelBroker(ByteBufferedOutputChannelBroker byteBufferedOutputChannelBroker) {
 
 		this.outputChannelBroker = byteBufferedOutputChannelBroker;
+	}
+
+	/**
+	 * Sets the compressor object to be used by this output channel.
+	 * 
+	 * @param compressor
+	 *        the compressor object to be used or <code>null</code> if no compression shall be applied
+	 */
+	public void setCompressor(final Compressor compressor) {
+
+		this.compressor = compressor;
 	}
 
 	/**

@@ -19,10 +19,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 
 public abstract class AbstractCompressor implements Compressor {
+
+	private final CompressionBufferProvider bufferProvider;
 
 	protected Buffer uncompressedBuffer;
 
@@ -38,10 +39,8 @@ public abstract class AbstractCompressor implements Compressor {
 
 	public final static int SIZE_LENGTH = 8;
 
-	private final AbstractCompressionLibrary compressionLibrary;
-
-	public AbstractCompressor(final AbstractCompressionLibrary compressionLibrary) {
-		this.compressionLibrary = compressionLibrary;
+	protected AbstractCompressor(final CompressionBufferProvider bufferProvider) {
+		this.bufferProvider = bufferProvider;
 	}
 
 	/**
@@ -93,8 +92,10 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final Buffer compress(final Buffer uncompressedData) throws IOException {
-		
+	public final Buffer compress(final Buffer uncompressedData) throws IOException, InterruptedException {
+
+		setUncompressedDataBuffer(uncompressedData);
+		setCompressedDataBuffer(this.bufferProvider.lockCompressionBuffer());
 		this.compressedDataBuffer.clear();
 		this.uncompressedDataBufferLength = this.uncompressedDataBuffer.position();
 
@@ -105,10 +106,12 @@ public abstract class AbstractCompressor implements Compressor {
 
 		this.compressedDataBuffer.position(numberOfCompressedBytes + SIZE_LENGTH);
 
-		// If everything went ok, prepare buffers for next run
-		this.uncompressedBuffer.finishWritePhase();
-		
-		return null;
+		final Buffer compressedBuffer = this.compressedBuffer;
+		this.bufferProvider.releaseCompressionBuffer(this.uncompressedBuffer);
+		setUncompressedDataBuffer(null);
+		setCompressedDataBuffer(null);
+
+		return compressedBuffer;
 	}
 
 	protected abstract int compressBytesDirect(int offset);
@@ -126,13 +129,8 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void shutdown(final ChannelID channelID) {
+	public void shutdown() {
 
-		if (this.compressionLibrary.canBeShutDown(this, channelID)) {
-			freeInternalResources();
-		}
-
+		// The default implementation does nothing
 	}
-
-	protected abstract void freeInternalResources();
 }

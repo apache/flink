@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.io.compression;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 
 public interface Compressor {
 
@@ -30,8 +29,10 @@ public interface Compressor {
 	 * @return the buffer containing the compressed buffers
 	 * @throws IOException
 	 *         thrown if an error occurs during the compression
+	 * @throws InterruptedException
+	 *         thrown if the compressor is interrupted while waiting for a buffer to compress the data into
 	 */
-	Buffer compress(Buffer uncompressedData) throws IOException;
+	Buffer compress(Buffer uncompressedData) throws IOException, InterruptedException;
 
 	/**
 	 * Returns the current internal compression library index. The index points to the
@@ -45,9 +46,6 @@ public interface Compressor {
 
 	/**
 	 * Stops the compressor and releases all allocated internal resources.
-	 * 
-	 * @param channelID
-	 *        the ID of the channel requesting the shut down
 	 */
-	void shutdown(ChannelID channelID);
+	void shutdown();
 }

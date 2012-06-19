@@ -19,9 +19,10 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.compression.Compressor;
 
 public interface ByteBufferedOutputChannelBroker {
-
+	
 	/**
 	 * Requests an empty write buffer from the broker. This method will block
 	 * until the requested write buffer is available.
