@@ -108,7 +108,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	private final PluginCommunicationProtocol pluginCommunicationService;
 
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	private final ExecutorService executorService = Executors.newCachedThreadPool();
 
 	private static final int handlerCount = 1;
 
