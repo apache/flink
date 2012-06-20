@@ -28,7 +28,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.test.testPrograms.util.DiscardingOutputFormat;
 import eu.stratosphere.pact.test.testPrograms.util.InfiniteIntegerInputFormat;
 
-public class MapCancelingTest extends CancellingTestBase
+public class MapCancelingITCase extends CancellingTestBase
 {
 	@Test
 	public void testMapCancelling() throws Exception
@@ -42,7 +42,7 @@ public class MapCancelingTest extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 5 * 1000);
+		runAndCancelJob(p, 5 * 1000, 10 * 1000);
 	}
 	
 	@Test
@@ -57,7 +57,7 @@ public class MapCancelingTest extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 5 * 1000);
+		runAndCancelJob(p, 5 * 1000, 10 * 1000);
 	}
 	
 	@Test
@@ -87,7 +87,7 @@ public class MapCancelingTest extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 10 * 1000, 5 * 1000);
+		runAndCancelJob(p, 10 * 1000, 10 * 1000);
 	}
 
 	// --------------------------------------------------------------------------------------------

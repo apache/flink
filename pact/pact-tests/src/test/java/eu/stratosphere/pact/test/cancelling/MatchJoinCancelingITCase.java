@@ -31,7 +31,7 @@ import eu.stratosphere.pact.test.testPrograms.util.InfiniteIntegerInputFormat;
 import eu.stratosphere.pact.test.testPrograms.util.InfiniteIntegerInputFormatWithDelay;
 import eu.stratosphere.pact.test.testPrograms.util.UniformIntInput;
 
-public class MatchJoinCancelingTest extends CancellingTestBase
+public class MatchJoinCancelingITCase extends CancellingTestBase
 {
 	// --------------- Test Sort Matches that are canceled while still reading / sorting -----------------
 	@Test
@@ -49,7 +49,7 @@ public class MatchJoinCancelingTest extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 3000);
+		runAndCancelJob(p, 3000, 10*1000);
 	}
 
 	@Test
@@ -67,7 +67,7 @@ public class MatchJoinCancelingTest extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 5000);
+		runAndCancelJob(p, 5000, 10*1000);
 	}
 	
 	@Test
@@ -176,7 +176,7 @@ public class MatchJoinCancelingTest extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(64);
 		
-		runAndCancelJob(p, 3000);
+		runAndCancelJob(p, 3000, 20*1000);
 	}
 
 	// --------------------------------------------------------------------------------------------
