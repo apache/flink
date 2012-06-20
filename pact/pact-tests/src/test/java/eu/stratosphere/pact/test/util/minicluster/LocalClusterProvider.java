@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.filesystem.HDFSProvider;
 import eu.stratosphere.pact.test.util.filesystem.LocalFSProvider;
-import eu.stratosphere.pact.test.util.filesystem.MiniDFSProvider;
 
 public class LocalClusterProvider extends ClusterProvider {
 
@@ -52,8 +51,6 @@ public class LocalClusterProvider extends ClusterProvider {
 
 		if(config.getString(Constants.FILESYSTEM_TYPE, "").equals("local_fs")) {
 			filesystemProvider = new LocalFSProvider();
-		} else if(config.getString(Constants.FILESYSTEM_TYPE, "").equals("mini_hdfs")) {
-			filesystemProvider = new MiniDFSProvider();
 		} else {
 			throw new IllegalConfigurationException("Invalid file system type: "+config.getString(Constants.FILESYSTEM_TYPE, ""));
 		}
