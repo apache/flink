@@ -59,11 +59,11 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 
 	// --------------------------------------------------------------------------------------------
 	
+	// OutputFormat instance. volatile, because the asynchronous canceller may access it
+	private volatile OutputFormat<IT> format;
+	
 	// input reader
 	private MutableObjectIterator<IT> reader;
-
-	// OutputFormat instance
-	private OutputFormat<IT> format;
 	
 	// The serializer for the input type
 	private TypeSerializer<IT> inputTypeSerializer;
@@ -75,7 +75,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	private ClassLoader userCodeClassLoader;
 
 	// cancel flag
-	private volatile boolean taskCanceled = false;
+	private volatile boolean taskCanceled;
 	
 	/**
 	 * {@inheritDoc}
@@ -189,6 +189,13 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
+		OutputFormat<IT> format = this.format;
+		if (format != null) {
+			try {
+				this.format.close();
+			} catch (Throwable t) {}
+		}
+		
 		if (LOG.isWarnEnabled())
 			LOG.warn(getLogString("Cancelling PACT code"));
 	}

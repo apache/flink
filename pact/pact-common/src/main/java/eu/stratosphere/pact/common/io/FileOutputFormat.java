@@ -95,8 +95,10 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 	@Override
 	public void close() throws IOException
 	{
-		if (this.stream != null) {
-			this.stream.close();
+		final FSDataOutputStream s = this.stream;
+		if (s != null) {
+			this.stream = null;
+			s.close();
 		}
 	}
 	
@@ -151,7 +153,7 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 						try {stream.close(); } catch (Throwable t) {}
 					}
 					else {
-						this.fdos = stream;				
+						this.fdos = stream;
 					}
 					this.lock.notifyAll();
 				}
