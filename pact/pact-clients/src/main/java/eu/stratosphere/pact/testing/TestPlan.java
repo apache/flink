@@ -263,7 +263,7 @@ public class TestPlan implements Closeable {
 	public TestPlan(final Collection<? extends Contract> contracts) {
 		this(contracts.toArray(new Contract[contracts.size()]));
 	}
-
+	
 	/**
 	 * Returns all {@link GenericDataSink}s of this test plan.
 	 * 
@@ -271,6 +271,15 @@ public class TestPlan implements Closeable {
 	 */
 	public List<FileDataSink> getSinks() {
 		return this.sinks;
+	}
+	
+	/**
+	 * Returns the sources.
+	 * 
+	 * @return the sources
+	 */
+	public List<FileDataSource> getSources() {
+		return this.sources;
 	}
 
 	/**
