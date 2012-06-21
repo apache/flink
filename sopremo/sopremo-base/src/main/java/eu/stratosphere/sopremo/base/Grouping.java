@@ -7,7 +7,6 @@ import java.util.Map;
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
@@ -15,7 +14,6 @@ import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.Property;
-import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -23,7 +21,6 @@ import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
-import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
@@ -172,31 +169,6 @@ public class Grouping extends CompositeOperator<Grouping> {
 	@Override
 	public String toString() {
 		return String.format("%s to %s", super.toString(), this.resultProjection);
-	}
-
-	private static final class ArrayUnion extends TransitiveAggregationFunction {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -5358556436487835033L;
-
-		public ArrayUnion() {
-			super("U<values>", new ArrayNode());
-		}
-
-		// TODO refactor code
-		@Override
-		protected IJsonNode aggregate(final IJsonNode mergedArray, final IJsonNode array,
-				final EvaluationContext context) {
-			ArrayNode arrayNode = ((ArrayNode) array);
-			for (int index = 0; index < arrayNode.size(); index++) {
-				if (((ArrayNode) mergedArray).size() <= index)
-					((ArrayNode) mergedArray).add(new ArrayNode());
-				if (!arrayNode.get(index).isNull())
-					((ArrayNode) (((ArrayNode) mergedArray).get(index))).add(arrayNode.get(index));
-			}
-			return mergedArray;
-		}
 	}
 
 	@InputCardinality(min = 2, max = 2)

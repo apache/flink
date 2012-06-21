@@ -3,7 +3,7 @@ package eu.stratosphere.sopremo.base.join;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -18,8 +18,8 @@ public class ThetaJoin extends TwoSourceJoinBase<ThetaJoin> {
 	 */
 	private static final long serialVersionUID = -952011340895859983L;
 
-	private ComparativeExpression comparison = new ComparativeExpression(new ConstantExpression(BooleanNode.TRUE),
-		ComparativeExpression.BinaryOperator.EQUAL, new ConstantExpression(BooleanNode.TRUE));
+	private ComparativeExpression comparison = new ComparativeExpression(new InputSelection(0),
+		ComparativeExpression.BinaryOperator.EQUAL, new InputSelection(1));
 
 	public ComparativeExpression getComparison() {
 		return this.comparison;

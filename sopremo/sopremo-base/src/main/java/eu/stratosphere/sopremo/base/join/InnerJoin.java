@@ -14,9 +14,9 @@ public class InnerJoin extends TwoSourceJoinBase<InnerJoin> {
 
 		@Override
 		protected void match(IJsonNode value1, IJsonNode value2, JsonCollector out) {
-			result.set(0, value1);
-			result.set(1, value2);
-			out.collect(result);
+			this.result.set(0, value1);
+			this.result.set(1, value2);
+			out.collect(this.result);
 		}
 	}
 }

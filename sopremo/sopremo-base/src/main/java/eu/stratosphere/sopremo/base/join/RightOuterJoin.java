@@ -16,16 +16,15 @@ public class RightOuterJoin extends TwoSourceJoinBase<RightOuterJoin> {
 			if (values1.isEmpty()) {
 				// special case: no items from first source
 				// emit all values of the second source
-				rightOuterJoin(result, values2, out);
+				rightOuterJoin(this.result, values2, out);
 				return;
 			}
 
-			if (values2.isEmpty()) {
+			if (values2.isEmpty())
 				// special case: no items from second source
 				return;
-			}
 
-			cogroupJoin(result, values1, values2, out);
+			cogroupJoin(this.result, values1, values2, out);
 		}
 	}
 }
