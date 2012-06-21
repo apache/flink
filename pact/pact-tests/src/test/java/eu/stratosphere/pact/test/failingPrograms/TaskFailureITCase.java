@@ -228,17 +228,20 @@ public class TaskFailureITCase extends FailingTestBase {
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			
-			record.getField(0, string);
-			int key = Integer.parseInt(string.toString());
-			record.getField(1, string);
-			int value = Integer.parseInt(string.toString());
+			final PactString keyString = record.getField(0, this.string);
+			final int key = Integer.parseInt(keyString.toString());
 			
-			LOG.debug("Processed: [" + key + "," + value + "]");
+			final PactString valueString = record.getField(1, this.string);
+			final int value = Integer.parseInt(valueString.toString());
+			
+			if (LOG.isDebugEnabled())
+					LOG.debug("Processed: [" + key + "," + value + "]");
 			
 			if (key + value < 10) {
-				record.setField(0, string);
-				integer.setValue(key + 10);
-				record.setField(1, integer);
+				record.setField(0, valueString);
+				this.integer.setValue(key + 10);
+				record.setField(1, this.integer);
+				out.collect(record);
 			}
 			
 		}
