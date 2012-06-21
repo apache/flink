@@ -10,7 +10,7 @@ import eu.stratosphere.pact.common.type.Key;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public abstract class JsonNode implements IJsonNode {
+public abstract class AbstractJsonNode implements IJsonNode {
 
 	/**
 	 * 
@@ -36,13 +36,13 @@ public abstract class JsonNode implements IJsonNode {
 		BooleanNode(BooleanNode.class, false),
 		NullNode(NullNode.class, false),
 		MissingNode(MissingNode.class, false),
-		CustomNode(JsonNode.class, false);
+		CustomNode(AbstractJsonNode.class, false);
 
-		private final Class<? extends JsonNode> clazz;
+		private final Class<? extends AbstractJsonNode> clazz;
 
 		private final boolean numeric;
 
-		private Type(final Class<? extends JsonNode> clazz, final boolean isNumeric) {
+		private Type(final Class<? extends AbstractJsonNode> clazz, final boolean isNumeric) {
 			this.clazz = clazz;
 			this.numeric = isNumeric;
 		}
@@ -55,11 +55,11 @@ public abstract class JsonNode implements IJsonNode {
 		}
 
 		/**
-		 * Returns the class of the node which is represented by a specific enumeration element.
+		 * Returns an instantiable class of the node which is represented by a specific enumeration element.
 		 * 
 		 * @return the class of the represented node
 		 */
-		public Class<? extends JsonNode> getClazz() {
+		public Class<? extends AbstractJsonNode> getClazz() {
 			return this.clazz;
 		}
 
@@ -70,14 +70,14 @@ public abstract class JsonNode implements IJsonNode {
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#getType()
 	 */
 	@Override
-	public abstract JsonNode.Type getType();
+	public abstract AbstractJsonNode.Type getType();
 
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#canonicalize()
 	 */
 	@Override
-	public JsonNode canonicalize() {
+	public AbstractJsonNode canonicalize() {
 		return this;
 	}
 
@@ -89,7 +89,7 @@ public abstract class JsonNode implements IJsonNode {
 	@Override
 	public IJsonNode clone() {
 		try {
-			return (JsonNode) super.clone();
+			return (AbstractJsonNode) super.clone();
 		} catch (final CloneNotSupportedException e) {
 			return null;
 		}
@@ -173,6 +173,13 @@ public abstract class JsonNode implements IJsonNode {
 		if (this.getType() != ((IJsonNode) other).getType())
 			return this.getType().compareTo(((IJsonNode) other).getType());
 		return this.compareToSameType((IJsonNode) other);
+	}
+
+	protected void checkForSameType(IJsonNode other) {
+		if (other.getType() != this.getType())
+			throw new IllegalArgumentException(String.format(
+				"The type of this node %s does not match the type of the other node %s: %s", this.getType(),
+				other.getType(), other));
 	}
 
 	/*

@@ -12,7 +12,7 @@ import eu.stratosphere.pact.common.type.base.PactNull;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class NullNode extends JsonNode implements IPrimitiveNode {
+public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 
 	/**
 	 * 
@@ -84,6 +84,11 @@ public class NullNode extends JsonNode implements IPrimitiveNode {
 	@Override
 	public Object getJavaValue() {
 		return null;
+	}
+
+	@Override
+	public void copyValueFrom(IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
 	}
 
 	@Override

@@ -28,16 +28,16 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public interface IJsonNode extends Serializable, Value, Key, Cloneable {
+public interface IJsonNode extends Serializable, Value, Key {
 
 	public abstract void clear();
-	
+
 	/**
 	 * Returns the {@link eu.stratosphere.sopremo.type.JsonNode.Type} of this node.
 	 * 
 	 * @return nodetype
 	 */
-	public abstract JsonNode.Type getType();
+	public abstract AbstractJsonNode.Type getType();
 
 	/**
 	 * Transforms this node into his standard representation.
@@ -47,11 +47,12 @@ public interface IJsonNode extends Serializable, Value, Key, Cloneable {
 	public abstract IJsonNode canonicalize();
 
 	/**
-	 * Duplicates this node.
+	 * Copies the state of the given node to this node.
 	 * 
-	 * @return duplicate or null if Exception occurs
+	 * @param otherNode
+	 *        the node of which the state should be copied
 	 */
-	public abstract IJsonNode clone();
+	public abstract void copyValueFrom(IJsonNode otherNode);
 
 	/**
 	 * Deserializes this node from a DataInput.
