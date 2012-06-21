@@ -161,7 +161,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 
 	// -------------------------------------- Test System corner cases ---------------------------------
 	
-	@Test
+//	@Test
 	public void testCancelSortMatchWithHighDOP() throws Exception
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source1 =
