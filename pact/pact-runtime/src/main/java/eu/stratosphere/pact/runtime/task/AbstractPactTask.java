@@ -208,6 +208,11 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 					"' , caused an error: " + t.getMessage(), t);
 			}
 			
+			// check for canceling
+			if (!this.running) {
+				return;
+			}
+			
 			// start all chained tasks
 			AbstractPactTask.openChainedTasks(this.chainedTasks, this);
 			
