@@ -176,14 +176,20 @@ public class DataSourceNode extends OptimizerNode
 					this.estimatedOutputSize = len;
 				}
 
-				final float avgBytes = bs.getAverageRecordWidth();
-				if (avgBytes > 0.0f && hints.getAvgBytesPerRecord() < 1.0f) {
-					hints.setAvgBytesPerRecord(avgBytes);
-				}
 				
-				final long card = bs.getNumberOfRecords();
-				if (card != BaseStatistics.UNKNOWN) {
-					this.estimatedNumRecords = card;
+				if (hints.getAvgBytesPerRecord() > 0 && this.estimatedOutputSize > 0) {
+					this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgBytesPerRecord());
+				}
+				else {
+					final float avgBytes = bs.getAverageRecordWidth();
+					if (avgBytes > 0.0f && hints.getAvgBytesPerRecord() < 1.0f) {
+						hints.setAvgBytesPerRecord(avgBytes);
+					}
+					
+					final long card = bs.getNumberOfRecords();
+					if (card != BaseStatistics.UNKNOWN) {
+						this.estimatedNumRecords = card;
+					}
 				}
 			}
 		}

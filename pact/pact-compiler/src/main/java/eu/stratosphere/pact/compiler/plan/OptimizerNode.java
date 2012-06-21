@@ -758,7 +758,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 				int[] keyColumns;
 				if ((keyColumns = getConstantKeySet(input)) != null) {
 					long estimatedKeyCardinality; 
-					if(hints.getAvgRecordsEmittedPerStubCall() < 1.0) {
+					if(hints.getAvgRecordsEmittedPerStubCall() > 1.0) {
 						// in average less than one record is emitted per stub call
 						
 						// compute the probability that at least one stub call emits a record for a given key 
