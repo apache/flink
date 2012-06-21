@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -220,7 +221,13 @@ final class SegmentReadRequest implements ReadRequest
 	{
 		final FileChannel c = this.channel.fileChannel;
 		if (c.size() - c.position() > 0) {
-			this.channel.fileChannel.read(this.segment.wrap(0, this.segment.size()));
+			try {
+				final ByteBuffer wrapper = this.segment.wrap(0, this.segment.size());
+				this.channel.fileChannel.read(wrapper);
+			} catch (NullPointerException npex) {
+				// the memory has been cleared asynchronouosly through task failing or canceling
+				// ignore the request, since the result cannot be read
+			}
 		}
 	}
 
@@ -257,7 +264,12 @@ final class SegmentWriteRequest implements WriteRequest
 	@Override
 	public void write() throws IOException
 	{
-		this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
+		try {
+			this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
+		} catch (NullPointerException npex) {
+			// the memory has been cleared asynchronouosly through task failing or canceling
+			// ignore the request, since there is nothing to write.
+		}
 	}
 
 	/* (non-Javadoc)
