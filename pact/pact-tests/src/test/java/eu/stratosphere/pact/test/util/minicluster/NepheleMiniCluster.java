@@ -133,7 +133,7 @@ public class NepheleMiniCluster {
 					"    <property>",
 					"        <key>" + ConfigConstants.JOB_EXECUTION_RETRIES_KEY + "</key>",
 					"        <value>0</value>",
-					"    </property>",					
+					"    </property>",
 					"    <property>",
 					"        <key>taskmanager.setup.usediscovery</key>",
 					"        <value>false</value>",
