@@ -87,8 +87,8 @@ public class CrossNode extends TwoInputNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected CrossNode(CrossNode template, List<OptimizerNode> pred1, List<OptimizerNode> pred2, List<PactConnection> conn1,
-			List<PactConnection> conn2, GlobalProperties globalProps, LocalProperties localProps) {
+	protected CrossNode(CrossNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
+			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
 		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
 	}
 
@@ -137,31 +137,18 @@ public class CrossNode extends TwoInputNode {
 		// call the super function that sets the connection according to the hints
 		super.setInputs(contractToNode);
 
-		ShipStrategy firstSS = this.input1.get(0).getShipStrategy();
-		for(PactConnection c : this.input1) {
-			if(c.getShipStrategy() != firstSS)
-				throw new CompilerException("Invalid specification of fixed shipping strategies for first input of Cross contract '"
-						+ getPactContract().getName() + "' (all shipping strategies must be equal of a single input).");
-				
-		}
-
-		ShipStrategy secondSS = this.input2.get(0).getShipStrategy();
-		for(PactConnection c : this.input2) {
-			if(c.getShipStrategy() != secondSS)
-				throw new CompilerException("Invalid specification of fixed shipping strategies for second input of Cross contract '"
-						+ getPactContract().getName() + "' (all shipping strategies must be equal of a single input).");
-				
-		}
+		ShipStrategy firstSS = this.input1.getShipStrategy();
+		ShipStrategy secondSS = this.input2.getShipStrategy();
 
 		// check if only one connection is fixed and adjust the other to the corresponding value
-		List<PactConnection> other = null;
-		List<PactConnection> toAdjust = null;
+		PactConnection fixed = null;
+		PactConnection toAdjust = null;
 
 		if (firstSS != ShipStrategy.NONE) {
 			if (secondSS == ShipStrategy.NONE) {
 				// first is fixed, second variable
+				fixed = this.input1;
 				toAdjust = this.input2;
-				other = this.input1;
 			} else {
 				// both are fixed. check if in a valid way
 				if (!((firstSS == ShipStrategy.BROADCAST && secondSS == ShipStrategy.FORWARD)
@@ -175,75 +162,24 @@ public class CrossNode extends TwoInputNode {
 			//firstSS == NONE
 			
 			// second is fixed, first is variable
+			fixed = this.input2;
 			toAdjust = this.input1;
-			other = this.input2;
 		}
 
 		if (toAdjust != null) {
-			// other cann't be null here
-			if (other.get(0).getShipStrategy() == ShipStrategy.BROADCAST) {
-				for(PactConnection c : toAdjust)
-					c.setShipStrategy(ShipStrategy.FORWARD);
-			} else if (other.get(0).getShipStrategy() == ShipStrategy.FORWARD) {
-				for(PactConnection c : toAdjust)
-					c.setShipStrategy(ShipStrategy.BROADCAST);
-			} else if (other.get(0).getShipStrategy() == ShipStrategy.SFR) {
-				for(PactConnection c : toAdjust)
-					c.setShipStrategy(ShipStrategy.SFR);
+			// fixed can't be null here
+			if (fixed.getShipStrategy() == ShipStrategy.BROADCAST) {
+				toAdjust.setShipStrategy(ShipStrategy.FORWARD);
+			} else if (fixed.getShipStrategy() == ShipStrategy.FORWARD) {
+				toAdjust.setShipStrategy(ShipStrategy.BROADCAST);
+			} else if (fixed.getShipStrategy() == ShipStrategy.SFR) {
+				toAdjust.setShipStrategy(ShipStrategy.SFR);
 			} else {
 				throw new CompilerException("Invalid shipping strategy for Cross contract '"
-					+ getPactContract().getName() + "': " + other.get(0).getShipStrategy());
+					+ getPactContract().getName() + "': " + fixed.getShipStrategy());
 			}
 		}
 	}
-
-// union version by mjsax
-//	/*
-//	 * (non-Javadoc)
-//	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
-//	 */
-//	@Override
-//	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-//		// the cross itself has no interesting properties.
-//		// check, if there is an output contract that tells us that certain properties are preserved.
-//		// if so, propagate to the child.
-//		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-//		List<InterestingProperties> props = null;
-//
-//		switch (getOutputContract()) {
-//		case SameKeyFirst:
-//		case SuperKeyFirst:
-//			props = InterestingProperties.filterByOutputContract(thisNodesIntProps, getOutputContract());
-//			for(PactConnection c : this.input1) {
-//				if (!props.isEmpty()) {
-//					c.addAllInterestingProperties(props);
-//				} else {
-//					c.setNoInterestingProperties();
-//				}
-//			}
-//			break;
-//
-//		case SameKeySecond:
-//		case SuperKeySecond:
-//			props = InterestingProperties.filterByOutputContract(thisNodesIntProps, getOutputContract());
-//			for(PactConnection c : this.input2) {
-//				if (!props.isEmpty()) {
-//					c.addAllInterestingProperties(props);
-//				} else {
-//					c.setNoInterestingProperties();
-//				}
-//			}
-//			break;
-//
-//		default:
-//			for(PactConnection c : this.input1)
-//				c.setNoInterestingProperties();
-//			for(PactConnection c : this.input2)
-//				c.setNoInterestingProperties();
-//			break;
-//		}
-//	}
-// end union version
 
 	/*
 	 * (non-Javadoc)
@@ -261,55 +197,48 @@ public class CrossNode extends TwoInputNode {
 		List<InterestingProperties> props2 = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
 				this, 1);
 	
-		for(PactConnection c : this.input1) {
-			if (props1.isEmpty() == false) {
-				c.addAllInterestingProperties(props1);
-			}
-			else {
-				c.setNoInterestingProperties();
-			}	
+		if (props1.isEmpty() == false) {
+			this.input1.addAllInterestingProperties(props1);
+		}
+		else {
+			this.input1.setNoInterestingProperties();
 		}
 		
-		for(PactConnection c : this.input1) {
-			if (props2.isEmpty() == false) {
-				c.addAllInterestingProperties(props2);
-			}
-			else {
-				c.setNoInterestingProperties();
-			}
+		if (props2.isEmpty() == false) {
+			this.input2.addAllInterestingProperties(props2);
 		}
+		else {
+			this.input2.setNoInterestingProperties();
+		}
+		
 	}
 
 	@Override
-	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations1,
-			List<List<OptimizerNode>> alternativeSubPlanCominations2, CostEstimator estimator, List<OptimizerNode> outputPlans)
+	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans1, List<? extends OptimizerNode> altSubPlans2,
+			CostEstimator estimator, List<OptimizerNode> outputPlans)
 	{
 
-		for(List<OptimizerNode> predList1 : alternativeSubPlanCominations1) {
-			for(List<OptimizerNode> predList2 : alternativeSubPlanCominations2) {
+		for(OptimizerNode subPlan1 : altSubPlans1) {
+			for(OptimizerNode subPlan2 : altSubPlans2) {
 
 				// check, whether the two children have the same
 				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(predList1, predList2)) {
+				if (!areBranchCompatible(subPlan1, subPlan2)) {
 					continue;
 				}
 
-				ShipStrategy ss1 = checkShipStrategyCompatibility(this.input1);
-				if(ss1 == null)
-					continue;
-				
-				ShipStrategy ss2 = checkShipStrategyCompatibility(this.input2);
-				if(ss2 == null)
-					continue;
+				ShipStrategy ss1 = this.input1.getShipStrategy();
+				ShipStrategy ss2 = this.input2.getShipStrategy();
 
 				if (ss1 != ShipStrategy.NONE) {
-					assert(ss2 != ShipStrategy.NONE);
+					if(ss2 == ShipStrategy.NONE)
+						throw new CompilerException("ShipStrategy was not set for both inputs!");
 					// if one is fixed, the other is also
-					createLocalAlternatives(outputPlans, predList1, predList2, ss1, ss2, estimator);
+					createLocalAlternatives(outputPlans, subPlan1, subPlan2, ss1, ss2, estimator);
 				} else {
 					// create all alternatives
-					createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.BROADCAST, ShipStrategy.FORWARD, estimator);
-					createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.FORWARD, ShipStrategy.BROADCAST, estimator);
+					createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.BROADCAST, ShipStrategy.FORWARD, estimator);
+					createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.FORWARD, ShipStrategy.BROADCAST, estimator);
 				}
 			}
 		}
@@ -321,10 +250,10 @@ public class CrossNode extends TwoInputNode {
 	 * 
 	 * @param target
 	 *        The list to put the alternatives in.
-	 * @param allPreds1
-	 *        The predecessor nodes for the first input.
-	 * @param allPreds2
-	 *        The predecessor nodes for the second input.
+	 * @param subPlan1
+	 *        The subPlan for the first input.
+	 * @param subPlan2
+	 *        The subPlan for the second input.
 	 * @param ss1
 	 *        The shipping strategy for the first inputs.
 	 * @param ss2
@@ -332,7 +261,7 @@ public class CrossNode extends TwoInputNode {
 	 * @param estimator
 	 *        The cost estimator.
 	 */
-	private void createLocalAlternatives(List<OptimizerNode> target, List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2,
+	private void createLocalAlternatives(List<OptimizerNode> target, OptimizerNode subPlan1, OptimizerNode subPlan2,
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
 	{
 		// compute the given properties of the incoming data
@@ -360,21 +289,21 @@ public class CrossNode extends TwoInputNode {
 				return;
 			}
 
-			createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, ls, keepFirstOrder, keepSecondOrder, estimator);
+			createCrossAlternative(target, subPlan1, subPlan2, ss1, ss2, ls, keepFirstOrder, keepSecondOrder, estimator);
 		}
 		else {
 			// we generate the streamed nested-loops only, when we have size estimates. otherwise, we generate
 			// only the block nested-loops variants, as they are more robust.
-			if (haveValidOutputEstimates(allPreds1) && haveValidOutputEstimates(allPreds2)) {
-				createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
+			if (haveValidOutputEstimates(subPlan1) && haveValidOutputEstimates(subPlan2)) {
+				createCrossAlternative(target, subPlan1, subPlan2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST,
 					true, false, estimator);
-				createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
+				createCrossAlternative(target, subPlan1, subPlan2, ss1, ss2, LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND,
 					false, true, estimator);
 			}
 
-			createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST,
+			createCrossAlternative(target, subPlan1, subPlan2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST,
 				false, false, estimator);
-			createCrossAlternative(target, allPreds1, allPreds2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND,
+			createCrossAlternative(target, subPlan1, subPlan2, ss1, ss2, LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND,
 				false, false, estimator);
 		}
 	}
@@ -385,10 +314,10 @@ public class CrossNode extends TwoInputNode {
 	 * 
 	 * @param target
 	 *        The list to put the alternatives in.
-	 * @param allPreds1
-	 *        The predecessor nodes for the first input.
-	 * @param allPreds2
-	 *        The predecessor node2 for the second input.
+	 * @param subPlan1
+	 *        The subPlan for the first input.
+	 * @param subPlan2
+	 *        The subPlan for the second input.
 	 * @param ss1
 	 *        The shipping strategy for the first input.
 	 * @param ss2
@@ -402,34 +331,26 @@ public class CrossNode extends TwoInputNode {
 	 * @param estimator
 	 *        The cost estimator.
 	 */
-	private void createCrossAlternative(List<OptimizerNode> target, List<OptimizerNode> pred1, List<OptimizerNode> pred2,
+	private void createCrossAlternative(List<OptimizerNode> target, OptimizerNode subPlan1, OptimizerNode subPlan2,
 			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, boolean keepFirstOrder, boolean keepSecondOrder,
 			CostEstimator estimator) {
 
 		GlobalProperties gp;
 		LocalProperties lp;
-		if (pred1.size() == 1) {
-			gp = PactConnection.getGlobalPropertiesAfterConnection(pred1.get(0), this, ss1);
-			lp = PactConnection.getLocalPropertiesAfterConnection(pred1.get(0), this, ss1);
-		}
-		else {
-			gp = new GlobalProperties();
-			lp = new LocalProperties();
-		}
 		
+		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
+		lp = PactConnection.getLocalPropertiesAfterConnection(subPlan1, this, ss1);
+				
 		if (keepFirstOrder == false) {
 			gp.setOrdering(null);
 			lp.setOrdering(null);
 		}
 		
 		// create a new reduce node for this input
-		CrossNode n = new CrossNode(this, pred1, pred2, input1, input2, gp, lp);
+		CrossNode n = new CrossNode(this, subPlan1, subPlan2, input1, input2, gp, lp);
 
-		for(PactConnection c : n.input1)
-			c.setShipStrategy(ss1);
-		for(PactConnection c : n.input2)
-			c.setShipStrategy(ss2);
-
+		n.input1.setShipStrategy(ss1);
+		n.input2.setShipStrategy(ss2);
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
@@ -440,16 +361,9 @@ public class CrossNode extends TwoInputNode {
 		estimator.costOperator(n);
 
 		target.add(n);
-		
-		
-		if (pred2.size() == 1) {
-			gp = PactConnection.getGlobalPropertiesAfterConnection(pred2.get(0), this, ss2);
-			lp = PactConnection.getLocalPropertiesAfterConnection(pred2.get(0), this, ss2);
-		}
-		else {
-			gp = new GlobalProperties();
-			lp = new LocalProperties();
-		}
+
+		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+		lp = PactConnection.getLocalPropertiesAfterConnection(subPlan2, this, ss2);
 		
 		if (keepSecondOrder == false) {
 			gp.setOrdering(null);
@@ -457,11 +371,10 @@ public class CrossNode extends TwoInputNode {
 		}
 		
 		// create a new reduce node for this input
-		n = new CrossNode(this, pred1, pred2, input1, input2, gp, lp);
-		for(PactConnection c : n.input1)
-			c.setShipStrategy(ss1);
-		for(PactConnection c : n.input2)
-			c.setShipStrategy(ss2);
+		n = new CrossNode(this, subPlan1, subPlan2, input1, input2, gp, lp);
+		
+		n.input1.setShipStrategy(ss1);
+		n.input2.setShipStrategy(ss2);
 		n.setLocalStrategy(ls);
 
 		// compute, which of the properties survive, depending on the output contract
@@ -484,38 +397,10 @@ public class CrossNode extends TwoInputNode {
 		// Match processes only keys that appear in both input sets
 		FieldSet fieldSet1 = new FieldSet(getPactContract().getKeyColumnNumbers(0));
 		FieldSet fieldSet2 = new FieldSet(getPactContract().getKeyColumnNumbers(1));
-		long numKey1 = 0;
-		for(PactConnection c : this.input1) {
-			long keys = c.getSourcePact().getEstimatedCardinality(fieldSet1);
 		
-			if(keys == -1) {
-				numKey1 = -1;
-				break;
-			}
+		long numKey1 = this.getFirstPredNode().getEstimatedCardinality(fieldSet1);
+		long numKey2 = this.getSecondPredNode().getEstimatedCardinality(fieldSet2);
 		
-			numKey1 += keys;
-		}	
-
-		long numKey2 = 0;
-		for(PactConnection c : this.input2) {
-			long keys = c.getSourcePact().getEstimatedCardinality(fieldSet2);
-		
-			if(keys == -1) {
-				numKey2 = -1;
-				break;
-			}
-		
-			numKey2 += keys;
-		}	
-
-		// Use output contract to estimate the number of processed keys
-//		switch(this.getOutputContract()) {
-//			case SameKeyFirst:
-//				return numKey1;
-//			case SameKeySecond:
-//				return numKey2;
-//		}
-
 		if(numKey1 == -1 || numKey2 == -1)
 			return -1;
 		
@@ -529,28 +414,17 @@ public class CrossNode extends TwoInputNode {
 	 * @return the number of stub calls.
 	 */
 	protected long computeNumberOfStubCalls() {
-		long numRecords1 = 0;
-		for(PactConnection c : this.input1) {
-			long recs = c.getSourcePact().estimatedNumRecords;
 		
-			if(recs == -1) {
-				return -1;
-			}
-		
-			numRecords1 += recs;
-		}	
+		long numRecords1 = this.getFirstPredNode().estimatedNumRecords;
+		if(numRecords1 == -1) {
+			return -1;
+		}
 
-		long numRecords2 = 0;
-		for(PactConnection c : this.input2) {
-			long recs = c.getSourcePact().estimatedNumRecords;
+		long numRecords2 = this.getSecondPredNode().estimatedNumRecords;
+		if(numRecords2 == -1) {
+			return -1;
+		}
 		
-			if(recs == -1) {
-				return -1;
-			}
-		
-			numRecords2 += recs;
-		}	
-
 		return numRecords1 * numRecords2;
 	}
 	

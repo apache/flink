@@ -28,7 +28,7 @@ import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectItera
  */
 public abstract class CostEstimator {
 
-	public abstract void getRangePartitionCost(List<PactConnection> conn, Costs costs);
+	public abstract void getRangePartitionCost(PactConnection conn, Costs costs);
 
 	public abstract void getHashPartitioningCost(PactConnection conn, Costs costs);
 
@@ -36,31 +36,31 @@ public abstract class CostEstimator {
 
 	// ------------------------------------------------------------------------
 
-	public abstract void getLocalSortCost(OptimizerNode node, List<PactConnection> input, Costs costs);
+	public abstract void getLocalSortCost(OptimizerNode node, PactConnection input, Costs costs);
 
-	public abstract void getLocalDoubleSortMergeCost(OptimizerNode node, List<PactConnection> input1, List<PactConnection> input2,
+	public abstract void getLocalDoubleSortMergeCost(OptimizerNode node, PactConnection input1, PactConnection input2,
 			Costs costs);
 
-	public abstract void getLocalSingleSortMergeCost(OptimizerNode node, List<PactConnection> input1, List<PactConnection> input2,
+	public abstract void getLocalSingleSortMergeCost(OptimizerNode node, PactConnection input1, PactConnection input2,
 			Costs costs);
 	
-	public abstract void getLocalMergeCost(OptimizerNode node, List<PactConnection> input1, List<PactConnection> input2,
+	public abstract void getLocalMergeCost(OptimizerNode node, PactConnection input1, PactConnection input2,
 			Costs costs);
 	
-	public abstract void getLocalSortSelfNestedLoopCost(OptimizerNode node, List<PactConnection> input, int bufferSize, Costs costs);
+	public abstract void getLocalSortSelfNestedLoopCost(OptimizerNode node, PactConnection input, int bufferSize, Costs costs);
 
-	public abstract void getLocalSelfNestedLoopCost(OptimizerNode node, List<PactConnection> input, int bufferSize, Costs costs);
+	public abstract void getLocalSelfNestedLoopCost(OptimizerNode node, PactConnection input, int bufferSize, Costs costs);
 	
-	public abstract void getHybridHashCosts(OptimizerNode node, List<PactConnection> buildSideInput,
-			List<PactConnection> probeSideInput, Costs costs);
+	public abstract void getHybridHashCosts(OptimizerNode node, PactConnection buildSideInput,
+			PactConnection probeSideInput, Costs costs);
 
-	public abstract void getMainMemHashCosts(OptimizerNode node, List<PactConnection> buildSideInput,
-			List<PactConnection> probeSideInput, Costs costs);
+	public abstract void getMainMemHashCosts(OptimizerNode node, PactConnection buildSideInput,
+			PactConnection probeSideInput, Costs costs);
 
-	public abstract void getStreamedNestedLoopsCosts(OptimizerNode node, List<PactConnection> outerSide,
-			List<PactConnection> innerSide, int bufferSize, Costs costs);
+	public abstract void getStreamedNestedLoopsCosts(OptimizerNode node, PactConnection outerSide,
+			PactConnection innerSide, int bufferSize, Costs costs);
 
-	public abstract void getBlockNestedLoopsCosts(OptimizerNode node, List<PactConnection> outerSide, List<PactConnection> innerSide, 
+	public abstract void getBlockNestedLoopsCosts(OptimizerNode node, PactConnection outerSide, PactConnection innerSide, 
 			int blockSize, Costs costs);
 
 	// ------------------------------------------------------------------------
@@ -77,12 +77,12 @@ public abstract class CostEstimator {
 			throw new CompilerException("Cannot compute costs on operator before incoming connections are set.");
 		}
 
-		List<PactConnection> primConn = null;
-		List<PactConnection> secConn = null;
+		PactConnection primConn = null;
+		PactConnection secConn = null;
 
 		// get the inputs, if we have some
 		{
-			List<List<PactConnection>> conns = n.getIncomingConnections();
+			List<PactConnection> conns = n.getIncomingConnections();
 			if (conns.size() > 0) {
 				primConn = conns.get(0);
 			}
@@ -96,10 +96,10 @@ public abstract class CostEstimator {
 		Costs locCost = new Costs();
 
 		// get the costs of the first input
-		if (primConn != null && primConn.size() > 0) {
+		if (primConn != null) {
 			// we assume that all connections in the list have the same ship strategy;
 			// hence we can use the first connection blindly for determining the used strategy
-			switch (primConn.get(0).getShipStrategy()) {
+			switch (primConn.getShipStrategy()) {
 			case NONE:
 				throw new CompilerException(
 					"Cannot determine costs: Shipping strategy has not been set for the first input.");
@@ -109,20 +109,18 @@ public abstract class CostEstimator {
 				globCost.setSecondaryStorageCost(0);
 				break;
 			case PARTITION_HASH:
-				for(PactConnection c : primConn)
-					getHashPartitioningCost(c, globCost);
+				getHashPartitioningCost(primConn, globCost);
 				break;
 			case PARTITION_RANGE:
 				getRangePartitionCost(primConn, globCost);
 				break;
 			case BROADCAST:
-				for(PactConnection c : primConn)
-					getBroadcastCost(c, globCost);
+				getBroadcastCost(primConn, globCost);
 				break;
 			case SFR:
 				throw new CompilerException("Symmetric-Fragment-And-Replicate Strategy currently not supported.");
 			default:
-				throw new CompilerException("Unknown shipping strategy for first input: " + primConn.get(0).getShipStrategy().name());
+				throw new CompilerException("Unknown shipping strategy for first input: " + primConn.getShipStrategy().name());
 			}
 		} else {
 			// no global costs
@@ -131,12 +129,12 @@ public abstract class CostEstimator {
 		}
 
 		// if we have a second input, add its costs
-		if (secConn != null && secConn.size() > 0) {
+		if (secConn != null) {
 			Costs secCost = new Costs();
 
 			// we assume that all connections in the list have the same ship strategy;
 			// hence we can use the first connection blindly for determining the used strategy
-			switch (secConn.get(0).getShipStrategy()) {
+			switch (secConn.getShipStrategy()) {
 			case NONE:
 				throw new CompilerException(
 					"Cannot determine costs: Shipping strategy has not been set for the second input.");
@@ -146,20 +144,18 @@ public abstract class CostEstimator {
 				secCost.setSecondaryStorageCost(0);
 				break;
 			case PARTITION_HASH:
-				for(PactConnection c : secConn)
-					getHashPartitioningCost(c, secCost);
+				getHashPartitioningCost(secConn, secCost);
 				break;
 			case PARTITION_RANGE:
 				getRangePartitionCost(secConn, secCost);
 				break;
 			case BROADCAST:
-				for(PactConnection c : secConn)
-					getBroadcastCost(c, secCost);
+				getBroadcastCost(secConn, secCost);
 				break;
 			case SFR:
 				throw new CompilerException("Symmetric-Fragment-And-Replicate Strategy currently not supported.");
 			default:
-				throw new CompilerException("Unknown shipping strategy for second input: " + secConn.get(0).getShipStrategy().name());
+				throw new CompilerException("Unknown shipping strategy for second input: " + secConn.getShipStrategy().name());
 			}
 
 			globCost.addCosts(secCost);

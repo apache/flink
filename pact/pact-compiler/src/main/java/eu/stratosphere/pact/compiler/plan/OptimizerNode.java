@@ -36,7 +36,6 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -118,14 +117,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private final Contract pactContract; // The contract (Reduce / Match / DataSource / ...)
 	
-	protected int stubOutCardLB; // The lower bound of the stubs output cardinality
-	
-	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
-	
-	protected FieldSet explWrites; // The set of explicitly written fields
-	
-	protected FieldSet outputSchema; // The fields are present in the output records
-	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
 	private List<InterestingProperties> intProps; // the interesting properties of this node
@@ -151,6 +142,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
 
+	protected int stubOutCardLB; // The lower bound of the stubs output cardinality
+	
+	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
+	
 	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
 	
 	protected Set<FieldSet> uniqueFields = new HashSet<FieldSet>(); // the fields which are unique
@@ -163,7 +158,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private int id = -1; // the id for this node.
 
-	private boolean pFlag = false; // flag for the internal pruning algorithm
+	protected boolean pFlag = false; // flag for the internal pruning algorithm
 
 	// ------------------------------------------------------------------------
 	//                      Constructor / Setup
@@ -209,8 +204,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.pactContract = toClone.pactContract;
 		this.localStrategy = toClone.localStrategy;
 
-//		this.outputContract = toClone.outputContract;
-
 		this.localProps = localProps;
 		this.globalProps = globalProps;
 
@@ -219,12 +212,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.estimatedCardinality.putAll(toClone.estimatedCardinality);
 		this.estimatedNumRecords = toClone.estimatedNumRecords;
 
+		this.stubOutCardLB = toClone.stubOutCardLB;
+		this.stubOutCardUB = toClone.stubOutCardUB;
+		
 		this.id = toClone.id;
 		this.degreeOfParallelism = toClone.degreeOfParallelism;
 		this.instancesPerMachine = toClone.instancesPerMachine;
-		
-		this.stubOutCardLB = toClone.stubOutCardLB;
-		this.stubOutCardUB = toClone.stubOutCardUB;
 		
 		if (toClone.uniqueFields != null && toClone.uniqueFields.size() > 0) {
 			for (FieldSet uniqueField : toClone.uniqueFields) {
@@ -232,9 +225,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			}
 		}
 		
-		this.explWrites = toClone.explWrites;
-		this.outputSchema = toClone.outputSchema == null ? null : (FieldSet)toClone.outputSchema.clone(); 
-
 		// check, if this node branches. if yes, this candidate must be associated with
 		// the branching template node.
 		if (toClone.isBranching()) {
@@ -276,7 +266,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * 
 	 * @return The list of incoming links.
 	 */
-	public abstract List<List<PactConnection>> getIncomingConnections();
+	public abstract List<PactConnection> getIncomingConnections();
 
 
 	/**
@@ -357,7 +347,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @param pactConnection
 	 *        The connection to add.
 	 */
-	public void addOutgoingConnection(PactConnection pactConnection) {
+	public void addOutConn(PactConnection pactConnection) {
 		if (this.outgoingConnections == null) {
 			this.outgoingConnections = new ArrayList<PactConnection>();
 		} else {
@@ -374,7 +364,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * 
 	 * @return The list of outgoing connections.
 	 */
-	public List<PactConnection> getOutgoingConnections() {
+	public List<PactConnection> getOutConns() {
 		
 		if(this.outgoingConnections == null) {
 			this.outgoingConnections = new ArrayList<PactConnection>();
@@ -582,7 +572,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return True, if the node's output branches. False otherwise.
 	 */
 	public boolean isBranching() {
-		return getOutgoingConnections() != null && getOutgoingConnections().size() > 1;
+		return getOutConns() != null && getOutConns().size() > 1;
 	}
 
 	/**
@@ -599,12 +589,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.cumulativeCosts = new Costs(0, 0);
 		this.cumulativeCosts.addCosts(nodeCosts);
 
-		for(List<PactConnection> pl : getIncomingConnections()) {
-			for (PactConnection p : pl) {
-				Costs parentCosts = p.getSourcePact().cumulativeCosts;
-				if(parentCosts != null)
-					this.cumulativeCosts.addCosts(parentCosts);
-			}
+		for(PactConnection c : getIncomingConnections()) {
+			Costs parentCosts = c.getSourcePact().cumulativeCosts;
+			if(parentCosts != null)
+				this.cumulativeCosts.addCosts(parentCosts);
 		}
 	}
 
@@ -612,44 +600,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	//                              Miscellaneous
 	// ------------------------------------------------------------------------
 
-	/**
-	 * This method step over all inputs recursively and combines all alternatives per input with all
-	 * other alternative of all other inputs.
-	 * 
-	 * @param inPlans		all alternative plans for all incoming connections (which are unioned)
-	 * @param predList		list of currently chosen alternative plans (has one entry for each incoming connection)
-	 * 						[this list is build up recursively within the method]
-	 * @param estimator		the cost estimator
-	 * @param alternativeSubPlans	all generated alternative for this node
-	 */
-	@SuppressWarnings("unchecked")
-	final protected void getAlternativeSubPlanCombinationsRecursively(List<? extends OptimizerNode>[] inPlans,
-			ArrayList<OptimizerNode> predList, List<List<OptimizerNode>> alternativeSubPlans)
-	{
-		final int inputNumberToProcess = predList.size();
-		final int numberOfAlternatives = inPlans[inputNumberToProcess].size();
-
-		for(int i = 0; i < numberOfAlternatives; ++i) {
-			predList.add(inPlans[inputNumberToProcess].get(i));
-		
-			// check if the hit the last recursion level
-			if(inputNumberToProcess + 1 == inPlans.length) {
-				// last recursion level: create a new alternative now
-
-				// we clone the current list in order to preserve this alternative plan combination
-				// otherwise we would override it later in...
-				alternativeSubPlans.add((ArrayList<OptimizerNode>)predList.clone());
-				
-			} else {
-				// step to next input and start to step though all plan alternatives
-				getAlternativeSubPlanCombinationsRecursively(inPlans, predList, alternativeSubPlans);
-			}
-			
-			// remove the added alternative plan node, in order to replace it with the next alternative at the beginning of the loop
-			predList.remove(inputNumberToProcess);
-		}
-	}
-	
 	/**
 	 * Checks, if all outgoing connections have their interesting properties set from their target nodes.
 	 * 
@@ -680,7 +630,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public void computeInterestingProperties() {
 		List<InterestingProperties> props = new ArrayList<InterestingProperties>();
 
-		List<PactConnection> conns = getOutgoingConnections();
+		List<PactConnection> conns = getOutConns();
 		if (conns != null) {
 			for (PactConnection conn : conns) {
 				List<InterestingProperties> ips = conn.getInterestingProperties();
@@ -706,14 +656,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		
 		boolean allPredsAvailable = true;
 		
-		for (List<PactConnection> incomingConnections : getIncomingConnections()) {
+		for (PactConnection c : getIncomingConnections()) {
 			if (allPredsAvailable) {
-				for (PactConnection incomingConnection : incomingConnections) {
-					if (incomingConnection.getSourcePact() == null) {
-						allPredsAvailable = false;
-						break;
-					}
-				}	
+				if (c.getSourcePact() == null) {
+					allPredsAvailable = false;
+					break;
+				}
 			}
 			else {
 				break;
@@ -1059,12 +1007,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			bld.append(") ");
 		}
 
-		List<List<PactConnection>> pl = getIncomingConnections();
-		final int size = pl.size();
-		for(int i = 0; i < size; ++i) {
-			for (PactConnection conn : pl.get(i)) {
-				bld.append('(').append(i).append(":").append(conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name()).append(')');
-			}
+		int i = 1; 
+		for(PactConnection conn : getIncomingConnections()) {
+			bld.append('(').append(i++).append(":").append(conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name()).append(')');
 		}
 
 		return bld.toString();
@@ -1141,55 +1086,26 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * a) There is no branch in the sub-plan of this node
 	 * b) Both candidates have the same candidate as the child at the last open branch. 
 	 * 
-	 * @param child1Candidate
-	 * @param child2Candidate
+	 * @param subPlan1
+	 * @param subPlan2
 	 * @return
 	 */
-	protected boolean areBranchCompatible(List<OptimizerNode> child1Candidate, List<OptimizerNode> child2Candidate)
+	protected boolean areBranchCompatible(OptimizerNode subPlan1, OptimizerNode subPlan2)
 	{
+		if (subPlan1 == null || subPlan2 == null)
+			throw new CompilerException("SubPlans may not be null.");
+		
 		// if there is no open branch, the children are always compatible.
 		// in most plans, that will be the dominant case
 		if (this.lastJoinedBranchNode == null) {
 			return true;
 		}
 
-		
-		// the order of the branches in <joinedLists> does not matter 
-		List<OptimizerNode> joinedLists;
-		
-		final int size1 = child1Candidate.size();
-		int size = size1;
-		
-		if(child2Candidate != null) {
-			final int size2 = child2Candidate.size();
-			size += size2;
-			
-			joinedLists = new ArrayList<OptimizerNode>(size);
-			
-			for(int i = 0; i < size2; ++i) {
-				joinedLists.add(child2Candidate.get(i));
-			}			
-		} else {
-			joinedLists = new ArrayList<OptimizerNode>(size);			
-		}
-
-		for(int i = 0; i < size1; ++i) {
-			joinedLists.add(child1Candidate.get(i));
-		}
-
-		// we check if each branch is compatible with all others
-		for(int i = 0; i < size; ++i) {
-			
-			final OptimizerNode nodeToCompare = joinedLists.get(i).branchPlan.get(this.lastJoinedBranchNode);
-			
-			for(int j = i+1; j < size; ++j) {
-				if(!(nodeToCompare == joinedLists.get(j).branchPlan.get(this.lastJoinedBranchNode))) {
-					return false;
-				}
-			}
-		}
-		
-		return true;
+		final OptimizerNode nodeToCompare = subPlan1.branchPlan.get(this.lastJoinedBranchNode);
+		if(!(nodeToCompare == subPlan2.branchPlan.get(this.lastJoinedBranchNode)))
+			return false;
+		else
+			return true;
 	}
 
 	/*
@@ -1246,7 +1162,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 					| child2open.get(index2).getJoinedPathsVector();
 
 				// this is 2^size - 1, which is all bits set at positions 0..size-1
-				long allInputs = (0x1L << currBanchingNode.getOutgoingConnections().size()) - 1;
+				long allInputs = (0x1L << currBanchingNode.getOutConns().size()) - 1;
 
 				if (joinedInputs == allInputs) {
 					// closed - we can remove it from the stack
@@ -1275,28 +1191,29 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * Reads all stub annotations
 	 */
 	private void readStubAnnotations() {
-		this.readReadsAnnotation();
-		this.readCopyProjectionAnnotations();
-		this.readWritesAnnotation();
+		this.readConstantAnnotation();
 		this.readOutputCardBoundAnnotation();
 		this.readUniqueFieldsAnnotation();
 	}
 
 	/**
-	 * Reads the explicit writes stub annotation
-	 */
-	protected void readWritesAnnotation() {
-
+	* Reads the output cardinality stub annotations
+	*/
+	protected void readOutputCardBoundAnnotation() {
+	
 		// get readSet annotation from stub
-		ExplicitModifications addSetAnnotation = pactContract.getUserCodeClass().getAnnotation(ExplicitModifications.class);
-		
+		OutCardBounds outCardAnnotation = pactContract.getUserCodeClass().getAnnotation(OutCardBounds.class);
+	
 		// extract addSet from annotation
-		if(addSetAnnotation == null) {
-			this.explWrites = null;
+		if(outCardAnnotation == null) {
+			this.stubOutCardLB = OutCardBounds.UNKNOWN;
+			this.stubOutCardUB = OutCardBounds.UNKNOWN;
 		} else {
-			this.explWrites = new FieldSet(addSetAnnotation.fields());
+			this.stubOutCardLB = outCardAnnotation.lowerBound();
+			this.stubOutCardUB = outCardAnnotation.upperBound();
 		}
 	}
+	
 	
 	protected void readUniqueFieldsAnnotation() {
 		if (pactContract.getCompilerHints() != null) {
@@ -1308,40 +1225,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 
 	/**
-	 * Reads the output cardinality stub annotations
+	 * Reads all constant stub annotations.
+	 * Constant stub annotations are defined per input.
 	 */
-	protected void readOutputCardBoundAnnotation() {
-		
-		// get readSet annotation from stub
-		OutCardBounds outCardAnnotation = pactContract.getUserCodeClass().getAnnotation(OutCardBounds.class);
-		
-		// extract addSet from annotation
-		if(outCardAnnotation == null) {
-			this.stubOutCardLB = OutCardBounds.UNKNOWN;
-			this.stubOutCardUB = OutCardBounds.UNKNOWN;
-		} else {
-			this.stubOutCardLB = outCardAnnotation.lowerBound();
-			this.stubOutCardUB = outCardAnnotation.upperBound();
-		}
-	}
+	protected abstract void readConstantAnnotation();
 	
-	/**
-	 * Reads all reads stub annotations.
-	 * Reads stub annotations are defined per input.
-	 */
-	protected abstract void readReadsAnnotation();
-	
-	/**
-	 * Reads the copy and projection stub annotations.
-	 * These annotations are defined per input.
-	 */
-	protected abstract void readCopyProjectionAnnotations();
-	
-	/**
-	 * Reads and sets the output schema of the node.
-	 * The schema can change if the input schema changes.
-	 */
-	public abstract void deriveOutputSchema();
 	
 	// ------------------------------------------------------------------------
 	// Access of stub annotations
@@ -1366,63 +1254,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 	
 	/**
-	 * Returns the output schema of the node.
+	 * Gives the constant set of the node. 
+	 * The constant set is used to decide about reordering of nodes.
 	 * 
-	 * @return the output schema of the node.
-	 */
-	public FieldSet getOutputSchema() {
-		return this.outputSchema;
-	}
-	
-	/**
-	 * Computes the output schema of the node for given input schemas (one per input).
-	 * 
-	 * @param inputSchemas A list of input schemas. Element 0 of the list refers to the first input, and so on.
-	 * @return The output schema of the node for the given input schemas.
-	 */
-	public abstract FieldSet computeOutputSchema(List<FieldSet> inputSchemas);
-
-	/**
-	 * Determines whether the node can on the given input schema for the specified input.
-	 * 
-	 * @param input The input for which the input schema is assumed.
-	 * @param inputSchema The input schema for the specified input
-	 * @return True, if the node can operate on the the schema for the specified input, false otherwise.
-	 */
-	public abstract boolean isValidInputSchema(int input, FieldSet inputSchema);
-	
-	/**
-	 * Gives the read set of the node. 
-	 * The read set is used to decide about reordering of nodes.
-	 * 
-	 * @param id of input for which the read set should be returned. 
-	 *        -1 if the unioned read set over all inputs is requested. 
+	 * @param id of input for which the constant set should be returned. 
+	 *        -1 if the unioned constant set over all inputs is requested. 
 	 *  
-	 * @return the read set for the requested input(s)
+	 * @return the constant set for the requested input(s)
 	 */
-	public abstract FieldSet getReadSet(int input);
-	
-	/**
-	 * Give the write set of the node.
-	 * The write set is used to decide about reordering of nodes.
-	 * 
-	 * @param id of input for which the write set should be returned. 
-	 *        -1 if the unioned write set over all inputs is requested. 
-	 *  
-	 * @return the write set for the requested input(s)
-	 */
-	public abstract FieldSet getWriteSet(int input);
-	
-	/**
-	 * Give the write set of the node.
-	 * 
-	 * @param id of input for which the write set should be returned. 
-	 *        -1 if the unioned write set over all inputs is requested. 
-	 * @param inputNodes for which the write set should be computed 
-	 *  
-	 * @return the write set for the requested input(s)
-	 */
-	public abstract FieldSet getWriteSet(int input, List<FieldSet> inputSchemas);
+	public abstract FieldSet getConstantSet(int input);
 	
 	protected static final class UnclosedBranchDescriptor
 	{
@@ -1505,12 +1345,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		}
 		
 		//check for inputs
-		List<List<PactConnection>> inConnections = getIncomingConnections();
-		
-		for (int i = 0; i < inConnections.size(); i++) {
+		for (int i = 0; i < getIncomingConnections().size(); i++) {
 		
 			Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(i);
-			
 			for (FieldSet uniqueField : uniqueInChild) {
 				if (keepsUniqueProperty(uniqueField, i)) {
 					this.uniqueFields.add(uniqueField);
@@ -1579,14 +1416,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			return Collections.emptySet();
 		}
 		
-		List<PactConnection> inConnection = getIncomingConnections().get(input);
+		PactConnection conn = getIncomingConnections().get(input);
 		
-		if (inConnection.size() != 1) {
-			return Collections.emptySet();
-		}
-		
-		return inConnection.get(0).getSourcePact().getUniqueFields();
-		
+		return conn.getSourcePact().getUniqueFields();
 		
 	}
 }

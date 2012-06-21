@@ -282,9 +282,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		try {
 			// get pact vertex
 			AbstractJobVertex inputVertex = this.vertices.get(node);
-			List<List<PactConnection>> incomingConns = node.getIncomingConnections();
+			List<PactConnection> inConns = node.getIncomingConnections();
 
-			if (incomingConns == null) {
+			if (inConns == null) {
 				// data source
 				return;
 			}
@@ -293,19 +293,16 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			if (inputVertex == null) {
 
 				// node's task is chained in another task
-				if (incomingConns.size() != 1) {
+				if (inConns.size() != 1) {
 					throw new IllegalStateException("Chained task with more than one input!");
 				}
-				List<PactConnection> connections = incomingConns.get(0);
-				if(connections.size() != 1) {
-					throw new IllegalStateException("Chained task with more than one input!");
-				}
+				PactConnection inConn = inConns.get(0);
 
 				final TaskInChain chainedTask = this.chainedTasks.get(node);
 				AbstractJobVertex container = chainedTask.getContainingVertex();
 				
 				if (container == null) {
-					final PactConnection connection = connections.get(0);
+					final PactConnection connection = inConn;
 					final OptimizerNode sourceNode = connection.getSourcePact();
 					container = this.vertices.get(sourceNode);
 					if (container == null) {
@@ -328,52 +325,49 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			final TaskConfig inputVertexConfig = new TaskConfig(inputVertex.getConfiguration());
 
 			int inputIndex = 1;
-			for(List<PactConnection> cl : incomingConns) {
+			for(PactConnection inConn : inConns) {
 //				boolean firstRun = true;
 				
-				for (PactConnection connection : cl) {
-					final OptimizerNode sourceNode = connection.getSourcePact();
-					AbstractJobVertex outputVertex = this.vertices.get(sourceNode);
-					TaskConfig outputVertexConfig;
+				final OptimizerNode sourceNode = inConn.getSourcePact();
+				AbstractJobVertex outputVertex = this.vertices.get(sourceNode);
+				TaskConfig outputVertexConfig;
 
-					if (outputVertex == null) {
-						// this predecessor is chained to another task
-						final TaskInChain chainedTask = this.chainedTasks.get(sourceNode);
-						if (chainedTask.getContainingVertex() == null)
-							throw new IllegalStateException("Chained task predecessor has not been assigned its containing vertex.");
-						outputVertex = chainedTask.getContainingVertex();
-						outputVertexConfig = chainedTask.getTaskConfig();
-					} else {
-						outputVertexConfig = new TaskConfig(outputVertex.getConfiguration());
-					}
-
-	
-					switch (connection.getShipStrategy()) {
-					case FORWARD:
-						connectWithForwardStrategy(connection, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-						break;
-					case PARTITION_LOCAL_HASH:
-					case PARTITION_HASH:
-						connectWithPartitionStrategy(connection, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-						break;
-					case BROADCAST:
-						connectWithBroadcastStrategy(connection, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-						break;
-//					case PARTITION_RANGE:
-//						if (isDistributionGiven(connection)) {
-//							connectWithGivenDistributionPartitionRangeStrategy(connection, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-//						} else {
-//							connectWithSamplingPartitionRangeStrategy(connection, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig, firstRun);
-//						}
-//						break;
-					case SFR:
-						connectWithSFRStrategy(connection, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-					default:
-						throw new Exception("Invalid ship strategy: " + connection.getShipStrategy());
-					}
-					
-//					firstRun = false;
+				if (outputVertex == null) {
+					// this predecessor is chained to another task
+					final TaskInChain chainedTask = this.chainedTasks.get(sourceNode);
+					if (chainedTask.getContainingVertex() == null)
+						throw new IllegalStateException("Chained task predecessor has not been assigned its containing vertex.");
+					outputVertex = chainedTask.getContainingVertex();
+					outputVertexConfig = chainedTask.getTaskConfig();
+				} else {
+					outputVertexConfig = new TaskConfig(outputVertex.getConfiguration());
 				}
+
+				switch (inConn.getShipStrategy()) {
+				case FORWARD:
+					connectWithForwardStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
+					break;
+				case PARTITION_LOCAL_HASH:
+				case PARTITION_HASH:
+					connectWithPartitionStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
+					break;
+				case BROADCAST:
+					connectWithBroadcastStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
+					break;
+//				case PARTITION_RANGE:
+//					if (isDistributionGiven(inConn)) {
+//						connectWithGivenDistributionPartitionRangeStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
+//					} else {
+//						connectWithSamplingPartitionRangeStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig, firstRun);
+//					}
+//					break;
+				case SFR:
+					connectWithSFRStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
+				default:
+					throw new Exception("Invalid ship strategy: " + inConn.getShipStrategy());
+				}
+				
+//				firstRun = false;
 				
 				++inputIndex;
 			}
@@ -1281,14 +1275,12 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	{
 		// node needs to have one input and be the only successor of its predecessor
 		if (node.getIncomingConnections().size() == 1) {
-			final List<PactConnection> connections = node.getIncomingConnections().get(0);
-			if(connections.size() == 1) {
-				final PactConnection conn = connections.get(0);
-				final OptimizerNode predecessor = conn.getSourcePact();
-				if (conn.getShipStrategy() == ShipStrategy.FORWARD && predecessor.getOutgoingConnections().size() == 1) {
-					return node.getDegreeOfParallelism() == predecessor.getDegreeOfParallelism() && 
-							node.getInstancesPerMachine() == predecessor.getInstancesPerMachine();
-				}
+			final PactConnection inConn = node.getIncomingConnections().get(0);
+			
+			final OptimizerNode predecessor = inConn.getSourcePact();
+			if (inConn.getShipStrategy() == ShipStrategy.FORWARD && predecessor.getOutConns().size() == 1) {
+				return node.getDegreeOfParallelism() == predecessor.getDegreeOfParallelism() && 
+						node.getInstancesPerMachine() == predecessor.getInstancesPerMachine();
 			}
 		}
 		
