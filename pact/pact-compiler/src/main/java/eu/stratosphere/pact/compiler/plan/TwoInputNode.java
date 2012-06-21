@@ -476,11 +476,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		
 		
 		if (this.notConstant1 != null && this.constant1 != null) {
-			throw new CompilerException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.");
+			throw new CompilerException("Either ConstantFieldsFirst or ConstantFieldsFirstExcept can be specified, not both.");
 		}
 		
 		if (this.notConstant2 != null && this.constant2 != null) {
-			throw new CompilerException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.");
+			throw new CompilerException("Either ConstantFieldsSecond or ConstantFieldsSecondExcept can be specified, not both.");
 		}
 	}
 	

@@ -219,28 +219,28 @@ public class StubAnnotation
 	{
 		int[] fields();
 	}
-//	
-//	/**
-//	 * The OutputCardBounds annotation specifies lower and upper bounds on the number of 
-//	 * records emitted by the stub.
-//	 * A constants are provided for specical values such as unbounded, cardinality of input, and 
-//	 * cardinality of first and second input.
-//	 *
-//	 */
-//	@Target(ElementType.TYPE)
-//	@Retention(RetentionPolicy.RUNTIME)
-//	public @interface OutCardBounds
-//	{
-//		public static final int UNKNOWN = -1;
-//		public static final int UNBOUNDED = -2;
-//		public static final int INPUTCARD = -3;
-//		public static final int FIRSTINPUTCARD = -4;
-//		public static final int SECONDINPUTCARD = -5;
-//		
-//		int lowerBound();
-//		int upperBound();
-//	}
-//	
+	
+	/**
+	 * The OutputCardBounds annotation specifies lower and upper bounds on the number of 
+	 * records emitted by the stub.
+	 * A constants are provided for specical values such as unbounded, cardinality of input, and 
+	 * cardinality of first and second input.
+	 *
+	 */
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface OutCardBounds
+	{
+		public static final int UNKNOWN = -1;
+		public static final int UNBOUNDED = -2;
+		public static final int INPUTCARD = -3;
+		public static final int FIRSTINPUTCARD = -4;
+		public static final int SECONDINPUTCARD = -5;
+		
+		int lowerBound();
+		int upperBound();
+	}
+	
 	/**
 	 * Private constructor to prevent instantiation. This class is intended only as a container.
 	 */

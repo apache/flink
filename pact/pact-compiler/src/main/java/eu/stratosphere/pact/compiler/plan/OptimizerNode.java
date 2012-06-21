@@ -36,6 +36,7 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
@@ -141,6 +142,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
 
+	protected int stubOutCardLB; // The lower bound of the stubs output cardinality
+	
+	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
+	
 	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
 	
 	protected Set<FieldSet> uniqueFields = new HashSet<FieldSet>(); // the fields which are unique
@@ -207,6 +212,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.estimatedCardinality.putAll(toClone.estimatedCardinality);
 		this.estimatedNumRecords = toClone.estimatedNumRecords;
 
+		this.stubOutCardLB = toClone.stubOutCardLB;
+		this.stubOutCardUB = toClone.stubOutCardUB;
+		
 		this.id = toClone.id;
 		this.degreeOfParallelism = toClone.degreeOfParallelism;
 		this.instancesPerMachine = toClone.instancesPerMachine;
@@ -662,7 +670,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		
 		CompilerHints hints = getPactContract().getCompilerHints();
 
-//		computeUniqueFields();
+		computeUniqueFields();
 		
 		// check if preceding nodes are available
 		if (!allPredsAvailable) {
@@ -1187,6 +1195,24 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		this.readUniqueFieldsAnnotation();
 	}
 
+	/**
+	* Reads the output cardinality stub annotations
+	*/
+	protected void readOutputCardBoundAnnotation() {
+	
+		// get readSet annotation from stub
+		OutCardBounds outCardAnnotation = pactContract.getUserCodeClass().getAnnotation(OutCardBounds.class);
+	
+		// extract addSet from annotation
+		if(outCardAnnotation == null) {
+			this.stubOutCardLB = OutCardBounds.UNKNOWN;
+			this.stubOutCardUB = OutCardBounds.UNKNOWN;
+		} else {
+			this.stubOutCardLB = outCardAnnotation.lowerBound();
+			this.stubOutCardUB = outCardAnnotation.upperBound();
+		}
+	}
+	
 	
 	protected void readUniqueFieldsAnnotation() {
 		if (pactContract.getCompilerHints() != null) {
@@ -1208,7 +1234,23 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	// Access of stub annotations
 	// ------------------------------------------------------------------------
 	
-
+	/**
+	 * Returns the lower output cardinality bound of the node.
+	 * 
+	 * @return the lower output cardinality bound of the node.
+	 */
+	public int getStubOutCardLowerBound() {
+		return this.stubOutCardLB;
+	}
+	
+	/**
+	 * Returns the upper output cardinality bound of the node.
+	 * 
+	 * @return the upper output cardinality bound of the node.
+	 */
+	public int getStubOutCardUpperBound() {
+		return this.stubOutCardUB;
+	}
 	
 	/**
 	 * Gives the constant set of the node. 
@@ -1295,6 +1337,30 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return keyColumns;
 	}
 	
+	public void computeUniqueFields() {
+		
+		if (stubOutCardUB > 1 || stubOutCardUB < 0) {
+			return;
+		}
+		
+		//check for inputs
+		for (int i = 0; i < getIncomingConnections().size(); i++) {
+		
+			Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(i);
+			for (FieldSet uniqueField : uniqueInChild) {
+				if (keepsUniqueProperty(uniqueField, i)) {
+					this.uniqueFields.add(uniqueField);
+				}
+			}
+		}
+		
+		//check which uniqueness properties are created by this node
+		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
+		if (uniqueFields != null ) {
+			this.uniqueFields.addAll(uniqueFields);
+		}
+		
+	}
 	
 	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
 		for (Integer uniqueField : uniqueSet) {
