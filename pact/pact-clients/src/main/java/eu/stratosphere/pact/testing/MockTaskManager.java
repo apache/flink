@@ -121,7 +121,6 @@ class MockTaskManager implements TaskOperationProtocol {
 				return;
 			}
 
-			System.out.println(this.id + " " + executionState);
 			final Runnable taskStateChangeRunnable = new Runnable() {
 				@Override
 				public void run() {

@@ -48,7 +48,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 
 	public abstract CacheType evaluate(IJsonNode node, EvaluationContext context);
 
-	protected final EvaluationExpression expression;
+	protected EvaluationExpression expression;
 
 	public CachingExpression(EvaluationExpression expression) {
 		this.expression = expression;
@@ -64,8 +64,21 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 		// ignores target, maintains its own target
 		return evaluate(node, context);
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.expression = this.expression.transformRecursively(function);
+		return function.call(expression);
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#toString(java.lang.StringBuilder)
 	 */
 	@Override

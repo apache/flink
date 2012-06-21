@@ -10,13 +10,15 @@ import eu.stratosphere.sopremo.type.NumericNode;
  * Represents basic binary comparative expressions covering all operators specified in {@link BinaryOperator}.
  */
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
-public class ComparativeExpression extends BooleanExpression {
+public class ComparativeExpression extends BinaryBooleanExpression {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 4684417232092074534L;
 
-	private final EvaluationExpression expr1, expr2;
+	private EvaluationExpression expr1;
+
+	private EvaluationExpression expr2;
 
 	private final BinaryOperator binaryOperator;
 
@@ -58,6 +60,18 @@ public class ComparativeExpression extends BooleanExpression {
 			this.expr2.evaluate(node, null, context)));
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.expr1 = this.expr1.transformRecursively(function);
+		this.expr2 = this.expr2.transformRecursively(function);
+		return function.call(this);
+	}
 	/**
 	 * Returns the binaryOperator.
 	 * 

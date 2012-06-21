@@ -1,7 +1,11 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -10,12 +14,19 @@ import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
+import eu.stratosphere.util.IsEqualPredicate;
+import eu.stratosphere.util.IdentityList;
 import eu.stratosphere.util.IdentitySet;
+import eu.stratosphere.util.IsInstancePredicate;
+import eu.stratosphere.util.IsSamePredicate;
+import eu.stratosphere.util.Predicate;
+import eu.stratosphere.util.Reference;
 
 /**
  * Represents all evaluable expressions.
  */
-public abstract class EvaluationExpression implements Iterable<EvaluationExpression>, SerializableSopremoType {
+public abstract class EvaluationExpression implements Iterable<EvaluationExpression>, SerializableSopremoType,
+		Cloneable {
 	/**
 	 * 
 	 */
@@ -26,7 +37,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 	/**
 	 * Used for secondary information during plan creation only.
 	 */
-	private transient Set<ExpressionTag> tags = new IdentitySet<ExpressionTag>();
+	private transient Set<ExpressionTag> tags;
 
 	/**
 	 * Represents an expression that returns the input node without any modifications. The constant is mostly used for
@@ -55,6 +66,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		}
 	};
 
+	// TODO: move to constant expression
 	public static final EvaluationExpression NULL = new ConstantExpression(NullNode.getInstance()) {
 
 		/**
@@ -67,8 +79,33 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		}
 	};
 
+	/**
+	 * Initializes EvaluationExpression.
+	 */
+	public EvaluationExpression() {
+		this.tags = new IdentitySet<ExpressionTag>();
+	}
+
 	public void addTag(final ExpressionTag tag) {
 		this.tags.add(tag);
+	}
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		this.tags = new IdentitySet<ExpressionTag>();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#clone()
+	 */
+	@Override
+	public EvaluationExpression clone() {
+		try {
+			return (EvaluationExpression) super.clone();
+		} catch (CloneNotSupportedException e) {
+			throw new IllegalStateException("Cannot occur");
+		}
 	}
 
 	@Override
@@ -94,17 +131,153 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 
 	@SuppressWarnings("unchecked")
 	public <T extends EvaluationExpression> T find(final Class<T> evaluableClass) {
-		for (final EvaluationExpression element : this) {
-			if (evaluableClass.isInstance(element))
-				return (T) element;
-
-			if (element instanceof ContainerExpression) {
-				final T subSearch = ((ContainerExpression) element).find(evaluableClass);
-				if (subSearch != null)
-					return subSearch;
+		final Reference<T> ref = new Reference<T>();
+		transformRecursively(new TransformFunction() {
+			@Override
+			public EvaluationExpression call(EvaluationExpression evaluationExpression) {
+				if (ref.getValue() == null && evaluableClass.isInstance(evaluationExpression))
+					ref.setValue((T) evaluationExpression);
+				return evaluationExpression;
 			}
-		}
-		return null;
+		});
+		return ref.getValue();
+	}
+	
+	public List<EvaluationExpression> findAll(final Predicate<? super EvaluationExpression> predicate) {
+		final ArrayList<EvaluationExpression> expressions = new ArrayList<EvaluationExpression>();
+		transformRecursively(new TransformFunction() {
+			@Override
+			public EvaluationExpression call(EvaluationExpression evaluationExpression) {
+				if (predicate.isTrue(evaluationExpression))
+					expressions.add(evaluationExpression);
+				return evaluationExpression;
+			}
+		});
+		return expressions;
+	}
+
+	/**
+	 * Recursively invokes the transformation function on all children and on the expression itself.<br>
+	 * In general, this method modifies this expression.<br>
+	 * To retain the original expression, next to the transformed expression, use {@link #clone()}.
+	 * 
+	 * @param function
+	 *        the transformation function
+	 * @return the transformed expression
+	 */
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		return function.call(this);
+	}
+
+	/**
+	 * Replaces all expressions that satisfy the <code>replacePredicate</code> with the given
+	 * <code>replaceFragment</code> .
+	 * 
+	 * @param replacePredicate
+	 *        the predicate that indicates whether an expression should be replaced
+	 * @param replaceFragment
+	 *        the expression which should replace another one
+	 * @return the expression with the replaces
+	 */
+	public EvaluationExpression replace(final Predicate<? super EvaluationExpression> replacePredicate,
+			final EvaluationExpression replaceFragment) {
+		return replace(replacePredicate, new TransformFunction() {
+			@Override
+			public EvaluationExpression call(EvaluationExpression argument) {
+				return replaceFragment;
+			}
+		});
+	}
+	
+	/**
+	 * Replaces all expressions that satisfy the <code>replacePredicate</code> with the given
+	 * <code>replaceFunction</code> .
+	 * 
+	 * @param replacePredicate
+	 *        the predicate that indicates whether an expression should be replaced
+	 * @param replaceFunction
+	 *        the function that is used to replace an expression
+	 * @return the expression with the replaces
+	 */
+	public EvaluationExpression replace(final Predicate<? super EvaluationExpression> replacePredicate,
+			final TransformFunction replaceFunction) {
+		return transformRecursively(new TransformFunction() {
+			@Override
+			public EvaluationExpression call(EvaluationExpression evaluationExpression) {
+				return replacePredicate.isTrue(evaluationExpression) ? replaceFunction.call(evaluationExpression) : evaluationExpression;
+			}
+		});
+	}
+
+	/**
+	 * Replaces all expressions that are equal to <code>toReplace</code> with the given <code>replaceFragment</code>
+	 * .
+	 * 
+	 * @param toReplace
+	 *        the expressions that should be replaced
+	 * @param replaceFragment
+	 *        the expression which should replace another one
+	 * @return the expression with the replaces
+	 */
+	public EvaluationExpression replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
+		return replace(new IsEqualPredicate(toReplace), replaceFragment);
+	}
+
+	/**
+	 * Removes all expression that satisfy the predicate.<br>
+	 * If expressions cannot be completely removed, they are replaced by {@link EvaluationExpression#VALUE}.
+	 * 
+	 * @param predicate
+	 *        the predicate that determines whether to remove an expression
+	 * @return the expression without removed sub-expressions
+	 */
+	public EvaluationExpression remove(final Predicate<? super EvaluationExpression> predicate) {
+		// intermediate tag expression
+		final EvaluationExpression REMOVED = new UnevaluableExpression("Removed value");
+
+		// remove in three steps
+		// 1. replace all removed expression with REMOVED
+		// 2. remove all REMOVED in containers
+		EvaluationExpression taggedValues = transformRecursively(new TransformFunction() {
+			@Override
+			public EvaluationExpression call(EvaluationExpression evaluationExpression) {
+				if (predicate.isTrue(evaluationExpression))
+					return REMOVED;
+				if (evaluationExpression instanceof ContainerExpression) {
+					List<EvaluationExpression> children = new IdentityList<EvaluationExpression>();
+					children.addAll(((ContainerExpression) evaluationExpression).getChildren());
+					children.removeAll(Arrays.asList(REMOVED));
+					((ContainerExpression) evaluationExpression).setChildren(children);
+				}
+				return evaluationExpression;
+			}
+		});
+		// 3. replace all other REMOVED with VALUE
+		return taggedValues.replace(new IsSamePredicate(REMOVED), REMOVED);
+	}
+
+	/**
+	 * Removes all expression that are equal to the given expression.<br>
+	 * If expressions cannot be completely removed, they are replaced by {@link EvaluationExpression#VALUE}.
+	 * 
+	 * @param expressionToRemove
+	 *        the expression to compare to
+	 * @return the expression without removed sub-expressions
+	 */
+	public EvaluationExpression remove(final EvaluationExpression expressionToRemove) {
+		return remove(new IsEqualPredicate(expressionToRemove));
+	}
+
+	/**
+	 * Removes all expression that are from the given expression type.<br>
+	 * If expressions cannot be completely removed, they are replaced by {@link EvaluationExpression#VALUE}.
+	 * 
+	 * @param expressionType
+	 *        the expression type to remove
+	 * @return the expression without removed sub-expressions
+	 */
+	public EvaluationExpression remove(final Class<?> expressionType) {
+		return remove(new IsInstancePredicate(expressionType));
 	}
 
 	/**
@@ -144,11 +317,6 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 
 	public boolean hasTag(final ExpressionTag tag) {
 		return this.tags.contains(tag);
-	}
-
-	@SuppressWarnings("unused")
-	public void inferSchema(final JsonSchema requiredInput, final JsonSchema output, final EvaluationContext context) {
-
 	}
 
 	@Override

@@ -38,9 +38,7 @@ public class GenerateExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-
 		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-
 		((TextNode) target).setValue(String.format(this.pattern, context.getTaskId(), this.id++));
 		return target;
 	}

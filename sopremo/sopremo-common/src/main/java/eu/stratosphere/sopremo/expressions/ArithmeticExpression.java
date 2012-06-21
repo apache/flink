@@ -125,6 +125,19 @@ public class ArithmeticExpression extends EvaluationExpression {
 			(NumericNode) this.secondOperand.evaluate(node, null, context));
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.firstOperand = this.firstOperand.transformRecursively(function);
+		this.secondOperand = this.secondOperand.transformRecursively(function);
+		return function.call(this);
+	}
+
 	@Override
 	public int hashCode() {
 		int result = super.hashCode();

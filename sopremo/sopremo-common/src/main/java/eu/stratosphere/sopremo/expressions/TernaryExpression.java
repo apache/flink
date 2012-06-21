@@ -43,7 +43,7 @@ public class TernaryExpression extends EvaluationExpression {
 	 *        the expression that should be evaluated if the iFClause evaluation results in {@link BooleanNode.TRUE}
 	 */
 	public TernaryExpression(final EvaluationExpression ifClause, final EvaluationExpression ifExpression) {
-		this(ifClause, ifExpression, NULL);
+		this(ifClause, ifExpression, ConstantExpression.MISSING);
 	}
 
 	/**
@@ -118,6 +118,20 @@ public class TernaryExpression extends EvaluationExpression {
 		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, null, context), BooleanNode.class) == BooleanNode.TRUE)
 			return this.ifExpression.evaluate(node, target, context);
 		return this.thenExpression.evaluate(node, target, context);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.ifClause = function.call(this.ifClause);
+		this.ifExpression = function.call(this.ifExpression);
+		this.thenExpression = function.call(this.thenExpression);
+		return null;
 	}
 
 	@Override

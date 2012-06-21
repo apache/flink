@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.base;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
+import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
@@ -12,6 +13,7 @@ import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 @Name(verb = "filter")
+@InputCardinality(1)
 public class Selection extends ElementaryOperator<Selection> {
 	/**
 	 * 

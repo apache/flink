@@ -51,6 +51,19 @@ public class OrExpression extends BooleanExpression {
 		return BooleanNode.FALSE;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		for (int index = 0; index < expressions.length; index++)
+			expressions[index] = expressions[index].transformRecursively(function);
+		return function.call(this);
+	}
+
 	/**
 	 * Returns the expressions.
 	 * 

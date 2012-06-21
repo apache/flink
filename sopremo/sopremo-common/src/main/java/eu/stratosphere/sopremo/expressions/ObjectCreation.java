@@ -121,6 +121,23 @@ public class ObjectCreation extends ContainerExpression {
 		return target;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.ContainerExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		for (final Mapping mapping : this.mappings) {
+			mapping.expression.transformRecursively(function);
+			if (mapping.target instanceof EvaluationExpression)
+				mapping.target = ((EvaluationExpression) mapping.target).transformRecursively(function);
+		}
+		return function.call(this);
+	}
+
 	/**
 	 * Returns the mapping at the specified index
 	 * 
@@ -193,12 +210,12 @@ public class ObjectCreation extends ContainerExpression {
 		};
 	}
 
-	@Override
-	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-		for (final Mapping<?> mapping : this.mappings)
-			if (mapping.getExpression() instanceof ContainerExpression)
-				((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
-	}
+//	@Override
+//	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
+//		for (final Mapping<?> mapping : this.mappings)
+//			if (mapping.getExpression() instanceof ContainerExpression)
+//				((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
+//	}
 
 	@Override
 	public void toString(final StringBuilder builder) {
@@ -299,7 +316,7 @@ public class ObjectCreation extends ContainerExpression {
 		 */
 		private static final long serialVersionUID = 6372376844557378592L;
 
-		protected final Target target;
+		protected Target target;
 
 		protected EvaluationExpression expression;
 
@@ -313,7 +330,7 @@ public class ObjectCreation extends ContainerExpression {
 		 */
 		public Mapping(final Target target, final EvaluationExpression expression) {
 			this.target = target;
-			this.expression = expression;
+			this.expression =  expression;
 		}
 
 		/**

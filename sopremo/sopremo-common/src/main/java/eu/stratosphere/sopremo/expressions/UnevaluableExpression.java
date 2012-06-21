@@ -38,6 +38,14 @@ public class UnevaluableExpression extends EvaluationExpression {
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		throw new EvaluationException(this.message);
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		return function.call(this);
+	}
 
 	@Override
 	public int hashCode() {
