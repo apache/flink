@@ -27,6 +27,7 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -55,6 +56,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	// ------------- Stub Annotations
 	
 	protected FieldSet constantSet; // set of fields that are left unchanged by the stub
+	protected FieldSet notConstantSet; // set of fields that are changed by the stub
 	
 	protected FieldList keyList; // The set of key fields (order is relevant!)
 
@@ -330,7 +332,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 		
 		if (this.constantSet == null) {
-			return false;
+			if (this.notConstantSet == null) {
+				return false;
+			}
+			return this.notConstantSet.contains(fieldNumber) == false;
 		}
 		
 		return this.constantSet.contains(fieldNumber);
@@ -341,7 +346,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 	}
 	
 	// --------------------------- Stub Annotation Handling
-	// TODO: decide whether to go for constantField annotation instead of complex expl./impl. operations
 	
 	/*
 	 * (non-Javadoc)
@@ -352,15 +356,27 @@ public abstract class SingleInputNode extends OptimizerNode {
 		
 		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
 		
-		// get readSet annotation from stub
+		// get constantSet annotation from stub
 		ConstantFields constantSet = c.getUserCodeClass().getAnnotation(ConstantFields.class);
 		
-		// extract readSet from annotation
+		// extract constantSet from annotation
 		if(constantSet == null) {
 			this.constantSet = null;
-			return;
 		} else {
 			this.constantSet = new FieldSet(constantSet.fields());
+		}
+		
+		ConstantFieldsExcept notConstantSet = c.getUserCodeClass().getAnnotation(ConstantFieldsExcept.class);
+		
+		// extract notConstantSet from annotation
+		if(notConstantSet == null) {
+			this.notConstantSet = null;
+		} else {
+			this.notConstantSet = new FieldSet(notConstantSet.fields());
+		}
+		
+		if (this.notConstantSet != null && this.constantSet != null) {
+			throw new CompilerException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.");
 		}
 	}
 	

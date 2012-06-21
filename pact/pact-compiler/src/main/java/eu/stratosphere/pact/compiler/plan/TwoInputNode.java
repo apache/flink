@@ -26,7 +26,9 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExcept;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -60,6 +62,10 @@ public abstract class TwoInputNode extends OptimizerNode
 	protected FieldSet constant1; // set of fields that are left unchanged by the stub
 	
 	protected FieldSet constant2; // set of fields that are left unchanged by the stub
+	
+	protected FieldSet notConstant1; // set of fields that are changed by the stub
+	
+	protected FieldSet notConstant2; // set of fields that are changed by the stub
 	
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
@@ -449,6 +455,33 @@ public abstract class TwoInputNode extends OptimizerNode
 		} else {
 			this.constant2 = new FieldSet(constantSet2Annotation.fields());
 		}
+		
+		
+		// get readSet annotation from stub
+		ConstantFieldsFirstExcept notConstantSet1Annotation = c.getUserCodeClass().getAnnotation(ConstantFieldsFirstExcept.class);
+		ConstantFieldsSecondExcept notConstantSet2Annotation = c.getUserCodeClass().getAnnotation(ConstantFieldsSecondExcept.class);
+		
+		// extract readSets from annotations
+		if(notConstantSet1Annotation == null) {
+			this.notConstant1 = null;
+		} else {
+			this.notConstant1 = new FieldSet(notConstantSet1Annotation.fields());
+		}
+		
+		if(notConstantSet2Annotation == null) {
+			this.notConstant2 = null;
+		} else {
+			this.notConstant2 = new FieldSet(notConstantSet2Annotation.fields());
+		}
+		
+		
+		if (this.notConstant1 != null && this.constant1 != null) {
+			throw new CompilerException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.");
+		}
+		
+		if (this.notConstant2 != null && this.constant2 != null) {
+			throw new CompilerException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.");
+		}
 	}
 	
 
@@ -528,13 +561,19 @@ public abstract class TwoInputNode extends OptimizerNode
 		switch(input) {
 		case 0:
 			if (this.constant1 == null) {
-				return false;
+				if (this.notConstant1 == null) {
+					return false;
+				}
+				return this.notConstant1.contains(fieldNumber) == false;
 			}
 			
 			return this.constant1.contains(fieldNumber);
 		case 1:
 			if (this.constant2 == null) {
-				return false;
+				if (this.notConstant2 == null) {
+					return false;
+				}
+				return this.notConstant2.contains(fieldNumber) == false;
 			}
 			
 			return this.constant2.contains(fieldNumber);
