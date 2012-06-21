@@ -1192,6 +1192,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 */
 	private void readStubAnnotations() {
 		this.readConstantAnnotation();
+		this.readOutputCardBoundAnnotation();
 		this.readUniqueFieldsAnnotation();
 	}
 
