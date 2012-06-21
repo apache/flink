@@ -30,6 +30,10 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
+/**
+ * Generates a matrix from the undirected graph specified by the first input. The second input is needed to generate a
+ * completely empty matrix that will be used to fill up non existing partitions within the result.
+ */
 @InputCardinality(min = 2, max = 2)
 public class GenerateMatrix extends CompositeOperator<GenerateMatrix> {
 
@@ -40,6 +44,12 @@ public class GenerateMatrix extends CompositeOperator<GenerateMatrix> {
 
 	private int numberOfPartitions = 1;
 
+	/**
+	 * Sets the number of partitions.
+	 * 
+	 * @param number
+	 *        the number of partitions that should be generated
+	 */
 	public void setNumberOfPartitions(int number) {
 		this.numberOfPartitions = number;
 	}
@@ -105,8 +115,10 @@ public class GenerateMatrix extends CompositeOperator<GenerateMatrix> {
 				 * for any reason, phase 3 does not like partitions with index 0
 				 * thats why, we let them run from 1 to n instead of 0 to n-1
 				 */
-				//IntNode partition1 = new IntNode(id1 != this.numberOfPartitions ? id1 % this.numberOfPartitions : id1);
-				//IntNode partition2 = new IntNode(id2 != this.numberOfPartitions ? id2 % this.numberOfPartitions : id2);
+				// IntNode partition1 = new IntNode(id1 != this.numberOfPartitions ? id1 % this.numberOfPartitions :
+				// id1);
+				// IntNode partition2 = new IntNode(id2 != this.numberOfPartitions ? id2 % this.numberOfPartitions :
+				// id2);
 				IntNode partition1 = new IntNode(id1 % this.numberOfPartitions);
 				IntNode partition2 = new IntNode(id2 % this.numberOfPartitions);
 				if (partition1.compareTo(partition2) <= 0) {

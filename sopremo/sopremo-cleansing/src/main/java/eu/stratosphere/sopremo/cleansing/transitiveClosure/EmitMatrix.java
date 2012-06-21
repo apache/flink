@@ -22,6 +22,10 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.JsonNodeComparator;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 
+/**
+ * Prepares a {@link BinarySparseMatrix} for output. This is done by simple picking only the lower one of each
+ * corresponding pair (a,b) and (b,a).
+ */
 public class EmitMatrix extends ElementaryOperator<EmitMatrix> {
 
 	/**

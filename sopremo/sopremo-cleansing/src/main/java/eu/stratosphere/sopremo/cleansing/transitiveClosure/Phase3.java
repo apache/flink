@@ -27,6 +27,12 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 
+/**
+ * Represents the third phase of the algorithm used in {@link TransitiveClosure}. The whole matrix serves as input but
+ * only blocks that are not aligned to a specific diagonal block are processed by
+ * {@link TransitiveClosure#warshall(BinarySparseMatrix, BinarySparseMatrix, BinarySparseMatrix)}. The result of this
+ * operator is the whole, modified matrix.
+ */
 public class Phase3 extends CompositeOperator<Phase3> {
 
 	/**
@@ -36,6 +42,14 @@ public class Phase3 extends CompositeOperator<Phase3> {
 
 	private int numberOfPartitions = 1;
 
+	/**
+	 * Sets the number of partitions (p). This value is used to determine the blocks that should be processed. Only
+	 * block with ids where both, row and column, are not equal to p are processed. This block (x,y) in combination with
+	 * the blocks (x,p) and (p,y) are the inputs for the warshall-algorithm.
+	 * 
+	 * @param number
+	 *        the number of partitions
+	 */
 	public void setNumberOfPartitions(int number) {
 		this.numberOfPartitions = number;
 	}
