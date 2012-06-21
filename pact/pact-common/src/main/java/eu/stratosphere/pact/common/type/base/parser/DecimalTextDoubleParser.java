@@ -36,17 +36,17 @@ public class DecimalTextDoubleParser  implements FieldParser<PactDouble> {
 		
 	}
 	
-	/*
-	 * (non-Javadoc)
+
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#parseField(byte[], int, int, char, eu.stratosphere.pact.common.type.Value)
 	 */
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim, PactDouble field) {
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactDouble field) {
 		
 		if(this.expNotationEnabled) {
-			return parseWithExpNotationEnabled(bytes, startPos, length, delim, field);
+			return parseWithExpNotationEnabled(bytes, startPos, limit, delim, field);
 		} else {
-			return parseWithExpNotationDisabled(bytes, startPos, length, delim, field);
+			return parseWithExpNotationDisabled(bytes, startPos, limit, delim, field);
 		}
 		
 	}

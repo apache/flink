@@ -69,4 +69,16 @@ public interface BufferProvider {
 	 * allows the blocked thread to respond to the event.
 	 */
 	void reportAsynchronousEvent();
+
+	/**
+	 * Registers the given {@link BufferAvailabilityListener} with an empty buffer pool to receive a notification when
+	 * at least one buffer has become available again. After the notification, the listener is automatically
+	 * unregistered again.
+	 * 
+	 * @param bufferAvailabilityListener
+	 *        the listener to be registered
+	 * @return <code>true</code> if the registration has been successful or <code>false</code> if the registration
+	 *         failed because the buffer pool has not been empty or has already been destroyed
+	 */
+	boolean registerBufferAvailabilityListener(BufferAvailabilityListener bufferAvailabilityListener);
 }

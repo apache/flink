@@ -11,8 +11,8 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class DecimalTextIntParser  implements FieldParser<PactInteger> {
-
+public class DecimalTextIntParser  implements FieldParser<PactInteger>
+{
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#configure(eu.stratosphere.nephele.configuration.Configuration)
@@ -20,35 +20,34 @@ public class DecimalTextIntParser  implements FieldParser<PactInteger> {
 	@Override
 	public void configure(Configuration config) { }
 	
-	/*
-	 * (non-Javadoc)
+
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.type.base.parser.FieldParser#parseField(byte[], int, int, char, eu.stratosphere.pact.common.type.Value)
 	 */
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim,
-			PactInteger field) {
-		
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, PactInteger field)
+	{
 		int val = 0;
 		boolean neg = false;
 		
-		if(bytes[startPos] == '-') {
+		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
 		}
 		
-		for(int i=startPos; i < length; i++) {
-			if(bytes[i] == delim) {
+		for (int i = startPos; i < limit; i++) {
+			if (bytes[i] == delim) {
 				field.setValue(val*(neg ? -1 : 1));
 				return i+1;
 			}
-			if(bytes[i] < 48 || bytes[i] > 57) {
+			if (bytes[i] < 48 || bytes[i] > 57) {
 				return -1;
 			}
 			val *= 10;
 			val += bytes[i] - 48;
 		}
 		field.setValue(val*(neg ? -1 : 1));
-		return length;
+		return limit;
 	}
 	
 	/*
@@ -59,5 +58,4 @@ public class DecimalTextIntParser  implements FieldParser<PactInteger> {
 	public PactInteger getValue() {
 		return new PactInteger();
 	}
-
 }

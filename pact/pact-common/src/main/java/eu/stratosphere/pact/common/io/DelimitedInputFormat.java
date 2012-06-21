@@ -70,25 +70,27 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private byte[] readBuffer;
+	protected byte[] readBuffer;
+
+	protected byte[] wrapBuffer;
+
+	protected int readPos;
+
+	protected int limit;
+
+	protected byte[] delimiter = new byte[] { '\n' };
 	
-	private byte[] targetBuffer;
+	private byte[] currBuffer;
+	private int currOffset;
+	private int currLen;
 
-	private byte[] wrapBuffer;
+	protected boolean overLimit;
 
-	private int readPos;
-
-	private int limit;
-
-	private byte[] delimiter = new byte[] { '\n' };
-
-	private boolean overLimit;
-
-	private boolean end;
+	protected boolean end;
 	
-	private int bufferSize = -1;
+	protected int bufferSize = -1;
 	
-	private int numLineSamples;										// the number of lines to sample for statistics
+	protected int numLineSamples;										// the number of lines to sample for statistics
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -101,7 +103,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	 * @param bytes The serialized record.
 	 * @return returns whether the record was successfully deserialized
 	 */
-	public abstract boolean readRecord(PactRecord target, byte[] bytes, int numBytes);
+	public abstract boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -341,14 +343,13 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
 		this.readBuffer = new byte[this.bufferSize];
 		this.wrapBuffer = new byte[256];
-		this.targetBuffer = new byte[128];
 
 		this.readPos = 0;
 		this.overLimit = false;
 		this.end = false;
 
-		if (this.start != 0) {
-			this.stream.seek(this.start);
+		if (this.splitStart != 0) {
+			this.stream.seek(this.splitStart);
 			readLine();
 			
 			// if the first partial record already pushes the stream over the limit of our split, then no
@@ -376,12 +377,11 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	@Override
 	public boolean nextRecord(PactRecord record) throws IOException
 	{
-		int numBytes = readLine();
-		if (numBytes == -1) {
+		if (readLine()) {
+			return readRecord(record, this.currBuffer, this.currOffset, this.currLen);
+		} else {
 			this.end = true;
 			return false;
-		} else {
-			return readRecord(record, this.targetBuffer, numBytes);
 		}
 	}
 
@@ -401,9 +401,10 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 
 	// --------------------------------------------------------------------------------------------
 
-	private int readLine() throws IOException {
+	private boolean readLine() throws IOException
+	{
 		if (this.stream == null || this.overLimit) {
-			return -1;
+			return false;
 		}
 
 		int countInWrapBuffer = 0;
@@ -415,11 +416,10 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			if (this.readPos >= this.limit) {
 				if (!fillBuffer()) {
 					if (countInWrapBuffer > 0) {
-						ensureTargetBufferSize(countInWrapBuffer);
-						System.arraycopy(this.wrapBuffer, 0, this.targetBuffer, 0, countInWrapBuffer);
-						return countInWrapBuffer;
+						setResult(this.wrapBuffer, 0, countInWrapBuffer);
+						return true;
 					} else {
-						return -1;
+						return false;
 					}
 				}
 			}
@@ -443,20 +443,20 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 
 				// copy to byte array
 				if (countInWrapBuffer > 0) {
-					ensureTargetBufferSize(countInWrapBuffer + count);
-					if (count >= 0) {
-						System.arraycopy(this.wrapBuffer, 0, this.targetBuffer, 0, countInWrapBuffer);
-						System.arraycopy(this.readBuffer, 0, this.targetBuffer, countInWrapBuffer, count);
-						return countInWrapBuffer + count;
-					} else {
-						// count < 0
-						System.arraycopy(this.wrapBuffer, 0, this.targetBuffer, 0, countInWrapBuffer + count);
-						return countInWrapBuffer + count;
+					// check wrap buffer size
+					if (this.wrapBuffer.length < countInWrapBuffer + count) {
+						final byte[] nb = new byte[countInWrapBuffer + count];
+						System.arraycopy(this.wrapBuffer, 0, nb, 0, countInWrapBuffer);
+						this.wrapBuffer = nb;
 					}
+					if (count >= 0) {
+						System.arraycopy(this.readBuffer, 0, this.wrapBuffer, countInWrapBuffer, count);
+					}
+					setResult(this.wrapBuffer, 0, countInWrapBuffer + count);
+					return true;
 				} else {
-					ensureTargetBufferSize(count);
-					System.arraycopy(this.readBuffer, startPos, this.targetBuffer, 0, count);
-					return count;
+					setResult(this.readBuffer, startPos, count);
+					return true;
 				}
 			} else {
 				count = this.limit - startPos;
@@ -474,10 +474,16 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			}
 		}
 	}
+	
+	private final void setResult(byte[] buffer, int offset, int len) {
+		this.currBuffer = buffer;
+		this.currOffset = offset;
+		this.currLen = len;
+	}
 
 	private final boolean fillBuffer() throws IOException {
-		int toRead = this.length > this.readBuffer.length ? this.readBuffer.length : (int) this.length;
-		if (this.length <= 0) {
+		int toRead = this.splitLength > this.readBuffer.length ? this.readBuffer.length : (int) this.splitLength;
+		if (this.splitLength <= 0) {
 			toRead = this.readBuffer.length;
 			this.overLimit = true;
 		}
@@ -489,17 +495,10 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			this.stream = null;
 			return false;
 		} else {
-			this.length -= read;
+			this.splitLength -= read;
 			this.readPos = 0;
 			this.limit = read;
 			return true;
-		}
-	}
-	
-	private final void ensureTargetBufferSize(int minSize)
-	{
-		if (this.targetBuffer.length < minSize) {
-			this.targetBuffer = new byte[minSize];
 		}
 	}
 }

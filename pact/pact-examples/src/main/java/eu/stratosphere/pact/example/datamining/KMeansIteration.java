@@ -227,8 +227,10 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		private double[] pointValues = new double[0];
 		
 		@Override
-		public boolean readRecord(PactRecord record, byte[] line, int numBytes)
+		public boolean readRecord(PactRecord record, byte[] line, int offset, int numBytes)
 		{
+			final int limit = offset + numBytes;
+			
 			int id = -1;
 			int value = 0;
 			int fractionValue = 0;
@@ -236,7 +238,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 			
 			this.dimensionValues.clear();
 
-			for (int pos = 0; pos < numBytes; pos++) {
+			for (int pos = offset; pos < limit; pos++) {
 				if (line[pos] == '|') {
 					// check if id was already set
 					if (id == -1) {

@@ -41,6 +41,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
@@ -51,7 +52,8 @@ import eu.stratosphere.pact.test.util.minicluster.ClusterProviderPool;
  * @author Erik Nijkamp
  * @author Fabian Hueske
  */
-public abstract class TestBase extends TestCase {
+public abstract class TestBase extends TestCase
+{
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	private static final Log LOG = LogFactory.getLog(TestBase.class);
@@ -111,7 +113,8 @@ public abstract class TestBase extends TestCase {
 		}
 		
 		try {
-			cluster.submitJobAndWait(jobGraph, getJarFilePath());
+			final JobClient client = cluster.getJobClient(jobGraph, getJarFilePath());
+			client.submitJobAndWait();
 		} catch(Exception e) {
 			LOG.error(e);
 			Assert.fail("Job execution failed!");

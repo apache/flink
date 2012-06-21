@@ -40,8 +40,6 @@ public class SWTGateToolTip extends SWTToolTip {
 
 	private final Label channelTypeLabel;
 
-	private final Label recordTypeLabel;
-
 	private Composite warningComposite;
 
 	private final static int WIDTH = 400;
@@ -90,11 +88,7 @@ public class SWTGateToolTip extends SWTToolTip {
 		new Label(tableComposite, SWT.NONE).setText("Channel type:");
 		this.channelTypeLabel = new Label(tableComposite, SWT.NONE);
 		this.channelTypeLabel.setText(channelType.toString());
-
-		new Label(tableComposite, SWT.NONE).setText("Transmitted record type:");
-		this.recordTypeLabel = new Label(tableComposite, SWT.NONE);
-		this.recordTypeLabel.setText(managementGate.getRecordType());
-
+		
 		if (!this.managementGate.isInputGate()) {
 			final ManagementGroupEdge groupEdge = this.managementGate.getVertex().getGroupVertex().getForwardEdge(
 				this.managementGate.getIndex());

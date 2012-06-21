@@ -59,7 +59,7 @@ public class FixedLenghtInputFormatTest {
 		
 		format.configure(parameters);
 		format.open(split);
-		assertEquals(0, format.start);
+		assertEquals(0, format.splitStart);
 		assertEquals(0, format.getReadBufferSize() % 8);
 		format.close();
 

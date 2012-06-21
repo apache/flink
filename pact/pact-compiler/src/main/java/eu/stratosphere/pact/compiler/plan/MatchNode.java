@@ -682,24 +682,56 @@ public class MatchNode extends TwoInputNode {
 		}
 	}
 
-//	/**
-//	 * TODO: write java doc
-//	 * 
-//	 * @param branch1	First branch
-//	 * @param branch2	Second branch
-//	 * 
-//	 * @return	{@code true} if branches are equal, {@code false} otherwise.
-//	 */
-//	private boolean areBranchesEqual(OptimizerNode branch1, OptimizerNode branch2) {
-//		
-//		// TODO: check if this is working!
-//		
-//		if(branch1.equals(branch2)) 
-//			return true;
-//		else
-//			return false;
-//		
-//	}
+	/**
+	 * If we have multiple connection for both inputs, the branches are equal if all predecessors
+	 * per input are the same as for the other input. Ie., if the two sets (the order does not matter)
+	 * of both predecessors are equal.
+	 * 
+	 * Eg.:
+	 * allPreds1 = { A, B, C } == allPreds2 = { B, A, C }
+	 * allPreds1 = { A, B, C } != allPreds2 = { A, B }
+	 * allPreds1 = { A, B, C } != allPreds2 = { A, B, C, D }
+	 * allPreds1 = { A, B, C } != allPreds2 = { A, B, E }
+	 * 
+	 * @param allPreds1		All predecessors of the first input.
+	 * @param allPreds2		All predecessors of the second input.
+	 * 
+	 * @return	{@code true} if branches are equal, {@code false} otherwise.
+	 */
+	@SuppressWarnings("unused")
+	private boolean areBranchesEqual(List<OptimizerNode> allPreds1, List<OptimizerNode> allPreds2) {
+		final int size1 = allPreds1.size();
+		final int size2 = allPreds2.size();
+		
+		List<OptimizerNode> copy1 = new ArrayList<OptimizerNode>(size1);
+		List<OptimizerNode> copy2 = new ArrayList<OptimizerNode>(size2);
+		
+		for(int i = 0; i < size1; ++i)
+			copy1.add(allPreds1.get(i));
+		for(int i = 0; i < size2; ++i)
+			copy2.add(allPreds2.get(i));
+
+		outter:
+		for(int i = 0; i < copy1.size(); ++i) {
+			OptimizerNode nodeToTest = copy1.get(i);
+			
+			for(int j = i + i; j < copy2.size(); ++j) {
+				if(nodeToTest.equals(copy2.get(j))) {
+					copy1.remove(i);
+					--i;
+					copy2.remove(j);
+		
+					continue outter;
+				}
+			}
+			
+			return false;
+		}
+		
+		assert (copy1.size() == 0 && copy2.size() == 0);
+		
+		return true;
+	}
 	
 	/**
 	 * Private utility method that generates a candidate Match node, given fixed shipping strategies and a fixed

@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
  * 
  * @param <IT> The type of the consumed records. 
  */
-public abstract class OutputFormat<IT>
+public interface OutputFormat<IT>
 {
 	/**
 	 * Configures this output format. Since output formats are instantiated generically and hence parameterless, 
@@ -48,7 +48,7 @@ public abstract class OutputFormat<IT>
 	 *  
 	 * @param parameters The configuration with all parameters.
 	 */
-	public abstract void configure(Configuration parameters);
+	void configure(Configuration parameters);
 	
 	/**
 	 * Opens a parallel instance of the output format to store the result of its parallel instance.
@@ -58,7 +58,7 @@ public abstract class OutputFormat<IT>
 	 * @param taskNumber The number of the parallel instance.
 	 * @throws IOException Thrown, if the output could not be opened due to an I/O problem.
 	 */
-	public abstract void open(int taskNumber) throws IOException;
+	void open(int taskNumber) throws IOException;
 	
 	
 	/**
@@ -69,7 +69,7 @@ public abstract class OutputFormat<IT>
 	 * @param record The records to add to the output.
 	 * @throws IOException Thrown, if the records could not be added to to an I/O problem.
 	 */
-	public abstract void writeRecord(IT record) throws IOException;
+	void writeRecord(IT record) throws IOException;
 	
 	/**
 	 * Method that marks the end of the life-cycle of parallel output instance. Should be used to close
@@ -80,6 +80,6 @@ public abstract class OutputFormat<IT>
 	 *  
 	 * @throws IOException Thrown, if the input could not be closed properly.
 	 */
-	public abstract void close() throws IOException;
+	void close() throws IOException;
 }
 

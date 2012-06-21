@@ -40,11 +40,13 @@ public interface FieldParser<T extends Value> {
 	 * 
 	 * @param bytes The byte array that holds the value.
 	 * @param startPos The index where the field starts
+	 * @param limit The limit unto which the byte contents is valid for the parser. The limit is the
+	 *              position one after the last valid byte.
 	 * @param delim Field delimiter character
 	 * @param field The field to hold the value
 	 * @return The index of the next delimiter, if the field was parsed correctly. A value less than 0 otherwise.
 	 */
-	public int parseField(byte[] bytes, int startPos, int length, char delim, T field);
+	public int parseField(byte[] bytes, int startPos, int limit, char delim, T field);
 	
 	/**
 	 * Returns an instance of the parsed value type.

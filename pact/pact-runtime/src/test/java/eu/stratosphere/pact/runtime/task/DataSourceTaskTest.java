@@ -230,9 +230,9 @@ public class DataSourceTaskTest extends TaskTestBase
 		private final PactInteger value = new PactInteger();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
+		public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes) {
 			
-			String line = new String(record, 0, numBytes);
+			String line = new String(record, offset, numBytes);
 			
 			try {
 				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));
@@ -254,7 +254,7 @@ public class DataSourceTaskTest extends TaskTestBase
 		private final PactInteger value = new PactInteger();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
+		public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes) {
 			try {
 				Thread.sleep(100);
 			}
@@ -262,7 +262,7 @@ public class DataSourceTaskTest extends TaskTestBase
 				return false;
 			}
 			
-			String line = new String(record);
+			String line = new String(record, offset, numBytes);
 			
 			try {
 				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));
@@ -279,14 +279,15 @@ public class DataSourceTaskTest extends TaskTestBase
 		
 	}
 	
-	public static class MockFailingInputFormat extends DelimitedInputFormat {
+	public static class MockFailingInputFormat extends DelimitedInputFormat
+	{
 		private final PactInteger key = new PactInteger();
 		private final PactInteger value = new PactInteger();
 		
 		private int cnt = 0;
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
+		public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes) {
 			
 			if(this.cnt == 10) {
 				throw new RuntimeException("Excpected Test Exception.");
@@ -294,7 +295,7 @@ public class DataSourceTaskTest extends TaskTestBase
 			
 			this.cnt++;
 			
-			String line = new String(record);
+			String line = new String(record, offset, numBytes);
 			
 			try {
 				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));
