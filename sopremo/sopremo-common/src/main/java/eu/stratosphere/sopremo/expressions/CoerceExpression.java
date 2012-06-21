@@ -2,8 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 
 /**
  * Converts the result of an evaluation to a various number of node types.
@@ -15,7 +15,7 @@ public class CoerceExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = 1954495592440005318L;
 
-	private final Class<? extends JsonNode> targetType;
+	private final Class<? extends AbstractJsonNode> targetType;
 
 	private EvaluationExpression valueExpression;
 
@@ -27,7 +27,7 @@ public class CoerceExpression extends EvaluationExpression {
 	 * @param value
 	 *        the expression which evaluates to the result
 	 */
-	public CoerceExpression(final Class<? extends JsonNode> targetType, final EvaluationExpression value) {
+	public CoerceExpression(final Class<? extends AbstractJsonNode> targetType, final EvaluationExpression value) {
 		this.targetType = targetType;
 		this.valueExpression = value;
 		this.expectedTarget = targetType;
@@ -39,7 +39,7 @@ public class CoerceExpression extends EvaluationExpression {
 	 * @param targetType
 	 *        the class of the node the result should be converted to
 	 */
-	public CoerceExpression(final Class<? extends JsonNode> targetType) {
+	public CoerceExpression(final Class<? extends AbstractJsonNode> targetType) {
 		this(targetType, EvaluationExpression.VALUE);
 	}
 
@@ -70,9 +70,12 @@ public class CoerceExpression extends EvaluationExpression {
 		// TODO Reuse target
 		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, target, context), this.targetType);
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
 	 */
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {

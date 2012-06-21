@@ -60,7 +60,7 @@ public class ArrayCreation extends ContainerExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
 
 		int index = 0;
 
@@ -69,9 +69,12 @@ public class ArrayCreation extends ContainerExpression {
 
 		return target;
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
 	 */
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {

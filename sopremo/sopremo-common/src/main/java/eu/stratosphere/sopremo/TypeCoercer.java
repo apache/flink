@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
+import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
@@ -18,10 +20,8 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.LongNode;
 import eu.stratosphere.sopremo.type.NullNode;
-import eu.stratosphere.sopremo.type.NumericNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -30,10 +30,11 @@ public class TypeCoercer {
 	private static final Class<? extends IJsonNode>[] ARRAY_TYPES =
 		(Class<? extends IJsonNode>[]) new Class<?>[] { ArrayNode.class };
 
-	private final Map<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer>> coercers = new IdentityHashMap<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer>>();
+	private final Map<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer>> coercers =
+		new IdentityHashMap<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer>>();
 
 	@SuppressWarnings("unchecked")
-	public static final List<Class<? extends NumericNode>> NUMERIC_TYPES = Arrays.asList(
+	public static final List<Class<? extends AbstractNumericNode>> NUMERIC_TYPES = Arrays.asList(
 		IntNode.class, DoubleNode.class, LongNode.class, DecimalNode.class, BigIntegerNode.class);
 
 	private static final Coercer NULL_COERCER = new Coercer() {
@@ -59,13 +60,14 @@ public class TypeCoercer {
 
 	private void addNumericCoercers(
 			final Map<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer>> coercers) {
-		coercers.put(NumericNode.class, new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>());
+		coercers.put(AbstractNumericNode.class, new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>());
 
 		// init number to number
-		for (final Class<? extends NumericNode> numericType : NUMERIC_TYPES) {
-			final IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer> typeCoercers = new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>();
+		for (final Class<? extends AbstractNumericNode> numericType : NUMERIC_TYPES) {
+			final IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer> typeCoercers =
+				new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>();
 			coercers.put(numericType, typeCoercers);
-			typeCoercers.put(NumericNode.class, NumberCoercer.INSTANCE.getClassCoercers().get(numericType));
+			typeCoercers.put(AbstractNumericNode.class, NumberCoercer.INSTANCE.getClassCoercers().get(numericType));
 		}
 
 		// boolean to number
@@ -100,7 +102,7 @@ public class TypeCoercer {
 			}
 		});
 		// default boolean to number conversion -> int
-		coercers.get(NumericNode.class).put(BooleanNode.class,
+		coercers.get(AbstractNumericNode.class).put(BooleanNode.class,
 			coercers.get(IntNode.class).get(BooleanNode.class));
 
 		// string to number
@@ -155,7 +157,7 @@ public class TypeCoercer {
 			}
 		});
 		// default boolean to number conversion -> decimal
-		coercers.get(NumericNode.class).put(TextNode.class,
+		coercers.get(AbstractNumericNode.class).put(TextNode.class,
 			coercers.get(DecimalNode.class).get(TextNode.class));
 	}
 
@@ -185,7 +187,7 @@ public class TypeCoercer {
 			return defaultValue;
 		Coercer fromCoercer = toCoercer.get(node.getClass());
 		if (fromCoercer == null) {
-			for (Class<?> superType = node.getClass(); superType != JsonNode.class.getSuperclass()
+			for (Class<?> superType = node.getClass(); superType != AbstractJsonNode.class.getSuperclass()
 				&& fromCoercer == null; superType = superType
 				.getSuperclass())
 				fromCoercer = toCoercer.get(superType);
@@ -206,8 +208,9 @@ public class TypeCoercer {
 	}
 
 	private Map<Class<? extends IJsonNode>, Coercer> getToArrayCoercers() {
-		final Map<Class<? extends IJsonNode>, Coercer> toArrayCoercers = new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>();
-		toArrayCoercers.put(JsonNode.class, new Coercer() {
+		final Map<Class<? extends IJsonNode>, Coercer> toArrayCoercers =
+			new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>();
+		toArrayCoercers.put(AbstractJsonNode.class, new Coercer() {
 			@Override
 			public IJsonNode coerce(final IJsonNode node) {
 				final ArrayNode arrayNode = new ArrayNode();
@@ -233,8 +236,9 @@ public class TypeCoercer {
 	}
 
 	private Map<Class<? extends IJsonNode>, Coercer> getToBooleanCoercers() {
-		final Map<Class<? extends IJsonNode>, TypeCoercer.Coercer> toBooleanCoercers = new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>();
-		toBooleanCoercers.put(NumericNode.class, new Coercer() {
+		final Map<Class<? extends IJsonNode>, TypeCoercer.Coercer> toBooleanCoercers =
+			new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>();
+		toBooleanCoercers.put(AbstractNumericNode.class, new Coercer() {
 			@Override
 			public IJsonNode coerce(final IJsonNode node) {
 				return BooleanNode.valueOf(((INumericNode) node).getDoubleValue() != 0);
@@ -265,8 +269,9 @@ public class TypeCoercer {
 	}
 
 	private Map<Class<? extends IJsonNode>, Coercer> getToStringCoercers() {
-		final Map<Class<? extends IJsonNode>, TypeCoercer.Coercer> toStringCoercers = new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>();
-		toStringCoercers.put(JsonNode.class, new Coercer() {
+		final Map<Class<? extends IJsonNode>, TypeCoercer.Coercer> toStringCoercers =
+			new IdentityHashMap<Class<? extends IJsonNode>, TypeCoercer.Coercer>();
+		toStringCoercers.put(AbstractJsonNode.class, new Coercer() {
 			@Override
 			public IJsonNode coerce(final IJsonNode node) {
 				return TextNode.valueOf(node.toString());

@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 
@@ -24,7 +23,6 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.GenericInputSplit;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -80,7 +78,7 @@ public class GeneratorInputFormat extends GenericInputFormat {
 		IJsonNode value = expression.evaluate(NullNode.getInstance(), null, this.context);
 
 		if (value.isArray()) {
-			numValues = ((ArrayNode) value).size();
+			this.numValues = ((ArrayNode) value).size();
 			this.valueIterator = ((IArrayNode) value).iterator();
 		}
 		else
@@ -150,7 +148,7 @@ public class GeneratorInputFormat extends GenericInputFormat {
 
 		final IJsonNode value = this.valueIterator.next();
 		PactRecord result = this.schema.jsonToRecord(value, record, this.context);
-		if(result != record)
+		if (result != record)
 			result.copyTo(record);
 		return true;
 	}

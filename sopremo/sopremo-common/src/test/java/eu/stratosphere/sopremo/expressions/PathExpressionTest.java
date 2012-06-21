@@ -99,10 +99,12 @@ public class PathExpressionTest extends EvaluableExpressionTest<PathExpression> 
 
 	@Test
 	public void shouldReplaceWholePath() {
-		final PathExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+		EvaluationExpression expr = new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
 			new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"), new ObjectAccess("ID"));
-		expr.replace(new PathExpression(new ObjectAccess("GlossDiv"), new ObjectAccess("GlossList"), new ObjectAccess(
-			"GlossEntry"), new ObjectAccess("ID")), new ObjectAccess("title"));
+		expr =
+			expr.replace(new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("GlossDiv"),
+				new ObjectAccess("GlossList"), new ObjectAccess("GlossEntry"), new ObjectAccess("ID")),
+				new PathExpression(new ObjectAccess("glossary"), new ObjectAccess("title")));
 
 		final IJsonNode result = expr.evaluate(doc, null, this.context);
 

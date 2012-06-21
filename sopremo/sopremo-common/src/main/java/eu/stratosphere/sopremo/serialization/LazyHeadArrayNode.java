@@ -3,20 +3,19 @@ package eu.stratosphere.sopremo.serialization;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.AbstractArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
-public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
+public class LazyHeadArrayNode extends AbstractArrayNode {
 
 	/**
 	 * 
@@ -58,11 +57,6 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 		};
 
 		return new ConcatenatingIterator<IJsonNode>(iterator1, iterator2);
-	}
-
-	@Override
-	public Type getType() {
-		return Type.ArrayNode;
 	}
 
 	@Override
@@ -141,7 +135,7 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 	 */
 	@Override
 	public boolean isEmpty() {
-		return this.schema.getHeadSize() == 0 ? getOtherField().isEmpty() : this.record.isNull(0);
+		return this.schema.getHeadSize() == 0 ? this.getOtherField().isEmpty() : this.record.isNull(0);
 	}
 
 	@Override
@@ -164,7 +158,7 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 		if (element == null)
 			throw new NullPointerException();
 
-		if (index < 0 || index > this.size()) 
+		if (index < 0 || index > this.size())
 			throw new ArrayIndexOutOfBoundsException(index);
 
 		if (index < this.schema.getHeadSize()) {
@@ -229,10 +223,9 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 
 			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
 				buffer = this.record.getField(i, JsonNodeWrapper.class);
-				if (buffer == null) {
+				if (buffer == null)
 					buffer = MissingNode.getInstance();
-				}
-				if (oldNode.isMissing()) 
+				if (oldNode.isMissing())
 					this.record.setNull(i);
 				else
 					this.record.setField(i, oldNode);
@@ -250,39 +243,6 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 			this.record.setNull(i);
 
 		this.getOtherField().clear();
-	}
-
-	@Override
-	public IArrayNode addAll(Collection<? extends IJsonNode> c) {
-		for (IJsonNode node : c)
-			this.add(node);
-
-		return this;
-	}
-
-	@Override
-	public IArrayNode addAll(IArrayNode arraynode) {
-		for (IJsonNode node : arraynode)
-			this.add(node);
-
-		return this;
-	}
-
-	@Override
-	public IJsonNode[] toArray() {
-		IJsonNode[] result = new IJsonNode[this.size()];
-		int i = 0;
-		for (IJsonNode node : this)
-			result[i++] = node;
-
-		return result;
-	}
-
-	@Override
-	public IArrayNode addAll(IJsonNode[] nodes) {
-		for (IJsonNode node : nodes) 
-			this.add(node);
-		return this;
 	}
 
 }

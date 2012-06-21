@@ -4,11 +4,12 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
-public class JsonNodeWrapper extends JsonNode implements IJsonNode {
+public class JsonNodeWrapper extends AbstractJsonNode implements IJsonNode {
 
 	/**
 	 * 
@@ -107,6 +108,15 @@ public class JsonNodeWrapper extends JsonNode implements IJsonNode {
 	@Override
 	public boolean isNull() {
 		return this.value.isNull();
+	}
+
+	@Override
+	public void copyValueFrom(IJsonNode otherNode) {
+		if (!(otherNode instanceof JsonNodeWrapper))
+			throw new IllegalArgumentException("Other node is not a JsonNodeWrapper");
+		if (this.value.getType() != otherNode.getType())
+			this.value = ReflectUtil.newInstance(otherNode.getType().getClazz());
+		this.value.copyValueFrom(((JsonNodeWrapper) otherNode).value);
 	}
 
 	@Override

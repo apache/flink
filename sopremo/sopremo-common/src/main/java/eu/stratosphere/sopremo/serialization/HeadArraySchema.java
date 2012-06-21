@@ -124,7 +124,8 @@ public class HeadArraySchema implements Schema {
 			arrayElement = ((IArrayNode) value).get(i);
 			if (!arrayElement.isMissing())
 				target.setField(i, SopremoUtil.wrap(arrayElement));
-			else // incoming array is smaller than headSize
+			else
+				// incoming array is smaller than headSize
 				target.setNull(i);
 		}
 
@@ -147,15 +148,14 @@ public class HeadArraySchema implements Schema {
 			throw new IllegalStateException("Schema does not match to record!");
 		if (target == null)
 			target = new ArrayNode();
-		else // array was used
+		else
+			// array was used
 			((IArrayNode) target).clear();
-		
+
 		// insert head of record
-		for (int i = 0; i < this.getHeadSize(); i++) {
-			if (record.getField(i, JsonNodeWrapper.class) != null) {
+		for (int i = 0; i < this.getHeadSize(); i++)
+			if (record.getField(i, JsonNodeWrapper.class) != null)
 				((IArrayNode) target).add(SopremoUtil.unwrap(record.getField(i, JsonNodeWrapper.class)));
-			}
-		}
 
 		// insert all elements from others
 		((IArrayNode) target).addAll((IArrayNode) SopremoUtil.unwrap(record.getField(this.getHeadSize(),

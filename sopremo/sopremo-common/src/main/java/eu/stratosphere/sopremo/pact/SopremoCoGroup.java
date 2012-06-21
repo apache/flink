@@ -67,18 +67,18 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 		// We need to pass our class loader since the default class loader is
 		// not able to resolve classes coming from the Sopremo user jar file.
 		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT,
-				EvaluationContext.class, this.getClass().getClassLoader());
+			EvaluationContext.class, this.getClass().getClassLoader());
 		this.collector = new JsonCollector(this.context.getInputSchema(0));
 		this.cachedIterator1 = new RecordToJsonIterator(this.context.getInputSchema(0));
 		this.cachedIterator2 = new RecordToJsonIterator(this.context.getInputSchema(1));
 		SopremoUtil.configureStub(this, parameters);
 	}
 
-	protected EvaluationContext getContext() {
+	protected final EvaluationContext getContext() {
 		return this.context;
 	}
-	
-	@SuppressWarnings("unused") 
+
+	@SuppressWarnings("unused")
 	protected boolean needsResettableIterator(final int input, final Iterator<IJsonNode> values) {
 		return false;
 	}

@@ -21,17 +21,18 @@ import java.util.Iterator;
  */
 public abstract class AbstractIterable<T> implements Iterable<T> {
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
 	public String toString() {
-		return toString(10);
+		return this.toString(10);
 	}
-	
+
 	public String toString(int numberOfElements) {
-		StringBuilder builder = new StringBuilder(getClass().getSimpleName()).append(' ');
-		appendElements(builder, this, numberOfElements);
+		StringBuilder builder = new StringBuilder(this.getClass().getSimpleName()).append(' ');
+		this.appendElements(builder, this, numberOfElements);
 		return builder.toString();
 	}
 

@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
@@ -30,7 +31,6 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.LongNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -40,7 +40,7 @@ public class JsonParser {
 
 	private final BufferedReader reader;
 
-	private final Stack<JsonNode> state = new ObjectArrayList<JsonNode>();
+	private final Stack<AbstractJsonNode> state = new ObjectArrayList<AbstractJsonNode>();
 
 	ContainerNode root = new ContainerNode();
 
@@ -75,7 +75,7 @@ public class JsonParser {
 		this(new BufferedReader(new StringReader(value)));
 	}
 
-	public JsonNode readValueAsTree() throws IOException {
+	public AbstractJsonNode readValueAsTree() throws IOException {
 
 		this.state.push(this.root);
 
@@ -126,7 +126,7 @@ public class JsonParser {
 		this.reader.close();
 	}
 
-	private static JsonNode parsePrimitive(final String value) {
+	private static AbstractJsonNode parsePrimitive(final String value) {
 		if (value.equals("null"))
 			return NullNode.getInstance();
 		if (value.equals("true"))
@@ -273,7 +273,7 @@ public class JsonParser {
 		}
 	}
 
-	private class ContainerNode extends JsonNode {
+	private class ContainerNode extends AbstractJsonNode {
 
 		/**
 		 * 
@@ -282,29 +282,29 @@ public class JsonParser {
 
 		private final List<String> keys = new ArrayList<String>();
 
-		private final List<JsonNode> values = new ArrayList<JsonNode>();
+		private final List<AbstractJsonNode> values = new ArrayList<AbstractJsonNode>();
 
 		public void addKey(final StringBuilder sb) {
 			this.keys.add(sb.toString());
 		}
 
-		public void addValue(final JsonNode node) {
+		public void addValue(final AbstractJsonNode node) {
 			this.values.add(node);
 		}
 
-		public JsonNode remove(final int index) throws JsonParseException {
+		public AbstractJsonNode remove(final int index) throws JsonParseException {
 			if (this.keys.isEmpty())
 				return this.values.remove(index);
 			throw new JsonParseException();
 		}
 
-		public JsonNode build() throws JsonParseException {
-			JsonNode node;
+		public AbstractJsonNode build() throws JsonParseException {
+			AbstractJsonNode node;
 
 			if (this.keys.size() == 0) {
 				// this ContainerNode represents an ArrayNode
 				node = new ArrayNode();
-				for (final JsonNode value : this.values)
+				for (final AbstractJsonNode value : this.values)
 					((IArrayNode) node).add(value);
 
 			} else {
@@ -356,6 +356,10 @@ public class JsonParser {
 
 		@Override
 		public void clear() {
+		}
+
+		@Override
+		public void copyValueFrom(IJsonNode otherNode) {
 		}
 	}
 }

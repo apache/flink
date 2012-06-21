@@ -6,6 +6,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.List;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.plan.PactModule;
@@ -200,7 +202,8 @@ public class SopremoTestPlan {
 		final SopremoPlan sopremoPlan = new SopremoPlan();
 		sopremoPlan.setContext(this.evaluationContext);
 		sopremoPlan.setSinks(this.getOutputOperators(0, this.expectedOutputs.length));
-		this.testPlan = new TestPlan(sopremoPlan.assemblePact());
+		final Collection<Contract> sinks = sopremoPlan.assemblePact();
+		this.testPlan = new TestPlan(sinks);
 
 		Schema schema = sopremoPlan.getSchema();
 		for (final Input input : this.inputs)
@@ -337,7 +340,7 @@ public class SopremoTestPlan {
 			if (this.isEmpty())
 				return Collections.EMPTY_LIST.iterator();
 			if (this.file != null)
-				return iteratorFromFile(this.file);
+				return this.iteratorFromFile(this.file);
 			return this.values.iterator();
 		}
 
@@ -440,7 +443,14 @@ public class SopremoTestPlan {
 		 */
 		@Override
 		TestRecords getTestRecords(TestPlan testPlan, Schema schema) {
-			return testPlan.getExpectedOutput(this.getIndex(), schema.getPactSchema());
+			int sinkIndex = -1;
+			final List<FileDataSink> sinks = testPlan.getSinks();
+			for (int index = 0; index < sinks.size(); index++)
+				if (sinks.get(index).getName().equals(this.getOperator().getInputPath())) {
+					sinkIndex = index;
+					break;
+				}
+			return testPlan.getExpectedOutput(sinkIndex == -1 ? this.getIndex() : sinkIndex, schema.getPactSchema());
 		}
 	}
 
@@ -457,7 +467,14 @@ public class SopremoTestPlan {
 		 */
 		@Override
 		TestRecords getTestRecords(TestPlan testPlan, Schema schema) {
-			return testPlan.getInput(this.getIndex());
+			int sourceIndex = -1;
+			final List<FileDataSource> sources = testPlan.getSources();
+			for (int index = 0; index < sources.size(); index++)
+				if (sources.get(index).getName().equals(this.getOperator().getInputPath())) {
+					sourceIndex = index;
+					break;
+				}
+			return testPlan.getInput(sourceIndex == -1 ? this.getIndex() : sourceIndex);
 		}
 
 		/*
@@ -469,7 +486,7 @@ public class SopremoTestPlan {
 			if (this.operator != null && !(this.operator instanceof MockupSource)) {
 				if (this.operator.isAdhoc())
 					return JsonUtil.asArray(this.operator.getAdhocValues()).iterator();
-				return iteratorFromFile(this.operator.getInputPath());
+				return this.iteratorFromFile(this.operator.getInputPath());
 			}
 			return super.iterator();
 		}

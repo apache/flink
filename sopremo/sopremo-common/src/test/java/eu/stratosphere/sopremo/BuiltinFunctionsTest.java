@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -242,23 +243,26 @@ public class BuiltinFunctionsTest {
 
 	@Test
 	public void shouldCalculateAvg() {
-		DefaultFunctions.AVERAGE.initialize();
-		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(50), this.context);
-		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(25), this.context);
-		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(75), this.context);
+		IJsonNode aggregator = DefaultFunctions.AVERAGE.initialize(null);
+		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(50), aggregator, this.context);
+		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(25), aggregator, this.context);
+		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(75), aggregator, this.context);
 
-		Assert.assertEquals(DoubleNode.valueOf(50.0), DefaultFunctions.AVERAGE.getFinalAggregate());
+		final IJsonNode result = DefaultFunctions.AVERAGE.getFinalAggregate(aggregator, null);
+		Assert.assertTrue(result instanceof INumericNode);
+		Assert.assertEquals(50.0, ((INumericNode) result).getDoubleValue());
 	}
 
 	@Test
 	public void shouldCalculateAvgWithDifferentNodes() {
-		DefaultFunctions.AVERAGE.initialize();
+		IJsonNode aggregator = DefaultFunctions.AVERAGE.initialize(null);
 
 		for (int i = 1; i < 500; i++)
-			DefaultFunctions.AVERAGE.aggregate(i % 2 == 0 ? IntNode.valueOf(i) : DoubleNode.valueOf(i),
-				this.context);
+			aggregator =
+				DefaultFunctions.AVERAGE.aggregate(i % 2 == 0 ? IntNode.valueOf(i) : DoubleNode.valueOf(i), aggregator,
+					this.context);
 
-		Assert.assertEquals(DoubleNode.valueOf(250), DefaultFunctions.AVERAGE.getFinalAggregate());
+		Assert.assertEquals(DoubleNode.valueOf(250), DefaultFunctions.AVERAGE.getFinalAggregate(aggregator, null));
 	}
 
 	// Assertion failed: Expected <NaN> but was: <NaN>

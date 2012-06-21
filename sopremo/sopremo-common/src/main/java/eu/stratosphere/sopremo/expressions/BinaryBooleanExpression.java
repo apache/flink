@@ -14,10 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.expressions;
 
-
 /**
  * @author Arvid Heise
- *
  */
 public abstract class BinaryBooleanExpression extends BooleanExpression {
 
@@ -25,6 +23,5 @@ public abstract class BinaryBooleanExpression extends BooleanExpression {
 	 * 
 	 */
 	private static final long serialVersionUID = -3587684241315276796L;
-
 
 }

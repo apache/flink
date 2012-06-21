@@ -51,7 +51,7 @@ public class ArrayProjection extends EvaluationExpression {
 		// spread
 		final IArrayNode array = (IArrayNode) node;
 
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
 
 		for (int index = 0, size = array.size(); index < size; index++)
 			((IArrayNode) target).add(this.expression.evaluate(array.get(index), ((IArrayNode) target).get(index),

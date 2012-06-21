@@ -17,7 +17,7 @@ public class AndExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = 1988076954287158279L;
 
-	private final EvaluationExpression[] expressions;
+	private final BooleanExpression[] expressions;
 
 	/**
 	 * Initializes an AndExpression with the given {@link EvaluationExpression}s.
@@ -25,10 +25,8 @@ public class AndExpression extends BooleanExpression {
 	 * @param expressions
 	 *        the expressions which evaluate to the input for this AndExpression
 	 */
-	public AndExpression(final EvaluationExpression... expressions) {
-		if (expressions.length == 0)
-			throw new IllegalArgumentException();
-		this.expressions = new EvaluationExpression[expressions.length];
+	public AndExpression(final BooleanExpression... expressions) {
+		this.expressions = new BooleanExpression[expressions.length];
 		for (int index = 0; index < expressions.length; index++)
 			this.expressions[index] = UnaryExpression.wrap(expressions[index]);
 		this.expectedTarget = BooleanNode.class;
@@ -46,20 +44,22 @@ public class AndExpression extends BooleanExpression {
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		// we can ignore 'target' because no new Object is created
 		for (final EvaluationExpression booleanExpression : this.expressions)
-			if (booleanExpression.evaluate(node, null, context) == BooleanNode.FALSE) {
+			if (booleanExpression.evaluate(node, null, context) == BooleanNode.FALSE)
 				return BooleanNode.FALSE;
-			}
 
 		return BooleanNode.TRUE;
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
 	 */
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {
 		for (int index = 0; index < this.expressions.length; index++)
-			this.expressions[index] = this.expressions[index].transformRecursively(function);
+			this.expressions[index] = (BooleanExpression) this.expressions[index].transformRecursively(function);
 		return function.call(this);
 	}
 
@@ -68,7 +68,7 @@ public class AndExpression extends BooleanExpression {
 	 * 
 	 * @return the expressions
 	 */
-	public EvaluationExpression[] getExpressions() {
+	public BooleanExpression[] getExpressions() {
 		return this.expressions;
 	}
 

@@ -57,9 +57,8 @@ public class DirectSchema implements Schema {
 	 */
 	@Override
 	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
-		if (target == null || target.getNumFields() != 1) {
+		if (target == null || target.getNumFields() != 1)
 			target = new PactRecord(new JsonNodeWrapper());
-		} 
 
 		JsonNodeWrapper wrapper = target.getField(0, JsonNodeWrapper.class);
 		wrapper.setValue(value);

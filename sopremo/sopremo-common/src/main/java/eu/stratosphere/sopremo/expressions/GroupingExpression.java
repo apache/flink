@@ -42,7 +42,7 @@ public class GroupingExpression extends EvaluationExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
 
 		if (((IArrayNode) node).size() == 0)
 			return target;
@@ -64,9 +64,12 @@ public class GroupingExpression extends EvaluationExpression {
 
 		return target;
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
 	 */
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {

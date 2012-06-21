@@ -17,7 +17,7 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 		this.name = name;
 	}
 
-	public abstract void aggregate(IJsonNode node, EvaluationContext context);
+	public abstract IJsonNode aggregate(IJsonNode node, IJsonNode aggregator, EvaluationContext context);
 
 	public AggregationExpression asExpression() {
 		return new AggregationExpression(this);
@@ -57,9 +57,10 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 		}
 	}
 
-	public abstract IJsonNode getFinalAggregate();
+	public abstract IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target);
 
-	public void initialize() {
+	public IJsonNode initialize(IJsonNode aggregator) {
+		return aggregator;
 	}
 
 	@Override

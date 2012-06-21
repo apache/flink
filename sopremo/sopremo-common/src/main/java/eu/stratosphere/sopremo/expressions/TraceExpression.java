@@ -38,12 +38,15 @@ public class TraceExpression extends EvaluationExpression {
 		return node;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
 	 */
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {
-		this.expression = this.expression.transformRecursively(function); 
+		this.expression = this.expression.transformRecursively(function);
 		return function.call(this);
 	}
 }

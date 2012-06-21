@@ -71,8 +71,8 @@ public class MethodCall extends ContainerExpression {
 	 */
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {
-		for (int index = 0; index < paramExprs.length; index++)
-			paramExprs[index] = paramExprs[index].transformRecursively(function);
+		for (int index = 0; index < this.paramExprs.length; index++)
+			this.paramExprs[index] = this.paramExprs[index].transformRecursively(function);
 		return function.call(this);
 	}
 

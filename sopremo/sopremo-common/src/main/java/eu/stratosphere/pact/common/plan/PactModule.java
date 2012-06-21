@@ -57,9 +57,11 @@ public class PactModule extends
 		super(name, new FileDataSource[numberOfInputs], new FileDataSink[numberOfOutputs],
 			ContractNavigator.INSTANCE);
 		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new FileDataSource(SequentialInputFormat.class, String.format("%s %d", name, index));
+			this.inputNodes[index] =
+				new FileDataSource(SequentialInputFormat.class, String.format("%s %d", name, index));
 		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new FileDataSink(SequentialOutputFormat.class, String.format("%s %d", name, index));
+			this.outputNodes[index] =
+				new FileDataSink(SequentialOutputFormat.class, String.format("%s %d", name, index));
 	}
 
 	/**

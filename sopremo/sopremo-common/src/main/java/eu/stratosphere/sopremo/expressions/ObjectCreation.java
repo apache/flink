@@ -38,7 +38,7 @@ public class ObjectCreation extends ContainerExpression {
 		@Override
 		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+			target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
 
 			final Iterator<IJsonNode> elements = ((ArrayNode) node).iterator();
 			while (elements.hasNext()) {
@@ -114,7 +114,7 @@ public class ObjectCreation extends ContainerExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
 
 		for (final Mapping<?> mapping : this.mappings)
 			mapping.evaluate((IObjectNode) target, node, context);
@@ -210,12 +210,12 @@ public class ObjectCreation extends ContainerExpression {
 		};
 	}
 
-//	@Override
-//	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-//		for (final Mapping<?> mapping : this.mappings)
-//			if (mapping.getExpression() instanceof ContainerExpression)
-//				((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
-//	}
+	// @Override
+	// public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
+	// for (final Mapping<?> mapping : this.mappings)
+	// if (mapping.getExpression() instanceof ContainerExpression)
+	// ((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
+	// }
 
 	@Override
 	public void toString(final StringBuilder builder) {
@@ -276,7 +276,7 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
-			final IJsonNode value = this.expression.evaluate(node, null, context);
+			final IJsonNode value = this.expression.evaluate(node, transformedNode.get(this.target), context);
 			// if (!value.isNull())
 			transformedNode.put(this.target, value);
 		}
@@ -330,7 +330,7 @@ public class ObjectCreation extends ContainerExpression {
 		 */
 		public Mapping(final Target target, final EvaluationExpression expression) {
 			this.target = target;
-			this.expression =  expression;
+			this.expression = expression;
 		}
 
 		/**

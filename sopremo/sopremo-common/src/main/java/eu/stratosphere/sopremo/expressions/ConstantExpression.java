@@ -2,8 +2,8 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
 
 /**
@@ -16,8 +16,7 @@ public class ConstantExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -4270374147359826240L;
 
-	// TODO: adjust to json model
-	private final JsonNode constant;
+	private final IJsonNode constant;
 
 	public static final EvaluationExpression MISSING = new ConstantExpression(MissingNode.getInstance()) {
 
@@ -37,7 +36,7 @@ public class ConstantExpression extends EvaluationExpression {
 	 * @param constant
 	 *        the node that should be represented by this ConstantExpression
 	 */
-	public ConstantExpression(final JsonNode constant) {
+	public ConstantExpression(final AbstractJsonNode constant) {
 		this.constant = constant;
 		this.expectedTarget = constant.getClass();
 	}

@@ -165,14 +165,15 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 
 		public ElementarySopremoModule assemble(SopremoModule sopremoModule) {
 			this.convertDAGToModules(sopremoModule);
-			
+
 			final int sinkCount = sopremoModule.getOutputs().length;
 			final int sourceCount = sopremoModule.getInputs().length;
 			final ElementarySopremoModule elementarySopremoModule =
 				new ElementarySopremoModule(sopremoModule.getName(), sourceCount, sinkCount);
 			// replace sources
 			for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++)
-				this.modules.get(sopremoModule.getInput(sourceIndex)).getOutput(0).setInput(0, elementarySopremoModule.getInput(sourceIndex));
+				this.modules.get(sopremoModule.getInput(sourceIndex)).getOutput(0).setInput(0,
+					elementarySopremoModule.getInput(sourceIndex));
 
 			this.connectModules();
 
@@ -205,7 +206,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 					new IdentityHashMap<JsonStream, JsonStream>();
 
 				for (int index = 0; index < operator.getInputs().size(); index++) {
-					final JsonStream input = traceInput(operator, index);
+					final JsonStream input = this.traceInput(operator, index);
 					operatorInputToModuleOutput.put(module.getInput(index).getOutput(0), input);
 				}
 
@@ -237,7 +238,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				for (int i = 0; i < inputs.length; i++)
 					if (inputOperator == inputs[i]) {
 						final JsonStream inputStream = operator.getInput(index);
-						return traceInput(inputStream.getSource().getOperator(), inputStream.getSource().getIndex());
+						return this.traceInput(inputStream.getSource().getOperator(),
+							inputStream.getSource().getIndex());
 					}
 			}
 			return input;

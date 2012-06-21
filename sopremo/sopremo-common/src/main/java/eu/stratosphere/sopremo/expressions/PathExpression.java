@@ -1,13 +1,18 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * Represents a chain of {@link EvaluationExpression}s where the result of one expression serves as the input for the
@@ -22,6 +27,8 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	private static final long serialVersionUID = -4663949354781572815L;
 
 	private LinkedList<EvaluationExpression> fragments;
+
+	private transient List<IJsonNode> fragmentTargets = new ArrayList<IJsonNode>();
 
 	/**
 	 * Initializes a PathExpression with the given {@link EvaluationExpression}s.
@@ -45,6 +52,13 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 
 	private PathExpression(final LinkedList<EvaluationExpression> fragments) {
 		this.fragments = fragments;
+		CollectionUtil.ensureSize(this.fragmentTargets, this.fragments.size());
+	}
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		this.fragmentTargets = new ArrayList<IJsonNode>();
+		CollectionUtil.ensureSize(this.fragmentTargets, this.fragments.size());
 	}
 
 	/**
@@ -55,11 +69,17 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	 */
 	public void add(final EvaluationExpression fragment) {
 		this.fragments.add(fragment);
+		this.fragmentTargets.add(null);
 	}
 
 	@Override
 	public PathExpression clone() {
-		return new PathExpression(this.fragments);
+		final PathExpression klone = (PathExpression) super.clone();
+		klone.fragments = new LinkedList<EvaluationExpression>(this.fragments);
+		final ListIterator<EvaluationExpression> cloneIterator = klone.fragments.listIterator();
+		while(cloneIterator.hasNext())
+			cloneIterator.set(cloneIterator.next().clone());
+		return klone;
 	}
 
 	@Override
@@ -72,10 +92,11 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		// TODO Reuse target
 		IJsonNode fragmentNode = node;
-		for (final EvaluationExpression fragment : this.fragments)
-			fragmentNode = fragment.evaluate(fragmentNode, null, context);
+		for (int index = 0; index < this.fragments.size(); index++)
+			this.fragmentTargets.set(index,
+				fragmentNode =
+					this.fragments.get(index).evaluate(fragmentNode, this.fragmentTargets.get(index), context));
 		return fragmentNode;
 	}
 
@@ -106,14 +127,18 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	 */
 	public List<EvaluationExpression> getFragments() {
 		return this.fragments;
-	}	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
 	 */
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {
-		for (int index = 0; index < fragments.size(); index++)
-			fragments.set(index, fragments.get(index).transformRecursively(function));
+		for (int index = 0; index < this.fragments.size(); index++)
+			this.fragments.set(index, this.fragments.get(index).transformRecursively(function));
 		return function.call(this);
 	}
 
@@ -161,25 +186,25 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		this.fragments = normalize(children);
 	}
 
-//	@Override
-//	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-//		super.replace(toReplace, replaceFragment);
-//
-//		final PathExpression pathToFind = PathExpression.ensurePathExpression(toReplace);
-//		final PathExpression replacePath = PathExpression.ensurePathExpression(replaceFragment);
-//		int size = this.fragments.size() - pathToFind.fragments.size() + 1;
-//		final int findSize = pathToFind.fragments.size();
-//		findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
-//			for (int index = 0; index < findSize; index++)
-//				if (!this.fragments.get(startIndex + index).equals(pathToFind.fragments.get(index)))
-//					continue findStartIndex;
-//
-//			this.fragments.subList(startIndex, startIndex + findSize).clear();
-//			this.fragments.addAll(startIndex, replacePath.fragments);
-//			size -= findSize - replacePath.fragments.size();
-//			// startIndex += replacePath.fragments.size();
-//		}
-//	}
+	// @Override
+	// public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
+	// super.replace(toReplace, replaceFragment);
+	//
+	// final PathExpression pathToFind = PathExpression.ensurePathExpression(toReplace);
+	// final PathExpression replacePath = PathExpression.ensurePathExpression(replaceFragment);
+	// int size = this.fragments.size() - pathToFind.fragments.size() + 1;
+	// final int findSize = pathToFind.fragments.size();
+	// findStartIndex: for (int startIndex = 0; startIndex < size; startIndex++) {
+	// for (int index = 0; index < findSize; index++)
+	// if (!this.fragments.get(startIndex + index).equals(pathToFind.fragments.get(index)))
+	// continue findStartIndex;
+	//
+	// this.fragments.subList(startIndex, startIndex + findSize).clear();
+	// this.fragments.addAll(startIndex, replacePath.fragments);
+	// size -= findSize - replacePath.fragments.size();
+	// // startIndex += replacePath.fragments.size();
+	// }
+	// }
 
 	@Override
 	public void toString(final StringBuilder builder) {

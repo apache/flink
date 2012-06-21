@@ -196,7 +196,7 @@ public class JsonToCsv {
 		 */
 		private void discoverEntries(final IJsonNode value, final LinkedList<EvaluationExpression> path) {
 			if (value instanceof ObjectNode)
-				for (final Entry<String, IJsonNode> entry : ((IObjectNode) value).getEntries()) {
+				for (final Entry<String, IJsonNode> entry : (IObjectNode) value) {
 					path.push(new ObjectAccess(entry.getKey()));
 					this.discoverEntries(entry.getValue(), path);
 					path.pop();

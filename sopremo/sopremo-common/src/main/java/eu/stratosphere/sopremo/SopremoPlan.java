@@ -34,7 +34,7 @@ public class SopremoPlan {
 	 * @return the converted Pact plan
 	 */
 	public Plan asPactPlan() {
-		return new Plan(checkForSinks(assemblePact()));
+		return new Plan(this.checkForSinks(this.assemblePact()));
 	}
 
 	/**

@@ -27,9 +27,11 @@ import eu.stratosphere.util.reflect.BoundTypeUtil;
  */
 public class GraphConverter<InputType, OutputType> implements NodeConverter<InputType, OutputType> {
 
-	private final Map<Class<?>, NodeConverterInfo<InputType, OutputType>> converterInfos = new HashMap<Class<?>, NodeConverterInfo<InputType, OutputType>>();
+	private final Map<Class<?>, NodeConverterInfo<InputType, OutputType>> converterInfos =
+		new HashMap<Class<?>, NodeConverterInfo<InputType, OutputType>>();
 
-	private final List<GraphConversionListener<InputType, OutputType>> conversionListener = new ArrayList<GraphConversionListener<InputType, OutputType>>();
+	private final List<GraphConversionListener<InputType, OutputType>> conversionListener =
+		new ArrayList<GraphConversionListener<InputType, OutputType>>();
 
 	private final boolean flattenCollection = true;
 
@@ -231,10 +233,11 @@ public class GraphConverter<InputType, OutputType> implements NodeConverter<Inpu
 	@SuppressWarnings("unchecked")
 	public <BaseInputType extends InputType> GraphConverter<InputType, OutputType> register(
 			final NodeConverter<BaseInputType, ? extends OutputType> converter) {
-		final OneElementList<Class<? extends BaseInputType>> wrapList = new OneElementList<Class<? extends BaseInputType>>(
-			(Class<? extends BaseInputType>) BoundTypeUtil
-				.getBindingOfSuperclass(converter.getClass(),
-					NodeConverter.class).getParameters()[0].getType());
+		final OneElementList<Class<? extends BaseInputType>> wrapList =
+			new OneElementList<Class<? extends BaseInputType>>(
+				(Class<? extends BaseInputType>) BoundTypeUtil
+					.getBindingOfSuperclass(converter.getClass(),
+						NodeConverter.class).getParameters()[0].getType());
 		this.register(converter, wrapList);
 		return this;
 	}

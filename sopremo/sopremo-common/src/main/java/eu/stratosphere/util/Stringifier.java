@@ -17,11 +17,12 @@ package eu.stratosphere.util;
 /**
  * @author Arvid Heise
  */
-public interface Stringifier<T>  {
+public interface Stringifier<T> {
 	public String stringify(T object);
-	
+
 	public static class JavaStringifier implements Stringifier<Object> {
-		/* (non-Javadoc)
+		/*
+		 * (non-Javadoc)
 		 * @see eu.stratosphere.util.Stringifier#stringify(java.lang.Object)
 		 */
 		@Override
@@ -29,6 +30,6 @@ public interface Stringifier<T>  {
 			return object.toString();
 		}
 	}
-	
+
 	public static Stringifier<Object> JavaString = new JavaStringifier();
 }

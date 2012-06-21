@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.MissingNode;
@@ -72,15 +71,15 @@ public class ObjectAccess extends EvaluationExpression {
 	 * {@link NullNode} if no such value exists.
 	 */
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {		
+	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		// TODO Reuse target
 		if (!node.isObject()) {
 			if (node.isNull() && this.safeDereference)
 				return node;
 
 			return MissingNode.getInstance();
-//			throw new EvaluationException(String.format("Cannot access field %s of non-object %s", this.field, node
-//				.getClass().getSimpleName()));
+			// throw new EvaluationException(String.format("Cannot access field %s of non-object %s", this.field, node
+			// .getClass().getSimpleName()));
 		}
 		final IJsonNode value = ((IObjectNode) node).get(this.field);
 		return value == null ? NullNode.getInstance() : value;
