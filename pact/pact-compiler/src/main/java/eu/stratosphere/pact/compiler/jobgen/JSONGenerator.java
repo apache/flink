@@ -171,7 +171,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			int connCnt = 0;
 			for(PactConnection conn : inConns) {
 				
-				this.jsonString.append("\n");
+				this.jsonString.append(connCnt == 0 ? "\n" : ",\n");
 				if (connCnt == 0) {
 					child1name += child1name.length() > 0 ? ", " : ""; 
 					child1name += conn.getSourcePact().getPactContract().getName();
