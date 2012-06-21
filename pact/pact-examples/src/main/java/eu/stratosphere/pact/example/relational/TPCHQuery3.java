@@ -34,7 +34,8 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -72,6 +73,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
 	@ConstantFields(fields={0,1})
+	@OutCardBounds(upperBound=1, lowerBound=0)
 	public static class FilterO extends MapStub
 	{
 		private String prioFilter;		// filter literal for the order priority
@@ -132,7 +134,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * built of the keys of the inputs.
 	 *
 	 */
-	@ConstantFieldsFirst(fields={0,1})
+	@ConstantFieldsFirstExcept(fields={5})
+	@OutCardBounds(upperBound=1, lowerBound=1)
 	public static class JoinLiO extends MatchStub
 	{
 		/**
@@ -157,6 +160,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Combinable
 	@ConstantFields(fields={0,1})
+	@OutCardBounds(upperBound=1, lowerBound=1)
 	public static class AggLiO extends ReduceStub
 	{
 		private final PactDouble extendedPrice = new PactDouble();
