@@ -34,7 +34,6 @@ import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-
 /**
  * Describes the base interface that is used for reading from a file input. For specific input types the 
  * <tt>nextRecord()</tt> and <tt>reachedEnd()</tt> methods need to be implemented. Additionally, one may override
@@ -359,7 +358,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 		isot.start();
 		
 		try {
-			isot.waitForCompletion();
+			this.stream = isot.waitForCompletion();
 		}
 		catch (Throwable t) {
 			throw new IOException("Error opening the Input Split " + fileSplit.getPath() + 
@@ -367,7 +366,6 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 		}
 
 		// get FSDataInputStream
-		this.stream = isot.getFSDataInputStream();
 		this.stream.seek(this.splitStart);
 	}
 	
@@ -515,9 +513,11 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 		
 		private final long timeout;
 
-		private volatile FSDataInputStream fdis = null;
+		private volatile FSDataInputStream fdis;
 
-		private volatile Throwable error = null;
+		private volatile Throwable error;
+		
+		private volatile boolean aborted;
 
 		public InputSplitOpenThread(FileInputSplit split, long timeout)
 		{
@@ -526,27 +526,28 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 		}
 
 		@Override
-		public void run() {
+		public void run()
+		{
 			try {
-				FileSystem fs = FileSystem.get(this.split.getPath().toUri());
+				final FileSystem fs = FileSystem.get(this.split.getPath().toUri());
 				this.fdis = fs.open(this.split.getPath());
+				
+				// check for canceling and close the stream in that case, because no one will obtain it
+				if (this.aborted) {
+					final FSDataInputStream f = this.fdis;
+					this.fdis = null;
+					f.close();
+				}
 			}
 			catch (Throwable t) {
 				this.error = t;
 			}
 		}
 		
-		public void waitForCompletion() throws Throwable
+		public FSDataInputStream waitForCompletion() throws Throwable
 		{
-			long start = System.currentTimeMillis();
+			final long start = System.currentTimeMillis();
 			long remaining = this.timeout;
-			
-			if (this.error != null) {
-				throw this.error;
-			}
-			if (this.fdis != null) {
-				return;
-			}
 			
 			do {
 				try {
@@ -560,15 +561,22 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 				throw this.error;
 			}
 			if (this.fdis != null) {
-				return;
+				return this.fdis;
+			} else {
+				this.aborted = true;
+				// double-check that the stream has not been set by now. we don't know here whether
+				// a) the opener thread recognized the canceling and closed the stream
+				// b) the flag was set such that the stream did not see it and we have a valid stream
+				// In any case, close the stream and throw an exception.
+				final FSDataInputStream inStream = this.fdis;
+				this.fdis = null;
+				if (inStream != null) {
+					try {
+						inStream.close();
+					} catch (Throwable t) {}
+				}
+				throw new IOException("Opening request timed out.");
 			}
-			
-			// try to forcefully shut this thread down
-			throw new IOException("Opening request timed out.");
-		}
-
-		public FSDataInputStream getFSDataInputStream() {
-			return this.fdis;
 		}
 	}
 }

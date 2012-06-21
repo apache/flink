@@ -339,10 +339,10 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 					return -1;
 				}
 				else {
-					// path points to an existing file. delete it, to prevent errors appearing
-					// when overwriting the file (HDFS causes non-deterministic errors there)
+					// path points to an existing file. delete it to be able to replace the
+					// file with a directory
 					fs.delete(path, false);
-					return 1;
+					return -1;
 				}
 			}
 			catch (FileNotFoundException fnfex) {
