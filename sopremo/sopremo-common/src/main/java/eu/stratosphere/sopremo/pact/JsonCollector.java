@@ -9,7 +9,7 @@ import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 public class JsonCollector {
-	private Collector collector;
+	private Collector<PactRecord> collector;
 
 	private EvaluationContext context;
 
@@ -30,7 +30,7 @@ public class JsonCollector {
 	 * @param collector
 	 *        the collector to set
 	 */
-	public void configure(final Collector collector, EvaluationContext context) {
+	public void configure(final Collector<PactRecord> collector, EvaluationContext context) {
 		this.collector = collector;
 		this.context = context;
 		this.resultProjection.setInnerExpression(context.getResultProjection());

@@ -48,7 +48,7 @@ public class JoinTest extends SopremoTest<Join> {
 		sopremoPlan.getExpectedOutput(0).
 			addObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance").
 			addObject("Name", "George", "EmpId", 3401, "DeptName", "Finance");
-		sopremoPlan.trace();
+		
 		sopremoPlan.run();
 	}
 
@@ -111,7 +111,7 @@ public class JoinTest extends SopremoTest<Join> {
 			addObject("name", "Jon Doe", "url", "java.sun.com/javase/6/docs/api/", "company", "oracle").
 			addObject("name", "Jane Doe", "url", "www.oracle.com", "company", "oracle").
 			addObject("name", "Max Mustermann", "url", "www.oracle.com", "company", "oracle");
-		sopremoPlan.trace();
+		
 		sopremoPlan.run();
 	}
 

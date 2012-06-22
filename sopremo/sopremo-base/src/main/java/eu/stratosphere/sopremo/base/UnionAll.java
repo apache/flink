@@ -30,7 +30,7 @@ public class UnionAll extends ElementaryOperator<UnionAll> {
 	 * @see eu.stratosphere.sopremo.ElementaryOperator#asPactModule(eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public PactModule asPactModule(EvaluationContext context) {
+	public PactModule asPactModule(EvaluationContext context) {		
 		final List<JsonStream> inputs = this.getInputs();
 		final PactModule module = new PactModule(this.getName(), inputs.size(), 1);
 		// TODO: remove identity map, when Nephele can deal with direct source->sink connections

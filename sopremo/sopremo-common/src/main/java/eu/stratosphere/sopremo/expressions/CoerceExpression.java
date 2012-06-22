@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.TypeCoercer;
-import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
@@ -15,7 +14,7 @@ public class CoerceExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = 1954495592440005318L;
 
-	private final Class<? extends AbstractJsonNode> targetType;
+	private final Class<? extends IJsonNode> targetType;
 
 	private EvaluationExpression valueExpression;
 
@@ -27,7 +26,7 @@ public class CoerceExpression extends EvaluationExpression {
 	 * @param value
 	 *        the expression which evaluates to the result
 	 */
-	public CoerceExpression(final Class<? extends AbstractJsonNode> targetType, final EvaluationExpression value) {
+	public CoerceExpression(final Class<? extends IJsonNode> targetType, final EvaluationExpression value) {
 		this.targetType = targetType;
 		this.valueExpression = value;
 		this.expectedTarget = targetType;
@@ -39,7 +38,7 @@ public class CoerceExpression extends EvaluationExpression {
 	 * @param targetType
 	 *        the class of the node the result should be converted to
 	 */
-	public CoerceExpression(final Class<? extends AbstractJsonNode> targetType) {
+	public CoerceExpression(final Class<? extends IJsonNode> targetType) {
 		this(targetType, EvaluationExpression.VALUE);
 	}
 

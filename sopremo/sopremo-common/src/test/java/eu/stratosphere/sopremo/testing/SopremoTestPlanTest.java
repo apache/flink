@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 import junit.framework.AssertionFailedError;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
@@ -95,6 +96,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 * @throws IOException
 	 */
 	@Test
+	@Ignore
 	public void completeTestPasses() throws IOException {
 		final Source source = new Source(getResourcePath("SopremoTestPlan/test.json"));
 

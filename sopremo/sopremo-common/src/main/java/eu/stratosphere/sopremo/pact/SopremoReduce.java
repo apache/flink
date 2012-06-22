@@ -52,7 +52,7 @@ public abstract class SopremoReduce extends ReduceStub {
 	 * eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void reduce(final Iterator<PactRecord> records, final Collector out) throws Exception {
+	public void reduce(final Iterator<PactRecord> records, final Collector<PactRecord> out) throws Exception {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);
 		this.cachedIterator.setIterator(records);

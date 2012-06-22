@@ -48,7 +48,7 @@ public abstract class SopremoMap extends MapStub {
 	 * .type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void map(final PactRecord record, final Collector out)
+	public void map(final PactRecord record, final Collector<PactRecord> out)
 			throws Exception {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);

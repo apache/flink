@@ -41,7 +41,7 @@ public abstract class SopremoCross extends CrossStub {
 	 * eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void cross(final PactRecord record1, final PactRecord record2, final Collector out) {
+	public void cross(final PactRecord record1, final PactRecord record2, final Collector<PactRecord> out) {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);
 		final IJsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);

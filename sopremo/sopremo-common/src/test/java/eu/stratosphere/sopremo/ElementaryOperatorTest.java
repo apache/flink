@@ -12,6 +12,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
@@ -184,7 +185,21 @@ public class ElementaryOperatorTest {
 	static class OperatorWithUnknownStub extends ElementaryOperator<OperatorWithUnknownStub> {
 		private static final long serialVersionUID = 1L;
 
-		static class Implementation extends Stub {
+		static class Implementation implements Stub {
+
+			/* (non-Javadoc)
+			 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
+			 */
+			@Override
+			public void open(Configuration parameters) throws Exception {
+			}
+
+			/* (non-Javadoc)
+			 * @see eu.stratosphere.pact.common.stubs.Stub#close()
+			 */
+			@Override
+			public void close() throws Exception {
+			}
 		}
 	}
 	
