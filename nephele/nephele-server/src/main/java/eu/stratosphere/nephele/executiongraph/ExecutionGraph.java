@@ -1200,10 +1200,10 @@ public class ExecutionGraph implements ExecutionListener {
 			}
 			break;
 		case CANCELED:
-			LOG.error("Received update of execute state in job status CANCELED");
+			LOG.error("Received update of execute state in job status CANCELED: " + eg.getJobID());
 			break;
 		case FINISHED:
-			LOG.error("Received update of execute state in job status FINISHED");
+			LOG.error("Received update of execute state in job status FINISHED: " + eg.getJobID());
 			break;
 		}
 

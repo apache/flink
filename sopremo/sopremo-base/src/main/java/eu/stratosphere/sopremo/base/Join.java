@@ -18,7 +18,6 @@ import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.BinaryBooleanExpression;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
@@ -65,7 +64,7 @@ public class Join extends CompositeOperator<Join> {
 			throw new IllegalArgumentException("No join condition given");
 
 		this.joinCondition = joinCondition;
-		binaryConditions = expressions;
+		this.binaryConditions = expressions;
 	}
 
 	public Join withResultProjection(EvaluationExpression resultProjection) {
@@ -170,7 +169,7 @@ public class Join extends CompositeOperator<Join> {
 
 	private List<TwoSourceJoin> getInitialJoinOrder(SopremoModule module) {
 		final List<TwoSourceJoin> joins = new ArrayList<TwoSourceJoin>();
-		for (final BinaryBooleanExpression expression : binaryConditions)
+		for (final BinaryBooleanExpression expression : this.binaryConditions)
 			joins.add(this.getTwoSourceJoinForExpression(expression, module));
 
 		// TODO: add some kind of optimization?

@@ -69,6 +69,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 	private static final EvaluationExpression AUTO = new EvaluationExpression() {
 		private static final long serialVersionUID = -5506784974227617703L;
 
+		@Override
 		public IJsonNode set(IJsonNode node, IJsonNode value, EvaluationContext context) {
 			if (node.isObject()) {
 				((IObjectNode) node).put("id", value);
@@ -80,6 +81,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 			return objectNode;
 		}
 
+		@Override
 		public IJsonNode evaluate(IJsonNode node, IJsonNode target, EvaluationContext context) {
 			return node;
 		}
@@ -149,7 +151,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		protected void map(final IJsonNode value, final JsonCollector out) {
 			this.counter.setValue(this.counter.getLongValue() + 1);
 			final IJsonNode id = this.idGeneration.evaluate(this.params, this.getContext());
-			out.collect(this.enumerationExpression.set(value, id, getContext()));
+			out.collect(this.enumerationExpression.set(value, id, this.getContext()));
 		}
 	}
 
