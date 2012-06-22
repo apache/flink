@@ -21,6 +21,7 @@ import java.net.UnknownHostException;
 import java.util.List;
 
 import junit.framework.Assert;
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
@@ -30,7 +31,6 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -62,12 +62,15 @@ class MockInstance extends AbstractInstance {
 	 * @see eu.stratosphere.nephele.instance.AbstractInstance#submitTasks(java.util.List)
 	 */
 	@Override
-	public synchronized List<TaskSubmissionResult> submitTasks(List<TaskSubmissionWrapper> tasks) throws IOException {
+	public synchronized List<TaskSubmissionResult> submitTasks(List<TaskDeploymentDescriptor> tasks) throws IOException {
 		return this.mockTaskManager.submitTasks(tasks);
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.instance.AbstractInstance#cancelTask(eu.stratosphere.nephele.executiongraph.ExecutionVertexID)
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.nephele.instance.AbstractInstance#cancelTask(eu.stratosphere.nephele.executiongraph.ExecutionVertexID
+	 * )
 	 */
 	@Override
 	public synchronized TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException {

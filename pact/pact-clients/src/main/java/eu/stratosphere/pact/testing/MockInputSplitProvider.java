@@ -12,20 +12,29 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-
 package eu.stratosphere.pact.testing;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.type.PactRecord;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public final class IdentityMap extends MapStub
-{
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
-	 */
+import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
+import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.nephele.template.InputSplitProvider;
+
+final class MockInputSplitProvider implements InputSplitProvider {
+	private ExecutionVertex vertex;
+
+	final AtomicInteger sequenceNumber = new AtomicInteger(0);
+
+	private InputSplitManager inputSplitManager;
+
+	public MockInputSplitProvider(InputSplitManager inputSplitManager, ExecutionVertex vertex) {
+		this.vertex = vertex;
+		this.inputSplitManager = inputSplitManager;
+	}
+
 	@Override
-	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
-		out.collect(record);
+	public InputSplit getNextInputSplit() {
+		return this.inputSplitManager.getNextInputSplit(this.vertex, this.sequenceNumber.getAndIncrement());
 	}
 }

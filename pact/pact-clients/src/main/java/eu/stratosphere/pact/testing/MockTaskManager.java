@@ -19,8 +19,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -28,6 +30,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
@@ -40,6 +43,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -49,8 +53,8 @@ import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -60,6 +64,9 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author Arvid Heise
  */
 class MockTaskManager implements TaskOperationProtocol {
+
+	private InputSplitManager inputSplitManager = new InputSplitManager();
+
 	/**
 	 * @author Arvid Heise
 	 */
@@ -102,12 +109,12 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		@Override
 		public void executionStateChanged(final ExecutionState executionState, final String optionalMessage) {
-//			System.out.println(executionState + " @ " + this.id);
+			// System.out.println(executionState + " @ " + this.id);
 			// Don't propagate state CANCELING back to the job manager
 			if (executionState == ExecutionState.CANCELING) {
 				return;
 			}
-			
+
 			final ExecutionGraph eg = MockTaskManager.INSTANCE.jobGraphs.get(this.environment.getJobID());
 			if (eg == null) {
 				LOG.error("Cannot find execution graph for ID " + this.environment.getJobID() + " to change state to "
@@ -154,6 +161,7 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	private static final Log LOG = LogFactory.getLog(MockTaskManager.class);
 
+	// at least 192 mb
 	private static final long MEMORY_SIZE = Math.max(192 << 20, Runtime.getRuntime().maxMemory() / 2);
 
 	private List<RuntimeEnvironment> finishedTasks = new ArrayList<RuntimeEnvironment>();
@@ -174,8 +182,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	private final Map<Environment, TaskObserver> observers = new IdentityHashMap<Environment, TaskObserver>();
 
 	private MockTaskManager() {
-		// 256 mb
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, (int) (MEMORY_SIZE / 10));
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 		// this.memoryManager = new MockMemoryManager();
 		// Initialize the io manager
 		final String tmpDirPath = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
@@ -246,34 +253,51 @@ class MockTaskManager implements TaskOperationProtocol {
 	public void logBufferUtilization() throws IOException {
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#submitTasks(java.util.List)
+	 */
 	@Override
-	public List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks) throws IOException {
+	public List<TaskSubmissionResult> submitTasks(List<TaskDeploymentDescriptor> tasks) throws IOException {
+		final List<TaskSubmissionResult> submissionResultList = new SerializableArrayList<TaskSubmissionResult>();
+		final Map<ExecutionVertexID, RuntimeEnvironment> tasksToStart =
+			new LinkedHashMap<ExecutionVertexID, RuntimeEnvironment>();
 
-		final List<TaskSubmissionResult> resultList = new ArrayList<TaskSubmissionResult>();
+		// Make sure all tasks are fully registered before they are started
+		for (final TaskDeploymentDescriptor tdd : tasks) {
+			final ExecutionVertexID vertexID = tdd.getVertexID();
+			RuntimeEnvironment environment;
+			try {
+				final ExecutionGraph executionGraph = jobGraphs.get(tdd.getJobID());
+				final ExecutionVertex vertex = executionGraph.getVertexByID(vertexID);
+				environment =
+					new RuntimeEnvironment(tdd, this.memoryManager, this.ioManager, new MockInputSplitProvider(
+						this.inputSplitManager, vertex));
+			} catch (Throwable t) {
+				final TaskSubmissionResult result = new TaskSubmissionResult(vertexID,
+					AbstractTaskResult.ReturnCode.DEPLOYMENT_ERROR);
+				result.setDescription(StringUtils.stringifyException(t));
+				LOG.error(result.getDescription());
+				submissionResultList.add(result);
+				continue;
+			}
 
-		for (final TaskSubmissionWrapper tsw : tasks) {
-			ExecutionVertexID id = tsw.getVertexID();
-			RuntimeEnvironment environment = tsw.getEnvironment();
-
-			// Register task manager components in environment
-			environment.setMemoryManager(this.memoryManager);
-			environment.setIOManager(this.ioManager);
-
-			TaskObserver observer = new TaskObserver(id, environment);
+			TaskObserver observer = new TaskObserver(vertexID, environment);
 			environment.setExecutionObserver(observer);
 
 			this.channelManager.registerChannels(environment);
-			this.runningTasks.put(id, environment);
+			this.runningTasks.put(vertexID, environment);
 			this.observers.put(environment, observer);
+			tasksToStart.put(vertexID, environment);
 		}
 
-		for (final TaskSubmissionWrapper tsw : tasks) {
-			final Thread thread = tsw.getEnvironment().getExecutingThread();
+		for (final Entry<ExecutionVertexID, RuntimeEnvironment> task : tasksToStart.entrySet()) {
+			final Thread thread = task.getValue().getExecutingThread();
 			thread.start();
-			resultList.add(new TaskSubmissionResult(tsw.getVertexID(), AbstractTaskResult.ReturnCode.SUCCESS));
+			submissionResultList.add(new TaskSubmissionResult(task.getKey(), AbstractTaskResult.ReturnCode.SUCCESS));
 		}
 
-		return resultList;
+		return submissionResultList;
 	}
 
 	//
@@ -310,19 +334,21 @@ class MockTaskManager implements TaskOperationProtocol {
 	public void killTaskManager() throws IOException {
 	}
 
-	public void addJobGraph(ExecutionGraph eg) {
-		this.jobGraphs.put(eg.getJobID(), eg);
+	public void addJobGraph(ExecutionGraph executionGraph) {
+		this.inputSplitManager.registerJob(executionGraph);
+		this.jobGraphs.put(executionGraph.getJobID(), executionGraph);
 	}
 
 	/**
 	 * @param executionGraph
 	 */
-	public void cleanupJob(@SuppressWarnings("unused") ExecutionGraph executionGraph) {
+	public void cleanupJob(ExecutionGraph executionGraph) {
 		for (RuntimeEnvironment task : this.finishedTasks) {
 			this.channelManager.unregisterChannels(task);
 			this.observers.remove(task);
 		}
 		this.finishedTasks.clear();
+		this.inputSplitManager.unregisterJob(executionGraph);
 	}
 
 	/*

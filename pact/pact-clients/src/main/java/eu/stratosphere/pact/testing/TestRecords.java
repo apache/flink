@@ -38,9 +38,14 @@ import org.junit.internal.ArrayComparisonFailure;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.util.StringUtils;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FormatUtil;
 import eu.stratosphere.pact.common.io.SequentialOutputFormat;
@@ -49,6 +54,9 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -297,11 +305,12 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 			if (info == null)
 				return inputFileIterator;
 			@SuppressWarnings("unchecked")
-			final UnilateralSortMerger sortMerger = new UnilateralSortMerger(
-				MockTaskManager.INSTANCE.getMemoryManager(), MockTaskManager.INSTANCE.getIoManager(), totalMemory,
-				numFileHandles, info.comparators.toArray(new Comparator[0]), info.sortKeys.toIntArray(),
-				info.keyClasses.toArray(new Class[0]), new TestPairsReader(inputFileIterator), parentTask, 0.7f);
-
+			final PactRecordComparator pactRecordComparator = new PactRecordComparator(info.sortKeys.toIntArray(),
+				info.keyClasses.toArray(new Class[0]));
+			final UnilateralSortMerger<PactRecord> sortMerger =
+				new UnilateralSortMerger<PactRecord>(MockTaskManager.INSTANCE.getMemoryManager(),
+					MockTaskManager.INSTANCE.getIoManager(), new TestPairsReader(inputFileIterator), parentTask,
+					PactRecordSerializer.get(), pactRecordComparator, totalMemory, numFileHandles, 0.7f);
 			this.closableManager.add(sortMerger);
 
 			// obtain and return a grouped iterator from the sort-merger

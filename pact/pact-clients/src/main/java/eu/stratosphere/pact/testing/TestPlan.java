@@ -263,7 +263,7 @@ public class TestPlan implements Closeable {
 	public TestPlan(final Collection<? extends Contract> contracts) {
 		this(contracts.toArray(new Contract[contracts.size()]));
 	}
-	
+
 	/**
 	 * Returns all {@link GenericDataSink}s of this test plan.
 	 * 
@@ -272,7 +272,7 @@ public class TestPlan implements Closeable {
 	public List<FileDataSink> getSinks() {
 		return this.sinks;
 	}
-	
+
 	/**
 	 * Returns the sources.
 	 * 
@@ -644,7 +644,7 @@ public class TestPlan implements Closeable {
 		final OptimizedPlan optimizedPlan = this.compile(plan);
 		this.replaceShippingStrategy(optimizedPlan);
 		final JobGraph jobGraph = new JobGraphGenerator().compileJobGraph(optimizedPlan);
-		for(AbstractJobVertex vertex : jobGraph.getAllJobVertices())
+		for (AbstractJobVertex vertex : jobGraph.getAllJobVertices())
 			vertex.setNumberOfExecutionRetries(0);
 		LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
 		return new ExecutionGraph(jobGraph, MockInstanceManager.INSTANCE);
@@ -662,11 +662,9 @@ public class TestPlan implements Closeable {
 		// PactConnection.class.getDeclaredField("shipStrategy");
 		// declaredField.setAccessible(true);
 		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
-			for (final List<PactConnection> pactConnections : node.getIncomingConnections())
-				for (PactConnection pactConnection : pactConnections)
-					// declaredField.set(pactConnection, ShipStrategy.FORWARD);
-					pactConnection.setShipStrategy(ShipStrategy.FORWARD);
-			for (final PactConnection pactConnection : node.getOutgoingConnections())
+			for (final PactConnection pactConnection : node.getIncomingConnections())
+				pactConnection.setShipStrategy(ShipStrategy.FORWARD);
+			for (final PactConnection pactConnection : node.getOutConns())
 				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
 				pactConnection.setShipStrategy(ShipStrategy.FORWARD);
 		}
@@ -1112,7 +1110,7 @@ public class TestPlan implements Closeable {
 			throw new IllegalStateException("Cannot create temporary file for prefix " + prefix, e);
 		}
 	}
-	
+
 	@Override
 	public void close() throws IOException {
 		ClosableManager closableManager = new ClosableManager();

@@ -27,7 +27,7 @@ public class FuzzyTestPlanTest {
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			PactDouble value = record.getField(1, PactDouble.class);
 			value.setValue((int) (value.getValue() * 100) / 100d);
 			out.collect(record);
