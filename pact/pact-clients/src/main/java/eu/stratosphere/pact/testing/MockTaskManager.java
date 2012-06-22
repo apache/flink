@@ -142,7 +142,7 @@ class MockTaskManager implements TaskOperationProtocol {
 
 			if (executionState == ExecutionState.CANCELED || executionState == ExecutionState.FINISHED
 				|| executionState == ExecutionState.FAILED)
-				MockTaskManager.this.finishedTasks.add(this.environment);
+				MockTaskManager.this.finishedTasks.put(this.id, this.environment);
 		}
 
 		/**
@@ -161,10 +161,10 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	private static final Log LOG = LogFactory.getLog(MockTaskManager.class);
 
-	// at least 192 mb
-	private static final long MEMORY_SIZE = Math.max(192 << 20, Runtime.getRuntime().maxMemory() / 2);
+	// at least 128 mb
+	private static final long MEMORY_SIZE = Math.max(128 << 20, Runtime.getRuntime().maxMemory() / 2);
 
-	private List<RuntimeEnvironment> finishedTasks = new ArrayList<RuntimeEnvironment>();
+	private Map<ExecutionVertexID, RuntimeEnvironment> finishedTasks = new HashMap<ExecutionVertexID, RuntimeEnvironment>();
 
 	public static final MockTaskManager INSTANCE = new MockTaskManager();
 
@@ -196,7 +196,7 @@ class MockTaskManager implements TaskOperationProtocol {
 		RuntimeEnvironment environment = this.runningTasks.get(id);
 		final Thread executingThread = environment.getExecutingThread();
 
-		this.finishedTasks.add(environment);
+		this.finishedTasks.put(id, environment);
 		this.observers.get(environment).cancel();
 		// Request user code to shut down
 		try {
@@ -343,12 +343,16 @@ class MockTaskManager implements TaskOperationProtocol {
 	 * @param executionGraph
 	 */
 	public void cleanupJob(ExecutionGraph executionGraph) {
-		for (RuntimeEnvironment task : this.finishedTasks) {
-			this.channelManager.unregisterChannels(task);
-			this.observers.remove(task);
+		for (Entry<ExecutionVertexID, RuntimeEnvironment> task : this.finishedTasks.entrySet()) {
+			this.channelManager.unregisterChannels(task.getValue());
+			this.observers.remove(task.getValue());
+			this.runningTasks.remove(task.getKey());
 		}
 		this.finishedTasks.clear();
 		this.inputSplitManager.unregisterJob(executionGraph);
+		this.jobGraphs.remove(executionGraph.getJobID());
+		System.out.println("cleaning " + executionGraph.getJobID());
+		System.out.println("remaining runningtasks " + this.runningTasks.size());
 	}
 
 	/*
