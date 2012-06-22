@@ -17,7 +17,6 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -102,13 +101,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 		// copy input connection
 		this.inConn = new PactConnection(inConn, predNode, this);
 		
-		// copy the child's branch-plan map
-		if(predNode.branchPlan != null && predNode.branchPlan.size() > 0) {
-			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(predNode.branchPlan);
-		} else {
-			this.branchPlan = null;
+		if (this.branchPlan == null) {
+			this.branchPlan = predNode.branchPlan;
+		} else if (predNode.branchPlan != null) {
+			this.branchPlan.putAll(predNode.branchPlan);
 		}
-
 	}
 
 	/**
