@@ -31,6 +31,8 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface Singleton {
+public @interface DegreeOfParallelism {
+	
+	int value();
 
 }

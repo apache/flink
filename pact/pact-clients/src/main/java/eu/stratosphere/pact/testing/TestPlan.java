@@ -562,7 +562,8 @@ public class TestPlan implements Closeable {
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
-				visitable.setDegreeOfParallelism(degree);
+				if (visitable.getDegreeOfParallelism() == -1)
+					visitable.setDegreeOfParallelism(degree);
 				return true;
 			}
 		});

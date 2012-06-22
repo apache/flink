@@ -43,6 +43,7 @@ public class SelectFrequentItemsTest {
 		selectFrequentItems.setMinSupport(3);
 
 		final SopremoTestPlan plan = new SopremoTestPlan(selectFrequentItems);
+		plan.setDegreeOfParallelism(4);
 		final List<IJsonNode> baskets = Baskets.loadBaskets(SMALL_BASKETS_PATH);
 
 		for (final IJsonNode basket : baskets)
