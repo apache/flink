@@ -23,7 +23,6 @@ import eu.stratosphere.sopremo.sdaa11.clustering.json.ClusterNodes;
 import eu.stratosphere.sopremo.sdaa11.clustering.json.RepresentationNodes;
 import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -42,8 +41,6 @@ public class ClusterToTreePreparation extends
 		ElementaryOperator<ClusterToTreePreparation> {
 
 	private static final long serialVersionUID = -5035298968776097883L;
-
-	private static final IntNode DUMMY_ANNOTATION = new IntNode(42);
 
 	public static class Implementation extends SopremoMap {
 
@@ -65,7 +62,7 @@ public class ClusterToTreePreparation extends
 			final ObjectNode clustroidNode = ClusterNodes
 					.getClustroid(clusterNode);
 			RepresentationNodes.write(this.outputNode, idNode, clustroidNode);
-			AnnotatorNodes.flatAnnotate(this.outputNode, DUMMY_ANNOTATION);
+			AnnotatorNodes.flatAnnotate(this.outputNode);
 
 			out.collect(this.outputNode);
 		}

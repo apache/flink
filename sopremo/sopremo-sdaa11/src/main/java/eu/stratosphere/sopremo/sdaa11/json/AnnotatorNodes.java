@@ -27,9 +27,10 @@ import eu.stratosphere.sopremo.type.ObjectNode;
  */
 public class AnnotatorNodes {
 
-	public static final String ANNOTATEE = "value";
-	public static final String ANNOTATION = "key";
-	public static final String FLAT_ANNOTATION = "__key__";
+	public static final String ANNOTATEE = "_value";
+	public static final String ANNOTATION = "_key";
+	public static final String FLAT_ANNOTATION = ANNOTATION;
+	public static final IntNode ZERO = new IntNode(0);
 
 	public static void annotate(final ObjectNode node,
 			final IntNode annotation, final IJsonNode annotatee) {
@@ -50,6 +51,10 @@ public class AnnotatorNodes {
 
 	public static IJsonNode getAnnotatee(final ObjectNode annotatorNode) {
 		return annotatorNode.get(ANNOTATEE);
+	}
+
+	public static void flatAnnotate(final ObjectNode node) {
+		flatAnnotate(node, ZERO);
 	}
 
 	public static void flatAnnotate(final ObjectNode node,

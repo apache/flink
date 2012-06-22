@@ -23,7 +23,6 @@ import eu.stratosphere.sopremo.sdaa11.clustering.json.RepresentationNodes;
 import eu.stratosphere.sopremo.sdaa11.json.AnnotatorNodes;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -45,15 +44,13 @@ public class TreeAssemblerTest {
 		final ObjectNode point2 = (ObjectNode) new Point("p3", Arrays.asList(
 				"1", "2", "3")).write(null);
 
-		final IntNode dummyKey = new IntNode(42);
-
 		final ObjectNode cluster1 = new ObjectNode();
 		RepresentationNodes.write(cluster1, new TextNode("c1"), point1);
-		AnnotatorNodes.flatAnnotate(cluster1, dummyKey);
+		AnnotatorNodes.flatAnnotate(cluster1);
 
 		final ObjectNode cluster2 = new ObjectNode();
 		RepresentationNodes.write(cluster2, new TextNode("c2"), point2);
-		AnnotatorNodes.flatAnnotate(cluster2, dummyKey);
+		AnnotatorNodes.flatAnnotate(cluster2);
 
 		plan.getInput(0).add(cluster1).add(cluster2);
 

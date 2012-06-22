@@ -55,7 +55,8 @@ public class Baskets {
 				basketNodes.add(parser.readValueAsTree());
 			return basketNodes;
 		} finally {
-			reader.close();
+			if (reader != null)
+				reader.close();
 		}
 	}
 
