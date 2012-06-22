@@ -44,6 +44,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 public class DataSourceNode extends OptimizerNode
 {
 	private List<OptimizerNode> cachedPlans; // the cache in case there are multiple outputs;
+	
+	private long inputSize; //the size of the input in bytes
 
 	/**
 	 * Creates a new DataSourceNode for the given contract.
@@ -128,6 +130,7 @@ public class DataSourceNode extends OptimizerNode
 		
 		// initialize basic estimates to unknown
 		this.estimatedOutputSize = -1;
+		this.inputSize = -1;
 		this.estimatedNumRecords = -1;
 
 		// see, if we have a statistics object that can tell us a bit about the file
@@ -173,30 +176,25 @@ public class DataSourceNode extends OptimizerNode
 						PactCompiler.LOG.warn("Pact compiler could not determine the size of input '" + inFormatDescription + "'.");
 				}
 				else if (len >= 0) {
-					this.estimatedOutputSize = len;
+					this.inputSize = len;
 				}
 
 				
-				if (hints.getAvgBytesPerRecord() > 0 && this.estimatedOutputSize > 0) {
-					this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgBytesPerRecord());
+				final float avgBytes = bs.getAverageRecordWidth();
+				if (avgBytes > 0.0f && hints.getAvgBytesPerRecord() < 1.0f) {
+					hints.setAvgBytesPerRecord(avgBytes);
 				}
-				else {
-					final float avgBytes = bs.getAverageRecordWidth();
-					if (avgBytes > 0.0f && hints.getAvgBytesPerRecord() < 1.0f) {
-						hints.setAvgBytesPerRecord(avgBytes);
-					}
-					
-					final long card = bs.getNumberOfRecords();
-					if (card != BaseStatistics.UNKNOWN) {
-						this.estimatedNumRecords = card;
-					}
+				
+				final long card = bs.getNumberOfRecords();
+				if (card != BaseStatistics.UNKNOWN) {
+					this.estimatedNumRecords = card;
 				}
 			}
 		}
 
 		// the estimated number of rows is depending on the average row width
-		if (this.estimatedNumRecords == -1 && hints.getAvgBytesPerRecord() >= 1.0f && this.estimatedOutputSize > 0) {
-			this.estimatedNumRecords = (long) (this.estimatedOutputSize / hints.getAvgBytesPerRecord()) + 1;
+		if (this.estimatedNumRecords == -1 && hints.getAvgBytesPerRecord() != -1.0f && this.inputSize > 0) {
+			this.estimatedNumRecords = (long) (this.inputSize / hints.getAvgBytesPerRecord()) + 1;
 		}
 
 		// the key cardinality is either explicitly specified, derived from an avgNumValuesPerKey hint, 
@@ -239,9 +237,12 @@ public class DataSourceNode extends OptimizerNode
 		
 		
 		// Estimate output size
-		if (this.estimatedOutputSize == -1 && this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() >= 1.0f) {
+		if (this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1.0f) {
 			this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) >= 1 ? 
 				(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
+		}
+		else {
+			this.estimatedOutputSize = this.inputSize;
 		}
 	}
 
@@ -288,7 +289,7 @@ public class DataSourceNode extends OptimizerNode
 		DataSourceNode candidate = new DataSourceNode(this, gp, lp);
 
 		// compute the costs
-		candidate.setCosts(new Costs(0, this.estimatedOutputSize));
+		candidate.setCosts(new Costs(0, this.inputSize));
 
 		// since there is only a single plan for the data-source, return a list with that element only
 		List<OptimizerNode> plans = new ArrayList<OptimizerNode>(1);
