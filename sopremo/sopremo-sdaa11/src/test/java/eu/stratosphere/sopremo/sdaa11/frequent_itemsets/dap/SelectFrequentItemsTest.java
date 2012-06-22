@@ -66,9 +66,10 @@ public class SelectFrequentItemsTest {
 		plan.getExpectedOutput(0).add(expectedNode);
 
 		plan.run();
-		
+
 		int count = 0;
-		for (@SuppressWarnings("unused") IJsonNode node : plan.getActualOutput(0))
+		for (@SuppressWarnings("unused")
+		final IJsonNode node : plan.getActualOutput(0))
 			count++;
 		Assert.assertEquals(2, count);
 	}

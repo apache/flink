@@ -53,8 +53,8 @@ public class GroupFrequentItemsetsTest {
 		for (final IJsonNode basket : baskets)
 			plan.getInput(0).add(basket);
 
-		ObjectNode expectedNode = new ObjectNode();
-		IArrayNode itemsetsNode = new ArrayNode();
+		final ObjectNode expectedNode = new ObjectNode();
+		final IArrayNode itemsetsNode = new ArrayNode();
 		IArrayNode itemsNode = new ArrayNode();
 		itemsNode.add(new TextNode("apple"));
 		itemsetsNode.add(itemsNode);
@@ -64,11 +64,11 @@ public class GroupFrequentItemsetsTest {
 		FrequentItemsetListNodes.write(expectedNode, itemsetsNode);
 		plan.getExpectedOutput(0).add(expectedNode);
 
-		
 		plan.run();
-		
+
 		int count = 0;
-		for (@SuppressWarnings("unused") IJsonNode node : plan.getActualOutput(0))
+		for (@SuppressWarnings("unused")
+		final IJsonNode node : plan.getActualOutput(0))
 			count++;
 		Assert.assertEquals(1, count);
 	}
@@ -87,8 +87,7 @@ public class GroupFrequentItemsetsTest {
 		 */
 		@Override
 		public ElementarySopremoModule asElementaryOperators() {
-			final SopremoModule module = new SopremoModule(
-					this.getName(), 1, 1);
+			final SopremoModule module = new SopremoModule(this.getName(), 1, 1);
 			final Source input = module.getInput(0);
 			final SelectFrequentItems selectFrequentItems = new SelectFrequentItems()
 					.withInputs(input);
