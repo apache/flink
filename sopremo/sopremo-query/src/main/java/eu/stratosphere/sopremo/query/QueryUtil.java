@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.util;
+package eu.stratosphere.sopremo.query;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

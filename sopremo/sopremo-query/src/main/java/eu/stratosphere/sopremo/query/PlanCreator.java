@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.util;
+package eu.stratosphere.sopremo.query;
 
 import java.io.InputStream;
 

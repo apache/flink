@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.util;
+package eu.stratosphere.sopremo.query;
 
 import org.antlr.runtime.RecognitionException;
 import org.antlr.runtime.Token;
