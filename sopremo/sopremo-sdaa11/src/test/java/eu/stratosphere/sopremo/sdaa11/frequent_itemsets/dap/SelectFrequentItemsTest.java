@@ -17,6 +17,8 @@ package eu.stratosphere.sopremo.sdaa11.frequent_itemsets.dap;
 import java.io.IOException;
 import java.util.List;
 
+import junit.framework.Assert;
+
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.sdaa11.frequent_itemsets.son.json.BasketNodes;
@@ -64,6 +66,11 @@ public class SelectFrequentItemsTest {
 		plan.getExpectedOutput(0).add(expectedNode);
 
 		plan.run();
+		
+		int count = 0;
+		for (@SuppressWarnings("unused") IJsonNode node : plan.getActualOutput(0))
+			count++;
+		Assert.assertEquals(2, count);
 	}
 
 }
