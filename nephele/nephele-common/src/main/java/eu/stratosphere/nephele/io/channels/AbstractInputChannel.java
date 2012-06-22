@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -41,22 +39,25 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public abstract class AbstractInputChannel<T extends Record> extends AbstractChannel {
 
-	private InputGate<T> inputGate = null;
+	private final InputGate<T> inputGate;
 
 	/**
 	 * Constructs an input channel with a given input gate associated.
 	 * 
 	 * @param inputGate
+	 *        the input gate this channel is connected to
 	 * @param channelIndex
-	 *        the channel's index at the associated input gate
+	 *        the index of the channel in the input gate
 	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 *        the ID of the channel
+	 * @param connectedChannelID
+	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 */
-	public AbstractInputChannel(InputGate<T> inputGate, int channelIndex, ChannelID channelID,
-			CompressionLevel compressionLevel) {
-		super(channelIndex, channelID, compressionLevel);
+	protected AbstractInputChannel(final InputGate<T> inputGate, final int channelIndex, final ChannelID channelID,
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
+		super(channelIndex, channelID, connectedChannelID, compressionLevel);
 		this.inputGate = inputGate;
 	}
 
@@ -80,18 +81,6 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 *         thrown if the input channel is already closed {@link EOFException} or a transmission error has occurred
 	 */
 	public abstract T readRecord(T target) throws IOException;
-
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		super.read(in);
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		super.write(out);
-	}
 
 	/**
 	 * Immediately closes the input channel. The corresponding output channels are

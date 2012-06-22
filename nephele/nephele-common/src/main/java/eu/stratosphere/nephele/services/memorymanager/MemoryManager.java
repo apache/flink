@@ -15,12 +15,10 @@
 
 package eu.stratosphere.nephele.services.memorymanager;
 
-
 import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.nephele.template.AbstractInvokable;
-
 
 /**
  * Interface for a memory manager that assigns portions of memory to different tasks. Each allocated segment of
@@ -32,28 +30,17 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
  * be assigned to other tasks.
  *
  * @author Alexander Alexandrov
+ * @author Stephan Ewen
  */
-public interface MemoryManager {
+public interface MemoryManager
+{
+	List<MemorySegment> allocatePages(AbstractInvokable owner, int numPages) throws MemoryAllocationException;
 	
-	/**
-	 * 
-	 * 
-	 * @param owner The task that owns the allocated segments. If {@link #releaseAll(AbstractInvokable) is called
-	 *              with this task as the parameter, the here allocated memory segments are freed.
-	 * @param totalMemory The total memory, in bytes, to be allocated.
-	 * @param minNumSegments The minimum number of segments to allocate.
-	 * @param minSegmentSize The minimum size that a segment may have.
-	 * @return A list of {@link MemorySegment}, at least <code>minNumSegments</code>, whose sizes sum up to
-	 *         <code>totalMemory</code>.
-	 * @throws MemoryAllocationException Thrown, if the total amount of memory requested is not available, of if
-	 *                                   allocating that much memory would require to create segments below the
-	 *                                   specified minimal segment size.
-	 */
-	List<MemorySegment> allocate(AbstractInvokable owner, long totalMemory, int minNumSegments, int minSegmentSize)
-	throws MemoryAllocationException;
+	void allocatePages(AbstractInvokable owner, List<MemorySegment> target, int numPages) throws MemoryAllocationException;
 	
-	List<MemorySegment> allocateStrict(AbstractInvokable owner, int numSegments, int segmentSize)
-	throws MemoryAllocationException;
+	List<MemorySegment> allocatePages(AbstractInvokable owner, long numBytes) throws MemoryAllocationException;
+	
+	void allocatePages(AbstractInvokable owner, List<MemorySegment> target, long numBytes) throws MemoryAllocationException;
 	
 	/**
 	 * Tries to release the memory for the specified segment. If the <code>segment</code> has already been released or
@@ -81,8 +68,36 @@ public interface MemoryManager {
 	 * @param <T> The type of memory segment.
 	 * @param task The task whose memory segments are to be released.
 	 */
-	<T extends MemorySegment> void releaseAll(AbstractInvokable task);
+	void releaseAll(AbstractInvokable task);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the size of the pages handled by the memory manager.
+	 * 
+	 * @return The size of the pages handled by the memory manager.
+	 */
+	int getPageSize();
+	
+	/**
+	 * Computes to how many pages the given number of bytes corresponds. If the given number of bytes is not an
+	 * exact multiple of a page size, the result is rounded down, such that a portion of the memory (smaller
+	 * than the page size) is not included.
+	 * 
+	 * @param numBytes The number of bytes to convert to a page count.
+	 * @return The number of pages to which 
+	 */
+	int computeNumberOfPages(long numBytes);
+	
+	/**
+	 * Rounds the given value down to a multiple of the memory manager's page size.
+	 * 
+	 * @return The given value, rounded down to a multiple of the page size.
+	 */
+	long roundDownToPageSizeMultiple(long numBytes);
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Shuts the memory manager down, trying to release all the memory it managed. Depending
 	 * on implementation details, the memory does not necessarily become reclaimable by the

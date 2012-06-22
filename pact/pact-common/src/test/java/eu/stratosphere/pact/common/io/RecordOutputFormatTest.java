@@ -10,6 +10,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
+import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,365 +52,394 @@ public class RecordOutputFormatTest {
 	@Test
 	public void testConfigure() 
 	{
-		
-		Configuration config = new Configuration();
-		config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
-		
-		// check missing number of fields
-		boolean validConfig = true;
 		try {
-			format.configure(config);
-		} catch(IllegalArgumentException iae) {
-			validConfig = false;
-		}
-		assertFalse(validConfig);
-		
-		// check missing file parser
-		config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		validConfig = true;
-		try {
-			format.configure(config);
-		} catch(IllegalArgumentException iae) {
-			validConfig = false;
-		}
-		assertFalse(validConfig);
-		
-		// check valid config
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-		validConfig = true;
-		try {
-			format.configure(config);
-		} catch(IllegalArgumentException iae) {
-			validConfig = false;
-		}
-		assertTrue(validConfig);
-		
-		// check invalid file parser config
-		config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
-		validConfig = true;
-		try {
-			format.configure(config);
-		} catch(IllegalArgumentException iae) {
-			validConfig = false;
-		}
-		assertFalse(validConfig);
-		
-		// check valid config
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactString.class);
-		validConfig = true;
-		try {
-			format.configure(config);
-		} catch(IllegalArgumentException iae) {
-			validConfig = false;
-		}
-		assertTrue(validConfig);
-		
-		// check valid config
-		config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		validConfig = true;
-		try {
-			format.configure(config);
-		} catch(IllegalArgumentException iae) {
-			validConfig = false;
-			System.out.println(iae.getMessage());
-		}
-		assertTrue(validConfig);
-		
-		// check invalid text pos config
-		config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
-		validConfig = true;
-		try {
-			format.configure(config);
-		} catch(IllegalArgumentException iae) {
-			validConfig = false;
-		}
-		assertFalse(validConfig);
-		
-		// check valid text pos config
-		config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 3);
-		config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 9);
-		validConfig = true;
-		try {
-			format.configure(config);
-		} catch(IllegalArgumentException iae) {
-			validConfig = false;
-		}
-		assertTrue(validConfig);
-	}
-	
-	@SuppressWarnings("deprecation")
-	@Test
-	public void testWriteNoRecPosNoLenient() {
-		
-		Configuration config = new Configuration();
-		config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
-		config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-		
-		format.configure(config);
-		
-		try {
-			format.open(0);
-		} catch (IOException e) {
-			fail(e.getMessage());
-		}
-		
-		PactRecord r = new PactRecord(2);
-		
-		try {
-			r.setField(0, new PactString("Hello World"));
-			r.setField(1, new PactInteger(42));
-			format.writeRecord(r);
+			Configuration config = new Configuration();
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
 			
-			r.setField(0, new PactString("AbCdE"));
-			r.setField(1, new PactInteger(13));
-			format.writeRecord(r);
+			// check missing number of fields
+			boolean validConfig = true;
+			try {
+				format.configure(config);
+			} catch(IllegalArgumentException iae) {
+				validConfig = false;
+			}
+			assertFalse(validConfig);
 			
-			format.close();
+			// check missing file parser
+			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+			validConfig = true;
+			try {
+				format.configure(config);
+			} catch(IllegalArgumentException iae) {
+				validConfig = false;
+			}
+			assertFalse(validConfig);
 			
-			DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
+			// check valid config
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+			validConfig = true;
+			try {
+				format.configure(config);
+			} catch(IllegalArgumentException iae) {
+				validConfig = false;
+			}
+			assertTrue(validConfig);
 			
-			assertTrue((dis.readLine()+"\n").equals("Hello World|42\n"));
-			assertTrue((dis.readLine()+"\n").equals("AbCdE|13\n"));
+			// check invalid file parser config
+			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
+			validConfig = true;
+			try {
+				format.configure(config);
+			} catch(IllegalArgumentException iae) {
+				validConfig = false;
+			}
+			assertFalse(validConfig);
 			
-		} catch (IOException e) {
-			fail(e.getMessage());
+			// check valid config
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactString.class);
+			validConfig = true;
+			try {
+				format.configure(config);
+			} catch(IllegalArgumentException iae) {
+				validConfig = false;
+			}
+			assertTrue(validConfig);
+			
+			// check valid config
+			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			validConfig = true;
+			try {
+				format.configure(config);
+			} catch(IllegalArgumentException iae) {
+				validConfig = false;
+				System.out.println(iae.getMessage());
+			}
+			assertTrue(validConfig);
+			
+			// check invalid text pos config
+			config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
+			validConfig = true;
+			try {
+				format.configure(config);
+			} catch(IllegalArgumentException iae) {
+				validConfig = false;
+			}
+			assertFalse(validConfig);
+			
+			// check valid text pos config
+			config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 3);
+			config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 9);
+			validConfig = true;
+			try {
+				format.configure(config);
+			} catch(IllegalArgumentException iae) {
+				validConfig = false;
+			}
+			assertTrue(validConfig);
 		}
-		
-	}
-	
-	@Test
-	public void testWriteNoRecPosNoLenientFail() {
-		
-		Configuration config = new Configuration();
-		config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
-		config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-		
-		format.configure(config);
-		
-		try {
-			format.open(0);
-		} catch (IOException e) {
-			fail(e.getMessage());
-		}
-		
-		PactRecord r = new PactRecord(2);
-		
-		boolean success = true;
-		
-		try {
-			r.setField(0, new PactString("Hello World"));
-			r.setField(1, new PactInteger(42));
-			format.writeRecord(r);
-			
-			r.setNull(0);
-			r.setField(1, new PactInteger(13));
-			format.writeRecord(r);
-			
-			format.close();
-						
-		} catch (IOException e) {
-			success = false;
-		} catch (RuntimeException re) {
-			success = false;
-		}
-		
-		assertFalse(success);
-		
-	}
-	
-	@SuppressWarnings("deprecation")
-	@Test
-	public void testWriteNoRecPosLenient() {
-		
-		Configuration config = new Configuration();
-		config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
-		config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-		config.setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-		
-		format.configure(config);
-		
-		try {
-			format.open(0);
-		} catch (IOException e) {
-			fail(e.getMessage());
-		}
-		
-		PactRecord r = new PactRecord(2);
-		
-		try {
-			r.setField(0, new PactString("Hello World"));
-			r.setField(1, new PactInteger(42));
-			format.writeRecord(r);
-			
-			r.setNull(0);
-			r.setField(1, new PactInteger(13));
-			format.writeRecord(r);
-			
-			format.close();
-			
-			DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
-			
-			assertTrue((dis.readLine()+"\n").equals("Hello World|42\n"));
-			assertTrue((dis.readLine()+"\n").equals("|13\n"));
-			
-		} catch (IOException e) {
-			fail(e.getMessage());
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
 	
 	@SuppressWarnings("deprecation")
 	@Test
-	public void testWriteRecPosNoLenient() {
-		
-		Configuration config = new Configuration();
-		config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
-		config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
-		config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
-		
-		format.configure(config);
-		
+	public void testWriteNoRecPosNoLenient()
+	{
 		try {
-			format.open(0);
-		} catch (IOException e) {
-			fail(e.getMessage());
+			Configuration config = new Configuration();
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+			
+			format.configure(config);
+			
+			try {
+				format.open(0);
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
+			
+			PactRecord r = new PactRecord(2);
+			
+			try {
+				r.setField(0, new PactString("Hello World"));
+				r.setField(1, new PactInteger(42));
+				format.writeRecord(r);
+				
+				r.setField(0, new PactString("AbCdE"));
+				r.setField(1, new PactInteger(13));
+				format.writeRecord(r);
+				
+				format.close();
+				
+				DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
+				
+				assertTrue((dis.readLine()+"\n").equals("Hello World|42\n"));
+				assertTrue((dis.readLine()+"\n").equals("AbCdE|13\n"));
+				
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
 		}
-		
-		PactRecord r = new PactRecord(2);
-		
-		try {
-			r.setField(0, new PactString("Hello World"));
-			r.setField(1, new PactInteger(42));
-			r.setField(2, new PactString("Hello User"));
-			format.writeRecord(r);
-			
-			r.setField(0, new PactString("AbCdE"));
-			r.setField(1, new PactInteger(13));
-			r.setField(2, new PactString("ZyXvW"));
-			format.writeRecord(r);
-			
-			format.close();
-			
-			DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
-			
-			assertTrue((dis.readLine()+"\n").equals("Hello User|Hello World\n"));
-			assertTrue((dis.readLine()+"\n").equals("ZyXvW|AbCdE\n"));
-			
-		} catch (IOException e) {
-			fail(e.getMessage());
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
-		
 	}
 	
 	@Test
-	public void testWriteRecPosNoLenientFail() {
-		
-		Configuration config = new Configuration();
-		config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
-		config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
-		config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
-		
-		format.configure(config);
-		
+	public void testWriteNoRecPosNoLenientFail()
+	{
 		try {
-			format.open(0);
-		} catch (IOException e) {
-			fail(e.getMessage());
+			Configuration config = new Configuration();
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+			
+			format.configure(config);
+			
+			try {
+				format.open(0);
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
+			
+			PactRecord r = new PactRecord(2);
+			
+			boolean success = true;
+			
+			try {
+				r.setField(0, new PactString("Hello World"));
+				r.setField(1, new PactInteger(42));
+				format.writeRecord(r);
+				
+				r.setNull(0);
+				r.setField(1, new PactInteger(13));
+				format.writeRecord(r);
+				
+				format.close();
+							
+			} catch (IOException e) {
+				success = false;
+			} catch (RuntimeException re) {
+				success = false;
+			}
+			
+			assertFalse(success);
 		}
-		
-		PactRecord r = new PactRecord(2);
-		
-		boolean success = true;
-		
-		try {
-			r.setField(0, new PactString("Hello World"));
-			r.setField(1, new PactInteger(42));
-			r.setField(2, new PactString("Hello User"));
-			format.writeRecord(r);
-
-			r = new PactRecord();
-			
-			r.setField(0, new PactString("AbCdE"));
-			r.setField(1, new PactInteger(13));
-			format.writeRecord(r);
-			
-			format.close();
-			
-		} catch (IOException e) {
-			success = false;
-		} catch (RuntimeException re) {
-			success = false;
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
-		
-		assertFalse(success);
-		
 	}
 	
 	@SuppressWarnings("deprecation")
 	@Test
-	public void testWriteRecPosLenient() {
-		
-		Configuration config = new Configuration();
-		config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
-		config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
-		config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
-		config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
-		config.setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-		
-		format.configure(config);
-		
+	public void testWriteNoRecPosLenient()
+	{
 		try {
-			format.open(0);
-		} catch (IOException e) {
-			fail(e.getMessage());
+			Configuration config = new Configuration();
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+			config.setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
+			
+			format.configure(config);
+			
+			try {
+				format.open(0);
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
+			
+			PactRecord r = new PactRecord(2);
+			
+			try {
+				r.setField(0, new PactString("Hello World"));
+				r.setField(1, new PactInteger(42));
+				format.writeRecord(r);
+				
+				r.setNull(0);
+				r.setField(1, new PactInteger(13));
+				format.writeRecord(r);
+				
+				format.close();
+				
+				DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
+				
+				assertTrue((dis.readLine()+"\n").equals("Hello World|42\n"));
+				assertTrue((dis.readLine()+"\n").equals("|13\n"));
+				
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
 		}
-		
-		PactRecord r = new PactRecord(2);
-		
-		try {
-			r.setField(0, new PactString("Hello World"));
-			r.setField(1, new PactInteger(42));
-			r.setField(2, new PactString("Hello User"));
-			format.writeRecord(r);
-
-			r = new PactRecord();
-			
-			r.setField(0, new PactString("AbCdE"));
-			r.setField(1, new PactInteger(13));
-			format.writeRecord(r);
-			
-			format.close();
-			
-			DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
-			
-			assertTrue((dis.readLine()+"\n").equals("Hello User|Hello World\n"));
-			assertTrue((dis.readLine()+"\n").equals("|AbCdE\n"));
-			
-		} catch (IOException e) {
-			fail(e.getMessage());
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
-		
 	}
 	
+	@SuppressWarnings("deprecation")
+	@Test
+	public void testWriteRecPosNoLenient()
+	{
+		try {
+			Configuration config = new Configuration();
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
+			config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
+			
+			format.configure(config);
+			
+			try {
+				format.open(0);
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
+			
+			PactRecord r = new PactRecord(2);
+			
+			try {
+				r.setField(0, new PactString("Hello World"));
+				r.setField(1, new PactInteger(42));
+				r.setField(2, new PactString("Hello User"));
+				format.writeRecord(r);
+				
+				r.setField(0, new PactString("AbCdE"));
+				r.setField(1, new PactInteger(13));
+				r.setField(2, new PactString("ZyXvW"));
+				format.writeRecord(r);
+				
+				format.close();
+				
+				DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
+				
+				assertTrue((dis.readLine()+"\n").equals("Hello User|Hello World\n"));
+				assertTrue((dis.readLine()+"\n").equals("ZyXvW|AbCdE\n"));
+				
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
+		}
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void testWriteRecPosNoLenientFail()
+	{
+		try {
+			Configuration config = new Configuration();
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
+			config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
+			
+			format.configure(config);
+			
+			try {
+				format.open(0);
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
+			
+			PactRecord r = new PactRecord(2);
+			
+			boolean success = true;
+			
+			try {
+				r.setField(0, new PactString("Hello World"));
+				r.setField(1, new PactInteger(42));
+				r.setField(2, new PactString("Hello User"));
+				format.writeRecord(r);
+	
+				r = new PactRecord();
+				
+				r.setField(0, new PactString("AbCdE"));
+				r.setField(1, new PactInteger(13));
+				format.writeRecord(r);
+				
+				format.close();
+				
+			} catch (IOException e) {
+				success = false;
+			} catch (RuntimeException re) {
+				success = false;
+			}
+			
+			assertFalse(success);
+		}
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@SuppressWarnings("deprecation")
+	@Test
+	public void testWriteRecPosLenient()
+	{
+		try {
+			Configuration config = new Configuration();
+			config.setString(RecordOutputFormat.FILE_PARAMETER_KEY, "file://"+this.tempFile.getAbsolutePath());
+			config.setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			config.setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
+			config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 2);
+			config.setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
+			config.setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
+			config.setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
+			
+			format.configure(config);
+			
+			try {
+				format.open(0);
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
+			
+			PactRecord r = new PactRecord(2);
+			
+			try {
+				r.setField(0, new PactString("Hello World"));
+				r.setField(1, new PactInteger(42));
+				r.setField(2, new PactString("Hello User"));
+				format.writeRecord(r);
+	
+				r = new PactRecord();
+				
+				r.setField(0, new PactString("AbCdE"));
+				r.setField(1, new PactInteger(13));
+				format.writeRecord(r);
+				
+				format.close();
+				
+				DataInputStream dis = new DataInputStream(new FileInputStream(tempFile));
+				
+				assertTrue((dis.readLine()+"\n").equals("Hello User|Hello World\n"));
+				assertTrue((dis.readLine()+"\n").equals("|AbCdE\n"));
+				
+			} catch (IOException e) {
+				fail(e.getMessage());
+			}
+		}
+		catch (Exception ex) {
+			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+		
 }
 

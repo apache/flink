@@ -15,12 +15,9 @@
 
 package eu.stratosphere.nephele.services.iomanager;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Random;
+import java.util.List;
 
 import junit.framework.Assert;
 
@@ -28,33 +25,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.services.iomanager.Channel;
-import eu.stratosphere.nephele.services.iomanager.ChannelReader;
-import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
-import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest.DummyInvokable;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest.DummyInvokable;
-
 
 public class IOManagerTest
-{	
-	// ------------------------------------------------------------------------
-	//                             Constants
-	// ------------------------------------------------------------------------
-	
-	private static final long SEED = 649180756312423613L;
-
-	private static final int VALUE_LENGTH = 118;
-
-	private static final int NUMBER_OF_PAIRS = 1024 * 8 * 64;
-
-	public static final int NUMBER_OF_SEGMENTS = 10; // 10
-
-	public static final int SEGMENT_SIZE = 1024 * 1024; // 1M
-
+{
 	// ------------------------------------------------------------------------
 	//                        Cross Test Fields
 	// ------------------------------------------------------------------------
@@ -62,51 +38,27 @@ public class IOManagerTest
 	private IOManager ioManager;
 
 	private DefaultMemoryManager memoryManager;
-
-	private Generator generator;
-
-	// ------------------------------------------------------------------------
-	//                          Mock Objects
-	// ------------------------------------------------------------------------
-	
-//	@Mock
-//	private RandomAccessFile failingFile1;
-//	
-//	@Mock
-//	private RandomAccessFile failingFile2;
-//	
-//	@Mock
-//	private FileChannel mockFailingFileChannel1;
-//
-//	@Mock
-//	private FileChannel mockFailingFileChannel2;
-//	
-//	@Mock
-//	private Channel.ID failingChannel1;
-//	
-//	@Mock
-//	private Channel.ID failingChannel2;
-	
 	
 	// ------------------------------------------------------------------------
 	//                           Setup & Shutdown
 	// ------------------------------------------------------------------------
 	
 	@Before
-	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(NUMBER_OF_SEGMENTS * SEGMENT_SIZE);
-		ioManager = new IOManager();
-		generator = new Generator(SEED, VALUE_LENGTH);
+	public void beforeTest()
+	{
+		this.memoryManager = new DefaultMemoryManager(32 * 1024 * 1024);
+		this.ioManager = new IOManager();
 	}
 
 	@After
-	public void afterTest() {
-		ioManager.shutdown();
+	public void afterTest()
+	{
+		this.ioManager.shutdown();
 		Assert.assertTrue("IO Manager has not properly shut down.", ioManager.isProperlyShutDown());
 		
-		Assert.assertTrue("Not all memory was returned to the memory manager in the test.", memoryManager.verifyEmpty());
-		memoryManager.shutdown();
-		memoryManager = null;
+		Assert.assertTrue("Not all memory was returned to the memory manager in the test.", this.memoryManager.verifyEmpty());
+		this.memoryManager.shutdown();
+		this.memoryManager = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -114,54 +66,6 @@ public class IOManagerTest
 	// ------------------------------------------------------------------------
 	
 	// ------------------------------------------------------------------------
-	
-//	/**
-//	 * 
-//	 */
-//	@Test
-//	public void testExceptionForwarding() throws Exception
-//	{
-//		final String failingVirtualFile1 = new String("virtual fail 1");
-//		final String failingVirtualFile2 = new String("virtual fail 2");
-//		
-//		final AbstractInvokable memoryOwner = new DummyInvokable();
-//		
-//		final int NUM_MEM_SEGS = 4;
-//		final int SIZE_MEM_SEGS = 4096;
-//		
-//		// set up the mocks
-//		PowerMockito.when(failingChannel1.getPath()).thenReturn(failingVirtualFile1);
-//		PowerMockito.when(failingChannel2.getPath()).thenReturn(failingVirtualFile2);
-//			
-//		PowerMockito.whenNew(RandomAccessFile.class).withParameterTypes(String.class, String.class).withArguments(Matchers.same(failingVirtualFile1), Matchers.any(String.class)).thenReturn(failingFile1);
-//		PowerMockito.whenNew(RandomAccessFile.class).withParameterTypes(String.class, String.class).withArguments(Matchers.same(failingVirtualFile2), Matchers.any(String.class)).thenReturn(failingFile2);
-//			
-//		PowerMockito.when(failingFile1.getChannel()).thenReturn(mockFailingFileChannel1);
-//		PowerMockito.when(failingFile2.getChannel()).thenReturn(mockFailingFileChannel2);
-//		
-//		try {
-//			// create 4 readers out of which two will cause different exceptions
-//			Channel.ID[] channels = new Channel.ID[4];
-//			
-//			channels[0] = ioManager.createChannel();
-//			channels[2] = ioManager.createChannel();
-//			channels[1] = failingChannel1;
-//			channels[3] = failingChannel2;
-//			
-//			// create the writers for the channels
-//			ChannelWriter[] writers = new ChannelWriter[channels.length];
-//			for (int i = 0; i < writers.length; i++) {
-//				writers[i] = ioManager.createChannelWriter(channels[i], memoryManager.allocate(memoryOwner, NUM_MEM_SEGS, SIZE_MEM_SEGS));
-//			}
-//			
-//		}
-//		catch (MemoryAllocationException maex) {
-//			Assert.fail("Memory allocation exception happend during test.");
-//		}
-//		catch (IOException ioex) {
-//			Assert.fail("IO exception happend during test.");
-//		}
-//	}
 
 	/**
 	 * Tests that the channel enumerator creates channels in the temporary files directory.
@@ -185,158 +89,179 @@ public class IOManagerTest
 	// ------------------------------------------------------------------------
 	
 	@Test
-	public void channelReaderWriter() {
-		Channel.ID channelID = ioManager.createChannel();
-
-		// write generated key/value pairs to a channel
-		int writtenCounter = writeToChannel(channelID);
-
-		// read written pairs from the channel
-		int readCounter = readFromChannel(channelID);
-
-		Assert.assertEquals("counter equal", writtenCounter, readCounter);
-	}
-
-	private int writeToChannel(Channel.ID channelID) {
-		try {
-			// create the free memory segments to be used in the internal reader buffer flow
-			Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
-	
-			// create the channel writer
-			ChannelWriter channelWriter = ioManager.createChannelWriter(channelID, freeSegments);
-	
-			generator.reset();
-	
-			// get first pair and initialize written pairs and written buffers counter
-			int writtenPairs = 0;
-			while (writtenPairs < NUMBER_OF_PAIRS) {
-				// writing was successful, get next pair and increment counter
-				channelWriter.write(generator.next());
-				writtenPairs++;
-			}
-	
-			// close the writer and release the memory occupied by the buffers
-			memoryManager.release(channelWriter.close());
-	
-			// return number of written buffers
-			return writtenPairs;
-		}
-		catch (MemoryAllocationException maex) {
-			Assert.fail("Memory for channel writers could not be allocated.");
-			return 0;
-		}
-		catch (IOException ioex) {
-			Assert.fail("IO error occurred while writing to the channel: " + ioex.getMessage());
-			return 0;
-		}
-	}
-
-	private int readFromChannel(Channel.ID channelID)  {
-		try {
-			// create the free memory segments to be used in the internal reader buffer flow
-			Collection<MemorySegment> freeSegments = memoryManager.allocate(new DummyInvokable(), NUMBER_OF_SEGMENTS, SEGMENT_SIZE);
-	
-			// create the channel reader
-			ChannelReader channelReader = ioManager.createChannelReader(channelID, freeSegments, true);
-	
-			generator.reset();
-	
-			Value value = new Value();
-			int readCounter = 0;
-			while (channelReader.read(value)) {
-				Assert.assertEquals("Pairs don't match", generator.next(), value);
-				readCounter++;
-			}
-	
-			// close the reader and release the memory occupied by the buffers
-			memoryManager.release(channelReader.close());
-	
-			return readCounter;
-		}
-		catch (MemoryAllocationException maex) {
-			Assert.fail("Memory for channel readers could not be allocated.");
-			return 0;
-		}
-		catch (IOException ioex) {
-			Assert.fail("IO error occurred while reading from the channel: " + ioex.getMessage());
-			return 0;
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	
-	protected static class Value implements IOReadableWritable
+	public void channelReadWriteOneSegment()
 	{
-		String value;
-
-		public Value() {
-		}
-
-		public Value(String val) {
-			this.value = val;
-		}
-
-		@Override
-		public void read(DataInput in) throws IOException {
-			value = in.readUTF();
-		}
-
-		@Override
-		public void write(DataOutput out) throws IOException {
-			out.writeUTF(this.value);
-		}
-
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + ((value == null) ? 0 : value.hashCode());
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			Value other = (Value) obj;
-
-			if (value == null) {
-				if (other.value != null)
-					return false;
-			} else if (!value.equals(other.value))
-				return false;
-			return true;
-		}
-	}
-
-	protected static class Generator
-	{
-		private long seed;
-
-		private Random rand;
-
-		private byte[] value;
-
-		public Generator(long seed, int valueLength) {
-			this.seed = seed;
-
-			this.rand = new Random(this.seed);
-			this.value = new byte[valueLength];
-		}
-
-		public void reset() {
-			this.rand.setSeed(this.seed);
-		}
-
-		public Value next() {
-
-			rand.nextBytes(this.value);
-			return new Value(this.value.toString());
+		final int NUM_IOS = 1111;
+		
+		try {
+			final Channel.ID channelID = this.ioManager.createChannel();
+			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channelID);
+			
+			MemorySegment memSeg = this.memoryManager.allocatePages(new DummyInvokable(), 1).get(0);
+			
+			for (int i = 0; i < NUM_IOS; i++) {
+				for (int pos = 0; pos < memSeg.size(); pos += 4) {
+					memSeg.putInt(pos, i);
+				}
+				
+				writer.writeBlock(memSeg);
+				memSeg = writer.getNextReturnedSegment();
+			}
+			
+			writer.close();
+			
+			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channelID);
+			for (int i = 0; i < NUM_IOS; i++) {
+				reader.readBlock(memSeg);
+				memSeg = reader.getNextReturnedSegment();
+				
+				for (int pos = 0; pos < memSeg.size(); pos += 4) {
+					if (memSeg.getInt(pos) != i) {
+						Assert.fail("Read memory segment contains invalid data.");
+					}
+				}
+			}
+			
+			reader.closeAndDelete();
+			
+			this.memoryManager.release(memSeg);
+			
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail("TEst encountered an exception: " + ex.getMessage());
 		}
 	}
 	
+	@Test
+	public void channelReadWriteMultipleSegments()
+	{
+		final int NUM_IOS = 1111;
+		final int NUM_SEGS = 16;
+		
+		try {
+			final List<MemorySegment> memSegs = this.memoryManager.allocatePages(new DummyInvokable(), NUM_SEGS);
+			final Channel.ID channelID = this.ioManager.createChannel();
+			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channelID);
+			
+			for (int i = 0; i < NUM_IOS; i++) {
+				final MemorySegment memSeg = memSegs.isEmpty() ? writer.getNextReturnedSegment() : memSegs.remove(0);
+				
+				for (int pos = 0; pos < memSeg.size(); pos += 4) {
+					memSeg.putInt(pos, i);
+				}
+				
+				writer.writeBlock(memSeg);
+			}
+			writer.close();
+			
+			// get back the memory
+			while (memSegs.size() < NUM_SEGS) {
+				memSegs.add(writer.getNextReturnedSegment());
+			}
+			
+			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channelID);
+			while(!memSegs.isEmpty()) {
+				reader.readBlock(memSegs.remove(0));
+			}
+			
+			for (int i = 0; i < NUM_IOS; i++) {
+				final MemorySegment memSeg = reader.getNextReturnedSegment();
+				
+				for (int pos = 0; pos < memSeg.size(); pos += 4) {
+					if (memSeg.getInt(pos) != i) {
+						Assert.fail("Read memory segment contains invalid data.");
+					}
+				}
+				reader.readBlock(memSeg);
+			}
+			
+			reader.closeAndDelete();
+			
+			// get back the memory
+			while (memSegs.size() < NUM_SEGS) {
+				memSegs.add(reader.getNextReturnedSegment());
+			}
+			
+			this.memoryManager.release(memSegs);
+			
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail("TEst encountered an exception: " + ex.getMessage());
+		}
+	}
+
+	// ============================================================================================
+	
+	final class FailingSegmentReadRequest implements ReadRequest
+	{
+		private final BlockChannelAccess<ReadRequest, ?> channel;
+		
+		private final MemorySegment segment;
+		
+		protected FailingSegmentReadRequest(BlockChannelAccess<ReadRequest, ?> targetChannel, MemorySegment segment)
+		{
+			this.channel = targetChannel;
+			this.segment = segment;
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
+		 */
+		@Override
+		public void read() throws IOException
+		{
+			throw new TestIOException();
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
+		 */
+		@Override
+		public void requestDone(IOException ioex)
+		{
+			this.channel.handleProcessedBuffer(this.segment, ioex);
+		}
+	}
+
+	//--------------------------------------------------------------------------------------------
+
+	/**
+	 * Special write request that writes an entire memory segment to the block writer.
+	 */
+	final class FailingSegmentWriteRequest implements WriteRequest
+	{
+		private final BlockChannelAccess<WriteRequest, ?> channel;
+		
+		private final MemorySegment segment;
+		
+		protected FailingSegmentWriteRequest(BlockChannelAccess<WriteRequest, ?> targetChannel, MemorySegment segment)
+		{
+			this.channel = targetChannel;
+			this.segment = segment;
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.nephele.services.iomanager.ReadRequest#read(java.nio.channels.FileChannel)
+		 */
+		@Override
+		public void write() throws IOException
+		{
+			throw new TestIOException();
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.nephele.services.iomanager.IORequest#requestDone(java.io.IOException)
+		 */
+		@Override
+		public void requestDone(IOException ioex)
+		{
+			this.channel.handleProcessedBuffer(this.segment, ioex);
+		}
+	}
+	
+	
+	final class TestIOException extends IOException
+	{
+		private static final long serialVersionUID = -814705441998024472L;
+	}
 }

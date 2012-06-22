@@ -106,7 +106,7 @@ public final class InputSplitManager {
 				continue;
 			}
 
-			final AbstractInvokable invokable = groupVertex.getGroupMember(0).getEnvironment().getInvokable();
+			final AbstractInvokable invokable = groupVertex.getEnvironment().getInvokable();
 			if (!(invokable instanceof AbstractInputTask)) {
 				LOG.error(groupVertex.getName() + " has " + inputSplits.length
 					+ " input splits, but is not of typt AbstractInputTask, ignoring...");

@@ -38,7 +38,7 @@ public class FilteredPartsJoin extends MatchStub {
 	 *
 	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector out)
+	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
 			throws Exception {
 		IntPair partAndSupplierKey = value1.getField(0, this.partAndSupplierKey);
 		PactString supplyCostStr = value1.getField(1, this.supplyCostStr);

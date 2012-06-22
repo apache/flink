@@ -63,7 +63,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		private final PactInteger custKey = new PactInteger();
 		
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			
 			Tuple t = record.getField(1, Tuple.class);
 			if (Integer.parseInt(t.getStringValueAt(4).substring(0, 4)) > FilterO.YEAR_FILTER) {
@@ -84,7 +84,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		private final Tuple tuple = new Tuple();
 		
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
 		{
 			Tuple t = record.getField(1, this.tuple);
 			if (t.getStringValueAt(8).equals("R")) {
@@ -111,7 +111,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		private final PactString comment = new PactString();
 		
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
 		{
 			final Tuple t = record.getField(1, this.tuple);
 			
@@ -142,7 +142,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		private final PactString nationName = new PactString();
 		
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception
 		{
 			final Tuple t = record.getField(1, this.tuple);
 			
@@ -162,7 +162,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	public static class JoinOL extends MatchStub
 	{
 		@Override
-		public void match(PactRecord order, PactRecord lineitem, Collector out) throws Exception {
+		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out) throws Exception {
 			lineitem.setField(0, order.getField(1, PactInteger.class));
 			out.collect(lineitem);
 		}
@@ -176,7 +176,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		private final PactDouble d = new PactDouble();
 		
 		@Override
-		public void match(PactRecord custRecord, PactRecord olRecord, Collector out) throws Exception
+		public void match(PactRecord custRecord, PactRecord olRecord, Collector<PactRecord> out) throws Exception
 		{
 			final Tuple t = olRecord.getField(1, Tuple.class);
 			final double extPrice = Double.parseDouble(t.getStringValueAt(0));
@@ -195,7 +195,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 	public static class JoinNCOL extends MatchStub
 	{
 		@Override
-		public void match(PactRecord colRecord, PactRecord nation, Collector out) throws Exception {
+		public void match(PactRecord colRecord, PactRecord nation, Collector<PactRecord> out) throws Exception {
 			colRecord.setField(4, nation.getField(1, PactString.class));
 			out.collect(colRecord);
 		}
@@ -207,7 +207,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		private final PactDouble d = new PactDouble();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out) throws Exception
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
 		{
 			PactRecord record = null;
 			double sum = 0;
@@ -222,7 +222,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector out) throws Exception {
+		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 			reduce(records,out);
 		}
 	}

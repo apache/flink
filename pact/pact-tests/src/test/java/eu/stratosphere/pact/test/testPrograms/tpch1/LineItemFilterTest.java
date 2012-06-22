@@ -28,12 +28,12 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
+import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
 import eu.stratosphere.pact.test.testPrograms.util.Tuple;
 
 public class LineItemFilterTest {
@@ -41,9 +41,9 @@ public class LineItemFilterTest {
 	private static final String RETURN_FLAG = "N";
 	
 	@Mock
-	RecordWriter<PactRecord> recordWriterMock; 
+	AbstractRecordWriter<PactRecord> recordWriterMock; 
 	
-	private List<RecordWriter<PactRecord>> writerList = new ArrayList<RecordWriter<PactRecord>>();
+	private List<AbstractRecordWriter<PactRecord>> writerList = new ArrayList<AbstractRecordWriter<PactRecord>>();
 	
 	@Before
 	public void setUp()
@@ -64,7 +64,7 @@ public class LineItemFilterTest {
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
 		
 		PactString returnFlag = new PactString(RETURN_FLAG);
 		
@@ -90,7 +90,7 @@ public class LineItemFilterTest {
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -108,7 +108,7 @@ public class LineItemFilterTest {
 		rec.setField(1, input);
 		
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -127,7 +127,7 @@ public class LineItemFilterTest {
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);
@@ -156,7 +156,7 @@ public class LineItemFilterTest {
 		rec.setField(0, inputKey);
 		rec.setField(1, input);
 		
-		Collector collector = new OutputCollector(writerList);
+		Collector<PactRecord> collector = new PactRecordOutputCollector(writerList);
 		
 		out.map(rec, collector);
 		verifyNoMoreInteractions(recordWriterMock);

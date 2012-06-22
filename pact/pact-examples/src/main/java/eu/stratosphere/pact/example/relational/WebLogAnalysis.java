@@ -25,8 +25,8 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -78,25 +78,8 @@ import eu.stratosphere.pact.common.util.FieldSet;
  * 
  * @author Fabian Hueske
  */
-public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
-	
-	/**
-	 * Converts a input line, assuming to contain a string, into a record that has a single field,
-	 * which is a {@link PactString}, containing that line.
-	 */
-	public static class LineInFormat extends DelimitedInputFormat
-	{
-		private final PactString string = new PactString();
-		
-		@Override
-		public boolean readRecord(PactRecord record, byte[] line, int numBytes)
-		{
-			this.string.setValueAscii(line, 0, numBytes);
-			record.setField(0, this.string);
-			return true;
-		}
-	}
-	
+public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
+{
 	// TODO JAVADOC !!!
 	public static class WebLogAnalysisOutFormat extends FileOutputFormat {
 		
@@ -139,7 +122,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * Filters for documents that contain all of the given keywords and emit their keys.
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			this.string.setValue(record.getField(0, PactString.class));
 			String[] fields = this.string.getValue().split("\\|");
 			this.url.setValue(fields[0]);
@@ -184,7 +167,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * than the given threshold. The key is set to the URL of the record.
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			//PactInteger rank = record.getField(0, PactInteger.class);
 			String[] fields = record.getField(0, PactString.class).getValue().split("\\|");
 			this.rank.setValue(Integer.valueOf(fields[0]));
@@ -223,7 +206,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * specified value. The URL of all visit records passing the filter is emitted.
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			String[] fields = record.getField(0, PactString.class).getValue().split("\\|");
 			this.url.setValue(fields[1]);
 			
@@ -258,7 +241,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * the attributes of the ranks relation.
 		 */
 		@Override
-		public void match(PactRecord document, PactRecord rank, Collector out) throws Exception {
+		public void match(PactRecord document, PactRecord rank, Collector<PactRecord> out) throws Exception {
 			out.collect(rank);	
 		}
 	}
@@ -278,7 +261,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		 * Otherwise, no pair is emitted. 
 		 */
 		@Override
-		public void coGroup(Iterator<PactRecord> ranks, Iterator<PactRecord> visits, Collector out) {
+		public void coGroup(Iterator<PactRecord> ranks, Iterator<PactRecord> visits, Collector<PactRecord> out) {
 			// Check if there is a entry in the visits relation
 			if (!visits.hasNext()) {
 				while (ranks.hasNext()) {
@@ -303,18 +286,21 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription {
 		String output      = (args.length > 4 ? args[4] : "");
 
 		// Create DataSourceContract for documents relation
-		FileDataSource docs = new FileDataSource(LineInFormat.class, docsInput, "Docs Input");
+		FileDataSource docs = new FileDataSource(TextInputFormat.class, docsInput, "Docs Input");
 		docs.setDegreeOfParallelism(noSubTasks);
+		docs.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
 		// TODO set Unique Key contract
 		// docs.setOutputContract(UniqueKey.class);
 
 		// Create DataSourceContract for ranks relation
-		FileDataSource ranks = new FileDataSource(LineInFormat.class, ranksInput, "Ranks input");
+		FileDataSource ranks = new FileDataSource(TextInputFormat.class, ranksInput, "Ranks input");
 		ranks.setDegreeOfParallelism(noSubTasks);
+		ranks.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
 
 		// Create DataSourceContract for visits relation
-		FileDataSource visits = new FileDataSource(LineInFormat.class, visitsInput, "Visits input:q");
+		FileDataSource visits = new FileDataSource(TextInputFormat.class, visitsInput, "Visits input:q");
 		visits.setDegreeOfParallelism(noSubTasks);
+		visits.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
 
 		// Create MapContract for filtering the entries from the documents
 		// relation

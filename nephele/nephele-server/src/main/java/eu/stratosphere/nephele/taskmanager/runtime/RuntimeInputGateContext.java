@@ -25,6 +25,7 @@ import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
@@ -209,5 +210,14 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 	String getTaskName() {
 
 		return this.taskName;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
+
+		return this.localBufferPool.registerBufferAvailabilityListener(bufferAvailabilityListener);
 	}
 }

@@ -25,6 +25,8 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
+import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**

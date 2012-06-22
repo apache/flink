@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.event.job.ManagementEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.event.job.VertexAssignmentEvent;
 import eu.stratosphere.nephele.event.job.VertexEvent;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
@@ -84,42 +83,21 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		private final EventCollector eventCollector;
 
 		/**
-		 * The ID of the job vertex this wrapper object belongs to.
+		 * The vertex this listener belongs to.
 		 */
-		private final JobVertexID jobVertexID;
-
-		/**
-		 * The name of task represented by the associated vertex.
-		 */
-		private final String taskName;
-
-		/**
-		 * The index of the vertex in the subtask group.
-		 */
-		private final int indexInSubtaskGroup;
-
-		/**
-		 * The total number of vertices in the vertex's subtask group.
-		 */
-		private final int totalNumberOfSubtasks;
+		private final ExecutionVertex vertex;
 
 		/**
 		 * Constructs a new execution listener object.
 		 * 
 		 * @param eventCollector
 		 *        the event collector to forward the created event to
-		 * @param jobVertexID
-		 *        the ID of the job vertex this wrapper object belongs to
-		 * @param environment
-		 *        the environment of the vertex this listener is created for
+		 * @param vertex
+		 *        the vertex this listener belongs to.
 		 */
-		public ExecutionListenerWrapper(final EventCollector eventCollector, final JobVertexID jobVertexID,
-				final Environment environment) {
+		public ExecutionListenerWrapper(final EventCollector eventCollector, final ExecutionVertex vertex) {
 			this.eventCollector = eventCollector;
-			this.jobVertexID = jobVertexID;
-			this.taskName = environment.getTaskName();
-			this.indexInSubtaskGroup = environment.getIndexInSubtaskGroup();
-			this.totalNumberOfSubtasks = environment.getCurrentNumberOfSubtasks();
+			this.vertex = vertex;
 		}
 
 		/**
@@ -131,9 +109,14 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 			final long timestamp = System.currentTimeMillis();
 
+			final JobVertexID jobVertexID = this.vertex.getGroupVertex().getJobVertexID();
+			final String taskName = this.vertex.getGroupVertex().getName();
+			final int totalNumberOfSubtasks = this.vertex.getGroupVertex().getCurrentNumberOfGroupMembers();
+			final int indexInSubtaskGroup = this.vertex.getIndexInVertexGroup();
+
 			// Create a new vertex event
-			final VertexEvent vertexEvent = new VertexEvent(timestamp, this.jobVertexID, this.taskName,
-				this.totalNumberOfSubtasks, this.indexInSubtaskGroup, newExecutionState, optionalMessage);
+			final VertexEvent vertexEvent = new VertexEvent(timestamp, jobVertexID, taskName, totalNumberOfSubtasks,
+				indexInSubtaskGroup, newExecutionState, optionalMessage);
 
 			this.eventCollector.addEvent(jobID, vertexEvent);
 
@@ -476,8 +459,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			final ExecutionVertex vertex = it.next();
 
 			// Register the listener object which will pass state changes on to the collector
-			vertex.registerExecutionListener(new ExecutionListenerWrapper(this, vertex.getGroupVertex()
-				.getJobVertexID(), vertex.getEnvironment()));
+			vertex.registerExecutionListener(new ExecutionListenerWrapper(this, vertex));
 
 			// Register the listener object which will pass assignment changes on to the collector
 			vertex

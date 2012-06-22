@@ -32,7 +32,7 @@ import eu.stratosphere.nephele.io.channels.FileBuffer;
  */
 public class CheckpointSerializer extends AbstractSerializer {
 
-	private static final int SIZEOFLONG = 8;
+	private static final int SIZE_OF_LONG = 8;
 
 	private boolean bufferDataSerializationStarted = false;
 
@@ -40,7 +40,8 @@ public class CheckpointSerializer extends AbstractSerializer {
 	 * {@inheritDoc}
 	 */
 	@Override
-	protected boolean writeBufferData(final WritableByteChannel writableByteChannel, final Buffer buffer) throws IOException {
+	protected boolean writeBufferData(final WritableByteChannel writableByteChannel, final Buffer buffer)
+			throws IOException {
 
 		final ByteBuffer tempBuffer = getTempBuffer();
 
@@ -88,16 +89,16 @@ public class CheckpointSerializer extends AbstractSerializer {
 
 	private void longToByteBuffer(long longToSerialize, ByteBuffer byteBuffer) throws IOException {
 
-		if (SIZEOFLONG > byteBuffer.capacity()) {
+		if (SIZE_OF_LONG > byteBuffer.capacity()) {
 			throw new IOException("Cannot convert long to byte buffer, buffer is too small (" + byteBuffer.limit()
-				+ ", required " + SIZEOFLONG + ")");
+				+ ", required " + SIZE_OF_LONG + ")");
 		}
 
-		byteBuffer.limit(SIZEOFLONG);
+		byteBuffer.limit(SIZE_OF_LONG);
 
-		for (int i = 0; i < SIZEOFLONG; ++i) {
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
 			final int shift = i << 3; // i * 8
-			byteBuffer.put((SIZEOFLONG - 1) - i, (byte) ((longToSerialize & (0xffL << shift)) >>> shift));
+			byteBuffer.put((SIZE_OF_LONG - 1) - i, (byte) ((longToSerialize & (0xffL << shift)) >>> shift));
 		}
 	}
 }

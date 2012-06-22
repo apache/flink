@@ -27,23 +27,19 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
+import eu.stratosphere.nephele.executiongraph.ExecutionEdge;
+import eu.stratosphere.nephele.executiongraph.ExecutionGate;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.DummyInstance;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.SerializableHashSet;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -238,22 +234,19 @@ public final class RecoveryLogic {
 	private static void collectCacheEntriesToInvalidate(final ExecutionVertex vertex,
 			final Map<AbstractInstance, Set<ChannelID>> entriesToInvalidate) {
 
-		final ExecutionGraph eg = vertex.getExecutionGraph();
+		final int numberOfOutputGates = vertex.getNumberOfOutputGates();
+		for (int i = 0; i < numberOfOutputGates; ++i) {
 
-		final RuntimeEnvironment env = vertex.getEnvironment();
-		for (int i = 0; i < env.getNumberOfOutputGates(); ++i) {
+			final ExecutionGate outputGate = vertex.getOutputGate(i);
+			for (int j = 0; j < outputGate.getNumberOfEdges(); ++j) {
 
-			final OutputGate<? extends Record> outputGate = env.getOutputGate(i);
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); ++j) {
-
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-				if (outputChannel.getType() == ChannelType.FILE) {
+				final ExecutionEdge outputChannel = outputGate.getEdge(j);
+				if (outputChannel.getChannelType() == ChannelType.FILE) {
 					// Connected vertex is not yet running
 					continue;
 				}
 
-				final ChannelID connectedChannelID = outputChannel.getConnectedChannelID();
-				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
+				final ExecutionVertex connectedVertex = outputChannel.getInputGate().getVertex();
 				if (connectedVertex == null) {
 					LOG.error("Connected vertex is null");
 					continue;
@@ -270,23 +263,22 @@ public final class RecoveryLogic {
 					entriesToInvalidate.put(instance, channelIDs);
 				}
 
-				channelIDs.add(connectedChannelID);
+				channelIDs.add(outputChannel.getInputChannelID());
 			}
 		}
 
-		for (int i = 0; i < env.getNumberOfInputGates(); ++i) {
+		for (int i = 0; i < vertex.getNumberOfInputGates(); ++i) {
 
-			final InputGate<? extends Record> inputGate = env.getInputGate(i);
-			for (int j = 0; j < inputGate.getNumberOfInputChannels(); ++j) {
+			final ExecutionGate inputGate = vertex.getInputGate(i);
+			for (int j = 0; j < inputGate.getNumberOfEdges(); ++j) {
 
-				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
-				if (inputChannel.getType() == ChannelType.FILE) {
+				final ExecutionEdge inputChannel = inputGate.getEdge(j);
+				if (inputChannel.getChannelType() == ChannelType.FILE) {
 					// Connected vertex is not running anymore
 					continue;
 				}
 
-				final ChannelID connectedChannelID = inputChannel.getConnectedChannelID();
-				final ExecutionVertex connectedVertex = eg.getVertexByChannelID(connectedChannelID);
+				final ExecutionVertex connectedVertex = inputChannel.getOutputGate().getVertex();
 				if (connectedVertex == null) {
 					LOG.error("Connected vertex is null");
 					continue;
@@ -303,7 +295,7 @@ public final class RecoveryLogic {
 					entriesToInvalidate.put(instance, channelIDs);
 				}
 
-				channelIDs.add(connectedChannelID);
+				channelIDs.add(inputChannel.getOutputChannelID());
 			}
 		}
 	}

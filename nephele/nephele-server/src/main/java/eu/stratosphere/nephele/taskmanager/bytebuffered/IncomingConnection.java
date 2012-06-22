@@ -24,6 +24,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultDeserializer;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.NoBufferAvailableException;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -87,7 +88,7 @@ public class IncomingConnection {
 		this.deserializer.reset();
 	}
 
-	public void read() throws IOException, InterruptedException {
+	public void read() throws IOException, InterruptedException, NoBufferAvailableException {
 
 		this.deserializer.read(this.readableByteChannel);
 
@@ -101,7 +102,6 @@ public class IncomingConnection {
 				this.byteBufferedChannelManager.processEnvelopeFromNetwork(transferEnvelope, bufferProvider.isShared());
 			}
 		}
-
 	}
 
 	public boolean isCloseUnexpected() {

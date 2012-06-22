@@ -15,12 +15,9 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
@@ -29,42 +26,44 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * 
  * @author warneke
  */
-public abstract class AbstractChannel implements IOReadableWritable {
+public abstract class AbstractChannel {
 
 	/**
 	 * The ID of the channel.
 	 */
-	private final ChannelID id;
+	private final ChannelID channelID;
 
 	/**
 	 * The ID of the connected channel.
 	 */
-	private ChannelID connectedChannelId;
+	private final ChannelID connectedChannelID;
 
 	/**
 	 * The compression level to be used for the channel.
 	 */
-	private CompressionLevel compressionLevel = null;
+	private final CompressionLevel compressionLevel;
 
 	private final int channelIndex;
 
 	/**
 	 * Auxiliary constructor for channels
 	 * 
+	 * @param channelIndex
+	 *        the index of the channel in either the output or input gate
 	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 *        the ID of the channel
+	 * @param connectedChannelID
+	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 */
-	protected AbstractChannel(int channelIndex, ChannelID channelID, CompressionLevel compressionLevel) {
-		if (channelID == null) {
-			this.id = new ChannelID();
-		} else {
-			this.id = channelID;
-		}
+	protected AbstractChannel(final int channelIndex, final ChannelID channelID, final ChannelID connectedChannelID,
+			final CompressionLevel compressionLevel) {
 
-		this.compressionLevel = compressionLevel;
 		this.channelIndex = channelIndex;
+		this.channelID = channelID;
+		this.connectedChannelID = connectedChannelID;
+		this.compressionLevel = compressionLevel;
 	}
 
 	/**
@@ -73,7 +72,8 @@ public abstract class AbstractChannel implements IOReadableWritable {
 	 * @return the ID of the channel.
 	 */
 	public ChannelID getID() {
-		return this.id;
+
+		return this.channelID;
 	}
 
 	/**
@@ -82,6 +82,7 @@ public abstract class AbstractChannel implements IOReadableWritable {
 	 * @return the channel's input at the associated gate
 	 */
 	public int getChannelIndex() {
+
 		return this.channelIndex;
 	}
 
@@ -103,41 +104,9 @@ public abstract class AbstractChannel implements IOReadableWritable {
 	 */
 	public abstract boolean isClosed() throws IOException, InterruptedException;
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		// Read connected channel id
-		final boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			this.connectedChannelId = new ChannelID();
-			this.connectedChannelId.read(in);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		// Write connected channel id
-		if (this.connectedChannelId == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			this.connectedChannelId.write(out);
-		}
-	}
-
 	public ChannelID getConnectedChannelID() {
-		return this.connectedChannelId;
-	}
 
-	public void setConnectedChannelID(ChannelID connectedChannelId) {
-		this.connectedChannelId = connectedChannelId;
+		return this.connectedChannelID;
 	}
 
 	/**

@@ -29,11 +29,6 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 public class ExecutionGroupEdge {
 
 	/**
-	 * Stores a reference to the execution graph this edge belongs to.
-	 */
-	private final ExecutionGraph executionGraph;
-
-	/**
 	 * Stores if the channel type has been specified by the user.
 	 */
 	private final boolean userDefinedChannelType;
@@ -54,6 +49,12 @@ public class ExecutionGroupEdge {
 	private volatile CompressionLevel compressionLevel;
 
 	/**
+	 * The edge's connection ID. The connection ID determines to which physical TCP connection channels represented by
+	 * this edge will be mapped in case the edge's channel type is NETWORK.
+	 */
+	private volatile int connectionID;
+
+	/**
 	 * The group vertex connected to this edge.
 	 */
 	private final ExecutionGroupVertex targetVertex;
@@ -72,17 +73,20 @@ public class ExecutionGroupEdge {
 	 * The index of the consuming task's input gate.
 	 */
 	private final int indexOfInputGate;
-	
+
 	/**
 	 * The distribution pattern used to connect the vertices within two groups.
 	 */
 	private final DistributionPattern distributionPattern;
 
 	/**
+	 * Stores if the edge is part of a broadcast group.
+	 */
+	private final boolean isBroadcast;
+
+	/**
 	 * Constructs a new group edge.
 	 * 
-	 * @param executionGraph
-	 *        the execution graph this edge belongs to
 	 * @param sourceVertex
 	 *        the source vertex this edge originates from
 	 * @param indexOfOutputGate
@@ -99,12 +103,16 @@ public class ExecutionGroupEdge {
 	 *        the compression level for the edge
 	 * @param userDefinedCompressionLevel
 	 *        <code>true</code> if the compression level has been specified by the user, <code>false</code> otherwise
+	 * @param distributionPattern
+	 *        the distribution pattern to create the wiring
+	 * @param isBroadcast
+	 *        indicates that the edge is part of a broadcast group
 	 */
-	public ExecutionGroupEdge(final ExecutionGraph executionGraph, final ExecutionGroupVertex sourceVertex,
-			final int indexOfOutputGate, final ExecutionGroupVertex targetVertex, final int indexOfInputGate,
-			final ChannelType channelType, final boolean userDefinedChannelType,
-			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel, final DistributionPattern distributionPattern) {
-		this.executionGraph = executionGraph;
+	public ExecutionGroupEdge(final ExecutionGroupVertex sourceVertex, final int indexOfOutputGate,
+			final ExecutionGroupVertex targetVertex, final int indexOfInputGate, final ChannelType channelType,
+			final boolean userDefinedChannelType, final CompressionLevel compressionLevel,
+			final boolean userDefinedCompressionLevel, final DistributionPattern distributionPattern,
+			final boolean isBroadcast) {
 		this.sourceVertex = sourceVertex;
 		this.indexOfOutputGate = indexOfOutputGate;
 		this.channelType = channelType;
@@ -114,6 +122,7 @@ public class ExecutionGroupEdge {
 		this.userDefinedCompressionLevel = userDefinedCompressionLevel;
 		this.targetVertex = targetVertex;
 		this.distributionPattern = distributionPattern;
+		this.isBroadcast = isBroadcast;
 	}
 
 	/**
@@ -139,9 +148,7 @@ public class ExecutionGroupEdge {
 			throw new GraphConversionException("Cannot overwrite user defined channel type");
 		}
 
-		this.executionGraph.unwire(this.sourceVertex, this.indexOfOutputGate, this.targetVertex, this.indexOfInputGate);
-		this.executionGraph.wire(this.sourceVertex, this.indexOfOutputGate, this.targetVertex, this.indexOfInputGate,
-			newChannelType, this.compressionLevel);
+		this.channelType = newChannelType;
 	}
 
 	/**
@@ -183,6 +190,25 @@ public class ExecutionGroupEdge {
 			// Update compression level
 			this.compressionLevel = newCompressionLevel;
 		}
+	}
+
+	/**
+	 * Sets the edge's connection ID.
+	 * 
+	 * @param connectionID
+	 *        the edge's connection ID
+	 */
+	void setConnectionID(final int connectionID) {
+		this.connectionID = connectionID;
+	}
+
+	/**
+	 * Returns the edge's connection ID.
+	 * 
+	 * @return the edge's connection ID
+	 */
+	public int getConnectionID() {
+		return this.connectionID;
 	}
 
 	/**
@@ -229,12 +255,22 @@ public class ExecutionGroupEdge {
 	public int getIndexOfOutputGate() {
 		return this.indexOfOutputGate;
 	}
-	
+
 	/**
-	 * Returns the distribution pattern associated with this group edge.
-	 * @return
+	 * Returns the distribution pattern to create the wiring between the group members.
+	 * 
+	 * @return the distribution pattern to create the wiring between the group members
 	 */
-	public DistributionPattern getDistributionPattern(){
+	public DistributionPattern getDistributionPattern() {
 		return this.distributionPattern;
+	}
+
+	/**
+	 * Checks if the edge is part of a broadcast group.
+	 * 
+	 * @return <code>true</code> if the edge is part of a broadcast group, <code>false</code> otherwise
+	 */
+	public boolean isBroadcast() {
+		return this.isBroadcast;
 	}
 }

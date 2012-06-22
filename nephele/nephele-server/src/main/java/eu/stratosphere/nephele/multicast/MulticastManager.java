@@ -32,18 +32,17 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.executiongraph.ExecutionEdge;
+import eu.stratosphere.nephele.executiongraph.ExecutionGate;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
-import eu.stratosphere.nephele.types.Record;
 
 /**
  * The MulticastManager is responsible for the creation and storage of application-layer multicast trees used to
@@ -112,11 +111,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 			// no tree exists - we assume that this is the sending node initiating a multicast
 
-			if (!checkIfAllTargetVerticesExist(caller, jobID, sourceChannelID)) {
-				LOG.info("Received multicast request but not all receivers found.");
-				return ConnectionInfoLookupResponse.createReceiverNotFound();
-			}
-
 			if (!checkIfAllTargetVerticesReady(caller, jobID, sourceChannelID)) {
 				LOG.info("Received multicast request but not all receivers ready.");
 
@@ -168,7 +162,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 	 * @return
 	 */
 	private TreeNode getClosestNode(TreeNode indicator, LinkedList<TreeNode> nodes) {
-		
+
 		if (indicator == null) {
 			return nodes.getFirst();
 		}
@@ -179,7 +173,7 @@ public class MulticastManager implements ChannelLookupProtocol {
 				closestnode = n;
 			}
 		}
-		
+
 		return closestnode;
 	}
 
@@ -268,34 +262,6 @@ public class MulticastManager implements ChannelLookupProtocol {
 	}
 
 	/**
-	 * Checks, if all target vertices for a multicast transmission exist.
-	 * 
-	 * @param caller
-	 * @param jobID
-	 * @param sourceChannelID
-	 * @return
-	 */
-	private boolean checkIfAllTargetVerticesExist(InstanceConnectionInfo caller, JobID jobID, ChannelID sourceChannelID) {
-		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
-
-		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
-
-		final OutputGate<? extends Record> broadcastgate = outputChannel.getOutputGate();
-
-		// get all broadcast output channels
-		for (AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()) {
-			if (c.isBroadcastChannel()) {
-				ExecutionVertex targetVertex = eg.getVertexByChannelID(c.getConnectedChannelID());
-				if (targetVertex == null) {
-					return false;
-				}
-			}
-		}
-
-		return true;
-	}
-
-	/**
 	 * Checks, if all target vertices for multicast transmisison are ready. If vertices are in state ASSIGNED, it will
 	 * deploy those vertices.
 	 * 
@@ -307,16 +273,21 @@ public class MulticastManager implements ChannelLookupProtocol {
 	private boolean checkIfAllTargetVerticesReady(InstanceConnectionInfo caller, JobID jobID, ChannelID sourceChannelID) {
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 
-		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
+		final ExecutionEdge outputChannel = eg.getEdgeByID(sourceChannelID);
 
-		final OutputGate<? extends Record> broadcastgate = outputChannel.getOutputGate();
+		final ExecutionGate broadcastGate = outputChannel.getOutputGate();
 
 		List<ExecutionVertex> verticesToDeploy = null;
 
 		// get all broadcast output channels
-		for (AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()) {
-			if (c.isBroadcastChannel()) {
-				ExecutionVertex targetVertex = eg.getVertexByChannelID(c.getConnectedChannelID());
+		final int numberOfOutputChannels = broadcastGate.getNumberOfEdges();
+		for (int i = 0; i < numberOfOutputChannels; ++i) {
+
+			final ExecutionEdge c = broadcastGate.getEdge(i);
+
+			if (c.isBroadcast()) {
+
+				final ExecutionVertex targetVertex = c.getInputGate().getVertex();
 
 				if (targetVertex.getExecutionState() == ExecutionState.ASSIGNED) {
 					if (verticesToDeploy == null) {
@@ -354,45 +325,46 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 
-		final AbstractOutputChannel<? extends Record> outputChannel = eg.getOutputChannelByID(sourceChannelID);
+		final ExecutionEdge outputChannel = eg.getEdgeByID(sourceChannelID);
 
-		final OutputGate<? extends Record> broadcastgate = outputChannel.getOutputGate();
+		final ExecutionGate broadcastGate = outputChannel.getOutputGate();
 
-		final LinkedList<AbstractOutputChannel<? extends Record>> outputChannels = new LinkedList<AbstractOutputChannel<? extends Record>>();
+		final LinkedList<ExecutionEdge> outputChannels = new LinkedList<ExecutionEdge>();
 
-		// get all broadcast output channels
-		for (AbstractOutputChannel<? extends Record> c : broadcastgate.getOutputChannels()) {
-			if (c.isBroadcastChannel()) {
+		// Get all broadcast output channels
+		final int numberOfOutputChannels = broadcastGate.getNumberOfEdges();
+		for (int i = 0; i < numberOfOutputChannels; ++i) {
+			final ExecutionEdge c = broadcastGate.getEdge(i);
+
+			if (c.isBroadcast()) {
 				outputChannels.add(c);
 			}
 		}
 
-		final LinkedList<TreeNode> treenodes = new LinkedList<TreeNode>();
+		final LinkedList<TreeNode> treeNodes = new LinkedList<TreeNode>();
 
 		LinkedList<ChannelID> actualLocalTargets = new LinkedList<ChannelID>();
 
 		// search for local targets for the tree node
-		for (Iterator<AbstractOutputChannel<? extends Record>> iter = outputChannels.iterator(); iter.hasNext();) {
+		for (Iterator<ExecutionEdge> iter = outputChannels.iterator(); iter.hasNext();) {
 
-			AbstractOutputChannel<? extends Record> actualoutputchannel = iter.next();
-
-			ExecutionVertex targetVertex = eg.getVertexByChannelID(actualoutputchannel.getConnectedChannelID());
+			final ExecutionEdge actualOutputChannel = iter.next();
+			final ExecutionVertex targetVertex = actualOutputChannel.getInputGate().getVertex();
 
 			// is the target vertex running on the same instance?
 			if (targetVertex.getAllocatedResource().getInstance().getInstanceConnectionInfo().equals(source)) {
 
-				actualLocalTargets.add(actualoutputchannel.getConnectedChannelID());
+				actualLocalTargets.add(actualOutputChannel.getInputChannelID());
 				iter.remove();
-
 			}
 
 		}
 
 		// create sender node (root) with source instance
-		TreeNode actualnode = new TreeNode(eg.getVertexByChannelID(sourceChannelID).getAllocatedResource()
+		TreeNode actualNode = new TreeNode(eg.getVertexByChannelID(sourceChannelID).getAllocatedResource()
 			.getInstance(), source, actualLocalTargets);
 
-		treenodes.add(actualnode);
+		treeNodes.add(actualNode);
 
 		// now we have the root-node.. lets extract all other nodes
 
@@ -400,28 +372,29 @@ public class MulticastManager implements ChannelLookupProtocol {
 
 		while (outputChannels.size() > 0) {
 
-			AbstractOutputChannel<? extends Record> firstChannel = outputChannels.pollFirst();
+			final ExecutionEdge firstChannel = outputChannels.pollFirst();
 
-			ExecutionVertex firstTarget = eg.getVertexByChannelID(firstChannel.getConnectedChannelID());
+			final ExecutionVertex firstTarget = firstChannel.getInputGate().getVertex();
 
-			InstanceConnectionInfo actualinstance = firstTarget.getAllocatedResource().getInstance()
+			final InstanceConnectionInfo actualInstance = firstTarget.getAllocatedResource().getInstance()
 				.getInstanceConnectionInfo();
 
 			actualLocalTargets = new LinkedList<ChannelID>();
 
 			// add first local target
-			actualLocalTargets.add(firstChannel.getConnectedChannelID());
+			actualLocalTargets.add(firstChannel.getInputChannelID());
 
 			// now we iterate through the remaining channels to find other local targets...
-			for (Iterator<AbstractOutputChannel<? extends Record>> iter = outputChannels.iterator(); iter.hasNext();) {
-				AbstractOutputChannel<? extends Record> actualoutputchannel = iter.next();
+			for (Iterator<ExecutionEdge> iter = outputChannels.iterator(); iter.hasNext();) {
 
-				ExecutionVertex actualTarget = eg.getVertexByChannelID(actualoutputchannel.getConnectedChannelID());
+				final ExecutionEdge actualOutputChannel = iter.next();
+
+				final ExecutionVertex actualTarget = actualOutputChannel.getInputGate().getVertex();
 
 				// is the target vertex running on the same instance?
 				if (actualTarget.getAllocatedResource().getInstance().getInstanceConnectionInfo()
-					.equals(actualinstance)) {
-					actualLocalTargets.add(actualoutputchannel.getConnectedChannelID());
+					.equals(actualInstance)) {
+					actualLocalTargets.add(actualOutputChannel.getInputChannelID());
 
 					iter.remove();
 
@@ -430,10 +403,10 @@ public class MulticastManager implements ChannelLookupProtocol {
 			}// end for
 
 			// create tree node for current instance
-			actualnode = new TreeNode(firstTarget.getAllocatedResource().getInstance(), actualinstance,
+			actualNode = new TreeNode(firstTarget.getAllocatedResource().getInstance(), actualInstance,
 				actualLocalTargets);
 
-			receivernodes.add(actualnode);
+			receivernodes.add(actualNode);
 
 		}// end while
 
@@ -446,8 +419,9 @@ public class MulticastManager implements ChannelLookupProtocol {
 			Collections.sort(receivernodes);
 		}
 
-		treenodes.addAll(receivernodes);
-		return treenodes;
+		treeNodes.addAll(receivernodes);
+
+		return treeNodes;
 
 	}
 

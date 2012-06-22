@@ -19,9 +19,8 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.pact.common.generic.GenericMatcher;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-
 
 /**
  * Interface of an iterator that performs the logic of a match task. The iterator follows the
@@ -31,7 +30,7 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
  * @author Erik Nijkamp
  * @author Stephan Ewen
  */
-public interface MatchTaskIterator
+public interface MatchTaskIterator<V1, V2, O>
 {
 	/**
 	 * General-purpose open method. Initializes the internal strategy (for example triggers the
@@ -59,7 +58,7 @@ public interface MatchTaskIterator
 	 * @return True, if a next key exists, false if no more keys exist.
 	 * @throws Exception Exceptions from the user code are forwarded.
 	 */
-	boolean callWithNextKey(MatchStub matchFunction, Collector collector) throws Exception;
+	boolean callWithNextKey(GenericMatcher<V1, V2, O> matchFunction, Collector<O> collector) throws Exception;
 	
 	/**
 	 * Aborts the matching process. This extra abort method is supplied, because a significant time may pass while

@@ -1,17 +1,17 @@
 /***********************************************************************************************************************
-*
-* Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
-*
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-* the License. You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-* an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
-* specific language governing permissions and limitations under the License.
-*
-**********************************************************************************************************************/
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
 
 package eu.stratosphere.nephele.checkpointing;
 
@@ -22,6 +22,7 @@ import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
@@ -37,6 +38,8 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
+	private final LocalBufferPoolOwner previousBufferPoolOwner;
+
 	private final int numberOfChannels;
 
 	private final LocalBufferPool localBufferPool;
@@ -45,6 +48,7 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 			final LocalBufferPoolOwner previousBufferPoolOwner, final int numberOfChannels) {
 		this.task = task;
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.previousBufferPoolOwner = previousBufferPoolOwner;
 		if (previousBufferPoolOwner == null) {
 			this.localBufferPool = new LocalBufferPool(1, false, this);
 		} else {
@@ -52,6 +56,7 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 				throw new IllegalStateException("previousBufferPoolOwner is not of type RuntimeTaskContext");
 			}
 
+			// Use the original task's buffer pool
 			final RuntimeTaskContext rtc = (RuntimeTaskContext) previousBufferPoolOwner;
 			this.localBufferPool = rtc.getLocalBufferPool();
 		}
@@ -155,8 +160,13 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 	@Override
 	public void clearLocalBufferPool() {
 
-		// Clear the buffer cache
-		this.localBufferPool.destroy();
+		if (this.previousBufferPoolOwner != null) {
+			// If the buffer pool was previously owned by the runtime task, let the runtime task do the clean-up
+			this.previousBufferPoolOwner.clearLocalBufferPool();
+		} else {
+			// Otherwise, destroy the buffer pool yourself
+			this.localBufferPool.destroy();
+		}
 	}
 
 	/**
@@ -182,5 +192,14 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 	public void asynchronousEventOccurred() throws IOException, InterruptedException {
 
 		throw new IllegalStateException("ReplayTaskContext received asynchronous event");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
+
+		return this.localBufferPool.registerBufferAvailabilityListener(bufferAvailabilityListener);
 	}
 }

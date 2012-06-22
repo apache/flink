@@ -24,20 +24,20 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * 
  * @author warneke
  */
-public final class TeraInputFormat extends DelimitedInputFormat {
-
+public final class TeraInputFormat extends DelimitedInputFormat
+{
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] record, int numBytes) {
-
+	public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes)
+	{
 		if (numBytes != (TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE)) {
 			return false;
 		}
 
-		final TeraKey key = new TeraKey(record);
-		final TeraValue value = new TeraValue(record);
+		final TeraKey key = new TeraKey(record, offset);
+		final TeraValue value = new TeraValue(record, offset + TeraKey.KEY_SIZE);
 		
 		target.setField(0, key);
 		target.setField(1, value);

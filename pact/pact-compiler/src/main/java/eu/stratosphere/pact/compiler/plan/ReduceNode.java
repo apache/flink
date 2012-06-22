@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +25,7 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
@@ -44,6 +44,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class ReduceNode extends SingleInputNode {
+	
 	private float combinerReducingFactor = 1.0f; // the factor by which the combiner reduces the data
 
 	/**
@@ -88,7 +89,7 @@ public class ReduceNode extends SingleInputNode {
 	 * @param localProps
 	 *        The local properties of this copy.
 	 */
-	protected ReduceNode(ReduceNode template, List<OptimizerNode> pred, List<PactConnection> conn, GlobalProperties globalProps,
+	protected ReduceNode(ReduceNode template, OptimizerNode pred, PactConnection conn, GlobalProperties globalProps,
 			LocalProperties localProps) {
 		super(template, pred, conn, globalProps, localProps);
 	}
@@ -127,21 +128,11 @@ public class ReduceNode extends SingleInputNode {
 		}
 		// else
 
-		if(this.input.get(0).getShipStrategy() == ShipStrategy.PARTITION_HASH) {
-			// test if all input connections use the same strategy
-			for(PactConnection c : this.input) {
-				if(c.getShipStrategy() != ShipStrategy.PARTITION_HASH)
-					return false;
-			}
+		if(this.inConn.getShipStrategy() == ShipStrategy.PARTITION_HASH) {
 			return true;
 		}
 		
-		if(this.input.get(0).getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
-			// test if all input connections use the same strategy
-			for(PactConnection c : this.input) {
-				if(c.getShipStrategy() != ShipStrategy.PARTITION_RANGE)
-					return false;
-			}
+		if(this.inConn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
 			return true;
 		}
 		
@@ -193,114 +184,80 @@ public class ReduceNode extends SingleInputNode {
 		List<InterestingProperties> props = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
 			this, 0);
 
-		int[] keyFields = getPactContract().getKeyColumnNumbers(0);
-		
 		// add the first interesting properties: partitioned and grouped
 		InterestingProperties ip1 = new InterestingProperties();
-		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields.clone());
-		ip1.getLocalProperties().setGrouped(true, new FieldSet(keyFields));
+		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, (FieldList)this.keyList.clone());
+		ip1.getLocalProperties().setGrouped(true, new FieldSet(this.keyList));
 		
 		ip1.getMaximalCosts().setNetworkCost(0);
 		ip1.getMaximalCosts().setSecondaryStorageCost(0);
 		
-		for(PactConnection c : this.input) {
-			Costs cost = new Costs();
-			estimator.getHashPartitioningCost(c, cost);
-			ip1.getMaximalCosts().addCosts(cost);
-			cost = new Costs();
-			estimator.getLocalSortCost(this, Collections.<PactConnection>singletonList(c), cost);
-			ip1.getMaximalCosts().addCosts(cost);
-		}
+		Costs cost = new Costs();
+		estimator.getHashPartitioningCost(this.inConn, cost);
+		ip1.getMaximalCosts().addCosts(cost);
+		cost = new Costs();
+		estimator.getLocalSortCost(this, this.inConn, cost);
+		ip1.getMaximalCosts().addCosts(cost);
 		
 		// add the second interesting properties: partitioned only
 		InterestingProperties ip2 = new InterestingProperties();
-		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, keyFields.clone());
+		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, (FieldList)this.keyList.clone());
 		
 		ip2.getMaximalCosts().setNetworkCost(0);
 		ip2.getMaximalCosts().setSecondaryStorageCost(0);
 		
-		for(PactConnection c : this.input) {
-			Costs cost = new Costs();
-			estimator.getHashPartitioningCost(c, cost);
-			ip2.getMaximalCosts().addCosts(cost);
-		}
+		estimator.getHashPartitioningCost(this.inConn, cost);
+		ip2.getMaximalCosts().addCosts(cost);
 
 		InterestingProperties.mergeUnionOfInterestingProperties(props, ip1);
 		InterestingProperties.mergeUnionOfInterestingProperties(props, ip2);
 
-		for(PactConnection c : this.input) {
-			c.addAllInterestingProperties(props);
-		}
+		inConn.addAllInterestingProperties(props);
 	}
 
 	@Override
-	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations,
+	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans,
 			CostEstimator estimator, List<OptimizerNode> outputPlans)
 	{
 
 		FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-		
-		for(List<OptimizerNode> predList : alternativeSubPlanCominations) {
-			// we have to check if all shipStrategies are the same or at least compatible
-			ShipStrategy ss = ShipStrategy.NONE;
-			
-			for(PactConnection c : this.input) {
-				ShipStrategy newSS = c.getShipStrategy();
-				
-				if(newSS == ShipStrategy.BROADCAST || newSS == ShipStrategy.SFR)
-					// invalid strategy: we do not produce an alternative node
-					continue;
-		
-				// as long as no ShipStrategy is set we can pick the strategy from the current connection
-				if(ss == ShipStrategy.NONE) {
-					ss = newSS;
-					continue;
-				}
-				
-				// as long as the ShipStrategy is the same everything is fine
-				if(ss == newSS)
-					continue;
-				
-				// incompatible strategies: we do not produce an alternative node
-				continue;
-			}
-			
 
+		// we have to check if all shipStrategies are the same or at least compatible
+		ShipStrategy ss = ShipStrategy.NONE;
+		
+		// check hint and use if available
+		ShipStrategy hintSS = this.inConn.getShipStrategy();
+			
+		if(hintSS == ShipStrategy.BROADCAST || hintSS == ShipStrategy.SFR)
+			// invalid strategy: we do not produce an alternative node
+			return;
+		else
+			ss = hintSS;
+		
+		for(OptimizerNode subPlan : altSubPlans) {
+			
 			GlobalProperties gp;
 			LocalProperties lp;
 
 			if (ss == ShipStrategy.NONE) {
-				if(predList.size() == 1) {
-					gp = predList.get(0).getGlobalProperties();
-					lp = predList.get(0).getLocalProperties();
-	
-					if ((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned()) 
-						 || isFieldSetUnique(keySet, 0)	){
-						ss = ShipStrategy.FORWARD;
-					} else {
-						ss = ShipStrategy.PARTITION_HASH;
-					}
-	
-					gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
-					lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
-				} else {
-					// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
-					gp = new GlobalProperties();
-					lp = new LocalProperties();
+				
+				gp = subPlan.getGlobalProperties();
+				lp = subPlan.getLocalProperties();
 
-					// as we dropped all properties we use hash strategy (forward cannot be applied)
+				if ((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned()) 
+					 || isFieldSetUnique(keySet, 0)	){
+					ss = ShipStrategy.FORWARD;
+				} else {
 					ss = ShipStrategy.PARTITION_HASH;
 				}
+
+				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, ss);
+				lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
+				
 			} else {
-				if(predList.size() == 1) {
-					// fixed strategy
-					gp = PactConnection.getGlobalPropertiesAfterConnection(predList.get(0), this, ss);
-					lp = PactConnection.getLocalPropertiesAfterConnection(predList.get(0), this, ss);
-				} else {
-					// TODO right now we drop all properties in the union case; need to figure out what properties can be kept
-					gp = new GlobalProperties();
-					lp = new LocalProperties();
-				}
+				// fixed strategy
+				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, ss);
+				lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
 
 				if (!((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned())
 						|| isFieldSetUnique(keySet, 0))) {
@@ -354,24 +311,21 @@ public class ReduceNode extends SingleInputNode {
 
 			// ----------------------------------------------------------------
 			// see, if we have a combiner before shipping
+			
+			OptimizerNode reducePred = subPlan;
+			
 			if (isCombineable() && ss != ShipStrategy.FORWARD) {
 				// this node contains the estimates for the costs of the combiner,
 				// as well as the updated size and cardinality estimates
-				int index = 0;
-				for(OptimizerNode pred : predList) {
-					OptimizerNode combiner = new CombinerNode(getPactContract(), pred, this.combinerReducingFactor);
-					combiner.setDegreeOfParallelism(pred.getDegreeOfParallelism());
 
-					estimator.costOperator(combiner);
-					predList.set(index, combiner); // replace reduce node with combiner node at appropriate index
-					++index;
-				}
+				OptimizerNode combiner = new CombinerNode(getPactContract(), subPlan, this.combinerReducingFactor);
+				combiner.setDegreeOfParallelism(subPlan.getDegreeOfParallelism());
+				estimator.costOperator(combiner);
+				reducePred = combiner;
 			}
 			
-			ReduceNode n = new ReduceNode(this, predList, this.input, gp, lp);
-			for(PactConnection cc : n.getInputConnections()) {
-				cc.setShipStrategy(ss);
-			}
+			ReduceNode n = new ReduceNode(this, reducePred, this.inConn, gp, lp);
+			n.inConn.setShipStrategy(ss);
 			n.setLocalStrategy(ls);
 
 			// compute, which of the properties survive, depending on the output contract
@@ -390,25 +344,12 @@ public class ReduceNode extends SingleInputNode {
 	 * @return the number of keys processed by the PACT.
 	 */
 	protected long computeNumberOfProcessedKeys() {
-		long keySum = 0;
-		FieldSet columnSet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-		
-		for(PactConnection c : this.input) {
-			OptimizerNode pred = c.getSourcePact();
-		
-			if(pred != null) {
-				// if one input (all of them are unioned) does not know
-				// its record count, we a pessimistic and return "unknown" as well
-				if(pred.getEstimatedCardinality(columnSet) == -1)
-					return -1;
-				
-				// Each key is processed by Map
-				// all inputs are union -> we sum up the keyCounts
-				keySum += pred.getEstimatedCardinality(columnSet);
-			} 
-		}
-		
-		return keySum;
+
+		if(this.getPredNode() != null) {
+			// return key count of predecessor
+			return this.getPredNode().getEstimatedCardinality(new FieldSet(this.keyList));
+		} else
+			return -1;
 	}
 	
 	/**
@@ -421,23 +362,19 @@ public class ReduceNode extends SingleInputNode {
 		return 1;
 	}
 
+	/**
+	 * TODO
+	 */
 	private void computeCombinerReducingFactor() {
 		if(!isCombineable())
 			return;
 		
 		long numRecords = 0;
-		for(PactConnection c : this.input) {
-			OptimizerNode pred = c.getSourcePact();
-			if(pred != null) {
-				// if one input (all of them are unioned) does not know
-				// its number of records, we a pessimistic and return
-				// (reducing factor keeps -1 [unknown])
-				if(pred.estimatedNumRecords == -11)
-					return;
-				
-				numRecords += pred.estimatedNumRecords;
-			}
-		}
+		
+		if(this.getPredNode() != null || this.getPredNode().estimatedNumRecords == -1)
+			numRecords = this.getPredNode().estimatedNumRecords;
+		else
+			return;
 		
 		long numKeys = computeNumberOfProcessedKeys();
 		if(numKeys == -1)
@@ -462,7 +399,7 @@ public class ReduceNode extends SingleInputNode {
 	 * @return the number of stub calls.
 	 */
 	protected long computeNumberOfStubCalls() {
-		
+
 		// the stub is called once per key
 		return this.computeNumberOfProcessedKeys();
 	}
@@ -495,40 +432,27 @@ public class ReduceNode extends SingleInputNode {
 	
 	
 	public boolean partitioningIsOnRightFields(GlobalProperties gp) {
-		int[] partitionedFields = gp.getPartitionedFields();
-		if (partitionedFields == null || partitionedFields.length == 0) {
+		FieldList partitionedFields = gp.getPartitionedFields();
+		if (partitionedFields == null || partitionedFields.size() == 0) {
 			return false;
 		}
-		int[] keyFields = getPactContract().getKeyColumnNumbers(0);
+		
 		if (gp.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-			return Arrays.equals(keyFields,partitionedFields);	
+			return this.keyList.equals(partitionedFields);	
 		}
-		
-		for (int partitionedField : partitionedFields) {
-			boolean foundField = false;
-			for (int keyField : keyFields){
-				if (keyField == partitionedField) {
-					foundField = true;
-					break;
-				}
-			}
-			if (foundField == false) {
-				return false;
-			}
-		}
-		
-		return true;
+
+		return this.keyList.containsAll(partitionedFields);
 	}
 	
 	@Override
 	public List<FieldSet> createUniqueFieldsForNode() {
-		if (keySet != null) {
-			for (int keyField : keySet) {
+		if (keyList != null) {
+			for (int keyField : keyList) {
 				if (isFieldKept(0, keyField) == false) {
 					return null;
 				}
 			}
-			return Collections.singletonList(new FieldSet(keySet));
+			return Collections.singletonList(new FieldSet(keyList));
 		}
 		return null;
 	}

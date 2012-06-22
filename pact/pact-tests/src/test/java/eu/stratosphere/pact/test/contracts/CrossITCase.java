@@ -108,7 +108,7 @@ public class CrossITCase extends TestBase
 		private PactInteger integer = new PactInteger();
 		
 		@Override
-		public void cross(PactRecord record1, PactRecord record2, Collector out) {
+		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 			string = record1.getField(1, string);
 			int val1 = Integer.parseInt(string.toString());
 			string = record2.getField(1, string);

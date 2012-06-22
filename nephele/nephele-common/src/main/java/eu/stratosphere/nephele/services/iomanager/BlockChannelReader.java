@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
@@ -49,7 +50,7 @@ public class BlockChannelReader extends BlockChannelAccess<ReadRequest, LinkedBl
 	 * @throws IOException Thrown, if the underlying file channel could not be opened.
 	 */
 	protected BlockChannelReader(Channel.ID channelID, RequestQueue<ReadRequest> requestQueue,
-			LinkedBlockingQueue<MemorySegment> returnSegments)
+			LinkedBlockingQueue<MemorySegment> returnSegments, int numRequestsToBundle)
 	throws IOException
 	{
 		super(channelID, requestQueue, returnSegments, false);
@@ -70,6 +71,8 @@ public class BlockChannelReader extends BlockChannelAccess<ReadRequest, LinkedBl
 		checkErroneous();
 		
 		// write the current buffer and get the next one
+		// the statements have to be in this order to avoid incrementing the counter
+		// after the channel has been closed
 		this.requestsNotReturned.incrementAndGet();
 		if (this.closed || this.requestQueue.isClosed()) {
 			// if we found ourselves closed after the counter increment,
@@ -79,6 +82,34 @@ public class BlockChannelReader extends BlockChannelAccess<ReadRequest, LinkedBl
 		}
 		this.requestQueue.add(new SegmentReadRequest(this, segment));
 	}
+	
+	/**
+	 * Gets the next memory segment that has been filled with data by the reader. This method blocks until
+	 * such a segment is available, or until an error occurs in the reader, or the reader is closed.
+	 * <p>
+	 * WARNING: If this method is invoked without any segment ever returning (for example, because the
+	 * {@link #readBlock(MemorySegment)} method has not been invoked appropriately), the method may block
+	 * forever.
+	 * 
+	 * @return The next memory segment from the reader's return queue.
+	 * @throws IOException Thrown, if an I/O error occurs in the reader while waiting for the request to return.
+	 */
+	public MemorySegment getNextReturnedSegment() throws IOException
+	{
+		try {
+			while (true) {
+				final MemorySegment next = this.returnBuffers.poll(2000, TimeUnit.MILLISECONDS);
+				if (next != null) {
+					return next;
+				} else {
+					if (this.closed) {
+						throw new IOException("The reader has been asynchronously closed.");
+					}
+					checkErroneous();
+				}
+			}
+		} catch (InterruptedException iex) {
+			throw new IOException("Reader was interrupted while waiting for the next returning segment.");
+		}
+	}
 }
-
-

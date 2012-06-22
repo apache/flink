@@ -23,8 +23,8 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -36,8 +36,6 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.example.util.AsciiUtils;
 
-
-
 /**
  * Implements a word count which takes the input file and counts the number of
  * the occurrences of each word in the file.
@@ -46,23 +44,6 @@ import eu.stratosphere.pact.example.util.AsciiUtils;
  */
 public class WordCount implements PlanAssembler, PlanAssemblerDescription
 {
-	/**
-	 * Converts a input line, assuming to contain a string, into a record that has a single field,
-	 * which is a {@link PactString}, containing that line.
-	 */
-	public static class LineInFormat extends DelimitedInputFormat
-	{
-		private final PactString string = new PactString();
-		
-		@Override
-		public boolean readRecord(PactRecord record, byte[] line, int numBytes)
-		{
-			this.string.setValueAscii(line, 0, numBytes);
-			record.setField(0, this.string);
-			return true;
-		}
-	}
-
 	/**
 	 * Writes <tt>PactRecord</tt> containing an string (word) and an integer (count) to a file.
 	 * The output format is: "&lt;word&gt; &lt;count&gt;\n"
@@ -99,7 +80,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 						new AsciiUtils.WhitespaceTokenizer();
 		
 		@Override
-		public void map(PactRecord record, Collector collector)
+		public void map(PactRecord record, Collector<PactRecord> collector)
 		{
 			// get the first field (as type PactString) from the record
 			PactString str = record.getField(0, PactString.class);
@@ -130,7 +111,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		private final PactInteger theInteger = new PactInteger();
 		
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out) throws Exception
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
 		{
 			PactRecord element = null;
 			int sum = 0;
@@ -149,7 +130,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		 * @see eu.stratosphere.pact.common.stubs.ReduceStub#combine(java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector out) throws Exception
+		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
 		{
 			// the logic is the same as in the reduce function, so simply call the reduce method
 			this.reduce(records, out);
@@ -167,11 +148,13 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 		String dataInput = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
 
-		FileDataSource source = new FileDataSource(LineInFormat.class, dataInput, "Input Lines");
+		FileDataSource source = new FileDataSource(TextInputFormat.class, dataInput, "Input Lines");
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
 		ReduceContract reducer = new ReduceContract(CountWords.class, PactString.class, 0, mapper, "Count Words");
 		FileDataSink out = new FileDataSink(WordCountOutFormat.class, output, reducer, "Word Counts");
 
+		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");		// comment out this line for UTF-8 inputs
+		
 		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(noSubTasks);
 		return plan;

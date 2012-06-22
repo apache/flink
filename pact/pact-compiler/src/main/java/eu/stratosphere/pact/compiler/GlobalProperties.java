@@ -13,6 +13,7 @@ package eu.stratosphere.pact.compiler;
 import java.util.ArrayList;
 
 import eu.stratosphere.pact.common.contract.Ordering;
+import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 
 /**
@@ -24,7 +25,7 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public final class GlobalProperties implements Cloneable {
-	private int[] partitionedFields;
+	private FieldList partitionedFields;
 
 	private PartitionProperty partitioning; // the partitioning
 
@@ -50,13 +51,13 @@ public final class GlobalProperties implements Cloneable {
 	 * @param keyUnique
 	 *        The flag that indicates, whether the keys are unique.
 	 */
-	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, int[] partitionedFields) {
+	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, FieldList partitionedFields) {
 		this.partitioning = partitioning;
 		this.ordering = ordering;
 		this.partitionedFields = partitionedFields;
 	}
 
-	public int[] getPartitionedFields() {
+	public FieldList getPartitionedFields() {
 		return partitionedFields;
 	}
 
@@ -75,7 +76,7 @@ public final class GlobalProperties implements Cloneable {
 	 * @param partitioning
 	 *        The new partitioning to set.
 	 */
-	public void setPartitioning(PartitionProperty partitioning, int[] partitionedFields) {
+	public void setPartitioning(PartitionProperty partitioning, FieldList partitionedFields) {
 		this.partitioning = partitioning;
 		this.partitionedFields = partitionedFields;
 	}
@@ -136,10 +137,10 @@ public final class GlobalProperties implements Cloneable {
 
 		// check, whether the global order is preserved
 		if (ordering != null) {
-			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedFields();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
 				if (node.isFieldKept(input, i) == false) {
-					ordering = ordering.createNewOrderingUpToIndex(i);
+					ordering = ordering.createNewOrderingUpToPos(i);
 					break;
 				}
 			}
@@ -168,7 +169,7 @@ public final class GlobalProperties implements Cloneable {
 		// check, whether the global order is preserved
 		if (ordering != null) {
 			boolean orderingPreserved = true;
-			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedFields();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
 				if (node.isFieldKept(input, i) == false) {
 					orderingPreserved = false;
@@ -184,11 +185,9 @@ public final class GlobalProperties implements Cloneable {
 		if (newPartitioning == PartitionProperty.NONE && newOrdering == null) {
 			return null;
 		} else {
-			int[] newPartitionedFieldsArray = new int[newPartitionedFields.size()];
-			for (int i = 0; i < newPartitionedFields.size(); i++) {
-				newPartitionedFieldsArray[i] = newPartitionedFields.get(i);
-			}
-			return new GlobalProperties(newPartitioning, newOrdering, newPartitionedFieldsArray);
+			FieldList partitionFields = new FieldList();
+			partitionedFields.addAll(newPartitionedFields);
+			return new GlobalProperties(newPartitioning, newOrdering, partitionFields);
 		}
 
 	}
@@ -212,25 +211,13 @@ public final class GlobalProperties implements Cloneable {
 			}
 		}
 
-		int[] otherPartitionedFields = other.getPartitionedFields();
+		FieldList otherPartitionedFields = other.getPartitionedFields();
 		if (this.partitionedFields != null) {
 			if (other.partitionedFields == null) {
 				return false;
 			}
-			if (this.partitionedFields.length < otherPartitionedFields.length) {
+			if(!otherPartitionedFields.containsAll(this.partitionedFields)) {
 				return false;
-			}
-			for (int otherField : otherPartitionedFields) {
-				boolean foundField = false;
-				for (int thisField : partitionedFields) {
-					if (thisField == otherField) {
-						foundField = true;
-						break;
-					}
-				}
-				if (foundField == false) {
-					return false;
-				}
 			}
 		}
 

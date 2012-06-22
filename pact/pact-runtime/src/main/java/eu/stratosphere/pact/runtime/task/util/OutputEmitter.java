@@ -16,16 +16,15 @@
 package eu.stratosphere.pact.runtime.task.util;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.pact.common.type.DeserializationException;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 
 /**
  * @author Erik Nijkamp
  * @author Alexander Alexandrov
  * @author Stephan Ewen
  */
-public class OutputEmitter implements ChannelSelector<PactRecord>
+public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T>>
 {
 	/**
 	 * Enumeration defining the different shipping types of the output, such as local forward, re-partitioning by hash,
@@ -33,11 +32,11 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	 */
 	public enum ShipStrategy {
 		FORWARD,
-		BROADCAST,
 		PARTITION_HASH,
-		PARTITION_RANGE,
 		PARTITION_LOCAL_HASH,
+		PARTITION_RANGE,
 		PARTITION_LOCAL_RANGE,
+		BROADCAST,
 		SFR,
 		NONE
 	}
@@ -48,19 +47,15 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 
 	private static final byte[] DEFAULT_SALT = new byte[] { 17, 31, 47, 51, 83, 1 };
 	
-	private ShipStrategy strategy;				// the shipping strategy used by this output emitter
+	private final ShipStrategy strategy;		// the shipping strategy used by this output emitter
 	
 	private int[] channels;						// the reused array defining target channels
 	
 	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
 	
-	private Class<? extends Key>[] keyClasses;
-	
-	private int[] keyPositions;
+	private final TypeComparator<T> comparator;	// the comparator for hashing / sorting
 	
 	private final byte[] salt;					// the salt used to randomize the hash values
-
-	private PartitionFunction partitionFunction;
 
 	// ------------------------------------------------------------------------
 	// Constructors
@@ -77,29 +72,41 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	/**
 	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...).
 	 * 
-	 * @param strategy
-	 *        The distribution strategy to be used.
+	 * @param strategy The distribution strategy to be used.
 	 */
 	public OutputEmitter(ShipStrategy strategy)
 	{
-		this.strategy = strategy;
-		this.salt = DEFAULT_SALT;
+		this(strategy, null);
 	}	
-		
-	public OutputEmitter(ShipStrategy strategy, int[] keyPositions, Class<? extends Key>[] keyTypes)
-	{
-		this(strategy, DEFAULT_SALT, keyPositions, keyTypes);
-	}
 	
-	public OutputEmitter(ShipStrategy strategy, byte[] salt , int[] keyPositions, Class<? extends Key>[] keyTypes)
+	/**
+	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...)
+	 * and uses the supplied comparator to hash / compare records for partitioning them deterministically.
+	 * 
+	 * @param strategy The distribution strategy to be used.
+	 * @param comparator The comparator used to hash / compare the records.
+	 */
+	public OutputEmitter(ShipStrategy strategy, TypeComparator<T> comparator)
 	{
-		if (strategy == null | salt == null | keyPositions == null | keyTypes == null) { 
+		this(strategy, comparator, DEFAULT_SALT);
+	}
+
+	/**
+	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...)
+	 * and uses the supplied comparator to hash / compare records for partitioning them deterministically.
+	 * 
+	 * @param strategy The distribution strategy to be used.
+	 * @param comparator The comparator used to hash / compare the records.
+	 * @param salt The salt to use to randomize the hashes.
+	 */
+	public OutputEmitter(ShipStrategy strategy, TypeComparator<T> comparator, byte[] salt)
+	{
+		if (strategy == null | salt == null) { 
 			throw new NullPointerException();
 		}
 		this.strategy = strategy;
 		this.salt = salt;
-		this.keyPositions = keyPositions;
-		this.keyClasses = keyTypes;
+		this.comparator = comparator;
 	}
 
 	// ------------------------------------------------------------------------
@@ -111,38 +118,19 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 	 * @see eu.stratosphere.nephele.io.ChannelSelector#selectChannels(java.lang.Object, int)
 	 */
 	@Override
-	public final int[] selectChannels(PactRecord record, int numberOfChannels)
+	public final int[] selectChannels(SerializationDelegate<T> record, int numberOfChannels)
 	{
 		switch (strategy) {
-		case BROADCAST:
-			return broadcast(numberOfChannels);
-		case PARTITION_HASH:
-		case PARTITION_LOCAL_HASH:
-			return hashPartitionDefault(record, numberOfChannels);
 		case FORWARD:
 			return robin(numberOfChannels);
-		case PARTITION_RANGE:
-			return partition_range(record, numberOfChannels);
+		case PARTITION_HASH:
+		case PARTITION_LOCAL_HASH:
+			return hashPartitionDefault(record.getInstance(), numberOfChannels);
+		case BROADCAST:
+			return broadcast(numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
-	}
-	
-	/**
-	 * Set the partition function that is used for range partitioning
-	 * @param func
-	 */
-	public void setPartitionFunction(PartitionFunction func) {
-		this.partitionFunction = func;
-	}
-
-	private int[] partition_range(PactRecord record, int numberOfChannels) {
-		try {
-			partitionFunction.selectChannels(record, numberOfChannels, this.channels);
-		} catch(NullPointerException npe) {
-			throw new RuntimeException("Partition function for RangePartitioner not set!");
-		}
-		return this.channels;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -172,28 +160,15 @@ public class OutputEmitter implements ChannelSelector<PactRecord>
 		return channels;
 	}
 
-	private final int[] hashPartitionDefault(PactRecord record, int numberOfChannels)
+	private final int[] hashPartitionDefault(T record, int numberOfChannels)
 	{
 		if (channels == null || channels.length != 1) {
 			channels = new int[1];
 		}
 		
-		int hash = 0;
-		for (int i = 0; i < this.keyPositions.length; i++) {
-			try {
-				final Key k = record.getField(this.keyPositions[i], this.keyClasses[i]);
-				hash ^= (1315423911 ^ ((1315423911 << 5) + k.hashCode() + (1315423911 >> 2)));
-			} catch(IndexOutOfBoundsException ioobe) {
-				throw new RuntimeException("Key field "+this.keyPositions[i]+" is of our bounds of record.", ioobe);
-			} catch(NullPointerException npe) {
-				throw new RuntimeException("Key field "+this.keyPositions[i]+" is null.", npe);
-			} catch(DeserializationException de) {
-				throw new RuntimeException("Key field "+this.keyPositions[i]+" of type '"+this.keyClasses[i].getName()+"' could not be deserialized.", de);
-			}
-		}
-		
-		for (int i = 0; i < salt.length; i++) {
-			hash ^= ((hash << 5) + salt[i] + (hash >> 2));
+		int hash = this.comparator.hash(record);
+		for (int i = 0; i < this.salt.length; i++) {
+			hash ^= ((hash << 5) + this.salt[i] + (hash >> 2));
 		}
 	
 		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;

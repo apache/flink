@@ -35,7 +35,7 @@ public class PartJoin extends MatchStub {
 	 *
 	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector out)
+	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
 			throws Exception {
 
 		PactInteger partKey = value1.getField(0, this.partKey);
