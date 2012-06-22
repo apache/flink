@@ -13,7 +13,7 @@ public class TraceExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -3935412444889830869L;
 
-	private final EvaluationExpression expression;
+	private EvaluationExpression expression;
 
 	/**
 	 * Initializes a TraceExpression with the given {@link EvaluationExpression}.
@@ -38,4 +38,15 @@ public class TraceExpression extends EvaluationExpression {
 		return node;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.expression = this.expression.transformRecursively(function);
+		return function.call(this);
+	}
 }

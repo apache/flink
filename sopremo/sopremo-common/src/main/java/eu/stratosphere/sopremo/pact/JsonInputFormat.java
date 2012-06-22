@@ -65,7 +65,7 @@ public class JsonInputFormat extends FileInputFormat {
 		super.configure(parameters);
 
 		this.schema = SopremoUtil.deserialize(parameters, SCHEMA, Schema.class);
-		if(this.schema == null)
+		if (this.schema == null)
 			throw new IllegalStateException("Could not deserialize output schema");
 		this.encoding = Charset.forName(parameters.getString(ENCODING, "utf-8"));
 	}
@@ -78,7 +78,7 @@ public class JsonInputFormat extends FileInputFormat {
 	public boolean nextRecord(final PactRecord record) throws IOException {
 		if (!this.end) {
 			PactRecord result = this.schema.jsonToRecord(this.parser.readValueAsTree(), record, null);
-			if(result != record) 
+			if (result != record)
 				result.copyTo(record);
 			this.checkEnd();
 			return true;

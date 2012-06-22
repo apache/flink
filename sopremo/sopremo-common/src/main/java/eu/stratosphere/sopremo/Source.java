@@ -90,7 +90,7 @@ public class Source extends ElementaryOperator<Source> {
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
-		final String inputPath = this.inputPath, name = getName();
+		final String inputPath = this.inputPath, name = this.getName();
 		GenericDataSource<?> contract;
 		if (this.isAdhoc()) {
 			contract = new GenericDataSource<GeneratorInputFormat>(

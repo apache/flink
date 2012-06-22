@@ -12,7 +12,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class BigIntegerNode extends NumericNode implements INumericNode {
+public class BigIntegerNode extends AbstractNumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -145,8 +145,9 @@ public class BigIntegerNode extends NumericNode implements INumericNode {
 	}
 
 	@Override
-	public BigIntegerNode clone() {
-		return (BigIntegerNode) super.clone();
+	public void copyValueFrom(IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
+		this.value = ((BigIntegerNode) otherNode).value;
 	}
 
 	@Override

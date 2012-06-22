@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IPrimitiveNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -23,17 +23,17 @@ public class FunctionRegistryTest {
 
 	private EvaluationContext context;
 
-	private static final JsonNode GENERIC_VARARG_NODE = new TextNode("var");
+	private static final AbstractJsonNode GENERIC_VARARG_NODE = new TextNode("var");
 
-	private static final JsonNode GENERIC_NODE = new TextNode("generic");
+	private static final AbstractJsonNode GENERIC_NODE = new TextNode("generic");
 
-	private static final JsonNode ARRAY_NODE = new TextNode("array");
+	private static final AbstractJsonNode ARRAY_NODE = new TextNode("array");
 
-	private static final JsonNode TWO_INT_NODE = new TextNode("2 int");
+	private static final AbstractJsonNode TWO_INT_NODE = new TextNode("2 int");
 
-	private static final JsonNode ONE_INT_VARARG_NODE = new TextNode("1 int + var");
+	private static final AbstractJsonNode ONE_INT_VARARG_NODE = new TextNode("1 int + var");
 
-	private static final JsonNode SUM_NODE = new TextNode("sum");
+	private static final AbstractJsonNode SUM_NODE = new TextNode("sum");
 
 	@Before
 	public void setup() {

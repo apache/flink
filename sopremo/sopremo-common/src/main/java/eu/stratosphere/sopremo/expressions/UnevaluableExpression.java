@@ -39,6 +39,17 @@ public class UnevaluableExpression extends EvaluationExpression {
 		throw new EvaluationException(this.message);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		return function.call(this);
+	}
+
 	@Override
 	public int hashCode() {
 		return 31 * super.hashCode() + this.message.hashCode();

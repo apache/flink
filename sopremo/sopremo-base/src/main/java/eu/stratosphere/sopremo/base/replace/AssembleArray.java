@@ -23,7 +23,7 @@ import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.NumericNode;
+import eu.stratosphere.sopremo.type.AbstractNumericNode;
 
 /**
  * @author Arvid Heise
@@ -52,7 +52,7 @@ public class AssembleArray extends ElementaryOperator<AssembleArray> {
 			int replacedCount = 0;
 			IJsonNode lastValue = null;
 			for (IJsonNode value : values) {
-				int index = ((NumericNode) ((IArrayNode) value).get(1)).getIntValue();
+				int index = ((AbstractNumericNode) ((IArrayNode) value).get(1)).getIntValue();
 				IJsonNode element = ((IArrayNode) value).get(0);
 				assembledArray.set(index, element);
 				replacedCount++;

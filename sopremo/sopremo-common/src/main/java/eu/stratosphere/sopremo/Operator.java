@@ -40,7 +40,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		SerializableSopremoType, JsonStream, Cloneable, BeanInfo {
 
 	public final static List<EvaluationExpression> ALL_KEYS =
-		Collections.unmodifiableList(new ArrayList<EvaluationExpression>());
+		Collections.unmodifiableList(Arrays.asList(EvaluationExpression.VALUE));
 
 	/**
 	 * 
@@ -63,10 +63,10 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	public Operator() {
 		final InputCardinality inputs = ReflectUtil.getAnnotation(this.getClass(), InputCardinality.class);
 		if (inputs == null)
-			throw new IllegalStateException("No InputCardinality annotation found @ " + getClass());
+			throw new IllegalStateException("No InputCardinality annotation found @ " + this.getClass());
 		final OutputCardinality outputs = ReflectUtil.getAnnotation(this.getClass(), OutputCardinality.class);
 		if (outputs == null)
-			throw new IllegalStateException("No OutputCardinality annotation found @ " + getClass());
+			throw new IllegalStateException("No OutputCardinality annotation found @ " + this.getClass());
 		this.setNumberOfInputs(inputs.value() != -1 ? inputs.value() : inputs.min(),
 			inputs.value() != -1 ? inputs.value() : inputs.max());
 		this.setNumberOfOutputs(outputs.value() != -1 ? outputs.value() : outputs.min(),
@@ -407,8 +407,8 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 *        the new name of this operator
 	 */
 	public Self withName(final String name) {
-		setName(name);
-		return self();
+		this.setName(name);
+		return this.self();
 	}
 
 	/*

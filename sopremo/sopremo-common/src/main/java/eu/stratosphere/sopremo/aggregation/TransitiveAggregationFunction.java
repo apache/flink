@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.aggregation;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 public abstract class TransitiveAggregationFunction extends AggregationFunction {
@@ -8,8 +9,6 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	 * 
 	 */
 	private static final long serialVersionUID = -4836890030948315219L;
-
-	private transient IJsonNode aggregate;
 
 	private final IJsonNode initialAggregate;
 
@@ -19,19 +18,24 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	}
 
 	@Override
-	public void aggregate(final IJsonNode node, final EvaluationContext context) {
-		this.aggregate = this.aggregate(this.aggregate, node, context);
+	public abstract IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregationTarget,
+			final EvaluationContext context);
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.aggregation.AggregationFunction#getFinalAggregate(eu.stratosphere.sopremo.type.IJsonNode,
+	 * eu.stratosphere.sopremo.type.IJsonNode)
+	 */
+	@Override
+	public IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target) {
+		return aggregator;
 	}
 
-	protected abstract IJsonNode aggregate(IJsonNode aggregate, IJsonNode node, EvaluationContext context);
-
 	@Override
-	public IJsonNode getFinalAggregate() {
-		return this.aggregate;
-	}
-
-	@Override
-	public void initialize() {
-		this.aggregate = this.initialAggregate.clone();
+	public IJsonNode initialize(IJsonNode aggregationTarget) {
+		aggregationTarget = SopremoUtil.reinitializeTarget(aggregationTarget, this.initialAggregate.getClass());
+		aggregationTarget.copyValueFrom(aggregationTarget);
+		return aggregationTarget;
 	}
 }

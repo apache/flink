@@ -59,13 +59,14 @@ public class GeneratorInputSplit extends GenericInputSplit {
 		this.start = in.readInt();
 		this.end = in.readInt();
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.GenericInputSplit#toString()
 	 */
 	@Override
 	public String toString() {
-		return "GeneratorInputSplit["+number+","+start+","+end+"]";
+		return "GeneratorInputSplit[" + this.number + "," + this.start + "," + this.end + "]";
 	}
 
 }

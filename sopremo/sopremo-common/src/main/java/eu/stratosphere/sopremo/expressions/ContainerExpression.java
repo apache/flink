@@ -30,17 +30,26 @@ public abstract class ContainerExpression extends EvaluationExpression {
 	 */
 	public abstract void setChildren(List<? extends EvaluationExpression> children);
 
-	/**
-	 * Replaces the one expression in this container with another one.
-	 * 
-	 * @param toReplace
-	 *        the expression that should be replaced
-	 * @param replaceFragment
-	 *        the expression which should replace another one
+	// /**
+	// * Replaces the one expression in this container with another one.
+	// *
+	// * @param toReplace
+	// * the expression that should be replaced
+	// * @param replaceFragment
+	// * the expression which should replace another one
+	// */
+	// public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
+	// for (final EvaluationExpression element : this)
+	// if (element instanceof ContainerExpression)
+	// ((ContainerExpression) element).replace(toReplace, replaceFragment);
+	// }
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
 	 */
-	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-		for (final EvaluationExpression element : this)
-			if (element instanceof ContainerExpression)
-				((ContainerExpression) element).replace(toReplace, replaceFragment);
-	}
+	@Override
+	public abstract EvaluationExpression transformRecursively(TransformFunction function);
 }

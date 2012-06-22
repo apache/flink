@@ -22,6 +22,8 @@ import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.OptimizerHints;
 import eu.stratosphere.sopremo.expressions.Scope;
 import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -29,7 +31,6 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.NullNode;
-import eu.stratosphere.sopremo.type.NumericNode;
 import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.ConcatenatingIterator;
 import eu.stratosphere.util.reflect.ReflectUtil;
@@ -40,7 +41,8 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * @author Arvid Heise
  */
 public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallback, ConstantRegistryCallback {
-	private static final NumericNode ZERO = new IntNode(0), ONE = new IntNode(1);
+	private static final AbstractNumericNode ZERO = new IntNode(0), ONE = new IntNode(1),
+			NaN = DoubleNode.valueOf(Double.NaN);
 
 	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", ZERO) {
 		/**
@@ -49,9 +51,11 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -8021932798231751696L;
 
 		@Override
-		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
-			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, (NumericNode) node);
+		public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationTarget, EvaluationContext context) {
+			return ArithmeticOperator.ADDITION.evaluate((AbstractNumericNode) node,
+				(AbstractNumericNode) aggregationTarget, aggregationTarget);
 		}
+
 	};
 
 	public static final AggregationFunction COUNT = new TransitiveAggregationFunction("count", ZERO) {
@@ -61,8 +65,8 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -4700372075569392783L;
 
 		@Override
-		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
-			return ArithmeticOperator.ADDITION.evaluate((NumericNode) aggregate, ONE);
+		public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationTarget, EvaluationContext context) {
+			return ArithmeticOperator.ADDITION.evaluate(ONE, (AbstractNumericNode) aggregationTarget, aggregationTarget);
 		}
 	};
 
@@ -73,8 +77,8 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = 273172975676646935L;
 
 		@Override
-		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
-			return aggregate.isNull() ? node : aggregate;
+		public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationTarget, EvaluationContext context) {
+			return aggregationTarget.isNull() ? node : aggregationTarget;
 		}
 	};
 
@@ -85,9 +89,11 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = 3035270432104235038L;
 
 		@Override
-		protected List<IJsonNode> processNodes(final List<IJsonNode> nodes) {
-			Collections.sort(nodes);
-			return nodes;
+		protected IJsonNode processNodes(final IArrayNode nodeArray, final IJsonNode target) {
+			final IJsonNode[] nodes = nodeArray.toArray();
+			Arrays.sort(nodes);
+			nodeArray.setAll(nodes);
+			return nodeArray;
 		}
 	};
 
@@ -105,27 +111,39 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		 */
 		private static final long serialVersionUID = 483420587993286076L;
 
-		private transient int count;
-
-		private transient double value;
-
 		@Override
-		public void aggregate(final IJsonNode node, final EvaluationContext context) {
-			this.value += ((INumericNode) node).getDoubleValue();
-			this.count++;
+		public IJsonNode initialize(IJsonNode aggregationValue) {
+			ArrayNode array = SopremoUtil.reinitializeTarget(aggregationValue, ArrayNode.class);
+			array.add(new IntNode(0));
+			array.add(new IntNode(0));
+			return array;
 		}
 
 		@Override
-		public IJsonNode getFinalAggregate() {
-			if (this.count == 0)
-				return DoubleNode.valueOf(Double.NaN);
-			return DoubleNode.valueOf(this.value / this.count);
+		public IJsonNode aggregate(IJsonNode node, IJsonNode aggregator, EvaluationContext context) {
+			// sum
+			final ArrayNode avgState = (ArrayNode) aggregator;
+			IJsonNode sum = avgState.get(0);
+			sum = ArithmeticOperator.ADDITION.evaluate((INumericNode) node, (INumericNode) sum, sum);
+			avgState.set(0, sum);
+			// count
+			((IntNode) avgState.get(1)).increment();
+			return aggregator;
 		}
 
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.sopremo.aggregation.AggregationFunction#getFinalAggregate(eu.stratosphere.sopremo.type.IJsonNode
+		 * , eu.stratosphere.sopremo.type.IJsonNode)
+		 */
 		@Override
-		public void initialize() {
-			this.count = 0;
-			this.value = 0;
+		public IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target) {
+			final ArrayNode avgState = (ArrayNode) aggregator;
+			if (avgState.get(1).equals(ZERO))
+				return NaN;
+			return ArithmeticOperator.DIVISION.evaluate((INumericNode) avgState.get(0), (INumericNode) avgState.get(1),
+				target);
 		}
 	};
 
@@ -252,10 +270,9 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		final Iterator<IJsonNode> iterator = ((ArrayNode) node).iterator();
 		if (!iterator.hasNext())
 			return ZERO;
-		NumericNode sum = (NumericNode) iterator.next();
+		INumericNode sum = (INumericNode) iterator.next();
 		for (; iterator.hasNext();)
-			sum = ArithmeticExpression.ArithmeticOperator.ADDITION.evaluate(sum,
-				(NumericNode) iterator.next());
+			sum = ArithmeticExpression.ArithmeticOperator.ADDITION.evaluate(sum, (INumericNode) iterator.next(), sum);
 		return sum;
 	}
 
@@ -407,10 +424,10 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -8124401653435722884L;
 
 		@Override
-		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
-			if (aggregate.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(node, aggregate))
+		public IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregator, final EvaluationContext context) {
+			if (aggregator.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(node, aggregator))
 				return node;
-			return aggregate;
+			return aggregator;
 		}
 	};
 
@@ -421,10 +438,10 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -1735264603829085865L;
 
 		@Override
-		protected IJsonNode aggregate(final IJsonNode aggregate, final IJsonNode node, final EvaluationContext context) {
-			if (aggregate.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(aggregate, node))
+		public IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregator, final EvaluationContext context) {
+			if (aggregator.isNull() || ComparativeExpression.BinaryOperator.LESS.evaluate(aggregator, node))
 				return node;
-			return aggregate;
+			return aggregator;
 		}
 	};
 }

@@ -21,7 +21,7 @@ import java.math.BigInteger;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public interface INumericNode extends IPrimitiveNode{
+public interface INumericNode extends IPrimitiveNode {
 
 	/**
 	 * Returns this nodes value as an <code>int</code>.
@@ -62,5 +62,4 @@ public interface INumericNode extends IPrimitiveNode{
 	 * Returns either this node represents an integral number or not.
 	 */
 	public abstract boolean isIntegralNumber();
-
 }

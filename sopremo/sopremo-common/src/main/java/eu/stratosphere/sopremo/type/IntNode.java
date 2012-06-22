@@ -15,7 +15,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class IntNode extends NumericNode implements INumericNode {
+public class IntNode extends AbstractNumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -155,10 +155,9 @@ public class IntNode extends NumericNode implements INumericNode {
 	}
 
 	@Override
-	public IntNode clone() {
-		final IntNode clone = (IntNode) super.clone();
-		clone.value = new PactInteger(this.value.getValue());
-		return clone;
+	public void copyValueFrom(IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
+		this.value.setValue(((IntNode) otherNode).getIntValue());
 	}
 
 	@Override
@@ -170,5 +169,9 @@ public class IntNode extends NumericNode implements INumericNode {
 	public void clear() {
 		if (SopremoUtil.DEBUG)
 			this.value.setValue(0);
+	}
+
+	public void increment() {
+		this.value.setValue(this.value.getValue() + 1);
 	}
 }

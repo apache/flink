@@ -48,10 +48,21 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 
 	public abstract CacheType evaluate(IJsonNode node, EvaluationContext context);
 
-	protected final EvaluationExpression expression;
+	protected EvaluationExpression innerExpression;
 
 	public CachingExpression(EvaluationExpression expression) {
-		this.expression = expression;
+		this.innerExpression = expression;
+	}
+
+	public EvaluationExpression getInnerExpression() {
+		return this.innerExpression;
+	}
+
+	public void setInnerExpression(EvaluationExpression expression) {
+		if (expression == null)
+			throw new NullPointerException("expression must not be null");
+
+		this.innerExpression = expression;
 	}
 
 	/*
@@ -62,15 +73,48 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	@Override
 	public final CacheType evaluate(IJsonNode node, IJsonNode target, EvaluationContext context) {
 		// ignores target, maintains its own target
-		return evaluate(node, context);
+		return this.evaluate(node, context);
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.innerExpression = this.innerExpression.transformRecursively(function);
+		return function.call(this);
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#toString(java.lang.StringBuilder)
 	 */
 	@Override
 	public void toString(StringBuilder builder) {
-		this.expression.toString(builder);
+		this.innerExpression.toString(builder);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + this.innerExpression.hashCode();
+		return result;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+		return this.innerExpression.equals(((CachingExpression<CacheType>) obj).innerExpression);
 	}
 
 	private static class EagerCachingExpression<CacheType extends IJsonNode> extends CachingExpression<CacheType> {
@@ -89,7 +133,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 		@Override
 		@SuppressWarnings("unchecked")
 		public CacheType evaluate(IJsonNode node, EvaluationContext context) {
-			return (CacheType) this.expression.evaluate(node, this.cachedVariable, context);
+			return (CacheType) this.innerExpression.evaluate(node, this.cachedVariable, context);
 		}
 	}
 
@@ -109,7 +153,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 		@Override
 		@SuppressWarnings("unchecked")
 		public CacheType evaluate(IJsonNode node, EvaluationContext context) {
-			return this.cachedVariable = (CacheType) this.expression.evaluate(node, this.cachedVariable, context);
+			return this.cachedVariable = (CacheType) this.innerExpression.evaluate(node, this.cachedVariable, context);
 		}
 	}
 

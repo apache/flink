@@ -2,10 +2,10 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
@@ -67,11 +67,10 @@ public class ArrayAccess extends EvaluationExpression {
 		this.startIndex = startIndex;
 		this.endIndex = endIndex;
 
-		if (startIndex != endIndex) {
+		if (startIndex != endIndex)
 			this.expectedTarget = ArrayNode.class;
-		} else {
-			this.expectedTarget = JsonNode.class;
-		}
+		else
+			this.expectedTarget = AbstractJsonNode.class;
 	}
 
 	@Override
@@ -88,7 +87,7 @@ public class ArrayAccess extends EvaluationExpression {
 			return MissingNode.getInstance();
 
 		if (this.isSelectingAll()) {
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+			target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
 
 			((IArrayNode) target).clear();
 			((IArrayNode) target).addAll((IArrayNode) node);
@@ -97,7 +96,7 @@ public class ArrayAccess extends EvaluationExpression {
 		final int size = ((IArrayNode) node).size();
 		if (this.isSelectingRange()) {
 
-			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
+			target = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 
 			((IArrayNode) target).clear();
 			int index = this.resolveIndex(this.startIndex, size);

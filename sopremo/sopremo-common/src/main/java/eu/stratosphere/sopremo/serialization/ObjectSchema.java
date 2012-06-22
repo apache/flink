@@ -103,7 +103,7 @@ public class ObjectSchema implements Schema {
 		} else {
 			JsonNodeWrapper wrappedField = target.getField(target.getNumFields() - 1, JsonNodeWrapper.class);
 			others = wrappedField.getValue(IObjectNode.class);
-			others.removeAll();
+			others.clear();
 			target.setField(target.getNumFields() - 1, wrappedField);
 		}
 
@@ -117,8 +117,8 @@ public class ObjectSchema implements Schema {
 		}
 
 		// each other entry comes into the last record field
-		for (Entry<String, IJsonNode> entry : object.getEntries()) 
-			if (!this.mappings.contains(entry.getKey())) 
+		for (Entry<String, IJsonNode> entry : object)
+			if (!this.mappings.contains(entry.getKey()))
 				others.put(entry.getKey(), entry.getValue());
 
 		return target;
@@ -134,7 +134,7 @@ public class ObjectSchema implements Schema {
 			targetObject = new ObjectNode();
 		else {
 			targetObject = (IObjectNode) target;
-			targetObject.removeAll();
+			targetObject.clear();
 		}
 
 		for (int i = 0; i < this.mappings.size(); i++)

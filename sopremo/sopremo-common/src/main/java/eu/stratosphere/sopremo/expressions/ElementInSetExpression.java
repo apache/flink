@@ -12,13 +12,15 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * Determines a set contains an element or not.
  */
 @OptimizerHints(scope = Scope.ANY, iterating = true)
-public class ElementInSetExpression extends BooleanExpression {
+public class ElementInSetExpression extends BinaryBooleanExpression {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -2695263646399347776L;
 
-	private final EvaluationExpression elementExpr, setExpr;;
+	private EvaluationExpression elementExpr;
+
+	private EvaluationExpression setExpr;;
 
 	private final Quantor quantor;
 
@@ -45,6 +47,19 @@ public class ElementInSetExpression extends BooleanExpression {
 		// we can ignore 'target' because no new Object is created
 		return this.quantor.evaluate(this.elementExpr.evaluate(node, null, context),
 			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, null, context)));
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.elementExpr = this.elementExpr.transformRecursively(function);
+		this.setExpr = this.setExpr.transformRecursively(function);
+		return function.call(this);
 	}
 
 	// @Override

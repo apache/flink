@@ -15,7 +15,7 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 
 	@Override
 	protected AndExpression createDefaultInstance(final int index) {
-		final EvaluationExpression[] params = new EvaluationExpression[index + 1];
+		final BooleanExpression[] params = new BooleanExpression[index + 1];
 		Arrays.fill(params, TRUE);
 		return new AndExpression(params);
 	}
@@ -38,9 +38,4 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 		Assert.assertEquals(BooleanNode.FALSE, result);
 	}
 
-	@SuppressWarnings("unused")
-	@Test(expected = IllegalArgumentException.class)
-	public void shouldThrowExceptionIfExpressionsAreEmpty() {
-		new AndExpression();
-	}
 }

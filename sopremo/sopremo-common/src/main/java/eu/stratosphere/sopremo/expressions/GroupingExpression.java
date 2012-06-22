@@ -21,7 +21,9 @@ public class GroupingExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = 7602198150833087978L;
 
-	private final EvaluationExpression groupingExpression, resultExpression;
+	private EvaluationExpression groupingExpression;
+
+	private EvaluationExpression resultExpression;
 
 	/**
 	 * Initializes a GroupingExpression with the given expressions.
@@ -40,7 +42,7 @@ public class GroupingExpression extends EvaluationExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
 
 		if (((IArrayNode) node).size() == 0)
 			return target;
@@ -61,6 +63,19 @@ public class GroupingExpression extends EvaluationExpression {
 		((IArrayNode) target).add(this.evaluateGroup(nodes.subList(groupStart, nodes.size()), context));
 
 		return target;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.groupingExpression = this.groupingExpression.transformRecursively(function);
+		this.resultExpression = this.resultExpression.transformRecursively(function);
+		return function.call(this);
 	}
 
 	protected List<ArrayNode> sortNodesWithKey(final IJsonNode node, final EvaluationContext context) {

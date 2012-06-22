@@ -1,5 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -10,6 +12,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * Batch aggregates one stream of {@link IJsonNode} with several {@link AggregationFunction}s.
@@ -24,9 +27,12 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 	private final List<Partial> partials;
 
-	private transient IJsonNode lastResult;
+	private transient List<IJsonNode> lastPreprocessingResults = new ArrayList<IJsonNode>(),
+			lastAggregators = new ArrayList<IJsonNode>();
 
 	private transient int lastInputCounter = Integer.MIN_VALUE;
+
+	private transient IArrayNode results;
 
 	/**
 	 * Initializes a BatchAggregationExpression with the given {@link AggregationFunction}s.
@@ -48,7 +54,18 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		this.partials = new ArrayList<Partial>(functions.size());
 		for (final AggregationFunction function : functions)
 			this.partials.add(new Partial(function, EvaluationExpression.VALUE, this.partials.size()));
+		CollectionUtil.ensureSize(this.lastPreprocessingResults, this.partials.size());
+		CollectionUtil.ensureSize(this.lastAggregators, this.partials.size());
 		this.expectedTarget = ArrayNode.class;
+	}
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		this.lastInputCounter = Integer.MIN_VALUE;
+		this.lastPreprocessingResults = new ArrayList<IJsonNode>();
+		this.lastAggregators = new ArrayList<IJsonNode>();
+		CollectionUtil.ensureSize(this.lastPreprocessingResults, this.partials.size());
+		CollectionUtil.ensureSize(this.lastAggregators, this.partials.size());
 	}
 
 	/**
@@ -74,28 +91,50 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	public EvaluationExpression add(final AggregationFunction function, final EvaluationExpression preprocessing) {
 		final Partial partial = new Partial(function, preprocessing, this.partials.size());
 		this.partials.add(partial);
+		this.lastPreprocessingResults.add(null);
+		this.lastAggregators.add(null);
 		return partial;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		// partials are transformed separately, where appropriate
+		return function.call(this);
 	}
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		if (this.lastInputCounter == context.getInputCounter())
-			return this.lastResult;
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-
+			return this.results;
+		this.results = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 		this.lastInputCounter = context.getInputCounter();
 
-		for (final Partial partial : this.partials)
-			partial.getFunction().initialize();
+		for (int index = 0; index < this.lastAggregators.size(); index++)
+			this.lastAggregators.set(index,
+				this.partials.get(index).getFunction().initialize(this.lastAggregators.get(index)));
 		for (final IJsonNode input : (ArrayNode) node)
-			for (final Partial partial : this.partials)
-				partial.getFunction().aggregate(partial.getPreprocessing().evaluate(input, null, context), context);
+			for (int index = 0; index < this.partials.size(); index++) {
+				AggregationExpression partial = this.partials.get(index);
+				final IJsonNode preprocessedValue =
+					partial.getPreprocessing().evaluate(input, this.lastPreprocessingResults.get(index), context);
+				this.lastAggregators.set(index,
+					partial.getFunction().aggregate(preprocessedValue, this.lastAggregators.get(index), context));
+			}
 
-		final IJsonNode[] results = new IJsonNode[this.partials.size()];
-		for (int index = 0; index < results.length; index++)
-			results[index] = this.partials.get(index).getFunction().getFinalAggregate();
+		for (int index = 0; index < this.partials.size(); index++) {
+			final IJsonNode partialResult =
+				this.partials.get(index).getFunction().getFinalAggregate(this.lastAggregators.get(index),
+					this.results.get(index));
+			this.results.set(index, partialResult);
+		}
 
-		return this.lastResult = ((IArrayNode) target).addAll(results);
+		return this.results;
 	}
 
 	private class Partial extends AggregationExpression {

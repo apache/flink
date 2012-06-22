@@ -102,6 +102,7 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		@Override
 		public void executionStateChanged(final ExecutionState executionState, final String optionalMessage) {
+//			System.out.println(executionState + " @ " + this.id);
 			// Don't propagate state CANCELING back to the job manager
 			if (executionState == ExecutionState.CANCELING) {
 				return;

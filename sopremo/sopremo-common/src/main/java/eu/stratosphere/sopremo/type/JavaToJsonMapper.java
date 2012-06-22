@@ -17,7 +17,8 @@ import eu.stratosphere.util.reflect.ReflectUtil;
 public class JavaToJsonMapper {
 	public static final JavaToJsonMapper INSTANCE = new JavaToJsonMapper();
 
-	private final HashMap<Class<? extends Object>, Constructor<? extends JsonNode>> typeDict = new HashMap<Class<? extends Object>, Constructor<? extends JsonNode>>();
+	private final HashMap<Class<? extends Object>, Constructor<? extends AbstractJsonNode>> typeDict =
+		new HashMap<Class<? extends Object>, Constructor<? extends AbstractJsonNode>>();
 
 	public JavaToJsonMapper() {
 		try {
@@ -58,13 +59,13 @@ public class JavaToJsonMapper {
 		return this.typeDict.get(ReflectUtil.getClassForPrimtive(javaClass)).getDeclaringClass();
 	}
 
-	public JsonNode valueToTree(final Object value) {
+	public AbstractJsonNode valueToTree(final Object value) {
 		if (value == null)
 			return NullNode.getInstance();
 
 		final Class<? extends Object> valueClass = value.getClass();
-		if (value instanceof JsonNode)
-			return (JsonNode) value;
+		if (value instanceof AbstractJsonNode)
+			return (AbstractJsonNode) value;
 
 		if (value instanceof CharSequence)
 			return TextNode.valueOf(value.toString());

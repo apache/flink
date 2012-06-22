@@ -63,6 +63,19 @@ public class MethodCall extends ContainerExpression {
 		return context.getFunctionRegistry().evaluate(this.function, JsonUtil.asArray(params), context);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		for (int index = 0; index < this.paramExprs.length; index++)
+			this.paramExprs[index] = this.paramExprs[index].transformRecursively(function);
+		return function.call(this);
+	}
+
 	@Override
 	public Iterator<EvaluationExpression> iterator() {
 		return Arrays.asList(this.paramExprs).iterator();

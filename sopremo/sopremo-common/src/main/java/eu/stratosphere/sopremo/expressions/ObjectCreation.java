@@ -38,7 +38,7 @@ public class ObjectCreation extends ContainerExpression {
 		@Override
 		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+			target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
 
 			final Iterator<IJsonNode> elements = ((ArrayNode) node).iterator();
 			while (elements.hasNext()) {
@@ -114,11 +114,28 @@ public class ObjectCreation extends ContainerExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
 
 		for (final Mapping<?> mapping : this.mappings)
 			mapping.evaluate((IObjectNode) target, node, context);
 		return target;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.ContainerExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		for (final Mapping mapping : this.mappings) {
+			mapping.expression.transformRecursively(function);
+			if (mapping.target instanceof EvaluationExpression)
+				mapping.target = ((EvaluationExpression) mapping.target).transformRecursively(function);
+		}
+		return function.call(this);
 	}
 
 	/**
@@ -193,12 +210,12 @@ public class ObjectCreation extends ContainerExpression {
 		};
 	}
 
-	@Override
-	public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-		for (final Mapping<?> mapping : this.mappings)
-			if (mapping.getExpression() instanceof ContainerExpression)
-				((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
-	}
+	// @Override
+	// public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
+	// for (final Mapping<?> mapping : this.mappings)
+	// if (mapping.getExpression() instanceof ContainerExpression)
+	// ((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
+	// }
 
 	@Override
 	public void toString(final StringBuilder builder) {
@@ -259,7 +276,7 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
-			final IJsonNode value = this.expression.evaluate(node, null, context);
+			final IJsonNode value = this.expression.evaluate(node, transformedNode.get(this.target), context);
 			// if (!value.isNull())
 			transformedNode.put(this.target, value);
 		}
@@ -299,7 +316,7 @@ public class ObjectCreation extends ContainerExpression {
 		 */
 		private static final long serialVersionUID = 6372376844557378592L;
 
-		protected final Target target;
+		protected Target target;
 
 		protected EvaluationExpression expression;
 

@@ -14,22 +14,17 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.AbstractMap;
-import java.util.AbstractSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.AbstractObjectNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.AbstractIterator;
@@ -38,8 +33,9 @@ import eu.stratosphere.util.ConcatenatingIterator;
 /**
  * @author Michael Hopstock
  * @author Tommy Neubert
+ * @author Arvid Heise
  */
-public class LazyObjectNode extends JsonNode implements IObjectNode {
+public class LazyObjectNode extends AbstractObjectNode {
 
 	/**
 	 * .
@@ -53,34 +49,6 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 	public LazyObjectNode(PactRecord record, ObjectSchema schema) {
 		this.record = record;
 		this.schema = schema;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.IJsonNode#getType()
-	 */
-	@Override
-	public Type getType() {
-		return Type.ObjectNode;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.IJsonNode#read(java.io.DataInput)
-	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-		throw new UnsupportedOperationException("Use other ObjectNode Implementation instead");
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.IJsonNode#write(java.io.DataOutput)
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-		throw new UnsupportedOperationException("Use other ObjectNode Implementation instead");
-
 	}
 
 	/*
@@ -220,38 +188,6 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.JsonObject#removeAll()
-	 */
-	@Override
-	public IObjectNode removeAll() {
-		for (int i = 0; i < this.schema.getMappingSize(); i++)
-			this.record.setNull(i);
-		this.getOtherField().removeAll();
-		return this;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.JsonObject#getEntries()
-	 */
-	@Override
-	public Set<Entry<String, IJsonNode>> getEntries() {
-		return new AbstractSet<Entry<String, IJsonNode>>() {
-
-			@Override
-			public Iterator<Entry<String, IJsonNode>> iterator() {
-				return LazyObjectNode.this.iterator();
-			}
-
-			@Override
-			public int size() {
-				return LazyObjectNode.this.size();
-			}
-		};
-	}
-
-	/*
-	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#putAll(eu.stratosphere.sopremo.type.JsonObject)
 	 */
 	@Override
@@ -308,10 +244,6 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.IObjectNode#size()
-	 */
 	@Override
 	public int size() {
 		final IObjectNode others = this.getOtherField();
@@ -326,6 +258,8 @@ public class LazyObjectNode extends JsonNode implements IObjectNode {
 
 	@Override
 	public void clear() {
-		this.removeAll();
+		for (int i = 0; i < this.schema.getMappingSize(); i++)
+			this.record.setNull(i);
+		this.getOtherField().clear();
 	}
 }

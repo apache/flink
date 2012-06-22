@@ -2,21 +2,23 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.NumericNode;
 
 /**
  * Represents basic binary comparative expressions covering all operators specified in {@link BinaryOperator}.
  */
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
-public class ComparativeExpression extends BooleanExpression {
+public class ComparativeExpression extends BinaryBooleanExpression {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 4684417232092074534L;
 
-	private final EvaluationExpression expr1, expr2;
+	private EvaluationExpression expr1;
+
+	private EvaluationExpression expr2;
 
 	private final BinaryOperator binaryOperator;
 
@@ -46,6 +48,17 @@ public class ComparativeExpression extends BooleanExpression {
 		return this.binaryOperator == other.binaryOperator && this.expr1.equals(other.expr1)
 			&& this.expr2.equals(other.expr2);
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#clone()
+	 */
+	@Override
+	public ComparativeExpression clone() {
+		final ComparativeExpression klone = (ComparativeExpression) super.clone();
+		klone.expr1 = klone.expr1.clone();
+		klone.expr2 = klone.expr2.clone();
+		return klone;
+	}
 
 	// @Override
 	// public Iterator<IJsonNode> evaluate(Iterator<IJsonNode> input) {
@@ -56,6 +69,19 @@ public class ComparativeExpression extends BooleanExpression {
 		// // we can ignore 'target' because no new Object is created
 		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, null, context),
 			this.expr2.evaluate(node, null, context)));
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.expr1 = this.expr1.transformRecursively(function);
+		this.expr2 = this.expr2.transformRecursively(function);
+		return function.call(this);
 	}
 
 	/**
@@ -179,7 +205,7 @@ public class ComparativeExpression extends BooleanExpression {
 
 		public boolean evaluate(final IJsonNode e1, final IJsonNode e2) {
 			if (e1.getClass() != e2.getClass()) {
-				if (e1 instanceof NumericNode && e2 instanceof NumericNode)
+				if (e1 instanceof AbstractNumericNode && e2 instanceof AbstractNumericNode)
 					return this.isTrue(e1.compareTo(e2));
 
 				throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));

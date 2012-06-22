@@ -8,7 +8,7 @@ import java.io.IOException;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class BooleanNode extends JsonNode implements IPrimitiveNode {
+public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 
 	/**
 	 * 
@@ -101,6 +101,12 @@ public class BooleanNode extends JsonNode implements IPrimitiveNode {
 
 	private Object readResolve() {
 		return valueOf(this.value);
+	}
+
+	@Override
+	public void copyValueFrom(IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
+		this.value = ((BooleanNode) otherNode).value;
 	}
 
 	@Override

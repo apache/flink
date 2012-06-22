@@ -14,7 +14,7 @@ public class OrExpressionTest extends BooleanExpressionTest<OrExpression> {
 
 	@Override
 	protected OrExpression createDefaultInstance(final int index) {
-		final EvaluationExpression[] params = new EvaluationExpression[index + 1];
+		final BooleanExpression[] params = new BooleanExpression[index + 1];
 		Arrays.fill(params, TRUE);
 		return new OrExpression(params);
 	}
@@ -35,12 +35,6 @@ public class OrExpressionTest extends BooleanExpressionTest<OrExpression> {
 			null, this.context);
 
 		Assert.assertEquals(BooleanNode.FALSE, result);
-	}
-
-	@SuppressWarnings("unused")
-	@Test(expected = IllegalArgumentException.class)
-	public void shouldThrowExceptionIfExpressionsAreEmpty() {
-		new OrExpression();
 	}
 
 }

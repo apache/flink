@@ -38,12 +38,10 @@ public class NaiveSchemaFactory implements SchemaFactory {
 
 		for (EvaluationExpression evaluationExpression : keyExpressions) {
 			mappings.add(evaluationExpression);
-			if (evaluationExpression instanceof ObjectAccess) {
+			if (evaluationExpression instanceof ObjectAccess)
 				objectAccesses.add((ObjectAccess) evaluationExpression);
-			}
-			if (evaluationExpression instanceof ArrayAccess) {
+			if (evaluationExpression instanceof ArrayAccess)
 				arrayAccesses.add((ArrayAccess) evaluationExpression);
-			}
 		}
 
 		if (mappings.isEmpty())
@@ -72,10 +70,7 @@ public class NaiveSchemaFactory implements SchemaFactory {
 				schema.setTailSize(endIndex - startIndex + 1);
 				return schema;
 			}
-		} else {
-			// all other schemas doesn't match -> have to use GeneralSchema
-
+		} else
 			return new GeneralSchema(mappings);
-		}
 	}
 }

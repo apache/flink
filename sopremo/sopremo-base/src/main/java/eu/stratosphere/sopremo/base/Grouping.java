@@ -1,14 +1,12 @@
 package eu.stratosphere.sopremo.base;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.JsonUtil;
@@ -16,23 +14,18 @@ import eu.stratosphere.sopremo.Name;
 import eu.stratosphere.sopremo.Operator;
 import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.Property;
-import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
-import eu.stratosphere.sopremo.expressions.AggregationExpression;
-import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
-import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
-@InputCardinality(min = 1, max = Integer.MAX_VALUE)
+@InputCardinality(min = 1, max = 2)
 @OutputCardinality(1)
 @Name(verb = "group")
 public class Grouping extends CompositeOperator<Grouping> {
@@ -55,38 +48,36 @@ public class Grouping extends CompositeOperator<Grouping> {
 		final int numInputs = this.getInputOperators().size();
 		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), numInputs, 1);
 
-		List<JsonStream> inputs = new ArrayList<JsonStream>();
-		for (int index = 0; index < numInputs; index++) 
-			inputs.add(OperatorUtil.positionEncode(module.getInput(index), index, numInputs));
-		
 		Operator<?> output;
 		switch (numInputs) {
 		case 0:
 			throw new IllegalStateException("No input given for grouping");
 		case 1:
-			output = new GroupProjection(this.resultProjection).
-				withKeyExpression(0, new PathExpression(new InputSelection(0), getGroupingKey(0))).
-				withInputs(inputs);
+			output = new GroupProjection(this.resultProjection.remove(InputSelection.class)).
+				withKeyExpression(0, getGroupingKey(0)).
+				withInputs(Arrays.asList(module.getInputs()));
 			break;
 		case 2:
 			output = new CoGroupProjection(this.resultProjection).
 				withKeyExpression(0, getGroupingKey(0)).
 				withKeyExpression(1, getGroupingKey(1)).
-				withInputs(inputs);
+				withInputs(Arrays.asList(module.getInputs()));
 			break;
 		default:
-			List<EvaluationExpression> keyExpressions = new ArrayList<EvaluationExpression>();
-			for (int index = 0; index < numInputs; index++) {
-				inputs.add(OperatorUtil.positionEncode(module.getInput(index), index, numInputs));
-				keyExpressions.add(new PathExpression(new InputSelection(index), getGroupingKey(index)));
-			}
-			final UnionAll union = new UnionAll().
-				withInputs(inputs);
-			final PathExpression projection =
-				new PathExpression(new AggregationExpression(new ArrayUnion()), this.resultProjection);
-			output = new GroupProjection(projection).
-				withInputs(union);
-			break;
+			throw new IllegalStateException("More than two sources are not supported");
+//			List<JsonStream> inputs = new ArrayList<JsonStream>();
+//			List<EvaluationExpression> keyExpressions = new ArrayList<EvaluationExpression>();
+//			for (int index = 0; index < numInputs; index++) {
+//				inputs.add(OperatorUtil.positionEncode(module.getInput(index), index, numInputs));
+//				keyExpressions.add(new PathExpression(new InputSelection(index), getGroupingKey(index)));
+//			}
+//			final UnionAll union = new UnionAll().
+//				withInputs(inputs);
+//			final PathExpression projection =
+//				new PathExpression(new AggregationExpression(new ArrayUnion()), this.resultProjection);
+//			output = new GroupProjection(projection).
+//				withInputs(union);
+//			break;
 		}
 
 		module.getOutput(0).setInput(0, output);
@@ -178,31 +169,6 @@ public class Grouping extends CompositeOperator<Grouping> {
 	@Override
 	public String toString() {
 		return String.format("%s to %s", super.toString(), this.resultProjection);
-	}
-
-	private static final class ArrayUnion extends TransitiveAggregationFunction {
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -5358556436487835033L;
-
-		public ArrayUnion() {
-			super("U<values>", new ArrayNode());
-		}
-
-		// TODO refactor code
-		@Override
-		protected IJsonNode aggregate(final IJsonNode mergedArray, final IJsonNode array,
-				final EvaluationContext context) {
-			ArrayNode arrayNode = ((ArrayNode) array);
-			for (int index = 0; index < arrayNode.size(); index++) {
-				if (((ArrayNode) mergedArray).size() <= index)
-					((ArrayNode) mergedArray).add(new ArrayNode());
-				if (!arrayNode.get(index).isNull())
-					((ArrayNode) (((ArrayNode) mergedArray).get(index))).add(arrayNode.get(index));
-			}
-			return mergedArray;
-		}
 	}
 
 	@InputCardinality(min = 2, max = 2)

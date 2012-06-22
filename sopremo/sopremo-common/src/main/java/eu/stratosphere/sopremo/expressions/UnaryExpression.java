@@ -15,7 +15,7 @@ public class UnaryExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = -4256326224698296602L;
 
-	private final EvaluationExpression expr;
+	private EvaluationExpression expr;
 
 	private boolean negate = false;
 
@@ -74,6 +74,18 @@ public class UnaryExpression extends BooleanExpression {
 		if (this.negate)
 			return result == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
 		return result;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.expr = this.expr.transformRecursively(function);
+		return function.call(this);
 	}
 
 	@Override

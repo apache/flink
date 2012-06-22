@@ -1,6 +1,7 @@
 package eu.stratosphere.pact.common.plan;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -155,5 +156,21 @@ public class ContractUtil {
 			((DualInputContract<?>) contract).setFirstInputs(inputs.get(0));
 			((DualInputContract<?>) contract).setSecondInputs(inputs.get(1));
 		}
+	}
+
+	/**
+	 * Swaps two inputs of the given contract.
+	 * 
+	 * @param contract
+	 *        the contract
+	 * @param input1
+	 *        the first input index
+	 * @param input2
+	 *        the second input index
+	 */
+	public static void swapInputs(Contract contract, int input1, int input2) {
+		final List<List<Contract>> inputs = new ArrayList<List<Contract>>(getInputs(contract));
+		Collections.swap(inputs, input1, input2);
+		setInputs(contract, inputs);
 	}
 }

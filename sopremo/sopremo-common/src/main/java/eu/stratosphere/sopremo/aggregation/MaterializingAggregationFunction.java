@@ -1,9 +1,7 @@
 package eu.stratosphere.sopremo.aggregation;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -15,8 +13,6 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 	 */
 	private static final long serialVersionUID = 3685213903416162250L;
 
-	private transient List<IJsonNode> nodes;
-
 	public MaterializingAggregationFunction() {
 		super("<values>");
 	}
@@ -25,25 +21,38 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 		super(name);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.aggregation.AggregationFunction#aggregate(eu.stratosphere.sopremo.type.IJsonNode,
+	 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
+	 */
 	@Override
-	public void aggregate(final IJsonNode node, final EvaluationContext context) {
-		this.nodes.add(node);
+	public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationValue, EvaluationContext context) {
+		((IArrayNode) aggregationValue).add(node);
+		return aggregationValue;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.aggregation.AggregationFunction#initialize(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
 	@Override
-	public IJsonNode getFinalAggregate() {
-		final IArrayNode arrayNode = new ArrayNode();
-		arrayNode.addAll(this.processNodes(this.nodes));
-		this.nodes = null;
-		return arrayNode;
+	public IJsonNode initialize(IJsonNode aggregationValue) {
+		return SopremoUtil.reinitializeTarget(aggregationValue, ArrayNode.class);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.aggregation.AggregationFunction#getFinalAggregate(eu.stratosphere.sopremo.type.IJsonNode,
+	 * eu.stratosphere.sopremo.type.IJsonNode)
+	 */
 	@Override
-	public void initialize() {
-		this.nodes = new ArrayList<IJsonNode>();
+	public IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target) {
+		return this.processNodes((IArrayNode) aggregator, target);
 	}
 
-	protected List<IJsonNode> processNodes(final List<IJsonNode> nodes) {
-		return nodes;
+	protected IJsonNode processNodes(final IArrayNode nodeArray, @SuppressWarnings("unused") IJsonNode target) {
+		return nodeArray;
 	}
 }

@@ -18,9 +18,7 @@ import java.io.Serializable;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.testing.SchemaUtils;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
@@ -41,7 +39,8 @@ public interface Schema extends Serializable {
 	 *        the {@link IJsonNode}, which shall be transformed into a {@link PactRecord} using this Schema
 	 * @param target
 	 *        the target {@link PactRecord} or <code>null</code>, when it shall be created
-	 * @param context TODO
+	 * @param context
+	 *        TODO
 	 * @return the converted {@link IJsonNode}
 	 */
 	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context);

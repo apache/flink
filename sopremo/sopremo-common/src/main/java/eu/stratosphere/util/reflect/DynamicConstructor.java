@@ -23,8 +23,9 @@ public class DynamicConstructor<DeclaringClass> extends
 		if (this.declaringClass == null)
 			this.declaringClass = member.getDeclaringClass();
 		else if (member.getDeclaringClass() != this.declaringClass)
-			this.declaringClass = member.getDeclaringClass().isAssignableFrom(this.declaringClass) ? this.declaringClass
-				: member.getDeclaringClass();
+			this.declaringClass =
+				member.getDeclaringClass().isAssignableFrom(this.declaringClass) ? this.declaringClass
+					: member.getDeclaringClass();
 	}
 
 	@Override
