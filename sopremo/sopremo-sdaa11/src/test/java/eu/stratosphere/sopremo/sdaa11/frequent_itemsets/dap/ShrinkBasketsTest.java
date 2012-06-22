@@ -53,13 +53,34 @@ public class ShrinkBasketsTest {
 		for (final IJsonNode basket : baskets)
 			plan.getInput(0).add(basket);
 
-		final ObjectNode expectedNode = new ObjectNode();
-		final IArrayNode itemsNode = new ArrayNode();
+		ObjectNode expectedNode = new ObjectNode();
+		IArrayNode itemsNode = new ArrayNode();
+		itemsNode.add(new TextNode("apple"));
+		itemsNode.add(new TextNode("banana"));
+		itemsNode.add(new TextNode("cherry"));
+		FrequentItemsetNodes.write(expectedNode, itemsNode);
+		plan.getExpectedOutput(0).add(expectedNode);
+
+		expectedNode = new ObjectNode();
+		itemsNode = new ArrayNode();
 		itemsNode.add(new TextNode("apple"));
 		itemsNode.add(new TextNode("banana"));
 		FrequentItemsetNodes.write(expectedNode, itemsNode);
 		plan.getExpectedOutput(0).add(expectedNode);
+		
+		expectedNode = new ObjectNode();
+		itemsNode = new ArrayNode();
+		itemsNode.add(new TextNode("apple"));
+		itemsNode.add(new TextNode("banana"));
+		itemsNode.add(new TextNode("cherry"));
+		FrequentItemsetNodes.write(expectedNode, itemsNode);
 		plan.getExpectedOutput(0).add(expectedNode);
+		
+		expectedNode = new ObjectNode();
+		itemsNode = new ArrayNode();
+		itemsNode.add(new TextNode("banana"));
+		itemsNode.add(new TextNode("cherry"));
+		FrequentItemsetNodes.write(expectedNode, itemsNode);
 		plan.getExpectedOutput(0).add(expectedNode);
 
 		plan.run();
@@ -68,7 +89,7 @@ public class ShrinkBasketsTest {
 		for (@SuppressWarnings("unused")
 		final IJsonNode node : plan.getActualOutput(0))
 			count++;
-		Assert.assertEquals(3, count);
+		Assert.assertEquals(4, count);
 	}
 
 	@InputCardinality(value = 1)

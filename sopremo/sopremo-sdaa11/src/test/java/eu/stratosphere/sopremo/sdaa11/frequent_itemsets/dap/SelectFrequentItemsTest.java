@@ -65,13 +65,20 @@ public class SelectFrequentItemsTest {
 		AnnotatorNodes.flatAnnotate(expectedNode);
 		plan.getExpectedOutput(0).add(expectedNode);
 
+		expectedNode = new ObjectNode();
+		itemsNode = new ArrayNode();
+		itemsNode.add(new TextNode("cherry"));
+		BasketNodes.write(expectedNode, itemsNode);
+		AnnotatorNodes.flatAnnotate(expectedNode);
+		plan.getExpectedOutput(0).add(expectedNode);
+
 		plan.run();
 
 		int count = 0;
 		for (@SuppressWarnings("unused")
 		final IJsonNode node : plan.getActualOutput(0))
 			count++;
-		Assert.assertEquals(2, count);
+		Assert.assertEquals(3, count);
 	}
 
 }

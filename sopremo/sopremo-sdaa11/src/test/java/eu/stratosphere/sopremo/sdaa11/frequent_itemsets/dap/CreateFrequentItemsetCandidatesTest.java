@@ -27,7 +27,7 @@ import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.sdaa11.frequent_itemsets.dap.json.FrequentItemsetListNodes;
+import eu.stratosphere.sopremo.sdaa11.frequent_itemsets.dap.json.FrequentItemsetNodes;
 import eu.stratosphere.sopremo.sdaa11.frequent_itemsets.util.Baskets;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -38,11 +38,12 @@ import eu.stratosphere.sopremo.type.TextNode;
 
 /**
  * @author skruse
- * 
+ *
  */
-public class GroupFrequentItemsetsTest {
-
+public class CreateFrequentItemsetCandidatesTest {
+	
 	private static final String SMALL_BASKETS_PATH = "src/test/resources/frequent_itemsets/small_baskets";
+
 
 	@Test
 	public void testSelection() throws IOException {
@@ -53,19 +54,15 @@ public class GroupFrequentItemsetsTest {
 		for (final IJsonNode basket : baskets)
 			plan.getInput(0).add(basket);
 
-		final ObjectNode expectedNode = new ObjectNode();
-		final IArrayNode itemsetsNode = new ArrayNode();
-		IArrayNode itemsNode = new ArrayNode();
-		itemsNode.add(new TextNode("apple"));
-		itemsetsNode.add(itemsNode);
-		itemsNode = new ArrayNode();
-		itemsNode.add(new TextNode("banana"));
-		itemsetsNode.add(itemsNode);
-		itemsNode = new ArrayNode();
-		itemsNode.add(new TextNode("cherry"));
-		itemsetsNode.add(itemsNode);
-		FrequentItemsetListNodes.write(expectedNode, itemsetsNode);
-		plan.getExpectedOutput(0).add(expectedNode);
+//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "banana"));
+//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "cherry"));
+//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
+//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "banana"));
+//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
+//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "banana"));
+//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "cherry"));
+//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
+//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
 
 		plan.run();
 
@@ -73,7 +70,17 @@ public class GroupFrequentItemsetsTest {
 		for (@SuppressWarnings("unused")
 		final IJsonNode node : plan.getActualOutput(0))
 			count++;
-		Assert.assertEquals(1, count);
+		Assert.assertEquals(3, count);
+	}
+	
+	public ObjectNode createFrequentItemsetNode(String... items) {
+		final ObjectNode fisNode = new ObjectNode();
+		final IArrayNode itemsNode = new ArrayNode();
+		for (String item : items) {
+			itemsNode.add(new TextNode(item));
+		}
+		FrequentItemsetNodes.write(fisNode, itemsNode);
+		return fisNode;
 	}
 
 	@InputCardinality(value = 1)
@@ -92,15 +99,26 @@ public class GroupFrequentItemsetsTest {
 		public ElementarySopremoModule asElementaryOperators() {
 			final SopremoModule module = new SopremoModule(this.getName(), 1, 1);
 			final Source input = module.getInput(0);
+
 			final SelectFrequentItems selectFrequentItems = new SelectFrequentItems()
 					.withInputs(input);
 			selectFrequentItems.setMinSupport(3);
+
 			final GroupFrequentItemsets groupFrequentItemsets = new GroupFrequentItemsets()
 					.withInputs(selectFrequentItems);
-			module.getOutput(0).setInput(0, groupFrequentItemsets);
+
+			final ShrinkBaskets shrinkBaskets = new ShrinkBaskets().withInputs(
+					input, groupFrequentItemsets);
+			
+			final CreateFrequentItemsetCandidates createFrequentItemsetCandidates =
+					new CreateFrequentItemsetCandidates().withInputs(shrinkBaskets);
+			createFrequentItemsetCandidates.setFisSize(2);
+			
+			module.getOutput(0).setInput(0, createFrequentItemsetCandidates);
 			return module.asElementary();
 		}
 
 	}
+
 
 }
