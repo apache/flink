@@ -99,7 +99,7 @@ public class CreateFrequentItemsetCandidates extends
 					iterator[i] = iterator[i+1] = iterator[i] + 1;
 				}
 			}
-			return ++iterator[iterator.length - 1] >= inputSize;
+			return ++iterator[iterator.length - 1] < inputSize;
 		}
 
 		/**

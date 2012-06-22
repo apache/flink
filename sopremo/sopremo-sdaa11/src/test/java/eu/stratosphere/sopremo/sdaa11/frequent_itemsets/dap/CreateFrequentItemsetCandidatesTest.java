@@ -54,15 +54,14 @@ public class CreateFrequentItemsetCandidatesTest {
 		for (final IJsonNode basket : baskets)
 			plan.getInput(0).add(basket);
 
-//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "banana"));
-//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "cherry"));
-//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
-//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "banana"));
-//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
-//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "banana"));
-//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "cherry"));
-//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
-//		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
+		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "banana"));
+		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "cherry"));
+		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
+		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "banana"));
+		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "banana"));
+		plan.getExpectedOutput(0).add(createFrequentItemsetNode("apple", "cherry"));
+		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
+		plan.getExpectedOutput(0).add(createFrequentItemsetNode("banana", "cherry"));
 
 		plan.run();
 
@@ -70,7 +69,7 @@ public class CreateFrequentItemsetCandidatesTest {
 		for (@SuppressWarnings("unused")
 		final IJsonNode node : plan.getActualOutput(0))
 			count++;
-		Assert.assertEquals(3, count);
+		Assert.assertEquals(8, count);
 	}
 	
 	public ObjectNode createFrequentItemsetNode(String... items) {
