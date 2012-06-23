@@ -43,6 +43,7 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  * The K-Means cluster algorithm is well-known (see
@@ -603,12 +604,13 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Data Points");
 		dataPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		//dataPoints.addOutputContract(OutputContract.Unique.class);
+		dataPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create DataSourceContract for cluster center input
 		FileDataSource clusterPoints = new FileDataSource(PointInFormat.class, clusterInput, "Centers");
 		clusterPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		clusterPoints.setDegreeOfParallelism(1);
-		//clusterPoints.addOutputContract(OutputContract.Unique.class);
+		clusterPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create CrossContract for distance computation
 		CrossContract computeDistance = new CrossContract(ComputeDistance.class, dataPoints, clusterPoints, "Compute Distances");
