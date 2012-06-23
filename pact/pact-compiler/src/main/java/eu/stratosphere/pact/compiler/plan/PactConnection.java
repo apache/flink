@@ -394,6 +394,19 @@ public class PactConnection {
 			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
 				gp.setOrdering(null);
 			}
+			
+			if (gp.getPartitioning() == PartitionProperty.NONE) {
+				if (source.getUniqueFields().size() > 0) {
+					FieldList partitionedFields = new FieldList();
+					//TODO maintain a list of partitioned fields in global properties
+					//Up to now: only add first unique fieldset
+					for (Integer field : source.getUniqueFields().iterator().next()) {
+						partitionedFields.add(field);
+					}
+					gp.setPartitioning(PartitionProperty.ANY, partitionedFields);
+				}
+			}
+			
 			// nothing else changes
 			break;
 		case NONE:
@@ -428,6 +441,13 @@ public class PactConnection {
 		}
 		else {
 			lp.reset();
+		}
+		
+		if (lp.isGrouped() == false && shipMode != ShipStrategy.BROADCAST && shipMode != ShipStrategy.SFR) {
+			if (source.getUniqueFields().size() > 0) {
+				//TODO allow list of grouped fields, up to now only add the first one
+				lp.setGrouped(true, source.getUniqueFields().iterator().next());
+			}
 		}
 
 		return lp;
