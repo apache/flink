@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.testing;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -52,6 +51,7 @@ import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
+import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.util.SerializableArrayList;
@@ -109,7 +109,7 @@ class MockTaskManager implements TaskOperationProtocol {
 
 		@Override
 		public void executionStateChanged(final ExecutionState executionState, final String optionalMessage) {
-			// System.out.println(executionState + " @ " + this.id);
+			 System.out.println("vertex " + this.id + " -> " + executionState);
 			// Don't propagate state CANCELING back to the job manager
 			if (executionState == ExecutionState.CANCELING) {
 				return;
