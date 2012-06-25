@@ -67,98 +67,6 @@ class MockTaskManager implements TaskOperationProtocol {
 
 	private InputSplitManager inputSplitManager = new InputSplitManager();
 
-	/**
-	 * @author Arvid Heise
-	 */
-	private final class TaskObserver implements ExecutionObserver {
-		/**
-		 * 
-		 */
-		private final ExecutionVertexID id;
-
-		/**
-		 * 
-		 */
-		private final RuntimeEnvironment environment;
-
-		private volatile boolean isCanceled = false;
-
-		/**
-		 * Initializes ExecutionObserver.
-		 * 
-		 * @param id
-		 * @param environment
-		 */
-		private TaskObserver(ExecutionVertexID id, RuntimeEnvironment environment) {
-			this.id = id;
-			this.environment = environment;
-		}
-
-		@Override
-		public void userThreadStarted(Thread userThread) {
-		}
-
-		@Override
-		public void userThreadFinished(Thread userThread) {
-		}
-
-		@Override
-		public boolean isCanceled() {
-			return this.isCanceled;
-		}
-
-		@Override
-		public void executionStateChanged(final ExecutionState executionState, final String optionalMessage) {
-			 System.out.println("vertex " + this.id + " -> " + executionState);
-			// Don't propagate state CANCELING back to the job manager
-			if (executionState == ExecutionState.CANCELING) {
-				return;
-			}
-
-			final ExecutionGraph eg = MockTaskManager.INSTANCE.jobGraphs.get(this.environment.getJobID());
-			if (eg == null) {
-				LOG.error("Cannot find execution graph for ID " + this.environment.getJobID() + " to change state to "
-					+ executionState);
-				return;
-			}
-
-			final ExecutionVertex vertex = eg.getVertexByID(this.id);
-			if (vertex == null) {
-				LOG.error("Cannot find vertex with ID " + this.id + " of job " + eg.getJobID() + " to change state to "
-					+ executionState);
-				return;
-			}
-
-			final Runnable taskStateChangeRunnable = new Runnable() {
-				@Override
-				public void run() {
-					// The registered listeners of the vertex will make sure the appropriate actions are taken
-					vertex.updateExecutionState(executionState, optionalMessage);
-				}
-			};
-			ConcurrentUtil.invokeLater(taskStateChangeRunnable);
-
-			eg.executionStateChanged(this.environment.getJobID(), this.id, executionState, optionalMessage);
-
-			if (executionState == ExecutionState.CANCELED || executionState == ExecutionState.FINISHED
-				|| executionState == ExecutionState.FAILED)
-				MockTaskManager.this.finishedTasks.put(this.id, this.environment);
-		}
-
-		/**
-		 * 
-		 */
-		public void cancel() {
-			this.isCanceled = true;
-			ConcurrentUtil.invokeLater(new Runnable() {
-				@Override
-				public void run() {
-					TaskObserver.this.executionStateChanged(ExecutionState.CANCELING, null);
-				}
-			});
-		}
-	}
-
 	private static final Log LOG = LogFactory.getLog(MockTaskManager.class);
 
 	// at least 128 mb
@@ -190,6 +98,11 @@ class MockTaskManager implements TaskOperationProtocol {
 		this.ioManager = new IOManager(tmpDirPath);
 	}
 
+	public void addJobGraph(ExecutionGraph executionGraph) {
+		this.inputSplitManager.registerJob(executionGraph);
+		this.jobGraphs.put(executionGraph.getJobID(), executionGraph);
+	}
+
 	@Override
 	public TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
 
@@ -209,6 +122,22 @@ class MockTaskManager implements TaskOperationProtocol {
 		}
 
 		return new TaskCancelResult(id, TaskCancelResult.ReturnCode.SUCCESS);
+	}
+
+	/**
+	 * @param executionGraph
+	 */
+	public void cleanupJob(ExecutionGraph executionGraph) {
+		for (Entry<ExecutionVertexID, RuntimeEnvironment> task : this.finishedTasks.entrySet()) {
+			this.channelManager.unregisterChannels(task.getValue());
+			this.observers.remove(task.getValue());
+			this.runningTasks.remove(task.getKey());
+		}
+		this.finishedTasks.clear();
+		this.inputSplitManager.unregisterJob(executionGraph);
+		this.jobGraphs.remove(executionGraph.getJobID());
+//		System.out.println("cleaning " + executionGraph.getJobID());
+//		System.out.println("remaining runningtasks " + this.runningTasks.size());
 	}
 
 	/**
@@ -241,16 +170,74 @@ class MockTaskManager implements TaskOperationProtocol {
 		return this.memoryManager;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#invalidateLookupCacheEntries(java.util.Set)
+	 */
 	@Override
-	public void updateLibraryCache(final LibraryCacheUpdate update) throws IOException {
+	public void invalidateLookupCacheEntries(Set<ChannelID> channelIDs) throws IOException {
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#killTask(eu.stratosphere.nephele.executiongraph.
+	 * ExecutionVertexID)
+	 */
+	@Override
+	public TaskKillResult killTask(ExecutionVertexID id) throws IOException {
+		return null;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#killTaskManager()
+	 */
+	@Override
+	public void killTaskManager() throws IOException {
+	}
+
+	//
+	// /*
+	// * (non-Javadoc)
+	// * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#submitTask(eu.stratosphere.nephele.executiongraph.
+	// * ExecutionVertexID, eu.stratosphere.nephele.configuration.Configuration,
+	// * eu.stratosphere.nephele.execution.Environment, java.util.Set)
+	// */
+	// @Override
+	// public TaskSubmissionResult submitTask(final ExecutionVertexID id, Configuration jobConfiguration,
+	// final RuntimeEnvironment environment, Set<ChannelID> activeOutputChannels) throws IOException {
+	// // Register task manager components in environment
+	// environment.setMemoryManager(this.memoryManager);
+	// environment.setIOManager(this.ioManager);
+	// TaskObserver observer = new TaskObserver(id, environment);
+	// environment.setExecutionObserver(observer);
+	//
+	// this.channelManager.registerChannels(environment);
+	// this.runningTasks.put(id, environment);
+	// this.observers.put(environment, observer);
+	//
+	// final Thread thread = environment.getExecutingThread();
+	// thread.start();
+	//
+	// return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
+	// }
+
+	@Override
+	public void logBufferUtilization() throws IOException {
 	}
 
 	@Override
 	public void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException {
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#requestCheckpointDecision(eu.stratosphere.nephele.
+	 * executiongraph.ExecutionVertexID)
+	 */
 	@Override
-	public void logBufferUtilization() throws IOException {
+	public TaskCheckpointResult requestCheckpointDecision(ExecutionVertexID id) throws IOException {
+		return null;
 	}
 
 	/*
@@ -300,86 +287,104 @@ class MockTaskManager implements TaskOperationProtocol {
 		return submissionResultList;
 	}
 
-	//
-	// /*
-	// * (non-Javadoc)
-	// * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#submitTask(eu.stratosphere.nephele.executiongraph.
-	// * ExecutionVertexID, eu.stratosphere.nephele.configuration.Configuration,
-	// * eu.stratosphere.nephele.execution.Environment, java.util.Set)
-	// */
-	// @Override
-	// public TaskSubmissionResult submitTask(final ExecutionVertexID id, Configuration jobConfiguration,
-	// final RuntimeEnvironment environment, Set<ChannelID> activeOutputChannels) throws IOException {
-	// // Register task manager components in environment
-	// environment.setMemoryManager(this.memoryManager);
-	// environment.setIOManager(this.ioManager);
-	// TaskObserver observer = new TaskObserver(id, environment);
-	// environment.setExecutionObserver(observer);
-	//
-	// this.channelManager.registerChannels(environment);
-	// this.runningTasks.put(id, environment);
-	// this.observers.put(environment, observer);
-	//
-	// final Thread thread = environment.getExecutingThread();
-	// thread.start();
-	//
-	// return new TaskSubmissionResult(id, AbstractTaskResult.ReturnCode.SUCCESS);
-	// }
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#killTaskManager()
-	 */
 	@Override
-	public void killTaskManager() throws IOException {
-	}
-
-	public void addJobGraph(ExecutionGraph executionGraph) {
-		this.inputSplitManager.registerJob(executionGraph);
-		this.jobGraphs.put(executionGraph.getJobID(), executionGraph);
+	public void updateLibraryCache(final LibraryCacheUpdate update) throws IOException {
 	}
 
 	/**
-	 * @param executionGraph
+	 * @author Arvid Heise
 	 */
-	public void cleanupJob(ExecutionGraph executionGraph) {
-		for (Entry<ExecutionVertexID, RuntimeEnvironment> task : this.finishedTasks.entrySet()) {
-			this.channelManager.unregisterChannels(task.getValue());
-			this.observers.remove(task.getValue());
-			this.runningTasks.remove(task.getKey());
+	private final class TaskObserver implements ExecutionObserver {
+		/**
+		 * 
+		 */
+		private final ExecutionVertexID id;
+
+		/**
+		 * 
+		 */
+		private final RuntimeEnvironment environment;
+
+		private volatile boolean isCanceled = false;
+
+		/**
+		 * Initializes ExecutionObserver.
+		 * 
+		 * @param id
+		 * @param environment
+		 */
+		private TaskObserver(ExecutionVertexID id, RuntimeEnvironment environment) {
+			this.id = id;
+			this.environment = environment;
 		}
-		this.finishedTasks.clear();
-		this.inputSplitManager.unregisterJob(executionGraph);
-		this.jobGraphs.remove(executionGraph.getJobID());
-		System.out.println("cleaning " + executionGraph.getJobID());
-		System.out.println("remaining runningtasks " + this.runningTasks.size());
-	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#killTask(eu.stratosphere.nephele.executiongraph.
-	 * ExecutionVertexID)
-	 */
-	@Override
-	public TaskKillResult killTask(ExecutionVertexID id) throws IOException {
-		return null;
-	}
+		/**
+		 * 
+		 */
+		public void cancel() {
+			this.isCanceled = true;
+			ConcurrentUtil.invokeLater(new Runnable() {
+				@Override
+				public void run() {
+					TaskObserver.this.executionStateChanged(ExecutionState.CANCELING, null);
+				}
+			});
+		}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#requestCheckpointDecision(eu.stratosphere.nephele.
-	 * executiongraph.ExecutionVertexID)
-	 */
-	@Override
-	public TaskCheckpointResult requestCheckpointDecision(ExecutionVertexID id) throws IOException {
-		return null;
-	}
+		@Override
+		public void executionStateChanged(final ExecutionState executionState, final String optionalMessage) {
+//			 System.out.println("vertex " + this.id + " -> " + executionState);
+			// Don't propagate state CANCELING back to the job manager
+			if (executionState == ExecutionState.CANCELING) {
+				return;
+			}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.protocols.TaskOperationProtocol#invalidateLookupCacheEntries(java.util.Set)
-	 */
-	@Override
-	public void invalidateLookupCacheEntries(Set<ChannelID> channelIDs) throws IOException {
+			final ExecutionGraph eg = MockTaskManager.INSTANCE.jobGraphs.get(this.environment.getJobID());
+			if (eg == null) {
+				LOG.error("Cannot find execution graph for ID " + this.environment.getJobID() + " to change state to "
+					+ executionState);
+				return;
+			}
+
+			final ExecutionVertex vertex = eg.getVertexByID(this.id);
+			if (vertex == null) {
+				LOG.error("Cannot find vertex with ID " + this.id + " of job " + eg.getJobID() + " to change state to "
+					+ executionState);
+				return;
+			}
+
+//			final Runnable taskStateChangeRunnable = new Runnable() {
+//				@Override
+//				public void run() {
+//					// The registered listeners of the vertex will make sure the appropriate actions are taken
+//					vertex.updateExecutionState(executionState, optionalMessage);
+//				}
+//			};
+//			ConcurrentUtil.invokeLater(taskStateChangeRunnable);
+
+//			System.out.println("vertex2 " + this.id + " -> " + executionState);
+			synchronized (eg) {
+				vertex.updateExecutionState(executionState, optionalMessage);				
+			}
+//			System.out.println("vertex3 " + this.id + " -> " + executionState);
+//			eg.executionStateChanged(this.environment.getJobID(), this.id, executionState, optionalMessage);
+
+			if (executionState == ExecutionState.CANCELED || executionState == ExecutionState.FINISHED
+				|| executionState == ExecutionState.FAILED)
+				MockTaskManager.this.finishedTasks.put(this.id, this.environment);
+		}
+
+		@Override
+		public boolean isCanceled() {
+			return this.isCanceled;
+		}
+
+		@Override
+		public void userThreadFinished(Thread userThread) {
+		}
+
+		@Override
+		public void userThreadStarted(Thread userThread) {
+		}
 	}
 }

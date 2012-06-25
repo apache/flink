@@ -174,7 +174,7 @@ public class TwoSourceJoinTest extends SopremoTest<TwoSourceJoin> {
 			addObject("name", "Jane Doe", "password", "qwertyui", "id", 2, "userid", 2, "url", "www.cnn.com").
 			addObject("name", "Max Mustermann", "password", "q1w2e3r4", "id", 3);
 
-		sopremoPlan.trace();
+//		sopremoPlan.trace();
 		sopremoPlan.run();
 	}
 
