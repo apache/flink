@@ -22,8 +22,6 @@ package eu.stratosphere.pact.compiler;
  * <p>
  * If an unknown cost is added with a known cost, the result is unknown. If an unknown cost is compared with a known
  * cost, it is always larger.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class Costs implements Comparable<Costs>, Cloneable {
 

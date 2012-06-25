@@ -103,10 +103,6 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	private List<AbstractJobVertex> auxVertices; // auxiliary vertices which are added during job graph generation
 
 	private AbstractJobVertex maxDegreeVertex; // the vertex with the highest degree of parallelism
-
-//	private JobTaskVertex histogramVertex; // the latest generated histogramVertex
-//	private int numberOfHistogramInputs = 0;
-	
 	
 	// ------------------------------------------------------------------------
 

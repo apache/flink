@@ -18,11 +18,12 @@ package eu.stratosphere.pact.common.contract;
 import java.util.ArrayList;
 
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 
 public class Ordering
 {	
-	protected final ArrayList<Integer> indexes = new ArrayList<Integer>();
+	protected final FieldList indexes = new FieldList();
 	protected final ArrayList<Class<? extends Key>> types = new ArrayList<Class<? extends Key>>();
 	protected final ArrayList<Order> orders = new ArrayList<Order>();
 
@@ -30,19 +31,19 @@ public class Ordering
 	public Ordering() {
 	}
 	
-	public Ordering(Integer index, Class<? extends Key> type, Order order) {
+	public Ordering(int index, Class<? extends Key> type, Order order) {
 		appendOrdering(index, type, order);
 	}
 	
 	
-	public void appendOrdering(Integer index, Class<? extends Key> type, Order order)
+	public void appendOrdering(int index, Class<? extends Key> type, Order order)
 	{
 		this.indexes.add(index);
 		this.types.add(type);
 		this.orders.add(order);
 	}
 	
-	public ArrayList<Integer> getInvolvedIndexes() {
+	public FieldList getInvolvedIndexes() {
 		return this.indexes;
 	}
 	
@@ -62,7 +63,8 @@ public class Ordering
 		return orders.get(index);
 	}
 	
-	public boolean isMetBy(Ordering otherOrdering) {
+	public boolean isMetBy(Ordering otherOrdering)
+	{
 		if (otherOrdering == null || this.indexes.size() > otherOrdering.indexes.size()) {
 			return false;
 		}
@@ -92,7 +94,8 @@ public class Ordering
 		return true;
 	}
 	
-	public boolean groupsFieldSet(FieldSet fieldSet) {
+	public boolean groupsFieldSet(FieldSet fieldSet)
+	{
 		if (fieldSet.size() > this.indexes.size()) {
 			return false;
 		}
@@ -114,9 +117,10 @@ public class Ordering
 		if (exclusiveIndex == 0) {
 			return null;
 		}
-		Ordering newOrdering = new Ordering(indexes.get(0), types.get(0), orders.get(0));
+		final Ordering newOrdering = new Ordering(this.indexes.get(0),
+										this.types.get(0), this.orders.get(0));
 		for (int i = 1; i < exclusiveIndex; i++) {
-			newOrdering.appendOrdering(indexes.get(i), types.get(i), orders.get(i));
+			newOrdering.appendOrdering(this.indexes.get(i), this.types.get(i), this.orders.get(i));
 		}
 		return newOrdering;
 	}
@@ -138,10 +142,10 @@ public class Ordering
 	 */
 	public String toString()
 	{
-		if (indexes.size() == 0) {
+		if (this.indexes.size() == 0) {
 			return "(none)";
 		}
-		StringBuffer buf = new StringBuffer();
+		final StringBuffer buf = new StringBuffer();
 		for (int i = 0; i < indexes.size(); i++) {
 			if (buf.length() == 0) {
 				buf.append("[");
@@ -149,11 +153,11 @@ public class Ordering
 			else {
 				buf.append(",");
 			}
-			buf.append(indexes.get(i));
+			buf.append(this.indexes.get(i));
 			buf.append(":");
-			buf.append(types.get(i).getName());
+			buf.append(this.types.get(i).getName());
 			buf.append(":");
-			buf.append(orders.get(i).name());
+			buf.append(this.orders.get(i).name());
 		}
 		buf.append("]");
 		return buf.toString();

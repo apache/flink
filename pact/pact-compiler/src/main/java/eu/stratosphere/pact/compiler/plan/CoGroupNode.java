@@ -203,7 +203,7 @@ public class CoGroupNode extends TwoInputNode {
 		
 		Ordering ordering = new Ordering();
 		for (Integer index : getPactContract().getKeyColumnNumbers(inputNum)) {
-			ordering.appendOrdering(index, Order.ANY);
+			ordering.appendOrdering(index, null, Order.ANY);
 		}
 		
 		p.getLocalProperties().setOrdering(ordering);
@@ -529,14 +529,14 @@ public class CoGroupNode extends TwoInputNode {
 		
 		Ordering ordering1 = new Ordering();
 		for (int keyColumn : keyColumns1) {
-			ordering1.appendOrdering(keyColumn, Order.ASCENDING);
+			ordering1.appendOrdering(keyColumn, null, Order.ASCENDING);
 		}
 		
 		int[] keyColumns2 = getPactContract().getKeyColumnNumbers(1);
 		
 		Ordering ordering2 = new Ordering();
 		for (int keyColumn : keyColumns2) {
-			ordering2.appendOrdering(keyColumn, Order.ASCENDING);
+			ordering2.appendOrdering(keyColumn, null, Order.ASCENDING);
 		}
 		
 		// determine the properties of the data before it goes to the user code

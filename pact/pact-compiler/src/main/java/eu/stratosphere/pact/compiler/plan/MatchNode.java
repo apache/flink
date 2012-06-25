@@ -236,7 +236,7 @@ public class MatchNode extends TwoInputNode {
 		
 		Ordering ordering = new Ordering();
 		for (Integer index : getPactContract().getKeyColumnNumbers(inputNum)) {
-			ordering.appendOrdering(index, Order.ANY);
+			ordering.appendOrdering(index, null, Order.ANY);
 		}
 		
 		p.getLocalProperties().setOrdering(ordering);
@@ -633,13 +633,13 @@ public class MatchNode extends TwoInputNode {
 				int[] keyColumns = getPactContract().getKeyColumnNumbers(0);
 				Ordering ordering1 = new Ordering();
 				for (int keyColumn : keyColumns) {
-					ordering1.appendOrdering(keyColumn, Order.ASCENDING);
+					ordering1.appendOrdering(keyColumn, null, Order.ASCENDING);
 				}
 				
 				keyColumns = getPactContract().getKeyColumnNumbers(1);
 				Ordering ordering2 = new Ordering();
 				for (int keyColumn : keyColumns) {
-					ordering2.appendOrdering(keyColumn, Order.ASCENDING);
+					ordering2.appendOrdering(keyColumn, null, Order.ASCENDING);
 				}
 				
 				
@@ -815,7 +815,7 @@ public class MatchNode extends TwoInputNode {
 				if (order != Order.NONE) {
 					Ordering ordering = new Ordering();
 					for (int keyColumn : this.keySet1) {
-						ordering.appendOrdering(keyColumn, order);
+						ordering.appendOrdering(keyColumn, null, order);
 					}
 					outLp.setOrdering(ordering);
 				}
@@ -853,7 +853,7 @@ public class MatchNode extends TwoInputNode {
 				if (order != Order.NONE) {
 					Ordering ordering = new Ordering();
 					for (int keyColumn : this.keySet2) {
-						ordering.appendOrdering(keyColumn, order);
+						ordering.appendOrdering(keyColumn, null, order);
 					}
 					outLp.setOrdering(ordering);
 				}
@@ -897,7 +897,7 @@ public class MatchNode extends TwoInputNode {
 				if (order != Order.NONE) {
 					Ordering ordering = new Ordering();
 					for (int keyColumn : this.keySet1) {
-						ordering.appendOrdering(keyColumn, order);
+						ordering.appendOrdering(keyColumn, null, order);
 					}
 					outLp.setOrdering(ordering);
 				}
