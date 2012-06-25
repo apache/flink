@@ -17,53 +17,65 @@ package eu.stratosphere.pact.common.contract;
 
 import java.util.ArrayList;
 
-import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.FieldSet;
 
-/**
- * TODO: add JavaDoc
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- *
- */
-public class Ordering {
-	
-	protected FieldList fields = new FieldList();
-	protected ArrayList<Order> orders = new ArrayList<Order>();
+public class Ordering
+{	
+	protected final ArrayList<Integer> indexes = new ArrayList<Integer>();
+	protected final ArrayList<Class<? extends Key>> types = new ArrayList<Class<? extends Key>>();
+	protected final ArrayList<Order> orders = new ArrayList<Order>();
 
+	
 	public Ordering() {
 	}
 	
-	public Ordering(Integer fieldIndex, Order order) {
-		appendOrdering(fieldIndex, order);
+	public Ordering(Integer index, Class<? extends Key> type, Order order) {
+		appendOrdering(index, type, order);
 	}
 	
-	public void appendOrdering(Integer fieldIndex, Order order) {
-		fields.add(fieldIndex);
-		orders.add(order);
+	
+	public void appendOrdering(Integer index, Class<? extends Key> type, Order order)
+	{
+		this.indexes.add(index);
+		this.types.add(type);
+		this.orders.add(order);
 	}
 	
-	public FieldList getInvolvedFields() {
-		return fields;
+	public ArrayList<Integer> getInvolvedIndexes() {
+		return this.indexes;
 	}
 	
-	public Order getOrder(Integer index) {
-		if (index > orders.size()) {
-			return Order.NONE;
+	public Class<? extends Key> getType(int index)
+	{
+		if (index < 0 || index >= this.types.size()) {
+			throw new IndexOutOfBoundsException(String.valueOf(index));
 		}
-		return orders.get(0);
+		return this.types.get(index);
+	}
+	
+	public Order getOrder(int index)
+	{
+		if (index < 0 || index >= this.types.size()) {
+			throw new IndexOutOfBoundsException(String.valueOf(index));
+		}
+		return orders.get(index);
 	}
 	
 	public boolean isMetBy(Ordering otherOrdering) {
-		if (otherOrdering == null || this.fields.size() > otherOrdering.fields.size()) {
+		if (otherOrdering == null || this.indexes.size() > otherOrdering.indexes.size()) {
 			return false;
 		}
 		
-		for (int i = 0; i < this.fields.size(); i++) {
-			if (this.fields.get(i) != otherOrdering.fields.get(i)) {
+		for (int i = 0; i < this.indexes.size(); i++) {
+			if (this.indexes.get(i) != otherOrdering.indexes.get(i)) {
 				return false;
 			}
-				
+			
+			if(this.types.get(i) != otherOrdering.types.get(i)) {
+				return false;
+			}
+			
 			// if this one request no order, everything is good
 			if (this.orders.get(i) != Order.NONE) {
 				if (this.orders.get(i) == Order.ANY) {
@@ -81,50 +93,65 @@ public class Ordering {
 	}
 	
 	public boolean groupsFieldSet(FieldSet fieldSet) {
-		if (fieldSet.size() > fields.size()) {
+		if (fieldSet.size() > this.indexes.size()) {
 			return false;
 		}
 		
 		for (int i = 0; i < fieldSet.size(); i++) {
-			if (!fieldSet.contains(fields.get(i))) {
+			if (!fieldSet.contains(this.indexes.get(i))) {
 				return false;
 			}
 		}
 		return true;
 	}
 	
-	public Ordering createNewOrderingUpToPos(int exclusivePos) {
-		if (exclusivePos == 0) {
+	/**
+	 * @param exclusiveIndex
+	 * @return
+	 */
+	public Ordering createNewOrderingUpToIndex(int exclusiveIndex)
+	{
+		if (exclusiveIndex == 0) {
 			return null;
 		}
-		Ordering newOrdering = new Ordering(fields.get(0), orders.get(0));
-		for (int i = 1; i < exclusivePos; i++) {
-			newOrdering.appendOrdering(fields.get(i), orders.get(i));
+		Ordering newOrdering = new Ordering(indexes.get(0), types.get(0), orders.get(0));
+		for (int i = 1; i < exclusiveIndex; i++) {
+			newOrdering.appendOrdering(indexes.get(i), types.get(i), orders.get(i));
 		}
 		return newOrdering;
 	}
 	
-	@SuppressWarnings("unchecked")
-	public Ordering clone() {
-		Ordering newOrdering = new Ordering();
-		newOrdering.fields = (FieldList) this.fields.clone();
-		newOrdering.orders = (ArrayList<Order>) this.orders.clone();
-		return this;
+	/* (non-Javadoc)
+	 * @see java.lang.Object#clone()
+	 */
+	public Ordering clone()
+	{
+		final Ordering newOrdering = new Ordering();
+		newOrdering.indexes.addAll(this.indexes);
+		newOrdering.types.addAll(this.types);
+		newOrdering.orders.addAll(this.orders);
+		return newOrdering;
 	}
 	
-	public String toString() {
-		if (fields.size() == 0) {
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	public String toString()
+	{
+		if (indexes.size() == 0) {
 			return "(none)";
 		}
 		StringBuffer buf = new StringBuffer();
-		for (int i = 0; i < fields.size(); i++) {
+		for (int i = 0; i < indexes.size(); i++) {
 			if (buf.length() == 0) {
 				buf.append("[");
 			}
 			else {
 				buf.append(",");
 			}
-			buf.append(fields.get(i));
+			buf.append(indexes.get(i));
+			buf.append(":");
+			buf.append(types.get(i).getName());
 			buf.append(":");
 			buf.append(orders.get(i).name());
 		}
