@@ -136,7 +136,7 @@ public class Join extends CompositeOperator<Join> {
 
 			final TwoSourceJoin lastJoin = joins.get(joins.size() - 1);
 			module.getOutput(0).setInput(0,
-				new Projection().withInputs(lastJoin).withTransformation(getResultProjection()));
+				new Projection().withInputs(lastJoin).withResultProjection(getResultProjection()));
 		}
 
 		return module.asElementary();

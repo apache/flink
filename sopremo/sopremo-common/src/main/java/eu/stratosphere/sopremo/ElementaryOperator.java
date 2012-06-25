@@ -384,6 +384,38 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		}
 		return keyClasses;
 	}
+	
+	
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + this.keyExpressions.hashCode();
+		result = prime * result +  this.resultProjection.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ElementaryOperator<?> other = (ElementaryOperator<?>) obj;
+		return this.keyExpressions.equals(other.keyExpressions) && this.resultProjection.equals(other.resultProjection);
+	}
+	
+
+	@Override
+	public String toString() {
+		final StringBuilder builder = new StringBuilder(this.getName());
+		if(this.getResultProjection() != EvaluationExpression.VALUE)
+			builder.append(" to ").append(this.getResultProjection());
+		return builder.toString();
+	}
 
 	private int[] getKeyIndices(final Schema globalSchema, Iterable<? extends EvaluationExpression> keyExpressions) {
 		if (keyExpressions.equals(ALL_KEYS)) {

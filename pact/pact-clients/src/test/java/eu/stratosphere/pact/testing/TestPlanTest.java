@@ -304,7 +304,6 @@ public class TestPlanTest {
 	 * Tests if a {@link TestPlan} can be executed.
 	 */
 	@Test
-	@Ignore
 	public void completeTestPassesWithExpectedValues() {
 		final FileDataSource read = createInput(IntegerInFormat.class,
 			"TestPlan/test.txt");

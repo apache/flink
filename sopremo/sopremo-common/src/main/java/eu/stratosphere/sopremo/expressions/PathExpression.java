@@ -121,6 +121,15 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	}
 
 	/**
+	 * Returns the last {@link EvaluationExpression}.
+	 * 
+	 * @return the last expression
+	 */
+	public EvaluationExpression getLastFragment() {
+		return this.fragments.getLast();
+	}
+
+	/**
 	 * Returns all expressions
 	 * 
 	 * @return the expressions
