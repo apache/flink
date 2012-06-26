@@ -75,6 +75,20 @@ public class Ordering
 		return orders.get(index);
 	}
 	
+	@SuppressWarnings("unchecked")
+	public Class<? extends Key>[] getTypes()
+	{
+		return this.types.toArray(new Class[this.types.size()]);
+	}
+	
+	public int[] getFieldPositions() {
+		final int[] ia = new int[this.indexes.size()];
+		for (int i = 0; i < ia.length; i++) {
+			ia[i] = this.indexes.get(i);
+		}
+		return ia;
+	}
+	
 	public boolean isMetBy(Ordering otherOrdering)
 	{
 		if (otherOrdering == null || this.indexes.size() > otherOrdering.indexes.size()) {

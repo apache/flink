@@ -37,7 +37,7 @@ public class TeraDistribution implements DataDistribution
 	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets)
 	{
 		final byte[] buf = new byte[TeraKey.KEY_SIZE];
-		double threshold = (double) ALPHABETH_SIZE / (double) (totalNumBuckets + 1) * (double) (totalNumBuckets + 1);
+		double threshold = (double) ALPHABETH_SIZE / (double) (totalNumBuckets + 1) * (double) (bucketNum + 1);
 
 		for (int i = 0; i < buf.length; ++i) {
 			final int ch = (int) Math.floor(threshold) % ALPHABETH_SIZE;

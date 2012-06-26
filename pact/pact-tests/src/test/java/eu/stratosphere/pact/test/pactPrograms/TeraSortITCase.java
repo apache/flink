@@ -15,13 +15,15 @@
 
 package eu.stratosphere.pact.test.pactPrograms;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import junit.framework.Assert;
+
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -40,6 +42,7 @@ public class TeraSortITCase extends TestBase
 {
 	private static final String INPUT_DATA_FILE = "/testdata/terainput.txt";
 	
+	private String resultPath;
 	
 	public TeraSortITCase(Configuration config) {
 		super(config);
@@ -47,7 +50,9 @@ public class TeraSortITCase extends TestBase
 
 	@Override
 	protected void preSubmit() throws Exception
-	{}
+	{
+		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
+	}
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception
@@ -57,7 +62,7 @@ public class TeraSortITCase extends TestBase
 			
 		TeraSort ts = new TeraSort();
 		Plan plan = ts.getPlan(this.config.getString("TeraSortITCase#NoSubtasks", "1"),
-			inPath, "file:///tmp");
+			inPath, getFilesystemProvider().getURIPrefix() + resultPath);
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);
@@ -68,7 +73,49 @@ public class TeraSortITCase extends TestBase
 	}
 
 	@Override
-	protected void postSubmit() throws Exception {
+	protected void postSubmit() throws Exception
+	{	
+		final byte[] line = new byte[100];
+		final byte[] previous = new byte[10];
+		for (int i = 0; i < previous.length; i++) {
+			previous[i] = -128;
+		}
+		
+		File parent = new File(this.resultPath);
+		int num = 1;
+		while (true) {
+			File next = new File(parent, String.valueOf(num));
+			if (!next.exists()) {
+				break;
+			}
+			FileInputStream inStream = new FileInputStream(next);
+			int read;
+			while ((read = inStream.read(line)) == 100) {
+				// check against the previous
+				for (int i = 0; i < previous.length; i++) {
+					if (line[i] > previous[i]) {
+						break;
+					} else if (line[i] < previous[i]) {
+						Assert.fail("Next record is smaller than previous record.");
+					}
+				}
+				
+				System.arraycopy(line, 0, previous, 0, 10);
+			}
+			
+			if (read != -1) {
+				Assert.fail("Inclomplete last record in result file.");
+			}
+			inStream.close();
+			
+			num++;
+		}
+		
+		if (num == 1) {
+			Assert.fail("Empty result, nothing checked for Job!");
+		}
+		
+		getFilesystemProvider().delete(resultPath, true);
 	}
 
 	@Parameters

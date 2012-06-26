@@ -43,7 +43,6 @@ import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitor;
@@ -752,19 +751,29 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		
 		// set the degree-of-parallelism into the config to have it available during the output path checking.
 		sinkVertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, sinkNode.getDegreeOfParallelism());
-		// set the sort order into config (can also be NONE)
-		if (sinkNode.getLocalProperties().getOrdering() != null) {
-			sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getOrdering().getOrder(0).name());	
-		}
-		else {
-			sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
-		}
+		
+//		// set the sort order into config (can also be NONE)
+//		if (sinkNode.getLocalProperties().getOrdering() != null) {
+//			sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getOrdering().getOrder(0).name());	
+//		}
+//		else {
+//			sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
+//		}
+		
 		// get task configuration object
 		TaskConfig sinkConfig = new TaskConfig(sinkVertex.getConfiguration());
 		// set user code class
 		sinkConfig.setStubClass(sinkContract.getUserCodeClass());
 		// forward stub parameters to task and data format
 		sinkConfig.setStubParameters(sinkContract.getParameters());
+		
+		if (sNode.getLocalStrategy() == LocalStrategy.SORT) {
+			assignMemory(sinkConfig, sinkNode.getMemoryPerTask());
+			
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(sinkConfig.getConfiguration(),
+				sinkConfig.getPrefixForInputParameters(0),
+				sNode.getPactContract().getLocalOrder().getFieldPositions(), sNode.getPactContract().getLocalOrder().getTypes());
+		}
 
 		// set local strategy
 		switch (sinkNode.getLocalStrategy()) {
@@ -778,10 +787,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			throw new CompilerException("Invalid local strategy for 'DataSink' (" + sinkNode.getName() + "): "
 				+ sinkNode.getLocalStrategy());
 		}
-
-		//HACK: Copied from Reduce task, is memory always assigned even if not needed?
-		//		could be same problem in reduce task
-		assignMemory(sinkConfig, sinkNode.getMemoryPerTask());
+		
 		return sinkVertex;
 	}
 
