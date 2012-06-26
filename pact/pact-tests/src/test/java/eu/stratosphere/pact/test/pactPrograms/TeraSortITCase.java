@@ -38,9 +38,7 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class TeraSortITCase extends TestBase
 {
-	private static final Log LOG = LogFactory.getLog(TeraSortITCase.class);
-
-	private static final String INPUT_DATA_FILE = "/testdata/terasort200.bin";
+	private static final String INPUT_DATA_FILE = "/testdata/terainput.txt";
 	
 	
 	public TeraSortITCase(Configuration config) {
@@ -49,9 +47,7 @@ public class TeraSortITCase extends TestBase
 
 	@Override
 	protected void preSubmit() throws Exception
-	{
-		
-	}
+	{}
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception

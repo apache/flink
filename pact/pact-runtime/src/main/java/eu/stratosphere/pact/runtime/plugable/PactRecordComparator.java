@@ -283,13 +283,15 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	//                           Non Standard Comparator Methods
+	// --------------------------------------------------------------------------------------------
 	
-	final int[] getKeyPositions()
+	public final int[] getKeyPositions()
 	{
 		return this.keyFields;
 	}
 	
-	final Class<? extends Key>[] getKeyTypes()
+	public final Class<? extends Key>[] getKeyTypes()
 	{
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyTypes = new Class[this.keyHolders.length];
@@ -297,5 +299,31 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 			keyTypes[i] = this.keyHolders[i].getClass();
 		}
 		return keyTypes;
+	}
+	
+	public final Key[] getKeysAsCopy(PactRecord record)
+	{
+		try {
+			final Key[] keys = new Key[this.keyFields.length];
+			for (int i = 0; i < keys.length; i++) {
+				keys[i] = this.keyHolders[i].getClass().newInstance();
+			}
+			record.getFieldsInto(this.keyFields, keys);
+			return keys;
+		} catch (Exception ex) {
+			// this should never happen, because the classes have been instantiated before. Report for debugging.
+			throw new RuntimeException("Could not instantiate key classes when duplicating PactRecordComparator.", ex);
+		}
+	}
+	
+	public final int compareAgainstReference(Key[] keys)
+	{
+		for (int i = 0; i < this.keyFields.length; i++)
+		{
+			final int comp = keys[i].compareTo(this.keyHolders[i]);
+			if (comp != 0)
+				return comp;
+		}
+		return 0;
 	}
 }
