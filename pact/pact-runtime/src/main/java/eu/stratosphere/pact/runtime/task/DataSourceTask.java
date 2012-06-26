@@ -366,7 +366,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 			throw new IllegalStateException("BUG: Input format hast not been instantiated, yet.");
 		}
 		
-		return this.format.getInputSplitType();
+		return (Class<InputSplit>) this.format.getInputSplitType();
 	}
 	
 	// ------------------------------------------------------------------------
