@@ -141,9 +141,12 @@ public class DataSinkNode extends OptimizerNode {
 	@Override
 	public int getMemoryConsumerCount() {
 		switch(this.localStrategy) {
-			case SORT:          return 1;
-			case NONE:          return 0;
-			default:	        return 0;
+			case SORT:
+				return 1;
+			case NONE:
+				return 0;
+			default:
+				throw new IllegalStateException("Unknown strategy for data sink: " + this.localStrategy.name());
 		}
 	}
 

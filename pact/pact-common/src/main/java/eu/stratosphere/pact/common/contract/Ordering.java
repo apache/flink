@@ -47,6 +47,18 @@ public class Ordering
 		return this.indexes;
 	}
 	
+	public int getNumberOfFields() {
+		return this.indexes.size();
+	}
+	
+	public int getFieldNumber(int index) {
+		if (index < 0 || index >= this.indexes.size()) {
+			throw new IndexOutOfBoundsException(String.valueOf(index));
+		}
+		
+		return this.indexes.get(index);
+	}
+	
 	public Class<? extends Key> getType(int index)
 	{
 		if (index < 0 || index >= this.types.size()) {

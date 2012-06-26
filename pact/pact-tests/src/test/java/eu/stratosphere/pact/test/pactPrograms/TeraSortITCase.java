@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.test.pactPrograms;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -37,9 +38,11 @@ import eu.stratosphere.pact.test.util.TestBase;
 @RunWith(Parameterized.class)
 public class TeraSortITCase extends TestBase
 {
-	@SuppressWarnings("unused")
 	private static final Log LOG = LogFactory.getLog(TeraSortITCase.class);
 
+	private static final String INPUT_DATA_FILE = "/testdata/terasort200.bin";
+	
+	
 	public TeraSortITCase(Configuration config) {
 		super(config);
 	}
@@ -47,15 +50,18 @@ public class TeraSortITCase extends TestBase
 	@Override
 	protected void preSubmit() throws Exception
 	{
+		
 	}
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception
 	{
+		URL fileURL = getClass().getResource(INPUT_DATA_FILE);
+		String inPath = "file://" + fileURL.getPath();
+			
 		TeraSort ts = new TeraSort();
-		
 		Plan plan = ts.getPlan(this.config.getString("TeraSortITCase#NoSubtasks", "1"),
-			"", "");
+			inPath, "file:///tmp");
 
 		PactCompiler pc = new PactCompiler();
 		OptimizedPlan op = pc.compile(plan);

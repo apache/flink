@@ -38,11 +38,13 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.common.contract.AbstractPact;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.Key;
@@ -345,6 +347,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 					break;
 				case PARTITION_LOCAL_HASH:
 				case PARTITION_HASH:
+				case PARTITION_RANGE:
 					connectWithPartitionStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
 					break;
 				case BROADCAST:
@@ -859,7 +862,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		case Match:		// ok (Partitioning exist already or forward for broadcast)
 		case Cross:		// ok (Partitioning with broadcast before cross increases data volume)
 		case Cogroup:	// ok (Default)
-		case DataSink:	// ok
+		case DataSink:	// ok (Range partitioning for Global Sort)
 			break;
 		default:
 			throw new CompilerException("ShipStrategy " + connection.getShipStrategy().name() + " does not suit PACT "
@@ -1115,10 +1118,14 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 //		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
 //	}
 
+
 	/**
 	 * @param connection
+	 * @param inputNumber
 	 * @param outputVertex
+	 * @param outputConfig
 	 * @param inputVertex
+	 * @param inputConfig
 	 * @throws JobGraphDefinitionException
 	 * @throws CompilerException
 	 */
@@ -1128,8 +1135,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			final AbstractJobVertex inputVertex, final TaskConfig inputConfig)
 	throws JobGraphDefinitionException, CompilerException
 	{
-		ChannelType channelType = null;
-		DistributionPattern distributionPattern = null;
+		final ChannelType channelType;
+		final DistributionPattern distributionPattern;
 
 		switch (connection.getShipStrategy()) {
 		case FORWARD:
@@ -1145,9 +1152,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			channelType = sourceNumInstances == targetNumInstances ? ChannelType.INMEMORY : ChannelType.NETWORK;
 			distributionPattern = DistributionPattern.POINTWISE;
 			break;
+		case PARTITION_RANGE:
 		case PARTITION_HASH:
 		case BROADCAST:
-		case SFR:
 			channelType = ChannelType.NETWORK;
 			distributionPattern = DistributionPattern.BIPARTITE;
 			break;
@@ -1155,7 +1162,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			throw new IllegalArgumentException("Unsupported ship-strategy: " + connection.getShipStrategy().name());
 		}
 
-		TaskConfig tempConfig = null;
+		final TaskConfig tempConfig;
 		
 		final int[] keyPositions;
 		final Class<? extends Key>[] keyTypes;
@@ -1178,6 +1185,20 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			else {
 				keyPositions = pact.getKeyColumnNumbers(inputNumber-1);
 				keyTypes = pact.getKeyClasses();	
+			}
+		} else if (targetContract instanceof GenericDataSink) {
+			final Ordering o = ((GenericDataSink) targetContract).getPartitionOrdering();
+			if (o != null) {
+				final int numFields = o.getNumberOfFields();
+				keyPositions = new int[numFields];
+				keyTypes = new Class[numFields];
+				for (int i = 0; i < numFields; i++) {
+					keyPositions[i] = o.getFieldNumber(i);
+					keyTypes[i] = o.getType(i);
+				}
+			} else {
+				keyPositions = null;
+				keyTypes = null;
 			}
 		} else {
 			keyPositions = null;
@@ -1245,11 +1266,19 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		
 		// set strategies in task configs
 		configForOutpuShipStrategy.addOutputShipStrategy(connection.getShipStrategy());
-		if (! (keyPositions == null || keyTypes == null || keyPositions.length == 0 || keyTypes.length == 0)) {
+		if (! (keyPositions == null || keyTypes == null || keyPositions.length == 0 || keyTypes.length == 0))
+		{
 			final int outputNum = configForOutpuShipStrategy.getNumOutputs() - 1;
 			configForOutpuShipStrategy.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, outputNum);
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(configForOutpuShipStrategy.getConfiguration(),
 				configForOutpuShipStrategy.getPrefixForOutputParameters(outputNum), keyPositions, keyTypes);
+		}
+		
+		if (targetContract instanceof GenericDataSink) {
+			final DataDistribution distri = ((GenericDataSink) targetContract).getDataDistribution();
+			if (distri != null) {
+				configForOutpuShipStrategy.setOutputDataDistribution(distri);
+			}
 		}
 	}
 

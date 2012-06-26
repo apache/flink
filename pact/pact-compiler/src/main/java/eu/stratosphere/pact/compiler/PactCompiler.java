@@ -1013,22 +1013,18 @@ public class PactCompiler {
 
 			// assign the memory to each node
 			if (this.memoryConsumers > 0) {
-				int memoryPerTask = this.memoryPerInstance / this.memoryConsumers;
-				LOG.debug("Memory per consumer: "+memoryPerTask);
+				final int memoryPerTask = this.memoryPerInstance / this.memoryConsumers;
+				
+				if (LOG.isDebugEnabled())
+					LOG.debug("Memory per consumer: "+memoryPerTask);
+				
 				for (OptimizerNode node : this.allNodes) {
-					int consumerCount = node.getMemoryConsumerCount(); 
+					final int consumerCount = node.getMemoryConsumerCount(); 
 					if (consumerCount > 0) {
 						node.setMemoryPerTask(memoryPerTask * consumerCount);
-						LOG.debug("Assigned "+(memoryPerTask * consumerCount)+" MB to "+node.getPactContract().getName());
-					}
-					
-					for (PactConnection conn : node.getOutConns()) {
-						if (conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
-							throw new RuntimeException("Range Partitioning currently not implemented.");
-//							node.getPactContract().getParameters().setInteger(HistogramTask.HISTOGRAM_MEMORY, memoryPerTask);
-//							if (LOG.isDebugEnabled())
-//								LOG.debug("Assigned "+(memoryPerTask)+" MB for histogram building during range partitioning");
-						}
+						if (LOG.isDebugEnabled())
+							LOG.debug("Assigned " + (memoryPerTask * consumerCount) + " MB to " + 
+									node.getPactContract().getName());
 					}
 				}
 			}
