@@ -743,7 +743,24 @@ public final class ExecutionVertex {
 	 */
 	public TaskCancelResult cancelTask() {
 
-		final ExecutionState previousState = this.executionState.get();
+		ExecutionState previousState = this.executionState.get();
+
+		// The vertex is currently in the middle of the deployment process
+		int retry = 1000;
+		while (previousState == ExecutionState.STARTING) {
+
+			if (--retry == 0) {
+				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.ILLEGAL_STATE);
+			}
+
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException ie) {
+				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.ILLEGAL_STATE);
+			}
+
+			previousState = this.executionState.get();
+		}
 
 		if (previousState == ExecutionState.CANCELED) {
 			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
