@@ -48,7 +48,7 @@ public final class EnvelopeConsumptionLog {
 	
 	private static final AtomicEnumerator<String> TEMP_PATHS = AtomicEnumerator.get(
 			GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":"));
+				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator));
 
 	private final File logFile;
 

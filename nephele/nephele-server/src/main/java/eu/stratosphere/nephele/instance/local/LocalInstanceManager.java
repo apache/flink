@@ -302,7 +302,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 		int diskCapacityInGB = 0;
 		final String tempDirs[] = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
 		
 		for (final String tempDir : tempDirs) {
 			if (tempDir != null) {

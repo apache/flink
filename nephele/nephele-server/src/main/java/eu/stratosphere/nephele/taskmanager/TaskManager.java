@@ -281,7 +281,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Get the directory for storing temporary files
 		final String[] tmpDirPaths = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-														ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
+										ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
 		checkTempDirs(tmpDirPaths);
 
 		// Initialize the byte buffered channel manager

@@ -92,7 +92,7 @@ public final class FileBufferManager {
 	private FileBufferManager() {
 
 		this.tmpDirs = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
 
 		// check temp dirs
 		for (int i = 0; i < this.tmpDirs.length; i++) {
