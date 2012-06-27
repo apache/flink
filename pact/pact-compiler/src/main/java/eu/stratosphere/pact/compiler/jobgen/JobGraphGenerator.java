@@ -60,6 +60,7 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.CoGroupTask;
 import eu.stratosphere.pact.runtime.task.CombineTask;
 import eu.stratosphere.pact.runtime.task.CrossTask;
@@ -72,7 +73,6 @@ import eu.stratosphere.pact.runtime.task.TempTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 

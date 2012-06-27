@@ -63,7 +63,7 @@ import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 
 /**
  * The optimizer that takes the user specified pact plan and creates an optimized plan that contains

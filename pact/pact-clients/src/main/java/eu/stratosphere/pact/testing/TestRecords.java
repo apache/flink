@@ -290,7 +290,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 				if (stackTrace[index].getClassName().contains("Test"))
 					testName.append(stackTrace[index].toString());
 			// instantiate a sort-merger
-			AbstractTask parentTask = new ReduceTask() {
+			AbstractTask parentTask = new ReduceTask<PactRecord, PactRecord>() {
 				@Override
 				public String toString() {
 					return "TestPair Sorter " + testName;

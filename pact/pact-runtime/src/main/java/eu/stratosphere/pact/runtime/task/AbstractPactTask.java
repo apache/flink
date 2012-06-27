@@ -47,15 +47,15 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.pact.runtime.shipping.OutputCollector;
+import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
-import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
-import eu.stratosphere.pact.runtime.task.util.PactRecordOutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**

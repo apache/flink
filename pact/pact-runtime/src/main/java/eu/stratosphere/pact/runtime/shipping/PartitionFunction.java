@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.task.util;
+package eu.stratosphere.pact.runtime.shipping;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 

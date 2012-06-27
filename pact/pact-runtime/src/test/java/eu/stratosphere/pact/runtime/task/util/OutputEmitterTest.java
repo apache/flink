@@ -39,7 +39,8 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 
 public class OutputEmitterTest extends TestCase
 {

@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -281,7 +282,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Get the directory for storing temporary files
 		final String[] tmpDirPaths = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-														ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
+										ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
 		checkTempDirs(tmpDirPaths);
 
 		// Initialize the byte buffered channel manager
@@ -862,12 +863,15 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	private void checkTaskExecution() {
 
-		final Iterator<Task> it = this.runningTasks.values().iterator();
+		final Iterator<Entry<ExecutionVertexID, Task>> it = this.runningTasks.entrySet().iterator();
 		while (it.hasNext()) {
-			final Task task = it.next();
+			final Entry<ExecutionVertexID, Task> entry = it.next();
 
-			if (task.isTerminated()) {
-				task.markAsFailed();
+			if (entry.getValue().isTerminated()) {
+				// double check
+				if (this.runningTasks.containsKey(entry.getKey())) {
+					entry.getValue().markAsFailed();
+				}
 			}
 		}
 	}
