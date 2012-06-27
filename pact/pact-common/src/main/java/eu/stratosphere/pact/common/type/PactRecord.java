@@ -49,7 +49,7 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
  * 
  * 
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public final class PactRecord implements Value
 {
@@ -1318,11 +1318,19 @@ public final class PactRecord implements Value
 
 		@Override
 		public void readFully(byte[] b, int off, int len) throws IOException {
-			if (this.position < this.end && this.position <= this.end - len && off <= b.length - len) {
-				System.arraycopy(this.memory, position, b, off, len);
-				position += len;
-			} else {
-				throw new EOFException();
+			if (len >= 0) {
+				if (off <= b.length - len) {
+					if (this.position <= this.end - len) {
+						System.arraycopy(this.memory, position, b, off, len);
+						position += len;
+					} else {
+						throw new EOFException();
+					}
+				} else {
+					throw new ArrayIndexOutOfBoundsException();
+				}
+			} else if (len < 0) {
+				throw new IllegalArgumentException("Length may not be negative.");
 			}
 		}
 
