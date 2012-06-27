@@ -358,6 +358,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInputTask#getInputSplitType()
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public Class<InputSplit> getInputSplitType()
 	{
