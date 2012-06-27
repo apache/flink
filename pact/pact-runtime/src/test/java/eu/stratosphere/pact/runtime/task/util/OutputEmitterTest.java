@@ -15,11 +15,14 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
+import java.io.DataInput;
 import java.io.DataInputStream;
+import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.util.Random;
 
 import junit.framework.Assert;
 import junit.framework.TestCase;
@@ -27,6 +30,7 @@ import junit.framework.TestCase;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.type.DeserializationException;
 import eu.stratosphere.pact.common.type.KeyFieldOutOfBoundsException;
 import eu.stratosphere.pact.common.type.NullKeyFieldException;
@@ -39,8 +43,10 @@ import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 public class OutputEmitterTest extends TestCase
 {
+	private static final long SEED = 485213591485399L;
+	
 	@Test
-	public static void testPartitionHash()
+	public void testPartitionHash()
 	{
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
@@ -98,7 +104,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public static void testForward()
+	public void testForward()
 	{
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
@@ -157,7 +163,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public static void testBroadcast()
+	public void testBroadcast()
 	{
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
@@ -208,28 +214,8 @@ public class OutputEmitterTest extends TestCase
 		}
 	}
 	
-//	@Test
-//	public static void testPartitionRange()
-//	{
-//		// Test for PactInteger
-//		@SuppressWarnings("unchecked")
-//		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-//		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
-//
-//		boolean correctException = false;
-//		try {
-//			oe1.selectChannels(new PactRecord(new PactInteger(1)), 2);
-//		} catch(RuntimeException re) {
-//			if(re.getMessage().equals("Partition function for RangePartitioner not set!"))
-//				correctException = true;
-//		}
-//		assertTrue(correctException);
-//		
-//		// TODO: extend!
-//	}
-	
 	@Test
-	public static void testMultiKeys()
+	public void testMultiKeys()
 	{	
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator multiComp = new PactRecordComparator(new int[] {0,1,3}, new Class[] {PactInteger.class, PactString.class, PactDouble.class});
@@ -262,7 +248,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public static void testMissingKey()
+	public void testMissingKey()
 	{
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
@@ -282,7 +268,7 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public static void testNullKey()
+	public void testNullKey()
 	{
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
@@ -302,12 +288,12 @@ public class OutputEmitterTest extends TestCase
 	}
 	
 	@Test
-	public static void testWrongKeyClass() {
+	public void testWrongKeyClass() {
 		
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
-		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactDouble.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
+		final PactRecordComparator doubleComp = new PactRecordComparator(new int[] {0}, new Class[] {PactDouble.class});
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, doubleComp);
 
 		PipedInputStream pipedInput = new PipedInputStream(1024*1024);
 		DataInputStream in = new DataInputStream(pipedInput);
@@ -332,10 +318,83 @@ public class OutputEmitterTest extends TestCase
 			oe1.selectChannels(rec, 100);
 		} catch (DeserializationException re) {
 			return;
-//			if(re.getMessage().equals("Key field 0 of type 'eu.stratosphere.pact.common.type.base.PactDouble' could not be deserialized."))
-//				correctException = true;
 		}
 		Assert.fail("Expected a NullKeyFieldException.");
 	}
+	
+	@Test
+	public void testPartitionRange()
+	{
+		final Random rnd = new Random(SEED);
+		
+		final int DISTR_MIN = 0;
+		final int DISTR_MAX = 1000000;
+		final int DISTR_RANGE = DISTR_MAX - DISTR_MIN + 1;
+		final int NUM_BUCKETS = 137;
+		final float BUCKET_WIDTH = DISTR_RANGE / ((float) NUM_BUCKETS);
+		
+		final int NUM_ELEMENTS = 10000000;
+		
+		final DataDistribution distri = new IntegerUniformDistribution(DISTR_MIN, DISTR_MAX);
+		
+		@SuppressWarnings("unchecked")
+		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
+		final ChannelSelector<PactRecord> oe = new PactRecordOutputEmitter(ShipStrategy.PARTITION_RANGE, intComp, distri);
+		
+		final PactInteger integer = new PactInteger();
+		final PactRecord rec = new PactRecord();
+		
+		for (int i = 0; i < NUM_ELEMENTS; i++) {
+			final int nextValue = rnd.nextInt(DISTR_RANGE) + DISTR_MIN;
+			integer.setValue(nextValue);
+			rec.setField(0, integer);
+			
+			final int[] channels = oe.selectChannels(rec, NUM_BUCKETS);
+			if (channels.length != 1) {
+				Assert.fail("Resulting channels array has more than one channel.");
+			}
+			
+			final int bucket = channels[0];
+			final int shouldBeBucket = (int) ((nextValue - DISTR_MIN) / BUCKET_WIDTH);
+			
+			if (shouldBeBucket != bucket) {
+				// we may have a rounding imprecision in the 'should be bucket' computation.
+				final int lowerBoundaryForSelectedBucket = DISTR_MIN + (int) ((bucket    ) * BUCKET_WIDTH);
+				final int upperBoundaryForSelectedBucket = DISTR_MIN + (int) ((bucket + 1) * BUCKET_WIDTH);
+				if (nextValue <= lowerBoundaryForSelectedBucket || nextValue > upperBoundaryForSelectedBucket) {
+					Assert.fail("Wrong bucket selected");
+				}
+			}
+			
+		}
+	}
+	
+	private static final class IntegerUniformDistribution implements DataDistribution
+	{
+		private int min;	
+		private int max;
+		
+		public IntegerUniformDistribution(int min, int max)
+		{
+			this.min = min;
+			this.max = max;
+		}
 
+		@Override
+		public void write(DataOutput out)
+		{}
+
+		@Override
+		public void read(DataInput in)
+		{}
+
+		@Override
+		public PactRecord getBucketBoundary(int splitNum, int totalSplits)
+		{
+			final int range = this.max - this.min + 1;
+			final float bucketWidth = ((float) range) / totalSplits;
+			final int upperBoundary = this.min + (int) ((splitNum + 1) * bucketWidth);
+			return new PactRecord(new PactInteger(upperBoundary));
+		}
+	}
 }

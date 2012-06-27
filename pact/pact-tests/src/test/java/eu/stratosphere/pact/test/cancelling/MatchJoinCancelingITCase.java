@@ -109,7 +109,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 30 * 1000, 10 * 1000);
+		runAndCancelJob(p, 30 * 1000, 30 * 1000);
 	}
 	
 	
@@ -134,7 +134,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 10 * 1000, 10 * 1000);
+		runAndCancelJob(p, 10 * 1000, 20 * 1000);
 	}
 	
 	@Test

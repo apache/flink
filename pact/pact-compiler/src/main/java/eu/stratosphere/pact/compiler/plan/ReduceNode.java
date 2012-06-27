@@ -303,7 +303,7 @@ public class ReduceNode extends SingleInputNode {
 			if (ls == LocalStrategy.COMBININGSORT || ls == LocalStrategy.SORT) {
 				Ordering ordering = new Ordering();
 				for (Integer index :keySet) {
-					ordering.appendOrdering(index, Order.ASCENDING);
+					ordering.appendOrdering(index, null, Order.ASCENDING);
 				}
 				lp.setOrdering(ordering);
 				lp.setGrouped(true, keySet);

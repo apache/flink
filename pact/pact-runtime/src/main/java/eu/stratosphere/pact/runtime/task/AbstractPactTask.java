@@ -32,6 +32,7 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
 import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
@@ -42,6 +43,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
@@ -600,9 +602,10 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 					oe = new PactRecordOutputEmitter(strategy);
 				} else {
 					try {
-						final TypeComparator<PactRecord> comparator = PactRecordComparatorFactory.get().createComparator(
+						final PactRecordComparator comparator = PactRecordComparatorFactory.get().createComparator(
 												config.getConfiguration(), config.getPrefixForOutputParameters(i), cl);
-						oe = new PactRecordOutputEmitter(strategy, comparator);
+						final DataDistribution distribution = config.getOutputDataDistribution(cl);
+						oe = new PactRecordOutputEmitter(strategy, comparator, distribution);
 					} catch (ClassNotFoundException cnfex) {
 						throw new Exception("The comparator for output " + i + 
 									" could not be created, because it could not load dependent classes.", cnfex);

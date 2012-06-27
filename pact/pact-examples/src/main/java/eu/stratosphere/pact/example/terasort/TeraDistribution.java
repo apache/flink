@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.example.terasort;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -27,12 +30,14 @@ public class TeraDistribution implements DataDistribution
 {
 	private static final int ALPHABETH_SIZE = 95;
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.DataDistribution#getBucketBoundary(int, int)
+	 */
 	@Override
-	public PactRecord getSplit(int splitId, int totalSplits)
+	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets)
 	{
 		final byte[] buf = new byte[TeraKey.KEY_SIZE];
-
-		double threshold = (double) ALPHABETH_SIZE / (double) (totalSplits + 1) * (double) (splitId + 1);
+		double threshold = (double) ALPHABETH_SIZE / (double) (totalNumBuckets + 1) * (double) (bucketNum + 1);
 
 		for (int i = 0; i < buf.length; ++i) {
 			final int ch = (int) Math.floor(threshold) % ALPHABETH_SIZE;
@@ -47,4 +52,18 @@ public class TeraDistribution implements DataDistribution
 		splitRec.setField(0, split);
 		return splitRec;
 	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
+	@Override
+	public void write(DataOutput out)
+	{}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
+	@Override
+	public void read(DataInput in)
+	{}
 }
