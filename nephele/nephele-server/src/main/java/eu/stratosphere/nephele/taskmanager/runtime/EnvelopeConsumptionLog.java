@@ -45,10 +45,10 @@ public final class EnvelopeConsumptionLog {
 	private static final int LOG_WINDOW_SIZE = 256 * 1024;
 
 	private static final int SIZE_OF_INTEGER = 4;
-	
+
 	private static final AtomicEnumerator<String> TEMP_PATHS = AtomicEnumerator.get(
 			GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":"));
+				System.getProperty("java.io.tmpdir")).split(File.pathSeparator));
 
 	private final File logFile;
 
@@ -111,8 +111,7 @@ public final class EnvelopeConsumptionLog {
 		}
 	}
 
-	private static String constructFileName(final ExecutionVertexID vertexID)
-	{
+	private static String constructFileName(final ExecutionVertexID vertexID) {
 		return TEMP_PATHS.getNext() + File.separator + ENVELOPE_CONSUMPTION_LOG_PREFIX + vertexID;
 	}
 
