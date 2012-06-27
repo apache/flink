@@ -145,7 +145,10 @@ public abstract class ExternalProcessInputFormat<T extends ExternalProcessInputS
 		} else {
 			throw new IllegalArgumentException("External Process Command not set");
 		}
-				
+	}
+	
+	public void waitForProcessToFinish() throws InterruptedException {
+		extProc.waitFor();
 	}
 	
 }

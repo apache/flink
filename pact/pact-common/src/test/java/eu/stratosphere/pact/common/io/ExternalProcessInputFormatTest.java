@@ -46,7 +46,7 @@ public class ExternalProcessInputFormatTest {
 		
 		Configuration config = new Configuration();
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, this.neverEndingCommand);
-	    	    
+		
 		boolean processDestroyed = false;
 		try {
 			format.configure(config);
@@ -82,8 +82,7 @@ public class ExternalProcessInputFormatTest {
 		boolean invalidExitCode = false;
 		try {
 			format.open(split);
-			// wait for process to start...
-			Thread.sleep(100);
+			format.waitForProcessToFinish();
 			format.close();
 		} catch (IOException e) {
 			Assert.fail();
@@ -101,8 +100,7 @@ public class ExternalProcessInputFormatTest {
 		format.configure(config);
 		try {
 			format.open(split);
-			// wait for process to start...
-			Thread.sleep(100);
+			format.waitForProcessToFinish();
 			format.close();
 		} catch (IOException e) {
 			Assert.fail();
