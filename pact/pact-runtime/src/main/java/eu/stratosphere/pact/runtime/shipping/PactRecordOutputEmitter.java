@@ -13,14 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.task.util;
+package eu.stratosphere.pact.runtime.shipping;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
  * @author Erik Nijkamp

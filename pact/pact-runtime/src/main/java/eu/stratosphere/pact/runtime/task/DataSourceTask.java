@@ -32,10 +32,10 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.shipping.OutputCollector;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
-import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**

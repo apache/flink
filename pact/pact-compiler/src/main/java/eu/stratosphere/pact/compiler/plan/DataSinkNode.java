@@ -33,7 +33,7 @@ import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**

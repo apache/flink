@@ -32,7 +32,6 @@ import java.util.regex.Pattern;
 import junit.framework.Assert;
 import junit.framework.AssertionFailedError;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
@@ -111,7 +110,6 @@ public class TestPlanTest {
 		 * @see eu.stratosphere.pact.common.stubs.CoGroupStub#coGroup(java.util.Iterator, java.util.Iterator,
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
-		@SuppressWarnings("null")
 		@Override
 		public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) {
 			StringList values = new StringList();
@@ -169,7 +167,6 @@ public class TestPlanTest {
 		 * @see eu.stratosphere.pact.common.stubs.ReduceStub#reduce(java.util.Iterator,
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
-		@SuppressWarnings("null")
 		@Override
 		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 			StringList result = new StringList();

@@ -80,7 +80,7 @@ import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 
 /**
  * The primary resource to test one or more implemented PACT stubs. It is

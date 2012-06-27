@@ -31,8 +31,8 @@ import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
  * Configuration class which stores all relevant parameters required to set up the Pact tasks.
