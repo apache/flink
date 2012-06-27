@@ -509,9 +509,6 @@ public class TestPlan implements Closeable {
 			// need a format which is deserializable without configuration
 			if (!fileSink.getFormatClass().equals(SequentialOutputFormat.class)) {
 				TestRecords expectedValues = this.expectedOutputs.get(fileSink);
-				// but only if we need to check for values anyways
-				if (expectedValues == null)
-					continue;
 
 				final FileDataSink safeSink = createDefaultSink(fileSink.getName());
 
@@ -520,7 +517,9 @@ public class TestPlan implements Closeable {
 				wrappedSinks.add(fileSink);
 				wrappedSinks.add(safeSink);
 
-				this.expectedOutputs.put(safeSink, expectedValues);
+				// only add to expected outputs if we need to check for values
+				if (expectedValues != null)
+					this.expectedOutputs.put(safeSink, expectedValues);
 				this.actualOutputs.put(safeSink, this.getActualOutput(fileSink));
 				this.getActualOutput(fileSink).fromFile(SequentialInputFormat.class, safeSink.getFilePath());
 
