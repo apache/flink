@@ -46,18 +46,16 @@ public class LazyObjectNode extends AbstractObjectNode {
 
 	protected ObjectSchema schema;
 
-	public LazyObjectNode(PactRecord record, ObjectSchema schema) {
+	public LazyObjectNode(final PactRecord record, final ObjectSchema schema) {
 		this.record = record;
 		this.schema = schema;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.IJsonNode#getJavaValue()
-	 */
 	@Override
-	public PactRecord getJavaValue() {
-		return this.record;
+	public void clear() {
+		for (int i = 0; i < this.schema.getMappingSize(); i++)
+			this.record.setNull(i);
+		this.getOtherField().clear();
 	}
 
 	/*
@@ -65,7 +63,7 @@ public class LazyObjectNode extends AbstractObjectNode {
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#compareToSameType(eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
-	public int compareToSameType(IJsonNode other) {
+	public int compareToSameType(final IJsonNode other) {
 		final LazyObjectNode node = (LazyObjectNode) other;
 		final Iterator<Entry<String, IJsonNode>> entries1 = this.iterator(), entries2 = node.iterator();
 
@@ -87,55 +85,12 @@ public class LazyObjectNode extends AbstractObjectNode {
 		return 0;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.IJsonNode#toString(java.lang.StringBuilder)
-	 */
-	@Override
-	public StringBuilder toString(StringBuilder sb) {
-		sb.append('{');
-
-		int count = 0;
-		for (final Map.Entry<String, IJsonNode> en : this) {
-			if (count > 0)
-				sb.append(',');
-			++count;
-
-			TextNode.appendQuoted(sb, en.getKey());
-			sb.append(':');
-			en.getValue().toString(sb);
-		}
-
-		sb.append('}');
-		return sb;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.JsonObject#put(java.lang.String, eu.stratosphere.sopremo.type.IJsonNode)
-	 */
-	@Override
-	public IObjectNode put(String fieldName, IJsonNode value) {
-		int index = this.schema.hasMapping(fieldName);
-		if (this.fieldInSchema(index)) {
-			if (value.isMissing())
-				this.record.setNull(index);
-			else
-				this.record.setField(index, value);
-
-		} else if (value.isMissing())
-			this.getOtherField().remove(fieldName);
-		else
-			this.getOtherField().put(fieldName, value);
-		return this;
-	}
-
 	/**
+	 * @param index
 	 * @return
 	 */
-	private IObjectNode getOtherField() {
-		return (IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize(),
-			JsonNodeWrapper.class));
+	private boolean fieldInSchema(final int index) {
+		return index != -1;
 	}
 
 	/*
@@ -143,8 +98,8 @@ public class LazyObjectNode extends AbstractObjectNode {
 	 * @see eu.stratosphere.sopremo.type.JsonObject#get(java.lang.String)
 	 */
 	@Override
-	public IJsonNode get(String fieldName) {
-		int index = this.schema.hasMapping(fieldName);
+	public IJsonNode get(final String fieldName) {
+		final int index = this.schema.hasMapping(fieldName);
 		if (this.fieldInSchema(index)) {
 			IJsonNode node;
 			if (this.record.isNull(index))
@@ -156,45 +111,6 @@ public class LazyObjectNode extends AbstractObjectNode {
 			// return SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
 		}
 		return this.getOtherField().get(fieldName);
-	}
-
-	/**
-	 * @param index
-	 * @return
-	 */
-	private boolean fieldInSchema(int index) {
-		return index != -1;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.JsonObject#remove(java.lang.String)
-	 */
-	@Override
-	public IJsonNode remove(String fieldName) {
-		int index = this.schema.hasMapping(fieldName);
-		if (this.fieldInSchema(index)) {
-			IJsonNode node;
-			if (this.record.isNull(index))
-				node = MissingNode.getInstance();
-			else {
-				node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
-				this.record.setNull(index);
-			}
-			return node;
-		}
-		return this.getOtherField().remove(fieldName);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.JsonObject#putAll(eu.stratosphere.sopremo.type.JsonObject)
-	 */
-	@Override
-	public IObjectNode putAll(IObjectNode jsonNode) {
-		for (Entry<String, IJsonNode> entry : jsonNode)
-			this.put(entry.getKey(), entry.getValue());
-		return this;
 	}
 
 	/*
@@ -210,23 +126,40 @@ public class LazyObjectNode extends AbstractObjectNode {
 
 	/*
 	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#getJavaValue()
+	 */
+	@Override
+	public PactRecord getJavaValue() {
+		return this.record;
+	}
+
+	/**
+	 * @return
+	 */
+	private IObjectNode getOtherField() {
+		return (IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize(),
+			JsonNodeWrapper.class));
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonObject#iterator()
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public Iterator<Entry<String, IJsonNode>> iterator() {
 
-		Iterator<Entry<String, IJsonNode>> iterator2 = this.getOtherField().iterator();
-		Iterator<Entry<String, IJsonNode>> iterator1 = new AbstractIterator<Map.Entry<String, IJsonNode>>() {
+		final Iterator<Entry<String, IJsonNode>> iterator2 = this.getOtherField().iterator();
+		final Iterator<Entry<String, IJsonNode>> iterator1 = new AbstractIterator<Map.Entry<String, IJsonNode>>() {
 
 			int lastIndex = 0;
 
 			@Override
 			protected Entry<String, IJsonNode> loadNext() {
 				while (this.lastIndex < LazyObjectNode.this.schema.getMappingSize()) {
-					String key = LazyObjectNode.this.schema.getMappings().get(this.lastIndex);
+					final String key = LazyObjectNode.this.schema.getMappings().get(this.lastIndex);
 					if (!LazyObjectNode.this.record.isNull(this.lastIndex)) {
-						IJsonNode value = SopremoUtil.unwrap(LazyObjectNode.this.record.getField(this.lastIndex,
+						final IJsonNode value = SopremoUtil.unwrap(LazyObjectNode.this.record.getField(this.lastIndex,
 							JsonNodeWrapper.class));
 						this.lastIndex++;
 						return new AbstractMap.SimpleEntry<String, IJsonNode>(key, value);
@@ -244,6 +177,57 @@ public class LazyObjectNode extends AbstractObjectNode {
 
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#put(java.lang.String, eu.stratosphere.sopremo.type.IJsonNode)
+	 */
+	@Override
+	public IObjectNode put(final String fieldName, final IJsonNode value) {
+		final int index = this.schema.hasMapping(fieldName);
+		if (this.fieldInSchema(index)) {
+			if (value.isMissing())
+				this.record.setNull(index);
+			else
+				this.record.setField(index, value);
+
+		} else if (value.isMissing())
+			this.getOtherField().remove(fieldName);
+		else
+			this.getOtherField().put(fieldName, value);
+		return this;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#putAll(eu.stratosphere.sopremo.type.JsonObject)
+	 */
+	@Override
+	public IObjectNode putAll(final IObjectNode jsonNode) {
+		for (final Entry<String, IJsonNode> entry : jsonNode)
+			this.put(entry.getKey(), entry.getValue());
+		return this;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.JsonObject#remove(java.lang.String)
+	 */
+	@Override
+	public IJsonNode remove(final String fieldName) {
+		final int index = this.schema.hasMapping(fieldName);
+		if (this.fieldInSchema(index)) {
+			IJsonNode node;
+			if (this.record.isNull(index))
+				node = MissingNode.getInstance();
+			else {
+				node = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
+				this.record.setNull(index);
+			}
+			return node;
+		}
+		return this.getOtherField().remove(fieldName);
+	}
+
 	@Override
 	public int size() {
 		final IObjectNode others = this.getOtherField();
@@ -256,10 +240,26 @@ public class LazyObjectNode extends AbstractObjectNode {
 		return count + others.size();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IJsonNode#toString(java.lang.StringBuilder)
+	 */
 	@Override
-	public void clear() {
-		for (int i = 0; i < this.schema.getMappingSize(); i++)
-			this.record.setNull(i);
-		this.getOtherField().clear();
+	public StringBuilder toString(final StringBuilder sb) {
+		sb.append('{');
+
+		int count = 0;
+		for (final Map.Entry<String, IJsonNode> en : this) {
+			if (count > 0)
+				sb.append(',');
+			++count;
+
+			TextNode.appendQuoted(sb, en.getKey());
+			sb.append(':');
+			en.getValue().toString(sb);
+		}
+
+		sb.append('}');
+		return sb;
 	}
 }

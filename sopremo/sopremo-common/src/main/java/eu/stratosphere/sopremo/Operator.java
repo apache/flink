@@ -92,7 +92,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		this.name = this.getClass().getSimpleName();
 	}
 
-	public abstract ElementarySopremoModule asElementaryOperators();
+	public abstract ElementarySopremoModule asElementaryOperators(EvaluationContext context);
 
 	/**
 	 * Converts this operator to a {@link PactModule} using the provided {@link EvaluationContext}.

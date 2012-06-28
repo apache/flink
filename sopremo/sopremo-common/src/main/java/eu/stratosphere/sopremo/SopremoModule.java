@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
 import eu.stratosphere.util.dag.GraphTraverseListener;
@@ -147,20 +148,23 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 		 * @see eu.stratosphere.sopremo.Operator#toElementaryOperators()
 		 */
 		@Override
-		public ElementarySopremoModule asElementaryOperators() {
-			return SopremoModule.this.asElementary();
+		public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
+			return SopremoModule.this.asElementary(context);
 		}
 	}
 
-	public ElementarySopremoModule asElementary() {
-		return new ElementaryAssembler().assemble(this);
+	public ElementarySopremoModule asElementary(EvaluationContext context) {
+		return new ElementaryAssembler(context).assemble(this);
 	}
 
 	private static class ElementaryAssembler {
 		private final Map<Operator<?>, ElementarySopremoModule> modules =
 			new IdentityHashMap<Operator<?>, ElementarySopremoModule>();
 
-		public ElementaryAssembler() {
+		private EvaluationContext context;
+
+		public ElementaryAssembler(EvaluationContext context) {
+			this.context = context;
 		}
 
 		public ElementarySopremoModule assemble(SopremoModule sopremoModule) {
@@ -171,9 +175,13 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 			final ElementarySopremoModule elementarySopremoModule =
 				new ElementarySopremoModule(sopremoModule.getName(), sourceCount, sinkCount);
 			// replace sources
-			for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++)
-				this.modules.get(sopremoModule.getInput(sourceIndex)).getOutput(0).setInput(0,
-					elementarySopremoModule.getInput(sourceIndex));
+			for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++) {
+				final ElementarySopremoModule connectedInput = this.modules.get(sopremoModule.getInput(sourceIndex));
+				// input has not been connect
+				if (connectedInput == null)
+					continue;
+				connectedInput.getOutput(0).setInput(0, elementarySopremoModule.getInput(sourceIndex));
+			}
 
 			this.connectModules();
 
@@ -191,7 +199,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 					@Override
 					public void nodeTraversed(final Operator<?> node) {
-						final ElementarySopremoModule elementaryModule = node.asElementaryOperators();
+						final ElementarySopremoModule elementaryModule = node.asElementaryOperators(context);
 						ElementaryAssembler.this.modules.put(node, elementaryModule);
 					}
 				});

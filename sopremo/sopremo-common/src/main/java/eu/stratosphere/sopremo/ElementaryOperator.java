@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -288,7 +288,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	}
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final ElementarySopremoModule module =
 			new ElementarySopremoModule(this.getName(), this.getInputs().size(), this.getOutputs()
 				.size());
@@ -424,10 +424,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 				allSchema[index] = index;
 			return allSchema;
 		}
-		IntList keyIndices = new IntArrayList();
+		IntSet keyIndices = new IntOpenHashSet();
 		for (EvaluationExpression expression : keyExpressions)
-			for (int index : globalSchema.indicesOf(expression))
-				keyIndices.add(index);
+			keyIndices.addAll(globalSchema.indicesOf(expression));
 		if (keyIndices.isEmpty()) {
 			if (keyExpressions.iterator().hasNext())
 				throw new IllegalStateException(String.format(

@@ -57,13 +57,13 @@ public abstract class CompositeOperator<Self extends CompositeOperator<Self>> ex
 	 * @return a module of ElementaryOperators
 	 */
 	@Override
-	public abstract ElementarySopremoModule asElementaryOperators();
+	public abstract ElementarySopremoModule asElementaryOperators(EvaluationContext context);
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		if (LOG.isTraceEnabled())
 			LOG.trace("Transforming\n" + this);
-		final ElementarySopremoModule elementaryPlan = this.asElementaryOperators();
+		final ElementarySopremoModule elementaryPlan = this.asElementaryOperators(context);
 		if (LOG.isTraceEnabled())
 			LOG.trace(" to elementary plan\n" + elementaryPlan);
 		context.pushOperator(this);

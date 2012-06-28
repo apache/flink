@@ -68,8 +68,7 @@ public class ElementaryOperatorTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void getContractShouldReturnTheMatchingContractToTheFirstStub() {
-		ObjectSchema schema = new ObjectSchema();
-		schema.setMappings("someField");
+		ObjectSchema schema = new ObjectSchema("someField");
 		final Contract contract = new OperatorWithTwoStubs().getContract(schema);
 		assertEquals(ReduceContract.class, contract.getClass());
 		assertTrue(Arrays.asList(OperatorWithTwoStubs.Implementation1.class,

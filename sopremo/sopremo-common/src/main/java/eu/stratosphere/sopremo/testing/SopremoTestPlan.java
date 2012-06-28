@@ -1,5 +1,8 @@
 package eu.stratosphere.sopremo.testing;
 
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -19,6 +22,7 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.testing.AssertUtil;
+import eu.stratosphere.pact.testing.DoubleValueSimilarity;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -30,6 +34,7 @@ import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
@@ -67,7 +72,8 @@ public class SopremoTestPlan {
 				unconnectedOutputs.add(operator);
 		}
 
-		for (final Operator<?> operator : OneTimeTraverser.INSTANCE.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
+		for (final Operator<?> operator : OneTimeTraverser.INSTANCE
+			.getReachableNodes(sinks, OperatorNavigator.INSTANCE))
 			if (operator instanceof Source)
 				unconnectedInputs.add(operator);
 			else
@@ -205,7 +211,7 @@ public class SopremoTestPlan {
 		final Collection<Contract> sinks = sopremoPlan.assemblePact();
 		this.testPlan = new TestPlan(sinks);
 
-		Schema schema = sopremoPlan.getSchema();
+		Schema schema = sopremoPlan.getSchema();		
 		for (final Input input : this.inputs)
 			input.prepare(this.testPlan, schema);
 		for (final ExpectedOutput output : this.expectedOutputs)
@@ -443,6 +449,11 @@ public class SopremoTestPlan {
 		 */
 		@Override
 		TestRecords getTestRecords(TestPlan testPlan, Schema schema) {
+			int sinkIndex = findSinkIndex(testPlan);
+			return testPlan.getExpectedOutput(sinkIndex, schema.getPactSchema());
+		}
+
+		private int findSinkIndex(TestPlan testPlan) {
 			int sinkIndex = -1;
 			final List<FileDataSink> sinks = testPlan.getSinks();
 			for (int index = 0; index < sinks.size(); index++)
@@ -450,7 +461,28 @@ public class SopremoTestPlan {
 					sinkIndex = index;
 					break;
 				}
-			return testPlan.getExpectedOutput(sinkIndex == -1 ? this.getIndex() : sinkIndex, schema.getPactSchema());
+			return sinkIndex == -1 ? this.getIndex() : sinkIndex;
+		}
+
+		@Override
+		void prepare(TestPlan testPlan, Schema schema) {
+			super.prepare(testPlan, schema);
+
+			int sinkIndex = findSinkIndex(testPlan);
+			if (this.doublePrecision > 0)
+				testPlan.addFuzzyValueSimilarity(testPlan.getSinks().get(sinkIndex),
+					new DoubleNodeSimilarity(doublePrecision));
+		}
+
+		private double doublePrecision;
+
+		public double getDoublePrecision() {
+			return this.doublePrecision;
+		}
+
+		public ExpectedOutput setDoublePrecision(double doublePrecision) {
+			this.doublePrecision = doublePrecision;
+			return this;
 		}
 	}
 
