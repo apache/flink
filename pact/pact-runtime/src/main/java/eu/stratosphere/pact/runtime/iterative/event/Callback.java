@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,34 +13,10 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative;
+package eu.stratosphere.pact.runtime.iterative.event;
 
-import eu.stratosphere.nephele.jobgraph.JobID;
+public interface Callback {
 
-/** simple identifier class for subtasks */
-public class Identifier {
+  void execute();
 
-  private final String id;
-
-  public Identifier(JobID jobID, int subTaskID) {
-    id = jobID.toString() + "#" + subTaskID;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (o instanceof Identifier) {
-      return id.equals(((Identifier) o).id);
-    }
-    return false;
-  }
-
-  @Override
-  public int hashCode() {
-    return id.hashCode();
-  }
-
-  @Override
-  public String toString() {
-    return id;
-  }
 }

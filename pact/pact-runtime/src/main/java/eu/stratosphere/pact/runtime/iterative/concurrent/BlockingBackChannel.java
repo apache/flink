@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.concurrent;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
-import eu.stratosphere.pact.runtime.iterative.SerializedUpdateBuffer;
+import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 
 import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;

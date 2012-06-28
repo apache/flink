@@ -13,21 +13,32 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative;
+package eu.stratosphere.pact.runtime.io;
 
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
-/**
- * 
- */
-public class IterationHeadContext<OT>
-{
-	
-	
-	
-	public IterationHeadContext(Collector<OT> finalSolutionChannel, RecordWriter<?> zooKeeperChannel)
-	{
-		
-	}
+import java.io.EOFException;
+import java.io.IOException;
+
+public class InputViewIterator<E> implements MutableObjectIterator<E> {
+
+  private final DataInputView inputView;
+  private final TypeSerializer<E> serializer;
+
+  public InputViewIterator(DataInputView inputView, TypeSerializer<E> serializer) {
+    this.inputView = inputView;
+    this.serializer = serializer;
+  }
+
+  @Override
+  public boolean next(E target) throws IOException {
+    try {
+      serializer.deserialize(target, inputView);
+      return true;
+    } catch (EOFException e) {
+      return false;
+    }
+  }
 }

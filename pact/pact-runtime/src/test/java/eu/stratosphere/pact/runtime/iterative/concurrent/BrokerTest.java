@@ -36,8 +36,8 @@ public class BrokerTest {
 
   void mediate(int subtasks) throws InterruptedException {
 
-    Broker<Integer, String> broker = new Broker<Integer, String>();
-    ConcurrentMap<Integer, String> results = Maps.newConcurrentMap();
+    Broker<String> broker = new Broker<String>();
+    ConcurrentMap<String, String> results = Maps.newConcurrentMap();
 
     Thread[] heads = new Thread[subtasks];
     for (int subtask = 0; subtask < subtasks; subtask++) {
@@ -70,13 +70,13 @@ public class BrokerTest {
   class IterationHead implements Runnable {
 
     private final Random random;
-    private final Broker<Integer, String> broker;
-    private final Integer key;
+    private final Broker<String> broker;
+    private final String key;
     private final String value;
 
-    IterationHead(Broker<Integer, String> broker, Integer key, String value) {
+    IterationHead(Broker<String> broker, Integer key, String value) {
       this.broker = broker;
-      this.key = key;
+      this.key = String.valueOf(key);
       this.value = value;
       random = new Random();
     }
@@ -85,11 +85,9 @@ public class BrokerTest {
     public void run() {
       try {
         Thread.sleep(random.nextInt(10));
-        System.out.println("Head " + key + " asks for handover");
-        Broker.HandOver<String> handOver = broker.mediate(key);
-        Thread.sleep(random.nextInt(10));
         System.out.println("Head " + key + " hands in " + value);
-        handOver.handIn(value);
+        broker.handIn(key, value);
+        Thread.sleep(random.nextInt(10));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -99,13 +97,13 @@ public class BrokerTest {
   class IterationTail implements Runnable {
 
     private final Random random;
-    private final Broker<Integer, String> broker;
-    private final Integer key;
-    private final ConcurrentMap<Integer, String> results;
+    private final Broker<String> broker;
+    private final String key;
+    private final ConcurrentMap<String, String> results;
 
-    IterationTail(Broker<Integer, String> broker, Integer key, ConcurrentMap<Integer, String> results) {
+    IterationTail(Broker<String> broker, Integer key, ConcurrentMap<String, String> results) {
       this.broker = broker;
-      this.key = key;
+      this.key = String.valueOf(key);
       this.results = results;
       random = new Random();
     }
@@ -115,11 +113,8 @@ public class BrokerTest {
       try {
         Thread.sleep(random.nextInt(10));
         System.out.println("Tail " + key + " asks for handover");
-        Broker.HandOver<String> handOver = broker.mediate(key);
-        Thread.sleep(random.nextInt(10));
-        String value = handOver.get();
-        Thread.sleep(random.nextInt(10));
-        broker.notifyHandOverDone(key);
+        String value = broker.get(key);
+
         System.out.println("Tail " + key + " received " + value);
         results.put(key, value);
       } catch (Exception e) {

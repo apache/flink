@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,18 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.concurrent;
+package eu.stratosphere.pact.runtime.iterative.io;
 
-/** Singleton class for the threadsafe handover of {@link BlockingBackChannel}s from iteration heads to iteration tails */
-public class BlockingBackChannelBroker extends Broker<BlockingBackChannel> {
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.pact.common.type.PactRecord;
 
-  /** single instance */
-  private static final BlockingBackChannelBroker INSTANCE = new BlockingBackChannelBroker();
+public class FakeOutputTask extends AbstractOutputTask {
 
-  private BlockingBackChannelBroker() {}
+  private MutableRecordReader reader;
 
-  /** retrieve singleton instance */
-  public static Broker<BlockingBackChannel> instance() {
-    return INSTANCE;
+  @Override
+  public void registerInputOutput() {
+    reader = new MutableRecordReader(this);
   }
+
+  @Override
+  public void invoke() throws Exception {
+    PactRecord rec = new PactRecord();
+    // ensure that input is consumed, although this task should never see any records
+    while (reader.next(rec)) {
+      throw new RuntimeException("This task should not receive records");
+    }
+  }
+
 }

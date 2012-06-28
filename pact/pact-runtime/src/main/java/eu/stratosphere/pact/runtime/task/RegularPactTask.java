@@ -18,17 +18,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.BroadcastRecordWriter;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
@@ -67,31 +68,33 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements PactTaskContext<S, OT>
 {
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
-	
+
 	protected PactDriver<S, OT> driver;
-	
+
 	protected S stub;
-	
+
 	protected Collector<OT> output;
-	
+
+  protected List<AbstractRecordWriter<?>> eventualOutputs;
+
 	protected MutableObjectIterator<?>[] inputs;
-	
+
 	protected TypeSerializer<?>[] inputSerializers;
-	
+
 	protected TypeComparator<?>[] inputComparators;
-	
+
 	protected TaskConfig config;
-	
+
 	protected ClassLoader userCodeClassLoader;
-	
+
 	protected ArrayList<ChainedDriver<?, ?>> chainedTasks;
-	
+
 	protected volatile boolean running;
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                  Nephele Task Interface
 	// --------------------------------------------------------------------------------------------
-	
+
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#registerInputOutput()
 	 */
@@ -101,7 +104,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start registering input and output."));
 		}
-		
+
 		// get the classloader first. the classloader might have been set before by mock environments during testing
 		if (this.userCodeClassLoader == null) {
 			try {
@@ -111,28 +114,28 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				throw new RuntimeException("The ClassLoader for the user code could not be instantiated from the library cache.", ioe);
 			}
 		}
-		
+
 		// obtain task configuration (including stub parameters)
 		this.config = new TaskConfig(getTaskConfiguration());
-		
+
 		// now get the driver class, which drives the actual pact
 		final Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
 		this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
-		
+
 		try {
 			initStub(this.driver.getStubType());
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the user code and the configuration failed" +
 				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 		}
-		
+
 		try {
 			initInputs();
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the input streams failed" +
 				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 		}
-		
+
 		try {
 			initOutputs();
 		} catch (Exception e) {
@@ -144,7 +147,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			LOG.debug(formatLogString("Finished registering input and output."));
 		}
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#invoke()
 	 */
@@ -153,19 +156,19 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	{
 		if (LOG.isInfoEnabled())
 			LOG.info(formatLogString("Start PACT code."));
-		
+
 		// setup the driver
 		try {
 			this.driver.setup(this);
 		}
 		catch (Throwable t) {
-			throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() + 
+			throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() +
 				"' , caused an error: " + t.getMessage(), t);
 		}
-		
+
 		boolean stubOpen = false;
 		this.running = true;
-		
+
 		try {
 			// run the data preparation
 			try {
@@ -174,19 +177,19 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			catch (Throwable t) {
 				// if the preparation caused an error, clean up
 				// errors during clean-up are swallowed, because we have already a root exception
-				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() + 
+				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() +
 					"' , caused an error: " + t.getMessage(), t);
 			}
-			
+
 			// start all chained tasks
 			RegularPactTask.openChainedTasks(this.chainedTasks, this);
-			
+
 			// open stub implementation
 			try {
 				Configuration stubConfig = this.config.getStubParameters();
 				stubConfig.setInteger("pact.parallel.task.id", this.getEnvironment().getIndexInSubtaskGroup());
 				stubConfig.setInteger("pact.parallel.task.count", this.getEnvironment().getCurrentNumberOfSubtasks());
-				if(this.getEnvironment().getTaskName() != null) {
+				if (this.getEnvironment().getTaskName() != null) {
 					stubConfig.setString("pact.parallel.task.name", this.getEnvironment().getTaskName());
 				}
 				this.stub.open(stubConfig);
@@ -195,18 +198,18 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			catch (Throwable t) {
 				throw new Exception("The user defined 'open()' method caused an exception: " + t.getMessage(), t);
 			}
-			
+
 			// run the user code
 			this.driver.run();
-			
+
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
 			if (this.running) {
 				this.stub.close();
 				stubOpen = false;
 			}
-			
+
 			this.output.close();
-			
+
 			// close all chained tasks letting them report failure
 			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
 		}
@@ -218,9 +221,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				}
 				catch (Throwable t) {}
 			}
-			
+
 			RegularPactTask.cancelChainedTasks(this.chainedTasks);
-			
+
 			// drop exception, if the task was canceled
 			if (this.running) {
 				RegularPactTask.logAndThrowException(ex, this);
@@ -239,7 +242,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				LOG.warn(formatLogString("PACT code cancelled."));
 		}
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
@@ -250,24 +253,24 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		if (LOG.isWarnEnabled())
 			LOG.warn(formatLogString("Cancelling PACT code"));
 	}
-	
+
 	/**
 	 * Sets the class-loader to be used to load the user code.
-	 * 
+	 *
 	 * @param cl The class-loader to be used to load the user code.
 	 */
 	public void setUserCodeClassLoader(ClassLoader cl)
 	{
 		this.userCodeClassLoader = cl;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                 Task Setup and Teardown
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Initializes the Stub class implementation and configuration.
-	 * 
+	 *
 	 * @throws RuntimeException Thrown, if the stub class could not be loaded, instantiated,
 	 *                          or caused an exception while being configured.
 	 */
@@ -283,30 +286,30 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			throw new Exception("The stub implementation class was not found.", cnfe);
 		}
 		catch (ClassCastException ccex) {
-			throw new Exception("The stub class is not a proper subclass of " + stubSuperClass.getName(), ccex); 
+			throw new Exception("The stub class is not a proper subclass of " + stubSuperClass.getName(), ccex);
 		}
 	}
-	
+
 	/**
 	 * Creates the record readers for the number of inputs as defined by {@link #getNumberOfInputs()}.
-	 * 
+	 *
 	 * This method requires that the task configuration, the driver, and the user-code class loader are set.
 	 */
 	protected void initInputs() throws Exception
 	{
 		final int numInputs = this.driver.getNumberOfInputs();
-		
+
 		final MutableObjectIterator<?>[] inputs = new MutableObjectIterator[numInputs];
 		final TypeSerializer<?>[] inputSerializers = new TypeSerializer[numInputs];
-		final TypeComparator<?>[] inputComparators = this.driver.requiresComparatorOnInput() ? 
+		final TypeComparator<?>[] inputComparators = this.driver.requiresComparatorOnInput() ?
 											new TypeComparator[numInputs] : null;
-		
+
 		for (int i = 0; i < numInputs; i++)
 		{
 			//  ---------------- create the serializer first ---------------------
-			final Class<? extends TypeSerializerFactory<?>> serializerFactoryClass = 
+			final Class<? extends TypeSerializerFactory<?>> serializerFactoryClass =
 									this.config.getSerializerFactoryForInput(i, this.userCodeClassLoader);
-			
+
 			final TypeSerializerFactory<?> serializerFactory;
 			if (serializerFactoryClass == null) {
 				// fall back to PactRecord
@@ -314,9 +317,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			} else {
 				serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
 			}
-			
+
 			inputSerializers[i] = serializerFactory.getSerializer();
-			
+
 			//  ---------------- create the input stream ---------------------
 			// in case the input unions multiple inputs, create a union reader
 			final int groupSize = this.config.getGroupSize(i+1);
@@ -327,10 +330,10 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					inputs[i] = new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
 				} else {
 					// generic data type serialization
-					final MutableRecordReader<DeserializationDelegate<?>> reader = 
+					final MutableRecordReader<DeserializationDelegate<?>> reader =
 													new MutableRecordReader<DeserializationDelegate<?>>(this);
 					@SuppressWarnings({ "unchecked", "rawtypes" })
-					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i]); 
+					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i]);
 					inputs[i] = iter;
 				}
 			} else {
@@ -351,16 +354,16 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					}
 					final MutableUnionRecordReader<DeserializationDelegate<?>> reader = new MutableUnionRecordReader<DeserializationDelegate<?>>(readers);
 					@SuppressWarnings({ "unchecked", "rawtypes" })
-					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i]); 
+					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i]);
 					inputs[i] = iter;
 				}
 			}
-			
+
 			//  ---------------- create the comparator ---------------------
 			if (this.driver.requiresComparatorOnInput()) {
-				final Class<? extends TypeComparatorFactory<?>> comparatorFactoryClass = 
+				final Class<? extends TypeComparatorFactory<?>> comparatorFactoryClass =
 							this.config.getComparatorFactoryForInput(i, this.userCodeClassLoader);
-	
+
 				final TypeComparatorFactory<?> comparatorFactory;
 				if (comparatorFactoryClass == null) {
 					// fall back to PactRecord
@@ -368,23 +371,23 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				} else {
 					comparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
 				}
-	
+
 				try {
-					inputComparators[i] = comparatorFactory.createComparator(getTaskConfiguration(), 
+					inputComparators[i] = comparatorFactory.createComparator(getTaskConfiguration(),
 						this.config.getPrefixForInputParameters(i), this.userCodeClassLoader);
 				} catch (ClassNotFoundException cnfex) {
-					throw new Exception("The instantiation of the type comparator from factory '" +	
-						comparatorFactory.getClass().getName() + 
-						"' failed. A referenced class from the user code could not be loaded."); 
+					throw new Exception("The instantiation of the type comparator from factory '" +
+						comparatorFactory.getClass().getName() +
+						"' failed. A referenced class from the user code could not be loaded.");
 				}
 			}
 		}
-		
+
 		this.inputs = inputs;
 		this.inputSerializers = inputSerializers;
 		this.inputComparators = inputComparators;
 	}
-	
+
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategies for each writer.
@@ -392,13 +395,14 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	protected void initOutputs() throws Exception
 	{
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks);
+    this.eventualOutputs = new ArrayList<AbstractRecordWriter<?>>();
+		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                   Task Context Signature
 	// -------------------------------------------------------------------------------------------
-	
+
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getTaskConfig()
 	 */
@@ -462,7 +466,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	public String formatLogString(String message) {
 		return constructLogString(message, getEnvironment().getTaskName(), this);
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInput(int)
 	 */
@@ -472,12 +476,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		if (index < 0 || index > this.driver.getNumberOfInputs()) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		final MutableObjectIterator<X> in = (MutableObjectIterator<X>) this.inputs[index];
 		return in;
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInputSerializer(int)
 	 */
@@ -487,13 +491,13 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		if (index < 0 || index > this.driver.getNumberOfInputs()) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		final TypeSerializer<X> serializer = (TypeSerializer<X>) this.inputSerializers[index];
 		return serializer;
 	}
-	
-	
+
+
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInputComparator(int)
 	 */
@@ -506,12 +510,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		else if (index < 0 || index > this.driver.getNumberOfInputs()) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		final TypeComparator<X> comparator = (TypeComparator<X>) this.inputComparators[index];
 		return comparator;
 	}
-	
+
 	// ============================================================================================
 	//                                     Static Utilities
 	//
@@ -526,16 +530,16 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * Utility function that composes a string for logging purposes. The string includes the given message,
 	 * the given name of the task and the index in its subtask group as well as the number of instances
 	 * that exist in its subtask group.
-	 * 
+	 *
 	 * @param message The main message for the log.
 	 * @param taskName The name of the task.
 	 * @param parent The nephele task that contains the code producing the message.
-	 * 
+	 *
 	 * @return The string for logging.
 	 */
 	public static String constructLogString(String message, String taskName, AbstractInvokable parent)
 	{
-		final StringBuilder bld = new StringBuilder(128);	
+		final StringBuilder bld = new StringBuilder(128);
 		bld.append(message);
 		bld.append(':').append(' ');
 		bld.append(taskName);
@@ -546,12 +550,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		bld.append(')');
 		return bld.toString();
 	}
-	
+
 	/**
 	 * Prints an error message and throws the given exception. If the exception is of the type
 	 * {@link ExceptionInChainedStubException} then the chain of contained exceptions is followed
 	 * until an exception of a different type is found.
-	 * 
+	 *
 	 * @param ex The exception to be thrown.
 	 * @param parent The parent task, whose information is included in the log message.
 	 * @throws Exception Always thrown.
@@ -568,32 +572,32 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		} else {
 			taskName = parent.getEnvironment().getTaskName();
 		}
-				
+
 		if (LOG.isErrorEnabled()) {
 			LOG.error(constructLogString("Error in PACT code", taskName, parent));
 			LOG.error(ex, ex);
 		}
-		
+
 		throw ex;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                             Result Shipping and Chained Tasks
 	// --------------------------------------------------------------------------------------------
-		
+
 	/**
 	 * Creates the {@link Collector} for the given task, as described by the given configuration. The
 	 * output collector contains the writers that forward the data to the different tasks that the given task
 	 * is connected to. Each writer applies a the partitioning as described in the configuration.
-	 * 
+	 *
 	 * @param task The task that the output collector is created for.
 	 * @param config The configuration describing the output shipping strategies.
 	 * @param cl The classloader used to load user defined types.
 	 * @param numOutputs The number of outputs described in the configuration.
-	 * 
+	 *
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
-	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, int numOutputs)
+	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<AbstractRecordWriter<?>> eventualOutputs, int numOutputs)
 	throws Exception
 	{
 		// get the factory for the serializer
@@ -604,7 +608,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			throw new Exception("The class registered as output serializer factory could not be loaded.", cnfex);
 		}
 		final TypeSerializerFactory<T> serializerFactory;
-		
+
 		if (serializerFactoryClass == null) {
 			@SuppressWarnings("unchecked")
 			TypeSerializerFactory<T> pf = (TypeSerializerFactory<T>) PactRecordSerializerFactory.get();
@@ -612,12 +616,13 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		} else {
 			serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
 		}
-		
+
 		// special case the PactRecord
 		if (serializerFactory.getDataType().equals(PactRecord.class))
 		{
+      Preconditions.checkArgument(numOutputs > 0, "must have at least one output");
 			final List<AbstractRecordWriter<PactRecord>> writers = new ArrayList<AbstractRecordWriter<PactRecord>>(numOutputs);
-			
+
 			// create a writer for each output
 			for (int i = 0; i < numOutputs; i++)
 			{
@@ -627,10 +632,10 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				try {
 					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
 				} catch (ClassNotFoundException cnfex) {
-					throw new Exception("The class registered as comparator factory for output " + i + 
+					throw new Exception("The class registered as comparator factory for output " + i +
 																				" could not be loaded.", cnfex);
 				}
-				
+
 				final PactRecordOutputEmitter oe;
 				if (comparatorFactoryClass == null) {
 					oe = new PactRecordOutputEmitter(strategy);
@@ -640,12 +645,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 												config.getConfiguration(), config.getPrefixForOutputParameters(i), cl);
 						oe = new PactRecordOutputEmitter(strategy, comparator);
 					} catch (ClassNotFoundException cnfex) {
-						throw new Exception("The comparator for output " + i + 
+						throw new Exception("The comparator for output " + i +
 									" could not be created, because it could not load dependent classes.", cnfex);
 					}
-					
+
 				}
-						
+
 				if (strategy == ShipStrategy.BROADCAST) {
 					if (task instanceof AbstractTask) {
 						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
@@ -660,6 +665,10 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					}
 				}
 			}
+			if (eventualOutputs != null) {
+			  eventualOutputs.addAll(writers);
+      }
+
 			@SuppressWarnings("unchecked")
 			final Collector<T> outColl = (Collector<T>) new PactRecordOutputCollector(writers);
 			return outColl;
@@ -669,7 +678,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			final List<AbstractRecordWriter<SerializationDelegate<T>>> writers = new ArrayList<AbstractRecordWriter<SerializationDelegate<T>>>(numOutputs);
 			@SuppressWarnings("unchecked") // uncritical, simply due to broken generics
 			final Class<SerializationDelegate<T>> delegateClazz = (Class<SerializationDelegate<T>>) (Class<?>) SerializationDelegate.class;
-			
+
 			// create a writer for each output
 			for (int i = 0; i < numOutputs; i++)
 			{
@@ -679,26 +688,26 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				try {
 					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
 				} catch (ClassNotFoundException cnfex) {
-					throw new Exception("The class registered as comparator factory for output " + i + 
+					throw new Exception("The class registered as comparator factory for output " + i +
 																				" could not be loaded.", cnfex);
 				}
-				
+
 				final ChannelSelector<SerializationDelegate<T>> oe;
 				if (comparatorFactoryClass == null) {
 					oe = new OutputEmitter<T>(strategy);
 				} else {
 					final TypeComparatorFactory<T> compFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
 					try {
-						final TypeComparator<T> comparator = compFactory.createComparator(config.getConfiguration(), 
+						final TypeComparator<T> comparator = compFactory.createComparator(config.getConfiguration(),
 																				config.getPrefixForOutputParameters(i), cl);
-						
+
 						oe = new OutputEmitter<T>(strategy, comparator);
 					} catch (ClassNotFoundException cnfex) {
-						throw new Exception("The comparator for output " + i + 
+						throw new Exception("The comparator for output " + i +
 									" could not be created, because it could not load dependent classes.", cnfex);
 					}
-				}						
-				
+				}
+
 				if (strategy == ShipStrategy.BROADCAST) {
 					if (task instanceof AbstractTask) {
 						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
@@ -713,21 +722,24 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					}
 				}
 			}
-			
+      if (eventualOutputs != null) {
+			  eventualOutputs.addAll(writers);
+      }
 			return new OutputCollector<T>(writers, serializerFactory.getSerializer());
 		}
 	}
-	
+
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategy.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config, List<ChainedDriver<?, ?>> chainedTasksTarget)
+	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
+                                             List<ChainedDriver<?, ?>> chainedTasksTarget, List<AbstractRecordWriter<?>> eventualOutputs)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
-		
+
 		// check whether we got any chained tasks
 		final int numChained = config.getNumberOfChainedStubs();
 		if (numChained > 0)
@@ -736,7 +748,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			if (numOutputs != 1 || config.getOutputShipStrategy(0) != ShipStrategy.FORWARD) {
 				throw new RuntimeException("Plan Generation Bug: Found a chained stub that is not connected via an only forward connection.");
 			}
-			
+
 			// instantiate each task
 			@SuppressWarnings("rawtypes")
 			Collector previous = null;
@@ -751,28 +763,28 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				catch (Exception ex) {
 					throw new RuntimeException("Could not instantiate chained task driver.", ex);
 				}
-				
+
 				// get the configuration for the task
 				final TaskConfig chainedStubConf = config.getChainedStubConfig(i);
 				final String taskName = config.getChainedTaskName(i);
-				
+
 				if (i == numChained -1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, chainedStubConf.getNumOutputs());
+					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, chainedStubConf.getNumOutputs());
 				}
-				
+
 				ct.setup(chainedStubConf, taskName, nepheleTask, cl, previous);
 				chainedTasksTarget.add(0, ct);
-				
+
 				previous = ct;
 			}
 			// the collector of the first in the chain is the collector for the nephele task
 			return (Collector<T>) previous;
 		}
-		// else 
+		// else
 
 		// instantiate the output collector the default way from this configuration
-		return getOutputCollector(nepheleTask , config, cl, numOutputs);
+		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, numOutputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------

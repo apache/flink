@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,18 +13,19 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.concurrent;
+package eu.stratosphere.pact.runtime.iterative.event;
 
-/** Singleton class for the threadsafe handover of {@link BlockingBackChannel}s from iteration heads to iteration tails */
-public class BlockingBackChannelBroker extends Broker<BlockingBackChannel> {
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 
-  /** single instance */
-  private static final BlockingBackChannelBroker INSTANCE = new BlockingBackChannelBroker();
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-  private BlockingBackChannelBroker() {}
+public class EndOfSuperstepEvent extends AbstractTaskEvent {
 
-  /** retrieve singleton instance */
-  public static Broker<BlockingBackChannel> instance() {
-    return INSTANCE;
-  }
+  @Override
+  public void write(DataOutput out) throws IOException {}
+
+  @Override
+  public void read(DataInput in) throws IOException {}
 }

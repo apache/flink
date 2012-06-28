@@ -334,7 +334,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	private void initOutputs(ClassLoader cl) throws Exception
 	{
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks);
+		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, null);
 	}
 	
 	// ------------------------------------------------------------------------

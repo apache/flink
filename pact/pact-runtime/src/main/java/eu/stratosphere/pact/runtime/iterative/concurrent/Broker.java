@@ -22,37 +22,30 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentMap;
 
 /** A concurrent datastructure that allows the handover of an object between a pair of threads*/
-public class Broker<K, V> {
+public class Broker<V> {
 
-  private final ConcurrentMap<K, HandOver<V>> mediations = Maps.newConcurrentMap();
+  private final ConcurrentMap<String, BlockingQueue<V>> mediations = Maps.newConcurrentMap();
 
-  /** threadsafe call to get a shared {@link HandOver} object */
-  public HandOver<V> mediate(K key) {
-    HandOver<V> handOver = new HandOver<V>();
-    HandOver<V> commonHandOver = mediations.putIfAbsent(key, handOver);
-    return commonHandOver != null ? commonHandOver : handOver;
+  /** hand in the object to share */
+  public void handIn(String key, V obj) {
+    retrieveSharedQueue(key).offer(obj);
   }
 
-  /** remove {@link HandOver} object after successful delivery */
-  public void notifyHandOverDone(K key) {
-    mediations.remove(key);
+  /** blocking retrieval of the object to share */
+  public V get(String key) {
+    try {
+      V objToShare = retrieveSharedQueue(key).take();
+      mediations.remove(key);
+      return objToShare;
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
-  /** can be used for a blocking hand over of an object to share */
-  static class HandOver<V> {
-
-    private final BlockingQueue<V> queue = new ArrayBlockingQueue<V>(1);
-
-    public void handIn(V obj) {
-      queue.offer(obj);
-    }
-
-    public V get() {
-      try {
-        return queue.take();
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-    }
+  /** threadsafe call to get a shared {@link BlockingQueue} */
+  private BlockingQueue<V> retrieveSharedQueue(String key) {
+    BlockingQueue<V> queue = new ArrayBlockingQueue<V>(1);
+    BlockingQueue<V> commonQueue = mediations.putIfAbsent(key, queue);
+    return commonQueue != null ? commonQueue : queue;
   }
 }

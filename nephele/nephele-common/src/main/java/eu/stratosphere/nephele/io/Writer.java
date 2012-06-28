@@ -30,6 +30,4 @@ import eu.stratosphere.nephele.types.Record;
  */
 public interface Writer<T extends Record> {
 	void emit(T record) throws IOException, InterruptedException;
-
-	List<AbstractOutputChannel<T>> getOutputChannels();
 }

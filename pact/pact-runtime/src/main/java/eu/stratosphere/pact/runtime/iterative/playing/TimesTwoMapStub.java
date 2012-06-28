@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,18 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.concurrent;
+package eu.stratosphere.pact.runtime.iterative.playing;
 
-/** Singleton class for the threadsafe handover of {@link BlockingBackChannel}s from iteration heads to iteration tails */
-public class BlockingBackChannelBroker extends Broker<BlockingBackChannel> {
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactString;
 
-  /** single instance */
-  private static final BlockingBackChannelBroker INSTANCE = new BlockingBackChannelBroker();
+@Deprecated
+public class TimesTwoMapStub extends MapStub {
+  @Override
+  public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 
-  private BlockingBackChannelBroker() {}
+    PactString field = record.getField(0, PactString.class);
+    int value = Integer.parseInt(field.getValue());
 
-  /** retrieve singleton instance */
-  public static Broker<BlockingBackChannel> instance() {
-    return INSTANCE;
+    System.out.println("map " + value + " --> " + (value * 2));
+
+    record.setField(0, new PactString(String.valueOf(value * 2)));
+    out.collect(record);
   }
 }

@@ -103,15 +103,6 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 		this.outputGate.writeRecord(record);
 	}
 
-	/**
-	 * Returns the list of OutputChannels connected to this RecordWriter.
-	 * 
-	 * @return the list of OutputChannels connected to this RecordWriter
-	 */
-	public List<AbstractOutputChannel<T>> getOutputChannels() {
-		return this.outputGate.getOutputChannels();
-	}
-
 	// TODO (en)
 	@Deprecated
 	public OutputGate<T> getOutputGate() {
