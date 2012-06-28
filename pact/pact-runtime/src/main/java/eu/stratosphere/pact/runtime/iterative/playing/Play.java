@@ -19,12 +19,9 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.io.library.FileLineWriter;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
-import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
@@ -35,6 +32,7 @@ import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
+import eu.stratosphere.pact.runtime.iterative.task.BulkIterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
@@ -71,6 +69,12 @@ public class Play {
     headConfig.setStubClass(PlusOneMapStub.class);
     headConfig.setMemorySize(10 * MEGABYTE);
 
+    JobTaskVertex intermediate = createTask(BulkIterationIntermediatePactTask.class, "BulkIntermediate", jobGraph,
+        degreeOfParallelism);
+    TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
+    intermediateConfig.setDriver(MapDriver.class);
+    intermediateConfig.setStubClass(TimesThreeMapStub.class);
+
     JobTaskVertex tail = createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph, degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setDriver(MapDriver.class);
@@ -84,7 +88,8 @@ public class Play {
     JobOutputVertex tailBlindOutput = createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
 
     connectLocal(input, head, inputConfig);
-    connectLocal(head, tail, headConfig);
+    connectLocal(head, intermediate, headConfig);
+    connectLocal(intermediate, tail, intermediateConfig);
     connectLocal(head, output, headConfig);
     connectLocal(tail, tailBlindOutput, tailConfig);
 

@@ -14,7 +14,6 @@ public class PlayOutFormat extends FileOutputFormat {
 
   @Override
   public void writeRecord(PactRecord record) throws IOException {
-    System.out.println("GOT record");
     buffer.setLength(0);
     buffer.append(record.getField(0, PactString.class).toString());
     buffer.append('\n');

@@ -20,13 +20,17 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
 import eu.stratosphere.pact.runtime.iterative.event.Callback;
+import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 
-public class BulkIterationTailPactTask<S extends Stub, OT> extends IterativePactTask<S, OT>
+
+public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 
   private int numIterations = 0;
+  private boolean terminated = false;
 
   private BlockingBackChannel retrieveBackChannel() throws Exception {
     // blocking call to retrieve the backchannel from the iteration head
@@ -41,19 +45,28 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends IterativePact
     // Initially retreive the backchannel from the iteration head
     final BlockingBackChannel backChannel = retrieveBackChannel();
     // register 'end-of-superstep' listener
-    listenToEndOfSuperstep(new Callback() {
+    listenToEndOfSuperstep(new Callback<EndOfSuperstepEvent>() {
       @Override
-      public void execute() {
-        System.out.println("Tail: received endOfSuperstep [" + System.currentTimeMillis() + "]");
+      public void execute(EndOfSuperstepEvent event) {
+        System.out.println("Tail: received endOfSuperstep [" + System.currentTimeMillis() + "] [" + Thread.currentThread().getId() + "]");
         backChannel.notifyOfEndOfSuperstep();
       }
     });
+
+    listenToTermination(new Callback<TerminationEvent>() {
+      @Override
+      public void execute(TerminationEvent event) throws Exception {
+        System.out.println("Tail: received termination [" + System.currentTimeMillis() + "] [" + Thread.currentThread().getId() + "]");
+        terminated = true;
+      }
+    });
+
     // redirect output to the backchannel
     output = new DataOutputCollector<OT>(backChannel.getWriteEnd(), createOutputTypeSerializer());
 
-    while (numIterations < 3) {
+    while (!terminated) {
 
-      System.out.println("Tail: starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      System.out.println("Tail: starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "] [" + Thread.currentThread().getId() + "]");
       if (!inFirstIteration) {
         reinstantiateDriver();
         inFirstIteration = false;
@@ -61,7 +74,7 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends IterativePact
 
       super.invoke();
 
-      System.out.println("Tail: finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      System.out.println("Tail: finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "] [" + Thread.currentThread().getId() + "]");
       numIterations++;
     }
 

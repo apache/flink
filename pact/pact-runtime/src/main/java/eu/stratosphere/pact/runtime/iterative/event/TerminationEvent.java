@@ -17,8 +17,15 @@ package eu.stratosphere.pact.runtime.iterative.event;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 
-public interface Callback<E extends AbstractTaskEvent> {
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-  void execute(E event) throws Exception;
+public class TerminationEvent extends AbstractTaskEvent {
 
+  @Override
+  public void write(DataOutput out) throws IOException {}
+
+  @Override
+  public void read(DataInput in) throws IOException {}
 }

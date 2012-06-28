@@ -17,6 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.task;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.Writer;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
@@ -30,6 +31,8 @@ import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
@@ -37,7 +40,7 @@ import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
 import java.io.IOException;
 import java.util.List;
 
-public class BulkIterationHeadPactTask<S extends Stub, OT> extends IterativePactTask<S, OT>
+public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 
   private static final int ITERATION_INPUT = 0;
@@ -91,7 +94,8 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends IterativePact
       }
 
       super.invoke();
-      signalEndOfSuperStep();
+      // signal to connected tasks that we are done with the superstep
+      sendEventToAllIterationOutputs(new EndOfSuperstepEvent());
 
       // blocking call to wait for the result
       DataInputView superStepResult = backChannel.getReadEndAfterSuperstepEnded();
@@ -101,6 +105,8 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends IterativePact
 
       numIterations++;
     }
+    // signal to connected tasks that the iteration terminated
+    sendEventToAllIterationOutputs(new TerminationEvent());
 
     System.out.println("Head: streaming out final result [" + numIterations + "] [" + System.currentTimeMillis() + "]");
     streamOutFinalOutput();
@@ -131,6 +137,13 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends IterativePact
 
   private void feedBackSuperstepResult(DataInputView superStepResult, TypeSerializer serializer) {
     inputs[ITERATION_INPUT] = new InputViewIterator(superStepResult, serializer);
+  }
+
+  private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {
+    //TODO remove implicit assumption
+    for (int outputIndex = 0; outputIndex < eventualOutputs.size() - 1; outputIndex++) {
+      eventualOutputs.get(outputIndex).publishEvent(event);
+    }
   }
 
 }

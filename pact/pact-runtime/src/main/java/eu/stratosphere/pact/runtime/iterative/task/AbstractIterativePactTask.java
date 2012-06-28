@@ -23,13 +23,14 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.iterative.event.Callback;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 
 import java.io.IOException;
 
-public abstract class IterativePactTask<S extends Stub, OT> extends RegularPactTask<S, OT> {
+public abstract class AbstractIterativePactTask<S extends Stub, OT> extends RegularPactTask<S, OT> {
 
   protected String identifier() {
     return getEnvironment().getJobID() + "#" + getEnvironment().getIndexInSubtaskGroup();
@@ -40,22 +41,34 @@ public abstract class IterativePactTask<S extends Stub, OT> extends RegularPactT
     driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
   }
 
-  protected void listenToEndOfSuperstep(final Callback callback) {
+  protected void listenToTermination(final Callback<TerminationEvent> callback) {
     //TODO use correct input gate
     getEnvironment().getInputGate(0).subscribeToEvent(new EventListener() {
       @Override
       public void eventOccurred(AbstractTaskEvent event) {
-        callback.execute();
+        try {
+          callback.execute((TerminationEvent) event);
+        } catch (Exception e) {
+          //TODO do something meaningful here
+          e.printStackTrace(System.out);
+        }
       }
-    }, EndOfSuperstepEvent.class);
+    }, TerminationEvent.class);
   }
 
-  protected void signalEndOfSuperStep() throws IOException, InterruptedException {
-    //TODO remove implicit assumption
-    // signal to connected tasks that we are done with the superstep
-    for (int outputIndex = 0; outputIndex < eventualOutputs.size() - 1; outputIndex++) {
-      eventualOutputs.get(outputIndex).publishEvent(new EndOfSuperstepEvent());
-    }
+  protected void listenToEndOfSuperstep(final Callback<EndOfSuperstepEvent> callback) {
+    //TODO use correct input gate
+    getEnvironment().getInputGate(0).subscribeToEvent(new EventListener() {
+      @Override
+      public void eventOccurred(AbstractTaskEvent event) {
+        try {
+          callback.execute((EndOfSuperstepEvent) event);
+        } catch (Exception e) {
+          //TODO do something meaningful here
+          e.printStackTrace(System.out);
+        }
+      }
+    }, EndOfSuperstepEvent.class);
   }
 
   //TODO move up to RegularPactTask

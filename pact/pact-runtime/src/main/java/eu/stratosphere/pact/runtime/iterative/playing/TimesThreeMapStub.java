@@ -13,12 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.event;
+package eu.stratosphere.pact.runtime.iterative.playing;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactString;
 
-public interface Callback<E extends AbstractTaskEvent> {
+@Deprecated
+public class TimesThreeMapStub extends MapStub {
+  @Override
+  public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 
-  void execute(E event) throws Exception;
+    PactString field = record.getField(0, PactString.class);
+    int value = Integer.parseInt(field.getValue());
 
+    System.out.println("map " + value + " --> " + (value * 3));
+
+    record.setField(0, new PactString(String.valueOf(value * 3)));
+    out.collect(record);
+  }
 }
