@@ -15,6 +15,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * @author Tommy Neubert
@@ -35,7 +36,7 @@ public class GeneralSchema extends AbstractSchema {
 	 *        {@link EvaluationExpression}s that should be set as mappings
 	 */
 	public GeneralSchema(final EvaluationExpression... mappings) {
-		super(mappings.length + 1, rangeFrom(0, mappings.length));
+		super(mappings.length + 1, CollectionUtil.setRangeFrom(0, mappings.length));
 		this.mappings = Arrays.asList(mappings);
 	}
 
@@ -47,7 +48,7 @@ public class GeneralSchema extends AbstractSchema {
 	 *        an Iterable over all {@link EvaluationExpression}s that should be set as mappings.
 	 */
 	public GeneralSchema(final List<EvaluationExpression> mappings) {
-		super(mappings.size() + 1, rangeFrom(0, mappings.size()));
+		super(mappings.size() + 1, CollectionUtil.setRangeFrom(0, mappings.size()));
 		for (final EvaluationExpression exp : mappings)
 			this.mappings.add(exp);
 	}

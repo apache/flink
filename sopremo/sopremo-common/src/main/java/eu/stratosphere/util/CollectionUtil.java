@@ -1,5 +1,8 @@
 package eu.stratosphere.util;
 
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -58,5 +61,21 @@ public class CollectionUtil {
 	public static <T> void ensureSize(Collection<T> collection, int size, T defaultValue) {
 		while (collection.size() < size)
 			collection.add(defaultValue);
+	}
+
+	/**
+	 * Creates a set containing all ints in the given range.
+	 * 
+	 * @param start
+	 *        the start of the range
+	 * @param exclusiveEnd
+	 *        the end of the range (exclusive)
+	 * @return a set containing all ints in the given range.
+	 */
+	public static IntSet setRangeFrom(final int start, final int exclusiveEnd) {
+		final IntOpenHashSet range = new IntOpenHashSet(exclusiveEnd - start);
+		for (int index = start; index < exclusiveEnd; index++)
+			range.add(index);
+		return range;
 	}
 }

@@ -25,6 +25,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * @author Michael Hopstock
@@ -42,7 +43,7 @@ public class HeadArraySchema extends AbstractSchema {
 	private final int headSize;
 
 	public HeadArraySchema(final int headSize) {
-		super(headSize + 1, rangeFrom(0, headSize));
+		super(headSize + 1, CollectionUtil.setRangeFrom(0, headSize));
 		this.headSize = headSize;
 	}
 
@@ -60,7 +61,7 @@ public class HeadArraySchema extends AbstractSchema {
 		final ArrayAccess arrayExpression = (ArrayAccess) expression;
 
 		if (arrayExpression.isSelectingAll())
-			return rangeFrom(0, this.headSize + 1);
+			return CollectionUtil.setRangeFrom(0, this.headSize + 1);
 		else if (arrayExpression.isSelectingRange()) {
 			final int startIndex = arrayExpression.getStartIndex();
 			final int endIndex = arrayExpression.getEndIndex();
@@ -69,7 +70,7 @@ public class HeadArraySchema extends AbstractSchema {
 			if (endIndex >= this.headSize)
 				throw new IllegalArgumentException("Target index is not in head");
 
-			return rangeFrom(startIndex, endIndex);
+			return CollectionUtil.setRangeFrom(startIndex, endIndex);
 		}
 		final int index = arrayExpression.getStartIndex();
 		if (index >= this.headSize)

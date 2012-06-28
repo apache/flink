@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.testing;
 
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.io.FileNotFoundException;
@@ -22,7 +22,6 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.testing.AssertUtil;
-import eu.stratosphere.pact.testing.DoubleValueSimilarity;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -34,7 +33,6 @@ import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.SopremoPlan;
 import eu.stratosphere.sopremo.Source;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
@@ -43,6 +41,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.AbstractIterator;
+import eu.stratosphere.util.CollectionUtil;
 import eu.stratosphere.util.IteratorUtil;
 import eu.stratosphere.util.dag.OneTimeTraverser;
 
@@ -211,7 +210,7 @@ public class SopremoTestPlan {
 		final Collection<Contract> sinks = sopremoPlan.assemblePact();
 		this.testPlan = new TestPlan(sinks);
 
-		Schema schema = sopremoPlan.getSchema();		
+		Schema schema = sopremoPlan.getSchema();
 		for (final Input input : this.inputs)
 			input.prepare(this.testPlan, schema);
 		for (final ExpectedOutput output : this.expectedOutputs)
@@ -469,9 +468,14 @@ public class SopremoTestPlan {
 			super.prepare(testPlan, schema);
 
 			int sinkIndex = findSinkIndex(testPlan);
-			if (this.doublePrecision > 0)
-				testPlan.addFuzzyValueSimilarity(testPlan.getSinks().get(sinkIndex),
-					new DoubleNodeSimilarity(doublePrecision));
+			if (this.doublePrecision > 0) {
+				IntSet fuzzySlots = CollectionUtil.setRangeFrom(0, schema.getPactSchema().length);
+				fuzzySlots.removeAll(schema.getKeyIndices());
+				final IntIterator iterator = fuzzySlots.iterator();
+				while (iterator.hasNext())
+					testPlan.addFuzzyValueSimilarity(testPlan.getSinks().get(sinkIndex), iterator.next(),
+						new DoubleNodeSimilarity(doublePrecision));
+			}
 		}
 
 		private double doublePrecision;

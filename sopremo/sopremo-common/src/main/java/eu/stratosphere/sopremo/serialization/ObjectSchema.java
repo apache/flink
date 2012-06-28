@@ -16,6 +16,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * @author Michael Hopstock
@@ -29,13 +30,13 @@ public class ObjectSchema extends AbstractSchema {
 	private final List<String> mappings = new ArrayList<String>();
 
 	public ObjectSchema(final List<ObjectAccess> mappings) {
-		super(mappings.size() + 1, rangeFrom(0, mappings.size()));
+		super(mappings.size() + 1, CollectionUtil.setRangeFrom(0, mappings.size()));
 		for (final ObjectAccess mapping : mappings)
 			this.mappings.add(mapping.getField());
 	}
 
 	public ObjectSchema(final String... mappings) {
-		super(mappings.length + 1, rangeFrom(0, mappings.length));
+		super(mappings.length + 1, CollectionUtil.setRangeFrom(0, mappings.length));
 		for (final String mapping : mappings)
 			this.mappings.add(mapping);
 	}

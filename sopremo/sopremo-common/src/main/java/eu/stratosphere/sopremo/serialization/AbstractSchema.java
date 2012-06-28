@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.serialization;
 
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.Arrays;
@@ -25,6 +24,9 @@ public abstract class AbstractSchema implements Schema {
 
 	@SuppressWarnings("unchecked")
 	protected AbstractSchema(final int numFields, final IntSet keyIndices) {
+		if (keyIndices == null)
+			throw new NullPointerException();
+		this.keyIndices = keyIndices;
 		this.pactSchema = new Class[numFields];
 		Arrays.fill(this.pactSchema, JsonNodeWrapper.class);
 	}
@@ -37,12 +39,5 @@ public abstract class AbstractSchema implements Schema {
 	@Override
 	public Class<? extends Value>[] getPactSchema() {
 		return this.pactSchema;
-	}
-
-	protected static IntSet rangeFrom(final int start, final int exclusiveEnd) {
-		final IntOpenHashSet range = new IntOpenHashSet(exclusiveEnd - start);
-		for (int index = start; index < exclusiveEnd; index++)
-			range.add(index);
-		return range;
 	}
 }

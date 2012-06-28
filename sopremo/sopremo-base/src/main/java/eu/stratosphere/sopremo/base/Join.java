@@ -6,6 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
@@ -88,7 +89,7 @@ public class Join extends CompositeOperator<Join> {
 	}
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final int numInputs = this.getInputs().size();
 
 		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
@@ -139,7 +140,7 @@ public class Join extends CompositeOperator<Join> {
 				new Projection().withInputs(lastJoin).withResultProjection(getResultProjection()));
 		}
 
-		return module.asElementary();
+		return module.asElementary(context);
 	}
 
 	@Override

@@ -25,6 +25,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * @author Michael Hopstock
@@ -42,7 +43,7 @@ public class TailArraySchema extends AbstractSchema {
 	private int tailSize = 0;
 
 	public TailArraySchema(final int tailSize) {
-		super(tailSize + 1, rangeFrom(1, tailSize + 1));
+		super(tailSize + 1, CollectionUtil.setRangeFrom(1, tailSize + 1));
 		this.tailSize = tailSize;
 	}
 
@@ -66,7 +67,7 @@ public class TailArraySchema extends AbstractSchema {
 		final ArrayAccess arrayExpression = (ArrayAccess) expression;
 
 		if (arrayExpression.isSelectingAll())
-			return rangeFrom(0, this.tailSize + 1);
+			return CollectionUtil.setRangeFrom(0, this.tailSize + 1);
 		else if (arrayExpression.isSelectingRange()) {
 			int startIndex = arrayExpression.getStartIndex();
 			int endIndex = arrayExpression.getEndIndex();
@@ -77,7 +78,7 @@ public class TailArraySchema extends AbstractSchema {
 			if (endIndex >= this.getTailSize())
 				throw new IllegalArgumentException("Target index is not in tail");
 
-			return rangeFrom(startIndex + 1, endIndex + 1);
+			return CollectionUtil.setRangeFrom(startIndex + 1, endIndex + 1);
 		}
 		int index = arrayExpression.getStartIndex();
 		if (index >= 0)

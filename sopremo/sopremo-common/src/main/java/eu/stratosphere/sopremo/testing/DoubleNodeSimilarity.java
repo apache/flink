@@ -86,7 +86,7 @@ public class DoubleNodeSimilarity extends AbstractValueSimilarity<JsonNodeWrappe
 			distance += valueComparison;
 		}
 
-		if (!entries1.hasNext()||!entries2.hasNext())
+		if (entries1.hasNext() || entries2.hasNext())
 			return NO_MATCH;
 		return distance;
 	}
