@@ -19,9 +19,12 @@ import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.type.PactRecord;
 
+/** Output task for the iteration tail */
 public class FakeOutputTask extends AbstractOutputTask {
 
   private MutableRecordReader reader;
+
+  private static final PactRecord RECORD = new PactRecord();
 
   @Override
   public void registerInputOutput() {
@@ -30,10 +33,9 @@ public class FakeOutputTask extends AbstractOutputTask {
 
   @Override
   public void invoke() throws Exception {
-    PactRecord rec = new PactRecord();
     // ensure that input is consumed, although this task should never see any records
-    while (reader.next(rec)) {
-      throw new RuntimeException("This task should not receive records");
+    while (reader.next(RECORD)) {
+      throw new IllegalStateException("This task should not receive any data");
     }
   }
 

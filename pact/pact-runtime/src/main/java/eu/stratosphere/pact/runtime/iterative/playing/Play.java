@@ -76,7 +76,6 @@ public class Play {
     tailConfig.setDriver(MapDriver.class);
     tailConfig.setStubClass(TimesTwoMapStub.class);
 
-    //JobFileOutputVertex output = createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism, "file:///tmp/iterations");
     JobOutputVertex output = createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
     outputConfig.setStubClass(PlayOutFormat.class);

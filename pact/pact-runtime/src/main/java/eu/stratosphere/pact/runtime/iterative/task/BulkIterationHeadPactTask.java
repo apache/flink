@@ -18,11 +18,14 @@ package eu.stratosphere.pact.runtime.iterative.task;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
+import eu.stratosphere.nephele.io.Writer;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
@@ -31,13 +34,13 @@ import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
 
+import java.io.IOException;
 import java.util.List;
 
 public class BulkIterationHeadPactTask<S extends Stub, OT> extends IterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 
   private static final int ITERATION_INPUT = 0;
-
 
   /**
    * the iteration head prepares the backchannel: it allocates memory, instantiates a {@link BlockingBackChannel} and
@@ -76,8 +79,9 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends IterativePact
     BlockingBackChannel backChannel = initBackChannel();
 
     //TODO type safety
+    TypeSerializer serializer = getInputSerializer(ITERATION_INPUT);
     output = (Collector<OT>) iterationCollector();
-    while (numIterations < 3) {
+    while (numIterations < 2) {
 
       System.out.println("Head: starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
 
@@ -93,17 +97,16 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends IterativePact
       DataInputView superStepResult = backChannel.getReadEndAfterSuperstepEnded();
       System.out.println("Head: finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
 
-      if (numIterations < 2) {
-        feedBackSuperstepResult(superStepResult);
-      } else {
-        //TODO type safety
-        output = (Collector<OT>) finalOutputCollector();
-      }
+      feedBackSuperstepResult(superStepResult, serializer);
 
       numIterations++;
     }
+
+    System.out.println("Head: streaming out final result [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+    streamOutFinalOutput();
   }
 
+  // send output to all but the last connected task while iterating
   private Collector<PactRecord> iterationCollector() {
     int numOutputs = eventualOutputs.size();
     Preconditions.checkState(numOutputs > 1);
@@ -115,16 +118,19 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends IterativePact
     return new PactRecordOutputCollector(writers);
   }
 
-  private Collector<PactRecord> finalOutputCollector() {
-    int numOutputs = eventualOutputs.size();
-    Preconditions.checkState(numOutputs > 1);
-    List<AbstractRecordWriter<PactRecord>> writers = Lists.newArrayListWithCapacity(1);
-    writers.add((AbstractRecordWriter<PactRecord>) eventualOutputs.get(numOutputs - 1));
-    return new PactRecordOutputCollector(writers);
+  private void streamOutFinalOutput() throws IOException, InterruptedException {
+
+    Writer<PactRecord> writer = (AbstractRecordWriter<PactRecord>) eventualOutputs.get(eventualOutputs.size() - 1);
+    MutableObjectIterator<PactRecord> results = (MutableObjectIterator<PactRecord>) inputs[ITERATION_INPUT];
+
+    PactRecord record = new PactRecord();
+    while (results.next(record)) {
+      writer.emit(record);
+    }
   }
 
-  private void feedBackSuperstepResult(DataInputView superStepResult) {
-    inputs[ITERATION_INPUT] = new InputViewIterator(superStepResult, getInputSerializer(ITERATION_INPUT));
+  private void feedBackSuperstepResult(DataInputView superStepResult, TypeSerializer serializer) {
+    inputs[ITERATION_INPUT] = new InputViewIterator(superStepResult, serializer);
   }
 
 }

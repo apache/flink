@@ -23,8 +23,6 @@ import eu.stratosphere.pact.runtime.iterative.event.Callback;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 
-import java.util.concurrent.locks.ReentrantLock;
-
 public class BulkIterationTailPactTask<S extends Stub, OT> extends IterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 
@@ -39,6 +37,7 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends IterativePact
   @Override
   public void invoke() throws Exception {
 
+    boolean inFirstIteration = true;
     // Initially retreive the backchannel from the iteration head
     final BlockingBackChannel backChannel = retrieveBackChannel();
     // register 'end-of-superstep' listener
@@ -55,8 +54,9 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends IterativePact
     while (numIterations < 3) {
 
       System.out.println("Tail: starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
-      if (numIterations > 0) {
+      if (!inFirstIteration) {
         reinstantiateDriver();
+        inFirstIteration = false;
       }
 
       super.invoke();

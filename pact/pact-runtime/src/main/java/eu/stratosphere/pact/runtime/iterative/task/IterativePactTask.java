@@ -64,8 +64,8 @@ public abstract class IterativePactTask<S extends Stub, OT> extends RegularPactT
     final Class<? extends TypeSerializerFactory<OT>> serializerFactoryClass;
     try {
       serializerFactoryClass = config.getSerializerFactoryForOutput(userCodeClassLoader);
-    } catch (ClassNotFoundException cnfex) {
-      throw new RuntimeException("The class registered as output serializer factory could not be loaded.", cnfex);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("The class registered as output serializer factory could not be loaded.", e);
     }
     final TypeSerializerFactory<OT> serializerFactory;
 
