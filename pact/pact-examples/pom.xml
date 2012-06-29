@@ -208,6 +208,29 @@
             </configuration>
           </execution>
 
+      <!-- SecondarySort -->
+          <execution>
+            <id>SecondarySort</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>SecondarySort</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.secondarysort.SecondarySort</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/secondarysort/*.class</include>
+                <include>**/util/AsciiUtils*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
         </executions>
       </plugin>
       
