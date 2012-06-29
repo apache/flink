@@ -114,6 +114,8 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>,
 		final MutableObjectIterator<IT> in = getInput(0);
 		this.serializer = getInputSerializer(0);
 		this.comparator = getInputComparator(0);
+		
+		TypeComparator<IT> secondarySortComparator = getSecondarySortComparator(0);
 
 		// obtain grouped iterator defined by local strategy
 		switch (config.getLocalStrategy())
@@ -129,13 +131,13 @@ public class ReduceTask<IT, OT> extends AbstractPactTask<GenericReducer<IT, OT>,
 		case SORT:			
 			// instantiate a sort-merger
 			this.input = new UnilateralSortMerger<IT>(memoryManager, ioManager, in,
-					this, this.serializer, this.comparator.duplicate(), availableMemory, maxFileHandles, spillThreshold);
+					this, this.serializer, secondarySortComparator, availableMemory, maxFileHandles, spillThreshold);
 			break;
 			
 		case COMBININGSORT:
 			// instantiate a combining sort-merger
 			this.input = new CombiningUnilateralSortMerger<IT>(this.stub, memoryManager,
-					ioManager, in, this, this.serializer, this.comparator.duplicate(),
+					ioManager, in, this, this.serializer, secondarySortComparator,
 					availableMemory, maxFileHandles, spillThreshold, false);
 			break;
 		default:

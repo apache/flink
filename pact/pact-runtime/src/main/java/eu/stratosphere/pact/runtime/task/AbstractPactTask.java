@@ -79,6 +79,8 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 	
 	protected TypeComparator<?>[] inputComparators;
 	
+	protected TypeComparator<?>[] secondarySortComparators;
+	
 	protected TaskConfig config;
 	
 	protected ClassLoader userCodeClassLoader;
@@ -339,6 +341,8 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 		final TypeSerializer<?>[] inputSerializers = new TypeSerializer[numInputs];
 		final TypeComparator<?>[] inputComparators = requiresComparatorOnInput() ? 
 											new TypeComparator[numInputs] : null;
+		final TypeComparator<?>[] secondarySortComparators = requiresComparatorOnInput() ? 
+											new TypeComparator[numInputs] : null;
 		
 		for (int i = 0; i < numInputs; i++)
 		{
@@ -411,6 +415,8 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 				try {
 					inputComparators[i] = comparatorFactory.createComparator(getTaskConfiguration(), 
 						this.config.getPrefixForInputParameters(i), this.userCodeClassLoader);
+					secondarySortComparators[i] = comparatorFactory.createSecondarySortComparator(getTaskConfiguration(), 
+						this.config.getPrefixForInputParameters(i), this.userCodeClassLoader);
 				} catch (ClassNotFoundException cnfex) {
 					throw new Exception("The instantiation of the type comparator from factory '" +	
 						comparatorFactory.getClass().getName() + 
@@ -422,6 +428,7 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 		this.inputs = inputs;
 		this.inputSerializers = inputSerializers;
 		this.inputComparators = inputComparators;
+		this.secondarySortComparators = secondarySortComparators;
 	}
 	
 	/**
@@ -475,6 +482,15 @@ public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 			throw new IndexOutOfBoundsException();
 		}
 		return (TypeComparator<X>) this.inputComparators[index];
+	}
+	
+	@SuppressWarnings("unchecked")
+	protected <X> TypeComparator<X> getSecondarySortComparator(int index)
+	{
+		if (index < 0 || index > getNumberOfInputs()) {
+			throw new IndexOutOfBoundsException();
+		}
+		return (TypeComparator<X>) this.secondarySortComparators[index];
 	}
 	
 	

@@ -458,7 +458,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		
 		PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(),
 			combineConfig.getPrefixForInputParameters(0),
-			combineNode.getPactContract().getKeyColumnNumbers(0), combineNode.getPactContract().getKeyClasses());
+			combineNode.getPactContract().getKeyColumnNumbers(0), combineNode.getPactContract().getKeyClasses(),
+			combineNode.getPactContract().getSecondarySortKeyColumnNumbers(0),
+			combineNode.getPactContract().getSecondarySortKeyClasses());
 
 		// assign the memory
 		assignMemory(combineConfig, combineNode.getMemoryPerTask());
@@ -489,7 +491,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// set contract's key information
 		PactRecordComparatorFactory.writeComparatorSetupToConfig(reduceConfig.getConfiguration(),
 			reduceConfig.getPrefixForInputParameters(0),
-			reduceNode.getPactContract().getKeyColumnNumbers(0), reduceNode.getPactContract().getKeyClasses());
+			reduceNode.getPactContract().getKeyColumnNumbers(0), reduceNode.getPactContract().getKeyClasses(),
+			reduceNode.getPactContract().getSecondarySortKeyColumnNumbers(0),
+			reduceNode.getPactContract().getSecondarySortKeyClasses());
 
 		// set local strategy
 		switch (reduceNode.getLocalStrategy()) {
@@ -536,11 +540,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// write key parameters
 		PactRecordComparatorFactory.writeComparatorSetupToConfig(matchConfig.getConfiguration(),
 			matchConfig.getPrefixForInputParameters(0),
-			matchContract.getKeyColumnNumbers(0), matchContract.getKeyClasses());
+			matchContract.getKeyColumnNumbers(0), matchContract.getKeyClasses(),
+			matchContract.getSecondarySortKeyColumnNumbers(0), matchContract.getSecondarySortKeyClasses());
 		
 		PactRecordComparatorFactory.writeComparatorSetupToConfig(matchConfig.getConfiguration(),
 			matchConfig.getPrefixForInputParameters(1),
-			matchContract.getKeyColumnNumbers(1), matchContract.getKeyClasses());
+			matchContract.getKeyColumnNumbers(1), matchContract.getKeyClasses(),
+			matchContract.getSecondarySortKeyColumnNumbers(1), matchContract.getSecondarySortKeyClasses());
 
 		switch (matchNode.getLocalStrategy())
 		{
@@ -663,11 +669,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// write key parameters
 		PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
 			coGroupConfig.getPrefixForInputParameters(0),
-			coGroupContract.getKeyColumnNumbers(0), coGroupContract.getKeyClasses());
+			coGroupContract.getKeyColumnNumbers(0), coGroupContract.getKeyClasses(),
+			coGroupContract.getSecondarySortKeyColumnNumbers(0), coGroupContract.getSecondarySortKeyClasses());
 		
 		PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
 			coGroupConfig.getPrefixForInputParameters(1),
-			coGroupContract.getKeyColumnNumbers(1), coGroupContract.getKeyClasses());
+			coGroupContract.getKeyColumnNumbers(1), coGroupContract.getKeyClasses(),
+			coGroupContract.getSecondarySortKeyColumnNumbers(1), coGroupContract.getSecondarySortKeyClasses());
 
 		// set local strategy
 		switch (coGroupNode.getLocalStrategy()) {
@@ -1172,6 +1180,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		
 		final int[] keyPositions;
 		final Class<? extends Key>[] keyTypes;
+		final int[] secondarySortKeyPositions;
+		final Class<? extends Key>[] secondarySortKeyTypes;
 		
 		final Contract targetContract = connection.getTargetPact().getPactContract();
 		if (targetContract instanceof AbstractPact<?>) {
@@ -1192,6 +1202,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				keyPositions = pact.getKeyColumnNumbers(inputNumber-1);
 				keyTypes = pact.getKeyClasses();	
 			}
+			secondarySortKeyPositions = pact.getSecondarySortKeyColumnNumbers(inputNumber-1);
+			secondarySortKeyTypes = pact.getSecondarySortKeyClasses();	
 		} else if (targetContract instanceof GenericDataSink) {
 			final Ordering o = ((GenericDataSink) targetContract).getPartitionOrdering();
 			if (o != null) {
@@ -1206,9 +1218,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				keyPositions = null;
 				keyTypes = null;
 			}
+			secondarySortKeyPositions = null;
+			secondarySortKeyTypes = null;
 		} else {
 			keyPositions = null;
 			keyTypes = null;
+			secondarySortKeyPositions = null;
+			secondarySortKeyTypes = null;
 		}
 
 		final TaskConfig configForOutpuShipStrategy;
@@ -1277,7 +1293,8 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			final int outputNum = configForOutpuShipStrategy.getNumOutputs() - 1;
 			configForOutpuShipStrategy.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, outputNum);
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(configForOutpuShipStrategy.getConfiguration(),
-				configForOutpuShipStrategy.getPrefixForOutputParameters(outputNum), keyPositions, keyTypes);
+				configForOutpuShipStrategy.getPrefixForOutputParameters(outputNum), keyPositions, keyTypes,
+				secondarySortKeyPositions, secondarySortKeyTypes);
 		}
 		
 		if (targetContract instanceof GenericDataSink) {
