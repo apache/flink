@@ -66,19 +66,19 @@ public class Play {
     JobTaskVertex head = createTask(BulkIterationHeadPactTask.class, "BulkIterationHead", jobGraph, degreeOfParallelism);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
-    headConfig.setStubClass(PlusOneMapStub.class);
+    headConfig.setStubClass(AppendMapper.AppendHeadMapper.class);
     headConfig.setMemorySize(10 * MEGABYTE);
 
     JobTaskVertex intermediate = createTask(BulkIterationIntermediatePactTask.class, "BulkIntermediate", jobGraph,
         degreeOfParallelism);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
     intermediateConfig.setDriver(MapDriver.class);
-    intermediateConfig.setStubClass(TimesThreeMapStub.class);
+    intermediateConfig.setStubClass(AppendMapper.AppendIntermediateMapper.class);
 
     JobTaskVertex tail = createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph, degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setDriver(MapDriver.class);
-    tailConfig.setStubClass(TimesTwoMapStub.class);
+    tailConfig.setStubClass(AppendMapper.AppendTailMapper.class);
 
     JobOutputVertex output = createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());

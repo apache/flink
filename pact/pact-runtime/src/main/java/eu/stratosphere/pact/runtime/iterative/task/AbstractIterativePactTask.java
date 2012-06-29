@@ -21,14 +21,15 @@ import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.event.Callback;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 
-import java.io.IOException;
 
 public abstract class AbstractIterativePactTask<S extends Stub, OT> extends RegularPactTask<S, OT> {
 
@@ -41,34 +42,39 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
   }
 
-  protected void listenToTermination(final Callback<TerminationEvent> callback) {
-    //TODO use correct input gate
-    getEnvironment().getInputGate(0).subscribeToEvent(new EventListener() {
-      @Override
-      public void eventOccurred(AbstractTaskEvent event) {
-        try {
-          callback.execute((TerminationEvent) event);
-        } catch (Exception e) {
-          //TODO do something meaningful here
-          e.printStackTrace(System.out);
-        }
-      }
-    }, TerminationEvent.class);
+  @Override
+  public <X> MutableObjectIterator<X> getInput(int index) {
+    //TODO check whether this is an iteration input!!!
+    //TODO type safety
+    InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
+        (MutableObjectIterator<X>) super.getInput(index), getClass().getSimpleName());
+
+    getEnvironment().getInputGate(index).subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
+
+    return interruptingIterator;
   }
 
-  protected void listenToEndOfSuperstep(final Callback<EndOfSuperstepEvent> callback) {
+  protected void listenToTermination(Callback<TerminationEvent> callback) {
+    listenToEvent(TerminationEvent.class, callback);
+  }
+
+  protected void listenToEndOfSuperstep(Callback<EndOfSuperstepEvent> callback) {
+    listenToEvent(EndOfSuperstepEvent.class, callback);
+  }
+
+  private <E extends AbstractTaskEvent> void listenToEvent(Class<E> eventClass, final Callback<E> callback) {
     //TODO use correct input gate
     getEnvironment().getInputGate(0).subscribeToEvent(new EventListener() {
       @Override
       public void eventOccurred(AbstractTaskEvent event) {
         try {
-          callback.execute((EndOfSuperstepEvent) event);
+          callback.execute((E) event);
         } catch (Exception e) {
           //TODO do something meaningful here
           e.printStackTrace(System.out);
         }
       }
-    }, EndOfSuperstepEvent.class);
+    }, eventClass);
   }
 
   //TODO move up to RegularPactTask

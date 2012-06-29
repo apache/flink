@@ -21,10 +21,21 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.iterative.event.Callback;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
+import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 
 import java.io.IOException;
 
 public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
+
+  private int numIterations = 0;
+  private boolean terminated = false;
+
+  @Override
+  protected ReaderInterruptionBehavior readerInterruptionBehavior() {
+    return ReaderInterruptionBehaviors.FALSE_ON_INTERRUPT;
+  }
+
 
   @Override
   public void invoke() throws Exception {
@@ -40,13 +51,29 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
       @Override
       public void execute(TerminationEvent event) throws Exception {
         propagateEvent(event);
+        terminated = true;
       }
     });
 
-    super.invoke();
+    boolean inFirstIteration = true;
+
+    while (!terminated/* && numIterations < 5*/) {
+
+      System.out.println("Intermediate: starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (!inFirstIteration) {
+        reinstantiateDriver();
+        inFirstIteration = false;
+      }
+
+      super.invoke();
+
+      System.out.println("Intermediate: finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      numIterations++;
+    }
   }
 
   private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
+    System.out.println("Intermediate: got " + event.getClass().getSimpleName() + " [" + System.currentTimeMillis() + "]");
     for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
       eventualOutput.publishEvent(event);
     }

@@ -25,6 +25,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.pact.runtime.task.util.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -50,14 +51,7 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
-import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
-import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
 import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
-import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
-import eu.stratosphere.pact.runtime.task.util.PactRecordOutputEmitter;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
  * The abstract base class for all Pact tasks. Encapsulated common behavior and implements the main life-cycle
@@ -327,13 +321,15 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				// non-union case
 				if (serializerFactory.getDataType() == PactRecord.class) {
 					// have a special case for the PactRecord serialization
-					inputs[i] = new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
+					inputs[i] = new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this),
+              readerInterruptionBehavior());
 				} else {
 					// generic data type serialization
 					final MutableRecordReader<DeserializationDelegate<?>> reader =
 													new MutableRecordReader<DeserializationDelegate<?>>(this);
 					@SuppressWarnings({ "unchecked", "rawtypes" })
-					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i]);
+					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i],
+              readerInterruptionBehavior());
 					inputs[i] = iter;
 				}
 			} else {
@@ -345,7 +341,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					for (int j = 0; j < groupSize; ++j) {
 						readers[j] = new MutableRecordReader<PactRecord>(this);
 					}
-					inputs[i] = new PactRecordNepheleReaderIterator(new MutableUnionRecordReader<PactRecord>(readers));
+					inputs[i] = new PactRecordNepheleReaderIterator(new MutableUnionRecordReader<PactRecord>(readers),
+              readerInterruptionBehavior());
 				} else {
 					@SuppressWarnings("unchecked")
 					MutableRecordReader<DeserializationDelegate<?>>[] readers = new MutableRecordReader[groupSize];
@@ -354,7 +351,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					}
 					final MutableUnionRecordReader<DeserializationDelegate<?>> reader = new MutableUnionRecordReader<DeserializationDelegate<?>>(readers);
 					@SuppressWarnings({ "unchecked", "rawtypes" })
-					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i]);
+					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i],
+              readerInterruptionBehavior());
 					inputs[i] = iter;
 				}
 			}
@@ -388,6 +386,10 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		this.inputComparators = inputComparators;
 	}
 
+  /** the default behavior that readers use on interrupts */
+  protected ReaderInterruptionBehavior readerInterruptionBehavior() {
+    return ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
+  }
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategies for each writer.

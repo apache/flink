@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,24 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.playing;
+package eu.stratosphere.pact.runtime.task.util;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MapStub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactString;
+import java.io.IOException;
 
-@Deprecated
-public class TimesThreeMapStub extends MapStub {
-  @Override
-  public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
+public class ReaderInterruptionBehaviors {
 
-    PactString field = record.getField(0, PactString.class);
-    int value = Integer.parseInt(field.getValue());
+  private ReaderInterruptionBehaviors() {}
 
-    System.out.println("map " + value + " --> " + (value * 3));
+  public static final ReaderInterruptionBehavior EXCEPTION_ON_INTERRUPT = new ReaderInterruptionBehavior() {
+    @Override
+    public boolean onInterrupt(InterruptedException e) throws IOException {
+      throw new IOException("Reader was interrupted.", e);
+    }
+  };
 
-    record.setField(0, new PactString(String.valueOf(value * 3)));
-    out.collect(record);
-  }
+  public static final ReaderInterruptionBehavior FALSE_ON_INTERRUPT = new ReaderInterruptionBehavior() {
+    @Override
+    public boolean onInterrupt(InterruptedException e) throws IOException {
+      return false;
+    }
+  };
 }

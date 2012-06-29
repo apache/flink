@@ -29,17 +29,32 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  */
 public final class PactRecordNepheleReaderIterator implements MutableObjectIterator<PactRecord>
 {
-	private final MutableReader<PactRecord> reader;		// the source
 
-	/**
+  private final MutableReader<PactRecord> reader;		// the source
+  private final ReaderInterruptionBehavior interruptionBehavior;
+
+  /**
 	 * Creates a new iterator, wrapping the given reader.
 	 * 
 	 * @param reader The reader to wrap.
 	 */
 	public PactRecordNepheleReaderIterator(MutableReader<PactRecord> reader)
 	{
-		this.reader = reader;
+		this(reader, ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT);
 	}
+
+  /**
+   * Creates a new iterator, wrapping the given reader.
+   *
+   * @param reader The reader to wrap.
+   * @param interruptionBehavior how to behave in case of an interruption
+   */
+  public PactRecordNepheleReaderIterator(MutableReader<PactRecord> reader, ReaderInterruptionBehavior
+      interruptionBehavior)
+  {
+    this.reader = reader;
+    this.interruptionBehavior = interruptionBehavior;
+  }
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.util.MutableObjectIterator#next(java.lang.Object)
@@ -51,7 +66,8 @@ public final class PactRecordNepheleReaderIterator implements MutableObjectItera
 			return this.reader.next(target);
 		}
 		catch (InterruptedException iex) {
-			throw new IOException("Reader was interrupted.");
+			return this.interruptionBehavior.onInterrupt(iex);
 		}
 	}
+
 }

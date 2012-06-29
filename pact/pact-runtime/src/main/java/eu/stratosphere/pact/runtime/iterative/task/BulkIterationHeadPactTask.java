@@ -142,7 +142,10 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
   private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {
     //TODO remove implicit assumption
     for (int outputIndex = 0; outputIndex < eventualOutputs.size() - 1; outputIndex++) {
-      eventualOutputs.get(outputIndex).publishEvent(event);
+      AbstractRecordWriter<?> recordWriter = eventualOutputs.get(outputIndex);
+      recordWriter.flush();
+      recordWriter.publishEvent(event);
+      recordWriter.flush();
     }
   }
 
