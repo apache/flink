@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.util.SerializableArrayList;
 public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 	private enum ReturnCode {
-		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY
+		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY, JOB_IS_ABORTING
 	};
 
 	// was request successful?
@@ -103,6 +103,11 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		return (this.returnCode == ReturnCode.FOUND_AND_RECEIVER_READY);
 	}
 
+	public boolean isJobAborting() {
+
+		return (this.returnCode == ReturnCode.JOB_IS_ABORTING);
+	}
+
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(final ChannelID targetChannelID) {
 
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
@@ -144,6 +149,13 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	public static ConnectionInfoLookupResponse createReceiverNotReady() {
 		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
 		response.setReturnCode(ReturnCode.FOUND_BUT_RECEIVER_NOT_READY);
+
+		return response;
+	}
+
+	public static ConnectionInfoLookupResponse createJobIsAborting() {
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
+		response.setReturnCode(ReturnCode.JOB_IS_ABORTING);
 
 		return response;
 	}
