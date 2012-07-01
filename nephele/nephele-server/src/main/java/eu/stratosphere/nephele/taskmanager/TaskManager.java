@@ -1007,32 +1007,31 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		return tmp.requestData(data);
 	}
-
+	
 	/**
 	 * Checks, whether the given strings describe existing directories that are writable. If that is not
 	 * the case, an exception is raised.
 	 * 
-	 * @param tempDirs
-	 *        An array of strings which are checked to be paths to writable directories.
-	 * @throws Exception
-	 *         Thrown, if any of the mentioned checks fails.
+	 * @param tempDirs An array of strings which are checked to be paths to writable directories.
+	 * @throws Exception Thrown, if any of the mentioned checks fails.
 	 */
-	private static final void checkTempDirs(String[] tempDirs) throws Exception {
+	private static final void checkTempDirs(String[] tempDirs) throws Exception
+	{
 		for (int i = 0; i < tempDirs.length; i++) {
 			final String dir = tempDirs[i];
 			if (dir == null) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is null.");
+				throw new Exception("Temporary file directory #" + (i+1) + " is null.");
 			}
-
+			
 			final File f = new File(dir);
 			if (!f.exists()) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " does not exist.");
+				throw new Exception("Temporary file directory #" + (i+1) + " does not exist.");
 			}
 			if (!f.isDirectory()) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is not a directory.");
+				throw new Exception("Temporary file directory #" + (i+1) + " is not a directory.");
 			}
 			if (!f.canWrite()) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is not writable.");
+				throw new Exception("Temporary file directory #" + (i+1) + " is not writable.");
 			}
 		}
 	}

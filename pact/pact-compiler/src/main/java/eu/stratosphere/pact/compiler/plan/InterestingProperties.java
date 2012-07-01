@@ -29,8 +29,6 @@ import eu.stratosphere.pact.compiler.LocalProperties;
  * purpose to tell the preceding nodes, which data properties might have the advantage, because they would
  * let the node fulfill its pact cheaper. More on optimization with interesting properties can be found
  * in the works on the volcano- and cascades optimizer framework.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class InterestingProperties implements Cloneable {
 	private Costs maximalCosts; // the maximal costs that it may take to establish these
@@ -199,8 +197,10 @@ public class InterestingProperties implements Cloneable {
 	 * @see java.lang.Object#clone()
 	 */
 	@Override
-	public InterestingProperties clone() throws CloneNotSupportedException {
-		return new InterestingProperties(maximalCosts.clone(), globalProps.clone(), localProps.clone());
+	public InterestingProperties clone()
+	{
+		return new InterestingProperties(maximalCosts.createCopy(), 
+			globalProps.createCopy(), localProps.createCopy());
 	}
 
 	// ------------------------------------------------------------------------
@@ -239,11 +239,7 @@ public class InterestingProperties implements Cloneable {
 
 		// if it was not subsumes, add it
 		if (!subsumed) {
-			try {
-				properties.add(toMerge.clone());
-			} catch (CloneNotSupportedException e) {
-				// can never happen
-			}
+			properties.add(toMerge.clone());
 		}
 	}
 

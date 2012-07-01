@@ -56,7 +56,7 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 	 * @see eu.stratosphere.pact.common.generic.types.TypeComparatorFactory#createComparator(eu.stratosphere.nephele.configuration.Configuration)
 	 */
 	@Override
-	public TypeComparator<PactRecord> createComparator(Configuration config, String keyPrefix, ClassLoader cl)
+	public PactRecordComparator createComparator(Configuration config, String keyPrefix, ClassLoader cl)
 	throws ClassNotFoundException
 	{
 		// figure out how many key fields there are

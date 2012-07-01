@@ -85,8 +85,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		boolean invalidExitCode = false;
 		try {
 			format.open(split);
-			// wait for process to start...
-			Thread.sleep(100);
+			format.waitForProcessToFinish();
 			format.close();
 		} catch (IOException e) {
 			Assert.fail();
