@@ -25,8 +25,6 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
-import eu.stratosphere.nephele.configuration.ConfigConstants;
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobmanager.JobManagerITCase;
@@ -131,14 +129,13 @@ public final class ServerTestUtils {
 	}
 
 	/**
-	 * Reads the path to the directory for temporary files from the configuration and returns it.
+	 * Returns the path to the directory for temporary files.
 	 * 
 	 * @return the path to the directory for temporary files
 	 */
 	public static String getTempDir() {
 
-		return GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":")[0];
+		return System.getProperty("java.io.tmpdir");
 	}
 
 	/**

@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.checkpointing;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.apache.commons.logging.Log;
@@ -40,8 +41,6 @@ public final class CheckpointUtils {
 
 	public static final String DISTRIBUTED_CHECKPOINT_PATH_KEY = "checkpoint.distributed.path";
 
-	public static final String DEFAULT_LOCAL_CHECKPOINT_PATH = "file:///tmp";
-
 	public static final String COMPLETED_CHECKPOINT_SUFFIX = "_final";
 
 	private static Path LOCAL_CHECKPOINT_PATH = null;
@@ -60,8 +59,13 @@ public final class CheckpointUtils {
 	public static Path getLocalCheckpointPath() {
 
 		if (LOCAL_CHECKPOINT_PATH == null) {
-			LOCAL_CHECKPOINT_PATH = new Path(GlobalConfiguration.getString(LOCAL_CHECKPOINT_PATH_KEY,
-				DEFAULT_LOCAL_CHECKPOINT_PATH));
+
+			String localCheckpointPath = GlobalConfiguration.getString(LOCAL_CHECKPOINT_PATH_KEY, null);
+			if (localCheckpointPath == null) {
+				LOCAL_CHECKPOINT_PATH = new Path(new File(System.getProperty("java.io.tmpdir")).toURI());
+			} else {
+				LOCAL_CHECKPOINT_PATH = new Path(localCheckpointPath);
+			}
 		}
 
 		return LOCAL_CHECKPOINT_PATH;

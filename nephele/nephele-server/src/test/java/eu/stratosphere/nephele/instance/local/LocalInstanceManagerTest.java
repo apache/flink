@@ -46,40 +46,40 @@ public class LocalInstanceManagerTest {
 	 */
 	@BeforeClass
 	public static void startDiscoveryService() {
-		
+
 		final String configDir = ServerTestUtils.getConfigDir();
-		if(configDir == null) {
+		if (configDir == null) {
 			fail("Cannot locate configuration directory");
 		}
-		
+
 		GlobalConfiguration.loadConfiguration(configDir);
-		
+
 		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		InetAddress bindAddress = null;
-		if(address != null) {
+		if (address != null) {
 			try {
 				bindAddress = InetAddress.getByName(address);
-			} catch(UnknownHostException e) {
+			} catch (UnknownHostException e) {
 				fail(e.getMessage());
 			}
 		}
-		
+
 		try {
 			DiscoveryService.startDiscoveryService(bindAddress, 5555);
-		} catch(DiscoveryException e) {
+		} catch (DiscoveryException e) {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	/**
 	 * Stops the discovery service after the tests.
 	 */
 	@AfterClass
 	public static void stopDiscoveryService() {
-		
+
 		DiscoveryService.stopDiscoveryService();
 	}
-	
+
 	/**
 	 * Checks if the local instance manager reads the default correctly from the configuration file.
 	 */
@@ -87,10 +87,10 @@ public class LocalInstanceManagerTest {
 	public void testInstanceTypeFromConfiguration() {
 
 		final String configDir = ServerTestUtils.getConfigDir();
-		if(configDir == null) {
+		if (configDir == null) {
 			fail("Cannot locate configuration directory");
 		}
-		
+
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
 
 		LocalInstanceManager lm = null;
@@ -107,8 +107,9 @@ public class LocalInstanceManagerTest {
 			assertEquals(160, defaultInstanceType.getDiskCapacity());
 			assertEquals(0, defaultInstanceType.getPricePerHour());
 
-		} catch(Exception e) {
-			Assert.fail("Instanciating LocalInstanceManager failed: "+e.getMessage());
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Instantiation of LocalInstanceManager failed: " + e.getMessage());
 		} finally {
 
 			if (lm != null) {

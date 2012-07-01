@@ -774,6 +774,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
 
+		final InternalJobStatus jobStatus = eg.getJobStatus();
+		if (jobStatus == InternalJobStatus.FAILING || jobStatus == InternalJobStatus.CANCELING) {
+			return ConnectionInfoLookupResponse.createJobIsAborting();
+		}
+
 		final ExecutionEdge edge = eg.getEdgeByID(sourceChannelID);
 		if (edge == null) {
 			LOG.error("Cannot find execution edge associated with ID " + sourceChannelID);
