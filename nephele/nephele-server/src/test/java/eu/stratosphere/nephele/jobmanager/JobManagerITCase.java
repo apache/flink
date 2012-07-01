@@ -459,8 +459,8 @@ public class JobManagerITCase {
 			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 			// add jar
-			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
-				+ ".jar"));
+			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
+				+ ".jar").toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
