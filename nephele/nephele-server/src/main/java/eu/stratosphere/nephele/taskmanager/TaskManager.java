@@ -863,12 +863,14 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	private void checkTaskExecution() {
 
-		final Iterator<Task> it = this.runningTasks.values().iterator();
+		final Iterator<Map.Entry<ExecutionVertexID, Task>> it = this.runningTasks.entrySet().iterator();
 		while (it.hasNext()) {
-			final Task task = it.next();
+			final Map.Entry<ExecutionVertexID, Task> task = it.next();
 
-			if (task.isTerminated()) {
-				task.markAsFailed();
+			if (task.getValue().isTerminated()) {
+				if (this.runningTasks.containsKey(task.getKey())) {
+					task.getValue().markAsFailed();
+				}
 			}
 		}
 	}
