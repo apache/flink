@@ -36,6 +36,21 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	private static String DEFAULT_NAME = "<Unnamed CoGrouper>";		// the default name for contracts
 	
 	/**
+	 * The classes that represent the secondary sort key data types.
+	 */
+	private Class<? extends Key>[] secondarySortKeyClasses;
+	
+	/**
+	 * The positions of the keys in the tuples of the first input.
+	 */
+	private int[] secondarySortKeyFields1;
+	
+	/**
+	 * The positions of the keys in the tuples of the second input.
+	 */
+	private int[] secondarySortKeyFields2;
+	
+	/**
 	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation
 	 * and a default name. The match is performed on a single key column.
 	 * 
@@ -86,8 +101,11 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	 * @param secondKeyColumns The positions of the keys in the second input's records.
 	 * @param name The name of PACT.
 	 */
+	@SuppressWarnings("unchecked")
 	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], String name) {
 		super(c, keyTypes, firstKeyColumns, secondKeyColumns, name);
+		this.secondarySortKeyClasses = (Class<? extends Key>[]) new Class[0];
+		this.secondarySortKeyFields1 = this.secondarySortKeyFields2 = new int[0];
 	}
 
 	/**
@@ -398,4 +416,51 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 		setSecondInputs(input2);
 	}
 
+	/**
+	 * Gets the types of the secondary sort key fields on which this contract groups.
+	 * 
+	 * @return The types of the key fields.
+	 */
+	public void setSecondarySortKeyClasses(Class<? extends Key>[] keys)
+	{
+		this.secondarySortKeyClasses = keys;
+	}
+	
+	/**
+	 * Gets the types of the secondary sort key fields on which this contract groups.
+	 * 
+	 * @return The types of the key fields.
+	 */
+	public Class<? extends Key>[] getSecondarySortKeyClasses()
+	{
+		return this.secondarySortKeyClasses;
+	}
+	
+	/**
+	 * Sets the column numbers of the key fields in the input records for the given input.
+	 */
+	public void setSecondarySortKeyColumnNumbers(int inputNum, int[] positions) {
+		if (inputNum == 0) {
+			this.secondarySortKeyFields1 = positions;
+		}
+		else if (inputNum == 1) {
+			this.secondarySortKeyFields2 = positions;
+		}
+		else throw new IndexOutOfBoundsException();
+	}
+	
+	/**
+	 * Gets the column numbers of the secondary sort key fields in the input records for the given input.
+	 *  
+	 * @return The column numbers of the key fields.
+	 */
+	public int[] getSecondarySortKeyColumnNumbers(int inputNum) {
+		if (inputNum == 0) {
+			return this.secondarySortKeyFields1;
+		}
+		else if (inputNum == 1) {
+			return this.secondarySortKeyFields2;
+		}
+		else throw new IndexOutOfBoundsException();
+	}
 }

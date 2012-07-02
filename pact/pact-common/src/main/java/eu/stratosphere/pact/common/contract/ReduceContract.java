@@ -38,6 +38,18 @@ import eu.stratosphere.pact.common.type.Key;
 public class ReduceContract extends SingleInputContract<ReduceStub>
 {	
 	private static final String DEFAULT_NAME = "<Unnamed Reducer>";	// the default name for contracts
+	
+	/**
+	 * The classes that represent the secondary sort key data types.
+	 */
+	private Class<? extends Key>[] secondarySortKeyClasses;
+	
+	/**
+	 * The positions of the secondary sort keys in the tuple.
+	 */
+	private int[] secondarySortKeyFields;
+
+	
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -87,8 +99,11 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * @param keyColumns The positions of the key fields in the input records.
 	 * @param name The name of PACT.
 	 */
+	@SuppressWarnings("unchecked")
 	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, String name) {
 		super(c, keyClasses, keyColumns, name);
+		this.secondarySortKeyClasses = (Class<? extends Key>[]) new Class[0];
+		this.secondarySortKeyFields = new int[0];
 	}
 
 	/**
@@ -257,4 +272,48 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
 	public @interface Combinable {};
+	
+	/**
+	 * Gets the types of the secondary sort key fields on which this contract groups.
+	 * 
+	 * @return The types of the key fields.
+	 */
+	public void setSecondarySortKeyClasses(Class<? extends Key>[] keys)
+	{
+		this.secondarySortKeyClasses = keys;
+	}
+	
+	/**
+	 * Gets the types of the secondary sort key fields on which this contract groups.
+	 * 
+	 * @return The types of the key fields.
+	 */
+	public Class<? extends Key>[] getSecondarySortKeyClasses()
+	{
+		return this.secondarySortKeyClasses;
+	}
+	
+	/**
+	 * Sets the column numbers of the key fields in the input records for the given input.
+	 */
+	public void setSecondarySortKeyColumnNumbers(int inputNum, int[] positions) {
+		if (inputNum == 0) {
+			this.secondarySortKeyFields = positions;
+		}
+		else throw new IndexOutOfBoundsException();
+	}
+	
+	/**
+	 * Gets the column numbers of the secondary sort key fields in the input records for the given input.
+	 *  
+	 * @return The column numbers of the key fields.
+	 */
+	public int[] getSecondarySortKeyColumnNumbers(int inputNum) {
+		if (inputNum == 0) {
+			return this.secondarySortKeyFields;
+		}
+		else throw new IndexOutOfBoundsException();
+	}
+
+	
 }

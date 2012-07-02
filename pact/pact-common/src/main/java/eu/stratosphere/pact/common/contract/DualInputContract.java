@@ -46,16 +46,6 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 */
 	private final int[] keyFields2;
 	
-	/**
-	 * The positions of the keys in the tuples of the first input.
-	 */
-	private int[] secondarySortKeyFields1;
-	
-	/**
-	 * The positions of the keys in the tuples of the second input.
-	 */
-	private int[] secondarySortKeyFields2;
-
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -68,7 +58,6 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	{
 		super(stubClass, name);
 		this.keyFields1 = this.keyFields2 = new int[0];
-		this.secondarySortKeyFields1 = this.secondarySortKeyFields2 = new int[0];
 	}
 	
 	/**
@@ -84,7 +73,6 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 		super(stubClass, keyTypes, name);
 		this.keyFields1 = keyPositions1;
 		this.keyFields2 = keyPositions2;
-		this.secondarySortKeyFields1 = this.secondarySortKeyFields2 = new int[0];
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -183,33 +171,6 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 		}
 		else if (inputNum == 1) {
 			return this.keyFields2;
-		}
-		else throw new IndexOutOfBoundsException();
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getSecondarySortKeyColumnNumbers(int)
-	 */
-	public void setSecondarySortKeyColumnNumbers(int inputNum, int[] positions) {
-		if (inputNum == 0) {
-			this.secondarySortKeyFields1 = positions;
-		}
-		else if (inputNum == 1) {
-			this.secondarySortKeyFields2 = positions;
-		}
-		else throw new IndexOutOfBoundsException();
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getSecondarySortKeyColumnNumbers(int)
-	 */
-	@Override
-	public int[] getSecondarySortKeyColumnNumbers(int inputNum) {
-		if (inputNum == 0) {
-			return this.secondarySortKeyFields1;
-		}
-		else if (inputNum == 1) {
-			return this.secondarySortKeyFields2;
 		}
 		else throw new IndexOutOfBoundsException();
 	}

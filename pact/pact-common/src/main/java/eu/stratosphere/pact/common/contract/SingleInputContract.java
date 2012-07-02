@@ -37,11 +37,6 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 */
 	private final int[] keyFields;
 	
-	/**
-	 * The positions of the secondary sort keys in the tuple.
-	 */
-	private int[] secondarySortKeyFields;
-
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -55,7 +50,6 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	{
 		super(stubClass, keyTypes, name);
 		this.keyFields = keyPositions;
-		this.secondarySortKeyFields = new int[0];
 	}
 	
 	/**
@@ -69,7 +63,6 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	{
 		super(stubClass, name);
 		this.keyFields = new int[0];
-		this.secondarySortKeyFields = new int[0];
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -144,27 +137,6 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 		else throw new IndexOutOfBoundsException();
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getSecondarySortKeyColumnNumbers(int)
-	 */
-	public void setSecondarySortKeyColumnNumbers(int inputNum, int[] positions) {
-		if (inputNum == 0) {
-			this.secondarySortKeyFields = positions;
-		}
-		else throw new IndexOutOfBoundsException();
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getSecondarySortKeyColumnNumbers(int)
-	 */
-	@Override
-	public int[] getSecondarySortKeyColumnNumbers(int inputNum) {
-		if (inputNum == 0) {
-			return this.secondarySortKeyFields;
-		}
-		else throw new IndexOutOfBoundsException();
-	}
-
 	// --------------------------------------------------------------------------------------------
 	
 	/**
