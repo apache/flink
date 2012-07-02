@@ -89,20 +89,6 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], String name) {
 		super(c, keyTypes, firstKeyColumns, secondKeyColumns, name);
 	}
-	
-	/**
-	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation 
-	 * and the given name. The match is performed on a single key column.
-	 * 
-	 * @param c The {@link CoGroupStub} implementation for this Match InputContract.
-	 * @param keyTypes The classes of the key data types.
-	 * @param firstKeyColumns The positions of the keys in the first input's records.
-	 * @param secondKeyColumns The positions of the keys in the second input's records.
-	 * @param name The name of PACT.
-	 */
-	public CoGroupContract(Class<? extends CoGroupStub> c, Class<? extends Key>[] keyTypes, int firstKeyColumns[], int secondKeyColumns[], Class<? extends Key>[] ssKeyTypes, int ssFirstKeyColumns[], int ssSecondKeyColumns[], String name) {
-		super(c, keyTypes, firstKeyColumns, secondKeyColumns, ssKeyTypes, ssFirstKeyColumns, ssSecondKeyColumns, name);
-	}
 
 	/**
 	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation the default name.

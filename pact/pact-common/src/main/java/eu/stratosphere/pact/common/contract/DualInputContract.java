@@ -49,12 +49,12 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	/**
 	 * The positions of the keys in the tuples of the first input.
 	 */
-	private final int[] secondarySortKeyFields1;
+	private int[] secondarySortKeyFields1;
 	
 	/**
 	 * The positions of the keys in the tuples of the second input.
 	 */
-	private final int[] secondarySortKeyFields2;
+	private int[] secondarySortKeyFields2;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -85,25 +85,6 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 		this.keyFields1 = keyPositions1;
 		this.keyFields2 = keyPositions2;
 		this.secondarySortKeyFields1 = this.secondarySortKeyFields2 = new int[0];
-	}
-	
-	/**
-	 * Creates a new abstract dual-input Pact with the given name wrapping the given user function.
-	 * This constructor is specialized only for Pacts that require no keys for their processing.
-	 * 
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
-	 * @param keyTypes The classes of the data types that act as keys in this stub.
-	 * @param stubClass The class containing the user function.
-	 */
-	protected DualInputContract(Class<? extends T> stubClass, Class<? extends Key>[] keyTypes, int[] keyPositions1, int[] keyPositions2,
-			Class<? extends Key>[] secondarySortKeyTypes, int[] secondarySortKeyPositions1, int[] secondarySortKeyPositions2, String name)
-	{
-		super(stubClass, keyTypes, secondarySortKeyTypes, name);
-		this.keyFields1 = keyPositions1;
-		this.keyFields2 = keyPositions2;
-		this.secondarySortKeyFields1 = secondarySortKeyPositions1;
-		this.secondarySortKeyFields2 = secondarySortKeyPositions2;
-		
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -202,6 +183,19 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 		}
 		else if (inputNum == 1) {
 			return this.keyFields2;
+		}
+		else throw new IndexOutOfBoundsException();
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getSecondarySortKeyColumnNumbers(int)
+	 */
+	public void setSecondarySortKeyColumnNumbers(int inputNum, int[] positions) {
+		if (inputNum == 0) {
+			this.secondarySortKeyFields1 = positions;
+		}
+		else if (inputNum == 1) {
+			this.secondarySortKeyFields2 = positions;
 		}
 		else throw new IndexOutOfBoundsException();
 	}

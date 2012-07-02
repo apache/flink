@@ -39,7 +39,7 @@ public abstract class AbstractPact<T extends Stub> extends Contract
 	/**
 	 * The classes that represent the secondary sort key data types.
 	 */
-	private final Class<? extends Key>[] secondarySortKeyClasses;
+	private Class<? extends Key>[] secondarySortKeyClasses;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -74,23 +74,6 @@ public abstract class AbstractPact<T extends Stub> extends Contract
 		this.secondarySortKeyClasses = (Class<? extends Key>[]) new Class[0];
 	}
 	
-	/**
-	 * Creates a new abstract Pact with the given name wrapping the given user function.
-	 * 
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
-	 * @param stubClass The class containing the user function.
-	 * @param keyClasses The classes describing the keys.
-	 * @param secondarySortKeyClasses The classes describing the secondary sort keys.
-	 */
-	protected AbstractPact(Class<? extends T> stubClass, Class<? extends Key>[] keyClasses,
-			Class<? extends Key>[] secondarySortKeyClasses, String name)
-	{
-		super(name);
-		this.stubClass = stubClass;
-		this.keyClasses = keyClasses;
-		this.secondarySortKeyClasses = secondarySortKeyClasses;
-	}
-	
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -117,6 +100,16 @@ public abstract class AbstractPact<T extends Stub> extends Contract
 	public Class<? extends Key>[] getKeyClasses()
 	{
 		return this.keyClasses;
+	}
+	
+	/**
+	 * Gets the types of the secondary sort key fields on which this contract groups.
+	 * 
+	 * @return The types of the key fields.
+	 */
+	public void setSecondarySortKeyClasses(Class<? extends Key>[] keys)
+	{
+		this.secondarySortKeyClasses = keys;
 	}
 	
 	/**

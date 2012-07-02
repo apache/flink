@@ -78,11 +78,6 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 		this(c, asArray(keyClass), new int[] {keyColumn}, name);
 	}
 	
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass,  int keyColumn,
-			Class<? extends Key> secondarySortKeyClass,  int secondarySortKeyColumn, String name) {
-		this(c, asArray(keyClass), new int[] {keyColumn}, asArray(secondarySortKeyClass), new int[] {secondarySortKeyColumn}, name);
-	}
-	
 	/**
 	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation 
 	 * and the given name. The reducer has a composite key on which it groups.
@@ -94,11 +89,6 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 */
 	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, String name) {
 		super(c, keyClasses, keyColumns, name);
-	}
-	
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns,
-			Class<? extends Key>[] secondarySortKeyClasses, int[] secondarySortKeyColumns, String name) {
-		super(c, keyClasses, keyColumns, secondarySortKeyClasses, secondarySortKeyColumns, name);
 	}
 
 	/**

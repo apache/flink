@@ -540,8 +540,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// write key parameters
 		PactRecordComparatorFactory.writeComparatorSetupToConfig(matchConfig.getConfiguration(),
 			matchConfig.getPrefixForInputParameters(0),
-			matchContract.getKeyColumnNumbers(0), matchContract.getKeyClasses(),
-			matchContract.getSecondarySortKeyColumnNumbers(0), matchContract.getSecondarySortKeyClasses());
+			matchContract.getKeyColumnNumbers(0), matchContract.getKeyClasses());
 		
 		PactRecordComparatorFactory.writeComparatorSetupToConfig(matchConfig.getConfiguration(),
 			matchConfig.getPrefixForInputParameters(1),

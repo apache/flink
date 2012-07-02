@@ -18,7 +18,6 @@ package eu.stratosphere.pact.example.secondarysort;
 import java.io.IOException;
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -40,7 +39,7 @@ import eu.stratosphere.pact.common.type.base.PactString;
  * 
  * @author Aljoscha Krettek
  */
-public class SecondarySort implements PlanAssembler, PlanAssemblerDescription {
+public class ReduceSecondarySort implements PlanAssembler, PlanAssemblerDescription {
 	/**
 	 * Writes <tt>PactRecord</tt> containing two integers (key, value) to a
 	 * file. The output format is: "&lt;key&gt; &lt;value&gt;\n"
@@ -120,7 +119,6 @@ public class SecondarySort implements PlanAssembler, PlanAssemblerDescription {
 	 */
 	@Override
 	public Plan getPlan(String... args) {
-/*
 		// parse job parameters
 		int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataInput = (args.length > 1 ? args[1] : "");
@@ -128,38 +126,11 @@ public class SecondarySort implements PlanAssembler, PlanAssemblerDescription {
 
 		FileDataSource source = new FileDataSource(TextInputFormat.class, dataInput, "Input Lines");
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
-		ReduceContract reducer = new ReduceContract(IdentityReducer.class, PactInteger.class, 0, PactInteger.class, 1,
-				"Identity");
+		ReduceContract reducer = new ReduceContract(IdentityReducer.class, PactInteger.class, 0);
+		reducer.setSecondarySortKeyClasses(new Class[] { PactInteger.class });
+		reducer.setSecondarySortKeyColumnNumbers(0, new int[] { 1 });
 		reducer.setInput(mapper);
 		FileDataSink out = new FileDataSink(SecondarySortOutFormat.class, output, reducer, "Sorted entries");
-
-		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII"); // comment
-																	// out this
-																	// line for
-																	// UTF-8
-																	// inputs
-
-		Plan plan = new Plan(out, "SecondarySort Example");
-		plan.setDefaultParallelism(noSubTasks);
-		return plan;
-*/
-
-		int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
-		String dataInput = (args.length > 1 ? args[1] : "");
-		String dataInput2 = (args.length > 2 ? args[2] : "");
-		String output = (args.length > 3 ? args[3] : "");
-
-		FileDataSource source = new FileDataSource(TextInputFormat.class, dataInput, "Input Lines");
-		// FileDataSource source2 = new FileDataSource(TextInputFormat.class,
-		// dataInput2, "Input Lines");
-		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
-		MapContract mapper2 = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
-		CoGroupContract coGroup = new CoGroupContract(IdentityCoGroup.class, new Class[] { PactInteger.class },
-				new int[] { 0 }, new int[] { 0 }, new Class[] { PactInteger.class }, new int[] { 1 }, new int[] { 1 },
-				"Identity");
-		coGroup.setFirstInput(mapper);
-		coGroup.setSecondInput(mapper2);
-		FileDataSink out = new FileDataSink(SecondarySortOutFormat.class, output, coGroup, "Sorted entries");
 
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII"); // comment
 																	// out this

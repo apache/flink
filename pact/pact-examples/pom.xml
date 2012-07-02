@@ -208,25 +208,46 @@
             </configuration>
           </execution>
 
-      <!-- SecondarySort -->
+      <!-- ReduceSecondarySort -->
           <execution>
-            <id>SecondarySort</id>
+            <id>ReduceSecondarySort</id>
             <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
             <configuration>
-              <classifier>SecondarySort</classifier>
+              <classifier>ReduceSecondarySort</classifier>
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact.example.secondarysort.SecondarySort</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.secondarysort.ReduceSecondarySort</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 
               <includes>
                 <include>**/secondarysort/*.class</include>
-                <include>**/util/AsciiUtils*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+          
+      <!-- CoGroupSecondarySort -->
+          <execution>
+            <id>CoGroupSecondarySort</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>CoGroupSecondarySort</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.secondarysort.CoGroupSecondarySort</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/secondarysort/*.class</include>
               </includes>
             </configuration>
           </execution>

@@ -40,7 +40,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	/**
 	 * The positions of the secondary sort keys in the tuple.
 	 */
-	private final int[] secondarySortKeyFields;
+	private int[] secondarySortKeyFields;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -56,21 +56,6 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 		super(stubClass, keyTypes, name);
 		this.keyFields = keyPositions;
 		this.secondarySortKeyFields = new int[0];
-	}
-	
-	/**
-	 * Creates a new abstract single-input Pact with the given name wrapping the given user function.
-	 * 
-	 * @param stubClass The class containing the user function.
-	 * @param keyTypes The classes of the data types that act as keys in this stub.
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
-	 */
-	protected SingleInputContract(Class<? extends T> stubClass, Class<? extends Key>[] keyTypes, int[] keyPositions,
-			Class<? extends Key>[] secondarySortKeyTypes, int[] secondarySortKeyPositions, String name)
-	{
-		super(stubClass, keyTypes, secondarySortKeyTypes, name);
-		this.keyFields = keyPositions;
-		this.secondarySortKeyFields = secondarySortKeyPositions;
 	}
 	
 	/**
@@ -155,6 +140,16 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	public int[] getKeyColumnNumbers(int inputNum) {
 		if (inputNum == 0) {
 			return this.keyFields;
+		}
+		else throw new IndexOutOfBoundsException();
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.AbstractPact#getSecondarySortKeyColumnNumbers(int)
+	 */
+	public void setSecondarySortKeyColumnNumbers(int inputNum, int[] positions) {
+		if (inputNum == 0) {
+			this.secondarySortKeyFields = positions;
 		}
 		else throw new IndexOutOfBoundsException();
 	}
