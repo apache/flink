@@ -28,14 +28,14 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
-import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
-import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
-import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.*;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -44,6 +44,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     implements PactTaskContext<S, OT> {
 
   private static final int ITERATION_INPUT = 0;
+  private static final Log log = LogFactory.getLog(BulkIterationHeadPactTask.class);
 
   /**
    * the iteration head prepares the backchannel: it allocates memory, instantiates a {@link BlockingBackChannel} and
@@ -81,51 +82,60 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     /** used for receiving the current iteration result from iteration tail */
     BlockingBackChannel backChannel = initBackChannel();
 
-    //TODO type safety
-    TypeSerializer serializer = getInputSerializer(ITERATION_INPUT);
-    output = (Collector<OT>) iterationCollector();
-    while (numIterations < 2) {
+    Broker<SuperstepBarrier> superstepBarrierBroker = SuperstepBarrierBroker.instance();
 
-      System.out.println("Head: starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+
+    TypeSerializer serializer = getInputSerializer(ITERATION_INPUT);
+    //TODO type safety
+    output = (Collector<OT>) iterationCollector();
+
+    while (numIterations < 3) {
+
+      log.info("Head: starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
 
       if (numIterations > 0) {
         // reinstantiate driver
         reinstantiateDriver();
       }
 
+      SuperstepBarrier superstepBarrier = superstepBarrierBroker.get(identifier());
+
       super.invoke();
       // signal to connected tasks that we are done with the superstep
-      sendEventToAllIterationOutputs(new EndOfSuperstepEvent());
+      sendEventToAllIterationOutputsAndSync(new EndOfSuperstepEvent());
 
       // blocking call to wait for the result
       DataInputView superStepResult = backChannel.getReadEndAfterSuperstepEnded();
-      System.out.println("Head: finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      log.info("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+
+      log.info("waiting for other works in iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      superstepBarrier.waitForOthers();
 
       feedBackSuperstepResult(superStepResult, serializer);
 
       numIterations++;
     }
     // signal to connected tasks that the iteration terminated
-    sendEventToAllIterationOutputs(new TerminationEvent());
+    sendEventToAllIterationOutputsAndSync(new TerminationEvent());
 
-    System.out.println("Head: streaming out final result [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+    log.info("streaming out final result [" + numIterations + "] [" + System.currentTimeMillis() + "]");
     streamOutFinalOutput();
   }
 
   // send output to all but the last connected task while iterating
   private Collector<PactRecord> iterationCollector() {
     int numOutputs = eventualOutputs.size();
-    Preconditions.checkState(numOutputs > 1);
+    Preconditions.checkState(numOutputs > 2);
     List<AbstractRecordWriter<PactRecord>> writers = Lists.newArrayListWithCapacity(numOutputs - 1);
-    for (int n = 0; n < numOutputs - 1; n++) {
+    for (int outputIndex = 0; outputIndex < numOutputs - 2; outputIndex++) {
       //TODO type safety
-      writers.add((AbstractRecordWriter<PactRecord>) eventualOutputs.get(n));
+      writers.add((AbstractRecordWriter<PactRecord>) eventualOutputs.get(outputIndex));
     }
     return new PactRecordOutputCollector(writers);
   }
 
   private void streamOutFinalOutput() throws IOException, InterruptedException {
-
+    //TODO type safety
     Writer<PactRecord> writer = (AbstractRecordWriter<PactRecord>) eventualOutputs.get(eventualOutputs.size() - 1);
     MutableObjectIterator<PactRecord> results = (MutableObjectIterator<PactRecord>) inputs[ITERATION_INPUT];
 
@@ -139,13 +149,10 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     inputs[ITERATION_INPUT] = new InputViewIterator(superStepResult, serializer);
   }
 
-  private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {
+  private void sendEventToAllIterationOutputsAndSync(AbstractTaskEvent event) throws IOException, InterruptedException {
     //TODO remove implicit assumption
     for (int outputIndex = 0; outputIndex < eventualOutputs.size() - 1; outputIndex++) {
-      AbstractRecordWriter<?> recordWriter = eventualOutputs.get(outputIndex);
-      recordWriter.flush();
-      recordWriter.publishEvent(event);
-      recordWriter.flush();
+      flushAndPublishEvent(eventualOutputs.get(outputIndex), event);
     }
   }
 

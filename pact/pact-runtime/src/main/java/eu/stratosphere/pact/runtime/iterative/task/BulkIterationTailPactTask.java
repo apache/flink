@@ -20,12 +20,13 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
 import eu.stratosphere.pact.runtime.iterative.event.Callback;
-import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 
 public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
@@ -33,6 +34,8 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
 
   private int numIterations = 0;
   private boolean terminated = false;
+
+  private static final Log log = LogFactory.getLog(BulkIterationTailPactTask.class);
 
   @Override
   protected ReaderInterruptionBehavior readerInterruptionBehavior() {
@@ -48,22 +51,13 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
   @Override
   public void invoke() throws Exception {
 
-    boolean inFirstIteration = true;
     // Initially retreive the backchannel from the iteration head
     final BlockingBackChannel backChannel = retrieveBackChannel();
-    // register 'end-of-superstep' listener
- /*   listenToEndOfSuperstep(new Callback<EndOfSuperstepEvent>() {
-      @Override
-      public void execute(EndOfSuperstepEvent event) {
-        System.out.println("Tail: received endOfSuperstep [" + System.currentTimeMillis() + "]");
-        backChannel.notifyOfEndOfSuperstep();
-      }
-    });*/
 
     listenToTermination(new Callback<TerminationEvent>() {
       @Override
       public void execute(TerminationEvent event) throws Exception {
-        System.out.println("Tail: received termination [" + System.currentTimeMillis() + "]");
+        log.info("received termination [" + System.currentTimeMillis() + "]");
         terminated = true;
       }
     });
@@ -71,17 +65,16 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
     // redirect output to the backchannel
     output = new DataOutputCollector<OT>(backChannel.getWriteEnd(), createOutputTypeSerializer());
 
-    while (!terminated /* && numIterations < 5*/) {
+    while (!terminated) {
 
-      System.out.println("Tail: starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
-      if (!inFirstIteration) {
+      log.info("starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (numIterations > 0) {
         reinstantiateDriver();
-        inFirstIteration = false;
       }
 
       super.invoke();
 
-      System.out.println("Tail: finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      log.info("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
       backChannel.notifyOfEndOfSuperstep();
 
       numIterations++;

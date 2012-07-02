@@ -17,6 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.task;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Stub;
@@ -30,7 +31,9 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 
+import java.io.IOException;
 
+/** base class for all tasks able to participate in an iteration */
 public abstract class AbstractIterativePactTask<S extends Stub, OT> extends RegularPactTask<S, OT> {
 
   protected String identifier() {
@@ -75,6 +78,13 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
         }
       }
     }, eventClass);
+  }
+
+  protected void flushAndPublishEvent(AbstractRecordWriter<?> writer, AbstractTaskEvent event)
+      throws IOException, InterruptedException {
+    writer.flush();
+    writer.publishEvent(event);
+    writer.flush();
   }
 
   //TODO move up to RegularPactTask

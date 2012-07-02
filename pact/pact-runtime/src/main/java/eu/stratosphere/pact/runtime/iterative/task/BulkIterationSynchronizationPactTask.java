@@ -15,9 +15,10 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrierBroker;
 import eu.stratosphere.pact.runtime.iterative.event.Callback;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
@@ -26,14 +27,14 @@ import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.io.IOException;
+public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
-public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
-
-  private int numIterations = 0;
   private boolean terminated = false;
+  private int numIterations = 0;
 
-  private static final Log log = LogFactory.getLog(BulkIterationIntermediatePactTask.class);
+  private SuperstepBarrier superstepBarrier;
+
+  private static final Log log = LogFactory.getLog(BulkIterationSynchronizationPactTask.class);
 
   @Override
   protected ReaderInterruptionBehavior readerInterruptionBehavior() {
@@ -46,17 +47,21 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
     listenToEndOfSuperstep(new Callback<EndOfSuperstepEvent>() {
       @Override
       public void execute(EndOfSuperstepEvent event) throws Exception {
-        propagateEvent(event);
+        log.info("received endOfSuperStep [" + System.currentTimeMillis() + "]");
+        superstepBarrier.signalWorkerDone();
       }
     });
 
     listenToTermination(new Callback<TerminationEvent>() {
       @Override
       public void execute(TerminationEvent event) throws Exception {
-        propagateEvent(event);
+        log.info("received termination [" + System.currentTimeMillis() + "]");
         terminated = true;
       }
     });
+
+    Broker<SuperstepBarrier> superstepBarrierBroker = SuperstepBarrierBroker.instance();
+    int numSubtasks = getEnvironment().getCurrentNumberOfSubtasks();
 
     while (!terminated) {
 
@@ -65,18 +70,13 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
         reinstantiateDriver();
       }
 
+      superstepBarrier = new SuperstepBarrier(numSubtasks);
+      superstepBarrierBroker.handIn(identifier(), superstepBarrier);
+
       super.invoke();
 
       log.info("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
       numIterations++;
     }
   }
-
-  private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-    log.info("got " + event.getClass().getSimpleName() + " [" + System.currentTimeMillis() + "]");
-    for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
-      flushAndPublishEvent(eventualOutput, event);
-    }
-  }
-
 }

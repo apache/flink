@@ -18,13 +18,22 @@ package eu.stratosphere.pact.runtime.iterative.io;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 
+/**
+ * a delegating {@link MutableObjectIterator} that interrupts the current thread when a given event occurs,
+ * this is necessary to repetitively read channels when executing iterative data flows. The wrapped iterator must return false
+ * on interruption, see {@link eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors}
+ */
 public class InterruptingMutableObjectIterator<E> implements MutableObjectIterator<E>, EventListener {
 
   private final MutableObjectIterator<E> delegate;
   private final String owner;
+
+  private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
 
   public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, String owner) {
     this.delegate = delegate;
@@ -34,7 +43,7 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
   @Override
   public void eventOccurred(AbstractTaskEvent event) {
     //TODO this class has to know how many events to receive until interruption!
-    System.out.println("InterruptibleIterator of " + owner + " received " + event.getClass().getSimpleName() +
+    log.info("InterruptibleIterator of " + owner + " received " + event.getClass().getSimpleName() +
         " [" + System.currentTimeMillis() + "]");
     Thread.currentThread().interrupt();
   }

@@ -32,9 +32,7 @@ import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationIntermediatePactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.*;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -80,18 +78,28 @@ public class Play {
     tailConfig.setDriver(MapDriver.class);
     tailConfig.setStubClass(AppendMapper.AppendTailMapper.class);
 
+    JobTaskVertex sync = createTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSynch", jobGraph,
+        degreeOfParallelism);
+    TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
+    syncConfig.setDriver(MapDriver.class);
+    syncConfig.setStubClass(EmptyMapStub.class);
+
     JobOutputVertex output = createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
     outputConfig.setStubClass(PlayOutFormat.class);
     outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, "file:///tmp/stratosphere/iterations");
 
+
     JobOutputVertex tailBlindOutput = createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
+    JobOutputVertex syncBlindOutput = createFakeOutput(jobGraph, "FakeSyncOutput", degreeOfParallelism);
 
     connectLocal(input, head, inputConfig);
     connectLocal(head, intermediate, headConfig);
-    connectLocal(intermediate, tail, intermediateConfig);
+    connectLocal(head, sync, headConfig);
     connectLocal(head, output, headConfig);
+    connectLocal(intermediate, tail, intermediateConfig);
     connectLocal(tail, tailBlindOutput, tailConfig);
+    connectLocal(sync, syncBlindOutput, syncConfig);
 
     head.setVertexToShareInstancesWith(tail);
 
