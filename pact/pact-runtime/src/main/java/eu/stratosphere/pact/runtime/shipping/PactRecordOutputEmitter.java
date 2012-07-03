@@ -13,12 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.task.util;
+package eu.stratosphere.pact.runtime.shipping;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.contract.DataDistribution;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 
 /**
  * @author Erik Nijkamp
@@ -33,27 +34,21 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 
 	private static final byte[] DEFAULT_SALT = new byte[] { 17, 31, 47, 51, 83, 1 };
 	
-	private final ShipStrategy strategy;		// the shipping strategy used by this output emitter
+	private final ShipStrategy strategy;			// the shipping strategy used by this output emitter
 	
-	private int[] channels;						// the reused array defining target channels
+	private final PactRecordComparator comparator;	// the comparator for hashing / sorting
 	
-	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
+	private int[] channels;							// the reused array defining target channels
 	
-	private final TypeComparator<PactRecord> comparator;	// the comparator for hashing / sorting
+	private Key[][] partitionBoundaries;		// the partition boundaries for range partitioning
 	
-	private final byte[] salt;					// the salt used to randomize the hash values
+	private final DataDistribution distribution;
+	
+	private int nextChannelToSendTo;				// counter to go over channels round robin
 
 	// ------------------------------------------------------------------------
 	// Constructors
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Creates a new channel selector that distributes data round robin.
-	 */
-	public PactRecordOutputEmitter()
-	{
-		this(ShipStrategy.NONE);
-	}
 
 	/**
 	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...).
@@ -72,9 +67,9 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	 * @param strategy The distribution strategy to be used.
 	 * @param comparator The comparator used to hash / compare the records.
 	 */
-	public PactRecordOutputEmitter(ShipStrategy strategy, TypeComparator<PactRecord> comparator)
+	public PactRecordOutputEmitter(ShipStrategy strategy, PactRecordComparator comparator)
 	{
-		this(strategy, comparator, DEFAULT_SALT);
+		this(strategy, comparator, null);
 	}
 
 	/**
@@ -83,16 +78,33 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	 * 
 	 * @param strategy The distribution strategy to be used.
 	 * @param comparator The comparator used to hash / compare the records.
-	 * @param salt The salt to use to randomize the hashes.
+	 * @param distr The distribution pattern used in the case of a range partitioning.
 	 */
-	public PactRecordOutputEmitter(ShipStrategy strategy, TypeComparator<PactRecord> comparator, byte[] salt)
+	public PactRecordOutputEmitter(ShipStrategy strategy, PactRecordComparator comparator, DataDistribution distr)
 	{
-		if (strategy == null | salt == null) { 
+		if (strategy == null) { 
 			throw new NullPointerException();
 		}
+		
 		this.strategy = strategy;
-		this.salt = salt;
 		this.comparator = comparator;
+		this.distribution = distr;
+		
+		switch (strategy) {
+		case FORWARD:
+		case PARTITION_HASH:
+		case PARTITION_LOCAL_HASH:
+		case PARTITION_RANGE:
+			this.channels = new int[1];
+			break;
+		case BROADCAST:
+			break;
+		default:
+			throw new IllegalArgumentException("Invalid shipping strategy for OutputEmitter: " + strategy.name());
+		}
+		
+		if ((strategy == ShipStrategy.PARTITION_LOCAL_RANGE || strategy == ShipStrategy.PARTITION_RANGE) && distr == null)
+			throw new NullPointerException("Data distribution must not be null when the ship strategy is range partitioning.");
 	}
 
 	// ------------------------------------------------------------------------
@@ -112,6 +124,8 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 		case PARTITION_HASH:
 		case PARTITION_LOCAL_HASH:
 			return hashPartitionDefault(record, numberOfChannels);
+		case PARTITION_RANGE:
+			return rangePartiton(record, numberOfChannels);
 		case BROADCAST:
 			return broadcast(numberOfChannels);
 		default:
@@ -123,40 +137,71 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 
 	private final int[] robin(int numberOfChannels)
 	{
-		if (this.channels == null || this.channels.length != 1) {
-			this.channels = new int[1];
-		}
-		
-		int nextChannel = nextChannelToSendTo + 1;
-		nextChannel = nextChannel < numberOfChannels ? nextChannel : 0;
-		
-		this.nextChannelToSendTo = nextChannel;
-		this.channels[0] = nextChannel;
+		final int channel = this.nextChannelToSendTo;
+		this.nextChannelToSendTo = channel > 0 ? channel - 1 : numberOfChannels - 1;
+		this.channels[0] = channel;
 		return this.channels;
 	}
 
 	private final int[] broadcast(int numberOfChannels)
 	{
-		if (channels == null || channels.length != numberOfChannels) {
-			channels = new int[numberOfChannels];
-			for (int i = 0; i < numberOfChannels; i++)
-				channels[i] = i;
-		}
-
-		return channels;
-	}
-
-	private final int[] hashPartitionDefault(PactRecord record, int numberOfChannels)
-	{
-		if (channels == null || channels.length != 1) {
-			channels = new int[1];
+		if (this.channels == null || this.channels.length != numberOfChannels) {
+			this.channels = new int[numberOfChannels];
+			for (int i = 0; i < numberOfChannels; i++) {
+				this.channels[i] = i;
+			}
 		}
 		
+		return this.channels;
+	}
+
+	private final int[] hashPartitionDefault(final PactRecord record, int numberOfChannels)
+	{
 		int hash = this.comparator.hash(record);
-		for (int i = 0; i < this.salt.length; i++) {
-			hash ^= ((hash << 5) + this.salt[i] + (hash >> 2));
+		for (int i = 0; i < DEFAULT_SALT.length; i++) {
+			hash ^= ((hash << 5) + DEFAULT_SALT[i] + (hash >> 2));
 		}
 		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
 		return this.channels;
+	}
+	
+	private final int[] rangePartiton(final PactRecord record, int numberOfChannels)
+	{
+		if (this.partitionBoundaries == null) {
+			this.partitionBoundaries = new Key[numberOfChannels - 1][];
+			for (int i = 0; i < numberOfChannels - 1; i++) {
+				final PactRecord boundary = this.distribution.getBucketBoundary(i, numberOfChannels);
+				this.partitionBoundaries[i] = comparator.getKeysAsCopy(boundary);
+			}
+		}
+		
+		if (numberOfChannels == this.partitionBoundaries.length + 1) {
+			final Key[][] boundaries = this.partitionBoundaries;
+			this.comparator.setReference(record);
+			
+			// bin search the bucket
+			int low = 0;
+			int high = this.partitionBoundaries.length - 1;
+			
+			while (low <= high) {
+				final int mid = (low + high) >>> 1;
+				final int result = this.comparator.compareAgainstReference(boundaries[mid]);
+				
+				if (result < 0) {
+					low = mid + 1;
+				} else if (result > 0) {
+					high = mid - 1;
+				} else {
+					this.channels[0] = mid;
+					return this.channels;
+				}
+			}
+			this.channels[0] = low;	// key not found, but the low index is the target
+									// bucket, since the boundaries are the upper bound
+			return this.channels;
+		} else {
+			throw new IllegalStateException(
+			"The number of channels to partition among is inconsistent with the partitioners state.");
+		}
 	}
 }

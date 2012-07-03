@@ -65,6 +65,11 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 		this.innerExpression = expression;
 	}
 
+	@Override
+	public IJsonNode set(IJsonNode node, IJsonNode value, EvaluationContext context) {
+		return this.innerExpression.set(node, value, context);
+	}
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#evaluate(eu.stratosphere.sopremo.type.IJsonNode,

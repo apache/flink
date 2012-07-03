@@ -1203,7 +1203,7 @@ public class ExecutionGraph implements ExecutionListener {
 			LOG.error("Received update of execute state in job status CANCELED: " + eg.getJobID());
 			break;
 		case FINISHED:
-			LOG.error("Received update of execute state in job status FINISHED: " + eg.getJobID());
+			LOG.error("Received update of execute state in job status FINISHED: " + eg.getJobID() + " " + StringUtils.stringifyException(new Throwable()));
 			break;
 		}
 

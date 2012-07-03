@@ -115,7 +115,7 @@ public class CompressionLoader {
 
 			// Create and return path to native library cache
 			final String pathName = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":")[0]
+				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator)[0]
 				+ File.separator + NATIVELIBRARYCACHENAME;
 
 			final File path = new File(pathName);

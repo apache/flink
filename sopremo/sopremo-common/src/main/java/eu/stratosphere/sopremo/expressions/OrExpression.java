@@ -106,9 +106,11 @@ public class OrExpression extends BooleanExpression {
 	 *        the expressions that should be used as conditions for the created OrExpression
 	 * @return the created OrExpression
 	 */
-	public static OrExpression valueOf(final List<BooleanExpression> childConditions) {
-		if (childConditions.size() == 1)
-			return valueOf(childConditions.get(0));
-		return new OrExpression(childConditions.toArray(new BooleanExpression[childConditions.size()]));
+	public static OrExpression valueOf(final List<? extends EvaluationExpression> childConditions) {
+		List<BooleanExpression> booleans = BooleanExpression.ensureBooleanExpressions(childConditions);
+		if (booleans.size() == 1)
+			return valueOf(booleans.get(0));
+		return new OrExpression(booleans.toArray(new BooleanExpression[booleans.size()]));
 	}
+	
 }

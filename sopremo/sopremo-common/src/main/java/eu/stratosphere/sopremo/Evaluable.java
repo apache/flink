@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo;
 
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**

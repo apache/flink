@@ -496,6 +496,6 @@
 		<module>build-tools</module>
 		<module>stratosphere-dist</module>
 		<module>sopremo</module>
-	<!--	<module>simple</module>-->
+		<module>meteor</module>
 	</modules>
 </project>

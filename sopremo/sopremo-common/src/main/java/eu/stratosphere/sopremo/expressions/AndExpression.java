@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -107,9 +108,10 @@ public class AndExpression extends BooleanExpression {
 	 *        the expressions that should be used as conditions for the created AndExpression
 	 * @return the created AndExpression
 	 */
-	public static AndExpression valueOf(final List<BooleanExpression> childConditions) {
-		if (childConditions.size() == 1)
-			return valueOf(childConditions.get(0));
-		return new AndExpression(childConditions.toArray(new BooleanExpression[childConditions.size()]));
+	public static AndExpression valueOf(final List<? extends EvaluationExpression> childConditions) {
+		final List<BooleanExpression> booleanExpressions = new ArrayList<BooleanExpression>();
+		if (booleanExpressions.size() == 1)
+			return valueOf(booleanExpressions.get(0));
+		return new AndExpression(booleanExpressions.toArray(new BooleanExpression[booleanExpressions.size()]));
 	}
 }

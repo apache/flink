@@ -32,7 +32,7 @@ public class OperatorUtil {
 		Arrays.fill(elements, ConstantExpression.MISSING);
 		elements[index] = EvaluationExpression.VALUE;
 		return new Projection().
-			withTransformation(new ArrayCreation(elements)).
+			withResultProjection(new ArrayCreation(elements)).
 			withInputs(input);
 	}
 	

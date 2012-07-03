@@ -33,7 +33,7 @@ public class MockJobManager implements JobStatusListener {
 	@Override
 	public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
 			String optionalMessage) {
-		System.out.println(executionGraph.getJobID() + " " + newJobStatus);
+//		System.out.println("job graph " + executionGraph.getJobID() + " -> " + newJobStatus  + "; " + StringUtils.stringifyException(new Throwable()));
 
 		if (newJobStatus == InternalJobStatus.CANCELING || newJobStatus == InternalJobStatus.FAILING)
 			// Cancel all remaining tasks

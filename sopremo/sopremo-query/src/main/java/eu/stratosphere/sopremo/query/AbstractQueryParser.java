@@ -41,9 +41,11 @@ import eu.stratosphere.sopremo.OperatorInfo;
 import eu.stratosphere.sopremo.OperatorInfo.OperatorPropertyInfo;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.MethodCall;
+import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.function.Callable;
 import eu.stratosphere.sopremo.function.Inlineable;
 import eu.stratosphere.sopremo.function.JavaMethod;
@@ -118,7 +120,7 @@ public abstract class AbstractQueryParser extends Parser {
 
 		this.operatorSuggestion = null;
 	}
-
+	
 	private BindingConstraint[] bindingContraints;
 
 	public <T> T getBinding(Token name, Class<T> expectedType) {
@@ -328,7 +330,8 @@ public abstract class AbstractQueryParser extends Parser {
 			this.input.consume();
 
 		if (info == null)
-			throw new FailedPredicateException();
+			throw new FailedPredicateException(firstWord.getInputStream(), "operator name", String.format("Unknown operator %s; possible alternatives %s", name,
+				this.getOperatorSuggestion().suggest(name)));
 			/*throw new SimpleException(String.format("Unknown operator %s; possible alternatives %s", name,
 				this.getOperatorSuggestion().suggest(name)), firstWord);*/
 

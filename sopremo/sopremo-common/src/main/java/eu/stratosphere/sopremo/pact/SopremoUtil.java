@@ -24,6 +24,8 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.impl.Log4JLogger;
+import org.apache.commons.logging.impl.SimpleLog;
+import org.apache.hadoop.log.LogLevel;
 import org.apache.log4j.Level;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -48,7 +50,13 @@ public class SopremoUtil {
 
 	public static final boolean DEBUG = true;
 
-	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
+	public static final Log NORMAL_LOG = LogFactory.getLog(SopremoUtil.class), TRACE_LOG = new SimpleLog(SopremoUtil.class.getName());
+	
+	static {
+		((SimpleLog ) TRACE_LOG).setLevel(SimpleLog.LOG_LEVEL_TRACE);
+	}
+	
+	public static Log LOG = NORMAL_LOG;
 
 	public static final String CONTEXT = "context";
 
@@ -273,12 +281,11 @@ public class SopremoUtil {
 	}
 
 	public static void trace() {
-		((Log4JLogger) LOG).getLogger().setLevel(Level.TRACE);
+		LOG = TRACE_LOG;
 	}
 
 	public static void untrace() {
-		((Log4JLogger) LOG).getLogger().setLevel(
-			((Log4JLogger) LOG).getLogger().getParent().getLevel());
+		LOG = NORMAL_LOG;
 	}
 
 	public static IJsonNode unwrap(final IJsonNode wrapper) {

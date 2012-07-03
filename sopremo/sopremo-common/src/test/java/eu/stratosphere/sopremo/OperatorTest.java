@@ -292,7 +292,7 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 		 * @see eu.stratosphere.sopremo.Operator#asElementaryOperators()
 		 */
 		@Override
-		public ElementarySopremoModule asElementaryOperators() {
+		public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 			return null;
 		}
 		

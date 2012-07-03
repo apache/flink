@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -288,7 +288,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 	}
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final ElementarySopremoModule module =
 			new ElementarySopremoModule(this.getName(), this.getInputs().size(), this.getOutputs()
 				.size());
@@ -384,6 +384,38 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		}
 		return keyClasses;
 	}
+	
+	
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + this.keyExpressions.hashCode();
+		result = prime * result +  this.resultProjection.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ElementaryOperator<?> other = (ElementaryOperator<?>) obj;
+		return this.keyExpressions.equals(other.keyExpressions) && this.resultProjection.equals(other.resultProjection);
+	}
+	
+
+	@Override
+	public String toString() {
+		final StringBuilder builder = new StringBuilder(this.getName());
+		if(this.getResultProjection() != EvaluationExpression.VALUE)
+			builder.append(" to ").append(this.getResultProjection());
+		return builder.toString();
+	}
 
 	private int[] getKeyIndices(final Schema globalSchema, Iterable<? extends EvaluationExpression> keyExpressions) {
 		if (keyExpressions.equals(ALL_KEYS)) {
@@ -392,10 +424,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 				allSchema[index] = index;
 			return allSchema;
 		}
-		IntList keyIndices = new IntArrayList();
+		IntSet keyIndices = new IntOpenHashSet();
 		for (EvaluationExpression expression : keyExpressions)
-			for (int index : globalSchema.indicesOf(expression))
-				keyIndices.add(index);
+			keyIndices.addAll(globalSchema.indicesOf(expression));
 		if (keyIndices.isEmpty()) {
 			if (keyExpressions.iterator().hasNext())
 				throw new IllegalStateException(String.format(

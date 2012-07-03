@@ -30,13 +30,13 @@ public class NaiveSchemaFactory implements SchemaFactory {
 	 * @see eu.stratosphere.sopremo.serialization.SchemaFactory#create(java.lang.Iterable)
 	 */
 	@Override
-	public Schema create(Iterable<EvaluationExpression> keyExpressions) {
+	public Schema create(final Iterable<EvaluationExpression> keyExpressions) {
 
-		List<ObjectAccess> objectAccesses = new ArrayList<ObjectAccess>();
-		List<ArrayAccess> arrayAccesses = new ArrayList<ArrayAccess>();
-		List<EvaluationExpression> mappings = new ArrayList<EvaluationExpression>();
+		final List<ObjectAccess> objectAccesses = new ArrayList<ObjectAccess>();
+		final List<ArrayAccess> arrayAccesses = new ArrayList<ArrayAccess>();
+		final List<EvaluationExpression> mappings = new ArrayList<EvaluationExpression>();
 
-		for (EvaluationExpression evaluationExpression : keyExpressions) {
+		for (final EvaluationExpression evaluationExpression : keyExpressions) {
 			mappings.add(evaluationExpression);
 			if (evaluationExpression instanceof ObjectAccess)
 				objectAccesses.add((ObjectAccess) evaluationExpression);
@@ -47,29 +47,20 @@ public class NaiveSchemaFactory implements SchemaFactory {
 		if (mappings.isEmpty())
 			return new DirectSchema();
 
-		if (objectAccesses.size() == mappings.size()) {
+		if (objectAccesses.size() == mappings.size())
 			// all keyExpressions are ObjectAccesses
-
-			ObjectSchema schema = new ObjectSchema();
-			schema.setMappingsWithAccesses(objectAccesses);
-			return schema;
-		} else if (arrayAccesses.size() == mappings.size()) {
+			return new ObjectSchema(objectAccesses);
+		else if (arrayAccesses.size() == mappings.size()) {
 			// all keyExpressions are ArrayAccesses
 
-			int startIndex = arrayAccesses.get(0).getStartIndex();
-			int endIndex = arrayAccesses.get(arrayAccesses.size() - 1).getEndIndex();
+			final int startIndex = arrayAccesses.get(0).getStartIndex();
+			final int endIndex = arrayAccesses.get(arrayAccesses.size() - 1).getEndIndex();
 
-			if (startIndex == 0) {
+			if (startIndex == 0)
 				// want to reduce on first elements of the array -> HeadArraySchema should be used
-
-				HeadArraySchema schema = new HeadArraySchema();
-				schema.setHeadSize(endIndex + 1);
-				return schema;
-			} else {
-				TailArraySchema schema = new TailArraySchema();
-				schema.setTailSize(endIndex - startIndex + 1);
-				return schema;
-			}
+				return new HeadArraySchema(endIndex + 1);
+			else
+				return new TailArraySchema(endIndex - startIndex + 1);
 		} else
 			return new GeneralSchema(mappings);
 	}
