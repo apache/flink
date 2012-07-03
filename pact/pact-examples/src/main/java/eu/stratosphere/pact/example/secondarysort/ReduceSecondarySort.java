@@ -21,6 +21,8 @@ import java.util.Iterator;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
@@ -125,11 +127,13 @@ public class ReduceSecondarySort implements PlanAssembler, PlanAssemblerDescript
 		String output = (args.length > 2 ? args[2] : "");
 
 		FileDataSource source = new FileDataSource(TextInputFormat.class, dataInput, "Input Lines");
+		
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
+		
 		ReduceContract reducer = new ReduceContract(IdentityReducer.class, PactInteger.class, 0);
-		reducer.setSecondarySortKeyClasses(new Class[] { PactInteger.class });
-		reducer.setSecondarySortKeyColumnNumbers(0, new int[] { 1 });
+		reducer.setSecondaryOrder(new Ordering(1, PactInteger.class, Order.ASCENDING));
 		reducer.setInput(mapper);
+		
 		FileDataSink out = new FileDataSink(SecondarySortOutFormat.class, output, reducer, "Sorted entries");
 
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII"); // comment

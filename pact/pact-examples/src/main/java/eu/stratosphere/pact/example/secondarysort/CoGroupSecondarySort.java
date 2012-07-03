@@ -22,6 +22,8 @@ import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
+import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -118,36 +120,30 @@ public class CoGroupSecondarySort implements PlanAssembler, PlanAssemblerDescrip
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args) {
-		int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
-		String dataInput = (args.length > 1 ? args[1] : "");
-		String dataInput2 = (args.length > 2 ? args[2] : "");
-		String output = (args.length > 3 ? args[3] : "");
+	public Plan getPlan(String... args)
+	{
+		final int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		final String dataInput = (args.length > 1 ? args[1] : "");
+		final String dataInput2 = (args.length > 2 ? args[2] : "");
+		final String output = (args.length > 3 ? args[3] : "");
 
 		FileDataSource source = new FileDataSource(TextInputFormat.class, dataInput, "Input Lines");
+		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII"); // comment out this line for UTF-8 inputs
+		
 		FileDataSource source2 = new FileDataSource(TextInputFormat.class, dataInput2, "Input Lines");
+		source2.setParameter(TextInputFormat.CHARSET_NAME, "ASCII"); // comment out this line for UTF-8 inputs
+		
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
+		
 		MapContract mapper2 = new MapContract(TokenizeLine.class, source2, "Tokenize Lines");
+		
 		CoGroupContract coGroup = new CoGroupContract(IdentityCoGroup.class, PactInteger.class, 0, 0);
-		coGroup.setSecondarySortKeyClasses(new Class[] { PactInteger.class });
-		coGroup.setSecondarySortKeyColumnNumbers(0, new int[] { 1 });
-		coGroup.setSecondarySortKeyColumnNumbers(1, new int[] { 1 });
+		coGroup.setSecondaryOrderForInputOne(new Ordering(1, PactInteger.class, Order.ASCENDING));
+		coGroup.setSecondaryOrderForInputTwo(new Ordering(1, PactInteger.class, Order.ASCENDING));
 		coGroup.setFirstInput(mapper);
 		coGroup.setSecondInput(mapper2);
+		
 		FileDataSink out = new FileDataSink(SecondarySortOutFormat.class, output, coGroup, "Sorted entries");
-
-		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII"); // comment
-																	// out this
-																	// line for
-																	// UTF-8
-																	// inputs
-		source2.setParameter(TextInputFormat.CHARSET_NAME, "ASCII"); // comment
-																		// out
-																		// this
-																		// line
-																		// for
-																		// UTF-8
-																		// inputs
 
 		Plan plan = new Plan(out, "SecondarySort Example");
 		plan.setDefaultParallelism(noSubTasks);
@@ -161,5 +157,4 @@ public class CoGroupSecondarySort implements PlanAssembler, PlanAssemblerDescrip
 	public String getDescription() {
 		return "Parameters: [noSubStasks] [input] [input2] [output]";
 	}
-
 }
