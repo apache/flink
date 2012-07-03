@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -142,6 +143,11 @@ public final class ExecutionVertex {
 	 * The execution pipeline this vertex is part of.
 	 */
 	private final AtomicReference<ExecutionPipeline> executionPipeline = new AtomicReference<ExecutionPipeline>(null);
+
+	/**
+	 * Flag to indicate whether the vertex has been requested to cancel while in state STARTING
+	 */
+	private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
 
 	/**
 	 * Create a new execution vertex and instantiates its environment.
@@ -361,6 +367,9 @@ public final class ExecutionVertex {
 				optionalMessage);
 		}
 
+		// The vertex was requested to be canceled by another thread
+		checkCancelRequestedFlag();
+
 		return previousState;
 	}
 
@@ -384,7 +393,25 @@ public final class ExecutionVertex {
 				null);
 		}
 
+		// Check if the vertex was requested to be canceled by another thread
+		checkCancelRequestedFlag();
+
 		return true;
+	}
+
+	/**
+	 * Checks if another thread requested the vertex to cancel while it was in state STARTING. If so, the method clears
+	 * the respective flag and repeats the cancel request.
+	 */
+	private void checkCancelRequestedFlag() {
+
+		if (this.cancelRequested.compareAndSet(true, false)) {
+			final TaskCancelResult tsr = cancelTask();
+			if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS
+				|| tsr.getReturnCode() != AbstractTaskResult.ReturnCode.TASK_NOT_FOUND) {
+				LOG.error("Unable to cancel vertex " + this + ": " + tsr.getDescription());
+			}
+		}
 	}
 
 	public void updateCheckpointState(final CheckpointState newCheckpointState) {
@@ -768,23 +795,15 @@ public final class ExecutionVertex {
 			// calls.
 			if (previousState == ExecutionState.STARTING) {
 
-				int retry = 2000;
-				while (this.executionState.get() == ExecutionState.STARTING) {
+				this.cancelRequested.set(true);
 
-					if (--retry == 0) {
-						return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.ILLEGAL_STATE);
-					}
-
-					try {
-						Thread.sleep(1);
-					} catch (InterruptedException ie) {
-						return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.ILLEGAL_STATE);
-					}
-
+				// We had a race, so we unset the flag and take care of cancellation ourselves
+				if (this.executionState.get() != ExecutionState.STARTING) {
+					this.cancelRequested.set(false);
+					continue;
 				}
 
-				// The vertex state has changed, reevaluate what to do
-				continue;
+				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
 			// Check if we had a race. If state change is accepted, send cancel request
@@ -956,7 +975,7 @@ public final class ExecutionVertex {
 	 */
 	public void unregisterExecutionListener(final ExecutionListener executionListener) {
 
-		this.executionListeners.remove(executionListener);
+		this.executionListeners.remove(Integer.valueOf(executionListener.getPriority()));
 	}
 
 	/**
