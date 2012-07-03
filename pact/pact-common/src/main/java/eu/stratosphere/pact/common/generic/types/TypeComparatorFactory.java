@@ -24,5 +24,7 @@ public interface TypeComparatorFactory<T>
 {
 	TypeComparator<T> createComparator(Configuration config, String keyPrefix, ClassLoader cl) throws ClassNotFoundException;
 	
+	TypeComparator<T> createSecondarySortComparator(Configuration config, String keyPrefix, ClassLoader cl) throws ClassNotFoundException;
+	
 	Class<T> getDataType();
 }
