@@ -243,7 +243,7 @@ public class JobManagerITCase {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + testDirectory));
+			i1.setFilePath(new Path(new File(testDirectory).toURI()));
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
@@ -256,7 +256,7 @@ public class JobManagerITCase {
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 
 			t1.setVertexToShareInstancesWith(i1);
 			t2.setVertexToShareInstancesWith(i1);
@@ -272,7 +272,8 @@ public class JobManagerITCase {
 			}
 
 			// add jar
-			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
+			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar")
+				.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
@@ -351,7 +352,7 @@ public class JobManagerITCase {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
@@ -360,7 +361,7 @@ public class JobManagerITCase {
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 
 			t1.setVertexToShareInstancesWith(i1);
 			o1.setVertexToShareInstancesWith(i1);
@@ -370,7 +371,8 @@ public class JobManagerITCase {
 			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 			// add jar
-			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar"));
+			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar")
+				.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
@@ -438,7 +440,7 @@ public class JobManagerITCase {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
@@ -447,7 +449,7 @@ public class JobManagerITCase {
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 
 			t1.setVertexToShareInstancesWith(i1);
 			o1.setVertexToShareInstancesWith(i1);
@@ -457,8 +459,8 @@ public class JobManagerITCase {
 			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 			// add jar
-			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
-				+ ".jar"));
+			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
+				+ ".jar").toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
@@ -529,7 +531,7 @@ public class JobManagerITCase {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input with broadcast writer", jg);
 			i1.setFileInputClass(BroadcastSourceTask.class);
-			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
@@ -537,7 +539,7 @@ public class JobManagerITCase {
 			o1.setNumberOfSubtasksPerInstance(receivers);
 			o1.setVertexToShareInstancesWith(i1);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 
 			// connect vertices
 			try {
@@ -547,7 +549,8 @@ public class JobManagerITCase {
 			}
 
 			// add jar
-			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
+			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar")
+				.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
@@ -623,7 +626,7 @@ public class JobManagerITCase {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
@@ -636,7 +639,7 @@ public class JobManagerITCase {
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 
 			t1.setVertexToShareInstancesWith(i1);
 			t2.setVertexToShareInstancesWith(i1);
@@ -652,7 +655,8 @@ public class JobManagerITCase {
 			}
 
 			// add jar
-			jg.addJar(new Path("file://" + ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar"));
+			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar")
+				.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
@@ -719,7 +723,7 @@ public class JobManagerITCase {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input with two Outputs", jg);
 			i1.setFileInputClass(DoubleSourceTask.class);
-			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task with two Inputs", jg);
@@ -728,7 +732,7 @@ public class JobManagerITCase {
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 
 			t1.setVertexToShareInstancesWith(i1);
 			o1.setVertexToShareInstancesWith(i1);
@@ -739,7 +743,7 @@ public class JobManagerITCase {
 			t1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 			// add jar
-			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
@@ -799,12 +803,12 @@ public class JobManagerITCase {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex(jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath().toString()));
+			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex(jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 
 			o1.setVertexToShareInstancesWith(i1);
 
@@ -812,7 +816,7 @@ public class JobManagerITCase {
 			i1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 			// add jar
-			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
@@ -890,12 +894,12 @@ public class JobManagerITCase {
 			// input vertex 1
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile1.getAbsolutePath().toString()));
+			i1.setFilePath(new Path(inputFile1.toURI()));
 
 			// input vertex 2
 			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
 			i2.setFileInputClass(FileLineReader.class);
-			i2.setFilePath(new Path("file://" + inputFile2.getAbsolutePath().toString()));
+			i2.setFilePath(new Path(inputFile2.toURI()));
 
 			// union task
 			final JobTaskVertex u1 = new JobTaskVertex("Union", jg);
@@ -904,7 +908,7 @@ public class JobManagerITCase {
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 
 			i1.setVertexToShareInstancesWith(o1);
 			i2.setVertexToShareInstancesWith(o1);
@@ -916,7 +920,7 @@ public class JobManagerITCase {
 			u1.connectTo(o1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 			// add jar
-			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
@@ -1033,14 +1037,14 @@ public class JobManagerITCase {
 			// input vertex 1
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile1.getAbsolutePath().toString()));
+			i1.setFilePath(new Path(inputFile1.toURI()));
 			i1.setNumberOfSubtasks(numberOfSubtasks);
 			i1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
 			// input vertex 2
 			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
 			i2.setFileInputClass(FileLineReader.class);
-			i2.setFilePath(new Path("file://" + inputFile2.getAbsolutePath().toString()));
+			i2.setFilePath(new Path(inputFile2.toURI()));
 			i2.setNumberOfSubtasks(numberOfSubtasks);
 			i2.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
@@ -1053,7 +1057,7 @@ public class JobManagerITCase {
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + outputFile.getAbsolutePath().toString()));
+			o1.setFilePath(new Path(outputFile.toURI()));
 			o1.setNumberOfSubtasks(numberOfSubtasks);
 			o1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
@@ -1067,7 +1071,7 @@ public class JobManagerITCase {
 			f1.connectTo(o1, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
 
 			// add jar
-			jg.addJar(new Path("file://" + jarFile.getAbsolutePath()));
+			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);

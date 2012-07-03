@@ -284,6 +284,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			envelope.getSequenceNumber());
 
 		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, receiver);
+		if (receiverList == null) {
+			return;
+		}
 
 		processEnvelopeEnvelopeWithoutBuffer(transferEnvelope, receiverList);
 	}
@@ -301,6 +304,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		} catch (IOException e) {
 			recycleBuffer(transferEnvelope);
 			throw e;
+		}
+
+		if (receiverList == null) {
+			recycleBuffer(transferEnvelope);
+			return;
 		}
 
 		// This envelope is known to have either no buffer or an memory-based input buffer
@@ -469,7 +477,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 *        the ID of the job the given channel ID belongs to
 	 * @param sourceChannelID
 	 *        the source channel ID for which the receiver list shall be retrieved
-	 * @return the list of receivers
+	 * @return the list of receivers or <code>null</code> if the receiver could not be determined
 	 * @throws IOException
 	 * @throws InterruptedExcption
 	 */
@@ -490,6 +498,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				synchronized (this.channelLookupService) {
 					lookupResponse = this.channelLookupService.lookupConnectionInfo(
 						this.localConnectionInfo, jobID, sourceChannelID);
+				}
+
+				if (lookupResponse.isJobAborting()) {
+					break;
 				}
 
 				if (lookupResponse.receiverNotFound()) {
@@ -616,6 +628,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			InterruptedException {
 
 		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, sourceChannelID);
+
+		// Receiver could not be determined, use transit buffer pool to read data from channel
+		if (receiverList == null) {
+			return this.transitBufferPool;
+		}
 
 		if (receiverList.hasLocalReceivers() && !receiverList.hasRemoteReceivers()) {
 

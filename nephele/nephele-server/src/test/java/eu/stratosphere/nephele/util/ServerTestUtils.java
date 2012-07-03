@@ -131,14 +131,13 @@ public final class ServerTestUtils {
 	}
 
 	/**
-	 * Reads the path to the directory for temporary files from the configuration and returns it.
+	 * Returns the path to the directory for temporary files.
 	 * 
 	 * @return the path to the directory for temporary files
 	 */
 	public static String getTempDir() {
 
-		return GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator)[0];
+		return System.getProperty("java.io.tmpdir");
 	}
 
 	/**
