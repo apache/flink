@@ -21,17 +21,14 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
  * describe data across different partitions.
  * NOTE: Currently, this class has a very simple property about the partitioning, namely simply whether
  * the data is partitioned on the key. Later, we might need to replace that by tracking partition maps.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class GlobalProperties implements Cloneable {
+public final class GlobalProperties implements Cloneable
+{
 	private FieldList partitionedFields;
 
 	private PartitionProperty partitioning; // the partitioning
 
 	private Ordering ordering; // order across all partitions
-
-	// across all partitions
 
 	/**
 	 * Initializes the global properties with no partitioning, no order and no uniqueness.
@@ -137,10 +134,10 @@ public final class GlobalProperties implements Cloneable {
 
 		// check, whether the global order is preserved
 		if (ordering != null) {
-			ArrayList<Integer> involvedIndexes = ordering.getInvolvedFields();
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
 				if (node.isFieldKept(input, i) == false) {
-					ordering = ordering.createNewOrderingUpToPos(i);
+					ordering = ordering.createNewOrderingUpToIndex(i);
 					break;
 				}
 			}
@@ -169,7 +166,7 @@ public final class GlobalProperties implements Cloneable {
 		// check, whether the global order is preserved
 		if (ordering != null) {
 			boolean orderingPreserved = true;
-			ArrayList<Integer> involvedIndexes = ordering.getInvolvedFields();
+			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
 				if (node.isFieldKept(input, i) == false) {
 					orderingPreserved = false;

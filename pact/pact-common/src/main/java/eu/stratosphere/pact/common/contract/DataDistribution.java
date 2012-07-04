@@ -15,21 +15,30 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-public interface DataDistribution {
+public interface DataDistribution extends IOReadableWritable
+{
 	/**
-	 * Generate split boarders. E.g. for splitId=0 generate the upper border of split.
-	 * When there are n total splits the split ids from 0 - (n-1) will be generated as the
-	 * last split is open ended.
-	 * E.g. if totalSplits = 5, the following splitId's would be used
-	 * 0,1,2,3,4
-	 * And the partition would work this way:
-	 * <===Key<0>===Key<1>===Key<2>===Key<3>===Key<4>==>
-	 * So that both sides the lower and upper are open ended
-	 * @param splitId
-	 * @param totalSplits
+	 * Returns the i'th bucket's upper bound, given that the distribution is to be
+	 * split into {@code totalBuckets} buckets.
+	 * <p>
+	 * Assuming <i>n</i> buckets, let {@code B_i} be the result from calling {@code getBucketBoundary(i, n)},
+	 * then the distribution will partition the data domain in the following fashion:
+	 * 
+	 * <pre>
+	 * (-inf, B_1] (B_1, B_2] ... (B_n-2, B_n-1] (B_n-1, inf)
+	 * </pre>
+	 * <p>
+	 * Note: The last bucket's upper bound is actually discarded by many algorithms.
+	 * The last bucket is assumed to hold all values <i>v</i> such that
+	 * {@code v &gt; getBucketBoundary(n-1, n)}, where <i>n</i> is the number of buckets.
+	 * 
+	 * @param bucketNum The number of the bucket for which to get the upper bound.
+	 * @param totalNumBuckets The number of buckets to split the data into.
+	 * 
 	 * @return
 	 */
-	public PactRecord getSplit(int splitId, int totalSplits); 
+	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets); 
 }

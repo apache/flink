@@ -81,7 +81,7 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 		
 		try {
 			// get FSDataOutputStream
-			this.stream = opot.getFSDataOutputStream();
+			this.stream = opot.waitForCompletion();
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Stream to output file could not be opened: " + e.getMessage(), e);
@@ -95,36 +95,30 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 	@Override
 	public void close() throws IOException
 	{
-		if (this.stream != null) {
-			this.stream.close();
+		final FSDataOutputStream s = this.stream;
+		if (s != null) {
+			this.stream = null;
+			s.close();
 		}
 	}
 	
 	// ============================================================================================
 	
-	/**
-	 * Obtains a DataOutputStream in an thread that is not interrupted.
-	 * The HDFS client is very sensitive to InterruptedExceptions.
-	 * 
-	 * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
-	 */
-	private static class OutputPathOpenThread extends Thread {
-
-		private final Object lock = new Object();
-		
+	private static final class OutputPathOpenThread extends Thread
+	{
 		private final Path path;
 		
-		private final long timeoutMillies;
-
 		private final int taskIndex;
-
+		
+		private final long timeoutMillies;
+		
 		private volatile FSDataOutputStream fdos;
 
-		private volatile Exception exception;
+		private volatile Throwable error;
 		
-		private volatile boolean canceled = false;
-		
+		private volatile boolean aborted;
 
+		
 		public OutputPathOpenThread(Path path, int taskIndex, long timeoutMillies) {
 			this.path = path;
 			this.timeoutMillies = timeoutMillies;
@@ -132,77 +126,71 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 		}
 
 		@Override
-		public void run() {
-			
+		public void run()
+		{
 			try {
-				final FileSystem fs = path.getFileSystem();
 				Path p = this.path;
+				final FileSystem fs = p.getFileSystem();
 				
-				if (fs.exists(this.path) && fs.getFileStatus(this.path).isDir()) {
-					// write output in directory
-					p = this.path.suffix("/" + this.taskIndex);
+				// if the output is a directory, suffix the path with the parallel instance index
+				if (fs.exists(p) && fs.getFileStatus(p).isDir()) {
+					p = p.suffix("/" + this.taskIndex);
 				}
 				
-				final FSDataOutputStream stream = fs.create(p, true);
-
-				// create output file
-				synchronized (this.lock) {
-					if (canceled) {
-						try {stream.close(); } catch (Throwable t) {}
-					}
-					else {
-						this.fdos = stream;				
-					}
-					this.lock.notifyAll();
+				// remove the existing file before creating the output stream
+				if (fs.exists(p)) {
+					fs.delete(p, false);
 				}
-			}
-			catch (Exception t) {
-				synchronized (this.lock) {
-					this.exception = t;
-					this.lock.notifyAll();
+				
+				this.fdos = fs.create(p, true);
+				
+				// check for canceling and close the stream in that case, because no one will obtain it
+				if (this.aborted) {
+					final FSDataOutputStream f = this.fdos;
+					this.fdos = null;
+					f.close();
 				}
 			}
 			catch (Throwable t) {
-				synchronized (this.lock) {
-					this.exception = new Exception(t);
-					this.lock.notifyAll();
-				}
+				this.error = t;
 			}
 		}
-
-		public FSDataOutputStream getFSDataOutputStream()
-		throws Exception
+		
+		public FSDataOutputStream waitForCompletion() throws Exception
 		{
-			long start = System.currentTimeMillis();
+			final long start = System.currentTimeMillis();
 			long remaining = this.timeoutMillies;
 			
-			synchronized (this.lock) {
-				boolean success = false;
+			do {
 				try {
-					while (this.exception == null && this.fdos == null &&
-							(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0)
-					{
-						this.lock.wait(remaining);
-					}
-				
-					if (this.exception != null) {
-						throw this.exception;
-					}
-						
-					if (this.fdos != null) {
-						success = true;
-						return this.fdos;
-					}
-				}
-				finally {
-					if (!success) {
-						this.canceled = true;
-					}
-				}
+					this.join(remaining);
+				} catch (InterruptedException iex) {}
+			}
+			while (this.error == null && this.fdos == null &&
+					(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
+			
+			if (this.error != null) {
+				throw new IOException("Opening the file output stream failed" +
+					(this.error.getMessage() == null ? "." : ": " + this.error.getMessage()), this.error);
 			}
 			
-			// try to forcefully shut this thread down
-			throw new Exception("Output Path Opener timed out.");
+			if (this.fdos != null) {
+				return this.fdos;
+			} else {
+				this.aborted = true;
+				// double-check that the stream has not been set by now. we don't know here whether
+				// a) the opener thread recognized the canceling and closed the stream
+				// b) the flag was set such that the stream did not see it and we have a valid stream
+				// In any case, close the stream and throw an exception.
+				final FSDataOutputStream outStream = this.fdos;
+				this.fdos = null;
+				if (outStream != null) {
+					try {
+						outStream.close();
+					} catch (Throwable t) {}
+				}
+				throw new IOException("Opening request timed out.");
+			}
 		}
 	}
 }

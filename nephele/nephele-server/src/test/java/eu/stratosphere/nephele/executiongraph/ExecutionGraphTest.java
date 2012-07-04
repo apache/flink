@@ -232,7 +232,7 @@ public class ExecutionGraphTest {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath()));
+			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
@@ -241,7 +241,7 @@ public class ExecutionGraphTest {
 			// output vertex
 			final JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			o1.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
 
 			o1.setVertexToShareInstancesWith(i1);
 			i1.setVertexToShareInstancesWith(t1);
@@ -459,7 +459,8 @@ public class ExecutionGraphTest {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile.getAbsolutePath()));
+			System.out.println("URI " + inputFile.toURI());
+			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
@@ -468,7 +469,7 @@ public class ExecutionGraphTest {
 			// output vertex
 			final JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			o1.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
 
 			// connect vertices
 			i1.connectTo(t1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
@@ -570,11 +571,11 @@ public class ExecutionGraphTest {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile1.getAbsolutePath()));
+			i1.setFilePath(new Path(inputFile1.toURI()));
 			i1.setNumberOfSubtasks(2);
 			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
 			i2.setFileInputClass(FileLineReader.class);
-			i2.setFilePath(new Path("file://" + inputFile2.getAbsolutePath()));
+			i2.setFilePath(new Path(inputFile2.toURI()));
 			i2.setNumberOfSubtasks(2);
 
 			// task vertex
@@ -591,7 +592,7 @@ public class ExecutionGraphTest {
 			// output vertex
 			final JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			o1.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
 			o1.setNumberOfSubtasks(2);
 			i1.setVertexToShareInstancesWith(t1);
 			t1.setVertexToShareInstancesWith(t3);
@@ -809,12 +810,12 @@ public class ExecutionGraphTest {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			i1.setFilePath(new Path("file://" + inputFile1.getAbsolutePath()));
+			i1.setFilePath(new Path(inputFile1.toURI()));
 			i1.setNumberOfSubtasks(4);
 			i1.setNumberOfSubtasksPerInstance(2);
 			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
 			i2.setFileInputClass(FileLineReader.class);
-			i2.setFilePath(new Path("file://" + inputFile2.getAbsolutePath()));
+			i2.setFilePath(new Path(inputFile2.toURI()));
 			i2.setNumberOfSubtasks(4);
 			i2.setNumberOfSubtasksPerInstance(2);
 			// task vertex
@@ -837,12 +838,12 @@ public class ExecutionGraphTest {
 			// output vertex
 			final JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
-			o1.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			o1.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
 			o1.setNumberOfSubtasks(4);
 			o1.setNumberOfSubtasksPerInstance(2);
 			final JobFileOutputVertex o2 = new JobFileOutputVertex("Output 2", jg);
 			o2.setFileOutputClass(FileLineWriter.class);
-			o2.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			o2.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
 			o2.setNumberOfSubtasks(4);
 			o2.setNumberOfSubtasksPerInstance(2);
 			o1.setVertexToShareInstancesWith(o2);
@@ -937,7 +938,7 @@ public class ExecutionGraphTest {
 			// input vertex
 			final JobFileInputVertex input = new JobFileInputVertex(inputTaskName, jg);
 			input.setFileInputClass(SelfCrossInputTask.class);
-			input.setFilePath(new Path("file://" + inputFile1.getAbsolutePath()));
+			input.setFilePath(new Path(inputFile1.toURI()));
 			input.setNumberOfSubtasks(degreeOfParallelism);
 
 			// cross vertex
@@ -948,13 +949,16 @@ public class ExecutionGraphTest {
 			// output vertex
 			final JobFileOutputVertex output = new JobFileOutputVertex(outputTaskName, jg);
 			output.setFileOutputClass(FileLineWriter.class);
-			output.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			output.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
 			output.setNumberOfSubtasks(degreeOfParallelism);
 
 			// connect vertices
-			input.connectTo(cross, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0, DistributionPattern.POINTWISE);
-			input.connectTo(cross, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, 1, 1, DistributionPattern.BIPARTITE);
-			cross.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0, DistributionPattern.POINTWISE);
+			input.connectTo(cross, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0,
+				DistributionPattern.POINTWISE);
+			input.connectTo(cross, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, 1, 1,
+				DistributionPattern.BIPARTITE);
+			cross.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, 0, 0,
+				DistributionPattern.POINTWISE);
 
 			LibraryCacheManager.register(jobID, new String[0]);
 
@@ -1059,7 +1063,7 @@ public class ExecutionGraphTest {
 			// input vertex
 			final JobFileInputVertex input1 = new JobFileInputVertex("Input 1", jg);
 			input1.setFileInputClass(FileLineReader.class);
-			input1.setFilePath(new Path("file://" + inputFile1.getAbsolutePath()));
+			input1.setFilePath(new Path(inputFile1.toURI()));
 			input1.setNumberOfSubtasks(degreeOfParallelism);
 
 			// forward vertex 1
@@ -1080,13 +1084,16 @@ public class ExecutionGraphTest {
 			// output vertex
 			final JobFileOutputVertex output1 = new JobFileOutputVertex("Output 1", jg);
 			output1.setFileOutputClass(FileLineWriter.class);
-			output1.setFilePath(new Path("file://" + ServerTestUtils.getRandomFilename()));
+			output1.setFilePath(new Path(new File(ServerTestUtils.getRandomFilename()).toURI()));
 			output1.setNumberOfSubtasks(degreeOfParallelism);
 
 			// connect vertices
-			input1.connectTo(forward1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-			forward1.connectTo(forward2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-			forward2.connectTo(forward3, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
+			input1.connectTo(forward1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION,
+				DistributionPattern.POINTWISE);
+			forward1.connectTo(forward2, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION,
+				DistributionPattern.POINTWISE);
+			forward2.connectTo(forward3, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION,
+				DistributionPattern.POINTWISE);
 			forward3.connectTo(output1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 			// setup instance sharing

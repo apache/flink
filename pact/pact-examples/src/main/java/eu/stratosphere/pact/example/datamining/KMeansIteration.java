@@ -603,7 +603,6 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		// create DataSourceContract for data point input
 		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Data Points");
 		dataPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
-		//dataPoints.addOutputContract(OutputContract.Unique.class);
 		dataPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create DataSourceContract for cluster center input

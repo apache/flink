@@ -28,6 +28,8 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.generic.io.OutputFormat;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
@@ -35,10 +37,13 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  * DataSinkTask which is executed by a Nephele task manager.
@@ -59,11 +64,11 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 
 	// --------------------------------------------------------------------------------------------
 	
+	// OutputFormat instance. volatile, because the asynchronous canceller may access it
+	private volatile OutputFormat<IT> format;
+	
 	// input reader
 	private MutableObjectIterator<IT> reader;
-
-	// OutputFormat instance
-	private OutputFormat<IT> format;
 	
 	// The serializer for the input type
 	private TypeSerializer<IT> inputTypeSerializer;
@@ -75,7 +80,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	private ClassLoader userCodeClassLoader;
 
 	// cancel flag
-	private volatile boolean taskCanceled = false;
+	private volatile boolean taskCanceled;
 	
 	/**
 	 * {@inheritDoc}
@@ -104,12 +109,55 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	{
 		if (LOG.isInfoEnabled())
 			LOG.info(getLogString("Start PACT code"));
+		
+		final UnilateralSortMerger<IT> sorter;
+		// check whether we need to sort the output
+		if (this.config.getLocalStrategy() == LocalStrategy.SORT)
+		{
+			final Class<? extends TypeComparatorFactory<IT>> comparatorFactoryClass = 
+					this.config.getComparatorFactoryForInput(0, this.userCodeClassLoader);
 
-		final MutableObjectIterator<IT> reader = this.reader;
-		final OutputFormat<IT> format = this.format;
-		final IT record = this.inputTypeSerializer.createInstance();
+			final TypeComparatorFactory<IT> comparatorFactory;
+			if (comparatorFactoryClass == null) {
+				// fall back to PactRecord
+				@SuppressWarnings("unchecked")
+				TypeComparatorFactory<IT> cf = (TypeComparatorFactory<IT>) PactRecordComparatorFactory.get();
+				comparatorFactory = cf;
+			} else {
+				comparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
+			}
+
+			TypeComparator<IT> comparator;
+			try {
+				comparator = comparatorFactory.createComparator(getTaskConfiguration(), 
+					this.config.getPrefixForInputParameters(0), this.userCodeClassLoader);
+			} catch (ClassNotFoundException cnfex) {
+				throw new Exception("The instantiation of the type comparator from factory '" +	
+					comparatorFactory.getClass().getName() + 
+				"' failed. A referenced class from the user code could not be loaded."); 
+			}
+			
+			// set up memory and I/O parameters
+			final long availableMemory = this.config.getMemorySize();
+			final int maxFileHandles = this.config.getNumFilehandles();
+			final float spillThreshold = this.config.getSortSpillingTreshold();
+			
+			sorter = new UnilateralSortMerger<IT>(getEnvironment().getMemoryManager(),
+					getEnvironment().getIOManager(), this.reader, this, 
+					this.inputTypeSerializer, comparator, availableMemory, maxFileHandles, spillThreshold);
+			
+			// replace the reader by the sorted input
+			this.reader = sorter.getIterator();
+		} else {
+			sorter = null;
+		}
 		
 		try {
+			// read the reader and write it to the output
+			final MutableObjectIterator<IT> reader = this.reader;
+			final OutputFormat<IT> format = this.format;
+			final IT record = this.inputTypeSerializer.createInstance();
+			
 			// check if task has been canceled
 			if (this.taskCanceled) {
 				return;
@@ -157,7 +205,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 		finally {
 			if (this.format != null) {
 				// close format, if it has not been closed, yet.
-				// This should only be the case if we had a previous error, or were cancelled.
+				// This should only be the case if we had a previous error, or were canceled.
 				try {
 					this.format.close();
 				}
@@ -165,6 +213,10 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 					if (LOG.isWarnEnabled())
 						LOG.warn(getLogString("Error closing the ouput format."), t);
 				}
+			}
+			
+			if (sorter != null) {
+				sorter.close();
 			}
 		}
 
@@ -189,6 +241,13 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	public void cancel() throws Exception
 	{
 		this.taskCanceled = true;
+		OutputFormat<IT> format = this.format;
+		if (format != null) {
+			try {
+				this.format.close();
+			} catch (Throwable t) {}
+		}
+		
 		if (LOG.isWarnEnabled())
 			LOG.warn(getLogString("Cancelling PACT code"));
 	}
@@ -332,10 +391,10 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 					return -1;
 				}
 				else {
-					// path points to an existing file. delete it, to prevent errors appearing
-					// when overwriting the file (HDFS causes non-deterministic errors there)
+					// path points to an existing file. delete it to be able to replace the
+					// file with a directory
 					fs.delete(path, false);
-					return 1;
+					return -1;
 				}
 			}
 			catch (FileNotFoundException fnfex) {

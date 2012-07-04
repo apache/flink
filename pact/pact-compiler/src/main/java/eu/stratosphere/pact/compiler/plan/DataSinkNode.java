@@ -33,7 +33,7 @@ import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -141,9 +141,12 @@ public class DataSinkNode extends OptimizerNode {
 	@Override
 	public int getMemoryConsumerCount() {
 		switch(this.localStrategy) {
-			case SORT:          return 1;
-			case NONE:          return 0;
-			default:	        return 0;
+			case SORT:
+				return 1;
+			case NONE:
+				return 0;
+			default:
+				throw new IllegalStateException("Unknown strategy for data sink: " + this.localStrategy.name());
 		}
 	}
 
@@ -204,35 +207,35 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
 	 */
 	@Override
-	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+	public void computeInterestingPropertiesForInputs(CostEstimator estimator)
+	{
 		// interesting properties that a data sink may generate are
 		// 1) an interest in globally sorted data
 		// 2) an interest in range-partitioned data
 		// 3) an interest in locally sorted data
-		Ordering o = getPactContract().getGlobalOrder();
-		if (o != null) {
-			InterestingProperties i1 = new InterestingProperties();
-			i1.getGlobalProperties().setOrdering(o);
+		Ordering partitioning = getPactContract().getPartitionOrdering();
+		if (partitioning != null) {
+			InterestingProperties partitioningProps = new InterestingProperties();
+			partitioningProps.getGlobalProperties().setOrdering(partitioning);
 
 			// costs are a range partitioning and a local sort
-			estimator.getRangePartitionCost(this.input, i1.getMaximalCosts());
+			estimator.getRangePartitionCost(this.input, partitioningProps.getMaximalCosts());
 			Costs c = new Costs();
 			estimator.getLocalSortCost(this, this.input, c);
-			i1.getMaximalCosts().addCosts(c);
-
-			InterestingProperties i2 = new InterestingProperties();
+			partitioningProps.getMaximalCosts().addCosts(c);
+			this.input.addInterestingProperties(partitioningProps);
 			
-			i2.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, o.getInvolvedFields());
-			estimator.getRangePartitionCost(this.input, i2.getMaximalCosts());
-
-			this.input.addInterestingProperties(i1);
-			this.input.addInterestingProperties(i2);
-			
-		} else if (getPactContract().getLocalOrder() != null) {
+			Ordering localOrdering = getPactContract().getLocalOrder();
+			if (localOrdering != null && localOrdering.equals(partitioning)) {
+				InterestingProperties i = partitioningProps.clone();
+				i.getLocalProperties().setOrdering(partitioning);
+				this.input.addInterestingProperties(i);
+			}
+		}
+		else if (getPactContract().getLocalOrder() != null) {
 			InterestingProperties i = new InterestingProperties();
 			i.getLocalProperties().setOrdering(getPactContract().getLocalOrder());
 			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
-			
 			this.input.addInterestingProperties(i);
 			
 		} else {
@@ -272,38 +275,27 @@ public class DataSinkNode extends OptimizerNode {
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
 	 */
 	@Override
-	public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
+	public List<OptimizerNode> getAlternativePlans(CostEstimator estimator)
+	{
+		final Ordering po = getPactContract().getPartitionOrdering();
+		final Ordering lo = getPactContract().getLocalOrder();
+		
 		// the alternative plans are the ones that we have incoming, plus the attached output node
-		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
+		final List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
 
 		// step down to all producer nodes and calculate alternative plans
-		List<? extends OptimizerNode> subPlans = this.getPredNode().getAlternativePlans(estimator);
+		final List<? extends OptimizerNode> subPlans = this.getPredNode().getAlternativePlans(estimator);
 
 		// build all possible alternative plans for this node
 		for(OptimizerNode subPlan : subPlans) {
-			
-			// check, whether the children have the same
-			// sub-plan in the common part before the branches
-			// TODO check if this is necessary
-			/*
-			if (!areBranchCompatible(predList, null)) {
-				continue;
-			}
-			*/
 
-			Ordering go = getPactContract().getGlobalOrder();
-			Ordering lo = getPactContract().getLocalOrder();
+			final GlobalProperties gp = subPlan.getGlobalProperties().createCopy();
+			final LocalProperties lp = subPlan.getLocalProperties().createCopy();
 
-			GlobalProperties gp;
-			LocalProperties lp;
+			final ShipStrategy ss;
+			final LocalStrategy ls;
 
-			gp = subPlan.getGlobalProperties().createCopy();
-			lp = subPlan.getLocalProperties().createCopy();
-
-			ShipStrategy ss = null;
-			LocalStrategy ls = null;
-
-			if (go != null && lo != null) {
+			if (po != null && !po.isMetBy(gp.getOrdering())) {
 				// requires global sort
 
 				ShipStrategy s = this.input.getShipStrategy();
@@ -315,21 +307,14 @@ public class DataSinkNode extends OptimizerNode {
 					// this input plan cannot produce a valid plan
 					continue;
 				}
-
-				if (this.localStrategy == LocalStrategy.NONE || this.localStrategy == LocalStrategy.SORT) {
-					// strategy not fixed a priori, or strategy fixed, but valid
-					ls = LocalStrategy.SORT;
-				} else {
-					// strategy is set a priory --> via compiler hint
-					// this input plan cannot produce a valid plan
-					continue;
-				}
 				
-				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, go.getInvolvedFields());
-				gp.setOrdering(go);
-				lp.setOrdering(go);
-			} else if (lo != null && lo.isMetBy(lp.getOrdering())) {
-
+				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, po.getInvolvedIndexes());
+				gp.setOrdering(po);
+			} else {
+				ss = ShipStrategy.FORWARD;
+			}
+			
+			if (lo != null && !lo.isMetBy(lp.getOrdering())) {
 				// requires local sort
 				if (this.localStrategy == LocalStrategy.NONE || this.localStrategy == LocalStrategy.SORT) {
 					// strategy not fixed a priori, or strategy fixed, but valid
@@ -340,22 +325,13 @@ public class DataSinkNode extends OptimizerNode {
 					continue;
 				}
 
-				ls = LocalStrategy.SORT;
 				lp.setOrdering(lo);
-			}
-
-			// check, if a shipping strategy applies
-			if (ss == null) {
-				ss = ShipStrategy.FORWARD;
+			} else {
+				ls = LocalStrategy.NONE;
 			}
 			
 			DataSinkNode ns = new DataSinkNode(this, subPlan, this.input, gp, lp);
 			ns.input.setShipStrategy(ss);
-
-			// check, if a local strategy is necessary
-			if (ls == null) {
-				ls = LocalStrategy.NONE;
-			}
 			ns.setLocalStrategy(ls);
 
 			// set the costs
@@ -417,6 +393,4 @@ public class DataSinkNode extends OptimizerNode {
 	public FieldSet getConstantSet(int input) {
 		return null;
 	}
-
-	
 }

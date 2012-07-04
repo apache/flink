@@ -106,7 +106,7 @@ public interface InputFormat<OT, T extends InputSplit>
 	 * 
 	 * @return The type of the input splits.
 	 */
-	public Class<T> getInputSplitType();
+	public Class<? extends T> getInputSplitType();
 	
 	// --------------------------------------------------------------------------------------------
 	

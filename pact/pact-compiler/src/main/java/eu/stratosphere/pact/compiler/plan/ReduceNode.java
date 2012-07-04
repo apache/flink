@@ -35,7 +35,7 @@ import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -158,7 +158,7 @@ public class ReduceNode extends SingleInputNode {
 		switch(this.localStrategy) {
 			case SORT:          return 1;
 			case COMBININGSORT: return 1;
-			case NONE:          return 0;
+			case NONE:          return getPactContract().getSecondaryOrder() == null ? 0 : 1;
 			default:	        return 0;
 		}
 	}
@@ -303,7 +303,7 @@ public class ReduceNode extends SingleInputNode {
 			if (ls == LocalStrategy.COMBININGSORT || ls == LocalStrategy.SORT) {
 				Ordering ordering = new Ordering();
 				for (Integer index :keySet) {
-					ordering.appendOrdering(index, Order.ASCENDING);
+					ordering.appendOrdering(index, null, Order.ASCENDING);
 				}
 				lp.setOrdering(ordering);
 				lp.setGrouped(true, keySet);

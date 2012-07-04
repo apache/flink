@@ -35,7 +35,7 @@ import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -129,9 +129,10 @@ public class CoGroupNode extends TwoInputNode {
 	public int getMemoryConsumerCount() {
 		switch(this.localStrategy) {
 			case SORT_BOTH_MERGE:   return 2;
-			case SORT_FIRST_MERGE:  return 1;
-			case SORT_SECOND_MERGE: return 1;
-			case MERGE:             return 0;
+			case SORT_FIRST_MERGE:  return 1 + (getPactContract().getSecondaryOrderForInputTwo() == null ? 0 : 1);
+			case SORT_SECOND_MERGE: return 1 + (getPactContract().getSecondaryOrderForInputOne() == null ? 0 : 1);
+			case MERGE:             return 0 + (getPactContract().getSecondaryOrderForInputOne() == null ? 0 : 1)
+			                                 + (getPactContract().getSecondaryOrderForInputTwo() == null ? 0 : 1);
 			default:	            return 0;
 		}
 	}
@@ -203,7 +204,7 @@ public class CoGroupNode extends TwoInputNode {
 		
 		Ordering ordering = new Ordering();
 		for (Integer index : getPactContract().getKeyColumnNumbers(inputNum)) {
-			ordering.appendOrdering(index, Order.ANY);
+			ordering.appendOrdering(index, null, Order.ANY);
 		}
 		
 		p.getLocalProperties().setOrdering(ordering);
@@ -529,14 +530,14 @@ public class CoGroupNode extends TwoInputNode {
 		
 		Ordering ordering1 = new Ordering();
 		for (int keyColumn : keyColumns1) {
-			ordering1.appendOrdering(keyColumn, Order.ASCENDING);
+			ordering1.appendOrdering(keyColumn, null, Order.ASCENDING);
 		}
 		
 		int[] keyColumns2 = getPactContract().getKeyColumnNumbers(1);
 		
 		Ordering ordering2 = new Ordering();
 		for (int keyColumn : keyColumns2) {
-			ordering2.appendOrdering(keyColumn, Order.ASCENDING);
+			ordering2.appendOrdering(keyColumn, null, Order.ASCENDING);
 		}
 		
 		// determine the properties of the data before it goes to the user code

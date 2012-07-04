@@ -15,18 +15,24 @@
 
 package eu.stratosphere.pact.runtime.task.util;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
 
 /**
  * Configuration class which stores all relevant parameters required to set up the Pact tasks.
@@ -90,6 +96,10 @@ public class TaskConfig
 	private static final String OUTPUT_SHIP_STRATEGY_PREFIX = "pact.out.shipstrategy.";
 	
 	private static final String OUTPUT_TYPE_SERIALIZER_FACTORY = "pact.out.serializer";
+	
+	private static final String OUTPUT_DATA_DISTRIBUTION_CLASS = "pact.out.distribution.class";
+	
+	private static final String OUTPUT_DATA_DISTRIBUTION_STATE = "pact.out.distribution.state";
 	
 	private static final String OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX = "pact.out.comparator.";
 	
@@ -376,6 +386,56 @@ public class TaskConfig
 	public String getPrefixForOutputParameters(int outputNum)
 	{
 		return OUTPUT_PARAMETERS_PREFIX + outputNum + '.';
+	}
+	
+	public void setOutputDataDistribution(DataDistribution distribution)
+	{
+		this.config.setString(OUTPUT_DATA_DISTRIBUTION_CLASS, distribution.getClass().getName());
+		
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		final DataOutputStream dos = new DataOutputStream(baos);
+		try {
+			distribution.write(dos);
+		} catch (IOException e) {
+			throw new RuntimeException("Error serializing the DataDistribution: " + e.getMessage(), e);
+		}
+		final String stateEncoded = baos.toString();
+		this.config.setString(OUTPUT_DATA_DISTRIBUTION_STATE, stateEncoded);
+	}
+	
+	public DataDistribution getOutputDataDistribution(final ClassLoader cl) throws ClassNotFoundException
+	{
+		final String className = this.config.getString(OUTPUT_DATA_DISTRIBUTION_CLASS, null);
+		if (className == null) {
+			return null;
+		}
+		
+		final Class<? extends DataDistribution> clazz;
+		try {
+			clazz = Class.forName(className, true, cl).asSubclass(DataDistribution.class);
+		} catch (ClassCastException ccex) {
+			throw new CorruptConfigurationException("The class noted in the configuration as the data distribution " +
+					"is no subclass of DataDistribution.");
+		}
+		
+		final DataDistribution distribution = InstantiationUtil.instantiate(clazz, DataDistribution.class);
+		
+		final String stateEncoded = this.config.getString(OUTPUT_DATA_DISTRIBUTION_STATE, null);
+		if (stateEncoded == null) {
+			throw new CorruptConfigurationException(
+						"The configuration contained the data distribution type, but no serialized state.");
+		}
+		
+		final ByteArrayInputStream bais = new ByteArrayInputStream(stateEncoded.getBytes());
+		final DataInputStream in = new DataInputStream(bais);
+		
+		try {
+			distribution.read(in);
+			return distribution;
+		} catch (Exception ex) {
+			throw new RuntimeException("The deserialization of the encoded data distribution state caused an error"
+				+ ex.getMessage() == null ? "." : ": " + ex.getMessage(), ex);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

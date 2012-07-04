@@ -201,7 +201,11 @@ public abstract class PactList<V extends Value> implements Value, List<V> {
 	public boolean contains(final Object o) {
 		return this.list.contains(o);
 	}
-
+	
+	@Override
+	public String toString() {
+		return this.list.toString();
+	}
 	/*
 	 * (non-Javadoc)
 	 * @see java.util.List#containsAll(java.util.Collection)

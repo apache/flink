@@ -1,0 +1,902 @@
+[INFO] Scanning for projects...
+[INFO] Reactor build order: 
+[INFO]   stratosphere
+[INFO]   build-tools
+[INFO]   nephele
+[INFO]   nephele-common
+[INFO]   nephele-management
+[INFO]   nephele-hdfs
+[INFO]   nephele-server
+[INFO]   nephele-profiling
+[INFO]   nephele-queuescheduler
+[INFO]   nephele-ec2cloudmanager
+[INFO]   nephele-clustermanager
+[INFO]   nephele-visualization
+[INFO]   nephele-examples
+[INFO]   pact
+[INFO]   pact-common
+[INFO]   pact-runtime
+[INFO]   pact-compiler
+[INFO]   pact-clients
+[INFO]   pact-examples
+[INFO]   pact-tests
+[INFO]   stratosphere-dist
+[INFO] Searching repository for plugin with prefix: 'dependency'.
+[INFO] ------------------------------------------------------------------------
+[INFO] Building stratosphere
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building build-tools
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-common
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-management
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-hdfs
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-server
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-profiling
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    antlr:antlr:jar:2.7.6:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-collections:commons-collections:jar:3.1:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    dom4j:dom4j:jar:1.6.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    javassist:javassist:jar:3.8.0.GA:compile
+[INFO]    javax.transaction:jta:jar:1.1:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    mysql:mysql-connector-java:jar:5.0.8:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.hibernate:hibernate-core:jar:3.3.2.GA:compile
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    org.slf4j:slf4j-api:jar:1.5.10:compile
+[INFO]    org.slf4j:slf4j-log4j12:jar:1.5.10:compile
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xml-apis:xml-apis:jar:1.0.b2:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-queuescheduler
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-ec2cloudmanager
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    com.google.code.typica:typica:jar:1.6:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-clustermanager
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-visualization
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[WARNING] POM for 'jfree:jfreechart-swt:pom:1.0.9:compile' is invalid.
+
+Its dependencies (if any) will NOT be available to the current build.
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    jfree:jcommon:jar:1.0.12:compile
+[INFO]    jfree:jfreechart:jar:1.0.9:compile
+[INFO]    jfree:jfreechart-swt:jar:1.0.9:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    org.eclipse.swt.gtk.linux:x86_64:jar:3.3.0-v3346:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building nephele-examples
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building pact
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building pact-common
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.codehaus.jackson:jackson-core-asl:jar:1.7.1:compile
+[INFO]    org.codehaus.jackson:jackson-mapper-asl:jar:1.7.1:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building pact-runtime
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-common:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.codehaus.jackson:jackson-core-asl:jar:1.7.1:compile
+[INFO]    org.codehaus.jackson:jackson-mapper-asl:jar:1.7.1:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building pact-compiler
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-common:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-runtime:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.codehaus.jackson:jackson-core-asl:jar:1.7.1:compile
+[INFO]    org.codehaus.jackson:jackson-mapper-asl:jar:1.7.1:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building pact-clients
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-fileupload:commons-fileupload:jar:1.2.2:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-common:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-compiler:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-runtime:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.commons:commons-io:jar:1.3.2:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.codehaus.jackson:jackson-core-asl:jar:1.7.1:compile
+[INFO]    org.codehaus.jackson:jackson-mapper-asl:jar:1.7.1:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.eclipse.jetty:jetty-continuation:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-http:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-io:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-security:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-server:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-servlet:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-util:jar:8.0.0.M1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api:jar:3.0.20100224:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building pact-examples
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-common:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-compiler:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-runtime:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.codehaus.jackson:jackson-core-asl:jar:1.7.1:compile
+[INFO]    org.codehaus.jackson:jackson-mapper-asl:jar:1.7.1:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building pact-tests
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0.1:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-common:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-compiler:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-examples:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-runtime:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    junit:junit:jar:4.7:compile
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.codehaus.jackson:jackson-core-asl:jar:1.7.1:compile
+[INFO]    org.codehaus.jackson:jackson-mapper-asl:jar:1.7.1:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:compile
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:compile
+[INFO]    org.mockito:mockito-all:jar:1.8.5:compile
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:compile
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:compile
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:compile
+[INFO]    org.powermock:powermock-core:jar:1.4.7:compile
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:compile
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:compile
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:compile
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Building stratosphere-dist
+[INFO]    task-segment: [dependency:list]
+[INFO] ------------------------------------------------------------------------
+[INFO] [dependency:list {execution: default-cli}]
+[INFO] 
+[INFO] The following files have been resolved:
+[INFO]    ant:ant:jar:1.6.5:compile
+[INFO]    antlr:antlr:jar:2.7.6:compile
+[INFO]    com.google.code.typica:typica:jar:1.6:compile
+[INFO]    commons-cli:commons-cli:jar:1.2:compile
+[INFO]    commons-codec:commons-codec:jar:1.3:compile
+[INFO]    commons-collections:commons-collections:jar:3.1:compile
+[INFO]    commons-el:commons-el:jar:1.0:compile
+[INFO]    commons-fileupload:commons-fileupload:jar:1.2.2:compile
+[INFO]    commons-httpclient:commons-httpclient:jar:3.0:compile
+[INFO]    commons-logging:commons-logging:jar:1.1.1:compile
+[INFO]    commons-net:commons-net:jar:1.4.1:compile
+[INFO]    dom4j:dom4j:jar:1.6.1:compile
+[INFO]    eu.stratosphere:nephele:jar:sources:0.1:compile
+[INFO]    eu.stratosphere:nephele-clustermanager:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-common:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-ec2cloudmanager:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-examples:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-hdfs:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-management:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-profiling:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-queuescheduler:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-server:jar:0.1:compile
+[INFO]    eu.stratosphere:nephele-visualization:jar:0.1:compile
+[INFO]    eu.stratosphere:pact:jar:sources:0.1:compile
+[INFO]    eu.stratosphere:pact-clients:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-common:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-compiler:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-examples:jar:0.1:compile
+[INFO]    eu.stratosphere:pact-runtime:jar:0.1:compile
+[INFO]    hsqldb:hsqldb:jar:1.8.0.10:compile
+[INFO]    javassist:javassist:jar:3.8.0.GA:compile
+[INFO]    javax.transaction:jta:jar:1.1:compile
+[INFO]    jfree:jcommon:jar:1.0.12:compile
+[INFO]    jfree:jfreechart:jar:1.0.9:compile
+[INFO]    jfree:jfreechart-swt:jar:1.0.9:compile
+[INFO]    junit:junit:jar:4.7:test
+[INFO]    log4j:log4j:jar:1.2.16:compile
+[INFO]    mysql:mysql-connector-java:jar:5.0.8:compile
+[INFO]    net.java.dev.jets3t:jets3t:jar:0.7.1:compile
+[INFO]    net.sf.kosmosfs:kfs:jar:0.3:compile
+[INFO]    org.apache.commons:commons-io:jar:1.3.2:compile
+[INFO]    org.apache.hadoop:hadoop-core:jar:0.20.2:compile
+[INFO]    org.codehaus.jackson:jackson-core-asl:jar:1.7.1:compile
+[INFO]    org.codehaus.jackson:jackson-mapper-asl:jar:1.7.1:compile
+[INFO]    org.eclipse.jdt:core:jar:3.1.1:compile
+[INFO]    org.eclipse.jetty:jetty-continuation:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-http:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-io:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-security:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-server:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-servlet:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.jetty:jetty-util:jar:8.0.0.M1:compile
+[INFO]    org.eclipse.swt.gtk.linux:x86_64:jar:3.3.0-v3346:compile
+[INFO]    org.hamcrest:hamcrest-all:jar:1.1:test
+[INFO]    org.hibernate:hibernate-core:jar:3.3.2.GA:compile
+[INFO]    org.javassist:javassist:jar:3.14.0-GA:test
+[INFO]    org.mockito:mockito-all:jar:1.8.5:test
+[INFO]    org.mortbay.jetty:jetty:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jetty-util:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:jsp-api-2.1:jar:6.1.14:compile
+[INFO]    org.mortbay.jetty:servlet-api:jar:3.0.20100224:compile
+[INFO]    org.mortbay.jetty:servlet-api-2.5:jar:6.1.14:compile
+[INFO]    org.objenesis:objenesis:jar:1.2:test
+[INFO]    org.powermock:powermock-api-mockito:jar:1.4.7:test
+[INFO]    org.powermock:powermock-api-support:jar:1.4.7:test
+[INFO]    org.powermock:powermock-core:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4:jar:1.4.7:test
+[INFO]    org.powermock:powermock-module-junit4-common:jar:1.4.7:test
+[INFO]    org.powermock:powermock-reflect:jar:1.4.7:test
+[INFO]    org.slf4j:slf4j-api:jar:1.5.10:compile
+[INFO]    org.slf4j:slf4j-log4j12:jar:1.5.10:compile
+[INFO]    oro:oro:jar:2.0.8:compile
+[INFO]    tomcat:jasper-compiler:jar:5.5.12:compile
+[INFO]    tomcat:jasper-runtime:jar:5.5.12:compile
+[INFO]    xml-apis:xml-apis:jar:1.0.b2:compile
+[INFO]    xmlenc:xmlenc:jar:0.52:compile
+[INFO] 
+[INFO] 
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary:
+[INFO] ------------------------------------------------------------------------
+[INFO] stratosphere .......................................... SUCCESS [2.572s]
+[INFO] build-tools ........................................... SUCCESS [0.011s]
+[INFO] nephele ............................................... SUCCESS [0.013s]
+[INFO] nephele-common ........................................ SUCCESS [0.012s]
+[INFO] nephele-management .................................... SUCCESS [0.013s]
+[INFO] nephele-hdfs .......................................... SUCCESS [0.162s]
+[INFO] nephele-server ........................................ SUCCESS [0.025s]
+[INFO] nephele-profiling ..................................... SUCCESS [0.091s]
+[INFO] nephele-queuescheduler ................................ SUCCESS [0.022s]
+[INFO] nephele-ec2cloudmanager ............................... SUCCESS [0.030s]
+[INFO] nephele-clustermanager ................................ SUCCESS [0.023s]
+[INFO] nephele-visualization ................................. SUCCESS [0.026s]
+[INFO] nephele-examples ...................................... SUCCESS [0.015s]
+[INFO] pact .................................................. SUCCESS [0.011s]
+[INFO] pact-common ........................................... SUCCESS [0.035s]
+[INFO] pact-runtime .......................................... SUCCESS [0.029s]
+[INFO] pact-compiler ......................................... SUCCESS [0.053s]
+[INFO] pact-clients .......................................... SUCCESS [0.223s]
+[INFO] pact-examples ......................................... SUCCESS [0.036s]
+[INFO] pact-tests ............................................ SUCCESS [0.039s]
+[INFO] stratosphere-dist ..................................... SUCCESS [0.117s]
+[INFO] ------------------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESSFUL
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 5 seconds
+[INFO] Finished at: Fri Feb 04 18:40:59 CET 2011
+[INFO] Final Memory: 49M/380M
+[INFO] ------------------------------------------------------------------------
