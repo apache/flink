@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.MatchStub;
@@ -400,5 +401,127 @@ public class MatchContract extends DualInputContract<MatchStub>
 		setFirstInputs(input1);
 		setSecondInputs(input2);
 	}
+	
+	/**
+	 * The private constructor that only gets invoked from the Builder.
+	 * @param builder
+	 */
+	private MatchContract(Builder builder) {
+		super(builder.udf, builder.keyClasses, builder.keyColumns1, builder.keyColumns2, builder.name);
+		setFirstInputs(builder.inputs1);
+		setSecondInputs(builder.inputs2);
+	}
 
+	/**
+	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
+	 * 
+	 * @author Aljoscha Krettek
+	 */
+	public static class Builder {
+		/**
+		 * The required parameters.
+		 */
+		private final Class<? extends MatchStub> udf;
+		private final Class<? extends Key>[] keyClasses;
+		private final int[] keyColumns1;
+		private final int[] keyColumns2;
+		
+		/**
+		 * The optional parameters.
+		 */
+		private List<Contract> inputs1;
+		private List<Contract> inputs2;
+		private String name = DEFAULT_NAME;
+		
+		/**
+		 * Creates a Builder with the provided {@link CoGroupStub} implementation
+		 * 
+		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param keyClass The class of the key data type.
+		 * @param keyColumn1 The position of the key in the first input's records.
+		 * @param keyColumn2 The position of the key in the second input's records.
+		 */
+		public Builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+			this(udf, asArray(keyClass), new int[] {keyColumn1}, new int[] {keyColumn2});
+		}
+		
+		/**
+		 * Creates a Builder with the provided {@link CoGroupStub} implementation
+		 * 
+		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param keyTypes The classs of the key data types.
+		 * @param keyColumns1 The positions of the keys in the first input's records.
+		 * @param keyColumns2 The positions of the keys in the second input's records.
+		 */
+		public Builder(Class<? extends MatchStub> udf, Class<? extends Key>[] keyClasses, int[] keyColumns1, int[] keyColumns2) {
+			this.udf = udf;
+			this.keyClasses = keyClasses;
+			this.keyColumns1 = keyColumns1;
+			this.keyColumns2 = keyColumns2;
+			this.inputs1 = new LinkedList<Contract>();
+			this.inputs2 = new LinkedList<Contract>();
+		}
+		
+		/**
+		 * Sets the first input.
+		 * 
+		 * @param input
+		 */
+		public Builder input1(Contract input) {
+			this.inputs1.clear();
+			this.inputs1.add(input);
+			return this;
+		}
+		
+		/**
+		 * Sets the first input.
+		 * 
+		 * @param input
+		 */
+		public Builder input2(Contract input) {
+			this.inputs2.clear();
+			this.inputs2.add(input);
+			return this;
+		}
+		
+		/**
+		 * Sets the first inputs.
+		 * 
+		 * @param inputs
+		 */
+		public Builder inputs1(List<Contract> inputs) {
+			this.inputs1 = inputs;
+			return this;
+		}
+		
+		/**
+		 * Sets the second inputs.
+		 * 
+		 * @param inputs
+		 */
+		public Builder inputs2(List<Contract> inputs) {
+			this.inputs2 = inputs;
+			return this;
+		}
+		
+		/**
+		 * Sets the name of this contract.
+		 * 
+		 * @param name
+		 */
+		public Builder name(String name) {
+			this.name = name;
+			return this;
+		}
+		
+		/**
+		 * Creates and returns a MatchContract from using the values given 
+		 * to the builder.
+		 * 
+		 * @return The created contract
+		 */
+		public MatchContract build() {
+			return new MatchContract(this);
+		}
+	}
 }

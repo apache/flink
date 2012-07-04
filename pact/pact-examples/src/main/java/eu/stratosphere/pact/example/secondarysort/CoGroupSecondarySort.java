@@ -137,11 +137,12 @@ public class CoGroupSecondarySort implements PlanAssembler, PlanAssemblerDescrip
 		
 		MapContract mapper2 = new MapContract(TokenizeLine.class, source2, "Tokenize Lines");
 		
-		CoGroupContract coGroup = new CoGroupContract(IdentityCoGroup.class, PactInteger.class, 0, 0);
-		coGroup.setSecondaryOrderForInputOne(new Ordering(1, PactInteger.class, Order.ASCENDING));
-		coGroup.setSecondaryOrderForInputTwo(new Ordering(1, PactInteger.class, Order.ASCENDING));
-		coGroup.setFirstInput(mapper);
-		coGroup.setSecondInput(mapper2);
+		CoGroupContract coGroup = new CoGroupContract.Builder(IdentityCoGroup.class, PactInteger.class, 0, 0)
+			.input1(mapper)
+			.input2(mapper2)
+		    .secondaryOrder1(new Ordering(1, PactInteger.class, Order.ASCENDING))
+		    .secondaryOrder2(new Ordering(1, PactInteger.class, Order.ASCENDING))
+		    .build();
 		
 		FileDataSink out = new FileDataSink(SecondarySortOutFormat.class, output, coGroup, "Sorted entries");
 

@@ -130,9 +130,10 @@ public class ReduceSecondarySort implements PlanAssembler, PlanAssemblerDescript
 		
 		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
 		
-		ReduceContract reducer = new ReduceContract(IdentityReducer.class, PactInteger.class, 0);
-		reducer.setSecondaryOrder(new Ordering(1, PactInteger.class, Order.ASCENDING));
-		reducer.setInput(mapper);
+		ReduceContract reducer = new ReduceContract.Builder(IdentityReducer.class, PactInteger.class, 0)
+			.secondaryOrder(new Ordering(1, PactInteger.class, Order.ASCENDING))
+			.input(mapper)
+			.build();
 		
 		FileDataSink out = new FileDataSink(SecondarySortOutFormat.class, output, reducer, "Sorted entries");
 

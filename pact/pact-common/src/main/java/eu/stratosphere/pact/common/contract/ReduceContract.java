@@ -19,6 +19,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.LinkedList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.ReduceStub;
@@ -208,6 +209,16 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 		setInputs(inputs);
 	}
 	
+	/**
+	 * The private constructor that only gets invoked from the Builder.
+	 * @param builder
+	 */
+	private ReduceContract(Builder builder) {
+		super(builder.udf, builder.keyClasses, builder.keyColumns, builder.name);
+		setInputs(builder.inputs);
+		this.secondaryOrder = builder.secondaryOrder;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -283,4 +294,101 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
 	public @interface Combinable {};
+	
+	/**
+	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
+	 * 
+	 * @author Aljoscha Krettek
+	 */
+	public static class Builder {
+		/**
+		 * The required parameters.
+		 */
+		private final Class<? extends ReduceStub> udf;
+		private final Class<? extends Key>[] keyClasses;
+		private final int[] keyColumns;
+		
+		/**
+		 * The optional parameters.
+		 */
+		private Ordering secondaryOrder = null;
+		private List<Contract> inputs;
+		private String name = DEFAULT_NAME;
+		
+		/**
+		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+		 * 
+		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param keyClass The class of the key data type.
+		 * @param keyColumn The position of the key.
+		 */
+		public Builder(Class<? extends ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
+			this(udf, asArray(keyClass), new int[] {keyColumn});
+		}
+		
+		/**
+		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+		 * 
+		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param keyClass The classes of the key data types.
+		 * @param keyColumn The positions of the keys.
+		 */
+		public Builder(Class<? extends ReduceStub> udf, Class<? extends Key>[] keyClasses, int[] keyColumns) {
+			this.udf = udf;
+			this.keyClasses = keyClasses;
+			this.keyColumns = keyColumns;
+			this.inputs = new LinkedList<Contract>();
+		}
+
+		/**
+		 * Sets the order of the elements within a group.
+		 * 
+		 * @param order The order for the elements in a group.
+		 */
+		public Builder secondaryOrder(Ordering order) {
+			this.secondaryOrder = order;
+			return this;
+		}
+		
+		/**
+		 * Sets the input.
+		 * 
+		 * @param input
+		 */
+		public Builder input(Contract input) {
+			this.inputs.clear();
+			this.inputs.add(input);
+			return this;
+		}
+		
+		/**
+		 * Sets the inputs.
+		 * 
+		 * @param input
+		 */
+		public Builder inputs(List<Contract> inputs) {
+			this.inputs = inputs;
+			return this;
+		}
+		
+		/**
+		 * Sets the name of this contract.
+		 * 
+		 * @param name
+		 */
+		public Builder name(String name) {
+			this.name = name;
+			return this;
+		}
+		
+		/**
+		 * Creates and returns a ReduceContract from using the values given 
+		 * to the builder.
+		 * 
+		 * @return The created contract
+		 */
+		public ReduceContract build() {
+			return new ReduceContract(this);
+		}
+	}
 }
