@@ -15,27 +15,20 @@
 
 package eu.stratosphere.pact.compiler.util;
 
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
 
-public final class DummyInputFormat extends DelimitedInputFormat
-{
-	private final PactInteger integer = new PactInteger(1);
+public class DummyMatchStub extends MatchStub {
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
+	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
-		target.setField(0, this.integer);
-		target.setField(1, this.integer);
-		return true;
+	public void match(PactRecord value1, PactRecord value2,
+			Collector<PactRecord> out) throws Exception {
+		out.collect(value1);
+		
 	}
 
-	@Override
-	public FileBaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		return new FileBaseStatistics(123456l, 10000l, 100);
-	}
 }

@@ -15,27 +15,26 @@
 
 package eu.stratosphere.pact.compiler.util;
 
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactInteger;
+import java.util.Iterator;
 
-public final class DummyInputFormat extends DelimitedInputFormat
-{
-	private final PactInteger integer = new PactInteger(1);
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.PactRecord;
+
+public class DummyCoGroupStub extends CoGroupStub {
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
+	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
-		target.setField(0, this.integer);
-		target.setField(1, this.integer);
-		return true;
+	public void coGroup(Iterator<PactRecord> records1,
+			Iterator<PactRecord> records2, Collector<PactRecord> out) {
+		while (records1.hasNext()) {
+			out.collect(records1.next());
+		}
+		while (records2.hasNext()) {
+			out.collect(records2.next());
+		}
 	}
 
-	@Override
-	public FileBaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		return new FileBaseStatistics(123456l, 10000l, 100);
-	}
 }
