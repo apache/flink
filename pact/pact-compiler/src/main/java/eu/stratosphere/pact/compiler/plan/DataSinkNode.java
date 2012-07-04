@@ -167,13 +167,19 @@ public class DataSinkNode extends OptimizerNode {
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
 		List<Contract> children = getPactContract().getInputs();
 
-		for(Contract child : children) {
-			OptimizerNode pred = contractToNode.get(child);
-	
-			PactConnection conn = new PactConnection(pred, this);
-			setInputConnection(conn);
-			pred.addOutConn(conn);
+		OptimizerNode pred;
+		if (children.size() == 1) {
+			pred = contractToNode.get(children.get(0));
+		} else {
+			pred = new UnionNode(getPactContract(), children, contractToNode);
+			//push id down to newly created union node
+			pred.SetId(this.id);
+			this.id++;
 		}
+		// create the connection and add it
+		PactConnection conn = new PactConnection(pred, this);
+		this.setInputConnection(conn);
+		pred.addOutConn(conn);
 	}
 
 	/**

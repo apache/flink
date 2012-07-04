@@ -156,7 +156,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private int memoryPerTask; // the amount of memory dedicated to each task, in MiBytes
 
-	private int id = -1; // the id for this node.
+	protected int id = -1; // the id for this node.
 
 	protected boolean pFlag = false; // flag for the internal pruning algorithm
 

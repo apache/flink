@@ -239,21 +239,33 @@ public abstract class TwoInputNode extends OptimizerNode
 		List<Contract> leftPreds = contr.getFirstInputs();
 		List<Contract> rightPreds = contr.getSecondInputs();
 		
-		for(Contract cl : leftPreds) {
-			OptimizerNode pred1 = contractToNode.get(cl);
-			// create the connections and add them
-			PactConnection conn1 = new PactConnection(pred1, this);
-			this.input1 = conn1;
-			pred1.addOutConn(conn1);
+		OptimizerNode pred1;
+		if (leftPreds.size() == 1) {
+			pred1 = contractToNode.get(leftPreds.get(0));
+		} else {
+			pred1 = new UnionNode(getPactContract(), leftPreds, contractToNode);
+			//push id down to newly created union node
+			pred1.SetId(this.id);
+			this.id++;
 		}
-
-		for(Contract cr : rightPreds) {
-			OptimizerNode pred2 = contractToNode.get(cr);
-			// create the connections and add them
-			PactConnection conn2 = new PactConnection(pred2, this);
-			this.input2 = conn2;
-			pred2.addOutConn(conn2);
+		// create the connection and add it
+		PactConnection conn1 = new PactConnection(pred1, this);
+		this.input1 = conn1;
+		pred1.addOutConn(conn1);
+		
+		OptimizerNode pred2;
+		if (rightPreds.size() == 1) {
+			pred2 = contractToNode.get(rightPreds.get(0));
+		} else {
+			pred2 = new UnionNode(getPactContract(), rightPreds, contractToNode);
+			//push id down to newly created union node
+			pred2.SetId(this.id);
+			this.id++;
 		}
+		// create the connection and add it
+		PactConnection conn2 = new PactConnection(pred1, this);
+		this.input2 = conn2;
+		pred2.addOutConn(conn2);
 
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
 		Configuration conf = getPactContract().getParameters();
