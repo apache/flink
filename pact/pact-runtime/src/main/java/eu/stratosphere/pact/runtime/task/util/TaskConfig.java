@@ -450,6 +450,12 @@ public class TaskConfig
 		return this.config.getInteger(INPUT_GROUP_SIZE_PREFIX + groupIndex, -1);
 	}
 	
+	public void addInputToGroup(int groupIndex) {
+		String grp = INPUT_GROUP_SIZE_PREFIX + groupIndex;
+		this.config.setInteger(grp, this.config.getInteger(grp, 0)+1);
+		this.config.setInteger(NUM_INPUTS, this.config.getInteger(NUM_INPUTS, 0)+1);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//                       Parameters to configure the memory and I/O behavior
 	// --------------------------------------------------------------------------------------------

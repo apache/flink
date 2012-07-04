@@ -70,7 +70,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		DataSink(GenericDataSink.class),
 		Map(MapContract.class),
 		Match(MatchContract.class),
-		Reduce(ReduceContract.class);
+		Reduce(ReduceContract.class),
+		Union(Contract.class);
 
 		private Class<? extends Contract> clazz; // The class describing the contract
 

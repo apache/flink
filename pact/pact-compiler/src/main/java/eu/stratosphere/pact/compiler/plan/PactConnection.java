@@ -59,7 +59,7 @@ public class PactConnection {
 	
 	private int replicationFactor; // the factor by which the data that is shipped over this connection is replicated
 	
-	private int[] scramblePartitionedFields; // The fields which are used for partitioning, this is only used if the partitioned fields
+	private int[] scramblePartitionedFields = null; // The fields which are used for partitioning, this is only used if the partitioned fields
 									 // are not the key fields
 
 
@@ -148,6 +148,9 @@ public class PactConnection {
 		this.tempMode = template.tempMode;
 
 		this.interestingProps = template.interestingProps;
+		if (template.scramblePartitionedFields != null) {
+			this.scramblePartitionedFields = template.scramblePartitionedFields.clone();	
+		}
 	}
 
 	/**

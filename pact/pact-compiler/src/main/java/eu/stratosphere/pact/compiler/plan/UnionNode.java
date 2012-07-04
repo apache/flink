@@ -88,6 +88,12 @@ public class UnionNode extends OptimizerNode {
 		// TODO Auto-generated method stub
 		return null;
 	}
+	
+	@Override
+	public PactType getPactType() {
+		return PactType.Union;
+	}
+
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor)
@@ -132,6 +138,11 @@ public class UnionNode extends OptimizerNode {
 	public boolean isFieldKept(int input, int fieldNumber) {
 		// TODO Auto-generated method stub
 		return false;
+	}
+
+	public List<PactConnection> getUnionedIncommingConnections() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }
