@@ -387,7 +387,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			inConnOfInput = new LinkedList<PactConnection>();
 			//create new connections between union inputs and target with properties of 
 			//connection between target and union
-			for (PactConnection inConn : ((UnionNode)input).getUnionedIncommingConnections()) {
+			for (PactConnection inConn : input.getIncomingConnections()) {
 				inConnOfInput.add(new PactConnection(connection, inConn.getSourcePact(), connection.getTargetPact()));
 			}
 		}

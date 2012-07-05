@@ -214,8 +214,4 @@ public class UnionNode extends OptimizerNode {
 		return true;
 	}
 
-	public List<PactConnection> getUnionedIncommingConnections() {
-		return inConns;
-	}
-
 }
