@@ -15,13 +15,19 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.GlobalProperties;
+import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 
 /**
  * @author ringwald
@@ -29,9 +35,31 @@ import eu.stratosphere.pact.compiler.costs.CostEstimator;
  */
 public class UnionNode extends OptimizerNode {
 
+	protected List<PactConnection> inConns;
+	
 	public UnionNode(Contract descendant, List<Contract> children, Map<Contract, OptimizerNode> contractToNode) {
 		super(descendant);
+		this.inConns = new LinkedList<PactConnection>();
+		
+		for (Contract child : children) {
+			OptimizerNode pred = contractToNode.get(child);
+			// create the connection and add it
+			PactConnection conn = new PactConnection(pred, this);
+			this.inConns.add(conn);
+			pred.addOutConn(conn);
+			conn.setShipStrategy(ShipStrategy.FORWARD);
+		}
+		
 		// TODO Auto-generated constructor stub
+	}
+	
+	public UnionNode(UnionNode template, Stack<OptimizerNode> preds) {
+		super(template, new GlobalProperties(), new LocalProperties());
+		this.inConns = new LinkedList<PactConnection>();
+		for (int i = 0; i < preds.size(); i++){
+			OptimizerNode pred = preds.get(i);
+			inConns.add(new PactConnection(template.inConns.get(i), pred, this));
+		}
 	}
 
 	/* (non-Javadoc)
@@ -40,7 +68,7 @@ public class UnionNode extends OptimizerNode {
 	@Override
 	public String getName() {
 		// TODO Auto-generated method stub
-		return null;
+		return "";
 	}
 
 	/* (non-Javadoc)
@@ -49,6 +77,7 @@ public class UnionNode extends OptimizerNode {
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
 		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException();
 
 	}
 
@@ -58,7 +87,7 @@ public class UnionNode extends OptimizerNode {
 	@Override
 	public List<PactConnection> getIncomingConnections() {
 		// TODO Auto-generated method stub
-		return null;
+		return inConns;
 	}
 
 	/* (non-Javadoc)
@@ -66,8 +95,9 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-		// TODO Auto-generated method stub
-
+		for (PactConnection inConn : inConns) {
+			inConn.addAllInterestingProperties(getInterestingProperties());
+		}
 	}
 
 	/* (non-Javadoc)
@@ -76,7 +106,18 @@ public class UnionNode extends OptimizerNode {
 	@Override
 	public void computeUnclosedBranchStack() {
 		// TODO Auto-generated method stub
+		if (this.openBranches != null) {
+			return;
+		}
 
+		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
+		// TODO: check if merge is really necessary
+		
+		for (PactConnection inConn : inConns) {
+			result = mergeLists(result, inConn.getSourcePact().getBranchesForParent(this));
+		}
+		
+		this.openBranches = result;
 	}
 
 	/* (non-Javadoc)
@@ -85,8 +126,36 @@ public class UnionNode extends OptimizerNode {
 	@Override
 	public List<? extends OptimizerNode> getAlternativePlans(
 			CostEstimator estimator) {
-		// TODO Auto-generated method stub
-		return null;
+
+		List<UnionNode> target = new LinkedList<UnionNode>();
+		Stack<OptimizerNode> newInputs = new Stack<OptimizerNode>();
+		List<List<? extends OptimizerNode>> inputs = new LinkedList<List<? extends OptimizerNode>>();
+		for (PactConnection inConn : inConns) {
+			inputs.add(inConn.getSourcePact().getAlternativePlans(estimator));
+		}
+		
+		calcAlternatives(target, newInputs, 0, inputs);
+		return target;
+		
+//		throw new UnsupportedOperationException();
+	}
+	
+	public void calcAlternatives(List<UnionNode> target, Stack<OptimizerNode> newInputs, int index, List<List<? extends OptimizerNode>> inputs) {
+		List<? extends OptimizerNode> alternativesAtLevel = inputs.get(index);
+		
+		for (OptimizerNode alternative : alternativesAtLevel) {
+			newInputs.push(alternative);
+			
+			if (index < inputs.size() - 1) {
+				calcAlternatives(target, newInputs, index + 1, inputs);
+			}
+			else {
+				target.add(new UnionNode(this, newInputs));
+			}
+			
+			newInputs.pop();
+		}
+		
 	}
 	
 	@Override
@@ -101,7 +170,13 @@ public class UnionNode extends OptimizerNode {
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		// TODO Auto-generated method stub
-
+		
+		if (visitor.preVisit(this)) {
+			for (PactConnection inConn : this.inConns) {
+				inConn.getSourcePact().accept(visitor);
+			}
+			visitor.postVisit(this);
+		}
 	}
 
 	/* (non-Javadoc)
@@ -136,13 +211,11 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public boolean isFieldKept(int input, int fieldNumber) {
-		// TODO Auto-generated method stub
-		return false;
+		return true;
 	}
 
 	public List<PactConnection> getUnionedIncommingConnections() {
-		// TODO Auto-generated method stub
-		return null;
+		return inConns;
 	}
 
 }
