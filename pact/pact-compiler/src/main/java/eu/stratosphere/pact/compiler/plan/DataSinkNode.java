@@ -172,6 +172,7 @@ public class DataSinkNode extends OptimizerNode {
 			pred = contractToNode.get(children.get(0));
 		} else {
 			pred = new UnionNode(getPactContract(), children, contractToNode);
+			pred.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred.SetId(this.id);
 			this.id++;

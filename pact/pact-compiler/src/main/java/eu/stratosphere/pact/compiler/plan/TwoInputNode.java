@@ -244,6 +244,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			pred1 = contractToNode.get(leftPreds.get(0));
 		} else {
 			pred1 = new UnionNode(getPactContract(), leftPreds, contractToNode);
+			pred1.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred1.SetId(this.id);
 			this.id++;
@@ -258,12 +259,13 @@ public abstract class TwoInputNode extends OptimizerNode
 			pred2 = contractToNode.get(rightPreds.get(0));
 		} else {
 			pred2 = new UnionNode(getPactContract(), rightPreds, contractToNode);
+			pred2.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred2.SetId(this.id);
 			this.id++;
 		}
 		// create the connection and add it
-		PactConnection conn2 = new PactConnection(pred1, this);
+		PactConnection conn2 = new PactConnection(pred2, this);
 		this.input2 = conn2;
 		pred2.addOutConn(conn2);
 
