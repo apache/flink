@@ -283,6 +283,12 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	public void postVisit(OptimizerNode node)
 	{
 		try {
+			
+			//do nothing for union nodes
+			if (node instanceof UnionNode) {
+				return;
+			}
+			
 			// get pact vertex
 			AbstractJobVertex inputVertex = this.vertices.get(node);
 			List<PactConnection> inConns = node.getIncomingConnections();
@@ -1253,7 +1259,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		case NONE:
 			outputVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
 			configForOutputShipStrategy = outputConfig;
-			outputConfig.addInputToGroup(inputNumber);
+			inputConfig.addInputToGroup(inputNumber);
 			break;
 		case TEMP_SENDER_SIDE:
 			// create tempTask
@@ -1278,7 +1284,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			// set strategies in task configs
 			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 			configForOutputShipStrategy = tempConfig;
-			outputConfig.addInputToGroup(inputNumber);
+			inputConfig.addInputToGroup(inputNumber);
 			tempConfig.addInputToGroup(1);
 
 			break;
@@ -1306,7 +1312,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
 			configForOutputShipStrategy = outputConfig;
 			
-			outputConfig.addInputToGroup(inputNumber);
+			inputConfig.addInputToGroup(inputNumber);
 			tempConfig.addInputToGroup(1);
 			break;
 		default:
