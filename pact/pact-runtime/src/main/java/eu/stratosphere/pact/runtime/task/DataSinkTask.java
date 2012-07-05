@@ -413,6 +413,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 			}
 		}
 		catch (IOException e) {
+			LOG.error("Could not access the file system to detemine the status of the output.", e);
 			// any other kind of I/O exception: we assume only a degree of one here
 			return 1;
 		}
