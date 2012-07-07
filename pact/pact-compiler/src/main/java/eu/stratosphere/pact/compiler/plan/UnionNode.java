@@ -160,17 +160,18 @@ public class UnionNode extends OptimizerNode {
 			Map<OptimizerNode, OptimizerNode> newBranchPlan = new HashMap<OptimizerNode, OptimizerNode>(branchPlan);
 			
 			boolean isCompatible = true;
-			
-			for (UnclosedBranchDescriptor branch : alternative.openBranches) {
-				OptimizerNode brancher = branch.getBranchingNode();
-				if (newBranchPlan.containsKey(brancher)) {
-					if (newBranchPlan.get(brancher) != alternative.branchPlan.get(brancher)) {
-						isCompatible = false;
-						break;
+			if (alternative.openBranches != null) {
+				for (UnclosedBranchDescriptor branch : alternative.openBranches) {
+					OptimizerNode brancher = branch.getBranchingNode();
+					if (newBranchPlan.containsKey(brancher)) {
+						if (newBranchPlan.get(brancher) != alternative.branchPlan.get(brancher)) {
+							isCompatible = false;
+							break;
+						}
+					} 
+					else {
+						newBranchPlan.put(brancher, alternative.branchPlan.get(brancher));
 					}
-				} 
-				else {
-					newBranchPlan.put(brancher, alternative.branchPlan.get(brancher));
 				}
 			}
 			
@@ -182,7 +183,7 @@ public class UnionNode extends OptimizerNode {
 				FieldList newPartitionedFieldsInCommon = partitionedFieldsInCommon;
 				
 				// only property which would survive is a hash partitioning on every input
-				GlobalProperties gpForInput = PactConnection.getGlobalPropertiesAfterConnection(alternative, this, ShipStrategy.FORWARD);
+				GlobalProperties gpForInput = alternative.getGlobalProperties();
 				if (index == 0 && gpForInput.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
 					newPartitionedFieldsInCommon = gpForInput.getPartitionedFields();
 				}
