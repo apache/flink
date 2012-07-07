@@ -16,13 +16,18 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.Stack;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -48,8 +53,6 @@ public class UnionNode extends OptimizerNode {
 			pred.addOutConn(conn);
 			conn.setShipStrategy(ShipStrategy.FORWARD);
 		}
-		
-		// TODO Auto-generated constructor stub
 	}
 	
 	public UnionNode(UnionNode template, Stack<OptimizerNode> preds) {
@@ -66,8 +69,7 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public String getName() {
-		// TODO Auto-generated method stub
-		return "";
+		return "Union";
 	}
 
 	/* (non-Javadoc)
@@ -91,9 +93,12 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-		// TODO Auto-generated method stub
-		for (PactConnection inConn : inConns) {
-			inConn.addAllInterestingProperties(getInterestingProperties());
+		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
+		
+		for (int i = 0; i < inConns.size(); i++) {
+			List<InterestingProperties> inputProps = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
+				this, i);
+			inConns.get(i).addAllInterestingProperties(inputProps);
 		}
 	}
 
@@ -180,6 +185,12 @@ public class UnionNode extends OptimizerNode {
 	public int getMemoryConsumerCount() {
 		return 0;
 	}
+	
+	@Override
+	protected void readStubAnnotations() {
+		//DO NOTHING
+		//do not read annotations for union nodes, as this node is artificially generated
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#readConstantAnnotation()
@@ -196,5 +207,94 @@ public class UnionNode extends OptimizerNode {
 	public boolean isFieldKept(int input, int fieldNumber) {
 		return true;
 	}
+	
+	@Override
+	public void computeOutputEstimates(DataStatistics statistics) {
+		
+		
+		this.estimatedNumRecords = 0;
+		this.estimatedOutputSize = 0;
+		
+		// init estimated cardinalities with the fields of the first input
+		// remove the field which are unknown for other inputs later on
+		for (FieldSet fieldSet : inConns.get(0).getSourcePact().getEstimatedCardinalities().keySet()) {
+			this.estimatedCardinality.put(fieldSet, 0L);
+		}
+		
+		
+		for (PactConnection inConn : inConns) {
+			
+			OptimizerNode inputPact = inConn.getSourcePact();
+			
+			// sum up estimatedNumRecords for inputs
+			long estimatedNumRecordForInput = inputPact.estimatedNumRecords;
+			
+			if (estimatedNumRecordForInput != -1 && this.estimatedNumRecords != -1) {
+				this.estimatedNumRecords += estimatedNumRecordForInput;
+			}
+			else {
+				this.estimatedNumRecords = -1;
+			}
+			
+			// sum up estimatedOutputSize for inputs
+			long estimatedOutputSizeForInput = inputPact.estimatedOutputSize;
+			
+			if (estimatedOutputSizeForInput != -1 && this.estimatedOutputSize != -1) {
+				this.estimatedOutputSize += estimatedOutputSizeForInput;
+			}
+			else {
+				this.estimatedOutputSize = -1;
+			}
+			
+			
+			//sum up cardinalities or remove them if they are unknown
+			Set<FieldSet> toRemove = new HashSet<FieldSet>();
+			
+			for (Entry<FieldSet, Long> cardinality : this.estimatedCardinality.entrySet()) {
+				long inputCard = inputPact.getEstimatedCardinality(cardinality.getKey());
+				if (inputCard == -1) {
+					toRemove.add(cardinality.getKey());
+				}
+				else {
+					//to be conservative we assume the inputs are disjoint
+					inputCard += cardinality.getValue();
+					cardinality.setValue(inputCard);
+				}
+			}
+			
+			this.estimatedCardinality.keySet().removeAll(toRemove);
+			
+		}
+		
+		
+	}
+	
+	
+	@Override
+	protected long computeNumberOfStubCalls() {
+		return this.estimatedNumRecords;
+	}
+	
+	
+	@Override
+	protected double computeAverageRecordWidth() {
+		if (this.estimatedNumRecords == -1 || this.estimatedOutputSize == -1) return -1;
+		
+		final double width = this.estimatedOutputSize / (double) this.estimatedNumRecords;
+
+		// a record must have at least one byte...
+		if(width < 1)
+			return 1;
+		else 
+			return width;  
+		
+	}
+	
+	@Override
+	public void computeUniqueFields() {
+		//DO NOTHING
+		// we cannot guarantee uniqueness of fields for union
+	}
+
 
 }
