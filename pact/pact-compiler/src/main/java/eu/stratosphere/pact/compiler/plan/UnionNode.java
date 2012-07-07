@@ -26,10 +26,12 @@ import java.util.Stack;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
@@ -58,12 +60,13 @@ public class UnionNode extends OptimizerNode {
 		setLocalStrategy(LocalStrategy.NONE);
 	}
 	
-	public UnionNode(UnionNode template, Stack<OptimizerNode> preds) {
-		super(template, new GlobalProperties(), new LocalProperties());
+	public UnionNode(UnionNode template, Stack<OptimizerNode> preds, GlobalProperties gp, LocalProperties lp) {
+		super(template, gp, lp);
 		this.inConns = new LinkedList<PactConnection>();
 		for (int i = 0; i < preds.size(); i++){
 			OptimizerNode pred = preds.get(i);
-			inConns.add(new PactConnection(template.inConns.get(i), pred, this));
+			PactConnection inConn = new PactConnection(template.inConns.get(i), pred, this);
+			inConns.add(inConn);
 		}
 		
 		setLocalStrategy(LocalStrategy.NONE);
@@ -141,21 +144,40 @@ public class UnionNode extends OptimizerNode {
 			inputs.add(inConn.getSourcePact().getAlternativePlans(estimator));
 		}
 		
-		calcAlternatives(target, newInputs, 0, inputs);
+		calcAlternatives(target, newInputs, 0, inputs, null);
 		return target;
 	}
 	
-	public void calcAlternatives(List<UnionNode> target, Stack<OptimizerNode> newInputs, int index, List<List<? extends OptimizerNode>> inputs) {
+	public void calcAlternatives(List<UnionNode> target, Stack<OptimizerNode> newInputs, int index, List<List<? extends OptimizerNode>> inputs, FieldList partitionedFieldsInCommon) {
 		List<? extends OptimizerNode> alternativesAtLevel = inputs.get(index);
 		
 		for (OptimizerNode alternative : alternativesAtLevel) {
 			newInputs.push(alternative);
 			
+			FieldList newPartitionedFieldsInCommon = partitionedFieldsInCommon;
+			
+			// only property which would survive is a hash partitioning on every input
+			GlobalProperties gpForInput = PactConnection.getGlobalPropertiesAfterConnection(alternative, this, ShipStrategy.FORWARD);
+			if (index == 0 && gpForInput.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+				newPartitionedFieldsInCommon = gpForInput.getPartitionedFields();
+			}
+			else if (gpForInput.getPartitioning() != PartitionProperty.HASH_PARTITIONED
+					|| gpForInput.getPartitionedFields().equals(partitionedFieldsInCommon) == false) {
+				newPartitionedFieldsInCommon = null;
+			}
+
+			
 			if (index < inputs.size() - 1) {
-				calcAlternatives(target, newInputs, index + 1, inputs);
+				calcAlternatives(target, newInputs, index + 1, inputs, newPartitionedFieldsInCommon);
 			}
 			else {
-				target.add(new UnionNode(this, newInputs));
+				GlobalProperties gp = new GlobalProperties();
+				
+				if (newPartitionedFieldsInCommon != null) {
+					gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, newPartitionedFieldsInCommon);
+				}
+
+				target.add(new UnionNode(this, newInputs, gp, new LocalProperties()));
 			}
 			
 			newInputs.pop();
