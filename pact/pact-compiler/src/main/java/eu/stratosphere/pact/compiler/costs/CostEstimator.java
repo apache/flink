@@ -77,88 +77,60 @@ public abstract class CostEstimator {
 			throw new CompilerException("Cannot compute costs on operator before incoming connections are set.");
 		}
 
-		PactConnection primConn = null;
-		PactConnection secConn = null;
-
-		// get the inputs, if we have some
-		{
-			List<PactConnection> conns = n.getIncomingConnections();
-			if (conns.size() > 0) {
-				primConn = conns.get(0);
-			}
-			if (conns.size() > 1) {
-				secConn = conns.get(1);
-			}
-		}
-
 		// initialize costs objects with currently unknown costs
 		Costs globCost = new Costs();
 		Costs locCost = new Costs();
+		
+		globCost.setNetworkCost(0);
+		globCost.setSecondaryStorageCost(0);
+		
+		List<PactConnection> incomingConnections = n.getIncomingConnections();
+		
+		for (int i = 0; i < incomingConnections.size(); i++) {
 
-		// get the costs of the first input
-		if (primConn != null) {
-			// we assume that all connections in the list have the same ship strategy;
-			// hence we can use the first connection blindly for determining the used strategy
-			switch (primConn.getShipStrategy()) {
+			PactConnection connection = incomingConnections.get(i);
+			
+			Costs tempGlobalCost = new Costs();
+			
+			switch (connection.getShipStrategy()) {
 			case NONE:
 				throw new CompilerException(
-					"Cannot determine costs: Shipping strategy has not been set for the first input.");
+					"Cannot determine costs: Shipping strategy has not been set for an input.");
 			case FORWARD:
 			case PARTITION_LOCAL_HASH:
-				globCost.setNetworkCost(0);
-				globCost.setSecondaryStorageCost(0);
+				tempGlobalCost.setNetworkCost(0);
+				tempGlobalCost.setSecondaryStorageCost(0);
 				break;
 			case PARTITION_HASH:
-				getHashPartitioningCost(primConn, globCost);
+				getHashPartitioningCost(connection, tempGlobalCost);
 				break;
 			case PARTITION_RANGE:
-				getRangePartitionCost(primConn, globCost);
+				getRangePartitionCost(connection, tempGlobalCost);
 				break;
 			case BROADCAST:
-				getBroadcastCost(primConn, globCost);
+				getBroadcastCost(connection, tempGlobalCost);
 				break;
 			case SFR:
 				throw new CompilerException("Symmetric-Fragment-And-Replicate Strategy currently not supported.");
 			default:
-				throw new CompilerException("Unknown shipping strategy for first input: " + primConn.getShipStrategy().name());
+				throw new CompilerException("Unknown shipping strategy for input: " + connection.getShipStrategy().name());
 			}
-		} else {
-			// no global costs
-			globCost.setNetworkCost(0);
-			globCost.setSecondaryStorageCost(0);
-		}
-
-		// if we have a second input, add its costs
-		if (secConn != null) {
-			Costs secCost = new Costs();
-
-			// we assume that all connections in the list have the same ship strategy;
-			// hence we can use the first connection blindly for determining the used strategy
-			switch (secConn.getShipStrategy()) {
-			case NONE:
-				throw new CompilerException(
-					"Cannot determine costs: Shipping strategy has not been set for the second input.");
-			case FORWARD:
-			case PARTITION_LOCAL_HASH:
-				secCost.setNetworkCost(0);
-				secCost.setSecondaryStorageCost(0);
-				break;
-			case PARTITION_HASH:
-				getHashPartitioningCost(secConn, secCost);
-				break;
-			case PARTITION_RANGE:
-				getRangePartitionCost(secConn, secCost);
-				break;
-			case BROADCAST:
-				getBroadcastCost(secConn, secCost);
-				break;
-			case SFR:
-				throw new CompilerException("Symmetric-Fragment-And-Replicate Strategy currently not supported.");
-			default:
-				throw new CompilerException("Unknown shipping strategy for second input: " + secConn.getShipStrategy().name());
+			
+			globCost.addCosts(tempGlobalCost);
+		} 
+		
+		
+		PactConnection primConn = null;
+		PactConnection secConn = null;
+		
+		// get the inputs, if we have some
+		{
+			if (incomingConnections.size() > 0) {
+				primConn = incomingConnections.get(0);
 			}
-
-			globCost.addCosts(secCost);
+			if (incomingConnections.size() > 1) {
+				secConn = incomingConnections.get(1);
+			}
 		}
 
 		// determine the local costs
