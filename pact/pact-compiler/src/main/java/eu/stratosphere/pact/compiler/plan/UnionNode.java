@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -115,13 +116,11 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public void computeUnclosedBranchStack() {
-		// TODO Auto-generated method stub
 		if (this.openBranches != null) {
 			return;
 		}
 
 		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
-		// TODO: check if merge is really necessary
 		
 		for (PactConnection inConn : inConns) {
 			result = mergeLists(result, inConn.getSourcePact().getBranchesForParent(this));
@@ -136,51 +135,78 @@ public class UnionNode extends OptimizerNode {
 	@Override
 	public List<? extends OptimizerNode> getAlternativePlans(
 			CostEstimator estimator) {
-
-		List<UnionNode> target = new LinkedList<UnionNode>();
+		
+		List<OptimizerNode> alternatives = new LinkedList<OptimizerNode>();
 		Stack<OptimizerNode> newInputs = new Stack<OptimizerNode>();
+		Map<OptimizerNode, OptimizerNode> branchPlan = new HashMap<OptimizerNode, OptimizerNode>();
 		List<List<? extends OptimizerNode>> inputs = new LinkedList<List<? extends OptimizerNode>>();
 		for (PactConnection inConn : inConns) {
 			inputs.add(inConn.getSourcePact().getAlternativePlans(estimator));
 		}
 		
-		calcAlternatives(target, newInputs, 0, inputs, null);
-		return target;
+		calcAlternatives(alternatives, newInputs, 0, inputs, null, branchPlan);
+		
+		// prune the plans
+		prunePlanAlternatives(alternatives);
+
+		return alternatives;
 	}
 	
-	public void calcAlternatives(List<UnionNode> target, Stack<OptimizerNode> newInputs, int index, List<List<? extends OptimizerNode>> inputs, FieldList partitionedFieldsInCommon) {
+	public void calcAlternatives(List<OptimizerNode> target, Stack<OptimizerNode> newInputs, int index, List<List<? extends OptimizerNode>> inputs, FieldList partitionedFieldsInCommon, Map<OptimizerNode, OptimizerNode> branchPlan) {
 		List<? extends OptimizerNode> alternativesAtLevel = inputs.get(index);
 		
 		for (OptimizerNode alternative : alternativesAtLevel) {
-			newInputs.push(alternative);
+		
+			Map<OptimizerNode, OptimizerNode> newBranchPlan = new HashMap<OptimizerNode, OptimizerNode>(branchPlan);
 			
-			FieldList newPartitionedFieldsInCommon = partitionedFieldsInCommon;
+			boolean isCompatible = true;
 			
-			// only property which would survive is a hash partitioning on every input
-			GlobalProperties gpForInput = PactConnection.getGlobalPropertiesAfterConnection(alternative, this, ShipStrategy.FORWARD);
-			if (index == 0 && gpForInput.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-				newPartitionedFieldsInCommon = gpForInput.getPartitionedFields();
-			}
-			else if (gpForInput.getPartitioning() != PartitionProperty.HASH_PARTITIONED
-					|| gpForInput.getPartitionedFields().equals(partitionedFieldsInCommon) == false) {
-				newPartitionedFieldsInCommon = null;
-			}
-
-			
-			if (index < inputs.size() - 1) {
-				calcAlternatives(target, newInputs, index + 1, inputs, newPartitionedFieldsInCommon);
-			}
-			else {
-				GlobalProperties gp = new GlobalProperties();
-				
-				if (newPartitionedFieldsInCommon != null) {
-					gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, newPartitionedFieldsInCommon);
+			for (UnclosedBranchDescriptor branch : alternative.openBranches) {
+				OptimizerNode brancher = branch.getBranchingNode();
+				if (newBranchPlan.containsKey(brancher)) {
+					if (newBranchPlan.get(brancher) != alternative.branchPlan.get(brancher)) {
+						isCompatible = false;
+						break;
+					}
+				} 
+				else {
+					newBranchPlan.put(brancher, alternative.branchPlan.get(brancher));
 				}
-
-				target.add(new UnionNode(this, newInputs, gp, new LocalProperties()));
 			}
 			
-			newInputs.pop();
+			
+			if (isCompatible) {
+				
+				newInputs.push(alternative);
+				
+				FieldList newPartitionedFieldsInCommon = partitionedFieldsInCommon;
+				
+				// only property which would survive is a hash partitioning on every input
+				GlobalProperties gpForInput = PactConnection.getGlobalPropertiesAfterConnection(alternative, this, ShipStrategy.FORWARD);
+				if (index == 0 && gpForInput.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+					newPartitionedFieldsInCommon = gpForInput.getPartitionedFields();
+				}
+				else if (gpForInput.getPartitioning() != PartitionProperty.HASH_PARTITIONED
+						|| gpForInput.getPartitionedFields().equals(partitionedFieldsInCommon) == false) {
+					newPartitionedFieldsInCommon = null;
+				}
+	
+				
+				if (index < inputs.size() - 1) {
+					calcAlternatives(target, newInputs, index + 1, inputs, newPartitionedFieldsInCommon, newBranchPlan);
+				}
+				else {
+					GlobalProperties gp = new GlobalProperties();
+					
+					if (newPartitionedFieldsInCommon != null) {
+						gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, newPartitionedFieldsInCommon);
+					}
+	
+					target.add(new UnionNode(this, newInputs, gp, new LocalProperties()));
+				}
+				
+				newInputs.pop();
+			}
 		}
 		
 	}
