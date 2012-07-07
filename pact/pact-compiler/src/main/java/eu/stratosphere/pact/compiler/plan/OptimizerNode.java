@@ -1254,17 +1254,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		return this.stubOutCardUB;
 	}
 	
-	/**
-	 * Gives the constant set of the node. 
-	 * The constant set is used to decide about reordering of nodes.
-	 * 
-	 * @param id of input for which the constant set should be returned. 
-	 *        -1 if the unioned constant set over all inputs is requested. 
-	 *  
-	 * @return the constant set for the requested input(s)
-	 */
-	public abstract FieldSet getConstantSet(int input);
-	
 	protected static final class UnclosedBranchDescriptor
 	{
 		protected OptimizerNode branchingNode;

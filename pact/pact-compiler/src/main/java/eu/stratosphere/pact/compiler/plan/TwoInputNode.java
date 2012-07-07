@@ -498,27 +498,6 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
-	 */
-	@Override
-	public FieldSet getConstantSet(int input) {
-
-		switch(input) {
-		case 0:
-			return this.constant1;
-		case 1:
-			return this.constant2;
-		case -1:
-			return new FieldSet(this.constant1, this.constant2);
-		default:
-			throw new IndexOutOfBoundsException();
-		}
-	}
-	
-	
 	/**
 	 * Computes the width of output records
 	 * 

@@ -23,7 +23,6 @@ import java.util.Stack;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Visitor;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -76,9 +75,7 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
-		// TODO Auto-generated method stub
 		throw new UnsupportedOperationException();
-
 	}
 
 	/* (non-Javadoc)
@@ -86,7 +83,6 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public List<PactConnection> getIncomingConnections() {
-		// TODO Auto-generated method stub
 		return inConns;
 	}
 
@@ -95,6 +91,7 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+		// TODO Auto-generated method stub
 		for (PactConnection inConn : inConns) {
 			inConn.addAllInterestingProperties(getInterestingProperties());
 		}
@@ -136,8 +133,6 @@ public class UnionNode extends OptimizerNode {
 		
 		calcAlternatives(target, newInputs, 0, inputs);
 		return target;
-		
-//		throw new UnsupportedOperationException();
 	}
 	
 	public void calcAlternatives(List<UnionNode> target, Stack<OptimizerNode> newInputs, int index, List<List<? extends OptimizerNode>> inputs) {
@@ -169,7 +164,6 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
-		// TODO Auto-generated method stub
 		
 		if (visitor.preVisit(this)) {
 			for (PactConnection inConn : this.inConns) {
@@ -184,7 +178,6 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	public int getMemoryConsumerCount() {
-		// TODO Auto-generated method stub
 		return 0;
 	}
 
@@ -193,17 +186,7 @@ public class UnionNode extends OptimizerNode {
 	 */
 	@Override
 	protected void readConstantAnnotation() {
-		// TODO Auto-generated method stub
-
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getConstantSet(int)
-	 */
-	@Override
-	public FieldSet getConstantSet(int input) {
-		// TODO Auto-generated method stub
-		return null;
+		//DO NOTHING
 	}
 
 	/* (non-Javadoc)

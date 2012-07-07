@@ -382,19 +382,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throw new CompilerException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.");
 		}
 	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
-	 */
-	@Override
-	public FieldSet getConstantSet(int input) {
-		
-		if(input < -1 || input > 0)
-			throw new IndexOutOfBoundsException();
-		
-		return this.constantSet;
-	}
 
 	
 }

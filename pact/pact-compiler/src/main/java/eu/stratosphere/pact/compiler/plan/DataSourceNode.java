@@ -329,13 +329,4 @@ public class DataSourceNode extends OptimizerNode
 		// DO NOTHING
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
-	 */
-	@Override
-	public FieldSet getConstantSet(int input) {
-		return null;
-	}
-	
 }
