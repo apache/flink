@@ -5,6 +5,7 @@ import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
 /**
  * Represents all constants.
@@ -27,6 +28,18 @@ public class ConstantExpression extends EvaluationExpression {
 
 		private Object readResolve() {
 			return ConstantExpression.MISSING;
+		}
+	};
+
+	public static final EvaluationExpression NULL = new ConstantExpression(NullNode.getInstance()) {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2375203649638430872L;
+
+		private Object readResolve() {
+			return ConstantExpression.NULL;
 		}
 	};
 

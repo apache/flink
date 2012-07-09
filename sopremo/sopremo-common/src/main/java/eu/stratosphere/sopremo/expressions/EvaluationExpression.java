@@ -65,19 +65,6 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		}
 	};
 
-	// TODO: move to constant expression
-	public static final EvaluationExpression NULL = new ConstantExpression(NullNode.getInstance()) {
-
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -2375203649638430872L;
-
-		private Object readResolve() {
-			return EvaluationExpression.NULL;
-		}
-	};
-
 	/**
 	 * Initializes EvaluationExpression.
 	 */

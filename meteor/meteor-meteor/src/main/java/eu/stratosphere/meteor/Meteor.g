@@ -177,8 +177,8 @@ castExpression
 	
 generalPathExpression
 	: value=valueExpression path=pathExpression -> { PathExpression.wrapIfNecessary($value.tree, $path.tree) } 
-	| valueExpression;//(({$contextAwareExpression::context != null}?=> contextAwarePathExpression) | pathExpression);
-	
+	| valueExpression;
+
 contextAwarePathExpression[EvaluationExpression context]
   : path=pathExpression -> { PathExpression.wrapIfNecessary(context, $path.tree) };
   
@@ -230,18 +230,13 @@ scope {  List<ObjectCreation.Mapping> mappings; }
 @init { $objectCreation::mappings = new ArrayList<ObjectCreation.Mapping>(); }
 	:	'{' (fieldAssignment (',' fieldAssignment)* ','?)? '}' -> ^(EXPRESSION["ObjectCreation"] { $objectCreation::mappings });
 
-
-//objectOrMethodAccess
-//	:	 functionCall arrayAccess? objectOrMethodAccess? -> ^(OBJECT_EXPR ID functionCall arrayAccess? objectOrMethodAccess?);
-
 literal
 	: val='true' -> ^(EXPRESSION["ConstantExpression"] { Boolean.TRUE })
 	| val='false' -> ^(EXPRESSION["ConstantExpression"] { Boolean.FALSE })
 	| val=DECIMAL -> ^(EXPRESSION["ConstantExpression"] { new BigDecimal($val.text) })
 	| val=STRING -> ^(EXPRESSION["ConstantExpression"] { $val.getText() })
   | val=INTEGER -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
-  | val=UINT -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
-  | 'null' -> { EvaluationExpression.NULL };
+  | 'null' -> { ConstantExpression.NULL };
 
 arrayAccess
   : '[' STAR ']' path=pathExpression
@@ -326,7 +321,6 @@ scope {
   if(preserveFlag != null)
     setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream(), inputIndex).withTag(ExpressionTag.RETAIN));
   else setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream(), inputIndex));
-//    $operator::inputTags.put(input, Arrays.asList(ExpressionTag.RETAIN));
 } 
 { if(state.backtracking == 0) {
     addScope();
@@ -347,13 +341,10 @@ arrayInput
 	  setBinding((Token) $names.get(index), new InputSelection(index)); 
   }
 } -> ;
-//-> {$from.text != null}? ^(BIND $name $from?)
-//	-> ^($name);	
-	
-//identifier
-//	:	VAR | ID;
-	
-	
+
+/**
+ * Lexer rules
+ */	
 fragment LOWER_LETTER
 	:	'a'..'z';
 
