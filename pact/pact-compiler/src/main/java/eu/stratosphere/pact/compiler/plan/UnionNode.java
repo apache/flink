@@ -44,6 +44,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 public class UnionNode extends OptimizerNode {
 
 	protected List<PactConnection> inConns;
+	protected List<List<UnclosedBranchDescriptor>> openBranchesOfChildren = new ArrayList<List<UnclosedBranchDescriptor>>();
 	
 	public UnionNode(Contract descendant, List<Contract> children, Map<Contract, OptimizerNode> contractToNode) {
 		super(descendant);
@@ -123,7 +124,9 @@ public class UnionNode extends OptimizerNode {
 		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
 		
 		for (PactConnection inConn : inConns) {
-			result = mergeLists(result, inConn.getSourcePact().getBranchesForParent(this));
+			List<UnclosedBranchDescriptor> openBranchForInput = inConn.getSourcePact().getBranchesForParent(this);
+			openBranchesOfChildren.add(openBranchForInput);
+			result = mergeLists(result, openBranchForInput);
 		}
 		
 		this.openBranches = result;
@@ -160,8 +163,8 @@ public class UnionNode extends OptimizerNode {
 			Map<OptimizerNode, OptimizerNode> newBranchPlan = new HashMap<OptimizerNode, OptimizerNode>(branchPlan);
 			
 			boolean isCompatible = true;
-			if (alternative.openBranches != null) {
-				for (UnclosedBranchDescriptor branch : alternative.openBranches) {
+			if (openBranchesOfChildren.get(index) != null) {
+				for (UnclosedBranchDescriptor branch : openBranchesOfChildren.get(index)) {
 					OptimizerNode brancher = branch.getBranchingNode();
 					if (newBranchPlan.containsKey(brancher)) {
 						if (newBranchPlan.get(brancher) != alternative.branchPlan.get(brancher)) {
@@ -202,8 +205,9 @@ public class UnionNode extends OptimizerNode {
 					if (newPartitionedFieldsInCommon != null) {
 						gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, newPartitionedFieldsInCommon);
 					}
-	
-					target.add(new UnionNode(this, newInputs, gp, new LocalProperties()));
+					UnionNode unionNode = new UnionNode(this, newInputs, gp, new LocalProperties());
+					unionNode.branchPlan = newBranchPlan;
+					target.add(unionNode);
 				}
 				
 				newInputs.pop();
