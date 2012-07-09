@@ -38,21 +38,33 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
- * @author ringwald
- *
+ * The Optimizer representation of a <i>Union</i>. A Union is automatically
+ * inserted before any node which has more than one incoming connection per
+ * input.
+ * 
+ * @author Matthias Ringwald (matthias.ringwald@campus.tu-berlin.de)
  */
 public class UnionNode extends OptimizerNode {
 
-	protected List<PactConnection> inConns;
-	protected List<List<UnclosedBranchDescriptor>> openBranchesOfChildren = new ArrayList<List<UnclosedBranchDescriptor>>();
+	protected List<PactConnection> inConns;	//all the incoming connections
+	protected List<List<UnclosedBranchDescriptor>> openBranchesOfChildren //the open branches of the predecessors
+								= new ArrayList<List<UnclosedBranchDescriptor>>();
 	
+	/**
+	 * Creates a union node for the children of a given OptimizerNode 
+	 * 
+	 * @param descendant The descendant which needs the union for an input
+	 * @param children The predecessors to be united
+	 * @param contractToNode Mapping from contracts to their corresponding OptimizerNodes
+	 */
 	public UnionNode(Contract descendant, List<Contract> children, Map<Contract, OptimizerNode> contractToNode) {
 		super(descendant);
 		this.inConns = new LinkedList<PactConnection>();
 		
+		// create for each child of the descendant a connection to the union node
 		for (Contract child : children) {
 			OptimizerNode pred = contractToNode.get(child);
-			// create the connection and add it
+			
 			PactConnection conn = new PactConnection(pred, this);
 			this.inConns.add(conn);
 			pred.addOutConn(conn);
@@ -62,6 +74,20 @@ public class UnionNode extends OptimizerNode {
 		setLocalStrategy(LocalStrategy.NONE);
 	}
 	
+	/**
+	 * Copy constructor to create a copy of a UnionNode with different predecessors. The predecessors
+	 * are assumed to be of the same type and merely a copy with different strategies, as they
+	 * are created in the process of the plan enumeration.
+	 * 
+	 * @param template
+	 * 			The UnionNode to create a copy of.
+	 * @param preds
+	 *        The new predecessors.
+	 * @param gp
+	 *        The global properties of this copy.
+	 * @param lp
+	 *        The local properties of this copy.
+	 */
 	public UnionNode(UnionNode template, Stack<OptimizerNode> preds, GlobalProperties gp, LocalProperties lp) {
 		super(template, gp, lp);
 		this.inConns = new LinkedList<PactConnection>();
@@ -104,7 +130,8 @@ public class UnionNode extends OptimizerNode {
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		
+
+		//no new interesting properties are generated, just push them to the predecessors
 		for (int i = 0; i < inConns.size(); i++) {
 			List<InterestingProperties> inputProps = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
 				this, i);
@@ -123,6 +150,7 @@ public class UnionNode extends OptimizerNode {
 
 		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
 		
+		//merge all open branches of the predecessors and store each individually 
 		for (PactConnection inConn : inConns) {
 			List<UnclosedBranchDescriptor> openBranchForInput = inConn.getSourcePact().getBranchesForParent(this);
 			openBranchesOfChildren.add(openBranchForInput);
@@ -143,10 +171,13 @@ public class UnionNode extends OptimizerNode {
 		Stack<OptimizerNode> newInputs = new Stack<OptimizerNode>();
 		Map<OptimizerNode, OptimizerNode> branchPlan = new HashMap<OptimizerNode, OptimizerNode>();
 		List<List<? extends OptimizerNode>> inputs = new LinkedList<List<? extends OptimizerNode>>();
+		
+		//get the alternatives for the inputs
 		for (PactConnection inConn : inConns) {
 			inputs.add(inConn.getSourcePact().getAlternativePlans(estimator));
 		}
 		
+		//recursively enumerate all possible plan combinations
 		calcAlternatives(alternatives, newInputs, 0, inputs, null, branchPlan);
 		
 		// prune the plans
@@ -155,13 +186,26 @@ public class UnionNode extends OptimizerNode {
 		return alternatives;
 	}
 	
-	public void calcAlternatives(List<OptimizerNode> target, Stack<OptimizerNode> newInputs, int index, List<List<? extends OptimizerNode>> inputs, FieldList partitionedFieldsInCommon, Map<OptimizerNode, OptimizerNode> branchPlan) {
-		List<? extends OptimizerNode> alternativesAtLevel = inputs.get(index);
-		
+	/**
+	 * Recursive function for enumerating all possible plan combinations
+	 * 
+	 * @param target The list of generated combinations
+	 * @param subplanStack A stack of the chosen sub plan alternative
+	 * @param index The index of the input to be chosen
+	 * @param alternativesForInputs The alternatives for the inputs
+	 * @param partitionedFieldsInCommon The fields on which all inputs are hash partitioned
+	 * @param branchPlan The branch plan for the new node
+	 */
+	public void calcAlternatives(List<OptimizerNode> target, Stack<OptimizerNode> subplanStack, int index,
+			List<List<? extends OptimizerNode>> alternativesForInputs, FieldList partitionedFieldsInCommon, Map<OptimizerNode, OptimizerNode> branchPlan) {
+	
+		//enumerate all alternative for the current input
+		List<? extends OptimizerNode> alternativesAtLevel = alternativesForInputs.get(index);
 		for (OptimizerNode alternative : alternativesAtLevel) {
 		
 			Map<OptimizerNode, OptimizerNode> newBranchPlan = new HashMap<OptimizerNode, OptimizerNode>(branchPlan);
-			
+		
+			//check if the current alternative is compatible with the other inputs 
 			boolean isCompatible = true;
 			if (openBranchesOfChildren.get(index) != null) {
 				for (UnclosedBranchDescriptor branch : openBranchesOfChildren.get(index)) {
@@ -180,8 +224,8 @@ public class UnionNode extends OptimizerNode {
 			
 			
 			if (isCompatible) {
-				
-				newInputs.push(alternative);
+				// choose alternative
+				subplanStack.push(alternative);
 				
 				FieldList newPartitionedFieldsInCommon = partitionedFieldsInCommon;
 				
@@ -196,21 +240,24 @@ public class UnionNode extends OptimizerNode {
 				}
 	
 				
-				if (index < inputs.size() - 1) {
-					calcAlternatives(target, newInputs, index + 1, inputs, newPartitionedFieldsInCommon, newBranchPlan);
+				if (index < alternativesForInputs.size() - 1) {
+					//recursive descent
+					calcAlternatives(target, subplanStack, index + 1, alternativesForInputs, newPartitionedFieldsInCommon, newBranchPlan);
 				}
 				else {
+					//we have found a valid combination, create the according UnionNode for it
 					GlobalProperties gp = new GlobalProperties();
 					
 					if (newPartitionedFieldsInCommon != null) {
 						gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, newPartitionedFieldsInCommon);
 					}
-					UnionNode unionNode = new UnionNode(this, newInputs, gp, new LocalProperties());
+					UnionNode unionNode = new UnionNode(this, subplanStack, gp, new LocalProperties());
 					unionNode.branchPlan = newBranchPlan;
 					target.add(unionNode);
 				}
 				
-				newInputs.pop();
+				//undo last selection of the alternatives
+				subplanStack.pop();
 			}
 		}
 		
@@ -266,6 +313,10 @@ public class UnionNode extends OptimizerNode {
 		return true;
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeOutputEstimates(eu.stratosphere.pact.compiler.DataStatistics)
+	 */
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
 		
@@ -327,13 +378,20 @@ public class UnionNode extends OptimizerNode {
 		
 	}
 	
-	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeNumberOfStubCalls()
+	 */
 	@Override
 	protected long computeNumberOfStubCalls() {
 		return this.estimatedNumRecords;
 	}
 	
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeNumberOfStubCalls()
+	 */
 	@Override
 	protected double computeAverageRecordWidth() {
 		if (this.estimatedNumRecords == -1 || this.estimatedOutputSize == -1) return -1;
@@ -348,6 +406,10 @@ public class UnionNode extends OptimizerNode {
 		
 	}
 	
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUniqueFields()
+	 */
 	@Override
 	public void computeUniqueFields() {
 		//DO NOTHING
