@@ -176,7 +176,7 @@ public class JsonToCsv {
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void map(final PactRecord record, final Collector out) throws Exception {
+		public void map(final PactRecord record, final Collector<PactRecord> out) throws Exception {
 			final StringBuilder string = new StringBuilder();
 
 			this.node = this.schema.recordToJson(record, this.node);

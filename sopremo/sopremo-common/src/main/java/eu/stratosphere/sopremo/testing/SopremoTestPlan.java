@@ -474,7 +474,7 @@ public class SopremoTestPlan {
 				final IntIterator iterator = fuzzySlots.iterator();
 				while (iterator.hasNext())
 					testPlan.addFuzzyValueSimilarity(testPlan.getSinks().get(sinkIndex), iterator.next(),
-						new DoubleNodeSimilarity(doublePrecision));
+						new DoubleNodeSimilarity(this.doublePrecision));
 			}
 		}
 

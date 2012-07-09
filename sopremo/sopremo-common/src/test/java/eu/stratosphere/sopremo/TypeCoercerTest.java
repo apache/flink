@@ -35,7 +35,8 @@ public class TypeCoercerTest {
 
 	private final Object expectedResult;
 
-	public TypeCoercerTest(final IJsonNode value, final Class<? extends IJsonNode> targetType, final Object expectedResult) {
+	public TypeCoercerTest(final IJsonNode value, final Class<? extends IJsonNode> targetType,
+			final Object expectedResult) {
 		this.value = value;
 		this.targetType = targetType;
 		this.expectedResult = expectedResult;
@@ -44,24 +45,11 @@ public class TypeCoercerTest {
 	@Test
 	public void shouldPerformTheCoercionAsExpected() {
 		try {
-			final IJsonNode result = TypeCoercer.INSTANCE.coerce(this.value, this.targetType);
-
-			// workaround for BigIntegerNode bug
-			if (this.expectedResult instanceof BigIntegerNode) {
-				Assert.assertTrue(
-					String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
-					this.targetType.isInstance(result));
-				Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result),
-					((BigIntegerNode) this.expectedResult).getBigIntegerValue(),
-					((BigIntegerNode) result).getBigIntegerValue());
-			} else {
-				Assert.assertTrue(
-					String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
-					this.targetType.isInstance(result));
-				Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result),
-					this.expectedResult,
-					result);
-			}
+			final IJsonNode result = TypeCoercer.INSTANCE.coerce(this.value, null, this.targetType);
+			Assert.assertTrue(String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
+				this.targetType.isInstance(result));
+			Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result), this.expectedResult,
+				result);
 		} catch (final CoercionException e) {
 			Assert.assertTrue(String.format("%s->%s=Exception", this.value, this.targetType),
 				this.expectedResult == CONVERSION_ERROR);

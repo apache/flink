@@ -59,9 +59,8 @@ public class NaiveSchemaFactory implements SchemaFactory {
 			if (startIndex == 0)
 				// want to reduce on first elements of the array -> HeadArraySchema should be used
 				return new HeadArraySchema(endIndex + 1);
-			else
-				return new TailArraySchema(endIndex - startIndex + 1);
-		} else
-			return new GeneralSchema(mappings);
+			return new TailArraySchema(endIndex - startIndex + 1);
+		}
+		return new GeneralSchema(mappings);
 	}
 }

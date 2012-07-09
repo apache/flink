@@ -15,7 +15,9 @@ public class TernaryExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -5854293822552106472L;
 
-	private EvaluationExpression ifClause, ifExpression, thenExpression;
+	private CachingExpression<IJsonNode> ifClause;
+
+	private EvaluationExpression ifExpression, thenExpression;
 
 	/**
 	 * Initializes a TernaryExpression with the given {@link EvaluationExpression}s.
@@ -29,7 +31,7 @@ public class TernaryExpression extends EvaluationExpression {
 	 */
 	public TernaryExpression(final EvaluationExpression ifClause, final EvaluationExpression ifExpression,
 			final EvaluationExpression thenExpression) {
-		this.ifClause = ifClause;
+		this.ifClause = CachingExpression.ofSubclass(ifClause, IJsonNode.class);
 		this.ifExpression = ifExpression;
 		this.thenExpression = thenExpression;
 	}
@@ -65,7 +67,7 @@ public class TernaryExpression extends EvaluationExpression {
 		if (ifClause == null)
 			throw new NullPointerException("ifClause must not be null");
 
-		this.ifClause = ifClause;
+		this.ifClause = CachingExpression.ofSubclass(ifClause, IJsonNode.class);
 	}
 
 	/**
@@ -114,8 +116,8 @@ public class TernaryExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		// TODO Reuse target
-		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, null, context), BooleanNode.class) == BooleanNode.TRUE)
+		// no need to reuse the target of the coercion - a boolean node is never created anew 
+		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, context), null, BooleanNode.class) == BooleanNode.TRUE)
 			return this.ifExpression.evaluate(node, target, context);
 		return this.thenExpression.evaluate(node, target, context);
 	}
@@ -126,9 +128,10 @@ public class TernaryExpression extends EvaluationExpression {
 	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
 	 * .TransformFunction)
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {
-		this.ifClause = function.call(this.ifClause);
+		this.ifClause = (CachingExpression<IJsonNode>) function.call(this.ifClause);
 		this.ifExpression = function.call(this.ifExpression);
 		this.thenExpression = function.call(this.thenExpression);
 		return null;

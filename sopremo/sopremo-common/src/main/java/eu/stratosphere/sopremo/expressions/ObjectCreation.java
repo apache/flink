@@ -102,6 +102,7 @@ public class ObjectCreation extends ContainerExpression {
 	public void addMapping(final String target, final EvaluationExpression expression) {
 		this.mappings.add(new FieldAssignment(target, expression));
 	}
+
 	/**
 	 * Creates a new {@link ExpressionAssignment} and adds it to this expressions mappings.
 	 * 
@@ -320,9 +321,8 @@ public class ObjectCreation extends ContainerExpression {
 			throw new EvaluationException("Only tag mapping");
 		}
 	}
-	
-	public static class ExpressionAssignment extends Mapping<EvaluationExpression> {
 
+	public static class ExpressionAssignment extends Mapping<EvaluationExpression> {
 
 		/**
 		 * 
@@ -334,13 +334,12 @@ public class ObjectCreation extends ContainerExpression {
 		}
 
 		private IJsonNode lastResult;
-		
+
 		@Override
 		protected void evaluate(IJsonNode node, IObjectNode target, EvaluationContext context) {
-			lastResult = expression.evaluate(node, lastResult, context);
-			this.target.set(target, lastResult, context);
+			this.lastResult = this.expression.evaluate(node, this.lastResult, context);
+			this.target.set(target, this.lastResult, context);
 		}
-		
 	}
 
 	public abstract static class Mapping<Target> extends AbstractSopremoType implements SerializableSopremoType {

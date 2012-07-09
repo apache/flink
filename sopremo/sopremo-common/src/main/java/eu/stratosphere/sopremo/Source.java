@@ -10,7 +10,6 @@ import java.util.Map.Entry;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.FileInputFormat;
-import eu.stratosphere.pact.common.io.GeneratorInputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;

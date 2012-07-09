@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
 import eu.stratosphere.util.dag.GraphTraverseListener;
@@ -199,7 +198,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 				OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 					@Override
 					public void nodeTraversed(final Operator<?> node) {
-						final ElementarySopremoModule elementaryModule = node.asElementaryOperators(context);
+						final ElementarySopremoModule elementaryModule = node.asElementaryOperators(ElementaryAssembler.this.context);
 						ElementaryAssembler.this.modules.put(node, elementaryModule);
 					}
 				});

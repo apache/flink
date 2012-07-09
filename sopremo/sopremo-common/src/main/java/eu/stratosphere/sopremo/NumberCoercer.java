@@ -5,9 +5,9 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import eu.stratosphere.sopremo.TypeCoercer.Coercer;
 import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.AbstractJsonNode.Type;
-import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
@@ -24,22 +24,12 @@ public final class NumberCoercer {
 	 */
 	public static final NumberCoercer INSTANCE = new NumberCoercer();
 
-	// private final NumberType[][] typeCoerceMatrix = new NumberType[NUMBER_TYPES_COUNT][NUMBER_TYPES_COUNT];
-	//
-	private final Map<AbstractJsonNode.Type, Coercer> coercers = new EnumMap<AbstractJsonNode.Type, Coercer>(
-		AbstractJsonNode.Type.class);
+	private final Map<AbstractJsonNode.Type, Coercer<? extends INumericNode, ? extends INumericNode>> coercers =
+		new EnumMap<AbstractJsonNode.Type, Coercer<? extends INumericNode, ? extends INumericNode>>(
+			AbstractJsonNode.Type.class);
 
-	//
-	private final Map<Class<? extends IJsonNode>, Coercer> classCoercers =
-		new IdentityHashMap<Class<? extends IJsonNode>, Coercer>();
-
-	//
-	// private final Map<NumberType, Class<? extends IJsonNode>> implementationTypes = new EnumMap<NumberType, Class<?
-	// extends IJsonNode>>(
-	// NumberType.class);
-	//
-	// private final Map<Class<? extends IJsonNode>, NumberType> numberTypes = new IdentityHashMap<Class<? extends
-	// IJsonNode>, NumberType>();
+	private final Map<Class<? extends IJsonNode>, Coercer<? extends INumericNode, ? extends INumericNode>> classCoercers =
+		new IdentityHashMap<Class<? extends IJsonNode>, Coercer<? extends INumericNode, ? extends INumericNode>>();
 
 	public NumberCoercer() {
 		// final List<NumberType> widestTypes = Arrays.asList(NumberType.DOUBLE, NumberType.FLOAT,
@@ -61,65 +51,68 @@ public final class NumberCoercer {
 		// this.typeCoerceMatrix[leftIndex][rightIndex] = widestTypes.get(coerceIndex);
 		// }
 
-		this.coercers.put(AbstractJsonNode.Type.IntNode, new Coercer() {
+		this.coercers.put(AbstractJsonNode.Type.IntNode, new Coercer<INumericNode, IntNode>() {
 			@Override
-			public AbstractNumericNode coerce(final IJsonNode node) {
-				return IntNode.valueOf(((INumericNode) node).getIntValue());
+			public IntNode coerce(INumericNode from, IntNode target) {
+				target.setValue(from.getIntValue());
+				return target;
 			}
 		});
-		this.coercers.put(AbstractJsonNode.Type.LongNode, new Coercer() {
+		this.coercers.put(AbstractJsonNode.Type.LongNode, new Coercer<INumericNode, LongNode>() {
 			@Override
-			public AbstractNumericNode coerce(final IJsonNode node) {
-				return LongNode.valueOf(((INumericNode) node).getLongValue());
+			public LongNode coerce(INumericNode from, LongNode target) {
+				target.setValue(from.getLongValue());
+				return target;
 			}
 		});
-		this.coercers.put(AbstractJsonNode.Type.DoubleNode, new Coercer() {
+		this.coercers.put(AbstractJsonNode.Type.DoubleNode, new Coercer<INumericNode, DoubleNode>() {
 			@Override
-			public AbstractNumericNode coerce(final IJsonNode node) {
-				return DoubleNode.valueOf(((INumericNode) node).getDoubleValue());
+			public DoubleNode coerce(INumericNode from, DoubleNode target) {
+				target.setValue(from.getDoubleValue());
+				return target;
 			}
 		});
-		this.coercers.put(AbstractJsonNode.Type.BigIntegerNode, new Coercer() {
+		this.coercers.put(AbstractJsonNode.Type.DecimalNode, new Coercer<INumericNode, DecimalNode>() {
 			@Override
-			public AbstractNumericNode coerce(final IJsonNode node) {
-				return BigIntegerNode.valueOf(((INumericNode) node).getBigIntegerValue());
+			public DecimalNode coerce(INumericNode from, DecimalNode target) {
+				target.setValue(from.getDecimalValue());
+				return target;
 			}
 		});
-		this.coercers.put(AbstractJsonNode.Type.DecimalNode, new Coercer() {
+		this.coercers.put(AbstractJsonNode.Type.BigIntegerNode, new Coercer<INumericNode, BigIntegerNode>() {
 			@Override
-			public AbstractNumericNode coerce(final IJsonNode node) {
-				return DecimalNode.valueOf(((INumericNode) node).getDecimalValue());
+			public BigIntegerNode coerce(INumericNode from, BigIntegerNode target) {
+				target.setValue(from.getBigIntegerValue());
+				return target;
 			}
 		});
 
-		for (final Entry<AbstractJsonNode.Type, Coercer> entry : this.coercers.entrySet())
+		for (final Entry<AbstractJsonNode.Type, Coercer<? extends INumericNode, ? extends INumericNode>> entry : this.coercers
+			.entrySet())
 			this.classCoercers.put(entry.getKey().getClazz(), entry.getValue());
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T extends INumericNode> T coerce(final AbstractNumericNode node, final Class<T> targetType) {
+	public <From extends INumericNode, To extends INumericNode> To coerce(final From node, final To target,
+			final Class<To> targetType) {
 		if (node.getClass() == targetType)
-			return (T) node;
-		return (T) this.classCoercers.get(targetType).coerce(node);
-	}
-
-	public INumericNode coerce(final AbstractNumericNode node, final AbstractJsonNode.Type targetType) {
-		if (node.getType() == targetType)
-			return node;
-		return this.coercers.get(targetType).coerce(node);
+			return (To) node;
+		final Coercer<From, To> coercer = (Coercer<From, To>) this.classCoercers.get(targetType);
+		return coercer.coerce(node, target);
 	}
 
 	@SuppressWarnings("unchecked")
-	<T extends IJsonNode> T coerceGeneric(final IJsonNode node, final Class<T> targetType) {
-		return (T) this.classCoercers.get(targetType).coerce(node);
+	public <From extends INumericNode, To extends INumericNode> To coerce(final From node, final To target,
+			final AbstractJsonNode.Type targetType) {
+		if (node.getType() == targetType)
+			return (To) node;
+		final Coercer<From, To> coercer = (Coercer<From, To>) this.coercers.get(targetType);
+		return coercer.coerce(node, target);
 	}
 
-	IJsonNode coerceGeneric(final IJsonNode node, final int targetType) {
-		return this.coercers.get(targetType).coerce(node);
-	}
-
-	Map<Class<? extends IJsonNode>, Coercer> getClassCoercers() {
-		return this.classCoercers;
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	Map<Class<? extends IJsonNode>, Coercer<?, ?>> getClassCoercers() {
+		return (Map) this.classCoercers;
 	}
 
 	// public NumberType getWiderType(final NumberType leftType, final NumberType rightType) {
@@ -128,10 +121,5 @@ public final class NumberCoercer {
 
 	public Type getWiderType(final IJsonNode leftType, final IJsonNode rightType) {
 		return leftType.getType().ordinal() >= rightType.getType().ordinal() ? leftType.getType() : rightType.getType();
-	}
-
-	private static interface Coercer extends TypeCoercer.Coercer {
-		@Override
-		public AbstractNumericNode coerce(IJsonNode node);
 	}
 }

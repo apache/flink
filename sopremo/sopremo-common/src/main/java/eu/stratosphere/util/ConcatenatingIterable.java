@@ -27,7 +27,7 @@ public class ConcatenatingIterable<T> extends AbstractIterable<T> {
 
 	private Iterable<? extends Iterable<? extends T>> inputs;
 
-	public ConcatenatingIterable(final Iterable<T>... iterables) {
+	public ConcatenatingIterable(final Iterable<? extends T>... iterables) {
 		this.inputs = Arrays.asList(iterables);
 	}
 

@@ -7,10 +7,8 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.DefaultFunctions;
 import eu.stratosphere.sopremo.aggregation.AggregationFunction;
-import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
-import eu.stratosphere.sopremo.type.IntNode;
 
 public class AggregationExpressionTest extends EvaluableExpressionTest<AggregationExpression> {
 	@Override

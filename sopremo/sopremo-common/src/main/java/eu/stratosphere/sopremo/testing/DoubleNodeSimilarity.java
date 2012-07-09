@@ -56,7 +56,7 @@ public class DoubleNodeSimilarity extends AbstractValueSimilarity<JsonNodeWrappe
 		final INumericNode inner1 = (INumericNode) value1;
 		final INumericNode inner2 = (INumericNode) value2;
 		// at this point, both values are double
-		double diff = Math.abs(((INumericNode) inner1).getDoubleValue() - ((INumericNode) inner2).getDoubleValue());
+		double diff = Math.abs(inner1.getDoubleValue() - inner2.getDoubleValue());
 		return diff <= this.delta ? diff : NO_MATCH;
 	}
 

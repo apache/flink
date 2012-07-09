@@ -13,16 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.sopremo;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.GenericInputSplit;
+import eu.stratosphere.pact.common.io.GenericInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -58,11 +58,6 @@ public class GeneratorInputFormat extends GenericInputFormat {
 	private int numValues = 1;
 
 	/**
-	 * Indices that describe the currently opened input split.
-	 */
-	private int start;
-
-	/**
 	 * Schema loaded from config.
 	 */
 	private Schema schema;
@@ -82,7 +77,7 @@ public class GeneratorInputFormat extends GenericInputFormat {
 			this.valueIterator = ((IArrayNode) value).iterator();
 		}
 		else
-			this.valueIterator = Arrays.asList(value).iterator();
+			this.valueIterator = Collections.singleton(value).iterator();
 	}
 
 	/*
@@ -129,11 +124,6 @@ public class GeneratorInputFormat extends GenericInputFormat {
 
 		if (split == null || !(split instanceof GeneratorInputSplit))
 			throw new IOException("Invalid InputSplit: " + split);
-
-		// copy the values from the input split in case that object will be
-		// reused
-		final GeneratorInputSplit generatorSplit = (GeneratorInputSplit) split;
-		this.start = generatorSplit.start;
 	}
 
 	@Override

@@ -4,7 +4,6 @@ import java.util.Arrays;
 
 import junit.framework.Assert;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.type.BooleanNode;
