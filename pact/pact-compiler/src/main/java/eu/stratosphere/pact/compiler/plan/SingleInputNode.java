@@ -166,6 +166,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			pred.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred.SetId(this.id);
+			pred.setInstancesPerMachine(instancesPerMachine);
 			this.id++;
 		}
 		// create the connection and add it

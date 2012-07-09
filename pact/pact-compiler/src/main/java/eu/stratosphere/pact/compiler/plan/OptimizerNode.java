@@ -153,7 +153,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
 
-	private int instancesPerMachine = -1; // the number of parallel instance that will run on the same machine
+	protected int instancesPerMachine = -1; // the number of parallel instance that will run on the same machine
 
 	private int memoryPerTask; // the amount of memory dedicated to each task, in MiBytes
 
