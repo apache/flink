@@ -41,11 +41,9 @@ import eu.stratosphere.sopremo.OperatorInfo;
 import eu.stratosphere.sopremo.OperatorInfo.OperatorPropertyInfo;
 import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoPlan;
-import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.MethodCall;
-import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.function.Callable;
 import eu.stratosphere.sopremo.function.Inlineable;
 import eu.stratosphere.sopremo.function.JavaMethod;
@@ -273,6 +271,10 @@ public abstract class AbstractQueryParser extends Parser {
 	private void importFromFile(String classPath, File file) {
 		String classFileName = file.getAbsolutePath().substring(classPath.length());
 		String className = classFileName.replaceAll(".class$", "").replaceAll("/|\\\\", ".").replaceAll("^\\.", "");
+		importClass(className);
+	}
+
+	protected void importClass(String className) {
 		Class<?> clazz;
 		try {
 			clazz = Class.forName(className);
@@ -297,8 +299,10 @@ public abstract class AbstractQueryParser extends Parser {
 		Enumeration<JarEntry> entries = new JarFile(file).entries();
 		while (entries.hasMoreElements()) {
 			JarEntry jarEntry = entries.nextElement();
-			if (jarEntry.getName().endsWith(".class"))
-				System.out.println(jarEntry);
+			if (jarEntry.getName().endsWith(".class")) {
+				String className = jarEntry.getName().replaceAll(".class$", "").replaceAll("/|\\\\", ".").replaceAll("^\\.", "");
+				importClass(className);
+			}
 		}
 	}
 
