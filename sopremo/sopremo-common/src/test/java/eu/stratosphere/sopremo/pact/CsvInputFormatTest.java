@@ -35,7 +35,7 @@ public class CsvInputFormatTest {
 		final FileDataSource read = new FileDataSource(
 			CsvInputFormat.class, this.getResource("SopremoTestPlan/restaurant_short.csv"), "Input");
 
-		final MapContract map = new MapContract(IdentityMap.class, "Map");
+		final MapContract map = new MapContract.Builder(IdentityMap.class).name("Map").build();
 		map.setInput(read);
 
 		final FileDataSink output = this.createOutput(map, SequentialOutputFormat.class);

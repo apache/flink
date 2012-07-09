@@ -224,7 +224,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		for (final List<Contract> inputs : inputLists) {
 			// assume at least one input for each contract input slot
 			if (inputs.isEmpty())
-				inputs.add(new MapContract(IdentityMap.class));
+				inputs.add(new MapContract.Builder(IdentityMap.class).build());
 			for (final Contract input : inputs)
 				if (!distinctInputs.contains(input))
 					distinctInputs.add(input);
@@ -318,22 +318,28 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>> 
 		try {
 			if (contractClass == ReduceContract.class) {
 				int[] keyIndices = this.getKeyIndices(globalSchema, this.getKeyExpressions(0));
-				return new ReduceContract((Class<? extends ReduceStub>) stubClass,
-					this.getKeyClasses(globalSchema, keyIndices), keyIndices, this.toString());
+				ReduceContract.Builder builder = new ReduceContract.Builder((Class<? extends ReduceStub>) stubClass);
+				builder.name(this.toString());
+				PactBuilderUtil.addKeys(builder, this.getKeyClasses(globalSchema, keyIndices), keyIndices);
+				return builder.build();
 			}
 			else if (contractClass == CoGroupContract.class) {
 				int[] keyIndices1 = this.getKeyIndices(globalSchema, this.getKeyExpressions(0));
 				int[] keyIndices2 = this.getKeyIndices(globalSchema, this.getKeyExpressions(1));
-				return new CoGroupContract((Class<? extends CoGroupStub>) stubClass,
-					this.getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
-					keyIndices1, keyIndices2, this.toString());
+				CoGroupContract.Builder builder = new CoGroupContract.Builder((Class<? extends CoGroupStub>) stubClass);
+				builder.name(this.toString());
+				PactBuilderUtil.addKeys(builder, this.getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
+						keyIndices1, keyIndices2);
+				return builder.build();
 			}
 			else if (contractClass == MatchContract.class) {
 				int[] keyIndices1 = this.getKeyIndices(globalSchema, this.getKeyExpressions(0));
 				int[] keyIndices2 = this.getKeyIndices(globalSchema, this.getKeyExpressions(1));
-				return new MatchContract((Class<? extends MatchStub>) stubClass,
-					this.getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
-					keyIndices1, keyIndices2, this.toString());
+				MatchContract.Builder builder = new MatchContract.Builder((Class<? extends MatchStub>) stubClass);
+				builder.name(this.toString());
+				PactBuilderUtil.addKeys(builder, this.getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2),
+						keyIndices1, keyIndices2);
+				return builder.build();
 			}
 			return ReflectUtil.newInstance(contractClass, stubClass, this.toString());
 		} catch (final Exception e) {

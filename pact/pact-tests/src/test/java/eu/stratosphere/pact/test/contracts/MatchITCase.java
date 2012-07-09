@@ -143,7 +143,8 @@ public class MatchITCase extends TestBase
 		input_right.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
-		MatchContract testMatcher = new MatchContract(TestMatcher.class, PactString.class, 0, 0);
+		MatchContract testMatcher = new MatchContract.Builder(TestMatcher.class, PactString.class, 0, 0)
+			.build();
 		testMatcher.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 		testMatcher.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("MatchTest#LocalStrategy", ""));

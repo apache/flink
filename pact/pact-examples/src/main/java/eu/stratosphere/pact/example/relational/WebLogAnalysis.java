@@ -326,34 +326,49 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 
 		// Create MapContract for filtering the entries from the documents
 		// relation
-		MapContract filterDocs = new MapContract(FilterDocs.class, docs, "Filter Docs");
+		MapContract filterDocs = new MapContract.Builder(FilterDocs.class)
+			.input(docs)
+			.name("Filter Docs")
+			.build();
 		filterDocs.setDegreeOfParallelism(noSubTasks);
 		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
 		filterDocs.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the ranks relation
-		MapContract filterRanks = new MapContract(FilterRanks.class, ranks, "Filter Ranks");
+		MapContract filterRanks = new MapContract.Builder(FilterRanks.class)
+			.input(ranks)
+			.name("Filter Ranks")
+			.build();
 		filterRanks.setDegreeOfParallelism(noSubTasks);
 		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
 		filterRanks.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the visits relation
-		MapContract filterVisits = new MapContract(FilterVisits.class, visits, "Filter Visits");
+		MapContract filterVisits = new MapContract.Builder(FilterVisits.class)
+			.input(visits)
+			.name("Filter Visits")
+			.build();
 		filterVisits.setDegreeOfParallelism(noSubTasks);
 		filterVisits.getCompilerHints().setAvgBytesPerRecord(60);
 		filterVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.2f);
 
 		// Create MatchContract to join the filtered documents and ranks
 		// relation
-		MatchContract joinDocsRanks = new MatchContract(JoinDocRanks.class, PactString.class, 0, 0, filterDocs,
-				filterRanks, "Join Docs Ranks");
+		MatchContract joinDocsRanks = new MatchContract.Builder(JoinDocRanks.class, PactString.class, 0, 0)
+			.input1(filterDocs)
+			.input2(filterRanks)
+			.name("Join Docs Ranks")
+			.build();
 		joinDocsRanks.setDegreeOfParallelism(noSubTasks);
 
 		// Create CoGroupContract to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
-		CoGroupContract antiJoinVisits = new CoGroupContract(AntiJoinVisits.class, PactString.class, 0, 0, joinDocsRanks, 
-				filterVisits, "Antijoin DocsVisits");
+		CoGroupContract antiJoinVisits = new CoGroupContract.Builder(AntiJoinVisits.class, PactString.class, 0, 0)
+			.input1(joinDocsRanks)
+			.input2(filterVisits)
+			.name("Antijoin DocsVisits")
+			.build();
 		antiJoinVisits.setDegreeOfParallelism(noSubTasks);
 		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 

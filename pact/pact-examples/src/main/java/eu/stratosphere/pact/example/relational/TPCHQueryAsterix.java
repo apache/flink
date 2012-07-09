@@ -180,13 +180,17 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		customers.getCompilerHints().setAvgBytesPerRecord(20);
 		
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinCO = new MatchContract(JoinCO.class, PactInteger.class, 0, 0, "JoinCO");
+		MatchContract joinCO = new MatchContract.Builder(JoinCO.class, PactInteger.class, 0, 0)
+			.name("JoinCO")
+			.build();
 		joinCO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		joinCO.getCompilerHints().setAvgBytesPerRecord(17);
 
 		// create ReduceContract for aggregating the result
-		ReduceContract aggCO = new ReduceContract(AggCO.class, PactString.class, 1, "AggCo");
+		ReduceContract aggCO = new ReduceContract.Builder(AggCO.class, PactString.class, 1)
+			.name("AggCo")
+			.build();
 		aggCO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		aggCO.getCompilerHints().setAvgBytesPerRecord(17);

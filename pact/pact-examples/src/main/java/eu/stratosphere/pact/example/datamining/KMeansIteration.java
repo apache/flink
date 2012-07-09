@@ -625,15 +625,25 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		clusterPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create CrossContract for distance computation
-		CrossContract computeDistance = new CrossContract(ComputeDistance.class, dataPoints, clusterPoints, "Compute Distances");
+		CrossContract computeDistance = new CrossContract.Builder(ComputeDistance.class)
+			.input1(dataPoints)
+			.input2(clusterPoints)
+			.name("Compute Distances")
+			.build();
 		computeDistance.getCompilerHints().setAvgBytesPerRecord(48);
 
 		// create ReduceContract for finding the nearest cluster centers
-		ReduceContract findNearestClusterCenters = new ReduceContract(FindNearestCenter.class, PactInteger.class, 0, computeDistance, "Find Nearest Centers");
+		ReduceContract findNearestClusterCenters = new ReduceContract.Builder(FindNearestCenter.class, PactInteger.class, 0)
+			.input(computeDistance)
+			.name("Find Nearest Centers")
+			.build();
 		findNearestClusterCenters.getCompilerHints().setAvgBytesPerRecord(48);
 
 		// create ReduceContract for computing new cluster positions
-		ReduceContract recomputeClusterCenter = new ReduceContract(RecomputeClusterCenter.class, PactInteger.class, 0, findNearestClusterCenters, "Recompute Center Positions");
+		ReduceContract recomputeClusterCenter = new ReduceContract.Builder(RecomputeClusterCenter.class, PactInteger.class, 0)
+			.input(findNearestClusterCenters)
+			.name("Recompute Center Positions")
+			.build();
 		recomputeClusterCenter.getCompilerHints().setAvgBytesPerRecord(36);
 
 		// create DataSinkContract for writing the new cluster positions

@@ -92,7 +92,10 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		input1.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 1);
 		
 		
-		ReduceContract aggInput1 = new ReduceContract(DummyReduce.class, PactInteger.class, 0, input1, "AggOrders");
+		ReduceContract aggInput1 = new ReduceContract.Builder(DummyReduce.class, PactInteger.class, 0)
+			.input(input1)
+			.name("AggOrders")
+			.build();
 		aggInput1.setDegreeOfParallelism(noSubtasks);
 
 		
@@ -110,11 +113,18 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		input2.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
 		input2.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 1);
 
-		ReduceContract aggInput2 = new ReduceContract(DummyReduce.class, PactInteger.class, 0, input2, "AggLines");
+		ReduceContract aggInput2 = new ReduceContract.Builder(DummyReduce.class, PactInteger.class, 0)
+			.input(input2)
+			.name("AggLines")
+			.build();
 		aggInput2.setDegreeOfParallelism(noSubtasksInput2);		
 		
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinLiO = new MatchContract(JoinInputs.class, PactInteger.class, 0, 0, aggInput1, aggInput2, "JoinLiO");
+		MatchContract joinLiO = new MatchContract.Builder(JoinInputs.class, PactInteger.class, 0, 0)
+			.input1(aggInput1)
+			.input2(aggInput2)
+			.name("JoinLiO")
+			.build();
 		joinLiO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 

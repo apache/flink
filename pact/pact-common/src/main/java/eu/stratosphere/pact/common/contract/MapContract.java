@@ -15,8 +15,10 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.util.LinkedList;
 import java.util.List;
 
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.MapStub;
 
 
@@ -37,75 +39,6 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 public class MapContract extends SingleInputContract<MapStub>
 {	
 	private static String DEFAULT_NAME = "<Unnamed Mapper>";
-
-	/**
-	 * Creates a MapContract with the provided {@link MapStub} implementation
-	 * and a default name.
-	 * 
-	 * @param c The {@link MapStub} implementation for this Map InputContract.
-	 */
-	public MapContract(Class<? extends MapStub> c) {
-		this(c, DEFAULT_NAME);
-	}
-	
-	/**
-	 * Creates a MapContract with the provided {@link MapStub} implementation 
-	 * and the given name. 
-	 * 
-	 * @param c The {@link MapStub} implementation for this Map InputContract.
-	 * @param name The name of PACT.
-	 */
-	public MapContract(Class<? extends MapStub> c, String name) {
-		super(c, name);
-	}
-
-	/**
-	 * Creates a MapContract with the provided {@link MapStub} implementation the default name.
-	 * It uses the given contract as its input.
-	 * 
-	 * @param c The {@link MapStub} implementation for this Map InputContract.
-	 * @param input The contract to use as the input.
-	 */
-	public MapContract(Class<? extends MapStub> c, Contract input) {
-		this(c, input, DEFAULT_NAME);
-	}
-	
-	/**
-	 * Creates a MapContract with the provided {@link MapStub} implementation the default name.
-	 * It uses the given contracts as its input.
-	 * 
-	 * @param c The {@link MapStub} implementation for this Map InputContract.
-	 * @param inputs The contracts to use as the input.
-	 */
-	public MapContract(Class<? extends MapStub> c, List<Contract> inputs) {
-		this(c, inputs, DEFAULT_NAME);
-	}
-
-	/**
-	 * Creates a MapContract with the provided {@link MapStub} implementation and the given name.
-	 * It uses the given contract as its input.
-	 * 
-	 * @param c The {@link MapStub} implementation for this Map InputContract.
-	 * @param input The contract to use as the input.
-	 * @param name The name of PACT.
-	 */
-	public MapContract(Class<? extends MapStub> c, Contract input, String name) {
-		this(c, name);
-		setInput(input);
-	}
-	
-	/**
-	 * Creates a MapContract with the provided {@link MapStub} implementation and the given name.
-	 * It uses the given contracts as its input.
-	 * 
-	 * @param c The {@link MapStub} implementation for this Map InputContract.
-	 * @param inputs The contracts to use as the input.
-	 * @param name The name of PACT.
-	 */
-	public MapContract(Class<? extends MapStub> c, List<Contract> inputs, String name) {
-		this(c, name);
-		setInputs(inputs);
-	}
 	
 	/**
 	 * The private constructor that only gets invoked from the Builder.
@@ -140,6 +73,7 @@ public class MapContract extends SingleInputContract<MapStub>
 		 */
 		public Builder(Class<? extends MapStub> udf) {
 			this.udf = udf;
+			this.inputs = new LinkedList<Contract>();
 		}
 		
 		/**

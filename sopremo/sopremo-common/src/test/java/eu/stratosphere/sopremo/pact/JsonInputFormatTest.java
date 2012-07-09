@@ -54,7 +54,7 @@ public class JsonInputFormatTest {
 		SopremoUtil.serialize(read.getParameters(), IOConstants.SCHEMA, SCHEMA);
 
 		final MapContract map =
-			new MapContract(IdentityMap.class, "Map");
+			new MapContract.Builder(IdentityMap.class).name("Map").build();
 		map.setInput(read);
 
 		final FileDataSink output = this.createOutput(map, SequentialOutputFormat.class);
@@ -80,7 +80,7 @@ public class JsonInputFormatTest {
 			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
 		SopremoUtil.serialize(read.getParameters(), IOConstants.SCHEMA, SCHEMA);
 
-		final MapContract map = new MapContract(IdentityMap.class, "Map");
+		final MapContract map = new MapContract.Builder(IdentityMap.class).name("Map").build();
 		map.setInput(read);
 
 		final FileDataSink output = this.createOutput(map,

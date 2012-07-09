@@ -319,31 +319,51 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		nations.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		nations.setDegreeOfParallelism(degreeOfParallelism);
 
-		MapContract mapO = new MapContract(FilterO.class, "FilterO");
+		MapContract mapO = new MapContract.Builder(FilterO.class)
+			.name("FilterO")
+			.build();
 		mapO.setDegreeOfParallelism(degreeOfParallelism);
 
-		MapContract mapLi = new MapContract(FilterLI.class, "FilterLi");
+		MapContract mapLi = new MapContract.Builder(FilterLI.class)
+			.name("FilterLi")
+			.build();
 		mapLi.setDegreeOfParallelism(degreeOfParallelism);
 
-		MapContract projectC = new MapContract(ProjectC.class, "ProjectC");
+		MapContract projectC = new MapContract.Builder(ProjectC.class)
+			.name("ProjectC")
+			.build();
 		projectC.setDegreeOfParallelism(degreeOfParallelism);
 
-		MapContract projectN = new MapContract(ProjectN.class, "ProjectN");
+		MapContract projectN = new MapContract.Builder(ProjectN.class)
+			.name("ProjectN")
+			.build();
 		projectN.setDegreeOfParallelism(degreeOfParallelism);
 
-		MatchContract joinOL = new MatchContract(JoinOL.class, PactInteger.class, 0, 0, "JoinOL");
+		MatchContract joinOL = new MatchContract.Builder(JoinOL.class, PactInteger.class, 0, 0)
+			.name("JoinOL")
+			.build();
 		joinOL.setDegreeOfParallelism(degreeOfParallelism);
 
-		MatchContract joinCOL = new MatchContract(JoinCOL.class, PactInteger.class, 0, 0, "JoinCOL");
+		MatchContract joinCOL = new MatchContract.Builder(JoinCOL.class, PactInteger.class, 0, 0)
+			.name("JoinCOL")
+			.build();
 		joinCOL.setDegreeOfParallelism(degreeOfParallelism);
 
-		MatchContract joinNCOL = new MatchContract(JoinNCOL.class, PactInteger.class, 4, 0, "JoinNCOL");
+		MatchContract joinNCOL = new MatchContract.Builder(JoinNCOL.class, PactInteger.class, 4, 0)
+			.name("JoinNCOL")
+			.build();
 		joinNCOL.setDegreeOfParallelism(degreeOfParallelism);
 
-		@SuppressWarnings("unchecked")
-		ReduceContract reduce = new ReduceContract(Sum.class, 
-			new Class[] {PactInteger.class, PactString.class, PactString.class, PactString.class, PactString.class, PactString.class, PactString.class},
-			new int[] {0, 1, 3, 4, 5, 6, 7}, "Reduce");
+		ReduceContract reduce = new ReduceContract.Builder(Sum.class)
+			.keyField(PactInteger.class, 0) 
+			.keyField(PactString.class, 1)
+			.keyField(PactString.class, 3)
+			.keyField(PactString.class, 4)
+			.keyField(PactString.class, 5)
+			.keyField(PactString.class, 6)
+			.keyField(PactString.class, 7)
+			.name("Reduce")
+			.build();
 		reduce.setDegreeOfParallelism(degreeOfParallelism);
 
 		FileDataSink result = new FileDataSink(TupleOutputFormat.class, resultPath, "Output");
