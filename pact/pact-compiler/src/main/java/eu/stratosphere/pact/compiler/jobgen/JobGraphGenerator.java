@@ -1358,6 +1358,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			final PactConnection inConn = node.getIncomingConnections().get(0);
 			
 			final OptimizerNode predecessor = inConn.getSourcePact();
+			
+			// task cannot be chained if the input is an UnionNode
+			if (predecessor instanceof UnionNode) return false;
+			
 			if (inConn.getShipStrategy() == ShipStrategy.FORWARD && predecessor.getOutConns().size() == 1) {
 				return node.getDegreeOfParallelism() == predecessor.getDegreeOfParallelism() && 
 						node.getInstancesPerMachine() == predecessor.getInstancesPerMachine();
