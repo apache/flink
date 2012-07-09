@@ -33,9 +33,10 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
+import eu.stratosphere.pact.runtime.task.PactDriver;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 public abstract class TaskTestBase
@@ -70,13 +71,16 @@ public abstract class TaskTestBase
 		return this.mockEnv.getTaskConfiguration();
 	}
 
-	public void registerTask(AbstractTask task, Class<? extends Stub> stubClass)
+	public void registerTask(AbstractTask task, @SuppressWarnings("rawtypes") Class<? extends PactDriver> driver, Class<? extends Stub> stubClass)
 	{
-		new TaskConfig(this.mockEnv.getTaskConfiguration()).setStubClass(stubClass);
+		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());
+		config.setDriver(driver);
+		config.setStubClass(stubClass);
+		
 		task.setEnvironment(this.mockEnv);
 
-		if (task instanceof AbstractPactTask<?, ?>) {
-			((AbstractPactTask<?, ?>) task).setUserCodeClassLoader(getClass().getClassLoader());
+		if (task instanceof RegularPactTask<?, ?>) {
+			((RegularPactTask<?, ?>) task).setUserCodeClassLoader(getClass().getClassLoader());
 		}
 
 		task.registerInputOutput();

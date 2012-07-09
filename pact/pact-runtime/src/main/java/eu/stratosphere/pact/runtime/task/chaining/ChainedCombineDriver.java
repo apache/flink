@@ -31,7 +31,7 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorterCollector;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.InputDataCollector;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
@@ -40,7 +40,7 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 /**
  * @author Stephan Ewen
  */
-public class ChainedCombineTask<T> implements ChainedTask<T, T>
+public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 {
 	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024; // the minimal amount of memory for the task to operate
 	
@@ -83,7 +83,7 @@ public class ChainedCombineTask<T> implements ChainedTask<T, T>
 		this.parent = parent;
 		
 		@SuppressWarnings("unchecked")
-		final GenericReducer<T, ?> combiner = AbstractPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
+		final GenericReducer<T, ?> combiner = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericReducer.class);
 		this.combiner = combiner;
 	}
 	
@@ -101,7 +101,7 @@ public class ChainedCombineTask<T> implements ChainedTask<T, T>
 		if(this.parent.getEnvironment().getTaskName() != null) {
 			stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
 		}
-		AbstractPactTask.openUserCode(this.combiner, stubConfig);
+		RegularPactTask.openUserCode(this.combiner, stubConfig);
 		
 		// ----------------- Set up the asynchonous sorter -------------------------
 		
@@ -214,7 +214,7 @@ public class ChainedCombineTask<T> implements ChainedTask<T, T>
 		if (this.canceled)
 			return;
 		
-		AbstractPactTask.closeUserCode(this.combiner);
+		RegularPactTask.closeUserCode(this.combiner);
 	}
 	
 	/* (non-Javadoc)
@@ -343,7 +343,7 @@ public class ChainedCombineTask<T> implements ChainedTask<T, T>
 				}
 			}
 			catch (Throwable t) {
-				ChainedCombineTask.this.exception = new Exception("The combiner failed due to an exception.", t);
+				ChainedCombineDriver.this.exception = new Exception("The combiner failed due to an exception.", t);
 			}
 		}
 		

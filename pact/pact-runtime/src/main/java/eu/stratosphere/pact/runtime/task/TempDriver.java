@@ -18,6 +18,9 @@ package eu.stratosphere.pact.runtime.task;
 import java.io.EOFException;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
@@ -28,6 +31,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.SpillingBuffer;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
  * Temp task which is executed by a Nephele task manager. The task has a single
@@ -39,18 +43,31 @@ import eu.stratosphere.pact.runtime.io.SpillingBuffer;
  * 
  * @author Stephan Ewen
  */
-public class TempTask<T> extends AbstractPactTask<Stub, T>
+public class TempDriver<T> implements PactDriver<Stub, T>
 {
-	// the minimal amount of memory required for the temp to work
-	private static final long MIN_REQUIRED_MEMORY = 512 * 1024;
+	private static final Log LOG = LogFactory.getLog(TempDriver.class);
 
-	// materialization barrier
-	private SpillingBuffer buffer;
+	private static final long MIN_REQUIRED_MEMORY = 512 * 1024;		// minimal memory for the task to operate
+
+	private PactTaskContext<Stub, T> taskContext;
+	
+	private SpillingBuffer buffer;						// materialization barrier
 	
 	private List<MemorySegment> memory;
+	
+	private volatile boolean running;
 
 	// ------------------------------------------------------------------------
 
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
+	 */
+	@Override
+	public void setup(PactTaskContext<Stub, T> context) {
+		this.taskContext = context;
+		this.running = true;
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
@@ -82,18 +99,20 @@ public class TempTask<T> extends AbstractPactTask<Stub, T>
 	@Override
 	public void prepare() throws Exception
 	{
+		final TaskConfig config = this.taskContext.getTaskConfig();
+		
 		// set up memory and I/O parameters
-		final long availableMemory = this.config.getMemorySize();
+		final long availableMemory = config.getMemorySize();
 		
 		if (availableMemory < MIN_REQUIRED_MEMORY) {
 			throw new RuntimeException("The temp task was initialized with too little memory: " + availableMemory +
 				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
 		}
 
-		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
-		final IOManager ioManager = getEnvironment().getIOManager();
+		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
+		final IOManager ioManager = this.taskContext.getIOManager();
 		
-		this.memory = memoryManager.allocatePages(this, availableMemory);
+		this.memory = memoryManager.allocatePages(this.taskContext.getOwningNepheleTask(), availableMemory);
 		this.buffer = new SpillingBuffer(ioManager, new ListMemorySegmentSource(this.memory), memoryManager.getPageSize());
 	}
 
@@ -105,13 +124,13 @@ public class TempTask<T> extends AbstractPactTask<Stub, T>
 	public void run() throws Exception
 	{
 		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Preprocessing done, iterator obtained."));
+			LOG.debug(this.taskContext.formatLogString("Preprocessing done, iterator obtained."));
 
 		// cache references on the stack
-		final MutableObjectIterator<T> input = getInput(0);
+		final MutableObjectIterator<T> input = this.taskContext.getInput(0);
 		final SpillingBuffer buffer = this.buffer;
-		final TypeSerializer<T> serializer = getInputSerializer(0);
-		final Collector<T> output = this.output;
+		final TypeSerializer<T> serializer = this.taskContext.getInputSerializer(0);
+		final Collector<T> output = this.taskContext.getOutputCollector();
 		
 		final T record = serializer.createInstance();
 		
@@ -138,7 +157,7 @@ public class TempTask<T> extends AbstractPactTask<Stub, T>
 	@Override
 	public void cleanup() throws Exception
 	{
-		final MemoryManager memManager = getEnvironment().getMemoryManager();
+		final MemoryManager memManager = this.taskContext.getMemoryManager();
 		
 		if (this.buffer != null) {	
 			memManager.release(this.buffer.close());
@@ -146,5 +165,13 @@ public class TempTask<T> extends AbstractPactTask<Stub, T>
 		}
 		
 		memManager.release(this.memory);
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
+	 */
+	@Override
+	public void cancel() {
+		this.running = false;
 	}
 }

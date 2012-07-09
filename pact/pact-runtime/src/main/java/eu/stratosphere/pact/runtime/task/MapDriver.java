@@ -25,18 +25,36 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  * input and one or multiple outputs. It is provided with a MapStub
  * implementation.
  * <p>
- * The MapTask creates an iterator over all key-value pairs of its input and hands that 
- * to the <code>map()</code> method of the MapStub.
+ * The MapTask creates an iterator over all key-value pairs of its input and hands that to the <code>map()</code> method
+ * of the MapStub.
  * 
  * @see MapStub
  * @see GenericMapper
- * 
  * @author Fabian Hueske
  * @author Stephan Ewen
+ * 
+ * @param <IT> The mapper's input data type.
+ * @param <OT> The mapper's output data type.
  */
-public class MapTask<IT, OT> extends AbstractPactTask<GenericMapper<IT, OT>, OT>
+public class MapDriver<IT, OT> implements PactDriver<GenericMapper<IT, OT>, OT>// extends AbstractPactTask<GenericMapper<IT, OT>, OT>
 {
+	private PactTaskContext<GenericMapper<IT, OT>, OT> taskContext;
+	
+	private volatile boolean running;
+	
+	
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
+	 */
+	@Override
+	public void setup(PactTaskContext<GenericMapper<IT, OT>, OT> context) {
+		this.taskContext = context;
+		this.running = true;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
 	 */
 	@Override
@@ -44,18 +62,21 @@ public class MapTask<IT, OT> extends AbstractPactTask<GenericMapper<IT, OT>, OT>
 		return 1;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
 	@Override
-	public Class<GenericMapper<IT, OT>> getStubType()
-	{
+	public Class<GenericMapper<IT, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
 		final Class<GenericMapper<IT, OT>> clazz = (Class<GenericMapper<IT, OT>>) (Class<?>) GenericMapper.class;
 		return clazz;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
 	 */
 	@Override
@@ -63,38 +84,51 @@ public class MapTask<IT, OT> extends AbstractPactTask<GenericMapper<IT, OT>, OT>
 		return false;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
 	 */
 	@Override
 	public void prepare() throws Exception {
 		// nothing, since a mapper does not need any preparation
-		
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
 	 */
 	@Override
 	public void run() throws Exception
 	{
 		// cache references on the stack
-		final MutableObjectIterator<IT> input = getInput(0);
-		final GenericMapper<IT, OT> stub = this.stub;
-		final Collector<OT> output = this.output;
-		
-		final IT record = this.<IT>getInputSerializer(0).createInstance();
-		
+		final MutableObjectIterator<IT> input = this.taskContext.getInput(0);
+		final GenericMapper<IT, OT> stub = this.taskContext.getStub();
+		final Collector<OT> output = this.taskContext.getOutputCollector();
+
+		final IT record = this.taskContext.<IT>getInputSerializer(0).createInstance();
+
 		while (this.running && input.next(record)) {
 			stub.map(record, output);
 		}
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
 	 */
 	@Override
 	public void cleanup() throws Exception {
 		// mappers need no cleanup, since no strategies are used.
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
+	 */
+	@Override
+	public void cancel() {
+		this.running = false;
 	}
 }

@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.generic.GenericCrosser;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
@@ -22,6 +25,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -32,15 +36,19 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * The CrossTask builds the Cartesian product of the pairs of its two inputs. Each element (pair of pairs) is handed to
  * the <code>cross()</code> method of the CrossStub.
  * 
- * @see eu.stratosphere.pact.common.stub.CrossStub
+ * @see eu.stratosphere.pact.common.stubs.CrossStub
  * 
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T2, OT>, OT>
+public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2, OT>, OT>
 {
-	// the minimal amount of memory for the task to operate
-	private static final long MIN_NUM_PAGES = 2;
+	private static final Log LOG = LogFactory.getLog(CrossDriver.class);
+
+	private static final long MIN_NUM_PAGES = 2;		// the minimal amount of memory for the task to operate
+	
+	
+	private PactTaskContext<GenericCrosser<T1, T2, OT>, OT> taskContext;
 	
 	private MemoryManager memManager;
 	
@@ -56,7 +64,18 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 	
 	private boolean firstIsOuter;
 	
+	private volatile boolean running;
+	
 	// ------------------------------------------------------------------------
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
+	 */
+	@Override
+	public void setup(PactTaskContext<GenericCrosser<T1, T2, OT>, OT> context) {
+		this.taskContext = context;
+		this.running = true;
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
@@ -72,7 +91,7 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 	@Override
 	public Class<GenericCrosser<T1, T2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericCrosser<T1, T2, OT>> clazz = (Class<GenericCrosser<T1, T2, OT>>) (Class<?>) GenericCrosser.class; 
+		final Class<GenericCrosser<T1, T2, OT>> clazz = (Class<GenericCrosser<T1, T2, OT>>) (Class<?>) GenericCrosser.class;
 		return clazz;
 	}
 	
@@ -90,8 +109,10 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 	@Override
 	public void prepare() throws Exception
 	{
+		final TaskConfig config = this.taskContext.getTaskConfig();
+		
 		// test minimum memory requirements
-		final LocalStrategy ls = this.config.getLocalStrategy();
+		final LocalStrategy ls = config.getLocalStrategy();
 		
 		switch (ls)
 		{
@@ -115,8 +136,8 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 			throw new RuntimeException("Invalid local strategy for CROSS: " + ls);
 		}
 		
-		this.memManager = getEnvironment().getMemoryManager();
-		final long totalAvailableMemory = this.config.getMemorySize();
+		this.memManager = this.taskContext.getMemoryManager();
+		final long totalAvailableMemory = config.getMemorySize();
 		final int numPages = this.memManager.computeNumberOfPages(totalAvailableMemory);
 		
 		if (numPages < MIN_NUM_PAGES) {
@@ -175,33 +196,43 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 		}
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
+	 */
+	@Override
+	public void cancel() {
+		this.running = false;
+	}
+
 	private void runBlockedOuterFirst() throws Exception
 	{
 		if (LOG.isDebugEnabled())  {
-			LOG.debug(getLogString("Running Cross with Block-Nested-Loops: " +
+			LOG.debug(this.taskContext.formatLogString("Running Cross with Block-Nested-Loops: " +
 					"First input is outer (blocking) side, second input is inner (spilling) side."));
 		}
 			
-		final MutableObjectIterator<T1> in1 = getInput(0);
-		final MutableObjectIterator<T2> in2 = getInput(1);
+		final MutableObjectIterator<T1> in1 = this.taskContext.getInput(0);
+		final MutableObjectIterator<T2> in2 = this.taskContext.getInput(1);
 		
-		final TypeSerializer<T1> serializer1 = getInputSerializer(0);
-		final TypeSerializer<T2> serializer2 = getInputSerializer(1);
+		final TypeSerializer<T1> serializer1 = this.taskContext.getInputSerializer(0);
+		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
 		
 		final BlockResettableMutableObjectIterator<T1> blockVals = 
-				new BlockResettableMutableObjectIterator<T1>(this.memManager, in1, serializer1, this.memForBlockSide, this);
+				new BlockResettableMutableObjectIterator<T1>(this.memManager, in1, serializer1, this.memForBlockSide,
+							this.taskContext.getOwningNepheleTask());
 		this.blockIter = blockVals;
 		
 		final SpillingResettableMutableObjectIterator<T2> spillVals = new SpillingResettableMutableObjectIterator<T2>(
-				in2, serializer2, this.memManager, getEnvironment().getIOManager(), this.memForSpillingSide, this);
+				in2, serializer2, this.memManager, this.taskContext.getIOManager(), this.memForSpillingSide,
+				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
 		final T1 val1 = serializer1.createInstance();
 		final T2 val2 = serializer2.createInstance();
 		final T2 val2Copy = serializer2.createInstance();
 		
-		final GenericCrosser<T1, T2, OT> crosser = this.stub;
-		final Collector<OT> collector = this.output;
+		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
+		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
 		do {
@@ -222,30 +253,32 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 	private void runBlockedOuterSecond() throws Exception
 	{
 		if (LOG.isDebugEnabled())  {
-			LOG.debug(getLogString("Running Cross with Block-Nested-Loops: " +
+			LOG.debug(this.taskContext.formatLogString("Running Cross with Block-Nested-Loops: " +
 					"First input is inner (spilling) side, second input is outer (blocking) side."));
 		}
 		
-		final MutableObjectIterator<T1> in1 = getInput(0);
-		final MutableObjectIterator<T2> in2 = getInput(1);
+		final MutableObjectIterator<T1> in1 = this.taskContext.getInput(0);
+		final MutableObjectIterator<T2> in2 = this.taskContext.getInput(1);
 		
-		final TypeSerializer<T1> serializer1 = getInputSerializer(0);
-		final TypeSerializer<T2> serializer2 = getInputSerializer(1);
+		final TypeSerializer<T1> serializer1 = this.taskContext.getInputSerializer(0);
+		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
 		
 		final SpillingResettableMutableObjectIterator<T1> spillVals = new SpillingResettableMutableObjectIterator<T1>(
-				in1, serializer1, this.memManager, getEnvironment().getIOManager(), this.memForSpillingSide, this);
+				in1, serializer1, this.memManager, this.taskContext.getIOManager(), this.memForSpillingSide,
+				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
 		final BlockResettableMutableObjectIterator<T2> blockVals = 
-				new BlockResettableMutableObjectIterator<T2>(this.memManager, in2, serializer2, this.memForBlockSide, this);
+				new BlockResettableMutableObjectIterator<T2>(this.memManager, in2, serializer2, this.memForBlockSide,
+						this.taskContext.getOwningNepheleTask());
 		this.blockIter = blockVals;
 		
 		final T1 val1 = serializer1.createInstance();
 		final T1 val1Copy = serializer1.createInstance();
 		final T2 val2 = serializer2.createInstance();
 		
-		final GenericCrosser<T1, T2, OT> crosser = this.stub;
-		final Collector<OT> collector = this.output;
+		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
+		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
 		do {
@@ -266,26 +299,27 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 	private void runStreamedOuterFirst() throws Exception
 	{
 		if (LOG.isDebugEnabled())  {
-			LOG.debug(getLogString("Running Cross with Nested-Loops: " +
+			LOG.debug(this.taskContext.formatLogString("Running Cross with Nested-Loops: " +
 					"First input is outer side, second input is inner (spilling) side."));
 		}
 		
-		final MutableObjectIterator<T1> in1 = getInput(0);
-		final MutableObjectIterator<T2> in2 = getInput(1);
+		final MutableObjectIterator<T1> in1 = this.taskContext.getInput(0);
+		final MutableObjectIterator<T2> in2 = this.taskContext.getInput(1);
 		
-		final TypeSerializer<T1> serializer1 = getInputSerializer(0);
-		final TypeSerializer<T2> serializer2 = getInputSerializer(1);
+		final TypeSerializer<T1> serializer1 = this.taskContext.getInputSerializer(0);
+		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
 		
 		final SpillingResettableMutableObjectIterator<T2> spillVals = new SpillingResettableMutableObjectIterator<T2>(
-				in2, serializer2, this.memManager, getEnvironment().getIOManager(), this.memForSpillingSide, this);
+				in2, serializer2, this.memManager, this.taskContext.getIOManager(), this.memForSpillingSide,
+				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
 		final T1 val1 = serializer1.createInstance();
 		final T1 val1Copy = serializer1.createInstance();
 		final T2 val2 = serializer2.createInstance();
 		
-		final GenericCrosser<T1, T2, OT> crosser = this.stub;
-		final Collector<OT> collector = this.output;
+		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
+		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
 		while (this.running && in1.next(val1)) {
@@ -301,25 +335,26 @@ public class CrossTask<T1, T2, OT> extends AbstractPactTask<GenericCrosser<T1, T
 	private void runStreamedOuterSecond() throws Exception
 	{
 		if (LOG.isDebugEnabled())  {
-			LOG.debug(getLogString("Running Cross with Nested-Loops: " +
+			LOG.debug(this.taskContext.formatLogString("Running Cross with Nested-Loops: " +
 					"First input is inner (spilling) side, second input is outer side."));
 		}
-		final MutableObjectIterator<T1> in1 = getInput(0);
-		final MutableObjectIterator<T2> in2 = getInput(1);
+		final MutableObjectIterator<T1> in1 = this.taskContext.getInput(0);
+		final MutableObjectIterator<T2> in2 = this.taskContext.getInput(1);
 		
-		final TypeSerializer<T1> serializer1 = getInputSerializer(0);
-		final TypeSerializer<T2> serializer2 = getInputSerializer(1);
+		final TypeSerializer<T1> serializer1 = this.taskContext.getInputSerializer(0);
+		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
 		
 		final SpillingResettableMutableObjectIterator<T1> spillVals = new SpillingResettableMutableObjectIterator<T1>(
-				in1, serializer1, this.memManager, getEnvironment().getIOManager(), this.memForSpillingSide, this);
+				in1, serializer1, this.memManager, this.taskContext.getIOManager(), this.memForSpillingSide,
+				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
 		final T1 val1 = serializer1.createInstance();
 		final T2 val2 = serializer2.createInstance();
 		final T2 val2Copy = serializer2.createInstance();
 		
-		final GenericCrosser<T1, T2, OT> crosser = this.stub;
-		final Collector<OT> collector = this.output;
+		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
+		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
 		while (this.running && in2.next(val2)) {
