@@ -173,14 +173,16 @@ public class BranchingPlansCompilerTest {
 	public void testBranchEachContractType() {
 		// construct the plan
 
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
-		FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
+		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source A");
+		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source B");
+		FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source C");
 		
 		
 		MapContract branchingMap = new MapContract(IdentityMap.class, sourceA);
 		ReduceContract branchingReduce = new ReduceContract(IdentityReduce.class, PactInteger.class, 0, branchingMap);
 		MatchContract branchingMatch = new MatchContract(DummyMatchStub.class, PactInteger.class, 0, 0,sourceB, sourceC);
+		branchingMatch.addFirstInput(sourceB);
+		branchingMatch.addFirstInput(sourceC);
 		CoGroupContract branchingCoGroup = new CoGroupContract(DummyCoGroupStub.class, PactInteger.class, 0,0,sourceA, sourceB);
 		CrossContract branchingCross = new CrossContract(DummyCrossStub.class, branchingReduce, branchingCoGroup);
 		
@@ -194,7 +196,11 @@ public class BranchingPlansCompilerTest {
 		CoGroupContract co6 = new CoGroupContract(DummyCoGroupStub.class, PactInteger.class, 0,0,co4, co5);
 		
 		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, co6);
-
+		sink.addInput(sourceA);
+		sink.addInput(co3);
+		sink.addInput(co4);
+		sink.addInput(co1);
+		
 		// return the PACT plan
 		Plan plan = new Plan(sink, "Branching of each contract type");
 		
