@@ -21,6 +21,8 @@ import java.util.Set;
 
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.DualInputContract;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -40,6 +42,12 @@ public class ContextChecker implements Visitor<Contract> {
 	 * to avoid processing one node multiple times.
 	 */
 	public Set<Contract> visitedNodes = new HashSet<Contract>();
+	
+	/**
+	 * Used for checking whether a contract does not have any children.
+	 */
+	//private Map<Contract, Set<Contract>> contractChildren =
+	//		new HashMap<Contract, Set<Contract>>();
 
 	/**
 	 * Default constructor
@@ -71,9 +79,15 @@ public class ContextChecker implements Visitor<Contract> {
 		if (this.visitedNodes.contains(node)) {
 			return false;
 		}
+		
+		//contractChildren.put(node, new HashSet<Contract>());
 
 		// apply the appropriate check method
-		if (node instanceof GenericDataSink) {
+		if (node instanceof FileDataSink) {
+			checkFileDataSink((FileDataSink) node);
+		} else if (node instanceof FileDataSource) {
+			checkFileDataSource((FileDataSource) node);
+		} else if (node instanceof GenericDataSink) {
 			checkDataSink((GenericDataSink) node);
 		} else if (node instanceof SingleInputContract<?>) {
 			checkSingleInputContract((SingleInputContract<?>) node);
@@ -91,7 +105,12 @@ public class ContextChecker implements Visitor<Contract> {
 
 	@Override
 	public void postVisit(Contract node) {
-		// ignore post visits
+/*		if (contractChildren.get(node).size() == 0) {
+			// we did not visit any node that had this node
+			// as input
+			throw new MissingChildException("Node " +
+					node.getName() + " does not have any childern.");
+		}*/
 	}
 
 	/**
@@ -102,12 +121,56 @@ public class ContextChecker implements Visitor<Contract> {
 	 *        DataSinkContract that is checked.
 	 */
 	private void checkDataSink(GenericDataSink dataSinkContract) {
-
 		Contract input = dataSinkContract.getInputs().get(0);
 
 		// check if input exists
 		if (input == null) {
 			throw new MissingChildException();
+		}
+		
+		//contractChildren.get(input).add(dataSinkContract);
+	}
+	
+	/**
+	 * Checks if FileDataSink is correctly connected. In case that the
+	 * contract is incorrectly connected a RuntimeException is thrown.
+	 * 
+	 * @param fileSink
+	 *        FileDataSink that is checked.
+	 */
+	private void checkFileDataSink(FileDataSink fileSink) {
+		String path = fileSink.getFilePath();
+		if (path == null) {
+			throw new PlanException("File path of FileDataSink is null.");
+		}
+		if (path.equals("")) {
+			throw new PlanException("File path of FileDataSink is empty string.");
+		}
+		if (!(path.startsWith("file://") || path.startsWith("hdfs://"))) {
+			throw new PlanException("File path \"" + path +
+					"\" of FileDataSink is not a valid file URL.");
+		}
+		checkDataSink(fileSink);
+	}
+	
+	/**
+	 * Checks if FileDataSource is correctly connected. In case that the
+	 * contract is incorrectly connected a RuntimeException is thrown.
+	 * 
+	 * @param fileSource
+	 *        FileDataSource that is checked.
+	 */
+	private void checkFileDataSource(FileDataSource fileSource) {
+		String path = fileSource.getFilePath();
+		if (path == null) {
+			throw new PlanException("File path of FileDataSource is null.");
+		}
+		if (path.equals("")) {
+			throw new PlanException("File path of FileDataSource is empty string.");
+		}
+		if (!(path.startsWith("file://") || path.startsWith("hdfs://"))) {
+			throw new PlanException("File path \"" + path +
+					"\" of FileDataSource is not a valid file uri.");
 		}
 	}
 
@@ -126,6 +189,9 @@ public class ContextChecker implements Visitor<Contract> {
 		if (input.size() == 0) {
 			throw new MissingChildException();
 		}
+/*		for (Contract in : input) {
+			contractChildren.get(in).add(singleInputContract);
+		}*/
 	}
 
 	/**
@@ -143,6 +209,12 @@ public class ContextChecker implements Visitor<Contract> {
 		if (input1.size() == 0 || input2.size() == 0) {
 			throw new MissingChildException();
 		}
+/*		for (Contract in : input1) {
+			contractChildren.get(in).add(dualInputContract);
+		}
+		for (Contract in : input2) {
+			contractChildren.get(in).add(dualInputContract);
+		}*/
 	}
 
 }
