@@ -35,7 +35,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 public class ChannelDeploymentDescriptorTest {
 
 	/**
-	 * Tests the constructor of {@link ChannelDeploymentDescriptor} class with valid arguments.
+	 * Tests the constructor of the {@link ChannelDeploymentDescriptor} class with valid arguments.
 	 */
 	@Test
 	public void testConstructorWithValidArguments() {
@@ -49,6 +49,9 @@ public class ChannelDeploymentDescriptorTest {
 		assertEquals(inputChannelID, cdd.getInputChannelID());
 	}
 
+	/**
+	 * Tests the constructor of the {@link ChannelDeploymentDescriptor} class with invalid arguments.
+	 */
 	@Test
 	public void testConstructorWithInvalidArguments() {
 
