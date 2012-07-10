@@ -42,7 +42,6 @@ public class UnaryExpression extends BooleanExpression {
 	public UnaryExpression(final EvaluationExpression expr, final boolean negate) {
 		this.expr = expr;
 		this.negate = negate;
-		this.expectedTarget = BooleanNode.class;
 	}
 
 	@Override
@@ -51,19 +50,6 @@ public class UnaryExpression extends BooleanExpression {
 			return false;
 		final UnaryExpression other = (UnaryExpression) obj;
 		return this.expr.equals(other.expr) && this.negate == other.negate;
-	}
-
-	/**
-	 * Wraps the given {@link EvaluationExpression} as a {@link BooleanExpression}
-	 * 
-	 * @param expression
-	 *        the expression that should be wrapped
-	 * @return the wrapped expression
-	 */
-	public static BooleanExpression wrap(final EvaluationExpression expression) {
-		if (expression instanceof BooleanExpression)
-			return (BooleanExpression) expression;
-		return new UnaryExpression(expression);
 	}
 
 	@Override
@@ -76,18 +62,6 @@ public class UnaryExpression extends BooleanExpression {
 		if (this.negate)
 			return result == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
 		return result;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
-	 */
-	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
-		this.expr = this.expr.transformRecursively(function);
-		return function.call(this);
 	}
 
 	@Override
@@ -105,5 +79,18 @@ public class UnaryExpression extends BooleanExpression {
 			builder.append("!");
 		builder.append(this.expr);
 	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		this.expr = this.expr.transformRecursively(function);
+		return function.call(this);
+	}
+
 
 }

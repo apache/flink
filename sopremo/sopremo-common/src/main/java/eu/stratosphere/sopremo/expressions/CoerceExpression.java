@@ -30,7 +30,6 @@ public class CoerceExpression extends EvaluationExpression {
 	public CoerceExpression(final Class<? extends IJsonNode> targetType, final EvaluationExpression value) {
 		this.targetType = (Class<IJsonNode>) targetType;
 		this.valueExpression = CachingExpression.ofSubclass(value, IJsonNode.class);
-		this.expectedTarget = targetType;
 	}
 
 	/**

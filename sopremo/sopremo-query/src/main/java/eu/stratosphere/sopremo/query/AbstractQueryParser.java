@@ -176,7 +176,7 @@ public abstract class AbstractQueryParser extends Parser {
 		if (callable == null)
 			throw new QueryParserException("Unknown function", name);
 		if (callable instanceof MacroBase)
-			return ((MacroBase) callable).call(params, this.getContext());
+			return ((MacroBase) callable).call(params, null, this.getContext());
 		if (callable instanceof Inlineable)
 			return ((Inlineable) callable).getDefinition();
 		if (target != null) {
@@ -267,13 +267,13 @@ public abstract class AbstractQueryParser extends Parser {
 				this.importFromFile(classPath, file);
 	}
 
-	@SuppressWarnings("unchecked")
 	private void importFromFile(String classPath, File file) {
 		String classFileName = file.getAbsolutePath().substring(classPath.length());
 		String className = classFileName.replaceAll(".class$", "").replaceAll("/|\\\\", ".").replaceAll("^\\.", "");
 		importClass(className);
 	}
 
+	@SuppressWarnings("unchecked")
 	protected void importClass(String className) {
 		Class<?> clazz;
 		try {

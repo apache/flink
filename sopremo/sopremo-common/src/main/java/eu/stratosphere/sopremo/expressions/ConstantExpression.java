@@ -51,7 +51,6 @@ public class ConstantExpression extends EvaluationExpression {
 	 */
 	public ConstantExpression(final AbstractJsonNode constant) {
 		this.constant = constant;
-		this.expectedTarget = constant.getClass();
 	}
 
 	/**

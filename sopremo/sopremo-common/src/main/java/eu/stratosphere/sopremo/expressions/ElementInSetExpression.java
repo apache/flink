@@ -39,7 +39,6 @@ public class ElementInSetExpression extends BinaryBooleanExpression {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
 		this.quantor = quantor;
-		this.expectedTarget = BooleanNode.class;
 	}
 
 	@Override

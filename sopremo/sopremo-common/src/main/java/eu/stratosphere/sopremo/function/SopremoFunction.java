@@ -34,7 +34,7 @@ public class SopremoFunction extends JsonMethod implements Inlineable {
 	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public IJsonNode call(final IArrayNode params, final EvaluationContext context) {
-		return this.definition.evaluate(params, null, context);
+	public IJsonNode call(final IArrayNode params, final IJsonNode target, final EvaluationContext context) {
+		return this.definition.evaluate(params, target, context);
 	}
 }

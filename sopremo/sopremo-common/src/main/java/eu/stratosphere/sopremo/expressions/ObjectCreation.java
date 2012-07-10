@@ -10,11 +10,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.util.ConversionIterator;
 
 /**
  * Creates an object with the given {@link Mapping}s.
@@ -37,16 +36,11 @@ public class ObjectCreation extends ContainerExpression {
 
 		@Override
 		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-
-			target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
-
-			final Iterator<IJsonNode> elements = ((ArrayNode) node).iterator();
-			while (elements.hasNext()) {
-				final IJsonNode jsonNode = elements.next();
+			ObjectNode targetObject = SopremoUtil.reinitializeTarget(target, ObjectNode.class);
+			for (IJsonNode jsonNode : (IArrayNode) node)
 				if (!jsonNode.isNull())
-					((IObjectNode) target).putAll((IObjectNode) jsonNode);
-			}
-			return target;
+					targetObject.putAll((IObjectNode) jsonNode);
+			return targetObject;
 		}
 	};
 
@@ -67,7 +61,6 @@ public class ObjectCreation extends ContainerExpression {
 	 */
 	public ObjectCreation(final List<Mapping<?>> mappings) {
 		this.mappings = mappings;
-		this.expectedTarget = ObjectNode.class;
 	}
 
 	/**
@@ -78,7 +71,6 @@ public class ObjectCreation extends ContainerExpression {
 	 */
 	public ObjectCreation(final FieldAssignment... mappings) {
 		this.mappings = new ArrayList<Mapping<?>>(Arrays.asList(mappings));
-		this.expectedTarget = ObjectNode.class;
 	}
 
 	/**
@@ -125,12 +117,10 @@ public class ObjectCreation extends ContainerExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-
-		target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
-
+		ObjectNode targetObject = SopremoUtil.reinitializeTarget(target, ObjectNode.class);
 		for (final Mapping<?> mapping : this.mappings)
-			mapping.evaluate(node, (IObjectNode) target, context);
-		return target;
+			mapping.evaluate(node, targetObject, context);
+		return targetObject;
 	}
 
 	/*
@@ -211,23 +201,6 @@ public class ObjectCreation extends ContainerExpression {
 		for (int index = 0; index < children.size(); index++)
 			this.mappings.get(index).setExpression(children.get(index));
 	}
-
-	@Override
-	public Iterator<EvaluationExpression> iterator() {
-		return new ConversionIterator<Mapping<?>, EvaluationExpression>(this.mappings.iterator()) {
-			@Override
-			protected EvaluationExpression convert(final Mapping<?> inputObject) {
-				return inputObject.getExpression();
-			}
-		};
-	}
-
-	// @Override
-	// public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-	// for (final Mapping<?> mapping : this.mappings)
-	// if (mapping.getExpression() instanceof ContainerExpression)
-	// ((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
-	// }
 
 	@Override
 	public void toString(final StringBuilder builder) {

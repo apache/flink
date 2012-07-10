@@ -56,7 +56,6 @@ public class BatchAggregationExpression extends EvaluationExpression {
 			this.partials.add(new Partial(function, EvaluationExpression.VALUE, this.partials.size()));
 		CollectionUtil.ensureSize(this.lastPreprocessingResults, this.partials.size());
 		CollectionUtil.ensureSize(this.lastAggregators, this.partials.size());
-		this.expectedTarget = ArrayNode.class;
 	}
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {

@@ -72,7 +72,6 @@ public class ObjectAccess extends EvaluationExpression {
 	 */
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		// TODO Reuse target
 		if (!node.isObject()) {
 			if (node.isNull() && this.safeDereference)
 				return node;

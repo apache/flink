@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.expressions;
 
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -11,9 +10,6 @@ public abstract class ContainerExpression extends EvaluationExpression {
 	 * 
 	 */
 	private static final long serialVersionUID = -2109874880435636612L;
-
-	@Override
-	public abstract Iterator<EvaluationExpression> iterator();
 
 	/**
 	 * Returns this containers child-expressions.
@@ -30,20 +26,6 @@ public abstract class ContainerExpression extends EvaluationExpression {
 	 */
 	public abstract void setChildren(List<? extends EvaluationExpression> children);
 
-	// /**
-	// * Replaces the one expression in this container with another one.
-	// *
-	// * @param toReplace
-	// * the expression that should be replaced
-	// * @param replaceFragment
-	// * the expression which should replace another one
-	// */
-	// public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-	// for (final EvaluationExpression element : this)
-	// if (element instanceof ContainerExpression)
-	// ((ContainerExpression) element).replace(toReplace, replaceFragment);
-	// }
-
 	/*
 	 * (non-Javadoc)
 	 * @see
@@ -51,5 +33,8 @@ public abstract class ContainerExpression extends EvaluationExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public abstract EvaluationExpression transformRecursively(TransformFunction function);
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		setChildren(transformChildExpressions(function, getChildren()));
+		return function.call(this);
+	}
 }
