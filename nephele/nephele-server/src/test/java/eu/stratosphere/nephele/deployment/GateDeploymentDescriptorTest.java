@@ -146,6 +146,8 @@ public class GateDeploymentDescriptorTest {
 		assertEquals(orig.getChannelType(), copy.getChannelType());
 		assertEquals(orig.getCompressionLevel(), copy.getCompressionLevel());
 		assertEquals(orig.getNumberOfChannelDescriptors(), copy.getNumberOfChannelDescriptors());
-		assertEquals(orig.getChannelDescriptor(0), copy.getChannelDescriptor(0));
+		assertEquals(orig.getChannelDescriptor(0).getOutputChannelID(), copy.getChannelDescriptor(0)
+			.getOutputChannelID());
+		assertEquals(orig.getChannelDescriptor(0).getInputChannelID(), copy.getChannelDescriptor(0).getInputChannelID());
 	}
 }
