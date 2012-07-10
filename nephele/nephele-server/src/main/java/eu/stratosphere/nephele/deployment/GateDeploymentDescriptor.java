@@ -140,6 +140,16 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	}
 
 	/**
+	 * Returns the ID of the gate.
+	 * 
+	 * @return the ID of the gate
+	 */
+	public GateID getGateID() {
+
+		return this.gateID;
+	}
+
+	/**
 	 * Returns the channel type of the gate.
 	 * 
 	 * @return the channel type of the gate
