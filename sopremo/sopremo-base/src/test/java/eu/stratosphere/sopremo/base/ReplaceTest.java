@@ -115,7 +115,6 @@ public class ReplaceTest extends SopremoTest<Replace> {
 	}
 
 	@Test
-	@Ignore
 	public void shouldLookupArrayValuesStrictly() {
 
 		final Replace replace = new Replace().
@@ -145,7 +144,6 @@ public class ReplaceTest extends SopremoTest<Replace> {
 	}
 
 	@Test
-	@Ignore
 	public void shouldKeepArrayValuesNotInDictionary() {
 
 		final Replace replace = new Replace().
@@ -175,7 +173,6 @@ public class ReplaceTest extends SopremoTest<Replace> {
 	}
 
 	@Test
-	@Ignore
 	public void shouldLookupArrayValuesWithDefault() {
 		final Replace lookup = new Replace();
 		lookup.setReplaceExpression(new ObjectAccess("fieldToReplace"));
