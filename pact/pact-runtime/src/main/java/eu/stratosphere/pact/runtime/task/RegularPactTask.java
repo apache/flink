@@ -73,7 +73,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 {
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
 
-	protected PactDriver<S, OT> driver;
+	protected volatile PactDriver<S, OT> driver;
 
 	protected S stub;
 
@@ -95,7 +95,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 
 	protected ArrayList<ChainedDriver<?, ?>> chainedTasks;
 
-	protected volatile boolean running;
+	protected volatile boolean running = true;
 
 	// --------------------------------------------------------------------------------------------
 	//                                  Nephele Task Interface
@@ -160,6 +160,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	@Override
 	public void invoke() throws Exception
 	{
+		if (!this.running) {
+			if (LOG.isDebugEnabled())
+				LOG.info(formatLogString("Task cancelled before PACT code was started."));
+			return;
+		}
+		
 		if (LOG.isInfoEnabled())
 			LOG.info(formatLogString("Start PACT code."));
 
@@ -173,7 +179,6 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 
 		boolean stubOpen = false;
-		this.running = true;
 
 		try {
 			// run the data preparation
@@ -263,6 +268,10 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		this.running = false;
 		if (LOG.isWarnEnabled())
 			LOG.warn(formatLogString("Cancelling PACT code"));
+		
+		if (this.driver != null) {
+			this.driver.cancel();
+		}
 	}
 
 	/**
