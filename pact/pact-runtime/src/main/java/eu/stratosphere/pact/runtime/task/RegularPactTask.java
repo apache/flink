@@ -186,6 +186,11 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() +
 					"' , caused an error: " + t.getMessage(), t);
 			}
+			
+			// check for canceling
+			if (!this.running) {
+				return;
+			}
 
 			// start all chained tasks
 			RegularPactTask.openChainedTasks(this.chainedTasks, this);
