@@ -121,6 +121,11 @@ case $STARTSTOP in
 				exit 1
      			fi
 		fi
+
+                # Rotate log files
+                rotateLogFile $log
+                rotateLogFile $out
+
 		echo Starting Nephele job manager
 		$JAVA_HOME/bin/java $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_JM_CLASSPATH eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir $NEPHELE_CONF_DIR  > "$out" 2>&1 < /dev/null &
 		echo $! > $pid

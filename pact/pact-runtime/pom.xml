@@ -28,6 +28,12 @@
 			<artifactId>pact-common</artifactId>
 			<version>${version}</version>
 		</dependency>
+		
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>r09</version>
+		</dependency>
 
 	</dependencies>
 
@@ -71,8 +77,6 @@
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>
-
-
 		</plugins>
 	</build>
 </project>

@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.generic.GenericMatcher;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
 import eu.stratosphere.pact.common.generic.types.TypePairComparator;
@@ -102,7 +102,7 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 	
 	private final LocalStrategy localStrategy;
 	
-	private final AbstractTask parentTask;
+	private final AbstractInvokable parentTask;
 
 	private final long memoryPerChannel;
 
@@ -117,7 +117,7 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2, TypePairComparator<T1, T2> pairComparator,
 			MemoryManager memoryManager, IOManager ioManager,
 			long memory, int maxNumFileHandles, float spillingThreshold,
-			LocalStrategy localStrategy, AbstractTask parentTask)
+			LocalStrategy localStrategy, AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
 		this(reader1, reader2, serializer1, comparator1, serializer2, comparator2, pairComparator,
@@ -131,7 +131,7 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2, TypePairComparator<T1, T2> pairComparator,
 			MemoryManager memoryManager, IOManager ioManager,
 			long memory, int maxNumFileHandles, float spillingThreshold, float memPercentageForBlockNL,
-			LocalStrategy localStrategy, AbstractTask parentTask)
+			LocalStrategy localStrategy, AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
 		this.comp = pairComparator;

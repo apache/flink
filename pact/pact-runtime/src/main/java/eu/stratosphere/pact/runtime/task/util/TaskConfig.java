@@ -30,9 +30,11 @@ import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
+import eu.stratosphere.pact.runtime.task.PactDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 
 /**
  * Configuration class which stores all relevant parameters required to set up the Pact tasks.
@@ -85,6 +87,8 @@ public class TaskConfig
 	
 	// --------------------------------------------------------------------------------------------
 
+	private static final String DRIVER_CLASS = "pact.driver.class";
+	
 	private static final String STUB_CLASS = "pact.stub.class";
 
 	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
@@ -157,6 +161,32 @@ public class TaskConfig
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	//                                     Pact Driver
+	// --------------------------------------------------------------------------------------------
+	
+	public void setDriver(@SuppressWarnings("rawtypes") Class<? extends PactDriver> driver) {
+		this.config.setString(DRIVER_CLASS, driver.getName());
+	}
+	
+	public <S extends Stub, OT> Class<? extends PactDriver<S, OT>> getDriver()
+	{
+		final String className = this.config.getString(DRIVER_CLASS, null);
+		if (className == null) {
+			throw new CorruptConfigurationException("The pact driver class is missing.");
+		}
+		
+		try {
+			@SuppressWarnings("unchecked")
+			final Class<PactDriver<S, OT>> pdClazz = (Class<PactDriver<S, OT>>) (Class<?>) PactDriver.class;
+			return Class.forName(className).asSubclass(pdClazz);
+		} catch (ClassNotFoundException cnfex) {
+			throw new CorruptConfigurationException("The given driver class cannot be found.");
+		} catch (ClassCastException ccex) {
+			throw new CorruptConfigurationException("The given driver class does not implement the pact driver interface.");
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
 	//                                User code class Access
 	// --------------------------------------------------------------------------------------------
 
@@ -167,9 +197,9 @@ public class TaskConfig
 	public <T> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl)
 		throws ClassNotFoundException, ClassCastException
 	{
-		String stubClassName = this.config.getString(STUB_CLASS, null);
+		final String stubClassName = this.config.getString(STUB_CLASS, null);
 		if (stubClassName == null) {
-			throw new IllegalStateException("stub class missing");
+			throw new CorruptConfigurationException("The stub class is missing.");
 		}
 		return Class.forName(stubClassName, true, cl).asSubclass(stubClass);
 	}
@@ -537,7 +567,7 @@ public class TaskConfig
 		return this.config.getInteger(CHAINING_NUM_STUBS, 0);
 	}
 	
-	public void addChainedTask(@SuppressWarnings("rawtypes") Class<? extends ChainedTask> chainedTaskClass, TaskConfig conf, String taskName)
+	public void addChainedTask(@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> chainedTaskClass, TaskConfig conf, String taskName)
 	{
 		int numChainedYet = this.config.getInteger(CHAINING_NUM_STUBS, 0);
 		
@@ -553,7 +583,7 @@ public class TaskConfig
 		return new TaskConfig(new DelegatingConfiguration(this.config, CHAINING_TASKCONFIG_PREFIX + chainPos + '.'));
 	}
 
-	public Class<? extends ChainedTask<?, ?>> getChainedTask(int chainPos)
+	public Class<? extends ChainedDriver<?, ?>> getChainedTask(int chainPos)
 	throws ClassNotFoundException, ClassCastException
 	{
 		String className = this.config.getString(CHAINING_TASK_PREFIX + chainPos, null);
@@ -561,7 +591,7 @@ public class TaskConfig
 			throw new IllegalStateException("Chained Task Class missing");
 		
 		@SuppressWarnings("unchecked")
-		final Class<ChainedTask<?, ?>> clazz = (Class<ChainedTask<?, ?>>) (Class<?>) ChainedTask.class;
+		final Class<ChainedDriver<?, ?>> clazz = (Class<ChainedDriver<?, ?>>) (Class<?>) ChainedDriver.class;
 		return Class.forName(className).asSubclass(clazz);
 	}
 	

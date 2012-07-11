@@ -28,34 +28,37 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
+import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
-import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-public class TempTaskTest extends TaskTestBase
+public class TempTaskTest extends DriverTestBase<Stub>
 {
 	private static final Log LOG = LogFactory.getLog(TempTaskTest.class);
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();;
-		
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	
+	
+	public TempTaskTest() {
+		super(1*1024*1024);
+	}
+	
+	
 	@Test
 	public void testTempTask()
 	{
 		int keyCnt = 1024;
 		int valCnt = 4;
 		
-		super.initEnvironment(1024*1024*1);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
 		super.addOutput(this.outList);
 		
-		TempTask<PactRecord> testTask = new TempTask<PactRecord>();
+		TempDriver<PactRecord> testTask = new TempDriver<PactRecord>();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
-		super.registerTask(testTask, PrevStub.class);
-		
 		try {
-			testTask.invoke();
+			testDriver(testTask, PrevStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
@@ -66,22 +69,19 @@ public class TempTaskTest extends TaskTestBase
 	}
 	
 	@Test
-	public void testCancelTempTask() {
-		
-		super.initEnvironment(1024*1024*1);
-		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
+	public void testCancelTempTask()
+	{
+		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(new NirvanaOutputList());
 		
-		final TempTask<PactRecord> testTask = new TempTask<PactRecord>();
+		final TempDriver<PactRecord> testTask = new TempDriver<PactRecord>();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
-		
-		super.registerTask(testTask, PrevStub.class);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
-					testTask.invoke();
+					testDriver(testTask, PrevStub.class);
 				} catch (Exception ie) {
 					ie.printStackTrace();
 					Assert.fail("Task threw exception although it was properly canceled");
@@ -90,7 +90,7 @@ public class TempTaskTest extends TaskTestBase
 		};
 		taskRunner.start();
 		
-		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
 		tct.start();
 		
 		try {

@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.generic.GenericCoGrouper;
@@ -27,6 +30,7 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.sort.SortMergeCoGroupIterator;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -37,20 +41,33 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * The CoGroupTask group all pairs that share the same key from both inputs. Each for each key, the sets of values that
  * were pair with that key of both inputs are handed to the <code>coGroup()</code> method of the CoGroupStub.
  * 
- * @see eu.stratosphere.pact.common.stub.CoGroupStub
- * @author Fabian Hueske
- * @author Matthias Ringwald
+ * @see eu.stratosphere.pact.common.stubs.CoGroupStub
+ * @author Stephan Ewen
  */
-public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper<IT1, IT2, OT>, OT>
+public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<IT1, IT2, OT>, OT>
 {
-	// the minimal amount of memory for the task to operate
-	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
+	private static final Log LOG = LogFactory.getLog(CoGroupDriver.class);
 	
-	// the iterator that does the actual cogroup
-	private CoGroupTaskIterator<IT1, IT2> coGroupIterator;
+	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;	// minimal memory for the task to operate
+	
+	
+	private PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> taskContext;
+	
+	private CoGroupTaskIterator<IT1, IT2> coGroupIterator;				// the iterator that does the actual cogroup
+	
+	private volatile boolean running;
 
 	// ------------------------------------------------------------------------
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
+	 */
+	@Override
+	public void setup(PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> context) {
+		this.taskContext = context;
+		this.running = true;
+	}
+	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
 	 */
@@ -65,7 +82,7 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 	@Override
 	public Class<GenericCoGrouper<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericCoGrouper<IT1, IT2, OT>> clazz = (Class<GenericCoGrouper<IT1, IT2, OT>>) (Class<?>) GenericCoGrouper.class; 
+		final Class<GenericCoGrouper<IT1, IT2, OT>> clazz = (Class<GenericCoGrouper<IT1, IT2, OT>>) (Class<?>) GenericCoGrouper.class;
 		return clazz;
 	}
 	
@@ -83,13 +100,15 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 	@Override
 	public void prepare() throws Exception
 	{
+		final TaskConfig config = this.taskContext.getTaskConfig();
+		
 		// set up memory and I/O parameters
-		final long availableMemory = this.config.getMemorySize();
-		final int maxFileHandles = this.config.getNumFilehandles();
-		final float spillThreshold = this.config.getSortSpillingTreshold();
+		final long availableMemory = config.getMemorySize();
+		final int maxFileHandles = config.getNumFilehandles();
+		final float spillThreshold = config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
-		final LocalStrategy ls = this.config.getLocalStrategy();
+		final LocalStrategy ls = config.getLocalStrategy();
 		long strategyMinMem = 0;
 		
 		switch (ls) {
@@ -112,22 +131,29 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 				    "Required is at least " + strategyMinMem + " bytes.");
 		}
 		
-		final MutableObjectIterator<IT1> in1 = getInput(0);
-		final MutableObjectIterator<IT2> in2 = getInput(1);
+		final MutableObjectIterator<IT1> in1 = this.taskContext.getInput(0);
+		final MutableObjectIterator<IT2> in2 = this.taskContext.getInput(1);
 		
 		// get the key positions and types
-		final TypeSerializer<IT1> serializer1 = getInputSerializer(0);
-		final TypeSerializer<IT2> serializer2 = getInputSerializer(1);
-		final TypeComparator<IT1> comparator1 = getInputComparator(0);
-		final TypeComparator<IT2> comparator2 = getInputComparator(1);
+		final TypeSerializer<IT1> serializer1 = this.taskContext.getInputSerializer(0);
+		final TypeSerializer<IT2> serializer2 = this.taskContext.getInputSerializer(1);
+		final TypeComparator<IT1> groupComparator1 = this.taskContext.getInputComparator(0);
+		final TypeComparator<IT2> groupComparator2 = this.taskContext.getInputComparator(1);
 		
-		final TypeComparator<IT1> secondarySortComparator1 = getSecondarySortComparator(0);
-		final TypeComparator<IT2> secondarySortComparator2 = getSecondarySortComparator(1);
+		TypeComparator<IT1> sortComparator1 = this.taskContext.getSecondarySortComparator(0);
+		TypeComparator<IT2> sortComparator2 = this.taskContext.getSecondarySortComparator(1);
+		
+		if (sortComparator1 == null) {
+			sortComparator1 = groupComparator1.duplicate();
+		}
+		if (sortComparator2 == null) {
+			sortComparator2 = groupComparator2.duplicate();
+		}
 		
 		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
 		try {
 			final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
-				this.config.getPairComparatorFactory(this.userCodeClassLoader);
+				config.getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
 			
 			if (factoryClass == null) {
 				@SuppressWarnings("unchecked")
@@ -144,9 +170,9 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 		}
 		
 		// obtain task manager's memory manager
-		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
+		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
 		// obtain task manager's I/O manager
-		final IOManager ioManager = getEnvironment().getIOManager();
+		final IOManager ioManager = this.taskContext.getIOManager();
 
 		// create CoGropuTaskIterator according to provided local strategy.
 		switch (ls)
@@ -156,9 +182,9 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 		case SORT_SECOND_MERGE:
 		case MERGE:
 			this.coGroupIterator = new SortMergeCoGroupIterator<IT1, IT2>(memoryManager, ioManager, 
-					in1, in2, serializer1, comparator1, secondarySortComparator1, serializer2, comparator2, secondarySortComparator2,
-					pairComparatorFactory.createComparator12(secondarySortComparator1, secondarySortComparator2),
-					availableMemory, maxFileHandles, spillThreshold, ls, this);
+					in1, in2, serializer1, groupComparator1, sortComparator1, serializer2, groupComparator2, sortComparator2,
+					pairComparatorFactory.createComparator12(groupComparator1, groupComparator2),
+					availableMemory, maxFileHandles, spillThreshold, ls, this.taskContext.getOwningNepheleTask());
 			break;
 			default:
 				throw new Exception("Unsupported local strategy for CoGropuTask: " + ls.name());
@@ -169,7 +195,7 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 		this.coGroupIterator.open();
 		
 		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("CoGroup task iterator ready."));
+			LOG.debug(this.taskContext.formatLogString("CoGroup task iterator ready."));
 	}
 	
 	
@@ -179,8 +205,8 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 	@Override
 	public void run() throws Exception
 	{
-		final GenericCoGrouper<IT1, IT2, OT> coGroupStub = this.stub;
-		final Collector<OT> collector = this.output;
+		final GenericCoGrouper<IT1, IT2, OT> coGroupStub = this.taskContext.getStub();
+		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		final CoGroupTaskIterator<IT1, IT2> coGroupIterator = this.coGroupIterator;
 		
 		while (this.running && coGroupIterator.next()) {
@@ -198,5 +224,14 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 			this.coGroupIterator.close();
 			this.coGroupIterator = null;
 		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
+	 */
+	@Override
+	public void cancel() throws Exception {
+		this.running = false;
+		cleanup();
 	}
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,19 +13,12 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.shipping;
+package eu.stratosphere.pact.runtime.task.util;
 
-/**
- * Enumeration defining the different shipping types of the output, such as local forward, re-partitioning by hash,
- * or re-partitioning by range.
- */
-public enum ShipStrategy {
-	FORWARD,
-	PARTITION_HASH,
-	PARTITION_LOCAL_HASH,
-	PARTITION_RANGE,
-	PARTITION_LOCAL_RANGE,
-	BROADCAST,
-	SFR,
-	NONE
+import java.io.IOException;
+
+public interface ReaderInterruptionBehavior {
+	
+	boolean onInterrupt(InterruptedException e) throws IOException;
+
 }

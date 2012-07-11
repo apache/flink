@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.generic.GenericMatcher;
@@ -31,6 +34,7 @@ import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -45,15 +49,29 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Fabian Hueske
  * @author Stephan Ewen
  */
-public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1, IT2, OT>, OT>
-{	
-	// the minimal amount of memory for the task to operate
-	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;
+public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT>
+{
+	private static final Log LOG = LogFactory.getLog(MatchDriver.class);
 	
-	// the iterator that does the actual matching
-	private MatchTaskIterator<IT1, IT2, OT> matchIterator;
+	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;	// minimal memory for the task to operate
+	
+	
+	private PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
+	
+	private volatile MatchTaskIterator<IT1, IT2, OT> matchIterator;		// the iterator that does the actual matching
+	
+	private volatile boolean running;
 	
 	// ------------------------------------------------------------------------
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
+	 */
+	@Override
+	public void setup(PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> context) {
+		this.taskContext = context;
+		this.running = true;
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
@@ -69,7 +87,7 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 	@Override
 	public Class<GenericMatcher<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class; 
+		final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class;
 		return clazz;
 	}
 	
@@ -87,13 +105,15 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 	@Override
 	public void prepare() throws Exception
 	{
+		final TaskConfig config = this.taskContext.getTaskConfig();
+		
 		// set up memory and I/O parameters
-		final long availableMemory = this.config.getMemorySize();
-		final int maxFileHandles = this.config.getNumFilehandles();
-		final float spillThreshold = this.config.getSortSpillingTreshold();
+		final long availableMemory = config.getMemorySize();
+		final int maxFileHandles = config.getNumFilehandles();
+		final float spillThreshold = config.getSortSpillingTreshold();
 		
 		// test minimum memory requirements
-		final LocalStrategy ls = this.config.getLocalStrategy();
+		final LocalStrategy ls = config.getLocalStrategy();
 		long strategyMinMem = 0;
 		
 		switch (ls) {
@@ -115,19 +135,19 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 					ls.name() + ": " + availableMemory + " bytes. Required is at least " + strategyMinMem + " bytes.");
 		}
 		
-		final MutableObjectIterator<IT1> in1 = getInput(0);
-		final MutableObjectIterator<IT2> in2 = getInput(1);
+		final MutableObjectIterator<IT1> in1 = this.taskContext.getInput(0);
+		final MutableObjectIterator<IT2> in2 = this.taskContext.getInput(1);
 		
 		// get the key positions and types
-		final TypeSerializer<IT1> serializer1 = getInputSerializer(0);
-		final TypeSerializer<IT2> serializer2 = getInputSerializer(1);
-		final TypeComparator<IT1> comparator1 = getInputComparator(0);
-		final TypeComparator<IT2> comparator2 = getInputComparator(1);
+		final TypeSerializer<IT1> serializer1 = this.taskContext.getInputSerializer(0);
+		final TypeSerializer<IT2> serializer2 = this.taskContext.getInputSerializer(1);
+		final TypeComparator<IT1> comparator1 = this.taskContext.getInputComparator(0);
+		final TypeComparator<IT2> comparator2 = this.taskContext.getInputComparator(1);
 		
 		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
 		try {
 			final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
-				this.config.getPairComparatorFactory(this.userCodeClassLoader);
+				config.getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
 			
 			if (factoryClass == null) {
 				@SuppressWarnings("unchecked")
@@ -144,9 +164,9 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 		}
 		
 		// obtain task manager's memory manager
-		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
+		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
 		// obtain task manager's I/O manager
-		final IOManager ioManager = getEnvironment().getIOManager();
+		final IOManager ioManager = this.taskContext.getIOManager();
 
 		// create and return MatchTaskIterator according to provided local strategy.
 		switch (ls)
@@ -157,17 +177,18 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 		case MERGE:
 			this.matchIterator = new SortMergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
 					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
-					memoryManager, ioManager, availableMemory, maxFileHandles, spillThreshold, ls, this);
+					memoryManager, ioManager, availableMemory, maxFileHandles, spillThreshold, ls,
+					this.taskContext.getOwningNepheleTask());
 			break;
 		case HYBRIDHASH_FIRST:
 			this.matchIterator = new BuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
 				serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2),
-				memoryManager, ioManager, this, availableMemory);
+				memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), availableMemory);
 			break;
 		case HYBRIDHASH_SECOND:
 			this.matchIterator = new BuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
 					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
-					memoryManager, ioManager, this, availableMemory);
+					memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), availableMemory);
 			break;
 		default:
 			throw new Exception("Unsupported local strategy for MatchTask: " + ls.name());
@@ -178,7 +199,7 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 		this.matchIterator.open();
 		
 		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Match task iterator ready."));
+			LOG.debug(this.taskContext.formatLogString("Match task iterator ready."));
 	}
 
 	/* (non-Javadoc)
@@ -187,8 +208,8 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 	@Override
 	public void run() throws Exception
 	{
-		final GenericMatcher<IT1, IT2, OT> matchStub = this.stub;
-		final Collector<OT> collector = this.output;
+		final GenericMatcher<IT1, IT2, OT> matchStub = this.taskContext.getStub();
+		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		final MatchTaskIterator<IT1, IT2, OT> matchIterator = this.matchIterator;
 		
 		while (this.running && matchIterator.callWithNextKey(matchStub, collector));
@@ -210,11 +231,11 @@ public class MatchTask<IT1, IT2, OT> extends AbstractPactTask<GenericMatcher<IT1
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cancel()
 	 */
 	@Override
-	public void cancel() throws Exception
+	public void cancel()
 	{
-		super.cancel();
+		this.running = false;
 		if (this.matchIterator != null) {
-			matchIterator.abort();
+			this.matchIterator.abort();
 		}
 	}
 }
