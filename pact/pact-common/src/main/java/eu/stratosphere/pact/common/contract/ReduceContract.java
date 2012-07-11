@@ -214,7 +214,7 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * @param builder
 	 */
 	private ReduceContract(Builder builder) {
-		super(builder.udf, builder.keyClasses, builder.keyColumns, builder.name);
+		super(builder.udf, builder.getKeyClassesArray(), builder.getKeyColumnsArray(), builder.name);
 		setInputs(builder.inputs);
 		this.secondaryOrder = builder.secondaryOrder;
 	}
@@ -305,8 +305,8 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 		 * The required parameters.
 		 */
 		private final Class<? extends ReduceStub> udf;
-		private final Class<? extends Key>[] keyClasses;
-		private final int[] keyColumns;
+		private final List<Class<? extends Key>> keyClasses;
+		private final List<Integer> keyColumns;
 		
 		/**
 		 * The optional parameters.
@@ -323,23 +323,39 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 		 * @param keyColumn The position of the key.
 		 */
 		public Builder(Class<? extends ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
-			this(udf, asArray(keyClass), new int[] {keyColumn});
-		}
-		
-		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
-		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
-		 * @param keyClass The classes of the key data types.
-		 * @param keyColumn The positions of the keys.
-		 */
-		public Builder(Class<? extends ReduceStub> udf, Class<? extends Key>[] keyClasses, int[] keyColumns) {
 			this.udf = udf;
-			this.keyClasses = keyClasses;
-			this.keyColumns = keyColumns;
+			this.keyClasses = new LinkedList<Class<? extends Key>>();
+			this.keyClasses.add(keyClass);
+			this.keyColumns = new LinkedList<Integer>();
+			this.keyColumns.add(keyColumn);
 			this.inputs = new LinkedList<Contract>();
 		}
+		
+		private int[] getKeyColumnsArray() {
+			int[] result = new int[keyColumns.size()];
+			for (int i = 0; i < keyColumns.size(); ++i) {
+				result[i] = keyColumns.get(i);
+			}
+			return result;
+		}
+		
+		@SuppressWarnings("unchecked")
+		private Class<? extends Key>[] getKeyClassesArray() {
+			return keyClasses.toArray(new Class[keyClasses.size()]);
+		}
 
+		/**
+		 * Adds additional key field.
+		 * 
+		 * @param keyClass The class of the key data type.
+		 * @param keyColumn The position of the key.
+		 */
+		public Builder additionalKeyField(Class<? extends Key> keyClass, int keyColumn) {
+			keyClasses.add(keyClass);
+			keyColumns.add(keyColumn);
+			return this;
+		}
+		
 		/**
 		 * Sets the order of the elements within a group.
 		 * 

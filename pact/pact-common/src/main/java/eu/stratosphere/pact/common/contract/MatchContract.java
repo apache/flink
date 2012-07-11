@@ -407,7 +407,8 @@ public class MatchContract extends DualInputContract<MatchStub>
 	 * @param builder
 	 */
 	private MatchContract(Builder builder) {
-		super(builder.udf, builder.keyClasses, builder.keyColumns1, builder.keyColumns2, builder.name);
+		super(builder.udf, builder.getKeyClassesArray(), builder.getKeyColumnsArray1(),
+				builder.getKeyColumnsArray2(), builder.name);
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
 	}
@@ -422,9 +423,9 @@ public class MatchContract extends DualInputContract<MatchStub>
 		 * The required parameters.
 		 */
 		private final Class<? extends MatchStub> udf;
-		private final Class<? extends Key>[] keyClasses;
-		private final int[] keyColumns1;
-		private final int[] keyColumns2;
+		private final List<Class<? extends Key>> keyClasses;
+		private final List<Integer> keyColumns1;
+		private final List<Integer> keyColumns2;
 		
 		/**
 		 * The optional parameters.
@@ -442,24 +443,50 @@ public class MatchContract extends DualInputContract<MatchStub>
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
 		public Builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
-			this(udf, asArray(keyClass), new int[] {keyColumn1}, new int[] {keyColumn2});
-		}
-		
-		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation
-		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
-		 * @param keyTypes The classs of the key data types.
-		 * @param keyColumns1 The positions of the keys in the first input's records.
-		 * @param keyColumns2 The positions of the keys in the second input's records.
-		 */
-		public Builder(Class<? extends MatchStub> udf, Class<? extends Key>[] keyClasses, int[] keyColumns1, int[] keyColumns2) {
 			this.udf = udf;
-			this.keyClasses = keyClasses;
-			this.keyColumns1 = keyColumns1;
-			this.keyColumns2 = keyColumns2;
+			this.keyClasses = new LinkedList<Class<? extends Key>>();
+			this.keyClasses.add(keyClass);
+			this.keyColumns1 = new LinkedList<Integer>();
+			this.keyColumns1.add(keyColumn1);
+			this.keyColumns2 = new LinkedList<Integer>();
+			this.keyColumns2.add(keyColumn2);
 			this.inputs1 = new LinkedList<Contract>();
 			this.inputs2 = new LinkedList<Contract>();
+		}
+		
+		private int[] getKeyColumnsArray1() {
+			int[] result = new int[keyColumns1.size()];
+			for (int i = 0; i < keyColumns1.size(); ++i) {
+				result[i] = keyColumns1.get(i);
+			}
+			return result;
+		}
+		
+		private int[] getKeyColumnsArray2() {
+			int[] result = new int[keyColumns2.size()];
+			for (int i = 0; i < keyColumns2.size(); ++i) {
+				result[i] = keyColumns2.get(i);
+			}
+			return result;
+		}
+		
+		@SuppressWarnings("unchecked")
+		private Class<? extends Key>[] getKeyClassesArray() {
+			return keyClasses.toArray(new Class[keyClasses.size()]);
+		}
+
+		/**
+		 * Adds additional key field.
+		 * 
+		 * @param keyClass The class of the key data type.
+		 * @param keyColumn1 The position of the key in the first input's records.
+		 * @param keyColumn2 The position of the key in the second input's records.
+		 */
+		public Builder additionalKeyField(Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+			keyClasses.add(keyClass);
+			keyColumns1.add(keyColumn1);
+			keyColumns2.add(keyColumn2);
+			return this;
 		}
 		
 		/**
