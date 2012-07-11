@@ -180,8 +180,10 @@ public class Ordering
 				buf.append(",");
 			}
 			buf.append(this.indexes.get(i));
-			buf.append(":");
-			buf.append(this.types.get(i).getName());
+			if (this.types.get(i) != null) {
+				buf.append(":");
+				buf.append(this.types.get(i).getName());
+			}
 			buf.append(":");
 			buf.append(this.orders.get(i).name());
 		}
