@@ -23,8 +23,7 @@ import java.util.Map;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.impl.Log4JLogger;
-import org.apache.log4j.Level;
+import org.apache.commons.logging.impl.SimpleLog;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -48,7 +47,14 @@ public class SopremoUtil {
 
 	public static final boolean DEBUG = true;
 
-	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
+	public static final Log NORMAL_LOG = LogFactory.getLog(SopremoUtil.class), TRACE_LOG = new SimpleLog(
+		SopremoUtil.class.getName());
+
+	static {
+		((SimpleLog) TRACE_LOG).setLevel(SimpleLog.LOG_LEVEL_TRACE);
+	}
+
+	public static Log LOG = NORMAL_LOG;
 
 	public static final String CONTEXT = "context";
 
@@ -97,7 +103,7 @@ public class SopremoUtil {
 
 	@SuppressWarnings("unchecked")
 	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
-			final Class<T> objectClass, final ClassLoader classLoader) {
+			@SuppressWarnings("unused") final Class<T> objectClass, final ClassLoader classLoader) {
 		final String string = config.getString(key, null);
 		if (string == null)
 			return null;
@@ -122,8 +128,8 @@ public class SopremoUtil {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> T deserializeObject(final ObjectInputStream ois, final Class<T> clazz) throws IOException,
-			ClassNotFoundException {
+	public static <T> T deserializeObject(final ObjectInputStream ois, @SuppressWarnings("unused") final Class<T> clazz)
+			throws IOException, ClassNotFoundException {
 		if (ois.readBoolean())
 			return (T) ois.readObject();
 
@@ -273,12 +279,11 @@ public class SopremoUtil {
 	}
 
 	public static void trace() {
-		((Log4JLogger) LOG).getLogger().setLevel(Level.TRACE);
+		LOG = TRACE_LOG;
 	}
 
 	public static void untrace() {
-		((Log4JLogger) LOG).getLogger().setLevel(
-			((Log4JLogger) LOG).getLogger().getParent().getLevel());
+		LOG = NORMAL_LOG;
 	}
 
 	public static IJsonNode unwrap(final IJsonNode wrapper) {
@@ -306,6 +311,14 @@ public class SopremoUtil {
 	public static <T extends IJsonNode> T ensureType(IJsonNode target, final Class<T> clazz) {
 		if (target == null || !clazz.isInstance(target))
 			target = ReflectUtil.newInstance(clazz).canonicalize();
+		return (T) target;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends IJsonNode> T ensureType(IJsonNode target, final Class<T> interfaceType,
+			final Class<? extends T> defaultInstantation) {
+		if (target == null || !interfaceType.isInstance(target))
+			target = ReflectUtil.newInstance(defaultInstantation).canonicalize();
 		return (T) target;
 	}
 

@@ -18,10 +18,10 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.DualInputContract;
-import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.common.generic.AbstractStub;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 
@@ -46,12 +46,12 @@ public class SinkJoiner extends TwoInputNode
 		conn1.setShipStrategy(ShipStrategy.FORWARD);
 		conn2.setShipStrategy(ShipStrategy.FORWARD);
 		
-		setFirstInputConnection(conn1);
-		setSecondInputConnection(conn2);
+		setFirstInConn(conn1);
+		setSecondInConn(conn2);
 	}
 	
-	private SinkJoiner(SinkJoiner template, List<OptimizerNode> input1, List<OptimizerNode> input2) {
-		super(template, input1, input2, template.getFirstInputConnection(), template.getSecondInputConnection(),
+	private SinkJoiner(SinkJoiner template, OptimizerNode input1, OptimizerNode input2) {
+		super(template, input1, input2, template.getFirstInConn(), template.getSecondInConn(),
 			template.getGlobalProperties(), template.getLocalProperties());
 	}
 	
@@ -90,19 +90,19 @@ public class SinkJoiner extends TwoInputNode
 	}
 
 	@Override
-	protected void computeValidPlanAlternatives(List<List<OptimizerNode>> alternativeSubPlanCominations1,
-			List<List<OptimizerNode>> alternativeSubPlanCominations2, CostEstimator estimator, List<OptimizerNode> outputPlans)
+	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans1,
+			List<? extends OptimizerNode> altSubPlans2, CostEstimator estimator, List<OptimizerNode> outputPlans)
 	{
 
-		for(List<OptimizerNode> predList1 : alternativeSubPlanCominations1) {
-			for(List<OptimizerNode> predList2 : alternativeSubPlanCominations2) {
+		for(OptimizerNode subPlan1 : altSubPlans1) {
+			for(OptimizerNode subPlan2 : altSubPlans2) {
 				// check, whether the two children have the same
 				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(predList1, predList2)) {
+				if (!areBranchCompatible(subPlan1, subPlan2)) {
 					continue;
 				}
 				
-				SinkJoiner n = new SinkJoiner(this, predList1, predList2);
+				SinkJoiner n = new SinkJoiner(this, subPlan1, subPlan2);
 				estimator.costOperator(n);
 				
 				outputPlans.add(n);
@@ -120,35 +120,26 @@ public class SinkJoiner extends TwoInputNode
 	
 	public void getDataSinks(List<DataSinkNode> target)
 	{
-		for(PactConnection c : this.input1) {
-			OptimizerNode input1 = c.getSourcePact();
-
-			if (input1 instanceof DataSinkNode) {
-				target.add((DataSinkNode) input1); 
-			}
-			else {
-				((SinkJoiner) input1).getDataSinks(target);
-			}
-			
+		
+		if(this.getFirstPredNode() instanceof DataSinkNode) {
+			target.add((DataSinkNode)this.getFirstPredNode());
+		} else {
+			((SinkJoiner) this.getFirstPredNode()).getDataSinks(target);
 		}
 		
-		for(PactConnection c : this.input2) {
-			OptimizerNode input2 = c.getSourcePact();
-		
-			if (input2 instanceof DataSinkNode) {
-				target.add((DataSinkNode) input2); 
-			}
-			else {
-				((SinkJoiner) input2).getDataSinks(target);
-			}
+		if(this.getSecondPredNode() instanceof DataSinkNode) {
+			target.add((DataSinkNode)this.getSecondPredNode());
+		} else {
+			((SinkJoiner) this.getSecondPredNode()).getDataSinks(target);
 		}
+		
 	}
 
 	// ------------------------------------------------------------------------
 	//  Mock classes that represents a contract without behavior.
 	// ------------------------------------------------------------------------
 	
-	private static final class MockStub extends Stub {}
+	private static final class MockStub extends AbstractStub {}
 	
 	private static final class NoContract extends DualInputContract<MockStub>
 	{

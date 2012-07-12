@@ -28,7 +28,7 @@ public final class IdentityReduce extends ReduceStub
 	 * @see eu.stratosphere.pact.common.stubs.ReduceStub#reduce(java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {
+	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 		while (records.hasNext()) {
 			out.collect(records.next());
 		}

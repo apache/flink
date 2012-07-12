@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -37,8 +37,8 @@ import eu.stratosphere.nephele.types.Record;
  * 
  * @author warneke
  */
-public interface Environment {
-
+public interface Environment
+{
 	/**
 	 * Returns the ID of the job from the original job graph. It is used by the library cache manager to find the
 	 * required
@@ -155,10 +155,13 @@ public interface Environment {
 	 * @param outputClass
 	 * @param selector
 	 * @param isBroadcast
-	 * @return the created output gate
+	 * 
+	 * @param <T> The type of the record consumed by the output gate.
+	 * 
+	 * @return The created output gate.
 	 */
-	OutputGate<? extends Record> createOutputGate(GateID gateID, Class<? extends Record> outputClass,
-			ChannelSelector<? extends Record> selector, boolean isBroadcast);
+	<T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
+															ChannelSelector<T> selector, boolean isBroadcast);
 
 	/**
 	 * Creates an input gate.
@@ -166,9 +169,12 @@ public interface Environment {
 	 * @param gateID
 	 * @param deserializer
 	 * @param distributionPattern
-	 * @return the created input gate
+	 * 
+	 * @param <T> The type of the record read from the input gate.
+	 * 
+	 * @return The created input gate.
 	 */
-	InputGate<? extends Record> createInputGate(GateID gateID, RecordDeserializer<? extends Record> deserializer);
+	<T extends Record> InputGate<T> createInputGate(GateID gateID, RecordDeserializerFactory<T> deserializerFactory);
 
 	/**
 	 * Registers an output gate with this environment.

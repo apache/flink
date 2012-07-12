@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.common.stubs;
 
+import eu.stratosphere.pact.common.generic.AbstractStub;
+import eu.stratosphere.pact.common.generic.GenericMatcher;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
@@ -29,7 +31,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * <p>
  * For a match implementation, the <code>match()</code> method must be implemented.
  */
-public abstract class MatchStub extends Stub
+public abstract class MatchStub extends AbstractStub implements GenericMatcher<PactRecord, PactRecord, PactRecord>
 {
 	/**
 	 * This method must be implemented to provide a user implementation of a matcher.
@@ -43,5 +45,6 @@ public abstract class MatchStub extends Stub
 	 *                   runtime catches an exception, it aborts the combine task and lets the fail-over logic
 	 *                   decide whether to retry the combiner execution.
 	 */
-	public abstract void match(PactRecord value1, PactRecord value2, Collector out) throws Exception;
+	@Override
+	public abstract void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception;
 }

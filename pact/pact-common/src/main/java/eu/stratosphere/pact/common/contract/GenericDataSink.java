@@ -18,7 +18,7 @@ package eu.stratosphere.pact.common.contract;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.pact.common.io.OutputFormat;
+import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.plan.Visitor;
 
 /**
@@ -32,13 +32,15 @@ public class GenericDataSink extends Contract
 
 	// --------------------------------------------------------------------------------------------
 	
-	protected final Class<? extends OutputFormat> clazz;
+	protected final Class<? extends OutputFormat<?>> clazz;
 
 	private List<Contract> input = new ArrayList<Contract>();
 
-	private Ordering globalOrder = null;
-
-	private Ordering localOrder = null;
+	private Ordering localOrdering;
+	
+	private Ordering partitionOrdering;
+	
+	private DataDistribution distribution;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -48,7 +50,7 @@ public class GenericDataSink extends Contract
 	 * 
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat> c) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> c) {
 		this(c, DEFAULT_NAME);
 	}
 	
@@ -59,7 +61,7 @@ public class GenericDataSink extends Contract
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat> c, String name) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> c, String name) {
 		super(name);
 		this.clazz = c;
 	}
@@ -71,7 +73,7 @@ public class GenericDataSink extends Contract
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contract to use as the input.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat> c, Contract input) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> c, Contract input) {
 		this(c, input, DEFAULT_NAME);
 	}
 	
@@ -82,7 +84,7 @@ public class GenericDataSink extends Contract
 	 * @param c The {@link OutputFormat} implementation used to sink the data.
 	 * @param input The contracts to use as the input.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat> c, List<Contract> input) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> c, List<Contract> input) {
 		this(c, input, DEFAULT_NAME);
 	}
 
@@ -94,7 +96,7 @@ public class GenericDataSink extends Contract
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat> c, Contract input, String name) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> c, Contract input, String name) {
 		this(c, name);
 		addInput(input);
 	}
@@ -107,7 +109,7 @@ public class GenericDataSink extends Contract
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(Class<? extends OutputFormat> c, List<Contract> input, String name) {
+	public GenericDataSink(Class<? extends OutputFormat<?>> c, List<Contract> input, String name) {
 		this(c, name);
 		addInputs(input);
 	}
@@ -164,13 +166,15 @@ public class GenericDataSink extends Contract
 	}
 	
 	/**
-	 * Gets the order, in which the data sink writes its data globally. By default, this is <tt>NONE</tt>.
+	 * Sets the order in which the sink must write its data. For any value other then <tt>NONE</tt>,
+	 * this will cause the system to perform a global sort, or try to reuse an order from a
+	 * previous operation.
 	 * 
-	 * @return NONE, if the sink writes data in any order, or ASCENDING (resp. DESCENDING),
-	 *         if the sink writes it data with a globally ascending (resp. descending) order.
+	 * @param globalOrder The order to write the data in.
 	 */
-	public Ordering getGlobalOrder() {
-		return this.globalOrder;
+	public void setGlobalOrder(Ordering globalOrder) {
+		this.localOrdering = globalOrder;
+		setRangePartitioned(globalOrder);
 	}
 	
 	/**
@@ -179,9 +183,11 @@ public class GenericDataSink extends Contract
 	 * previous operation.
 	 * 
 	 * @param globalOrder The order to write the data in.
+	 * @param distribution The distribution to use for the range partitioning.
 	 */
-	public void setGlobalOrder(Ordering globalOrder) {
-		this.globalOrder = globalOrder;
+	public void setGlobalOrder(Ordering globalOrder, DataDistribution distribution) {
+		this.localOrdering = globalOrder;
+		setRangePartitioned(globalOrder, distribution);
 	}
 
 	/**
@@ -193,7 +199,7 @@ public class GenericDataSink extends Contract
 	 *         if the sink writes it data with a local ascending (resp. descending) order.
 	 */
 	public Ordering getLocalOrder() {
-		return this.localOrder;
+		return this.localOrdering;
 	}
 	
 	/**
@@ -204,7 +210,49 @@ public class GenericDataSink extends Contract
 	 * @param localOrder The local order to write the data in.
 	 */
 	public void setLocalOrder(Ordering localOrder) {
-		this.localOrder = localOrder;
+		this.localOrdering = localOrder;
+	}
+	
+	/**
+	 * Gets the record ordering over which the sink partitions in ranges.
+	 * 
+	 * @return The record ordering over which to partition in ranges.
+	 */
+	public Ordering getPartitionOrdering() {
+		return this.partitionOrdering;
+	}
+	
+	/**
+	 * Sets the sink to partition the records into ranges over the given ordering.
+	 * 
+	 * @param partitionOrdering The record ordering over which to partition in ranges.
+	 */
+	public void setRangePartitioned(Ordering partitionOrdering)
+	{
+		throw new UnsupportedOperationException(
+			"Range partitioning is currently only supported with a user supplied data distribution.");
+	}
+	
+	/**
+	 * Sets the sink to partition the records into ranges over the given ordering.
+	 * The bucket boundaries are determined using the given data distribution.
+	 * 
+	 * @param partitionOrdering The record ordering over which to partition in ranges.
+	 * @param distribution The distribution to use for the range partitioning.
+	 */
+	public void setRangePartitioned(Ordering partitionOrdering, DataDistribution distribution)
+	{
+		this.partitionOrdering = partitionOrdering;
+		this.distribution = distribution;
+	}
+	
+	/**
+	 * Gets the distribution to use for the range partitioning.
+	 * 
+	 * @return The distribution to use for the range partitioning.
+	 */
+	public DataDistribution getDataDistribution() {
+		return this.distribution;
 	}
 	
 	/**
@@ -212,7 +260,7 @@ public class GenericDataSink extends Contract
 	 * 
 	 * @return The output format class.
 	 */
-	public Class<? extends OutputFormat> getFormatClass()
+	public Class<? extends OutputFormat<?>> getFormatClass()
 	{
 		return this.clazz;
 	}
@@ -227,7 +275,7 @@ public class GenericDataSink extends Contract
 	 * @see eu.stratosphere.pact.common.contract.Contract#getUserCodeClass()
 	 */
 	@Override
-	public Class<? extends OutputFormat> getUserCodeClass()
+	public Class<? extends OutputFormat<?>> getUserCodeClass()
 	{
 		return this.clazz;
 	}

@@ -19,14 +19,16 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.GenericInputSplit;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
+import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Generic base class for all inputs that are not based on files. 
  *
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public abstract class GenericInputFormat implements InputFormat<GenericInputSplit>
+public abstract class GenericInputFormat implements InputFormat<PactRecord, GenericInputSplit>
 {	
 	/**
 	 * The partition of this split.

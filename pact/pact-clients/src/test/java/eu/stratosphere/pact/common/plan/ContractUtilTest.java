@@ -103,13 +103,11 @@ public class ContractUtilTest {
 	}
 
 	static class CoGrouper extends CoGroupStub {
-		/*
-		 * (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.stubs.CoGroupStub#coGroup(java.util.Iterator, java.util.Iterator,
-		 * eu.stratosphere.pact.common.stubs.Collector)
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.stubs.CoGroupStub#coGroup(java.util.Iterator, java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector out) {
+		public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) {
 		}
 	}
 
@@ -120,7 +118,7 @@ public class ContractUtilTest {
 		 * eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void cross(PactRecord record1, PactRecord record2, Collector out) {
+		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 		}
 	}
 
@@ -131,7 +129,7 @@ public class ContractUtilTest {
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 		}
 	}
 
@@ -142,7 +140,7 @@ public class ContractUtilTest {
 		 * eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void match(PactRecord value1, PactRecord value2, Collector out) throws Exception {
+		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
 		}
 	}
 
@@ -153,7 +151,7 @@ public class ContractUtilTest {
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out) throws Exception {
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 		}
 	}
 }

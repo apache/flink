@@ -53,39 +53,40 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat
 	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes)
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
 	{
+		final int limit = offset + numBytes;
 		int firstV = 0, secondV = 0;
 		int firstD = 0, secondD = 0;
 		
 		final char vertexDelimiter = this.vertexDelimiter;
 		final char degreeDelimiter = this.degreeDelimiter;
 		
-		int pos = 0;
+		int pos = offset;
 		
 		// read the first vertex ID
-		while (pos < numBytes && bytes[pos] != degreeDelimiter) {
+		while (pos < limit && bytes[pos] != degreeDelimiter) {
 			firstV = firstV * 10 + (bytes[pos++] - '0');
 		}
 		
 		pos += 1;// skip the delimiter
 		
 		// read the first vertex degree
-		while (pos < numBytes && bytes[pos] != vertexDelimiter) {
+		while (pos < limit && bytes[pos] != vertexDelimiter) {
 			firstD = firstD * 10 + (bytes[pos++] - '0');
 		}
 		
 		pos += 1;// skip the delimiter
 		
 		// read the second vertex ID
-		while (pos < numBytes && bytes[pos] != degreeDelimiter) {
+		while (pos < limit && bytes[pos] != degreeDelimiter) {
 			secondV = secondV * 10 + (bytes[pos++] - '0');
 		}
 		
 		pos += 1;// skip the delimiter
 		
 		// read the second vertex degree
-		while (pos < numBytes) {
+		while (pos < limit) {
 			secondD = secondD * 10 + (bytes[pos++] - '0');
 		}
 		

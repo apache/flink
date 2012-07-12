@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.executiongraph;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,10 +38,8 @@ import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
+import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -54,7 +53,6 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -85,19 +83,10 @@ public class ExecutionGraph implements ExecutionListener {
 	private final String jobName;
 
 	/**
-	 * Mapping of channel IDs to execution vertices.
+	 * Mapping of channel IDs to edges.
 	 */
-	private final ConcurrentMap<ChannelID, ExecutionVertex> channelToVertexMap = new ConcurrentHashMap<ChannelID, ExecutionVertex>();
-
-	/**
-	 * Mapping of channel IDs to input channels.
-	 */
-	private final ConcurrentMap<ChannelID, AbstractInputChannel<? extends Record>> inputChannelMap = new ConcurrentHashMap<ChannelID, AbstractInputChannel<? extends Record>>();
-
-	/**
-	 * Mapping of channel IDs to output channels.
-	 */
-	private final ConcurrentMap<ChannelID, AbstractOutputChannel<? extends Record>> outputChannelMap = new ConcurrentHashMap<ChannelID, AbstractOutputChannel<? extends Record>>();
+	private final ConcurrentMap<ChannelID, ExecutionEdge> edgeMap = new ConcurrentHashMap<ChannelID, ExecutionEdge>(
+		1024 * 1024);
 
 	/**
 	 * List of stages in the graph.
@@ -209,13 +198,13 @@ public class ExecutionGraph implements ExecutionListener {
 			}
 		}
 
-		// Second, we create the number of members each group vertex is supposed to have
+		// Second, we create the number of execution vertices each group vertex is supposed to manage
 		Iterator<ExecutionGroupVertex> it2 = new ExecutionGroupVertexIterator(this, true, -1);
 		while (it2.hasNext()) {
 
 			final ExecutionGroupVertex groupVertex = it2.next();
 			if (groupVertex.isNumberOfMembersUserDefined()) {
-				groupVertex.changeNumberOfGroupMembers(groupVertex.getUserDefinedNumberOfMembers());
+				groupVertex.createInitialExecutionVertices(groupVertex.getUserDefinedNumberOfMembers());
 				groupVertex.repairSubtasksPerInstance();
 			}
 		}
@@ -234,6 +223,16 @@ public class ExecutionGraph implements ExecutionListener {
 				if (edge.isCompressionLevelUserDefined()) {
 					edge.changeCompressionLevel(edge.getCompressionLevel());
 				}
+
+				// Create edges between execution vertices
+				createExecutionEdgesForGroupEdge(edge);
+			}
+
+			// Update initial checkpoint state for all group members
+			final CheckpointState ics = groupVertex.checkInitialCheckpointState();
+			final int currentNumberOfGroupMembers = groupVertex.getCurrentNumberOfGroupMembers();
+			for (int i = 0; i < currentNumberOfGroupMembers; ++i) {
+				groupVertex.getGroupMember(i).updateCheckpointState(ics);
 			}
 		}
 
@@ -277,242 +276,176 @@ public class ExecutionGraph implements ExecutionListener {
 			temporaryGroupVertexMap.put(all[i], createdVertex.getGroupVertex());
 		}
 
-		// Create initial network channel for every vertex
-		for (int i = 0; i < all.length; i++) {
-			createInitialChannels(all[i], temporaryVertexMap);
-		}
+		// Create initial edges between the vertices
+		createInitialGroupEdges(temporaryVertexMap);
 
 		// Now that an initial graph is built, apply the user settings
 		applyUserDefinedSettings(temporaryGroupVertexMap);
+
+		// Calculate the connection IDs
+		calculateConnectionIDs();
 
 		// Finally, construct the execution pipelines
 		reconstructExecutionPipelines();
 	}
 
-	/**
-	 * Creates the initial channels between all connected job vertices.
-	 * 
-	 * @param jobVertex
-	 *        the job vertex from which the wiring is determined
-	 * @param vertexMap
-	 *        a temporary vertex map
-	 * @throws GraphConversionException
-	 *         if the initial wiring cannot be created
-	 */
-	private void createInitialChannels(final AbstractJobVertex jobVertex,
-			final HashMap<AbstractJobVertex, ExecutionVertex> vertexMap) throws GraphConversionException {
+	private void createExecutionEdgesForGroupEdge(final ExecutionGroupEdge groupEdge) {
 
-		ExecutionVertex ev;
-		if (!vertexMap.containsKey(jobVertex)) {
-			throw new GraphConversionException("Cannot find mapping for vertex " + jobVertex.getName());
-		}
+		final ExecutionGroupVertex source = groupEdge.getSourceVertex();
+		final int indexOfOutputGate = groupEdge.getIndexOfOutputGate();
+		final ExecutionGroupVertex target = groupEdge.getTargetVertex();
+		final int indexOfInputGate = groupEdge.getIndexOfInputGate();
 
-		ev = vertexMap.get(jobVertex);
-
-		// First compare number of output gates
-		if (jobVertex.getNumberOfForwardConnections() != ev.getEnvironment().getNumberOfOutputGates()) {
-			throw new GraphConversionException("Job and execution vertex " + jobVertex.getName()
-				+ " have different number of outputs");
-		}
-
-		if (jobVertex.getNumberOfBackwardConnections() != ev.getEnvironment().getNumberOfInputGates()) {
-			throw new GraphConversionException("Job and execution vertex " + jobVertex.getName()
-				+ " have different number of inputs");
-		}
-
-		// Now assign identifiers to gates and check type
-		for (int j = 0; j < jobVertex.getNumberOfForwardConnections(); j++) {
-			final JobEdge edge = jobVertex.getForwardConnection(j);
-			final AbstractJobVertex target = edge.getConnectedVertex();
-
-			// find output gate of execution vertex
-			final OutputGate<? extends Record> eog = ev.getEnvironment().getOutputGate(j);
-			if (eog == null) {
-				throw new GraphConversionException("Cannot retrieve output gate " + j + " from vertex "
-					+ jobVertex.getName());
-			}
-
-			final ExecutionVertex executionTarget = vertexMap.get(target);
-			if (executionTarget == null) {
-				throw new GraphConversionException("Cannot find mapping for vertex " + target.getName());
-			}
-
-			final InputGate<? extends Record> eig = executionTarget.getEnvironment().getInputGate(
-				edge.getIndexOfInputGate());
-			if (eig == null) {
-				throw new GraphConversionException("Cannot retrieve input gate " + edge.getIndexOfInputGate()
-					+ " from vertex " + target.getName());
-			}
-
-			ChannelType channelType = ChannelType.NETWORK;
-			CompressionLevel compressionLevel = CompressionLevel.NO_COMPRESSION;
-			boolean userDefinedChannelType = false;
-			boolean userDefinedCompressionLevel = false;
-
-			// Create a network channel with no compression by default, user settings will be applied later on
-			createChannel(ev, eog, executionTarget, eig, channelType, compressionLevel);
-
-			if (edge.getChannelType() != null) {
-				channelType = edge.getChannelType();
-				userDefinedChannelType = true;
-			}
-
-			if (edge.getCompressionLevel() != null) {
-				compressionLevel = edge.getCompressionLevel();
-				userDefinedCompressionLevel = true;
-			}
-
-			// Connect the corresponding group vertices and copy the user settings from the job edge
-			ev.getGroupVertex().wireTo(executionTarget.getGroupVertex(), edge.getIndexOfInputGate(), j, channelType,
-				userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, edge.getDistributionPattern());
-
-		}
-	}
-
-	/**
-	 * Destroys all the channels originating from the source vertex at the given output gate and arriving at the target
-	 * vertex at the given
-	 * input gate. All destroyed channels are completely unregistered with the {@link ExecutionGraph}.
-	 * 
-	 * @param source
-	 *        the source vertex the channels to be removed originate from
-	 * @param indexOfOutputGate
-	 *        the index of the output gate the channels to be removed are assigned to
-	 * @param target
-	 *        the target vertex the channels to be removed arrive
-	 * @param indexOfInputGate
-	 *        the index of the input gate the channels to be removed are assigned to
-	 * @throws GraphConversionException
-	 *         thrown if an inconsistency during the unwiring process occurs
-	 */
-	void unwire(final ExecutionGroupVertex source, final int indexOfOutputGate, final ExecutionGroupVertex target,
-			final int indexOfInputGate) throws GraphConversionException {
+		final Map<GateID, List<ExecutionEdge>> inputChannelMap = new HashMap<GateID, List<ExecutionEdge>>();
 
 		// Unwire the respective gate of the source vertices
-		for (int i = 0; i < source.getCurrentNumberOfGroupMembers(); i++) {
+		final int currentNumberOfSourceNodes = source.getCurrentNumberOfGroupMembers();
+		for (int i = 0; i < currentNumberOfSourceNodes; ++i) {
 
 			final ExecutionVertex sourceVertex = source.getGroupMember(i);
-			final OutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(
-				indexOfOutputGate);
+			final ExecutionGate outputGate = sourceVertex.getOutputGate(indexOfOutputGate);
 			if (outputGate == null) {
-				throw new GraphConversionException("unwire: " + sourceVertex.getName()
+				throw new IllegalStateException("wire: " + sourceVertex.getName()
 					+ " has no output gate with index " + indexOfOutputGate);
 			}
 
-			for (int j = 0; j < outputGate.getNumberOfOutputChannels(); j++) {
-				final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-				this.outputChannelMap.remove(outputChannel.getID());
-				this.channelToVertexMap.remove(outputChannel.getID());
+			if (outputGate.getNumberOfEdges() > 0) {
+				throw new IllegalStateException("wire: wire called on source " + sourceVertex.getName() + " (" + i
+					+ "), but number of output channels is " + outputGate.getNumberOfEdges() + "!");
 			}
 
-			outputGate.removeAllOutputChannels();
-		}
+			final int currentNumberOfTargetNodes = target.getCurrentNumberOfGroupMembers();
+			final List<ExecutionEdge> outputChannels = new ArrayList<ExecutionEdge>();
 
-		// Unwire the respective gate of the target vertices
-		for (int i = 0; i < target.getCurrentNumberOfGroupMembers(); i++) {
-
-			final ExecutionVertex targetVertex = target.getGroupMember(i);
-			final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(indexOfInputGate);
-			if (inputGate == null) {
-				throw new GraphConversionException("unwire: " + targetVertex.getName()
-					+ " has no input gate with index " + indexOfInputGate);
-			}
-
-			for (int j = 0; j < inputGate.getNumberOfInputChannels(); j++) {
-				final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
-				this.inputChannelMap.remove(inputChannel.getID());
-				this.channelToVertexMap.remove(inputChannel.getID());
-			}
-
-			inputGate.removeAllInputChannels();
-		}
-	}
-
-	void wire(final ExecutionGroupVertex source, final int indexOfOutputGate, final ExecutionGroupVertex target,
-			final int indexOfInputGate, final ChannelType channelType, final CompressionLevel compressionLevel)
-			throws GraphConversionException {
-
-		// Unwire the respective gate of the source vertices
-		for (int i = 0; i < source.getCurrentNumberOfGroupMembers(); i++) {
-
-			final ExecutionVertex sourceVertex = source.getGroupMember(i);
-			final OutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(
-				indexOfOutputGate);
-			if (outputGate == null) {
-				throw new GraphConversionException("wire: " + sourceVertex.getName()
-					+ " has no output gate with index " + indexOfOutputGate);
-			}
-			if (outputGate.getNumberOfOutputChannels() > 0) {
-				throw new GraphConversionException("wire: wire called on source " + sourceVertex.getName() + " (" + i
-					+ "), but number of output channels is " + outputGate.getNumberOfOutputChannels() + "!");
-			}
-
-			for (int j = 0; j < target.getCurrentNumberOfGroupMembers(); j++) {
+			for (int j = 0; j < currentNumberOfTargetNodes; ++j) {
 
 				final ExecutionVertex targetVertex = target.getGroupMember(j);
-				final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(
-					indexOfInputGate);
+				final ExecutionGate inputGate = targetVertex.getInputGate(indexOfInputGate);
 				if (inputGate == null) {
-					throw new GraphConversionException("wire: " + targetVertex.getName()
+					throw new IllegalStateException("wire: " + targetVertex.getName()
 						+ " has no input gate with index " + indexOfInputGate);
 				}
-				if (inputGate.getNumberOfInputChannels() > 0 && i == 0) {
-					throw new GraphConversionException("wire: wire called on target " + targetVertex.getName() + " ("
-						+ j + "), but number of input channels is " + inputGate.getNumberOfInputChannels() + "!");
+
+				if (inputGate.getNumberOfEdges() > 0 && i == 0) {
+					throw new IllegalStateException("wire: wire called on target " + targetVertex.getName() + " ("
+						+ j + "), but number of input channels is " + inputGate.getNumberOfEdges() + "!");
 				}
 
 				// Check if a wire is supposed to be created
-				if (DistributionPatternProvider.createWire(source.getForwardEdge(indexOfOutputGate)
-					.getDistributionPattern(), i, j, source.getCurrentNumberOfGroupMembers(), target
-					.getCurrentNumberOfGroupMembers())) {
-					createChannel(sourceVertex, outputGate, targetVertex, inputGate, channelType, compressionLevel);
-				}
+				if (DistributionPatternProvider.createWire(groupEdge.getDistributionPattern(),
+					i, j, currentNumberOfSourceNodes, currentNumberOfTargetNodes)) {
 
-				// Update channel type of input gate
-				inputGate.setChannelType(channelType);
+					final ChannelID outputChannelID = new ChannelID();
+					final ChannelID inputChannelID = new ChannelID();
+
+					final ExecutionEdge edge = new ExecutionEdge(outputGate, inputGate, groupEdge, outputChannelID,
+						inputChannelID, outputGate.getNumberOfEdges(), inputGate.getNumberOfEdges());
+
+					this.edgeMap.put(outputChannelID, edge);
+					this.edgeMap.put(inputChannelID, edge);
+
+					outputChannels.add(edge);
+
+					List<ExecutionEdge> inputChannels = inputChannelMap.get(inputGate.getGateID());
+					if (inputChannels == null) {
+						inputChannels = new ArrayList<ExecutionEdge>();
+						inputChannelMap.put(inputGate.getGateID(), inputChannels);
+					}
+
+					inputChannels.add(edge);
+				}
 			}
 
-			// Update channel type of output gate
-			outputGate.setChannelType(channelType);
-
-			// Update the initial checkpoint state
-			sourceVertex.checkInitialCheckpointState();
+			outputGate.replaceAllEdges(outputChannels);
 		}
+
+		// Finally, set the channels for the input gates
+		final int currentNumberOfTargetNodes = target.getCurrentNumberOfGroupMembers();
+		for (int i = 0; i < currentNumberOfTargetNodes; ++i) {
+
+			final ExecutionVertex targetVertex = target.getGroupMember(i);
+			final ExecutionGate inputGate = targetVertex.getInputGate(indexOfInputGate);
+
+			final List<ExecutionEdge> inputChannels = inputChannelMap.get(inputGate.getGateID());
+			if (inputChannels == null) {
+				LOG.error("Cannot find input channels for gate ID " + inputGate.getGateID());
+				continue;
+			}
+
+			inputGate.replaceAllEdges(inputChannels);
+		}
+
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private void createChannel(final ExecutionVertex source, final OutputGate<? extends Record> outputGate,
-			final ExecutionVertex target, final InputGate<? extends Record> inputGate, final ChannelType channelType,
-			final CompressionLevel compressionLevel) throws GraphConversionException {
+	/**
+	 * Creates the initial edges between the group vertices
+	 * 
+	 * @param vertexMap
+	 *        the temporary vertex map
+	 * @throws GraphConversionException
+	 *         if the initial wiring cannot be created
+	 */
+	private void createInitialGroupEdges(final HashMap<AbstractJobVertex, ExecutionVertex> vertexMap)
+			throws GraphConversionException {
 
-		AbstractOutputChannel<? extends Record> outputChannel;
-		AbstractInputChannel<? extends Record> inputChannel;
+		Iterator<Map.Entry<AbstractJobVertex, ExecutionVertex>> it = vertexMap.entrySet().iterator();
 
-		switch (channelType) {
-		case NETWORK:
-			outputChannel = outputGate.createNetworkOutputChannel((OutputGate) outputGate, null, compressionLevel);
-			inputChannel = inputGate.createNetworkInputChannel((InputGate) inputGate, null, compressionLevel);
-			break;
-		case INMEMORY:
-			outputChannel = outputGate.createInMemoryOutputChannel((OutputGate) outputGate, null, compressionLevel);
-			inputChannel = inputGate.createInMemoryInputChannel((InputGate) inputGate, null, compressionLevel);
-			break;
-		case FILE:
-			outputChannel = outputGate.createFileOutputChannel((OutputGate) outputGate, null, compressionLevel);
-			inputChannel = inputGate.createFileInputChannel((InputGate) inputGate, null, compressionLevel);
-			break;
-		default:
-			throw new GraphConversionException("Cannot create channel: unknown type");
+		while (it.hasNext()) {
+
+			final Map.Entry<AbstractJobVertex, ExecutionVertex> entry = it.next();
+			final AbstractJobVertex sjv = entry.getKey();
+			final ExecutionVertex sev = entry.getValue();
+			final ExecutionGroupVertex sgv = sev.getGroupVertex();
+
+			// First compare number of output gates
+			if (sjv.getNumberOfForwardConnections() != sgv.getEnvironment().getNumberOfOutputGates()) {
+				throw new GraphConversionException("Job and execution vertex " + sjv.getName()
+					+ " have different number of outputs");
+			}
+
+			if (sjv.getNumberOfBackwardConnections() != sgv.getEnvironment().getNumberOfInputGates()) {
+				throw new GraphConversionException("Job and execution vertex " + sjv.getName()
+					+ " have different number of inputs");
+			}
+
+			// First, build the group edges
+			for (int i = 0; i < sjv.getNumberOfForwardConnections(); ++i) {
+
+				final boolean isBroadcast = sgv.getEnvironment().getOutputGate(i).isBroadcast();
+
+				final JobEdge edge = sjv.getForwardConnection(i);
+				final AbstractJobVertex tjv = edge.getConnectedVertex();
+
+				final ExecutionVertex tev = vertexMap.get(tjv);
+				final ExecutionGroupVertex tgv = tev.getGroupVertex();
+				// Use NETWORK as default channel type if nothing else is defined by the user
+				ChannelType channelType = edge.getChannelType();
+				boolean userDefinedChannelType = true;
+				if (channelType == null) {
+					userDefinedChannelType = false;
+					channelType = ChannelType.NETWORK;
+				}
+				// Use NO_COMPRESSION as default compression level if nothing else is defined by the user
+				CompressionLevel compressionLevel = edge.getCompressionLevel();
+				boolean userDefinedCompressionLevel = true;
+				if (compressionLevel == null) {
+					userDefinedCompressionLevel = false;
+					compressionLevel = CompressionLevel.NO_COMPRESSION;
+				}
+
+				final DistributionPattern distributionPattern = edge.getDistributionPattern();
+
+				// Connect the corresponding group vertices and copy the user settings from the job edge
+				final ExecutionGroupEdge groupEdge = sgv.wireTo(tgv, edge.getIndexOfInputGate(), i, channelType,
+					userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern,
+					isBroadcast);
+
+				final ExecutionGate outputGate = new ExecutionGate(new GateID(), sev, groupEdge, false);
+				sev.insertOutputGate(i, outputGate);
+				final ExecutionGate inputGate = new ExecutionGate(new GateID(), tev, groupEdge, true);
+				tev.insertInputGate(edge.getIndexOfInputGate(), inputGate);
+			}
 		}
-
-		// Copy the number of the opposite channel
-		inputChannel.setConnectedChannelID(outputChannel.getID());
-		outputChannel.setConnectedChannelID(inputChannel.getID());
-
-		this.outputChannelMap.put(outputChannel.getID(), outputChannel);
-		this.inputChannelMap.put(inputChannel.getID(), inputChannel);
-		this.channelToVertexMap.put(outputChannel.getID(), source);
-		this.channelToVertexMap.put(inputChannel.getID(), target);
 	}
 
 	/**
@@ -551,15 +484,6 @@ public class ExecutionGraph implements ExecutionListener {
 			instanceType = instanceManager.getDefaultInstanceType();
 		}
 
-		// Calculate the cryptographic signature of this vertex
-		final ExecutionSignature signature = ExecutionSignature.createSignature(jobVertex.getInvokableClass(),
-			jobVertex.getJobGraph().getJobID());
-
-		// Create a group vertex for the job vertex
-		final ExecutionGroupVertex groupVertex = new ExecutionGroupVertex(jobVertex.getName(), jobVertex.getID(), this,
-			jobVertex.getNumberOfSubtasks(), instanceType, userDefinedInstanceType,
-			jobVertex.getNumberOfSubtasksPerInstance(), jobVertex.getVertexToShareInstancesWith() != null ? true
-				: false, jobVertex.getNumberOfExecutionRetries(), jobVertex.getConfiguration(), signature);
 		// Create an initial execution vertex for the job vertex
 		final Class<? extends AbstractInvokable> invokableClass = jobVertex.getInvokableClass();
 		if (invokableClass == null) {
@@ -567,27 +491,35 @@ public class ExecutionGraph implements ExecutionListener {
 				+ ") does not specify a task");
 		}
 
-		// Add group vertex to initial execution stage
-		initialExecutionStage.addStageMember(groupVertex);
+		// Calculate the cryptographic signature of this vertex
+		final ExecutionSignature signature = ExecutionSignature.createSignature(jobVertex.getInvokableClass(),
+			jobVertex.getJobGraph().getJobID());
 
-		ExecutionVertex ev = null;
+		// Create a group vertex for the job vertex
+
+		ExecutionGroupVertex groupVertex = null;
 		try {
-			ev = new ExecutionVertex(jobVertex.getJobGraph().getJobID(), invokableClass, this, groupVertex,
-				jobConfiguration);
+			groupVertex = new ExecutionGroupVertex(jobVertex.getName(), jobVertex.getID(), this,
+				jobVertex.getNumberOfSubtasks(), instanceType, userDefinedInstanceType,
+				jobVertex.getNumberOfSubtasksPerInstance(), jobVertex.getVertexToShareInstancesWith() != null ? true
+					: false, jobVertex.getNumberOfExecutionRetries(), jobVertex.getConfiguration(), signature,
+				invokableClass);
 		} catch (Throwable t) {
 			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
 
 		// Run the configuration check the user has provided for the vertex
 		try {
-			jobVertex.checkConfiguration(ev.getEnvironment().getInvokable());
+			jobVertex.checkConfiguration(groupVertex.getEnvironment().getInvokable());
 		} catch (IllegalConfigurationException e) {
 			throw new GraphConversionException(StringUtils.stringifyException(e));
 		}
 
 		// Check if the user's specifications for the number of subtasks are valid
-		final int minimumNumberOfSubtasks = jobVertex.getMinimumNumberOfSubtasks(ev.getEnvironment().getInvokable());
-		final int maximumNumberOfSubtasks = jobVertex.getMaximumNumberOfSubtasks(ev.getEnvironment().getInvokable());
+		final int minimumNumberOfSubtasks = jobVertex.getMinimumNumberOfSubtasks(groupVertex.getEnvironment()
+			.getInvokable());
+		final int maximumNumberOfSubtasks = jobVertex.getMaximumNumberOfSubtasks(groupVertex.getEnvironment()
+			.getInvokable());
 		if (jobVertex.getNumberOfSubtasks() != -1) {
 			if (jobVertex.getNumberOfSubtasks() < 1) {
 				throw new GraphConversionException("Cannot split task " + jobVertex.getName() + " into "
@@ -616,19 +548,15 @@ public class ExecutionGraph implements ExecutionListener {
 		groupVertex.setMinMemberSize(minimumNumberOfSubtasks);
 		groupVertex.setMaxMemberSize(maximumNumberOfSubtasks);
 
-		// Assign initial instance to vertex (may be overwritten later on when user settings are applied)
-		ev.setAllocatedResource(new AllocatedResource(DummyInstance.createDummyInstance(instanceType), instanceType,
-			null));
-
 		// Register input and output vertices separately
 		if (jobVertex instanceof AbstractJobInputVertex) {
 
 			final InputSplit[] inputSplits;
 
 			// let the task code compute the input splits
-			if (ev.getEnvironment().getInvokable() instanceof AbstractInputTask) {
+			if (groupVertex.getEnvironment().getInvokable() instanceof AbstractInputTask) {
 				try {
-					inputSplits = ((AbstractInputTask<?>) ev.getEnvironment().getInvokable())
+					inputSplits = ((AbstractInputTask<?>) groupVertex.getEnvironment().getInvokable())
 						.computeInputSplits(jobVertex.getNumberOfSubtasks());
 				} catch (Exception e) {
 					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName()
@@ -654,6 +582,16 @@ public class ExecutionGraph implements ExecutionListener {
 			final JobFileOutputVertex jbov = (JobFileOutputVertex) jobVertex;
 			jobVertex.getConfiguration().setString("outputPath", jbov.getFilePath().toString());
 		}
+
+		// Add group vertex to initial execution stage
+		initialExecutionStage.addStageMember(groupVertex);
+
+		final ExecutionVertex ev = new ExecutionVertex(this, groupVertex, jobVertex.getNumberOfForwardConnections(),
+			jobVertex.getNumberOfBackwardConnections());
+
+		// Assign initial instance to vertex (may be overwritten later on when user settings are applied)
+		ev.setAllocatedResource(new AllocatedResource(DummyInstance.createDummyInstance(instanceType), instanceType,
+			null));
 
 		return ev;
 	}
@@ -822,31 +760,28 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	public ExecutionVertex getVertexByChannelID(final ChannelID id) {
 
-		return this.channelToVertexMap.get(id);
+		final ExecutionEdge edge = this.edgeMap.get(id);
+		if (edge == null) {
+			return null;
+		}
+
+		if (id.equals(edge.getOutputChannelID())) {
+			return edge.getOutputGate().getVertex();
+		}
+
+		return edge.getInputGate().getVertex();
 	}
 
 	/**
-	 * Finds an input channel by its ID and returns it.
+	 * Finds an {@link ExecutionEdge} by its ID and returns it.
 	 * 
 	 * @param id
-	 *        the channel ID to identify the input channel
-	 * @return the input channel whose ID matches <code>id</code> or <code>null</code> if no such channel is known
+	 *        the channel ID to identify the edge
+	 * @return the edge whose ID matches <code>id</code> or <code>null</code> if no such edge is known
 	 */
-	public AbstractInputChannel<? extends Record> getInputChannelByID(final ChannelID id) {
+	public ExecutionEdge getEdgeByID(final ChannelID id) {
 
-		return this.inputChannelMap.get(id);
-	}
-
-	/**
-	 * Finds an output channel by its ID and returns it.
-	 * 
-	 * @param id
-	 *        the channel ID to identify the output channel
-	 * @return the output channel whose ID matches <code>id</code> or <code>null</code> if no such channel is known
-	 */
-	public AbstractOutputChannel<? extends Record> getOutputChannelByID(final ChannelID id) {
-
-		return this.outputChannelMap.get(id);
+		return this.edgeMap.get(id);
 	}
 
 	/**
@@ -1075,16 +1010,16 @@ public class ExecutionGraph implements ExecutionListener {
 
 			final ExecutionVertex sourceVertex = it.next();
 
-			for (int i = 0; i < sourceVertex.getEnvironment().getNumberOfOutputGates(); i++) {
+			for (int i = 0; i < sourceVertex.getNumberOfOutputGates(); ++i) {
 
-				final OutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(i);
-				for (int j = 0; j < outputGate.getNumberOfOutputChannels(); j++) {
-					final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(j);
-					final ChannelType channelType = outputChannel.getType();
-					if (channelType == ChannelType.FILE || channelType == ChannelType.INMEMORY) {
-
-						final ExecutionVertex targetVertex = getVertexByChannelID(outputChannel.getConnectedChannelID());
-						targetVertex.setAllocatedResource(sourceVertex.getAllocatedResource());
+				final ExecutionGate outputGate = sourceVertex.getOutputGate(i);
+				final ChannelType channelType = outputGate.getChannelType();
+				if (channelType == ChannelType.FILE || channelType == ChannelType.INMEMORY) {
+					final int numberOfOutputChannels = outputGate.getNumberOfEdges();
+					for (int j = 0; j < numberOfOutputChannels; ++j) {
+						final ExecutionEdge outputChannel = outputGate.getEdge(j);
+						outputChannel.getInputGate().getVertex()
+							.setAllocatedResource(sourceVertex.getAllocatedResource());
 					}
 				}
 			}
@@ -1095,16 +1030,16 @@ public class ExecutionGraph implements ExecutionListener {
 
 			final ExecutionVertex targetVertex = it.next();
 
-			for (int i = 0; i < targetVertex.getEnvironment().getNumberOfInputGates(); i++) {
+			for (int i = 0; i < targetVertex.getNumberOfInputGates(); ++i) {
 
-				final InputGate<? extends Record> inputGate = targetVertex.getEnvironment().getInputGate(i);
-				for (int j = 0; j < inputGate.getNumberOfInputChannels(); j++) {
-					final AbstractInputChannel<? extends Record> inputChannel = inputGate.getInputChannel(j);
-					final ChannelType channelType = inputChannel.getType();
-					if (channelType == ChannelType.FILE || channelType == ChannelType.INMEMORY) {
-
-						final ExecutionVertex sourceVertex = getVertexByChannelID(inputChannel.getConnectedChannelID());
-						sourceVertex.setAllocatedResource(targetVertex.getAllocatedResource());
+				final ExecutionGate inputGate = targetVertex.getInputGate(i);
+				final ChannelType channelType = inputGate.getChannelType();
+				if (channelType == ChannelType.FILE || channelType == ChannelType.INMEMORY) {
+					final int numberOfInputChannels = inputGate.getNumberOfEdges();
+					for (int j = 0; j < numberOfInputChannels; ++j) {
+						final ExecutionEdge inputChannel = inputGate.getEdge(j);
+						inputChannel.getOutputGate().getVertex()
+							.setAllocatedResource(targetVertex.getAllocatedResource());
 					}
 				}
 			}
@@ -1125,13 +1060,11 @@ public class ExecutionGraph implements ExecutionListener {
 		final ExecutionGroupEdge edge = edges.get(0);
 
 		// Now lets see if these two concrete subtasks are connected
-		final OutputGate<? extends Record> outputGate = sourceVertex.getEnvironment().getOutputGate(
-			edge.getIndexOfOutputGate());
-		for (int i = 0; i < outputGate.getNumberOfOutputChannels(); i++) {
+		final ExecutionGate outputGate = sourceVertex.getOutputGate(edge.getIndexOfOutputGate());
+		for (int i = 0; i < outputGate.getNumberOfEdges(); ++i) {
 
-			final AbstractOutputChannel<? extends Record> outputChannel = outputGate.getOutputChannel(i);
-			final ChannelID inputChannelID = outputChannel.getConnectedChannelID();
-			if (targetVertex == this.channelToVertexMap.get(inputChannelID)) {
+			final ExecutionEdge outputChannel = outputGate.getEdge(i);
+			if (targetVertex == outputChannel.getInputGate().getVertex()) {
 				return edge.getChannelType();
 			}
 		}
@@ -1267,10 +1200,10 @@ public class ExecutionGraph implements ExecutionListener {
 			}
 			break;
 		case CANCELED:
-			LOG.error("Received update of execute state in job status CANCELED");
+			LOG.error("Received update of execute state in job status CANCELED: " + eg.getJobID());
 			break;
 		case FINISHED:
-			LOG.error("Received update of execute state in job status FINISHED");
+			LOG.error("Received update of execute state in job status FINISHED: " + eg.getJobID() + " " + StringUtils.stringifyException(new Throwable()));
 			break;
 		}
 
@@ -1460,6 +1393,23 @@ public class ExecutionGraph implements ExecutionListener {
 		while (it.hasNext()) {
 
 			it.next().reconstructExecutionPipelines();
+		}
+	}
+
+	/**
+	 * Calculates the connection IDs of the graph to avoid deadlocks in the data flow at runtime.
+	 */
+	private void calculateConnectionIDs() {
+
+		final Set<ExecutionGroupVertex> alreadyVisited = new HashSet<ExecutionGroupVertex>();
+		final ExecutionStage lastStage = getStage(getNumberOfStages() - 1);
+
+		for (int i = 0; i < lastStage.getNumberOfStageMembers(); ++i) {
+
+			final ExecutionGroupVertex groupVertex = lastStage.getStageMember(i);
+			if (groupVertex.isOutputVertex()) {
+				groupVertex.calculateConnectionID(0, alreadyVisited);
+			}
 		}
 	}
 

@@ -25,8 +25,8 @@ import eu.stratosphere.nephele.types.Record;
 public final class NetworkInputChannel<T extends Record> extends AbstractByteBufferedInputChannel<T> {
 
 	public NetworkInputChannel(InputGate<T> inputGate, int channelIndex, RecordDeserializer<T> deserializer,
-			ChannelID channelID, CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, deserializer, channelID, compressionLevel);
+			ChannelID channelID, ChannelID connectedChannelID, CompressionLevel compressionLevel) {
+		super(inputGate, channelIndex, deserializer, channelID, connectedChannelID, compressionLevel);
 	}
 
 	@Override

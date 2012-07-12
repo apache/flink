@@ -46,7 +46,7 @@ public class PactInteger implements Key, NormalizableKey
 	/**
 	 * Initializes the encapsulated int with the provided value.
 	 * 
-	 * @param value Inital value of the encapsulated int.
+	 * @param value Initial value of the encapsulated int.
 	 */
 	public PactInteger(final int value) {
 		this.value = value;
@@ -118,7 +118,7 @@ public class PactInteger implements Key, NormalizableKey
 	 */
 	@Override
 	public int hashCode() {
-		return 37 + this.value;
+		return this.value;
 	}
 
 	/*

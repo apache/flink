@@ -24,32 +24,32 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("javadoc")
-public class TempTaskTest extends TaskTestBase {
-
+public class TempTaskTest extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(TempTaskTest.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();;
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();;
 		
 	@Test
-	public void testTempTask() {
-
+	public void testTempTask()
+	{
 		int keyCnt = 1024;
 		int valCnt = 4;
 		
 		super.initEnvironment(1024*1024*1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(this.outList);
 		
-		TempTask testTask = new TempTask();
+		TempTask<PactRecord> testTask = new TempTask<PactRecord>();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, PrevStub.class);
@@ -72,7 +72,7 @@ public class TempTaskTest extends TaskTestBase {
 		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
 		super.addOutput(new NirvanaOutputList());
 		
-		final TempTask testTask = new TempTask();
+		final TempTask<PactRecord> testTask = new TempTask<PactRecord>();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		super.registerTask(testTask, PrevStub.class);
@@ -102,6 +102,12 @@ public class TempTaskTest extends TaskTestBase {
 		
 	}
 	
-	public static class PrevStub extends Stub {	}
-		
+	public static class PrevStub implements Stub
+	{
+		@Override
+		public void open(Configuration parameters) throws Exception {}
+
+		@Override
+		public void close() throws Exception {}
+	}	
 }

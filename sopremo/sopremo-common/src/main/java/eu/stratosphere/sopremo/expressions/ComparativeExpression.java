@@ -37,7 +37,6 @@ public class ComparativeExpression extends BinaryBooleanExpression {
 		this.expr1 = expr1;
 		this.binaryOperator = binaryOperator;
 		this.expr2 = expr2;
-		this.expectedTarget = BooleanNode.class;
 	}
 
 	@Override

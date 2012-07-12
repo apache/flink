@@ -14,8 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
@@ -24,20 +25,14 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 /**
  * @author Arvid Heise
  */
-public class DirectSchema implements Schema {
+public class DirectSchema extends AbstractSchema {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 8707636845935512247L;
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.serialization.Schema#getPactSchema()
-	 */
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<? extends Value>[] getPactSchema() {
-		return new Class[] { JsonNodeWrapper.class };
+	public DirectSchema() {
+		super(1, IntSets.EMPTY_SET);
 	}
 
 	/*
@@ -46,8 +41,8 @@ public class DirectSchema implements Schema {
 	 * eu.stratosphere.sopremo.serialization.Schema#indicesOf(eu.stratosphere.sopremo.expressions.EvaluationExpression)
 	 */
 	@Override
-	public int[] indicesOf(EvaluationExpression expression) {
-		return new int[0];
+	public IntSet indicesOf(final EvaluationExpression expression) {
+		return IntSets.EMPTY_SET;
 	}
 
 	/*
@@ -56,11 +51,11 @@ public class DirectSchema implements Schema {
 	 * eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
+	public PactRecord jsonToRecord(final IJsonNode value, PactRecord target, final EvaluationContext context) {
 		if (target == null || target.getNumFields() != 1)
 			target = new PactRecord(new JsonNodeWrapper());
 
-		JsonNodeWrapper wrapper = target.getField(0, JsonNodeWrapper.class);
+		final JsonNodeWrapper wrapper = target.getField(0, JsonNodeWrapper.class);
 		wrapper.setValue(value);
 		target.setField(0, wrapper);
 		return target;
@@ -72,7 +67,7 @@ public class DirectSchema implements Schema {
 	 * eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
+	public IJsonNode recordToJson(final PactRecord record, final IJsonNode target) {
 		return record.getField(0, JsonNodeWrapper.class).getValue();
 	}
 }

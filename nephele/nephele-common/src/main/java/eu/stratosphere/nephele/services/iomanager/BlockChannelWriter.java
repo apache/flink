@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 
@@ -49,7 +50,7 @@ public class BlockChannelWriter extends BlockChannelAccess<WriteRequest, LinkedB
 	 * @throws IOException Thrown, if the underlying file channel could not be opened exclusively.
 	 */
 	protected BlockChannelWriter(Channel.ID channelID, RequestQueue<WriteRequest> requestQueue,
-			LinkedBlockingQueue<MemorySegment> returnSegments)
+			LinkedBlockingQueue<MemorySegment> returnSegments, int numRequestsToBundle)
 	throws IOException
 	{
 		super(channelID, requestQueue, returnSegments, true);
@@ -76,5 +77,36 @@ public class BlockChannelWriter extends BlockChannelAccess<WriteRequest, LinkedB
 			throw new IOException("The writer has been closed.");
 		}
 		this.requestQueue.add(new SegmentWriteRequest(this, segment));
+	}
+	
+	/**
+	 * Gets the next memory segment that has been written and is available again.
+	 * This method blocks until such a segment is available, or until an error occurs in the writer, or the
+	 * writer is closed.
+	 * <p>
+	 * WARNING: If this method is invoked without any segment ever returning (for example, because the
+	 * {@link #writeBlock(MemorySegment)} method has not been invoked appropriately), the method may block
+	 * forever.
+	 * 
+	 * @return The next memory segment from the writers's return queue.
+	 * @throws IOException Thrown, if an I/O error occurs in the writer while waiting for the request to return.
+	 */
+	public MemorySegment getNextReturnedSegment() throws IOException
+	{
+		try {
+			while (true) {
+				final MemorySegment next = this.returnBuffers.poll(2000, TimeUnit.MILLISECONDS);
+				if (next != null) {
+					return next;
+				} else {
+					if (this.closed) {
+						throw new IOException("The writer has been closed.");
+					}
+					checkErroneous();
+				}
+			}
+		} catch (InterruptedException iex) {
+			throw new IOException("Writer was interrupted while waiting for the next returning segment.");
+		}
 	}
 }

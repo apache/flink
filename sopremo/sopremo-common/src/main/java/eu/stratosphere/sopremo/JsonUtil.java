@@ -117,9 +117,7 @@ public class JsonUtil {
 		for (int index = 0; index < parts.size(); index++) {
 			EvaluationExpression segment;
 			final String part = parts.get(index);
-			if (part.equals("$"))
-				segment = new InputSelection(0);
-			else if (part.matches("[0-9]+"))
+			if (part.matches("[0-9]+"))
 				segment = new InputSelection(Integer.parseInt(part));
 			else if (part.matches("\\[.*\\]")) {
 				if (part.charAt(1) == '*') {

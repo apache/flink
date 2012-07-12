@@ -16,12 +16,12 @@
 package eu.stratosphere.pact.runtime.sort;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -29,18 +29,18 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
+import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.generic.GenericReducer;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.io.ChannelWriterOutputView;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
@@ -63,10 +63,10 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * Memory is allocated using the {@link MemoryManager} interface. Thus the component will most likely not exceed the
  * user-provided memory limits.
  * 
- * @author Fabian Hueske
  * @author Stephan Ewen
+ * @author Fabian Hueske
  */
-public class CombiningUnilateralSortMerger extends UnilateralSortMerger
+public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E>
 {
 	// ------------------------------------------------------------------------
 	// Constants & Fields
@@ -77,15 +77,9 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 */
 	private static final Log LOG = LogFactory.getLog(CombiningUnilateralSortMerger.class);
 
-	/**
-	 * The stub called for the combiner.
-	 */
-	private final ReduceStub combineStub;
-
-	/**
-	 * A flag indicating whether the last merge also combines the values.
-	 */
-	private final boolean combineLastMerge;
+	private final GenericReducer<E, ?> combineStub;	// the user code stub that does the combining
+	
+	private final boolean combineLastMerge;			// Flag indicating whether the last merge also combines the values.
 	
 
 	// ------------------------------------------------------------------------
@@ -93,20 +87,19 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new sorter that reads the data from a given reader and provides an iterator returning that
+	 *Creates a new sorter that reads the data from a given reader and provides an iterator returning that
 	 * data in a sorted manner. The memory is divided among sort buffers, write buffers and read buffers
 	 * automatically.
 	 * 
 	 * @param combineStub The stub used to combine values with the same key.
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
-	 * @param totalMemory The total amount of memory dedicated to sorting and merging.
-	 * @param maxNumFileHandles The maximum number of files to be merged at once.
-	 * @param keyComparators The comparator used to define the order among the keys.
-	 * @param keyPositions The logical positions of the keys in the records.
-	 * @param keyClasses The types of the keys.
 	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param serializer The type serializer.
+	 * @param comparator The type comparator establishing the order relation.
+	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
+	 * @param maxNumFileHandles The maximum number of files to be merged at once.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
 	 *                              actually begins spilling data to disk.
 	 * @param combineLastMerge A flag indicating whether the last merge step applies the combiner as well.
@@ -115,16 +108,14 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(ReduceStub combineStub, MemoryManager memoryManager, IOManager ioManager,
-			long totalMemory, int maxNumFileHandles,
-			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			MutableObjectIterator<PactRecord> input, AbstractTask parentTask,
-			float startSpillingFraction, boolean combineLastMerge)
+	public CombiningUnilateralSortMerger(GenericReducer<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
+			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
+			long totalMemory, int maxNumFileHandles, float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
-		this (combineStub, memoryManager, ioManager, totalMemory, -1, -1, maxNumFileHandles,
-			keyComparators, keyPositions, keyClasses, input, parentTask,
-			startSpillingFraction, combineLastMerge);
+		this(combineStub, memoryManager, ioManager, input, parentTask, serializer, comparator,
+			totalMemory, -1, maxNumFileHandles, startSpillingFraction, combineLastMerge);
 	}
 	
 	/**
@@ -135,16 +126,13 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 * @param combineStub The stub used to combine values with the same key.
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
-	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
-	 * @param maxIoMemory The maximal amount of memory to be dedicated to writing sorted runs. Will be subtracted from the total
-	 *                 amount of memory (<code>totalMemory</code>).
-	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
-	 * @param maxNumFileHandles The maximum number of files to be merged at once.
-	 * @param keyComparators The comparator used to define the order among the keys.
-	 * @param keyPositions The logical positions of the keys in the records.
-	 * @param keyClasses The types of the keys.
 	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
+	 * @param serializer The type serializer.
+	 * @param comparator The type comparator establishing the order relation.
+	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
+	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
+	 * @param maxNumFileHandles The maximum number of files to be merged at once.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
 	 *                              actually begins spilling data to disk.
 	 * @param combineLastMerge A flag indicating whether the last merge step applies the combiner as well.
@@ -153,17 +141,16 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(ReduceStub combineStub,
-			MemoryManager memoryManager, IOManager ioManager,
-			long totalMemory, long maxIoMemory, int numSortBuffers, int maxNumFileHandles,
-			Comparator<Key>[] keyComparators, int[] keyPositions, Class<? extends Key>[] keyClasses,
-			MutableObjectIterator<PactRecord> input, AbstractTask parentTask,
+	public CombiningUnilateralSortMerger(GenericReducer<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
+			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
+			TypeSerializer<E> serializer, TypeComparator<E> comparator,
+			long totalMemory, int numSortBuffers, int maxNumFileHandles, 
 			float startSpillingFraction, boolean combineLastMerge)
 	throws IOException, MemoryAllocationException
 	{
-		super(memoryManager, ioManager, totalMemory, maxIoMemory, numSortBuffers, maxNumFileHandles,
-			keyComparators, keyPositions, keyClasses, input, parentTask, startSpillingFraction);
-
+		super(memoryManager, ioManager, input, parentTask, serializer, comparator,
+			totalMemory, numSortBuffers, maxNumFileHandles, startSpillingFraction, false);
+		
 		this.combineStub = combineStub;
 		this.combineLastMerge = combineLastMerge;
 	}
@@ -172,80 +159,17 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	// Factory Methods
 	// ------------------------------------------------------------------------
 
-	/**
-	 * @param exceptionHandler
-	 * @param queues
-	 * @param memoryManager
-	 * @param ioManager
-	 * @param ioMemorySize
-	 * @param parentTask
-	 * @return A thread that spills data to disk.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.sort.UnilateralSortMerger#getSpillingThread(eu.stratosphere.pact.runtime.sort.ExceptionHandler, eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.CircularQueues, eu.stratosphere.nephele.template.AbstractInvokable, eu.stratosphere.nephele.services.memorymanager.MemoryManager, eu.stratosphere.nephele.services.iomanager.IOManager, eu.stratosphere.pact.runtime.plugable.TypeSerializer, eu.stratosphere.pact.runtime.plugable.TypeComparator, java.util.List, java.util.List, int)
 	 */
 	@Override
-	protected ThreadBase getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-			MemoryManager memoryManager, IOManager ioManager, long readMemSize,
-			AbstractInvokable parentTask)
+	protected ThreadBase<E> getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
+		AbstractInvokable parentTask, MemoryManager memoryManager, IOManager ioManager, 
+		TypeSerializer<E> serializer, TypeComparator<E> comparator,
+		List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxFileHandles)
 	{
-		return new CombiningSpillingThread(exceptionHandler, queues, memoryManager, ioManager,
-			readMemSize, parentTask);
-	}
-
-	// ------------------------------------------------------------------------
-	// Combining & Merging Methods
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Merges the sorted runs described by the given Channel IDs into a single sorted run. The merging process
-	 * uses the given read and write buffers. During the merging process, the combiner is used to reduce the
-	 * number of values with identical key.
-	 * 
-	 * @param channelIDs The IDs of the runs' channels.
-	 * @param readBuffers The buffers for the readers that read the sorted runs.
-	 * @param writeBuffers The buffers for the writer that writes the merged channel.
-	 * @return The ID of the channel that describes the merged run.
-	 */
-	@Override
-	protected Channel.ID mergeChannels(List<Channel.ID> channelIDs, List<List<MemorySegment>> readBuffers,
-			List<MemorySegment> writeBuffers)
-	throws IOException
-	{
-		// the list with the readers, to be closed at shutdown
-		final List<BlockChannelAccess<?, ?>> channelAccesses = new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size());
-
-		// the list with the target iterators
-		final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
-		final KeyGroupedIterator groupedIter = new KeyGroupedIterator(mergeIterator, this.keyPositions, this.keyClasses);
-		
-		// create a new channel writer
-		final Channel.ID mergedChannelID = this.ioManager.createChannel();
-		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(mergedChannelID);
-		registerOpenChannelToBeRemovedAtShudown(writer);
-		final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, this.ioBufferSize);
-		
-		final WriterCollector collector = new WriterCollector(output);
-		final ReduceStub combineStub = this.combineStub;
-		
-		try {
-			while (groupedIter.nextKey()) {
-				combineStub.combine(groupedIter.getValues(), collector);
-			}
-		}
-		catch (Exception e) {
-			throw new IOException("An error occurred in the combiner user code.");
-		}
-		
-		output.close(); //IS VERY IMPORTANT!!!!
-		writer.close();
-		// register merged result to be removed at shutdown
-		unregisterOpenChannelToBeRemovedAtShudown(writer);
-		registerChannelToBeRemovedAtShudown(mergedChannelID);
-
-		// remove the merged channel readers from the clear-at-shutdown list
-		for (int i = 0; i < channelAccesses.size(); i++) {
-			unregisterOpenChannelToBeRemovedAtShudown(channelAccesses.get(i));
-		}
-
-		return mergedChannelID;
+		return new CombiningSpillingThread(exceptionHandler, queues, parentTask,
+			memoryManager, ioManager, serializer, comparator, sortReadMemory, writeMemory, maxFileHandles);
 	}
 
 	// ------------------------------------------------------------------------
@@ -253,12 +177,18 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	// ------------------------------------------------------------------------
 
 	protected class CombiningSpillingThread extends SpillingThread
-	{
-		public CombiningSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues queues,
-				MemoryManager memoryManager, IOManager ioManager, long readMemSize,
-				AbstractInvokable parentTask)
+	{		
+		private final TypeComparator<E> comparator2;
+		
+		public CombiningSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
+				AbstractInvokable parentTask, MemoryManager memManager, IOManager ioManager, 
+				TypeSerializer<E> serializer, TypeComparator<E> comparator, 
+				List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxNumFileHandles)
 		{
-			super(exceptionHandler, queues, memoryManager, ioManager, readMemSize, parentTask);
+			super(exceptionHandler, queues, parentTask, memManager, ioManager, serializer, comparator, 
+				sortReadMemory, writeMemory, maxNumFileHandles);
+			
+			this.comparator2 = comparator.duplicate();
 		}
 
 		/**
@@ -268,13 +198,12 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		{
 			// ------------------- In-Memory Cache ------------------------
 			
-			final List<CircularElement> cache = new ArrayList<CircularElement>();
-			CircularElement element = null;
+			final Queue<CircularElement<E>> cache = new ArrayDeque<CircularElement<E>>();
+			CircularElement<E> element = null;
 			boolean cacheOnly = false;
 			
 			// fill cache
-			while (isRunning())
-			{
+			while (isRunning()) {
 				// take next element from queue
 				try {
 					element = this.queues.spill.take();
@@ -285,19 +214,16 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 								"Retrying to grab buffer...");
 						continue;
 					}
-					else {
+					else
 						return;
-					}
 				}
-				
-				if (element == SPILLING_MARKER) {
+				if (element == spillingMarker()) {
 					break;
 				}
-				else if (element == SENTINEL) {
+				else if (element == endMarker()) {
 					cacheOnly = true;
 					break;
 				}
-				
 				cache.add(element);
 			}
 			
@@ -308,14 +234,14 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			
 			// ------------------- In-Memory Merge ------------------------
 			if (cacheOnly) {
-				/* # case 1: operates on in-memory segments only # */
+				/* operates on in-memory segments only */
 				if (LOG.isDebugEnabled())
-					LOG.debug("Initiating merge-iterator (in-memory segments).");
+					LOG.debug("Initiating in memory merge.");
 				
-				List<MutableObjectIterator<PactRecord>> iterators = new ArrayList<MutableObjectIterator<PactRecord>>();
+				List<MutableObjectIterator<E>> iterators = new ArrayList<MutableObjectIterator<E>>(cache.size());
 								
 				// iterate buffers and collect a set of iterators
-				for (CircularElement cached : cache)
+				for (CircularElement<E> cached : cache)
 				{
 					// note: the yielded iterator only operates on the buffer heap (and disregards the stack)
 					iterators.add(cached.buffer.getIterator());
@@ -324,41 +250,32 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 				// release the remaining sort-buffers
 				if (LOG.isDebugEnabled())
 					LOG.debug("Releasing unused sort-buffer memory.");
-				releaseSortBuffers();
+				disposeSortBuffers(true);
 				
 				// set lazy iterator
-				MutableObjectIterator<PactRecord> resIter = iterators.size() == 1 ? iterators.get(0) : 
-					new MergeIterator(iterators, keyComparators, keyPositions, keyClasses);
+				MutableObjectIterator<E> resIter = iterators.isEmpty() ? EmptyMutableObjectIterator.<E>get() :
+						iterators.size() == 1 ? iterators.get(0) : 
+						new MergeIterator<E>(iterators,	this.serializer, this.comparator);
 				
 				if (CombiningUnilateralSortMerger.this.combineLastMerge) {
-					KeyGroupedIterator iter = new KeyGroupedIterator(resIter, keyPositions, keyClasses);
-					setResultIterator(new CombiningIterator(combineStub, iter));
+					KeyGroupedIterator<E> iter = new KeyGroupedIterator<E>(resIter, this.serializer, this.comparator2);
+					setResultIterator(new CombiningIterator<E>(CombiningUnilateralSortMerger.this.combineStub, iter, this.serializer));
 				} else {
 					setResultIterator(resIter);
 				}
+				
 				return;
 			}			
 			
 			// ------------------- Spilling Phase ------------------------
 			
-			final Channel.Enumerator enumerator = this.ioManager.createChannelEnumerator();
-			final LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
-			final int writeBufferSize = CombiningUnilateralSortMerger.this.ioBufferSize;
 			
-			List<Channel.ID> channelIDs = new ArrayList<Channel.ID>();
-			List<MemorySegment> writeBuffers;
+			final Channel.Enumerator enumerator = this.ioManager.createChannelEnumerator();			
+			List<ChannelWithBlockCount> channelIDs = new ArrayList<ChannelWithBlockCount>();
 
-			// allocate memory segments for channel writer
-			try {
-				writeBuffers = this.memoryManager.allocateStrict(CombiningUnilateralSortMerger.this.parent, NUM_WRITE_BUFFERS, writeBufferSize);
-				registerSegmentsToBeFreedAtShutdown(writeBuffers);
-			}
-			catch (MemoryAllocationException maex) {
-				throw new IOException("Spilling thread was unable to allocate memory for the channel writer.", maex);
-			}
-
+			
 			// loop as long as the thread is marked alive and we do not see the final element
-			while (isRunning()) {
+			while (isRunning())	{
 				try {
 					element = takeNext(this.queues.spill, cache);
 				}
@@ -368,40 +285,42 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 								"Retrying to grab buffer...");
 						continue;
 					}
-					else {
-						return;
-					}
+					else return;
 				}
 				
 				// check if we are still running
 				if (!isRunning()) {
 					return;
 				}
-				
 				// check if this is the end-of-work buffer
-				if (element == SENTINEL) {
+				if (element == endMarker()) {
 					break;
 				}
+				
 				// open next channel
-				final Channel.ID channel = enumerator.next();
-				channelIDs.add(channel);
-
-				// create writer
+				Channel.ID channel = enumerator.next();
+				registerChannelToBeRemovedAtShudown(channel);
+				
 				if (LOG.isDebugEnabled())
 					LOG.debug("Creating temp file " + channel.toString() + '.');
-				
-				// create writer
-				final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel, returnQueue);
-				registerOpenChannelToBeRemovedAtShudown(writer);
-				final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, writeBufferSize);
 
+				// create writer
+				final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(
+																channel, this.numWriteBuffersToCluster);
+				registerOpenChannelToBeRemovedAtShudown(writer);
+				final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, this.writeMemory,
+																			this.memManager.getPageSize());
+
+				// write sort-buffer to channel
 				if (LOG.isDebugEnabled())
 					LOG.debug("Combining buffer " + element.id + '.');
 
 				// set up the combining helpers
-				final NormalizedKeySorter<PactRecord> buffer = element.buffer;
-				final CombineValueIterator iter = new CombineValueIterator(buffer);
-				final WriterCollector collector = new WriterCollector(output);
+				final NormalizedKeySorter<E> buffer = element.buffer;
+				final CombineValueIterator<E> iter = new CombineValueIterator<E>(buffer, this.serializer.createInstance());
+				final WriterCollector<E> collector = new WriterCollector<E>(output, this.serializer);
+				
+				final GenericReducer<E, ?> combineStub = CombiningUnilateralSortMerger.this.combineStub;
 
 				int i = 0;
 				int stop = buffer.size() - 1;
@@ -440,7 +359,8 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 
 				output.close();
 				unregisterOpenChannelToBeRemovedAtShudown(writer);
-				registerChannelToBeRemovedAtShudown(channel);
+				
+				channelIDs.add(new ChannelWithBlockCount(channel, output.getBlockCount()));
 
 				// pass empty sort-buffer to reading thread
 				element.buffer.reset();
@@ -453,50 +373,114 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 				LOG.debug("Releasing sort-buffer memory.");
 			}
 			
-			releaseSortBuffers();
+			// clear the sort buffers, but do not return the memory to the manager, as we use it for merging
+			disposeSortBuffers(false);
 
-			try {
-				// merge channels until sufficient file handles are available
-				while (channelIDs.size() > CombiningUnilateralSortMerger.this.maxNumFileHandles) {
-					channelIDs = mergeChannelList(channelIDs, writeBuffers, this.readMemSize);
-				}
+			// ------------------- Merging Phase ------------------------
+
+			// merge channels until sufficient file handles are available
+			while (isRunning() && channelIDs.size() > this.maxNumFileHandles) {
+				channelIDs = mergeChannelList(channelIDs, this.sortReadMemory, this.writeMemory);
+			}
+			
+			// from here on, we won't write again
+			this.memManager.release(this.writeMemory);
+			this.writeMemory.clear();
+			
+			// check if we have spilled some data at all
+			if (channelIDs.isEmpty()) {
+				setResultIterator(EmptyMutableObjectIterator.<E>get());
+			}
+			else {
+				if (LOG.isDebugEnabled())
+					LOG.debug("Beginning final merge.");
 				
-				// from here on, we won't write again
-				this.memoryManager.release(writeBuffers);
-				unregisterSegmentsToBeFreedAtShutdown(writeBuffers);
-				writeBuffers.clear();
-
-				// check if we have spilled some data at all
-				if (channelIDs.isEmpty()) {
-					setResultIterator(EmptyMutableObjectIterator.<PactRecord>get());
-				}
-				else {
-					// allocate the memory for the final merging step
-					List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
-					
-					// allocate the read memory and register it to be released
-					List<MemorySegment> allBuffers = getSegmentsForReaders(readBuffers, this.readMemSize, channelIDs.size());
-					registerSegmentsToBeFreedAtShutdown(allBuffers);
-					
-					final MergeIterator mergeIterator = getMergingIterator(channelIDs, readBuffers, new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size()));
-					
-					// set the target for the user iterator
-					// if the final merge combines, create a combining iterator around the merge iterator,
-					// otherwise not
-					if (CombiningUnilateralSortMerger.this.combineLastMerge) {
-						KeyGroupedIterator iter = new KeyGroupedIterator(mergeIterator, keyPositions, keyClasses);
-						setResultIterator(new CombiningIterator(combineStub, iter));
-					} else {
-						setResultIterator(mergeIterator);
-					}
+				// allocate the memory for the final merging step
+				List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
+				
+				// allocate the read memory and register it to be released
+				getSegmentsForReaders(readBuffers, this.sortReadMemory, channelIDs.size());
+				
+				// get the readers and register them to be released
+				final MergeIterator<E> mergeIterator = getMergingIterator(
+						channelIDs, readBuffers, new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size()));
+				
+				// set the target for the user iterator
+				// if the final merge combines, create a combining iterator around the merge iterator,
+				// otherwise not
+				if (CombiningUnilateralSortMerger.this.combineLastMerge) {
+					KeyGroupedIterator<E> iter = new KeyGroupedIterator<E>(mergeIterator, this.serializer, this.comparator2);
+					setResultIterator(new CombiningIterator<E>(CombiningUnilateralSortMerger.this.combineStub, iter, this.serializer));
+				} else {
+					setResultIterator(mergeIterator);
 				}
 			}
-			catch (MemoryAllocationException maex) {
-				throw new IOException("Merging of sorted runs failed, because the memory for the I/O channels could not be allocated.", maex);
-			}
 
+			// done
 			if (LOG.isDebugEnabled())
-				LOG.debug("Spilling thread done.");
+				LOG.debug("Spilling and merging thread done.");
+		}
+		
+		// ------------------ Combining & Merging Methods -----------------
+
+		/**
+		 * Merges the sorted runs described by the given Channel IDs into a single sorted run. The merging process
+		 * uses the given read and write buffers. During the merging process, the combiner is used to reduce the
+		 * number of values with identical key.
+		 * 
+		 * @param channelIDs The IDs of the runs' channels.
+		 * @param readBuffers The buffers for the readers that read the sorted runs.
+		 * @param writeBuffers The buffers for the writer that writes the merged channel.
+		 * @return The ID of the channel that describes the merged run.
+		 */
+		@Override
+		protected ChannelWithBlockCount mergeChannels(List<ChannelWithBlockCount> channelIDs, List<List<MemorySegment>> readBuffers,
+				List<MemorySegment> writeBuffers)
+		throws IOException
+		{
+			// the list with the readers, to be closed at shutdown
+			final List<BlockChannelAccess<?, ?>> channelAccesses = new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size());
+
+			// the list with the target iterators
+			final MergeIterator<E> mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
+			final KeyGroupedIterator<E> groupedIter = new KeyGroupedIterator<E>(mergeIterator, this.serializer, this.comparator2);
+
+			// create a new channel writer
+			final Channel.ID mergedChannelID = this.ioManager.createChannel();
+			registerChannelToBeRemovedAtShudown(mergedChannelID);
+			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(
+															mergedChannelID, this.numWriteBuffersToCluster);
+			registerOpenChannelToBeRemovedAtShudown(writer);
+			final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, 
+																			this.memManager.getPageSize());
+			
+			final WriterCollector<E> collector = new WriterCollector<E>(output, this.serializer);
+			final GenericReducer<E, ?> combineStub = CombiningUnilateralSortMerger.this.combineStub;
+
+			// combine and write to disk
+			try {
+				while (groupedIter.nextKey()) {
+					combineStub.combine(groupedIter.getValues(), collector);
+				}
+			}
+			catch (Exception e) {
+				throw new IOException("An error occurred in the combiner user code.");
+			}
+			output.close(); //IS VERY IMPORTANT!!!!
+			
+			final int numBlocksWritten = output.getBlockCount();
+			
+			// register merged result to be removed at shutdown
+			unregisterOpenChannelToBeRemovedAtShudown(writer);
+			
+			// remove the merged channel readers from the clear-at-shutdown list
+			for (int i = 0; i < channelAccesses.size(); i++) {
+				BlockChannelAccess<?, ?> access = channelAccesses.get(i);
+				access.closeAndDelete();
+				unregisterOpenChannelToBeRemovedAtShudown(access);
+			}
+
+			return new ChannelWithBlockCount(mergedChannelID, numBlocksWritten);
 		}
 
 	} // end spilling/merging thread
@@ -504,15 +488,14 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This class implements an iterator over values from a {@link eu.stratosphere.pact.runtime.sort.BufferSortable}.
-	 * The iterator returns the values of a given
+	 * This class implements an iterator over values from a sort buffer. The iterator returns the values of a given
 	 * interval.
 	 */
-	private static final class CombineValueIterator implements Iterator<PactRecord>
+	private static final class CombineValueIterator<E> implements Iterator<E>
 	{
-		private final NormalizedKeySorter<PactRecord> buffer; // the buffer from which values are returned
+		private final NormalizedKeySorter<E> buffer; // the buffer from which values are returned
 		
-		private final PactRecord record;
+		private final E record;
 
 		private int last; // the position of the last value to be returned
 
@@ -524,10 +507,10 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * @param buffer
 		 *        The buffer to get the values from.
 		 */
-		public CombineValueIterator(NormalizedKeySorter<PactRecord> buffer)
+		public CombineValueIterator(NormalizedKeySorter<E> buffer, E instance)
 		{
 			this.buffer = buffer;
-			this.record = new PactRecord();
+			this.record = instance;
 		}
 
 		/**
@@ -557,7 +540,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * @see java.util.Iterator#next()
 		 */
 		@Override
-		public PactRecord next()
+		public E next()
 		{
 			if (this.position <= this.last) {
 				try {
@@ -591,17 +574,20 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	/**
 	 * A simple collector that collects Key and Value and writes them into a given <code>Writer</code>.
 	 */
-	private static final class WriterCollector implements Collector
+	private static final class WriterCollector<E> implements Collector<E>
 	{	
 		private final ChannelWriterOutputView output; // the writer to write to
+		
+		private final TypeSerializer<E> serializer;
 
 		/**
 		 * Creates a new writer collector that writes to the given writer.
 		 * 
 		 * @param output The writer output view to write to.
 		 */
-		private WriterCollector(ChannelWriterOutputView output) {
+		private WriterCollector(ChannelWriterOutputView output, TypeSerializer<E> serializer) {
 			this.output = output;
+			this.serializer = serializer;
 		}
 
 		/*
@@ -611,9 +597,9 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * eu.stratosphere.pact.common.type.Value)
 		 */
 		@Override
-		public void collect(PactRecord record) {
+		public void collect(E record) {
 			try {
-				record.write(this.output);
+				this.serializer.serialize(record, this.output);
 			}
 			catch (IOException ioex) {
 				throw new RuntimeException("An error occurred forwarding the record to the writer.", ioex);
@@ -634,17 +620,20 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 	/**
 	 * A simple collector that collects Key and Value and puts them into an <tt>ArrayList</tt>.
 	 */
-	private static final class ListCollector implements Collector
+	private static final class ListCollector<E> implements Collector<E>
 	{
-		private ArrayList<PactRecord> list; // the list to collect pairs in
+		private final ArrayDeque<E> list; // the list to collect pairs in
+		
+		private final TypeSerializer<E> serializer; // the serializer that creates copies
 
 		/**
 		 * Creates a new collector that collects output in the given list.
 		 * 
 		 * @param list The list to collect output in.
 		 */
-		private ListCollector(ArrayList<PactRecord> list) {
+		private ListCollector(ArrayDeque<E> list, TypeSerializer<E> serializer) {
 			this.list = list;
+			this.serializer = serializer;
 		}
 
 		/*
@@ -652,8 +641,8 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 		 * @see eu.stratosphere.pact.common.stub.Collector#collect(eu.stratosphere.pact.common.type.Key, eu.stratosphere.pact.common.type.Value)
 		 */
 		@Override
-		public void collect(PactRecord record) {
-			this.list.add(record.createCopy());
+		public void collect(E record) {
+			this.list.add(this.serializer.createCopy(record));
 
 		}
 
@@ -669,29 +658,33 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 
 	// ------------------------------------------------------------------------
 
-	private static final class CombiningIterator implements MutableObjectIterator<PactRecord>
+	private static final class CombiningIterator<E> implements MutableObjectIterator<E>
 	{
-		private final ReduceStub combineStub;
+		private final GenericReducer<E, ?> combineStub;
 
-		private final KeyGroupedIterator iterator;
+		private final KeyGroupedIterator<E> iterator;
 
-		private final ArrayList<PactRecord> results;
+		private final ArrayDeque<E> results;
 
-		private final ListCollector collector;
+		private final ListCollector<E> collector;
+		
+		private final TypeSerializer<E> serializer;
 
-		private CombiningIterator(ReduceStub combineStub, KeyGroupedIterator iterator) {
+		private CombiningIterator(GenericReducer<E, ?> combineStub, KeyGroupedIterator<E> iterator, TypeSerializer<E> serializer)
+		{
 			this.combineStub = combineStub;
 			this.iterator = iterator;
-
-			this.results = new ArrayList<PactRecord>();
-			this.collector = new ListCollector(this.results);
+			this.serializer = serializer;
+			
+			this.results = new ArrayDeque<E>();
+			this.collector = new ListCollector<E>(this.results, serializer);
 		}
 
 		/* (non-Javadoc)
 		 * @see eu.stratosphere.pact.runtime.util.ReadingIterator#next(java.lang.Object)
 		 */
 		@Override
-		public boolean next(PactRecord target) throws IOException
+		public boolean next(E target) throws IOException
 		{
 			try {
 				while (this.results.isEmpty() && this.iterator.nextKey()) {
@@ -703,7 +696,7 @@ public class CombiningUnilateralSortMerger extends UnilateralSortMerger
 			}
 			
 			if (!this.results.isEmpty()) {
-				this.results.remove(0).copyTo(target);
+				this.serializer.copyTo(this.results.poll(), target);
 				return true;
 			}
 			else {

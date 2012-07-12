@@ -7,7 +7,6 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
 

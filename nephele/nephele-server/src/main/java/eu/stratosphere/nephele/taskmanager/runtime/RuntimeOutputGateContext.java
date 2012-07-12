@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
@@ -189,5 +190,14 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 		outputChannelBroker.setForwardingChain(forwardingChain);
 
 		return new RuntimeOutputChannelContext(outputChannel, forwardingChain);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
+
+		return this.taskContext.registerBufferAvailabilityListener(bufferAvailabilityListener);
 	}
 }

@@ -86,7 +86,7 @@ public class MapITCase extends TestBase
 		private PactString valueString = new PactString();
 		
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			keyString = record.getField(0, keyString);
 			valueString = record.getField(1, valueString);
 			

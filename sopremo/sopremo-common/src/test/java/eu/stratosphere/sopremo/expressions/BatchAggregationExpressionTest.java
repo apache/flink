@@ -10,10 +10,8 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.DefaultFunctions;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;

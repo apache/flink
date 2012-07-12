@@ -20,6 +20,7 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Set;
 
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
@@ -37,7 +38,6 @@ import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -227,7 +227,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the task
 	 */
-	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskSubmissionWrapper> tasks)
+	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskDeploymentDescriptor> tasks)
 			throws IOException {
 
 		return getTaskManagerProxy().submitTasks(tasks);

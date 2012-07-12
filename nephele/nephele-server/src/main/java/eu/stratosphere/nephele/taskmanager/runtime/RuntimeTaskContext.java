@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
+import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
@@ -65,7 +66,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		int nooc = 0;
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
 			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
-			if(outputGate.isBroadcast()) {
+			if (outputGate.isBroadcast()) {
 				++nooc;
 			} else {
 				nooc += outputGate.getNumberOfOutputChannels();
@@ -184,7 +185,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		// throw new ConcurrentModificationException(
 		// "initialExecutionResourcesExhausted must be called from the task that executes the user code");
 		// }
-		
+
 		// collect outputChannelUtilization
 		final Map<ChannelID, Long> channelUtilization = new HashMap<ChannelID, Long>();
 		long totalOutputAmount = 0;
@@ -222,10 +223,10 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			}
 		}
 
-		System.out.println("Making checkpoint decision for " + environment.getTaskNameWithIndex());
-		final boolean checkpointDecision = false; /*CheckpointDecision.getDecision(this.task, rus);*/
-		System.out.println("Checkpoint decision for " + environment.getTaskNameWithIndex() + " is "
-			+ checkpointDecision);
+//		System.out.println("Making checkpoint decision for " + environment.getTaskNameWithIndex());
+		final boolean checkpointDecision = false; /* CheckpointDecision.getDecision(this.task, rus); */
+//		System.out.println("Checkpoint decision for " + environment.getTaskNameWithIndex() + " is "
+//			+ checkpointDecision);
 		this.ephemeralCheckpoint.setCheckpointDecisionSynchronously(checkpointDecision);
 
 	}
@@ -330,5 +331,14 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	public LocalBufferPool getLocalBufferPool() {
 
 		return this.localBufferPool;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
+
+		return this.localBufferPool.registerBufferAvailabilityListener(bufferAvailabilityListener);
 	}
 }

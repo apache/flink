@@ -1,11 +1,13 @@
 package eu.stratosphere.sopremo.serialization;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
@@ -13,11 +15,12 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
  * @author Tommy Neubert
  */
-public class GeneralSchema implements Schema {
+public class GeneralSchema extends AbstractSchema {
 
 	/**
 	 * 
@@ -27,18 +30,13 @@ public class GeneralSchema implements Schema {
 	List<EvaluationExpression> mappings = new ArrayList<EvaluationExpression>();
 
 	/**
-	 * Initializes a new GeneralSchema with empty mappings.
-	 */
-	public GeneralSchema() {
-	}
-
-	/**
 	 * Initializes a new GeneralSchema with the provided {@link EvaluationExpression}s in proper sequence.
 	 * 
 	 * @param mappings
 	 *        {@link EvaluationExpression}s that should be set as mappings
 	 */
-	public GeneralSchema(EvaluationExpression... mappings) {
+	public GeneralSchema(final EvaluationExpression... mappings) {
+		super(mappings.length + 1, CollectionUtil.setRangeFrom(0, mappings.length));
 		this.mappings = Arrays.asList(mappings);
 	}
 
@@ -49,23 +47,9 @@ public class GeneralSchema implements Schema {
 	 * @param mappings
 	 *        an Iterable over all {@link EvaluationExpression}s that should be set as mappings.
 	 */
-	public GeneralSchema(Iterable<EvaluationExpression> mappings) {
-		for (EvaluationExpression exp : mappings)
-			this.mappings.add(exp);
-	}
-
-	/**
-	 * Sets this schemas mappings to the provided {@link EvaluationExpression}s.
-	 * 
-	 * @param mappings
-	 *        an Iterable over all {@link EvaluationExpression}s that should be set as mappings.
-	 */
-	public void setMappings(Iterable<EvaluationExpression> mappings) {
-		if (mappings == null)
-			throw new NullPointerException("mapping must not be null");
-
-		this.mappings.clear();
-		for (EvaluationExpression exp : mappings)
+	public GeneralSchema(final List<EvaluationExpression> mappings) {
+		super(mappings.size() + 1, CollectionUtil.setRangeFrom(0, mappings.size()));
+		for (final EvaluationExpression exp : mappings)
 			this.mappings.add(exp);
 	}
 
@@ -79,17 +63,15 @@ public class GeneralSchema implements Schema {
 	}
 
 	@Override
-	public Class<? extends Value>[] getPactSchema() {
-		Class<? extends Value>[] schema = new Class[this.mappings.size() + 1];
-
-		for (int i = 0; i <= this.mappings.size(); i++)
-			schema[i] = JsonNodeWrapper.class;
-
-		return schema;
+	public IntSet indicesOf(final EvaluationExpression expression) {
+		final int index = this.mappings.indexOf(expression);
+		if (index == -1)
+			throw new IllegalArgumentException("Field not found.");
+		return IntSets.singleton(index);
 	}
 
 	@Override
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
+	public PactRecord jsonToRecord(final IJsonNode value, PactRecord target, final EvaluationContext context) {
 
 		if (target == null)
 			target = new PactRecord(this.mappings.size() + 1);
@@ -102,15 +84,15 @@ public class GeneralSchema implements Schema {
 	}
 
 	@Override
-	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
-		IJsonNode source = SopremoUtil.unwrap(record.getField(this.mappings.size(), JsonNodeWrapper.class));
+	public IJsonNode recordToJson(final PactRecord record, final IJsonNode target) {
+		final IJsonNode source = SopremoUtil.unwrap(record.getField(this.mappings.size(), JsonNodeWrapper.class));
 
 		if (target == null)
 			return source;
 		return this.reuseTargetNode(target, source);
 	}
 
-	private IJsonNode reuseTargetNode(IJsonNode target, IJsonNode source) {
+	private IJsonNode reuseTargetNode(IJsonNode target, final IJsonNode source) {
 		target.clear();
 		if (target.isObject())
 			((IObjectNode) target).putAll((IObjectNode) source);
@@ -123,14 +105,6 @@ public class GeneralSchema implements Schema {
 			target = SopremoUtil.reusePrimitive(source, target);
 
 		return target;
-	}
-
-	@Override
-	public int[] indicesOf(EvaluationExpression expression) {
-		int index = this.mappings.indexOf(expression);
-		if (index == -1)
-			throw new IllegalArgumentException("Field not found.");
-		return new int[] { index };
 	}
 
 }

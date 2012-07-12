@@ -16,8 +16,8 @@
 package eu.stratosphere.pact.runtime.sort;
 
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,21 +25,19 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.generic.GenericMatcher;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypePairComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
-import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
-import eu.stratosphere.pact.runtime.util.KeyComparator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
-import eu.stratosphere.pact.runtime.util.LastRepeatableIterator;
-import eu.stratosphere.pact.runtime.util.PactRecordRepeatableIterator;
 
 
 /**
@@ -49,7 +47,7 @@ import eu.stratosphere.pact.runtime.util.PactRecordRepeatableIterator;
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public class SortMergeMatchIterator implements MatchTaskIterator
+public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, O>
 {
 	/**
 	 * The log used by this iterator to log messages.
@@ -64,27 +62,43 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	
 	// --------------------------------------------------------------------------------------------
 	
+	private TypePairComparator<T1, T2> comp;
+	
+	private KeyGroupedIterator<T1> iterator1;
+
+	private KeyGroupedIterator<T2> iterator2;
+	
+	private final TypeSerializer<T1> serializer1;
+	
+	private final TypeSerializer<T2> serializer2;
+	
+	private final T1 copy1;
+	
+	private final T1 spillHeadCopy;
+	
+	private final T2 copy2;
+	
+	private final T2 blockHeadCopy;
+	
+	private final BlockResettableIterator<T2> blockIt;				// for N:M cross products with same key
+	
+	private final List<MemorySegment> memoryForSpillingIterator;
+	
+	private final MutableObjectIterator<T1> reader1;
+
+	private final MutableObjectIterator<T2> reader2;
+	
+	private final TypeComparator<T1> comparator1;
+	
+	private final TypeComparator<T2> comparator2;
+	
+	private Sorter<T1> sortMerger1;
+
+	private Sorter<T2> sortMerger2;
+	
 	private final MemoryManager memoryManager;
 
 	private final IOManager ioManager;
-
-	private final MutableObjectIterator<PactRecord> reader1;
-
-	private final MutableObjectIterator<PactRecord> reader2;
-	
-	private final int[] firstKeyPositions;
-	
-	private final int[] secondKeyPositions;
-	
-	private final Class<? extends Key>[] keyClasses;
-	
-	private final PactRecord copy1 = new PactRecord();
-	
-	private final PactRecord copy2 = new PactRecord();
-	
-	private final PactRecord instance = new PactRecord();
-	
-	private final BlockResettableIterator blockIt;				// for N:M cross products with same key
 	
 	private final LocalStrategy localStrategy;
 	
@@ -95,49 +109,52 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	private final int fileHandlesPerChannel;
 	
 	private final float spillingThreshold;
+	
 
 	
-	private SortMerger sortMerger1;
-
-	private SortMerger sortMerger2;
-	
-	private KeyGroupedIterator iterator1;
-
-	private KeyGroupedIterator iterator2;
-
-	
-	public SortMergeMatchIterator(MemoryManager memoryManager, IOManager ioManager,
-			MutableObjectIterator<PactRecord> reader1, MutableObjectIterator<PactRecord> reader2,
-			int[] firstInputKeyPositions, int[] secondInputKeyPositions, Class<? extends Key>[] keyClasses,
+	public SortMergeMatchIterator(MutableObjectIterator<T1> reader1, MutableObjectIterator<T2> reader2,
+			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
+			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2, TypePairComparator<T1, T2> pairComparator,
+			MemoryManager memoryManager, IOManager ioManager,
 			long memory, int maxNumFileHandles, float spillingThreshold,
 			LocalStrategy localStrategy, AbstractTask parentTask)
 	throws MemoryAllocationException
 	{
-		this(memoryManager, ioManager, reader1, reader2, 
-			firstInputKeyPositions, secondInputKeyPositions, keyClasses,
+		this(reader1, reader2, serializer1, comparator1, serializer2, comparator2, pairComparator,
+			memoryManager, ioManager, 
 			memory, maxNumFileHandles, spillingThreshold, DEFAULT_MEMORY_SHARE_RATIO, 
 			localStrategy, parentTask);
 	}
 	
-	public SortMergeMatchIterator(MemoryManager memoryManager, IOManager ioManager,
-			MutableObjectIterator<PactRecord> reader1, MutableObjectIterator<PactRecord> reader2,
-			int[] firstInputKeyPositions, int[] secondInputKeyPositions, Class<? extends Key>[] keyClasses,
+	public SortMergeMatchIterator(MutableObjectIterator<T1> reader1, MutableObjectIterator<T2> reader2,
+			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
+			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2, TypePairComparator<T1, T2> pairComparator,
+			MemoryManager memoryManager, IOManager ioManager,
 			long memory, int maxNumFileHandles, float spillingThreshold, float memPercentageForBlockNL,
 			LocalStrategy localStrategy, AbstractTask parentTask)
 	throws MemoryAllocationException
 	{
+		this.comp = pairComparator;
+		this.serializer1 = serializer1;
+		this.serializer2 = serializer2;
+		this.comparator1 = comparator1;
+		this.comparator2 = comparator2;
+		
+		this.copy1 = serializer1.createInstance();
+		this.spillHeadCopy = serializer1.createInstance();
+		this.copy2 = serializer2.createInstance();
+		this.blockHeadCopy = serializer2.createInstance();
+		
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		
 		this.reader1 = reader1;
 		this.reader2 = reader2;
 		
-		this.keyClasses = keyClasses;
-		this.firstKeyPositions = firstInputKeyPositions;
-		this.secondKeyPositions = secondInputKeyPositions;
-		
-		long memoryForBlockNestedLoops = Math.max((long) (memory * memPercentageForBlockNL),
-			SpillingResettableIterator.MIN_TOTAL_MEMORY + BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE);
+		final int pageSize = memoryManager.getPageSize();
+		long memoryForBlockNestedLoops = Math.max((long) (memory * memPercentageForBlockNL), 2 * pageSize);
+		long  pagesForBlockNL = memoryForBlockNestedLoops / pageSize;
+		int numPagesForSpiller = pagesForBlockNL > 20 ? 2 : 1;
 		
 		this.memoryPerChannel = (memory - memoryForBlockNestedLoops) / 2;
 		this.fileHandlesPerChannel = (maxNumFileHandles / 2) < 2 ? 2 : (maxNumFileHandles / 2);
@@ -145,8 +162,9 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		this.parentTask = parentTask;
 		this.spillingThreshold = spillingThreshold;
 		
-		this.blockIt = new BlockResettableIterator(this.memoryManager,
-			memoryForBlockNestedLoops - SpillingResettableIterator.MIN_TOTAL_MEMORY, 1, parentTask);
+		this.blockIt = new BlockResettableIterator<T2>(this.memoryManager, this.serializer2, 
+			memoryForBlockNestedLoops - (numPagesForSpiller * pageSize), parentTask);
+		this.memoryForSpillingIterator = memoryManager.allocatePages(parentTask, numPagesForSpiller);
 	}
 
 	/* (non-Javadoc)
@@ -154,16 +172,7 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 */
 	@Override
 	public void open() throws IOException, MemoryAllocationException, InterruptedException
-	{
-		// comparator
-		final Comparator<Key> keyComparator = new KeyComparator();
-		
-		@SuppressWarnings("unchecked")
-		final Comparator<Key>[] comparators = (Comparator<Key>[]) new Comparator[this.keyClasses.length];
-		for (int i = 0; i < comparators.length; i++) {
-			comparators[i] = keyComparator;
-		}
-			
+	{	
 		// ================================================================
 		//                   PERFORMANCE NOTICE
 		//
@@ -177,40 +186,36 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		// iterator 1
 		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_FIRST_MERGE)
 		{
-			// merger
-			this.sortMerger1 = new UnilateralSortMerger(this.memoryManager, this.ioManager,
-					this.memoryPerChannel, this.fileHandlesPerChannel, 
-					comparators, this.firstKeyPositions, this.keyClasses, 
-					this.reader1, this.parentTask, this.spillingThreshold);
+			this.sortMerger1 = new UnilateralSortMerger<T1>(this.memoryManager, this.ioManager,
+					this.reader1, this.parentTask, this.serializer1, this.comparator1, 
+					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
 		}
 
 		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_SECOND_MERGE)
 		{
-			// merger
-			this.sortMerger2 = new UnilateralSortMerger(this.memoryManager, this.ioManager, 
-					this.memoryPerChannel, this.fileHandlesPerChannel,
-					comparators, this.secondKeyPositions, this.keyClasses,
-					this.reader2, this.parentTask, this.spillingThreshold);
+			this.sortMerger2 = new UnilateralSortMerger<T2>(this.memoryManager, this.ioManager,
+					this.reader2, this.parentTask, this.serializer2, this.comparator2, 
+					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
 		}
 			
 		// =============== These calls freeze until the data is actually available ============ 
 		
 		switch (this.localStrategy) {
 			case SORT_BOTH_MERGE:
-				this.iterator1 = new KeyGroupedIterator(this.sortMerger1.getIterator(), this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(this.sortMerger2.getIterator(), this.secondKeyPositions, this.keyClasses);
+				this.iterator1 = new KeyGroupedIterator<T1>(this.sortMerger1.getIterator(), this.serializer1, this.comparator1.duplicate());
+				this.iterator2 = new KeyGroupedIterator<T2>(this.sortMerger2.getIterator(), this.serializer2, this.comparator2.duplicate());
 				break;
 			case SORT_FIRST_MERGE:
-				this.iterator1 = new KeyGroupedIterator(this.sortMerger1.getIterator(), this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(this.reader2, this.secondKeyPositions, this.keyClasses);
+				this.iterator1 = new KeyGroupedIterator<T1>(this.sortMerger1.getIterator(), this.serializer1, this.comparator1.duplicate());
+				this.iterator2 = new KeyGroupedIterator<T2>(this.reader2, this.serializer2, this.comparator2.duplicate());
 				break;
 			case SORT_SECOND_MERGE:
-				this.iterator1 = new KeyGroupedIterator(this.reader1, this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(this.sortMerger2.getIterator(), this.secondKeyPositions, this.keyClasses);
+				this.iterator1 = new KeyGroupedIterator<T1>(this.reader1, this.serializer1, this.comparator1.duplicate());
+				this.iterator2 = new KeyGroupedIterator<T2>(this.sortMerger2.getIterator(), this.serializer2, this.comparator2.duplicate());
 				break;
 			case MERGE:
-				this.iterator1 = new KeyGroupedIterator(this.reader1, this.firstKeyPositions, this.keyClasses);
-				this.iterator2 = new KeyGroupedIterator(this.reader2, this.secondKeyPositions, this.keyClasses);
+				this.iterator1 = new KeyGroupedIterator<T1>(this.reader1, this.serializer1, this.comparator1.duplicate());
+				this.iterator2 = new KeyGroupedIterator<T2>(this.reader2, this.serializer2, this.comparator2.duplicate());
 				break;
 			default:
 				throw new RuntimeException("Unsupported Local Strategy in SortMergeMatchIterator: "+this.localStrategy);
@@ -251,8 +256,19 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 				LOG.error("Error closing sort/merger for second input: " + t.getMessage(), t);
 			}
 		}
+		
+		this.memoryManager.release(this.memoryForSpillingIterator);
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#abort()
+	 */
+	@Override
+	public void abort()
+	{
+		close();
+	}
+
 	/**
 	 * Calls the <code>MatchStub#match()</code> method for all two key-value pairs that share the same key and come 
 	 * from different inputs. The output of the <code>match()</code> method is forwarded.
@@ -265,56 +281,46 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#callWithNextKey()
 	 */
 	@Override
-	public boolean callWithNextKey(MatchStub matchFunction, Collector collector)
+	public boolean callWithNextKey(final GenericMatcher<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
 			return false;
 		}
 
-		Key[] keys1 = this.iterator1.getKeys();
-		Key[] keys2 = this.iterator2.getKeys();
-
+		final TypePairComparator<T1, T2> comparator = this.comp;
+		comparator.setReference(this.iterator1.getCurrent());
+		T2 current2 = this.iterator2.getCurrent();
+				
 		// zig zag
 		while (true) {
 			// determine the relation between the (possibly composite) keys
-			int comp = 0;
-			for (int i = 0; i < keys1.length; i++) {
-				int c = keys1[i].compareTo(keys2[i]);
-				if (c != 0) {
-					comp = c;
-					break;
-				}
-			}
+			final int comp = comparator.compareToReference(current2);
 			
 			if (comp == 0)
 				break;
 			
-			if (comp > 0) {
+			if (comp < 0) {
 				if (!this.iterator2.nextKey()) {
 					return false;
 				}
-				keys2 = this.iterator2.getKeys();
+				current2 = this.iterator2.getCurrent();
 			}
 			else {
 				if (!this.iterator1.nextKey()) {
 					return false;
 				}
-				keys1 = this.iterator1.getKeys();
+				comparator.setReference(this.iterator1.getCurrent());
 			}
 		}
 		
 		// here, we have a common key! call the match function with the cross product of the
 		// values
-		final KeyGroupedIterator.ValuesIterator values1 = this.iterator1.getValues();
-		final KeyGroupedIterator.ValuesIterator values2 = this.iterator2.getValues();
+		final KeyGroupedIterator<T1>.ValuesIterator values1 = this.iterator1.getValues();
+		final KeyGroupedIterator<T2>.ValuesIterator values2 = this.iterator2.getValues();
 		
-		final PactRecord firstV1 = values1.next().createCopy();
-		final PactRecord firstV2 = values2.next().createCopy();	
-		
-		if (firstV1 == null || firstV2 == null) {
-			return false;
-		}
+		final T1 firstV1 = values1.next();
+		final T2 firstV2 = values2.next();	
 			
 		final boolean v1HasNext = values1.hasNext();
 		final boolean v2HasNext = values2.hasNext();
@@ -322,34 +328,26 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		// check if one side is already empty
 		// this check could be omitted if we put this in MatchTask.
 		// then we can derive the local strategy (with build side).
-		if (!v1HasNext && !v2HasNext) {
-			// both sides contain only one value
-			matchFunction.match(firstV1, firstV2, collector);
-		}
-		else if (!v1HasNext) {
-			crossFirst1withNValues(firstV1, firstV2, values2, matchFunction, collector);
-
-		}
-		else if (!v2HasNext) {
-			crossSecond1withNValues(firstV2, firstV1, values1, matchFunction, collector);
-		}
-		else {
-			// both sides contain more than one value
-			// TODO: Decide which side to spill and which to block!
-			crossMwithNValues(firstV1, values1, firstV2, values2, matchFunction, collector);
+		
+		if (v1HasNext) {
+			if (v2HasNext) {
+				// both sides contain more than one value
+				// TODO: Decide which side to spill and which to block!
+				crossMwithNValues(firstV1, values1, firstV2, values2, matchFunction, collector);
+			} else {
+				crossSecond1withNValues(firstV2, firstV1, values1, matchFunction, collector);
+			}
+		} else {
+			if (v2HasNext) {
+				crossFirst1withNValues(firstV1, firstV2, values2, matchFunction, collector);
+			} else {
+				// both sides contain only one value
+				matchFunction.match(firstV1, firstV2, collector);
+			}
 		}
 		return true;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#abort()
-	 */
-	@Override
-	public void abort()
-	{}
-	
-	// ==============================================================================
-	
 	/**
 	 * Crosses a single value from the first input with N values, all sharing a common key.
 	 * Effectively realizes a <i>1:N</i> match (join).
@@ -360,23 +358,23 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 *          
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
-	private void crossFirst1withNValues(PactRecord val1, PactRecord firstValN,
-			Iterator<PactRecord> valsN, MatchStub matchFunction, Collector collector)
+	private void crossFirst1withNValues(final T1 val1, final T2 firstValN,
+			final Iterator<T2> valsN, final GenericMatcher<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
-		val1.copyTo(this.copy1);
-		matchFunction.match(val1, firstValN, collector);
+		this.serializer1.copyTo(val1, this.copy1);
+		matchFunction.match(this.copy1, firstValN, collector);
 		
 		// set copy and match first element
 		boolean more = true;
 		do {
-			PactRecord nRec = valsN.next();
+			final T2 nRec = valsN.next();
 			
 			if (valsN.hasNext()) {
-				this.copy1.copyToIfModified(val1);
-				matchFunction.match(val1, nRec, collector);
-			} else {
+				this.serializer1.copyTo(val1, this.copy1);
 				matchFunction.match(this.copy1, nRec, collector);
+			} else {
+				matchFunction.match(val1, nRec, collector);
 				more = false;
 			}
 		}
@@ -393,23 +391,23 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 *          
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
-	private void crossSecond1withNValues(PactRecord val1, PactRecord firstValN,
-			Iterator<PactRecord> valsN, MatchStub matchFunction, Collector collector)
+	private void crossSecond1withNValues(T2 val1, T1 firstValN,
+			Iterator<T1> valsN, GenericMatcher<T1, T2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
-		val1.copyTo(this.copy1);
-		matchFunction.match(firstValN, val1, collector);
+		this.serializer2.copyTo(val1, this.copy2);
+		matchFunction.match(firstValN, this.copy2, collector);
 		
 		// set copy and match first element
 		boolean more = true;
 		do {
-			PactRecord nRec = valsN.next();
+			final T1 nRec = valsN.next();
 			
 			if (valsN.hasNext()) {
-				this.copy1.copyToIfModified(val1);
-				matchFunction.match(nRec, val1, collector);
+				this.serializer2.copyTo(val1, this.copy2);
+				matchFunction.match(nRec, this.copy2, collector);
 			} else {
-				matchFunction.match(nRec, this.copy1, collector);
+				matchFunction.match(nRec, val1, collector);
 				more = false;
 			}
 		}
@@ -422,9 +420,9 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 	 * @param firstV2
 	 * @param blockVals
 	 */
-	private void crossMwithNValues(final PactRecord firstV1, Iterator<PactRecord> spillVals,
-			final PactRecord firstV2, final Iterator<PactRecord> blockVals,
-			MatchStub matchFunction, Collector collector)
+	private void crossMwithNValues(final T1 firstV1, Iterator<T1> spillVals,
+			final T2 firstV2, final Iterator<T2> blockVals,
+			final GenericMatcher<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		// ==================================================
@@ -444,63 +442,67 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		// 6) cross the spilling iterator with the next block.
 		
 		// match the first values first
-		firstV1.copyTo(this.copy1);
-		firstV2.copyTo(this.copy2);
+		this.serializer1.copyTo(firstV1, this.copy1);
+		this.serializer2.copyTo(firstV2, this.blockHeadCopy);
 		
 		// --------------- 1) Cross the heads -------------------
-		matchFunction.match(firstV1, firstV2, collector);
+		matchFunction.match(this.copy1, firstV2, collector);
 		
 		// for the remaining values, we do a block-nested-loops join
-		SpillingResettableIterator<PactRecord> spillIt = null;
+		SpillingResettableIterator<T1> spillIt = null;
 		
 		try {
 			// create block iterator on the second input
 			this.blockIt.reopen(blockVals);
 			
 			// ------------- 2) cross the head of the spilling side with the first block ------------------
-			while (blockIt.hasNext()) {
-				PactRecord nextBlockRec = blockIt.next();
-				this.copy1.copyTo(this.instance);
-				matchFunction.match(this.instance, nextBlockRec, collector);
+			while (this.blockIt.hasNext()) {
+				final T2 nextBlockRec = this.blockIt.next();
+				this.serializer1.copyTo(firstV1, this.copy1);
+				matchFunction.match(this.copy1, nextBlockRec, collector);
 			}
-			blockIt.reset();
+			this.blockIt.reset();
 			
 			// spilling is required if the blocked input has data beyond the current block.
 			// in that case, create the spilling iterator
-			final LastRepeatableIterator<PactRecord> repeatableIter;
-			boolean spillingRequired = blockIt.hasFurtherInput();
+			final Iterator<T1> leftSideIter;
+			final boolean spillingRequired = this.blockIt.hasFurtherInput();
 			if (spillingRequired)
 			{
 				// more data than would fit into one block. we need to wrap the other side in a spilling iterator
 				// create spilling iterator on first input
-				spillIt = new SpillingResettableIterator<PactRecord>(this.memoryManager, this.ioManager, spillVals, 
-						new PactRecord(), SpillingResettableIterator.MIN_TOTAL_MEMORY, this.parentTask);
-				repeatableIter = spillIt;				
+				spillIt = new SpillingResettableIterator<T1>(spillVals, this.serializer1,
+						this.memoryManager, this.ioManager, this.memoryForSpillingIterator);
+				leftSideIter = spillIt;				
 				spillIt.open();
+				
+				this.serializer1.copyTo(firstV1, this.spillHeadCopy);
 			}
 			else {
-				repeatableIter = new PactRecordRepeatableIterator(spillVals);
+				leftSideIter = spillVals;
 			}
 			
 			// cross the values in the v1 iterator against the current block
 			
-			while (repeatableIter.hasNext()) {
-				PactRecord nextSpillVal = repeatableIter.next();
+			while (leftSideIter.hasNext()) {
+				final T1 nextSpillVal = leftSideIter.next();
+				this.serializer1.copyTo(nextSpillVal, this.copy1);
+				
 				
 				// -------- 3) cross the iterator of the spilling side with the head of the block side --------
-				this.copy2.copyTo(this.instance);
-				matchFunction.match(nextSpillVal, this.instance, collector);
+				this.serializer2.copyTo(this.blockHeadCopy, this.copy2);
+				matchFunction.match(this.copy1, this.copy2, collector);
 				
 				// -------- 4) cross the iterator of the spilling side with the first block --------
-				while (blockIt.hasNext()) {
-					PactRecord nextBlockRec = blockIt.next();
+				while (this.blockIt.hasNext()) {
+					T2 nextBlockRec = this.blockIt.next();
 					
 					// get instances of key and block value
-					nextSpillVal = repeatableIter.repeatLast();
-					matchFunction.match(nextSpillVal, nextBlockRec, collector);						
+					this.serializer1.copyTo(nextSpillVal, this.copy1);
+					matchFunction.match(this.copy1, nextBlockRec, collector);						
 				}
 				// reset block iterator
-				blockIt.reset();
+				this.blockIt.reset();
 			}
 			
 			// if everything from the block-side fit into a single block, we are done.
@@ -511,36 +513,34 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 			
 			// here we are, because we have more blocks on the block side
 			// loop as long as there are blocks from the blocked input
-			while (blockIt.nextBlock())
+			while (this.blockIt.nextBlock())
 			{
 				// rewind the spilling iterator
 				spillIt.reset();
 				
 				// ------------- 5) cross the head of the spilling side with the next block ------------
-				while (blockIt.hasNext()) {
-					this.copy1.copyTo(this.instance);
-					final PactRecord nextBlockVal = blockIt.next();
-					matchFunction.match(this.instance, nextBlockVal, collector);
+				while (this.blockIt.hasNext()) {
+					this.serializer1.copyTo(this.spillHeadCopy, this.copy1);
+					final T2 nextBlockVal = blockIt.next();
+					matchFunction.match(this.copy1, nextBlockVal, collector);
 				}
-				blockIt.reset();
+				this.blockIt.reset();
 				
 				// -------- 6) cross the spilling iterator with the next block. ------------------
 				while (spillIt.hasNext())
 				{
 					// get value from resettable iterator
-					PactRecord nextSpillVal = spillIt.next();
+					final T1 nextSpillVal = spillIt.next();
 					// cross value with block values
-					while (blockIt.hasNext()) {
-						// get instances of key and block value							
-						final PactRecord nextBlockVal = blockIt.next();
-						matchFunction.match(nextSpillVal, nextBlockVal, collector);	
-						// get new instance of resettable value
-						if (blockIt.hasNext())
-							nextSpillVal = spillIt.repeatLast();
+					while (this.blockIt.hasNext()) {
+						// get instances of key and block value
+						final T2 nextBlockVal = this.blockIt.next();
+						this.serializer1.copyTo(nextSpillVal, this.copy1);
+						matchFunction.match(this.copy1, nextBlockVal, collector);	
 					}
 					
 					// reset block iterator
-					blockIt.reset();
+					this.blockIt.reset();
 				}
 				// reset v1 iterator
 				spillIt.reset();
@@ -548,7 +548,7 @@ public class SortMergeMatchIterator implements MatchTaskIterator
 		}
 		finally {
 			if (spillIt != null) {
-				spillIt.close();
+				this.memoryForSpillingIterator.addAll(spillIt.close());
 			}
 		}
 	}

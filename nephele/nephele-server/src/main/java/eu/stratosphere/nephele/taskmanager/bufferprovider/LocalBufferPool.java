@@ -70,6 +70,8 @@ public final class LocalBufferPool implements BufferProvider {
 
 	private final LocalBufferPoolConnector bufferPoolConnector;
 
+	private final Queue<BufferAvailabilityListener> bufferAvailabilityListenerQueue = new ArrayDeque<BufferAvailabilityListener>();
+
 	public LocalBufferPool(final int designatedNumberOfBuffers, final boolean isShared,
 			final AsynchronousEventListener eventListener) {
 
@@ -266,13 +268,15 @@ public final class LocalBufferPool implements BufferProvider {
 			if (this.isDestroyed) {
 				this.globalBufferPool.releaseGlobalBuffer(byteBuffer);
 				this.requestedNumberOfBuffers--;
-				return;
+			} else {
+				this.buffers.add(byteBuffer);
+				this.buffers.notify();
 			}
 
-			this.buffers.add(byteBuffer);
-			this.buffers.notify();
+			while (!this.bufferAvailabilityListenerQueue.isEmpty()) {
+				this.bufferAvailabilityListenerQueue.poll().bufferAvailable();
+			}
 		}
-
 	}
 
 	/**
@@ -285,5 +289,26 @@ public final class LocalBufferPool implements BufferProvider {
 			this.asynchronousEventOccurred = true;
 			this.buffers.notify();
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
+
+		synchronized (this.buffers) {
+			if (!this.buffers.isEmpty()) {
+				return false;
+			}
+
+			if (this.isDestroyed) {
+				return false;
+			}
+
+			this.bufferAvailabilityListenerQueue.add(bufferAvailabilityListener);
+		}
+
+		return true;
 	}
 }

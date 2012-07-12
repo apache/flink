@@ -23,25 +23,39 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.BroadcastRecordWriter;
+import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.contract.DataDistribution;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
+import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.pact.runtime.shipping.OutputCollector;
+import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -51,21 +65,25 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
+public abstract class AbstractPactTask<S extends Stub, OT> extends AbstractTask
 {
 	protected static final Log LOG = LogFactory.getLog(AbstractPactTask.class);
 	
+	protected S stub;
+	
+	protected Collector<OT> output;
+	
+	protected MutableObjectIterator<?>[] inputs;
+	
+	protected TypeSerializer<?>[] inputSerializers;
+	
+	protected TypeComparator<?>[] inputComparators;
+	
 	protected TaskConfig config;
-	
-	protected T stub;
-	
-	protected MutableObjectIterator<PactRecord>[] inputs;
-	
-	protected Collector output;
 	
 	protected ClassLoader userCodeClassLoader;
 	
-	protected ArrayList<ChainedTask> chainedTasks;
+	protected ArrayList<ChainedTask<?, ?>> chainedTasks;
 	
 	protected volatile boolean running;
 	
@@ -84,7 +102,14 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * 
 	 * @return The class of the stub type run by the task.
 	 */
-	public abstract Class<T> getStubType();
+	public abstract Class<S> getStubType();
+	
+	/**
+	 * Flag indicating whether the inputs require always comparators or not.
+	 * 
+	 * @return True, if the initialization should look for and create comparators, false otherwise.
+	 */
+	public abstract boolean requiresComparatorOnInput();
 	
 	/**
 	 * This method is called before the user code is opened. An exception thrown by this method
@@ -122,15 +147,43 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	@Override
 	public void registerInputOutput()
 	{
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Start registering input and output."));
+		}
+		
+		if (this.userCodeClassLoader == null) {
+			try {
+				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			}
+			catch (IOException ioe) {
+				throw new RuntimeException("The ClassLoader for the user code could not be instantiated from the library cache.", ioe);
+			}
+		}
 
-		initConfigAndStub(getStubType());
-		initInputs();
-		initOutputs();
+		try {
+			initConfigAndStub(getStubType());
+		} catch (Exception e) {
+			throw new RuntimeException("Initializing the user code and the configuration failed" +
+				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+		}
+		
+		try {
+			initInputs();
+		} catch (Exception e) {
+			throw new RuntimeException("Initializing the input streams failed" +
+				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+		}
+		
+		try {
+			initOutputs();
+		} catch (Exception e) {
+			throw new RuntimeException("Initializing the output handlers failed" +
+				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+		}
 
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Finished registering input and output."));
+		}
 	}
 	
 	/* (non-Javadoc)
@@ -155,6 +208,11 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 				// errors during clean-up are swallowed, because we have already a root exception
 				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() + 
 					"' , caused an error: " + t.getMessage(), t);
+			}
+			
+			// check for canceling
+			if (!this.running) {
+				return;
 			}
 			
 			// start all chained tasks
@@ -230,6 +288,16 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			LOG.warn(getLogString("Cancelling PACT code"));
 	}
 	
+	/**
+	 * Sets the class-loader to be used to load the user code.
+	 * 
+	 * @param cl The class-loader to be used to load the user code.
+	 */
+	public void setUserCodeClassLoader(ClassLoader cl)
+	{
+		this.userCodeClassLoader = cl;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//                                 Task Setup and Teardown
 	// --------------------------------------------------------------------------------------------
@@ -240,64 +308,129 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * @throws RuntimeException Thrown, if the stub class could not be loaded, instantiated,
 	 *                          or caused an exception while being configured.
 	 */
-	protected void initConfigAndStub(Class<? super T> stubSuperClass)
+	protected void initConfigAndStub(Class<? super S> stubSuperClass) throws Exception
 	{
 		// obtain task configuration (including stub parameters)
 		this.config = new TaskConfig(getTaskConfiguration());
 
 		// obtain stub implementation class
 		try {
-			this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 			@SuppressWarnings("unchecked")
-			Class<T> stubClass = (Class<T>) this.config.getStubClass(stubSuperClass, this.userCodeClassLoader);
+			Class<S> stubClass = (Class<S>) this.config.getStubClass(stubSuperClass, this.userCodeClassLoader);
 			
 			this.stub = InstantiationUtil.instantiate(stubClass, stubSuperClass);
 		}
-		catch (IOException ioe) {
-			throw new RuntimeException("The ClassLoader for the user code could not be instantiated from the library cache.", ioe);
-		}
 		catch (ClassNotFoundException cnfe) {
-			throw new RuntimeException("The stub implementation class was not found.", cnfe);
+			throw new Exception("The stub implementation class was not found.", cnfe);
 		}
 		catch (ClassCastException ccex) {
-			throw new RuntimeException("The stub class is not a proper subclass of " + stubSuperClass.getName(), ccex); 
+			throw new Exception("The stub class is not a proper subclass of " + stubSuperClass.getName(), ccex); 
 		}
 	}
 	
 	/**
 	 * Creates the record readers for the number of inputs as defined by {@link #getNumberOfInputs()}.
 	 */
-	protected void initInputs()
+	protected void initInputs() throws Exception
 	{
-		int numInputs = getNumberOfInputs();
+		final int numInputs = getNumberOfInputs();
 		
-		@SuppressWarnings("unchecked")
-		final MutableObjectIterator<PactRecord>[] inputs = new MutableObjectIterator[numInputs];
+		final MutableObjectIterator<?>[] inputs = new MutableObjectIterator[numInputs];
+		final TypeSerializer<?>[] inputSerializers = new TypeSerializer[numInputs];
+		final TypeComparator<?>[] inputComparators = requiresComparatorOnInput() ? 
+											new TypeComparator[numInputs] : null;
 		
 		for (int i = 0; i < numInputs; i++)
-		{	
-			final int groupSize = this.config.getGroupSize(i+1);
-			if(groupSize < 2) {
-				inputs[i] = new NepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
+		{
+			//  ---------------- create the serializer first ---------------------
+			final Class<? extends TypeSerializerFactory<?>> serializerFactoryClass = 
+									this.config.getSerializerFactoryForInput(i, this.userCodeClassLoader);
+			
+			final TypeSerializerFactory<?> serializerFactory;
+			if (serializerFactoryClass == null) {
+				// fall back to PactRecord
+				serializerFactory = PactRecordSerializerFactory.get();
 			} else {
-				@SuppressWarnings("unchecked")
-				MutableRecordReader<PactRecord>[] readers = new MutableRecordReader[groupSize];
-				for(int j = 0; j < groupSize; ++j) {
-					readers[j] = new MutableRecordReader<PactRecord>(this);
+				serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
+			}
+			
+			inputSerializers[i] = serializerFactory.getSerializer();
+			
+			//  ---------------- create the input stream ---------------------
+			// in case the input unions multiple inputs, create a union reader
+			final int groupSize = this.config.getGroupSize(i+1);
+			if (groupSize < 2) {
+				// non-union case
+				if (serializerFactory.getDataType() == PactRecord.class) {
+					// have a special case for the PactRecord serialization
+					inputs[i] = new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this));
+				} else {
+					// generic data type serialization
+					final MutableRecordReader<DeserializationDelegate<?>> reader = 
+													new MutableRecordReader<DeserializationDelegate<?>>(this);
+					@SuppressWarnings({ "unchecked", "rawtypes" })
+					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i]); 
+					inputs[i] = iter;
 				}
-				inputs[i] = new NepheleReaderIterator(new MutableUnionRecordReader<PactRecord>(readers));
+			} else {
+				// union case
+				if (serializerFactory.getDataType() == PactRecord.class) {
+					// have a special case for the PactRecord serialization
+					@SuppressWarnings("unchecked")
+					MutableRecordReader<PactRecord>[] readers = new MutableRecordReader[groupSize];
+					for (int j = 0; j < groupSize; ++j) {
+						readers[j] = new MutableRecordReader<PactRecord>(this);
+					}
+					inputs[i] = new PactRecordNepheleReaderIterator(new MutableUnionRecordReader<PactRecord>(readers));
+				} else {
+					@SuppressWarnings("unchecked")
+					MutableRecordReader<DeserializationDelegate<?>>[] readers = new MutableRecordReader[groupSize];
+					for (int j = 0; j < groupSize; ++j) {
+						readers[j] = new MutableRecordReader<DeserializationDelegate<?>>(this);
+					}
+					final MutableUnionRecordReader<DeserializationDelegate<?>> reader = new MutableUnionRecordReader<DeserializationDelegate<?>>(readers);
+					@SuppressWarnings({ "unchecked", "rawtypes" })
+					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i]); 
+					inputs[i] = iter;
+				}
+			}
+			
+			//  ---------------- create the comparator ---------------------
+			if (requiresComparatorOnInput()) {
+				final Class<? extends TypeComparatorFactory<?>> comparatorFactoryClass = 
+							this.config.getComparatorFactoryForInput(i, this.userCodeClassLoader);
+	
+				final TypeComparatorFactory<?> comparatorFactory;
+				if (comparatorFactoryClass == null) {
+					// fall back to PactRecord
+					comparatorFactory = PactRecordComparatorFactory.get();
+				} else {
+					comparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
+				}
+	
+				try {
+					inputComparators[i] = comparatorFactory.createComparator(getTaskConfiguration(), 
+						this.config.getPrefixForInputParameters(i), this.userCodeClassLoader);
+				} catch (ClassNotFoundException cnfex) {
+					throw new Exception("The instantiation of the type comparator from factory '" +	
+						comparatorFactory.getClass().getName() + 
+						"' failed. A referenced class from the user code could not be loaded."); 
+				}
 			}
 		}
+		
 		this.inputs = inputs;
+		this.inputSerializers = inputSerializers;
+		this.inputComparators = inputComparators;
 	}
 	
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategies for each writer.
 	 */
-	protected void initOutputs()
+	protected void initOutputs() throws Exception
 	{
-		this.chainedTasks = new ArrayList<ChainedTask>();
+		this.chainedTasks = new ArrayList<ChainedTask<?, ?>>();
 		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks);
 	}
 	
@@ -315,6 +448,33 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	protected String getLogString(String message)
 	{
 		return constructLogString(message, this.getEnvironment().getTaskName(), this);
+	}
+	
+	@SuppressWarnings("unchecked")
+	protected <X> MutableObjectIterator<X> getInput(int index)
+	{
+		if (index < 0 || index > getNumberOfInputs()) {
+			throw new IndexOutOfBoundsException();
+		}
+		return (MutableObjectIterator<X>) this.inputs[index];
+	}
+	
+	@SuppressWarnings("unchecked")
+	protected <X> TypeSerializer<X> getInputSerializer(int index)
+	{
+		if (index < 0 || index > getNumberOfInputs()) {
+			throw new IndexOutOfBoundsException();
+		}
+		return (TypeSerializer<X>) this.inputSerializers[index];
+	}
+	
+	@SuppressWarnings("unchecked")
+	protected <X> TypeComparator<X> getInputComparator(int index)
+	{
+		if (index < 0 || index > getNumberOfInputs()) {
+			throw new IndexOutOfBoundsException();
+		}
+		return (TypeComparator<X>) this.inputComparators[index];
 	}
 	
 	
@@ -388,7 +548,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	// --------------------------------------------------------------------------------------------
 		
 	/**
-	 * Creates the {@link OutputCollector} for the given task, as described by the given configuration. The
+	 * Creates the {@link Collector} for the given task, as described by the given configuration. The
 	 * output collector contains the writers that forward the data to the different tasks that the given task
 	 * is connected to. Each writer applies a the partitioning as described in the configuration.
 	 * 
@@ -399,51 +559,140 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * 
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
-	public static OutputCollector getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, int numOutputs)
-	{ 
-		OutputCollector output = new OutputCollector();
-		
-		// create a writer for each output
-		for (int i = 0; i < numOutputs; i++)
-		{
-			// create the OutputEmitter from output ship strategy
-			final ShipStrategy strategy = config.getOutputShipStrategy(i);
-			final int[] keyPositions = config.getOutputShipKeyPositions(i);
-			final Class<? extends Key>[] keyClasses;
-			try {
-				keyClasses = config.getOutputShipKeyTypes(i, cl);
-			}
-			catch (ClassNotFoundException cnfex) {
-				throw new RuntimeException("The classes for the keys determining the partitioning for output " + i + 
-					"  could not be loaded.");
-			}
-			
-			final OutputEmitter oe =  (keyPositions == null || keyClasses == null) ?
-					new OutputEmitter(strategy) :
-					new OutputEmitter(strategy, keyPositions, keyClasses);
-			
-			if (strategy == ShipStrategy.BROADCAST) {
-				if (task instanceof AbstractTask) {
-					output.addWriter(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
-				} else if (task instanceof AbstractInputTask<?>) {
-					output.addWriter(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
-				}
-			} else {
-				if (task instanceof AbstractTask) {
-					output.addWriter(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));
-				} else if (task instanceof AbstractInputTask<?>) {
-					output.addWriter(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, oe));
-				}
-			}
+	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, int numOutputs)
+	throws Exception
+	{
+		// get the factory for the serializer
+		final Class<? extends TypeSerializerFactory<T>> serializerFactoryClass;
+		try {
+			serializerFactoryClass = config.getSerializerFactoryForOutput(cl);
+		} catch (ClassNotFoundException cnfex) {
+			throw new Exception("The class registered as output serializer factory could not be loaded.", cnfex);
 		}
-		return output;
+		final TypeSerializerFactory<T> serializerFactory;
+		
+		if (serializerFactoryClass == null) {
+			@SuppressWarnings("unchecked")
+			TypeSerializerFactory<T> pf = (TypeSerializerFactory<T>) PactRecordSerializerFactory.get();
+			serializerFactory = pf;
+		} else {
+			serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
+		}
+		
+		// special case the PactRecord
+		if (serializerFactory.getDataType().equals(PactRecord.class))
+		{
+			final List<AbstractRecordWriter<PactRecord>> writers = new ArrayList<AbstractRecordWriter<PactRecord>>(numOutputs);
+			
+			// create a writer for each output
+			for (int i = 0; i < numOutputs; i++)
+			{
+				// create the OutputEmitter from output ship strategy
+				final ShipStrategy strategy = config.getOutputShipStrategy(i);
+				final Class<? extends TypeComparatorFactory<PactRecord>> comparatorFactoryClass;
+				try {
+					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
+				} catch (ClassNotFoundException cnfex) {
+					throw new Exception("The class registered as comparator factory for output " + i + 
+																				" could not be loaded.", cnfex);
+				}
+				
+				final PactRecordOutputEmitter oe;
+				if (comparatorFactoryClass == null) {
+					oe = new PactRecordOutputEmitter(strategy);
+				} else {
+					try {
+						final PactRecordComparator comparator = PactRecordComparatorFactory.get().createComparator(
+												config.getConfiguration(), config.getPrefixForOutputParameters(i), cl);
+						final DataDistribution distribution = config.getOutputDataDistribution(cl);
+						oe = new PactRecordOutputEmitter(strategy, comparator, distribution);
+					} catch (ClassNotFoundException cnfex) {
+						throw new Exception("The comparator for output " + i + 
+									" could not be created, because it could not load dependent classes.", cnfex);
+					}
+					
+				}
+						
+				if (strategy == ShipStrategy.BROADCAST) {
+					if (task instanceof AbstractTask) {
+						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
+					} else if (task instanceof AbstractInputTask<?>) {
+						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
+					}
+				} else {
+					if (task instanceof AbstractTask) {
+						writers.add(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));
+					} else if (task instanceof AbstractInputTask<?>) {
+						writers.add(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, oe));
+					}
+				}
+			}
+			@SuppressWarnings("unchecked")
+			final Collector<T> outColl = (Collector<T>) new PactRecordOutputCollector(writers);
+			return outColl;
+		}
+		else {
+			// generic case
+			final List<AbstractRecordWriter<SerializationDelegate<T>>> writers = new ArrayList<AbstractRecordWriter<SerializationDelegate<T>>>(numOutputs);
+			@SuppressWarnings("unchecked") // uncritical, simply due to broken generics
+			final Class<SerializationDelegate<T>> delegateClazz = (Class<SerializationDelegate<T>>) (Class<?>) SerializationDelegate.class;
+			
+			// create a writer for each output
+			for (int i = 0; i < numOutputs; i++)
+			{
+				// create the OutputEmitter from output ship strategy
+				final ShipStrategy strategy = config.getOutputShipStrategy(i);
+				final Class<? extends TypeComparatorFactory<T>> comparatorFactoryClass;
+				try {
+					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
+				} catch (ClassNotFoundException cnfex) {
+					throw new Exception("The class registered as comparator factory for output " + i + 
+																				" could not be loaded.", cnfex);
+				}
+				
+				final ChannelSelector<SerializationDelegate<T>> oe;
+				if (comparatorFactoryClass == null) {
+					oe = new OutputEmitter<T>(strategy);
+				} else {
+					final TypeComparatorFactory<T> compFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
+					try {
+						final TypeComparator<T> comparator = compFactory.createComparator(config.getConfiguration(), 
+																				config.getPrefixForOutputParameters(i), cl);
+						
+						oe = new OutputEmitter<T>(strategy, comparator);
+					} catch (ClassNotFoundException cnfex) {
+						throw new Exception("The comparator for output " + i + 
+									" could not be created, because it could not load dependent classes.", cnfex);
+					}
+				}						
+				
+				if (strategy == ShipStrategy.BROADCAST) {
+					if (task instanceof AbstractTask) {
+						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
+					} else if (task instanceof AbstractInputTask<?>) {
+						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz));
+					}
+				} else {
+					if (task instanceof AbstractTask) {
+						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz, oe));
+					} else if (task instanceof AbstractInputTask<?>) {
+						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz, oe));
+					}
+				}
+			}
+			
+			return new OutputCollector<T>(writers, serializerFactory.getSerializer());
+		}
 	}
 	
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategy.
 	 */
-	public static Collector initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config, List<ChainedTask> chainedTasksTarget)
+
+	@SuppressWarnings("unchecked")
+	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config, List<ChainedTask<?, ?>> chainedTasksTarget)
+	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
 		
@@ -457,13 +706,14 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 			}
 			
 			// instantiate each task
+			@SuppressWarnings("rawtypes")
 			Collector previous = null;
 			for (int i = numChained - 1; i >= 0; --i)
 			{
 				// get the task first
-				final ChainedTask ct;
+				final ChainedTask<?, ?> ct;
 				try {
-					Class<? extends ChainedTask> ctc = config.getChainedTask(i);
+					Class<? extends ChainedTask<?, ?>> ctc = (Class<? extends ChainedTask<?, ?>>) config.getChainedTask(i);
 					ct = ctc.newInstance();
 				}
 				catch (Exception ex) {
@@ -485,7 +735,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 				previous = ct;
 			}
 			// the collector of the first in the chain is the collector for the nephele task
-			return previous;
+			return (Collector<T>) previous;
 		}
 		// else 
 
@@ -548,11 +798,11 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the opening encounters an exception.
 	 */
-	public static void openChainedTasks(List<ChainedTask> tasks, AbstractInvokable parent) throws Exception
+	public static void openChainedTasks(List<ChainedTask<?, ?>> tasks, AbstractInvokable parent) throws Exception
 	{
 		// start all chained tasks
 		for (int i = 0; i < tasks.size(); i++) {
-			final ChainedTask task = tasks.get(i);
+			final ChainedTask<?, ?> task = tasks.get(i);
 			if (LOG.isInfoEnabled())
 				LOG.info(constructLogString("Start PACT code", task.getTaskName(), parent));
 			task.openTask();
@@ -567,10 +817,10 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the closing encounters an exception.
 	 */
-	public static void closeChainedTasks(List<ChainedTask> tasks, AbstractInvokable parent) throws Exception
+	public static void closeChainedTasks(List<ChainedTask<?, ?>> tasks, AbstractInvokable parent) throws Exception
 	{
 		for (int i = 0; i < tasks.size(); i++) {
-			final ChainedTask task = tasks.get(i);
+			final ChainedTask<?, ?> task = tasks.get(i);
 			task.closeTask();
 			
 			if (LOG.isInfoEnabled())
@@ -585,7 +835,7 @@ public abstract class AbstractPactTask<T extends Stub> extends AbstractTask
 	 * 
 	 * @param tasks The tasks to be canceled.
 	 */
-	public static void cancelChainedTasks(List<ChainedTask> tasks)
+	public static void cancelChainedTasks(List<ChainedTask<?, ?>> tasks)
 	{
 		for (int i = 0; i < tasks.size(); i++) {
 			try {

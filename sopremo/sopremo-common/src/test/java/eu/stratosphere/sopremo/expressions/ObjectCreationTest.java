@@ -67,8 +67,8 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 			new InputSelection(0));
 		final ObjectNode result = createObjectNode("fieldname", "test");
 
-		mapping.evaluate(result, createArrayNode("1", "2"), this.context);
-		mapping.evaluate(result, createArrayNode("3", "4"), this.context);
+		mapping.evaluate(createArrayNode("1", "2"), result,  this.context);
+		mapping.evaluate(createArrayNode("3", "4"), result, this.context);
 
 		Assert.assertEquals(createObjectNode("fieldname", "test", "testname", "3"), result);
 	}

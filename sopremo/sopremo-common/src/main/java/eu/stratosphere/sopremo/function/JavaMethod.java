@@ -71,7 +71,7 @@ public class JavaMethod extends JsonMethod {
 	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public IJsonNode call(final IArrayNode params, final EvaluationContext context) {
+	public IJsonNode call(final IArrayNode params, final IJsonNode target, final EvaluationContext context) {
 		return this.method.invoke(null, (Object[]) params.toArray());
 	}
 }

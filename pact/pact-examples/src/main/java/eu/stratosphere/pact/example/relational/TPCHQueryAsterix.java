@@ -30,17 +30,8 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -71,14 +62,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Realizes the join between Customers and Order table.
 	 */
-	@ReadsFirst(fields={})
-	@ReadsSecond(fields={})
-	@ImplicitOperationFirst(implicitOperation=ImplicitOperationMode.Projection)
-	@ExplicitCopies(fields={})
-	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Copy)
-	@ExplicitProjections(fields={})
-	@ExplicitModifications(fields={0})
-	@OutCardBounds(lowerBound=1, upperBound=1)
+	@ConstantFieldsSecond(fields={1})
 	public static class JoinCO extends MatchStub {
 
 		private final PactInteger oneInteger = new PactInteger(1);
@@ -89,7 +73,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 *  Value: 0:PARTIAL_COUNT=1
 		 */
 		@Override
-		public void match(PactRecord order, PactRecord cust, Collector out)
+		public void match(PactRecord order, PactRecord cust, Collector<PactRecord> out)
 				throws Exception {
 			cust.setField(0, oneInteger);
 			out.collect(cust);
@@ -103,11 +87,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 *
 	 */
 	@Combinable
-	@Reads(fields={0})
-	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
-	@ExplicitProjections(fields={})
-	@ExplicitModifications(fields={0})
-	@OutCardBounds(lowerBound=1, upperBound=1)
+	@ConstantFields(fields={1})
 	public static class AggCO extends ReduceStub {
 
 		private final PactInteger integer = new PactInteger();
@@ -120,7 +100,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		 *
 		 */
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 
 			int count = 0;
@@ -138,7 +118,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		/**
 		 * Computes partial counts
 		 */
-		public void combine(Iterator<PactRecord> records, Collector out)
+		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			reduce(records, out);
 		}

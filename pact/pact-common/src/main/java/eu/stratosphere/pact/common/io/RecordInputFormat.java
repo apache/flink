@@ -175,75 +175,81 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 
 		FieldParser<Value> parser;
 		Value val;
-		int startPos = 0;
+		int startPos = offset;
+		final int limit = offset + numBytes;
 		
-		if(bytes[startPos] == fieldDelim)
+		if (bytes[startPos] == this.fieldDelim)
 			startPos++;
 		
-		for(int i=0; i<recordPositions.length; i++) {
+		for (int i = 0; i < this.recordPositions.length; i++) {
 			
 			// check valid start position
-			if(startPos >= numBytes) return false;
+			if (startPos >= limit) {
+				return false;
+			}
 			
-			if(recordPositions[i] > -1) {
+			if (this.recordPositions[i] > -1) {
 				// parse field
 				parser = this.fieldParsers[i];
 				val = this.fieldValues[i];
-				startPos = parser.parseField(bytes, startPos, numBytes, fieldDelim, val);
+				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, val);
 				// check parse result
-				if(startPos < 0) return false;
-				target.setField(recordPositions[i], val);
-				
+				if (startPos < 0) {
+					return false;
+				}
+				target.setField(this.recordPositions[i], val);
 			} else {
 				// skip field(s)
 				int skipCnt = 1;
-				while(recordPositions[i+skipCnt] == -1) {
+				while (this.recordPositions[i + skipCnt] == -1) {
 					skipCnt++;
 				}
-				startPos = skipFields(bytes, startPos, numBytes, fieldDelim, skipCnt);
-				if(startPos < 0) return false;
-				i+=(skipCnt-1);
+				startPos = skipFields(bytes, startPos, limit, this.fieldDelim, skipCnt);
+				if (startPos < 0) {
+					return false;
+				}
+				i += (skipCnt - 1);
 			}
 		}
 		return true;
 	}
 	
-	protected int skipFields(byte[] bytes, int startPos, int length, char delim, int skipCnt) {
-		
+	protected int skipFields(byte[] bytes, int startPos, int limit, char delim, int skipCnt)
+	{	
 		int i = startPos;
 		
-		while(i<length && skipCnt > 0) {
-			if(bytes[i] == delim) skipCnt--;
+		while (i < limit && skipCnt > 0) {
+			if (bytes[i] == delim) {
+				skipCnt--;
+			}
 			i++;
 		}
-		if(skipCnt == 0) {
+		if (skipCnt == 0) {
 			return i;
 		} else {
 			return -1;
 		}
-		
 	}
 
 	@Override
-	public int[] getOutputSchema() {
-		if(recordPositions == null) 
+	public int[] getOutputSchema()
+	{
+		if (this.recordPositions == null) 
 			throw new RuntimeException("RecordInputFormat must be configured before output schema is available");
 		
-		int[] outputSchema = new int[this.numFields];
+		final int[] outputSchema = new int[this.numFields];
 		int j = 0;
 		
-		for(int i=0;i<recordPositions.length;i++) {
-			if(recordPositions[i] > 0) {
-				outputSchema[j++] = recordPositions[i];
+		for(int i = 0; i < this.recordPositions.length; i++) {
+			if (this.recordPositions[i] > 0) {
+				outputSchema[j++] = this.recordPositions[i];
 			}
 		}
 		Arrays.sort(outputSchema);
-		
 		return outputSchema;
 	}
-	
 }

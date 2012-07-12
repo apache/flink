@@ -56,11 +56,6 @@ import eu.stratosphere.nephele.util.StringUtils;
 public class DiscoveryService implements Runnable {
 
 	/**
-	 * Network port of the discovery listens on for incoming connections.
-	 */
-	private static final int DISCOVERYPORT = 7001;
-
-	/**
 	 * Number of retries before discovery is considered to be failed.
 	 */
 	private static final int DISCOVERFAILURERETRIES = 10;
@@ -83,7 +78,18 @@ public class DiscoveryService implements Runnable {
 	/**
 	 * The default magic number.
 	 */
-	private static final int DEFAULT_MAGICNUMBER_VALUE = 0;
+	private static final int DEFAULT_MAGICNUMBER = 0;
+
+	/**
+	 * The key to retrieve the network port the discovery service listens on for incoming connections from the
+	 * configuration.
+	 */
+	private static final String DISCOVERYPORT_KEY = "discoveryservice.port";
+
+	/**
+	 * The default network port the discovery service listens on for incoming connections.
+	 */
+	private static final int DEFAULT_DISCOVERYPORT = 7001;
 
 	/**
 	 * Flag indicating whether to use IPv6 or not.
@@ -147,6 +153,16 @@ public class DiscoveryService implements Runnable {
 	private static DiscoveryService discoveryService = null;
 
 	/**
+	 * The network port the discovery service listens on for incoming connections.
+	 */
+	private final int discoveryPort;
+
+	/**
+	 * The magic number used to identify this instance of the discovery service.
+	 */
+	private final int magicNumber;
+
+	/**
 	 * The network address the IPC is bound to, possibly <code>null</code>.
 	 */
 	private final InetAddress ipcAddress;
@@ -181,6 +197,9 @@ public class DiscoveryService implements Runnable {
 	 *        the network port that is announced for the job manager's IPC service
 	 */
 	private DiscoveryService(final InetAddress ipcAddress, final int ipcPort) {
+
+		this.discoveryPort = GlobalConfiguration.getInteger(DISCOVERYPORT_KEY, DEFAULT_DISCOVERYPORT);
+		this.magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER);
 
 		this.ipcAddress = ipcAddress;
 		this.ipcPort = ipcPort;
@@ -242,7 +261,7 @@ public class DiscoveryService implements Runnable {
 	private void startService() throws DiscoveryException {
 
 		try {
-			this.serverSocket = new DatagramSocket(DISCOVERYPORT, this.ipcAddress);
+			this.serverSocket = new DatagramSocket(this.discoveryPort, this.ipcAddress);
 		} catch (SocketException e) {
 			throw new DiscoveryException(e.toString());
 		}
@@ -260,7 +279,9 @@ public class DiscoveryService implements Runnable {
 	 */
 	private void stopService() {
 
-		LOG.debug("Stopping discovery service on port" + DISCOVERYPORT);
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Stopping discovery service on port" + this.discoveryPort);
+		}
 
 		this.isRunning = false;
 
@@ -273,11 +294,12 @@ public class DiscoveryService implements Runnable {
 	/**
 	 * Creates a new job manager lookup request packet.
 	 * 
+	 * @param magicNumber
+	 *        the magic number to identify this discovery service
 	 * @return a new job manager lookup request packet
 	 */
-	private static DatagramPacket createJobManagerLookupRequestPacket() {
+	private static DatagramPacket createJobManagerLookupRequestPacket(final int magicNumber) {
 
-		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
 		final byte[] bytes = new byte[12];
 		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
 		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
@@ -291,11 +313,12 @@ public class DiscoveryService implements Runnable {
 	 * 
 	 * @param ipcPort
 	 *        the port of the job manager's IPC server
+	 * @param magicNumber
+	 *        the magic number to identify this discovery service
 	 * @return a new job manager lookup reply packet
 	 */
-	private static DatagramPacket createJobManagerLookupReplyPacket(final int ipcPort) {
+	private static DatagramPacket createJobManagerLookupReplyPacket(final int ipcPort, final int magicNumber) {
 
-		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
 		final byte[] bytes = new byte[16];
 		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
 		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
@@ -308,11 +331,12 @@ public class DiscoveryService implements Runnable {
 	/**
 	 * Creates a new task manager address request packet.
 	 * 
+	 * @param magicNumber
+	 *        the magic number to identify this discovery service
 	 * @return a new task manager address request packet
 	 */
-	private static DatagramPacket createTaskManagerAddressRequestPacket() {
+	private static DatagramPacket createTaskManagerAddressRequestPacket(final int magicNumber) {
 
-		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
 		final byte[] bytes = new byte[12];
 		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
 		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
@@ -326,12 +350,14 @@ public class DiscoveryService implements Runnable {
 	 * 
 	 * @param taskManagerAddress
 	 *        the address of the task manager which sent the request
+	 * @param magicNumber
+	 *        the magic number to identify this discovery service
 	 * @return a new task manager address reply packet
 	 */
-	private static DatagramPacket createTaskManagerAddressReplyPacket(final InetAddress taskManagerAddress) {
+	private static DatagramPacket createTaskManagerAddressReplyPacket(final InetAddress taskManagerAddress,
+			final int magicNumber) {
 
 		final byte[] addr = taskManagerAddress.getAddress();
-		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER_VALUE);
 		final byte[] bytes = new byte[20 + addr.length];
 		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
 		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
@@ -354,8 +380,10 @@ public class DiscoveryService implements Runnable {
 	 */
 	public static InetAddress getTaskManagerAddress(final InetAddress jobManagerAddress) throws DiscoveryException {
 
-		InetAddress taskManagerAddress = null;
+		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER);
+		final int discoveryPort = GlobalConfiguration.getInteger(DISCOVERYPORT_KEY, DEFAULT_DISCOVERYPORT);
 
+		InetAddress taskManagerAddress = null;
 		DatagramSocket socket = null;
 
 		try {
@@ -369,9 +397,9 @@ public class DiscoveryService implements Runnable {
 
 			for (int retries = 0; retries < DISCOVERFAILURERETRIES; retries++) {
 
-				final DatagramPacket addressRequest = createTaskManagerAddressRequestPacket();
+				final DatagramPacket addressRequest = createTaskManagerAddressRequestPacket(magicNumber);
 				addressRequest.setAddress(jobManagerAddress);
-				addressRequest.setPort(DISCOVERYPORT);
+				addressRequest.setPort(discoveryPort);
 
 				LOG.debug("Sending Task Manager address request to " + addressRequest.getSocketAddress());
 				socket.send(addressRequest);
@@ -383,7 +411,7 @@ public class DiscoveryService implements Runnable {
 					continue;
 				}
 
-				if (!isPacketForUs(responsePacket)) {
+				if (!isPacketForUs(responsePacket, magicNumber)) {
 					LOG.warn("Received packet which is not destined to this Nephele setup");
 					continue;
 				}
@@ -424,8 +452,10 @@ public class DiscoveryService implements Runnable {
 	 */
 	public static InetSocketAddress getJobManagerAddress() throws DiscoveryException {
 
-		InetSocketAddress jobManagerAddress = null;
+		final int magicNumber = GlobalConfiguration.getInteger(MAGICNUMBER_KEY, DEFAULT_MAGICNUMBER);
+		final int discoveryPort = GlobalConfiguration.getInteger(DISCOVERYPORT_KEY, DEFAULT_DISCOVERYPORT);
 
+		InetSocketAddress jobManagerAddress = null;
 		DatagramSocket socket = null;
 
 		try {
@@ -446,11 +476,11 @@ public class DiscoveryService implements Runnable {
 
 			for (int retries = 0; retries < DISCOVERFAILURERETRIES; retries++) {
 
-				final DatagramPacket lookupRequest = createJobManagerLookupRequestPacket();
+				final DatagramPacket lookupRequest = createJobManagerLookupRequestPacket(magicNumber);
 
 				for (InetAddress broadcast : targetAddresses) {
 					lookupRequest.setAddress(broadcast);
-					lookupRequest.setPort(DISCOVERYPORT);
+					lookupRequest.setPort(discoveryPort);
 					LOG.debug("Sending discovery request to " + lookupRequest.getSocketAddress());
 					socket.send(lookupRequest);
 				}
@@ -462,7 +492,7 @@ public class DiscoveryService implements Runnable {
 					continue;
 				}
 
-				if (!isPacketForUs(responsePacket)) {
+				if (!isPacketForUs(responsePacket, magicNumber)) {
 					LOG.debug("Received packet which is not destined to this Nephele setup");
 					continue;
 				}
@@ -659,7 +689,7 @@ public class DiscoveryService implements Runnable {
 			try {
 				this.serverSocket.receive(requestPacket);
 
-				if (!isPacketForUs(requestPacket)) {
+				if (!isPacketForUs(requestPacket, this.magicNumber)) {
 					LOG.debug("Received request packet which is not destined to this Nephele setup");
 					continue;
 				}
@@ -689,7 +719,8 @@ public class DiscoveryService implements Runnable {
 				if (packetTypeID == JM_LOOKUP_REQUEST_ID) {
 
 					LOG.debug("Received job manager lookup request from " + requestPacket.getSocketAddress());
-					final DatagramPacket responsePacket = createJobManagerLookupReplyPacket(this.ipcPort);
+					final DatagramPacket responsePacket = createJobManagerLookupReplyPacket(this.ipcPort,
+						this.magicNumber);
 					responsePacket.setAddress(requestPacket.getAddress());
 					responsePacket.setPort(requestPacket.getPort());
 
@@ -698,7 +729,7 @@ public class DiscoveryService implements Runnable {
 				} else if (packetTypeID == TM_ADDRESS_REQUEST_ID) {
 					LOG.debug("Received task manager address request from " + requestPacket.getSocketAddress());
 					final DatagramPacket responsePacket = createTaskManagerAddressReplyPacket(requestPacket
-						.getAddress());
+						.getAddress(), this.magicNumber);
 					responsePacket.setAddress(requestPacket.getAddress());
 					responsePacket.setPort(requestPacket.getPort());
 
@@ -765,10 +796,12 @@ public class DiscoveryService implements Runnable {
 	 * 
 	 * @param packet
 	 *        the packet to check
+	 * @param magicNumber
+	 *        the magic number identifying the discovery service
 	 * @return <code>true</code> if the packet carries the magic number expected by the local service, otherwise
 	 *         <code>false</code>
 	 */
-	private static boolean isPacketForUs(final DatagramPacket packet) {
+	private static boolean isPacketForUs(final DatagramPacket packet, final int magicNumber) {
 
 		final byte[] data = packet.getData();
 
@@ -780,8 +813,7 @@ public class DiscoveryService implements Runnable {
 			return false;
 		}
 
-		if (byteArrayToInteger(data, MAGIC_NUMBER_OFFSET) != GlobalConfiguration.getInteger(MAGICNUMBER_KEY,
-			DEFAULT_MAGICNUMBER_VALUE)) {
+		if (byteArrayToInteger(data, MAGIC_NUMBER_OFFSET) != magicNumber) {
 			return false;
 		}
 

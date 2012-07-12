@@ -6,6 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
@@ -18,7 +19,6 @@ import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.BinaryBooleanExpression;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
@@ -65,7 +65,7 @@ public class Join extends CompositeOperator<Join> {
 			throw new IllegalArgumentException("No join condition given");
 
 		this.joinCondition = joinCondition;
-		binaryConditions = expressions;
+		this.binaryConditions = expressions;
 	}
 
 	public Join withResultProjection(EvaluationExpression resultProjection) {
@@ -89,7 +89,7 @@ public class Join extends CompositeOperator<Join> {
 	}
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final int numInputs = this.getInputs().size();
 
 		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
@@ -137,10 +137,10 @@ public class Join extends CompositeOperator<Join> {
 
 			final TwoSourceJoin lastJoin = joins.get(joins.size() - 1);
 			module.getOutput(0).setInput(0,
-				new Projection().withInputs(lastJoin).withTransformation(getResultProjection()));
+				new Projection().withInputs(lastJoin).withResultProjection(getResultProjection()));
 		}
 
-		return module.asElementary();
+		return module.asElementary(context);
 	}
 
 	@Override
@@ -170,7 +170,7 @@ public class Join extends CompositeOperator<Join> {
 
 	private List<TwoSourceJoin> getInitialJoinOrder(SopremoModule module) {
 		final List<TwoSourceJoin> joins = new ArrayList<TwoSourceJoin>();
-		for (final BinaryBooleanExpression expression : binaryConditions)
+		for (final BinaryBooleanExpression expression : this.binaryConditions)
 			joins.add(this.getTwoSourceJoinForExpression(expression, module));
 
 		// TODO: add some kind of optimization?

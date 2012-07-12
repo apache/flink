@@ -20,6 +20,7 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.testing.Equaler.SafeEquals;
 
 /**
  * Simple matching algorithm that returns unmatched values but allows a value from one bag to be matched several times
@@ -42,7 +43,7 @@ public abstract class AbstractValueMatcher implements FuzzyValueMatcher {
 
 			List<ValueSimilarity<?>> sims = similarities.get(index);
 			if (sims == null) {
-				if (!actual.equals(expected))
+				if (!SafeEquals.SafeEquals.equal(actual, expected) )
 					return ValueSimilarity.NO_MATCH;
 				continue;
 			}

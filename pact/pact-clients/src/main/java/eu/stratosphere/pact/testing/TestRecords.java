@@ -45,10 +45,13 @@ import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FormatUtil;
 import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -287,7 +290,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 				if (stackTrace[index].getClassName().contains("Test"))
 					testName.append(stackTrace[index].toString());
 			// instantiate a sort-merger
-			AbstractTask parentTask = new ReduceTask() {
+			AbstractTask parentTask = new ReduceTask<PactRecord, PactRecord>() {
 				@Override
 				public String toString() {
 					return "TestPair Sorter " + testName;
@@ -297,11 +300,12 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 			if (info == null)
 				return inputFileIterator;
 			@SuppressWarnings("unchecked")
-			final UnilateralSortMerger sortMerger = new UnilateralSortMerger(
-				MockTaskManager.INSTANCE.getMemoryManager(), MockTaskManager.INSTANCE.getIoManager(), totalMemory,
-				numFileHandles, info.comparators.toArray(new Comparator[0]), info.sortKeys.toIntArray(),
-				info.keyClasses.toArray(new Class[0]), new TestPairsReader(inputFileIterator), parentTask, 0.7f);
-
+			final PactRecordComparator pactRecordComparator = new PactRecordComparator(info.sortKeys.toIntArray(),
+				info.keyClasses.toArray(new Class[0]));
+			final UnilateralSortMerger<PactRecord> sortMerger =
+				new UnilateralSortMerger<PactRecord>(MockTaskManager.INSTANCE.getMemoryManager(),
+					MockTaskManager.INSTANCE.getIoManager(), new TestPairsReader(inputFileIterator), parentTask,
+					PactRecordSerializer.get(), pactRecordComparator, totalMemory, numFileHandles, 0.7f);
 			this.closableManager.add(sortMerger);
 
 			// obtain and return a grouped iterator from the sort-merger

@@ -31,7 +31,7 @@ public class LineItemMap extends MapStub
 	 *
 	 */
 	@Override
-	public void map(PactRecord record, Collector out) throws Exception
+	public void map(PactRecord record, Collector<PactRecord> out) throws Exception
 	{
 		Tuple inputTuple = record.getField(1, Tuple.class);
 		

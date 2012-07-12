@@ -25,40 +25,51 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.pact.common.io.InputFormat;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.shipping.OutputCollector;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
-import eu.stratosphere.pact.runtime.task.util.OutputCollector;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
  * DataSourceTask which is executed by a Nephele task manager. The task reads data and uses an 
  * {@link InputFormat} to create records from the input.
  * 
- * @see eu.stratosphere.pact.common.io.InputFormat
+ * @see eu.stratosphere.pact.common.generic.io.InputFormat
  * 
  * @author Stephan Ewen
  * @author Fabian Hueske
  * @author Moritz Kaufmann
  */
 
-public class DataSourceTask extends AbstractInputTask<InputSplit>
+public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 {
 	// Obtain DataSourceTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSourceTask.class);
 
 	// Output collector
-	private Collector output;
+	private Collector<OT> output;
 
 	// InputFormat instance
-	private InputFormat<InputSplit> format;
+	private InputFormat<OT, InputSplit> format;
 
+	// type serializer for the input
+	private TypeSerializer<OT> serializer;
+	
 	// Task configuration
 	private TaskConfig config;
 	
-	private ArrayList<ChainedTask> chainedTasks;
+	// tasks chained to this data source
+	private ArrayList<ChainedTask<?, ?>> chainedTasks;
+	
+	private ClassLoader userCodeClassLoader;
 
 	// cancel flag
 	private volatile boolean taskCanceled = false;
@@ -72,17 +83,24 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Start registering input and output"));
 
-		ClassLoader cl;
-		try {
-			cl = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-		}
-		catch (IOException ioe) {
-			throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " + 
-						getEnvironment().getJobID(), ioe);
+		if (this.userCodeClassLoader == null) {
+			try {
+				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
+			}
+			catch (IOException ioe) {
+				throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " + 
+							getEnvironment().getJobID(), ioe);
+			}
 		}
 		
-		initInputFormat(cl);
-		initOutputs(cl);
+		initInputFormat(this.userCodeClassLoader);
+		
+		try {
+			initOutputs(this.userCodeClassLoader);
+		} catch (Exception ex) {
+			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " + 
+				ex.getMessage(), ex);
+		}
 
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Finished registering input and output"));
@@ -113,7 +131,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 				if (LOG.isDebugEnabled())
 					LOG.debug(getLogString("Opening input split " + split.toString()));
 				
-				final InputFormat<InputSplit> format = this.format;
+				final InputFormat<OT, InputSplit> format = this.format;
 			
 				// open input format
 				format.open(split);
@@ -121,42 +139,85 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 				if (LOG.isDebugEnabled())
 					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
 	
-				final PactRecord record = new PactRecord();
+				final OT record = this.serializer.createInstance();
 				
-				// we make a case distinction here for the common cases, in order to help
-				// JIT method inlining
-				if (this.output instanceof OutputCollector)
-				{
-					final OutputCollector output = (OutputCollector) this.output;
+				// ======= special-case the PactRecord, to help the JIT and avoid some casts ======
+				if (record.getClass() == PactRecord.class) {
+					final PactRecord pactRecord = (PactRecord) record;
+					@SuppressWarnings("unchecked")
+					final InputFormat<PactRecord, InputSplit> inFormat = (InputFormat<PactRecord, InputSplit>) format;
 					
-					// as long as there is data to read
-					while (!this.taskCanceled && !format.reachedEnd()) {
-						// build next pair and ship pair if it is valid
-						if (format.nextRecord(record)) {
-							output.collect(record);
+					if (this.output instanceof PactRecordOutputCollector)
+					{
+						// PactRecord going directly into network channels
+						final PactRecordOutputCollector output = (PactRecordOutputCollector) this.output;
+						while (!this.taskCanceled && !inFormat.reachedEnd()) {
+							// build next pair and ship pair if it is valid
+							if (inFormat.nextRecord(pactRecord)) {
+								output.collect(pactRecord);
+							}
+						}
+					} else if (this.output instanceof ChainedMapTask) {
+						// PactRecord going to a chained map task
+						@SuppressWarnings("unchecked")
+						final ChainedMapTask<PactRecord, ?> output = (ChainedMapTask<PactRecord, ?>) this.output;
+						
+						// as long as there is data to read
+						while (!this.taskCanceled && !inFormat.reachedEnd()) {
+							// build next pair and ship pair if it is valid
+							if (inFormat.nextRecord(pactRecord)) {
+								output.collect(pactRecord);
+							}
+						}
+					} else {
+						// PactRecord going to some other chained task
+						@SuppressWarnings("unchecked")
+						final Collector<PactRecord> output = (Collector<PactRecord>) this.output;
+						// as long as there is data to read
+						while (!this.taskCanceled && !inFormat.reachedEnd()) {
+							// build next pair and ship pair if it is valid
+							if (inFormat.nextRecord(pactRecord)) {
+								output.collect(pactRecord);
+							}
 						}
 					}
-				}
-				else if (this.output instanceof ChainedMapTask)
-				{
-					final ChainedMapTask output = (ChainedMapTask) this.output;
-					
-					// as long as there is data to read
-					while (!this.taskCanceled && !format.reachedEnd()) {
-						// build next pair and ship pair if it is valid
-						if (format.nextRecord(record)) {
-							output.collect(record);
+				} else {
+					// general types. we make a case distinction here for the common cases, in order to help
+					// JIT method inlining
+					if (this.output instanceof OutputCollector)
+					{
+						final OutputCollector<OT> output = (OutputCollector<OT>) this.output;
+						
+						// as long as there is data to read
+						while (!this.taskCanceled && !format.reachedEnd()) {
+							// build next pair and ship pair if it is valid
+							if (format.nextRecord(record)) {
+								output.collect(record);
+							}
 						}
 					}
-				}
-				else {
-					final Collector output = this.output;
-					
-					// as long as there is data to read
-					while (!this.taskCanceled && !format.reachedEnd()) {
-						// build next pair and ship pair if it is valid
-						if (format.nextRecord(record)) {
-							output.collect(record);
+					else if (this.output instanceof ChainedMapTask)
+					{
+						@SuppressWarnings("unchecked")
+						final ChainedMapTask<OT, ?> output = (ChainedMapTask<OT, ?>) this.output;
+						
+						// as long as there is data to read
+						while (!this.taskCanceled && !format.reachedEnd()) {
+							// build next pair and ship pair if it is valid
+							if (format.nextRecord(record)) {
+								output.collect(record);
+							}
+						}
+					}
+					else {
+						final Collector<OT> output = this.output;
+						
+						// as long as there is data to read
+						while (!this.taskCanceled && !format.reachedEnd()) {
+							// build next pair and ship pair if it is valid
+							if (format.nextRecord(record)) {
+								output.collect(record);
+							}
 						}
 					}
 				}
@@ -211,6 +272,16 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		if (LOG.isWarnEnabled())
 			LOG.warn(getLogString("Cancelling PACT code"));
 	}
+	
+	/**
+	 * Sets the class-loader to be used to load the user code.
+	 * 
+	 * @param cl The class-loader to be used to load the user code.
+	 */
+	public void setUserCodeClassLoader(ClassLoader cl)
+	{
+		this.userCodeClassLoader = cl;
+	}
 
 	/**
 	 * Initializes the InputFormat implementation and configuration.
@@ -224,9 +295,26 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		// obtain task configuration (including stub parameters)
 		this.config = new TaskConfig(getTaskConfiguration());
 
+		// instantiate the stub
 		@SuppressWarnings("unchecked")
-		Class<InputFormat<InputSplit>> superClass = (Class<InputFormat<InputSplit>>) (Class<?>) InputFormat.class;
+		Class<InputFormat<OT, InputSplit>> superClass = (Class<InputFormat<OT, InputSplit>>) (Class<?>) InputFormat.class;
 		this.format = AbstractPactTask.instantiateUserCode(this.config, cl, superClass);
+		
+		// get the factory for the type serializer
+		try {
+			final Class<? extends TypeSerializerFactory<OT>> serializerFactoryClass = this.config.getSerializerFactoryForOutput(cl);
+			if (serializerFactoryClass == null) {
+				@SuppressWarnings("unchecked")
+				TypeSerializer<OT> ps = (TypeSerializer<OT>) PactRecordSerializer.get();
+				this.serializer = ps;
+			} else {
+				TypeSerializerFactory<OT> serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
+				this.serializer = serializerFactory.getSerializer();
+			}
+			
+		} catch (ClassNotFoundException cnfex) {
+			throw new RuntimeException("The class registered as output serializer factory could not be loaded.", cnfex);
+		}
 		
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
 		try {
@@ -235,15 +323,17 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 		catch (Throwable t) {
 			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
 		}
+		
+
 	}
 
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategy.
 	 */
-	private void initOutputs(ClassLoader cl)
+	private void initOutputs(ClassLoader cl) throws Exception
 	{
-		this.chainedTasks = new ArrayList<ChainedTask>();
+		this.chainedTasks = new ArrayList<ChainedTask<?, ?>>();
 		this.output = AbstractPactTask.initOutputs(this, cl, this.config, this.chainedTasks);
 	}
 	
@@ -268,6 +358,7 @@ public class DataSourceTask extends AbstractInputTask<InputSplit>
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInputTask#getInputSplitType()
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public Class<InputSplit> getInputSplitType()
 	{

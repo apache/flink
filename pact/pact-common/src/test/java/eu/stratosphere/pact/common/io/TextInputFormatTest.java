@@ -103,8 +103,8 @@ public class TextInputFormatTest
 		int bufferSize = 5;
 		format.setBufferSize(bufferSize);
 		format.open(split);
-		assertEquals(0, format.start);
-		assertEquals(myString.length() - bufferSize, format.length);
+		assertEquals(0, format.splitStart);
+		assertEquals(myString.length() - bufferSize, format.splitLength);
 		assertEquals(bufferSize, format.getBufferSize());
 	}
 
@@ -183,8 +183,9 @@ public class TextInputFormatTest
 		 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
 		 */
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
-			String theRecord = new String(bytes, 0, numBytes);
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
+		{
+			String theRecord = new String(bytes, offset, numBytes);
 			
 			str1.setValue(theRecord.substring(0, theRecord.indexOf('|')));
 			str2.setValue(theRecord.substring(theRecord.indexOf('|') + 1));

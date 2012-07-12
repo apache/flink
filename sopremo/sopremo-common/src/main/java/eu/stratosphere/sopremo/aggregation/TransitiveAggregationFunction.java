@@ -34,8 +34,8 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 
 	@Override
 	public IJsonNode initialize(IJsonNode aggregationTarget) {
-		aggregationTarget = SopremoUtil.reinitializeTarget(aggregationTarget, this.initialAggregate.getClass());
-		aggregationTarget.copyValueFrom(aggregationTarget);
+		aggregationTarget = SopremoUtil.ensureType(aggregationTarget, this.initialAggregate.getClass());
+		aggregationTarget.copyValueFrom(this.initialAggregate);
 		return aggregationTarget;
 	}
 }

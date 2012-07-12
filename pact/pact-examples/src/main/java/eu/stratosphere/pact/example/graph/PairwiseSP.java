@@ -312,9 +312,9 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(RDFTripleInFormat.class);
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
-			
-			String lineStr = new String(bytes);
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
+		{	
+			String lineStr = new String(bytes, offset, numBytes);
 			// replace reduce whitespaces and trim
 			lineStr = lineStr.replaceAll("\\s+", " ").trim();
 			// build whitespace tokenizer
@@ -358,14 +358,14 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 	 * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
 	 * @author Moritz Kaufmann (moritz.kaufmann@campus.tu-berlin.de)
 	 */
-	public static class PathInFormat extends DelimitedInputFormat{
-
+	public static class PathInFormat extends DelimitedInputFormat
+	{
 		private static final Log LOG = LogFactory.getLog(PathInFormat.class);
 
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
-
-			String lineStr = new String(bytes);
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
+		{
+			String lineStr = new String(bytes, offset, numBytes);
 			StringTokenizer st = new StringTokenizer(lineStr, "|");
 			
 			// path must have at least 4 tokens (fromNode, toNode, length, hopCnt)
@@ -442,7 +442,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(ProjectPathStart.class);
 
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			Edge e = record.getField(0, Edge.class);
 			LOG.debug("Emit: [" + e.getFirst() + "," + record.getField(1, Path.class) + "]");
 			
@@ -463,7 +463,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private static final Log LOG = LogFactory.getLog(ProjectPathEnd.class);
 
 		@Override
-		public void map(PactRecord record, Collector out) throws Exception {
+		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			Edge e = record.getField(0, Edge.class);
 			LOG.debug("Emit: [" + e.getSecond() + "," + record.getField(1, Path.class) + "]");
 			
@@ -488,7 +488,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private final PactRecord outputRecord = new PactRecord();
 		
 		@Override
-		public void match(PactRecord rec1, PactRecord rec2, Collector out) throws Exception {
+		public void match(PactRecord rec1, PactRecord rec2, Collector<PactRecord> out) throws Exception {
 			PactString matchNode = rec1.getField(0, PactString.class);
 			Path path1 = rec1.getField(1, Path.class);
 			Path path2 = rec2.getField(1, Path.class);
@@ -543,7 +543,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private final PactRecord outputRecord = new PactRecord();
 		
 		@Override
-		public void coGroup(Iterator<PactRecord> inputRecords, Iterator<PactRecord> concatRecords, Collector out) {
+		public void coGroup(Iterator<PactRecord> inputRecords, Iterator<PactRecord> concatRecords, Collector<PactRecord> out) {
 			// init minimum length and minimum path
 			int minLength = Integer.MAX_VALUE;
 			List<Path> shortestPaths = new ArrayList<Path>();

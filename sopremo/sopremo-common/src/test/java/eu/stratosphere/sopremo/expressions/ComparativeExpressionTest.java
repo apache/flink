@@ -7,9 +7,9 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 public class ComparativeExpressionTest extends EvaluableExpressionTest<ComparativeExpression> {

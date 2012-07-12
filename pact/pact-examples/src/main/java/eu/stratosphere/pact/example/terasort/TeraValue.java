@@ -48,8 +48,8 @@ public final class TeraValue implements Value {
 	 * @param srcBuf
 	 *        the source buffer to read the value from
 	 */
-	public TeraValue(final byte[] srcBuf) {
-		System.arraycopy(srcBuf, TeraKey.KEY_SIZE, this.value, 0, VALUE_SIZE);
+	public TeraValue(final byte[] srcBuf, int offset) {
+		System.arraycopy(srcBuf, offset, this.value, 0, VALUE_SIZE);
 	}
 
 	/**

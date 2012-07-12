@@ -37,13 +37,12 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("javadoc")
-public class DataSinkTaskTest extends TaskTestBase {
-
+public class DataSinkTaskTest extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(DataSinkTaskTest.class);
 	
 	String tempTestPath = System.getProperty("java.io.tmpdir")+"/dst_test";
@@ -62,10 +61,10 @@ public class DataSinkTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.initEnvironment(1024 * 1024);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		
-		DataSinkTask testTask = new DataSinkTask();
+		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
 		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		
@@ -231,10 +230,10 @@ public class DataSinkTaskTest extends TaskTestBase {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.initEnvironment(1024 * 1024);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 
-		DataSinkTask testTask = new DataSinkTask();
+		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
 		Configuration stubParams = new Configuration();
 		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
@@ -261,10 +260,10 @@ public class DataSinkTaskTest extends TaskTestBase {
 	@Test
 	public void testCancelDataSinkTask() {
 		
-		super.initEnvironment(1);
+		super.initEnvironment(1024 * 1024);
 		super.addInput(new InfiniteInputIterator(), 1);
 		
-		final DataSinkTask testTask = new DataSinkTask();
+		final DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
 		Configuration stubParams = new Configuration();
 		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());

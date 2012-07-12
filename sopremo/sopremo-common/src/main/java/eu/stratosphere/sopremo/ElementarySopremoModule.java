@@ -60,7 +60,7 @@ public class ElementarySopremoModule extends SopremoModule {
 	 * @see eu.stratosphere.sopremo.SopremoModule#asElementary()
 	 */
 	@Override
-	public ElementarySopremoModule asElementary() {
+	public ElementarySopremoModule asElementary(EvaluationContext context) {
 		return this;
 	}
 

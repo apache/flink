@@ -364,6 +364,21 @@ public class JobClient {
 	}
 
 	/**
+	 * Returns the recommended interval in seconds in which a client
+	 * is supposed to poll for progress information.
+	 * 
+	 * @return the interval in seconds
+	 * @throws IOException
+	 *         thrown if an error occurred while transmitting the request
+	 */
+	public int getRecommendedPollingInterval() throws IOException {
+
+		synchronized (this.jobSubmitClient) {
+			return this.jobSubmitClient.getRecommendedPollingInterval().getValue();
+		}
+	}
+
+	/**
 	 * Writes the given error message to the log and throws it in an {@link IOException}.
 	 * 
 	 * @param errorMessage

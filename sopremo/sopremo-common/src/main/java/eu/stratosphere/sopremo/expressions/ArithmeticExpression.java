@@ -107,7 +107,6 @@ public class ArithmeticExpression extends EvaluationExpression {
 		this.operator = operator;
 		this.firstOperand = op1;
 		this.secondOperand = op2;
-		this.expectedTarget = INumericNode.class;
 	}
 
 	@Override

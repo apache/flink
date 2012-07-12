@@ -17,10 +17,9 @@ package eu.stratosphere.pact.runtime.task.chaining;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.pact.common.generic.GenericMapper;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.AbstractPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -28,11 +27,11 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 /**
  * @author Stephan Ewen
  */
-public class ChainedMapTask implements ChainedTask
+public class ChainedMapTask<IT, OT> implements ChainedTask<IT, OT>
 {
-	private MapStub mapper;
+	private GenericMapper<IT, OT> mapper;
 	
-	private Collector collector;
+	private Collector<OT> collector;
 	
 	private TaskConfig config;
 	
@@ -47,13 +46,16 @@ public class ChainedMapTask implements ChainedTask
 	 */
 	@Override
 	public void setup(TaskConfig config, String taskName, AbstractInvokable parent, 
-			ClassLoader userCodeClassLoader, Collector output)
+			ClassLoader userCodeClassLoader, Collector<OT> output)
 	{
 		this.config = config;
 		this.taskName = taskName;
 		this.parent = parent;
 		this.collector = output;
-		this.mapper = AbstractPactTask.instantiateUserCode(config, userCodeClassLoader, MapStub.class);
+		
+		@SuppressWarnings("unchecked")
+		final GenericMapper<IT, OT> mapper = AbstractPactTask.instantiateUserCode(config, userCodeClassLoader, GenericMapper.class);
+		this.mapper = mapper;
 	}
 	
 	/* (non-Javadoc)
@@ -113,7 +115,7 @@ public class ChainedMapTask implements ChainedTask
 	 * @see eu.stratosphere.pact.common.stubs.Collector#collect(eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public void collect(PactRecord record)
+	public void collect(IT record)
 	{
 		try {
 			this.mapper.map(record, this.collector);

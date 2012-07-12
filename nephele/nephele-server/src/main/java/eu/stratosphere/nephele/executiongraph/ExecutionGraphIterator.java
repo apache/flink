@@ -23,10 +23,6 @@ import java.util.Stack;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
-import eu.stratosphere.nephele.types.Record;
-
 /**
  * This class provides an implementation of the {@link Iterator} interface which allows to
  * traverse an execution graph and visit every reachable vertex exactly once. The order
@@ -360,19 +356,18 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 				}
 
 				// No more outgoing edges to consider
-				if (te.getCurrentGate() >= te.getExecutionVertex().getEnvironment().getNumberOfOutputGates()) {
+				if (te.getCurrentGate() >= te.getExecutionVertex().getNumberOfOutputGates()) {
 					break;
 				}
 
-				if (te.getCurrentChannel() >= te.getExecutionVertex().getEnvironment().getOutputGate(
-					te.getCurrentGate()).getNumberOfOutputChannels()) {
+				if (te.getCurrentChannel() >= te.getExecutionVertex().getOutputGate(te.getCurrentGate())
+					.getNumberOfEdges()) {
 					te.increaseCurrentGate();
 					te.resetCurrentChannel();
 				} else {
-					final AbstractOutputChannel<? extends Record> outputChannel = te.getExecutionVertex()
-						.getEnvironment().getOutputGate(te.getCurrentGate()).getOutputChannel(te.getCurrentChannel());
-					final ExecutionVertex tmp = this.executionGraph.getVertexByChannelID(outputChannel
-						.getConnectedChannelID());
+					final ExecutionEdge outputChannel = te.getExecutionVertex().getOutputGate(te.getCurrentGate())
+						.getEdge(te.getCurrentChannel());
+					final ExecutionVertex tmp = outputChannel.getInputGate().getVertex();
 					if (tmp == null) {
 						LOG.error("Inconsistency in vertex map found (forward)!");
 					}
@@ -387,19 +382,17 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 			while (true) {
 
 				// No more outgoing edges to consider
-				if (te.getCurrentGate() >= te.getExecutionVertex().getEnvironment().getNumberOfInputGates()) {
+				if (te.getCurrentGate() >= te.getExecutionVertex().getNumberOfInputGates()) {
 					break;
 				}
 
-				if (te.getCurrentChannel() >= te.getExecutionVertex().getEnvironment()
-					.getInputGate(te.getCurrentGate()).getNumberOfInputChannels()) {
+				if (te.getCurrentChannel() >= te.getExecutionVertex().getInputGate(te.getCurrentGate())
+					.getNumberOfEdges()) {
 					te.increaseCurrentGate();
 					te.resetCurrentChannel();
 				} else {
-					final AbstractInputChannel<? extends Record> inputChannel = te.getExecutionVertex()
-						.getEnvironment().getInputGate(te.getCurrentGate()).getInputChannel(te.getCurrentChannel());
-					final ExecutionVertex tmp = this.executionGraph.getVertexByChannelID(inputChannel
-						.getConnectedChannelID());
+					final ExecutionEdge inputChannel = te.getExecutionVertex().getInputGate(te.getCurrentGate()).getEdge(te.getCurrentChannel());
+					final ExecutionVertex tmp = inputChannel.getOutputGate().getVertex();
 					if (tmp == null) {
 						LOG.error("Inconsistency in vertex map found (backward)!");
 					}
@@ -448,7 +441,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	 */
 	@Override
 	public void remove() {
-		
+
 		throw new UnsupportedOperationException("The method remove is not implemented for this type of iterator");
 	}
 

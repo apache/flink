@@ -15,12 +15,19 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import java.io.EOFException;
+import java.util.List;
+
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.io.SpillingBuffer;
 
 /**
  * Temp task which is executed by a Nephele task manager. The task has a single
@@ -30,17 +37,17 @@ import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIt
  * they are read from disk and forwarded. The TempTask is automatically inserted by the PACT Compiler to avoid deadlocks
  * in Nephele's dataflow.
  * 
- * @author Fabian Hueske
- * @author Matthias Ringwald
+ * @author Stephan Ewen
  */
-public class TempTask extends AbstractPactTask<Stub>
+public class TempTask<T> extends AbstractPactTask<Stub, T>
 {
 	// the minimal amount of memory required for the temp to work
 	private static final long MIN_REQUIRED_MEMORY = 512 * 1024;
 
-	// spilling thread
-	private SpillingResettableMutableObjectIterator tempIterator;
+	// materialization barrier
+	private SpillingBuffer buffer;
 	
+	private List<MemorySegment> memory;
 
 	// ------------------------------------------------------------------------
 
@@ -60,6 +67,14 @@ public class TempTask extends AbstractPactTask<Stub>
 	public Class<Stub> getStubType() {
 		return Stub.class;
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
+	 */
+	@Override
+	public boolean requiresComparatorOnInput() {
+		return false;
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
@@ -75,16 +90,11 @@ public class TempTask extends AbstractPactTask<Stub>
 				". Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
 		}
 
-		// obtain the TaskManager's MemoryManager
 		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
-		// obtain the TaskManager's IOManager
 		final IOManager ioManager = getEnvironment().getIOManager();
 		
-		tempIterator = new SpillingResettableMutableObjectIterator(memoryManager, ioManager, 
-				inputs[0], availableMemory, this);
-		
-		tempIterator.open();
-		
+		this.memory = memoryManager.allocatePages(this, availableMemory);
+		this.buffer = new SpillingBuffer(ioManager, new ListMemorySegmentSource(this.memory), memoryManager.getPageSize());
 	}
 
 
@@ -98,39 +108,43 @@ public class TempTask extends AbstractPactTask<Stub>
 			LOG.debug(getLogString("Preprocessing done, iterator obtained."));
 
 		// cache references on the stack
-		final SpillingResettableMutableObjectIterator iter = this.tempIterator;
-		final Collector output = this.output;
+		final MutableObjectIterator<T> input = getInput(0);
+		final SpillingBuffer buffer = this.buffer;
+		final TypeSerializer<T> serializer = getInputSerializer(0);
+		final Collector<T> output = this.output;
 		
-		PactRecord record = new PactRecord();
-		// run stub implementation
-		while (this.running && iter.next(record))
-		{
-			// forward pair to output writer
-			output.collect(record);
+		final T record = serializer.createInstance();
+		
+		// first read everything
+		while (this.running && input.next(record)) {
+			serializer.serialize(record, buffer);
 		}
-			
+		
+		// forward pair to output writer
+		final DataInputView inView = buffer.flip();
+		try {
+			while (true) {
+				serializer.deserialize(record, inView);
+				output.collect(record);
+			}
+		} catch (EOFException eofex) {
+			// all good, we are done
+		}
 	}
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
 	 */
 	@Override
-	public void cleanup() throws Exception {
-		if (this.tempIterator != null) {
-			this.tempIterator.close();
-			this.tempIterator = null;
-		}
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cancel()
-	 */
-	@Override
-	public void cancel() throws Exception
+	public void cleanup() throws Exception
 	{
-		super.cancel();
-		if (this.tempIterator != null) {
-			tempIterator.abort();
+		final MemoryManager memManager = getEnvironment().getMemoryManager();
+		
+		if (this.buffer != null) {	
+			memManager.release(this.buffer.close());
+			this.buffer = null;
 		}
+		
+		memManager.release(this.memory);
 	}
 }

@@ -116,7 +116,7 @@ case $STARTSTOP in
                                 exit 1
                         fi
                 fi
-                echo starting PACT Webfrontend
+                echo Starting PACT Webfrontend
 		$JAVA_HOME/bin/java $JVM_ARGS $log_setting -classpath $PACT_WF_CLASSPATH eu.stratosphere.pact.client.WebFrontend -configDir $NEPHELE_CONF_DIR &
 		echo $! > $pid
 	;;
@@ -124,13 +124,13 @@ case $STARTSTOP in
         (stop)
                 if [ -f $pid ]; then
                         if kill -0 `cat $pid` > /dev/null 2>&1; then
-                                echo stopping PACT Webfrontend
+                                echo Stopping PACT Webfrontend
                                 kill `cat $pid`
                         else
-                                echo no PACT Webfrontend to stop
+                                echo No PACT Webfrontend to stop
                         fi
                 else
-                        echo no PACT Webfrontend to stop
+                        echo No PACT Webfrontend to stop
                 fi
         ;;
 

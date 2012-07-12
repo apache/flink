@@ -34,7 +34,6 @@ import org.powermock.core.classloader.annotations.SuppressStaticInitializationFo
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
-import eu.stratosphere.nephele.io.DefaultRecordDeserializer;
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
@@ -65,9 +64,6 @@ public class FileOutputChannelTest {
 
 	@Mock
 	ChannelID connected;
-
-	@Mock
-	DefaultRecordDeserializer<StringRecord> deserializer;
 
 	/**
 	 * Set up mocks
@@ -121,8 +117,8 @@ public class FileOutputChannelTest {
 		when(this.uncompressedDataBuffer.remaining()).thenReturn(0);
 
 		// setup test-object
-		FileOutputChannel<StringRecord> fileOutputChannel = new FileOutputChannel<StringRecord>(outGate, 1, null,
-			CompressionLevel.NO_COMPRESSION);
+		FileOutputChannel<StringRecord> fileOutputChannel = new FileOutputChannel<StringRecord>(outGate, 1,
+			new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION);
 		fileOutputChannel.setByteBufferedOutputChannelBroker(outputBroker);
 
 		Whitebox.setInternalState(fileOutputChannel, "serializationBuffer", this.serializationBuffer);

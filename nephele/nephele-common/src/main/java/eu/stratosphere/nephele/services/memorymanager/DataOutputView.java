@@ -21,8 +21,8 @@ import java.io.IOException;
 
 
 /**
- * This interface defines a view over a {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment} that
- * can be used to sequentially write to the memory.
+ * This interface defines a view over some memory that can be used to sequentially write contents to the memory.
+ * The view is typically backed by one or more {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment}.
  *
  * @author Alexander Alexandrov
  * @author Stephan Ewen
@@ -30,31 +30,24 @@ import java.io.IOException;
 public interface DataOutputView extends DataOutput
 {
 	/**
-	 * Gets the current read position.
+	 * Skips {@code numBytes} bytes memory. If some program reads the memory that was skipped over, the
+	 * results are undefined. 
 	 * 
-	 * @return The current read position.
+	 * @param numBytes The number of bytes to skip.
+	 * 
+	 * @throws IOException Thrown, if any I/O related problem occurred such that the view could not
+	 *                     be advanced to the desired position.
 	 */
-	public int getPosition();
-
-	/**
-	 * Sets the current read position.
-	 */
-	public DataOutput setPosition(int position);
-
-	/**
-	 * Skips {@code size} memory.
-	 */
-	public DataOutputView skip(int size) throws IOException;
-
-	/**
-	 * Resets the position to zero.
-	 */
-	public DataOutputView reset();
+	public void skipBytesToWrite(int numBytes) throws IOException;
 	
 	/**
-	 * Gets the number of bytes remaining in this view.
+	 * Copies {@code numBytes} bytes from the source to this view.
 	 * 
-	 * @return The number of bytes remaining.
+	 * @param source The source to copy the bytes from.
+	 * @param numBytes The number of bytes to copy.
+	 * 
+	 * @throws IOException Thrown, if any I/O related problem occurred, such that either the input view
+	 *                     could not be read, or the output could not be written.
 	 */
-	public int getRemainingBytes();
+	public void write(DataInputView source, int numBytes) throws IOException;
 }

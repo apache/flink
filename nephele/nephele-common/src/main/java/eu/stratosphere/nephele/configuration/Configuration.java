@@ -59,7 +59,7 @@ public class Configuration implements IOReadableWritable {
 	 * Constructs a new configuration object.
 	 */
 	public Configuration() {
-		this.classLoader = null;
+		this.classLoader = this.getClass().getClassLoader();
 	}
 
 	/**

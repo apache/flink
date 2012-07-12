@@ -70,7 +70,7 @@ public class OperatorFactory {
 		}
 
 		private String firstOrNull(final String[] names) {
-			return names.length == 0 ? null : names[0];
+			return names == null || names.length == 0 ? null : names[0];
 		}
 	}
 

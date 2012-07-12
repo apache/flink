@@ -280,10 +280,10 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 */
 	@Override
 	public NetworkOutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
-			final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		return this.wrappedOutputGate.createNetworkOutputChannel(outputGate, channelID, compressionLevel);
+		return this.wrappedOutputGate.createNetworkOutputChannel(outputGate, channelID, connectedChannelID,
+			compressionLevel);
 	}
 
 	/**
@@ -291,9 +291,10 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 */
 	@Override
 	public FileOutputChannel<T> createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
-			final CompressionLevel compressionLevel) {
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		return this.wrappedOutputGate.createFileOutputChannel(outputGate, channelID, compressionLevel);
+		return this.wrappedOutputGate.createFileOutputChannel(outputGate, channelID, connectedChannelID,
+			compressionLevel);
 	}
 
 	/**
@@ -301,8 +302,9 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 */
 	@Override
 	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
-			final ChannelID channelID, final CompressionLevel compressionLevel) {
+			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		return this.wrappedOutputGate.createInMemoryOutputChannel(outputGate, channelID, compressionLevel);
+		return this.wrappedOutputGate.createInMemoryOutputChannel(outputGate, channelID, connectedChannelID,
+			compressionLevel);
 	}
 }

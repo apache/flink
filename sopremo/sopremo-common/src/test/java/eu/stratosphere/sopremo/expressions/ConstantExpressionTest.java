@@ -6,8 +6,8 @@ import nl.jqno.equalsverifier.Warning;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.AbstractJsonNode;
+import eu.stratosphere.sopremo.type.IntNode;
 
 public class ConstantExpressionTest extends EvaluableExpressionTest<ConstantExpression> {
 

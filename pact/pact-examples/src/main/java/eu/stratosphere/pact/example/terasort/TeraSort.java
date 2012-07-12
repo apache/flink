@@ -47,8 +47,8 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Plan getPlan(String... args) throws IllegalArgumentException {
-
+	public Plan getPlan(String... args) throws IllegalArgumentException
+	{
 		// parse job parameters
 		final int noSubTasks = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		final String input = (args.length > 1 ? args[1] : "");
@@ -63,8 +63,7 @@ public final class TeraSort implements PlanAssembler, PlanAssemblerDescription {
 		final FileDataSink sink = 
 				new FileDataSink(TeraOutputFormat.class, output, "Data Sink");
 		sink.setDegreeOfParallelism(noSubTasks);
-		sink.setGlobalOrder(new Ordering(0, Order.ASCENDING));
-		sink.getCompilerHints().setInputDistributionClass(TeraDistribution.class);
+		sink.setGlobalOrder(new Ordering(0, TeraKey.class, Order.ASCENDING), new TeraDistribution());
 
 		sink.addInput(source);
 

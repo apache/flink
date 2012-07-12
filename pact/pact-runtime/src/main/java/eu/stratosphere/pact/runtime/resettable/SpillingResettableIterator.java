@@ -16,237 +16,137 @@
 package eu.stratosphere.pact.runtime.resettable;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.services.iomanager.Buffer;
-import eu.stratosphere.nephele.services.iomanager.Channel;
-import eu.stratosphere.nephele.services.iomanager.ChannelReader;
-import eu.stratosphere.nephele.services.iomanager.ChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.runtime.util.LastRepeatableIterator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.runtime.io.SpillingBuffer;
 import eu.stratosphere.pact.runtime.util.ResettableIterator;
 
 /**
- * Implementation of a resettable iterator, that reads all data from a given
- * channel into primary/secondary storage and allows resetting the iterator
+ * Implementation of a resettable iterator. While iterating the first time over the data, the iterator writes the
+ * records to a spillable buffer. Any subsequent iteration re-reads the data from that buffer.
  * 
- * @author mheimel
- * @param <T>
+ * @author Stephan Ewen
+ * @param <T> The type of record that the iterator handles.
  */
-public class SpillingResettableIterator<T extends Record> implements ResettableIterator<T>, LastRepeatableIterator<T> {
-
+public class SpillingResettableIterator<T> implements ResettableIterator<T>
+{
 	private static final Log LOG = LogFactory.getLog(SpillingResettableIterator.class);
-
-	public static final int MINIMUM_NUMBER_OF_BUFFERS = 2;
-	
-	public static final int MIN_BUFFER_SIZE = 64 * 1024;
-	
-	/**
-	 * The minimum amount of memory that the spilling resettable iterator requires to work.
-	 */
-	public static final int MIN_TOTAL_MEMORY = MINIMUM_NUMBER_OF_BUFFERS * MIN_BUFFER_SIZE;
 	
 	// ------------------------------------------------------------------------
 
-	protected final MemoryManager memoryManager;
-
-	protected final IOManager ioManager;
-
-	protected final Iterator<T> input;
-
-	protected final List<MemorySegment> memorySegments;
-	
-	private final T instance;
-
-	private ArrayList<Buffer.Input> inputBuffers;
-
-	private ChannelReader ioReader;
-
-	private Channel.ID bufferID;
-	
 	private T next;
 	
-	private final int numBuffers;
-
-	private int currentBuffer;
-
-	private int usedBuffers;
-
-	private boolean fitsIntoMem;
+	private final T instance;
 	
-	private int count = 0;
+	protected DataInputView inView;
 	
-	private volatile boolean abortFlag = false;
+	protected final TypeSerializer<T> serializer;
+	
+	private int elementCount;
+	
+	private int currentElementNum;
+	
+	protected final SpillingBuffer buffer;
+	
+	protected final Iterator<T> input;
+	
+	protected final MemoryManager memoryManager;
+	
+	private final List<MemorySegment> memorySegments;
+	
+	private final boolean releaseMemoryOnClose;
 	
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Constructs a new <tt>ResettableIterator</tt>
-	 * 
-	 * @param memoryManager
-	 * @param ioManager
-	 * @param reader
-	 * @param availableMemory
-	 * @throws MemoryAllocationException
-	 */
-	public SpillingResettableIterator(MemoryManager memoryManager, IOManager ioManager,
-			Iterator<T> input, T instance, long availableMemory, AbstractInvokable parentTask)
+
+	public SpillingResettableIterator(Iterator<T> input, TypeSerializer<T> serializer, 
+			MemoryManager memoryManager, IOManager ioManager,
+			long availableMemory, AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
+		this(input, serializer, memoryManager, ioManager, memoryManager.allocatePages(parentTask, availableMemory), true);
+	}
+	
+	public SpillingResettableIterator(Iterator<T> input, TypeSerializer<T> serializer,
+			MemoryManager memoryManager, IOManager ioManager, List<MemorySegment> memory)
+	{
+		this(input, serializer, memoryManager, ioManager, memory, false);
+	}
+	
+	private SpillingResettableIterator(Iterator<T> input, TypeSerializer<T> serializer,
+			MemoryManager memoryManager, IOManager ioManager,
+			List<MemorySegment> memory, boolean releaseMemOnClose)
+	{
 		this.memoryManager = memoryManager;
-		this.ioManager = ioManager;
 		this.input = input;
-		this.instance = instance;
-		
-		// allocate memory segments and open IO Buffers on them
-		this.memorySegments = this.memoryManager.allocate(parentTask, availableMemory, MINIMUM_NUMBER_OF_BUFFERS, MIN_BUFFER_SIZE);
-		this.numBuffers = this.memorySegments.size();
-		
-		this.currentBuffer = 0;
+		this.instance = serializer.createInstance();
+		this.serializer = serializer;
+		this.memorySegments = memory;
+		this.releaseMemoryOnClose = releaseMemOnClose;
 		
 		if (LOG.isDebugEnabled())
-			LOG.debug("Iterator initalized using " + availableMemory + " bytes of IO buffer.");
+			LOG.debug("Creating spilling resettable iterator with " + memory.size() + " pages of memory.");
+		
+		this.buffer = new SpillingBuffer(ioManager, new ListMemorySegmentSource(memory), memoryManager.getPageSize());
 	}
 
-	/**
-	 * Open the iterator. This will serialize the complete content of the specified Reader<T> into a file and initialize
-	 * the ResettableIterator to this File.
-	 * 
-	 * @throws IOException
-	 */
+	
 	public void open() throws IOException
 	{
-		fitsIntoMem = true;
-		
-		// create output Buffers around the memory segments
-		ArrayList<Buffer.Output> outputBuffers = new ArrayList<Buffer.Output>(this.numBuffers);
-		for (MemorySegment segment : memorySegments) {
-			Buffer.Output out = new Buffer.Output(segment);
-			outputBuffers.add(out);
-		}
-		
-		// try to read data into memory
-		T nextRecord = null;
-		while (this.input.hasNext() && !this.abortFlag) {
-			nextRecord = this.input.next();
-			count++;
-			if (!outputBuffers.get(currentBuffer).write(nextRecord)) {
-				// buffer is full, switch to next buffer
-				currentBuffer++;
-				if (currentBuffer == this.numBuffers) {
-					fitsIntoMem = false;
-					break;
-				}
-				outputBuffers.get(currentBuffer).write(nextRecord);
-			}
-		}
-
-		// if the data does not fit into memory, we have to open a FileChannel
-		if (!fitsIntoMem) {
-			bufferID = this.ioManager.createChannel();
-			// read in elements and serialize them into the buffer
-			ChannelWriter writer = ioManager.createChannelWriter(bufferID, outputBuffers, true);
-			// serialize the unwritten element
-			writer.write(nextRecord);
-			while (input.hasNext() && !this.abortFlag) {
-				count++;
-				writer.write(input.next());
-			}
-			writer.close();
-			// now open a reader on the channel
-			ioReader = ioManager.createChannelReader(bufferID, memorySegments, false);
-			
-			if (LOG.isDebugEnabled())
-				LOG.debug("Iterator opened, serialized " + count + " objects to disk.");
-		}
-		else {
-			usedBuffers = currentBuffer + 1;
-			inputBuffers = new ArrayList<Buffer.Input>(this.numBuffers);
-			// create input Buffers on the output Buffers
-			for (Buffer.Output out : outputBuffers) {
-				int offset = out.getPosition();
-				MemorySegment segment = out.dispose();
-				Buffer.Input in = new Buffer.Input(segment);
-				in.reset(offset);
-				inputBuffers.add(in);
-			}
-			currentBuffer = 0;
-			if (LOG.isDebugEnabled())
-				LOG.debug("Iterator opened, serialized " + count + " objects to memory.");
-		}
-		count = 0;
-		
-		if (this.abortFlag) {
-			this.close();
-		}
+		if (LOG.isDebugEnabled())
+			LOG.debug("Spilling Resettable Iterator opened.");
 	}
 
-	public void reset()
+	public void reset() throws IOException
 	{
-		try {
-			this.next = null;
-			if (fitsIntoMem) {
-				if (currentBuffer != usedBuffers)
-					inputBuffers.get(currentBuffer).rewind();
-				currentBuffer = 0;
-			} else {
-				ioReader.close();
-				ioReader = ioManager.createChannelReader(bufferID, memorySegments, false); // reopen
-			}
-		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-		if (LOG.isDebugEnabled())
-			LOG.debug("Iterator reset, deserialized " + count + " objects in previous run.");
-		count = 0;
+		this.inView = this.buffer.flip();
+		this.currentElementNum = 0;
 	}
 
 	@Override
 	public boolean hasNext()
 	{
 		if (this.next == null) {
-			this.next = this.instance;
-			if (fitsIntoMem) {
-				if (currentBuffer == usedBuffers)
+			if (this.inView != null) {
+				if (this.currentElementNum < this.elementCount) {
+					try {
+						this.serializer.deserialize(this.instance, this.inView);
+					} catch (IOException e) {
+						throw new RuntimeException("SpillingIterator: Error reading element from buffer.", e);
+					}
+					this.next = this.instance;
+					this.currentElementNum++;
+					return true;
+				} else {
 					return false;
-				
-				// try to read data
-				if (!inputBuffers.get(currentBuffer).read(this.next)) {
-					// switch to next buffer
-					inputBuffers.get(currentBuffer).rewind(); // reset the old buffer
-					currentBuffer++;
-					if (currentBuffer == usedBuffers) { 
-						// we are depleted
-						this.next = null;
-						return false;
-					}
-					
-					// read the next element from the new buffer
-					inputBuffers.get(currentBuffer).read(this.next);
 				}
-				return true;
 			} else {
-				try {
-					if (ioReader.read(this.next)) {
-						return true;
-					} else {
-						this.next = null;
-						return false;
+				// writing pass (first)
+				if (this.input.hasNext()) {
+					this.next = this.input.next();
+					try {
+						this.serializer.serialize(this.next, this.buffer);
+					} catch (IOException e) {
+						throw new RuntimeException("SpillingIterator: Error writing element to buffer.", e);
 					}
-				}
-				catch (IOException ioex) {
-					throw new RuntimeException(ioex);
+					this.elementCount++;
+					return true;
+				} else {
+					return false;
 				}
 			}
 		} else {
@@ -255,34 +155,15 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 	}
 
 	@Override
-	public T next() {
-		if(this.next == null) {
-			if(!hasNext()) {
-				return null;
-			}
+	public T next()
+	{
+		if (this.next != null || hasNext()) {
+			final T out = this.next;
+			this.next = null;
+			return out;
+		} else {
+			throw new NoSuchElementException();
 		}
-		++count;
-		final T out = this.next;
-		this.next = null;
-		return out;
-	}
-
-	public void close() {
-		if (ioReader != null) {
-			try {
-				ioReader.close();
-				ioReader.deleteChannel();
-			}
-			catch (IOException ioex) {
-				throw new RuntimeException();
-			}
-		}
-		memoryManager.release(memorySegments);
-		LOG.debug("Iterator closed. Deserialized " + count + " objects in last run.");
-	}
-	
-	public void abort() {
-		this.abortFlag = true;
 	}
 
 	@Override
@@ -290,18 +171,22 @@ public class SpillingResettableIterator<T extends Record> implements ResettableI
 		throw new UnsupportedOperationException();
 	}
 
-	@Override
-	public T repeatLast() {
+	public List<MemorySegment> close() throws IOException
+	{
+		if (LOG.isDebugEnabled())
+			LOG.debug("Spilling Resettable Iterator closing. Stored " + this.elementCount + " records.");
 
-		T lastReturned = this.instance;
+		this.inView = null;
 		
-		if(fitsIntoMem) {
-			inputBuffers.get(currentBuffer).repeatRead(lastReturned);
+		final List<MemorySegment> memory = this.buffer.close();
+		memory.addAll(this.memorySegments);
+		this.memorySegments.clear();
+		
+		if (this.releaseMemoryOnClose) {
+			this.memoryManager.release(memory);
+			return Collections.emptyList();
 		} else {
-			ioReader.repeatRead(lastReturned);
+			return memory;
 		}
-		
-		return lastReturned;
 	}
-
 }

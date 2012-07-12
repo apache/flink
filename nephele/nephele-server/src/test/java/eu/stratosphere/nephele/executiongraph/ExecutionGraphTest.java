@@ -388,7 +388,6 @@ public class ExecutionGraphTest {
 			ExecutionVertex ev2 = egv2.getGroupMember(0); // task1
 
 			// ev0 (input1)
-			assertNotNull(ev0.getEnvironment());
 			assertEquals(egv0, ev0.getGroupVertex());
 			assertNotNull(ev0.getID());
 			assertEquals("Input 1", ev0.getName());
@@ -397,7 +396,6 @@ public class ExecutionGraphTest {
 				.getType());
 
 			// ev1 (output1)
-			assertNotNull(ev1.getEnvironment());
 			assertEquals(egv1, ev1.getGroupVertex());
 			assertNotNull(ev1.getID());
 			assertEquals("Output 1", ev1.getName());
@@ -406,7 +404,6 @@ public class ExecutionGraphTest {
 				.getType());
 
 			// ev2 (task1)
-			assertNotNull(ev2.getEnvironment());
 			assertEquals(egv2, ev2.getGroupVertex());
 			assertNotNull(ev2.getID());
 			assertEquals("Task 1", ev2.getName());

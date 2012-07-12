@@ -26,9 +26,9 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  *
  * @author Stephan Ewen
  */
-public interface ChainedTask extends Collector
+public interface ChainedTask<IT, OT> extends Collector<IT>
 {
-	public void setup(TaskConfig config, String taskName, AbstractInvokable parent, ClassLoader userCodeClassLoader, Collector output);
+	public void setup(TaskConfig config, String taskName, AbstractInvokable parent, ClassLoader userCodeClassLoader, Collector<OT> output);
 	
 	
 	public void openTask() throws Exception;

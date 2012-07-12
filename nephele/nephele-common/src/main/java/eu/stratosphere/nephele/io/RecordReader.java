@@ -26,87 +26,85 @@ import eu.stratosphere.nephele.types.Record;
  * query for incoming records and read them from input gate.
  * 
  * @author warneke
- * @param <T>
- *        the type of the record that can be read from this record reader
+ * @param <T> The type of the record that can be read from this record reader.
  */
 
-public class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T> {
+public class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T>
+{
+	/**
+	 * Stores the last read record.
+	 */
+	private T lastRead;
+	
+	/**
+	 * Temporarily stores an exception which may have occurred while reading data from the input gate.
+	 */
+	private IOException ioException;
 
 	/**
 	 * Temporarily stores an exception which may have occurred while reading data from the input gate.
 	 */
-	private IOException ioException = null;
-
-	private InterruptedException interruptedException = null;
-
-	/**
-	 * Stores the last read record.
-	 */
-	private T lastRead = null;
+	private InterruptedException interruptedException;
 
 	/**
 	 * Stores if more no more records will be received from the assigned input gate.
 	 */
-	private boolean noMoreRecordsWillFollow = false;
+	private boolean noMoreRecordsWillFollow;
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Constructs a new record reader and registers a new input gate with the application's environment.
 	 * 
 	 * @param taskBase
-	 *        the application that instantiated the record reader
+	 *        The application that instantiated the record reader.
 	 * @param inputClass
-	 *        the class of records that can be read from the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
+	 *        The class of records that can be read from the record reader.
 	 */
 	public RecordReader(AbstractTask taskBase, Class<T> inputClass) {
 
-		super(taskBase, new DefaultRecordDeserializer<T>(inputClass), 0);
+		super(taskBase, new ImmutableRecordDeserializerFactory<T>(inputClass), 0);
 	}
 
 	/**
 	 * Constructs a new record reader and registers a new input gate with the application's environment.
 	 * 
 	 * @param outputBase
-	 *        the application that instantiated the record reader
+	 *        The application that instantiated the record reader.
 	 * @param inputClass
-	 *        the class of records that can be read from the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
+	 *        The class of records that can be read from the record reader.
 	 */
 	public RecordReader(AbstractOutputTask outputBase, Class<T> inputClass) {
 
-		super(outputBase, new DefaultRecordDeserializer<T>(inputClass), 0);
+		super(outputBase, new ImmutableRecordDeserializerFactory<T>(inputClass), 0);
 	}
 
 	/**
 	 * Constructs a new record reader and registers a new input gate with the application's environment.
 	 * 
 	 * @param taskBase
-	 *        the application that instantiated the record reader
-	 * @param inputClass
-	 *        the class of records that can be read from the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
+	 *        The application that instantiated the record reader.
+	 * @param deserializerFactory
+	 *        A factory to instantiate the record deserializer.
 	 */
-	public RecordReader(AbstractTask taskBase, RecordDeserializer<T> deserializer) {
+	public RecordReader(AbstractTask taskBase, RecordDeserializerFactory<T> deserializerFactory) {
 
-		super(taskBase, deserializer, 0);
+		super(taskBase, deserializerFactory, 0);
 	}
 
 	/**
 	 * Constructs a new record reader and registers a new input gate with the application's environment.
 	 * 
 	 * @param taskBase
-	 *        the application that instantiated the record reader
-	 * @param inputClass
-	 *        the class of records that can be read from the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
+	 *        The application that instantiated the record reader.
+	 * @param deserializerFactory
+	 *        A factory to instantiate the record deserializer.
+	 * @param inputGateID
+	 *        The ID of the input gate that the reader reads from.
 	 */
-	public RecordReader(AbstractTask taskBase, RecordDeserializer<T> deserializer, int inputGateID) {
+	public RecordReader(AbstractTask taskBase, RecordDeserializerFactory<T> deserializerFactory, int inputGateID) {
 
-		super(taskBase, deserializer, inputGateID);
+		super(taskBase, deserializerFactory, inputGateID);
 	}
 
 	/**
@@ -114,14 +112,12 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * 
 	 * @param outputBase
 	 *        the application that instantiated the record reader
-	 * @param inputClass
-	 *        the class of records that can be read from the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
+	 * @param deserializerFactory
+	 *        A factory to instantiate the record deserializer.
 	 */
-	public RecordReader(AbstractOutputTask outputBase, RecordDeserializer<T> deserializer) {
+	public RecordReader(AbstractOutputTask outputBase, RecordDeserializerFactory<T> deserializerFactory) {
 
-		super(outputBase, deserializer, 0);
+		super(outputBase, deserializerFactory, 0);
 	}
 
 	/**
@@ -129,16 +125,18 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * 
 	 * @param outputBase
 	 *        the application that instantiated the record reader
-	 * @param inputClass
-	 *        the class of records that can be read from the record reader
-	 * @param distributionPattern
-	 *        the {@link DistributionPattern} that should be used for rewiring
+	 * @param deserializerFactory
+	 *        A factory to instantiate the record deserializer.
+	 * @param inputGateID
+	 *        The ID of the input gate that the reader reads from.
 	 */
-	public RecordReader(AbstractOutputTask outputBase, RecordDeserializer<T> deserializer, int inputGateID) {
+	public RecordReader(AbstractOutputTask outputBase, RecordDeserializerFactory<T> deserializerFactory, int inputGateID) {
 
-		super(outputBase, deserializer, inputGateID);
+		super(outputBase, deserializerFactory, inputGateID);
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Checks if at least one more record can be read from the associated input gate. This method may block
 	 * until the associated input gate is able to read the record from one of its input channels.
@@ -147,8 +145,8 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 *         <code>false</code>
 	 */
 	@Override
-	public boolean hasNext() {
-
+	public boolean hasNext()
+	{
 		if (this.noMoreRecordsWillFollow) {
 			return false;
 		}
@@ -166,9 +164,7 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 				this.interruptedException = e;
 				return true;
 			}
-
 		}
-
 		return true;
 	}
 
@@ -180,8 +176,8 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 *         thrown if any error occurs while reading the record from the input gate
 	 */
 	@Override
-	public T next() throws IOException, InterruptedException {
-
+	public T next() throws IOException, InterruptedException
+	{
 		if (this.ioException != null) {
 			throw this.ioException;
 		}

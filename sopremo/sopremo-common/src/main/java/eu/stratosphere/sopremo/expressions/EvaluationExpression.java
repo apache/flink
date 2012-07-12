@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -12,7 +11,6 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.util.IdentityList;
 import eu.stratosphere.util.IdentitySet;
 import eu.stratosphere.util.IsEqualPredicate;
@@ -24,14 +22,11 @@ import eu.stratosphere.util.Reference;
 /**
  * Represents all evaluable expressions.
  */
-public abstract class EvaluationExpression implements Iterable<EvaluationExpression>, SerializableSopremoType,
-		Cloneable {
+public abstract class EvaluationExpression implements SerializableSopremoType, Cloneable {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1226647739750484403L;
-
-	protected Class<? extends IJsonNode> expectedTarget;
 
 	/**
 	 * Used for secondary information during plan creation only.
@@ -62,19 +57,6 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		@Override
 		protected Object readResolve() {
 			return VALUE;
-		}
-	};
-
-	// TODO: move to constant expression
-	public static final EvaluationExpression NULL = new ConstantExpression(NullNode.getInstance()) {
-
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = -2375203649638430872L;
-
-		private Object readResolve() {
-			return EvaluationExpression.NULL;
 		}
 	};
 
@@ -254,7 +236,7 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 			}
 		});
 		// 3. replace all other REMOVED with VALUE
-		return taggedValues.replace(new IsSamePredicate(REMOVED), REMOVED);
+		return taggedValues.replace(new IsSamePredicate(REMOVED), VALUE);
 	}
 
 	/**
@@ -320,11 +302,6 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 		return this.tags.contains(tag);
 	}
 
-	@Override
-	public Iterator<EvaluationExpression> iterator() {
-		return Arrays.asList(this).iterator();
-	}
-
 	public boolean removeTag(final ExpressionTag preserve) {
 		return this.tags.remove(preserve);
 	}
@@ -378,5 +355,21 @@ public abstract class EvaluationExpression implements Iterable<EvaluationExpress
 
 	public Set<ExpressionTag> getTags() {
 		return this.tags;
+	}
+
+	protected List<EvaluationExpression> transformChildExpressions(TransformFunction function,
+			final List<? extends EvaluationExpression> children2) {
+		final List<EvaluationExpression> children = new ArrayList<EvaluationExpression>(children2);
+		for (int index = 0; index < children.size(); index++)
+			children.set(index, children.get(index).transformRecursively(function));
+		return children;
+	}
+
+	protected void appendChildExpressions(final StringBuilder builder, final List<? extends EvaluationExpression> children, String separator) {
+		for (int index = 0; index < children.size(); index++) {
+			children.get(index).toString(builder);
+			if (index < children.size() - 1)
+				builder.append(separator);
+		}
 	}
 }
