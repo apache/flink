@@ -36,7 +36,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * The positions of the keys in the tuple.
 	 */
 	private final int[] keyFields;
-
+	
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -136,7 +136,7 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 		}
 		else throw new IndexOutOfBoundsException();
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**

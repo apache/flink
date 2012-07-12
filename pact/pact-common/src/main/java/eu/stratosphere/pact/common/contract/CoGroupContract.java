@@ -36,6 +36,18 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	private static String DEFAULT_NAME = "<Unnamed CoGrouper>";		// the default name for contracts
 	
 	/**
+	 * The ordering for the order inside a group from input one.
+	 */
+	private Ordering secondaryOrder1;
+	
+	/**
+	 * The ordering for the order inside a group from input two.
+	 */
+	private Ordering secondaryOrder2;
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
 	 * Creates a CoGroupContract with the provided {@link CoGroupStub} implementation
 	 * and a default name. The match is performed on a single key column.
 	 * 
@@ -398,4 +410,74 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 		setSecondInputs(input2);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Sets the order of the elements within a group for the given input.
+	 * 
+	 * @param inputNum The number of the input (here either <i>0</i> or <i>1</i>).
+	 * @param order The order for the elements in a group.
+	 */
+	public void setSecondaryOrder(int inputNum, Ordering order) {
+		if (inputNum == 0)
+			this.secondaryOrder1 = order;
+		else if (inputNum == 1)
+			this.secondaryOrder2 = order;
+		else
+			throw new IndexOutOfBoundsException();
+	}
+	
+	/**
+	 * Sets the order of the elements within a group for the first input.
+	 * 
+	 * @param order The order for the elements in a group.
+	 */
+	public void setSecondaryOrderForInputOne(Ordering order) {
+		setSecondaryOrder(0, order);
+	}
+	
+	/**
+	 * Sets the order of the elements within a group for the second input.
+	 * 
+	 * @param order The order for the elements in a group.
+	 */
+	public void setSecondaryOrderForInputTwo(Ordering order) {
+		setSecondaryOrder(1, order);
+	}
+	
+	/**
+	 * Gets the secondary order for an input, i.e. the order of elements within a group.
+	 * If no such order has been set, this method returns null.
+	 * 
+	 * @param inputNum The number of the input (here either <i>0</i> or <i>1</i>).
+	 * @return The secondary order.
+	 */
+	public Ordering getSecondaryOrder(int inputNum) {
+		if (inputNum == 0)
+			return this.secondaryOrder1;
+		else if (inputNum == 1)
+			return this.secondaryOrder2;
+		else
+			throw new IndexOutOfBoundsException();
+	}
+	
+	/**
+	 * Gets the secondary order for the first input, i.e. the order of elements within a group.
+	 * If no such order has been set, this method returns null.
+	 * 
+	 * @return The secondary order for the first input.
+	 */
+	public Ordering getSecondaryOrderForInputOne() {
+		return getSecondaryOrder(0);
+	}
+	
+	/**
+	 * Gets the secondary order for the second input, i.e. the order of elements within a group.
+	 * If no such order has been set, this method returns null.
+	 * 
+	 * @return The secondary order for the second input.
+	 */
+	public Ordering getSecondaryOrderForInputTwo() {
+		return getSecondaryOrder(1);
+	}
 }

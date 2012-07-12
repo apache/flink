@@ -121,6 +121,9 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 		final TypeComparator<IT1> comparator1 = getInputComparator(0);
 		final TypeComparator<IT2> comparator2 = getInputComparator(1);
 		
+		final TypeComparator<IT1> secondarySortComparator1 = getSecondarySortComparator(0);
+		final TypeComparator<IT2> secondarySortComparator2 = getSecondarySortComparator(1);
+		
 		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
 		try {
 			final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
@@ -153,8 +156,8 @@ public class CoGroupTask<IT1, IT2, OT> extends AbstractPactTask<GenericCoGrouper
 		case SORT_SECOND_MERGE:
 		case MERGE:
 			this.coGroupIterator = new SortMergeCoGroupIterator<IT1, IT2>(memoryManager, ioManager, 
-					in1, in2, serializer1, comparator1, serializer2, comparator2, 
-					pairComparatorFactory.createComparator12(comparator1, comparator2),
+					in1, in2, serializer1, comparator1, secondarySortComparator1, serializer2, comparator2, secondarySortComparator2,
+					pairComparatorFactory.createComparator12(secondarySortComparator1, secondarySortComparator2),
 					availableMemory, maxFileHandles, spillThreshold, ls, this);
 			break;
 			default:

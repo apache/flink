@@ -53,11 +53,11 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	public ChannelDeploymentDescriptor(final ChannelID outputChannelID, final ChannelID inputChannelID) {
 
 		if (outputChannelID == null) {
-			throw new IllegalStateException("Argument outputChannelID must not be null");
+			throw new IllegalArgumentException("Argument outputChannelID must not be null");
 		}
 
 		if (inputChannelID == null) {
-			throw new IllegalStateException("Argument inputChannelID must not be null");
+			throw new IllegalArgumentException("Argument inputChannelID must not be null");
 		}
 
 		this.outputChannelID = outputChannelID;
