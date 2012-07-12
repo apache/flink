@@ -31,6 +31,8 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
+import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
@@ -449,5 +451,15 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
 
 		return this.inputGateContext.registerBufferAvailabilityListener(bufferAvailabilityListener);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Decompressor getDecompressor() throws CompressionException {
+
+		// Delegate call to the gate context
+		return this.inputGateContext.getDecompressor();
 	}
 }

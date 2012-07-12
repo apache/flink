@@ -39,8 +39,19 @@ public abstract class AbstractCompressor implements Compressor {
 
 	public final static int SIZE_LENGTH = 8;
 
+	private int channelCounter = 1;
+
 	protected AbstractCompressor(final CompressionBufferProvider bufferProvider) {
 		this.bufferProvider = bufferProvider;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public final void increaseChannelCounter() {
+
+		++this.channelCounter;
 	}
 
 	/**
@@ -51,7 +62,7 @@ public abstract class AbstractCompressor implements Compressor {
 	 *        the buffer to unwrap the {@link ByteBuffer} object from
 	 * @return the unwrapped {@link ByteBuffer} object
 	 */
-	private ByteBuffer getInternalByteBuffer(Buffer buffer) {
+	private ByteBuffer getInternalByteBuffer(final Buffer buffer) {
 
 		if (!(buffer instanceof MemoryBuffer)) {
 			throw new RuntimeException("Provided buffer is not a memory buffer and cannot be used for compression");
@@ -92,7 +103,7 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final Buffer compress(final Buffer uncompressedData) throws IOException, InterruptedException {
+	public final Buffer compress(final Buffer uncompressedData) throws IOException {
 
 		setUncompressedDataBuffer(uncompressedData);
 		setCompressedDataBuffer(this.bufferProvider.lockCompressionBuffer());
@@ -129,8 +140,21 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown() {
+	public final void shutdown() {
 
-		// The default implementation does nothing
+		--this.channelCounter;
+
+		if (this.channelCounter == 0) {
+			this.bufferProvider.shutdown();
+			freeInternalResources();
+		}
+	}
+
+	/**
+	 * Frees the resources internally allocated by the compression library.
+	 */
+	protected void freeInternalResources() {
+
+		// Default implementation does nothing
 	}
 }

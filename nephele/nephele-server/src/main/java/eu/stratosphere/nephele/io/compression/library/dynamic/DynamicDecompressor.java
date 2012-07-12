@@ -67,4 +67,15 @@ public class DynamicDecompressor implements Decompressor {
 			this.decompressors[i].shutdown();
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void increaseChannelCounter() {
+
+		for (int i = 0; i < this.decompressors.length; ++i) {
+			this.decompressors[i].increaseChannelCounter();
+		}
+	}
 }

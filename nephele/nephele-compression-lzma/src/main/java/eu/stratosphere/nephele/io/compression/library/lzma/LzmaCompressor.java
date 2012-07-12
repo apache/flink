@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
  */
 public class LzmaCompressor extends AbstractCompressor {
 
-	public LzmaCompressor(final CompressionBufferProvider bufferProvider) {
+	LzmaCompressor(final CompressionBufferProvider bufferProvider) {
 		super(bufferProvider);
 	}
 

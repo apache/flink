@@ -49,4 +49,13 @@ public class StubDecompressor implements Decompressor {
 		// Nothing to do here
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void increaseChannelCounter() {
+
+		// Nothing to do here
+	}
+
 }

@@ -19,14 +19,13 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 
 public abstract class AbstractDecompressor implements Decompressor {
 
 	private final CompressionBufferProvider bufferProvider;
-	
+
 	private Buffer uncompressedBuffer;
 
 	protected Buffer compressedBuffer;
@@ -41,11 +40,22 @@ public abstract class AbstractDecompressor implements Decompressor {
 
 	protected final static int SIZE_LENGTH = 8;
 
+	private int channelCounter = 1;
+
 	protected AbstractDecompressor(final CompressionBufferProvider bufferProvider) {
 		this.bufferProvider = bufferProvider;
 	}
 
-	protected void setCompressedDataBuffer(Buffer buffer) {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public final void increaseChannelCounter() {
+
+		++this.channelCounter;
+	}
+
+	protected void setCompressedDataBuffer(final Buffer buffer) {
 
 		if (buffer == null) {
 			this.compressedBuffer = null;
@@ -61,7 +71,7 @@ public abstract class AbstractDecompressor implements Decompressor {
 		}
 	}
 
-	protected void setUncompressedDataBuffer(Buffer buffer) {
+	protected void setUncompressedDataBuffer(final Buffer buffer) {
 
 		if (buffer == null) {
 			this.uncompressedBuffer = null;
@@ -82,7 +92,7 @@ public abstract class AbstractDecompressor implements Decompressor {
 	 *        the buffer to unwrap the {@link ByteBuffer} object from
 	 * @return the unwrapped {@link ByteBuffer} object
 	 */
-	protected ByteBuffer getInternalByteBuffer(Buffer buffer) {
+	protected ByteBuffer getInternalByteBuffer(final Buffer buffer) {
 
 		if (!(buffer instanceof MemoryBuffer)) {
 			throw new RuntimeException("Provided buffer is not a memory buffer and cannot be used for compression");
@@ -96,6 +106,9 @@ public abstract class AbstractDecompressor implements Decompressor {
 	@Override
 	public Buffer decompress(final Buffer compressedData) throws IOException {
 
+		setCompressedDataBuffer(compressedData);
+		setUncompressedDataBuffer(this.bufferProvider.lockCompressionBuffer());
+
 		if (this.uncompressedDataBuffer.position() > 0) {
 			throw new IllegalStateException("Uncompressed data buffer is expected to be empty");
 		}
@@ -106,13 +119,24 @@ public abstract class AbstractDecompressor implements Decompressor {
 			throw new IOException("Compression libary returned error-code: " + result);
 		}
 
-		this.uncompressedDataBuffer.position(result);
-		this.uncompressedBuffer.finishWritePhase();
+		if (this.uncompressedBuffer.isInWriteMode()) {
+			this.uncompressedDataBuffer.position(result);
+			this.uncompressedBuffer.finishWritePhase();
+		} else {
+			this.uncompressedDataBuffer.position(0);
+			this.uncompressedDataBuffer.limit(result);
+		}
+		// System.out.println("UNCOMPRESSED SIZE: " + this.uncompressedBuffer.size());
 
-		// Make sure the framework considers the buffer to be fully consumed
-		this.compressedDataBuffer.position(this.compressedDataBuffer.limit());
+		final Buffer uncompressedBuffer = this.uncompressedBuffer;
 
-		return null;
+		// Release the compression buffer again
+		this.bufferProvider.releaseCompressionBuffer(this.compressedBuffer);
+
+		setCompressedDataBuffer(null);
+		setUncompressedDataBuffer(null);
+
+		return uncompressedBuffer;
 	}
 
 	protected int bufferToInt(ByteBuffer buffer, int offset) {
@@ -133,7 +157,7 @@ public abstract class AbstractDecompressor implements Decompressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void setCurrentInternalDecompressionLibraryIndex(int index) {
+	public void setCurrentInternalDecompressionLibraryIndex(final int index) {
 
 		throw new IllegalStateException(
 			"setCurrentInternalDecompressionLibraryIndex called with wrong compression level activated");
@@ -143,8 +167,21 @@ public abstract class AbstractDecompressor implements Decompressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void shutdown() {
+	public final void shutdown() {
 
-		// The default implementation does nothing
+		--this.channelCounter;
+
+		if (this.channelCounter == 0) {
+			this.bufferProvider.shutdown();
+			freeInternalResources();
+		}
+	}
+
+	/**
+	 * Frees the resources internally allocated by the compression library.
+	 */
+	protected void freeInternalResources() {
+
+		// Default implementation does nothing
 	}
 }

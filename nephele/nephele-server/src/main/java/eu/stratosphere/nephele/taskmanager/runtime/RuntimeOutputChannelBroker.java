@@ -24,8 +24,8 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
+import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Compressor;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
@@ -42,7 +42,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	/**
 	 * The buffer provider this channel broker to obtain buffers from.
 	 */
-	private final BufferProvider bufferProvider;
+	private final RuntimeOutputGateContext outputGateContext;
 
 	/**
 	 * The forwarding chain along which the created transfer envelopes will be pushed.
@@ -70,9 +70,9 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	 */
 	private int sequenceNumber = 0;
 
-	RuntimeOutputChannelBroker(final BufferProvider bufferProvider,
+	RuntimeOutputChannelBroker(final RuntimeOutputGateContext outputGateContext,
 			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel,
-			final AbstractOutputChannelForwarder next, final Compressor compressor) {
+			final AbstractOutputChannelForwarder next) {
 
 		super(next);
 
@@ -80,10 +80,9 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 			throw new IllegalArgumentException("Argument next must not be null");
 		}
 
-		this.bufferProvider = bufferProvider;
+		this.outputGateContext = outputGateContext;
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
-		this.byteBufferedOutputChannel.setCompressor(compressor);
 	}
 
 	public void setForwardingChain(final OutputChannelForwardingChain forwardingChain) {
@@ -141,7 +140,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 
 		final int uncompressedBufferSize = calculateBufferSize();
 
-		return this.bufferProvider.requestEmptyBufferBlocking(uncompressedBufferSize);
+		return this.outputGateContext.requestEmptyBufferBlocking(uncompressedBufferSize);
 	}
 
 	/**
@@ -169,7 +168,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	private int calculateBufferSize() {
 
 		// TODO: Include latency considerations
-		return this.bufferProvider.getMaximumBufferSize();
+		return this.outputGateContext.getMaximumBufferSize();
 	}
 
 	/**
@@ -227,5 +226,15 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 
 			this.forwardingChain.pushEnvelope(ephemeralTransferEnvelope);
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Compressor getCompressor() throws CompressionException {
+
+		// Delegate call to the gate context
+		return this.outputGateContext.getCompressor();
 	}
 }

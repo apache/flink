@@ -52,7 +52,7 @@ public class DynamicCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer compress(final Buffer uncompressedData) throws IOException, InterruptedException {
+	public Buffer compress(final Buffer uncompressedData) throws IOException {
 
 		this.sizeOfLastUncompressedBuffer = uncompressedData.size();
 
@@ -83,6 +83,17 @@ public class DynamicCompressor implements Compressor {
 
 		for (int i = 0; i < this.compressors.length; ++i) {
 			this.compressors[i].shutdown();
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void increaseChannelCounter() {
+
+		for (int i = 0; i < this.compressors.length; ++i) {
+			this.compressors[i].increaseChannelCounter();
 		}
 	}
 }

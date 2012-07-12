@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
@@ -43,14 +44,12 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 
 	private final OutputGate<? extends Record> outputGate;
 
-	private final Compressor compressor;
+	private Compressor compressor = null;
 
 	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final OutputGate<? extends Record> outputGate) {
 
 		this.taskContext = taskContext;
 		this.outputGate = outputGate;
-
-		this.compressor = CompressionLoader.getCompressorByCompressionLevel(outputGate.getCompressionLevel(), null);
 	}
 
 	AbstractID getFileOwnerID() {
@@ -168,8 +167,7 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 			}
 
 			final EphemeralCheckpointForwarder checkpointForwarder = new EphemeralCheckpointForwarder(checkpoint, null);
-			outputChannelBroker = new RuntimeOutputChannelBroker(this, outputChannel, checkpointForwarder,
-				this.compressor);
+			outputChannelBroker = new RuntimeOutputChannelBroker(this, outputChannel, checkpointForwarder);
 			last = checkpointForwarder;
 
 		} else {
@@ -184,11 +182,9 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 			if (checkpoint != null) {
 				final EphemeralCheckpointForwarder checkpointForwarder = new EphemeralCheckpointForwarder(checkpoint,
 					forwardingBarrier);
-				outputChannelBroker = new RuntimeOutputChannelBroker(this, outputChannel, checkpointForwarder,
-					this.compressor);
+				outputChannelBroker = new RuntimeOutputChannelBroker(this, outputChannel, checkpointForwarder);
 			} else {
-				outputChannelBroker = new RuntimeOutputChannelBroker(this, outputChannel, forwardingBarrier,
-					this.compressor);
+				outputChannelBroker = new RuntimeOutputChannelBroker(this, outputChannel, forwardingBarrier);
 			}
 			last = runtimeDispatcher;
 		}
@@ -208,5 +204,25 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
 
 		return this.taskContext.registerBufferAvailabilityListener(bufferAvailabilityListener);
+	}
+
+	/**
+	 * Returns (and if necessary previously creates) the compressor to be used by the attached output channels.
+	 * 
+	 * @return the compressor to be used by the attached output channels or <code>null</code> if no compression shall be
+	 *         applied
+	 * @throws CompressionException
+	 *         thrown if an error occurs while creating the compressor
+	 */
+	Compressor getCompressor() throws CompressionException {
+
+		if (this.compressor == null) {
+			this.compressor = CompressionLoader.getCompressorByCompressionLevel(this.outputGate.getCompressionLevel(),
+				this.taskContext.getCompressionBufferProvider());
+		} else {
+			this.compressor.increaseChannelCounter();
+		}
+
+		return this.compressor;
 	}
 }

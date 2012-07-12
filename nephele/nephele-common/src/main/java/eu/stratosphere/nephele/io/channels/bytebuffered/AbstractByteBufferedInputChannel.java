@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
+import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.types.Record;
@@ -101,8 +102,8 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * Deserializes the next record from one of the data buffers.
 	 * 
 	 * @return the next record or <code>null</code> if all data buffers are exhausted
-	 * @throws ExecutionFailureException
-	 *         if the record cannot be deserialized
+	 * @throws IOException
+	 *         thrown if the record cannot be deserialized
 	 */
 	private T deserializeNextRecord(final T target) throws IOException {
 
@@ -226,8 +227,21 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		this.inputChannelBroker = inputChannelBroker;
 	}
 
-	public void setDecompressor(final Decompressor decompressor) {
-		this.decompressor = decompressor;
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initializeDecompressor() throws CompressionException {
+
+		if (this.decompressor != null) {
+			throw new IllegalStateException("Decompressor has already been initialized for channel " + getID());
+		}
+
+		if (this.inputChannelBroker == null) {
+			throw new IllegalStateException("Input channel broker has not been set");
+		}
+
+		this.decompressor = this.inputChannelBroker.getDecompressor();
 	}
 
 	public void checkForNetworkEvents() {
@@ -284,7 +298,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		// The buffers are recycled by the input channel wrapper
 
 		if (this.decompressor != null) {
-			this.decompressor.shutdown(getID());
+			this.decompressor.shutdown();
 		}
 	}
 

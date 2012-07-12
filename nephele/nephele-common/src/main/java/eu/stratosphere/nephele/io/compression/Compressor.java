@@ -32,7 +32,7 @@ public interface Compressor {
 	 * @throws InterruptedException
 	 *         thrown if the compressor is interrupted while waiting for a buffer to compress the data into
 	 */
-	Buffer compress(Buffer uncompressedData) throws IOException, InterruptedException;
+	Buffer compress(Buffer uncompressedData) throws IOException;
 
 	/**
 	 * Returns the current internal compression library index. The index points to the
@@ -45,7 +45,13 @@ public interface Compressor {
 	int getCurrentInternalCompressionLibraryIndex();
 
 	/**
-	 * Stops the compressor and releases all allocated internal resources.
+	 * Notifies the compressor that is it now by another output channel.
+	 */
+	void increaseChannelCounter();
+
+	/**
+	 * Stops the compressor and releases all allocated internal resources if the compressor object is no longer used by
+	 * any output channel.
 	 */
 	void shutdown();
 }

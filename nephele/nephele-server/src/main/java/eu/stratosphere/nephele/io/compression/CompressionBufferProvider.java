@@ -19,29 +19,38 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
+import eu.stratosphere.nephele.util.StringUtils;
 
 public final class CompressionBufferProvider {
 
-	private final BufferProvider bufferProvider;
-
-	private Buffer compressionBuffer = null;
+	private Buffer compressionBuffer;
 
 	private boolean compressionBufferLocked = false;
 
+	private int referenceCounter = 1;
+
 	public CompressionBufferProvider(final BufferProvider bufferProvider) {
-		this.bufferProvider = bufferProvider;
 
-	}
-
-	public Buffer lockCompressionBuffer() throws IOException, InterruptedException {
-
-		if (this.compressionBufferLocked) {
-			throw new IllegalStateException("Compression buffer is already locked");
+		try {
+			this.compressionBuffer = bufferProvider.requestEmptyBuffer(bufferProvider.getMaximumBufferSize());
+		} catch (IOException ioe) {
+			throw new RuntimeException(StringUtils.stringifyException(ioe));
 		}
 
 		if (this.compressionBuffer == null) {
-			this.compressionBuffer = this.bufferProvider.requestEmptyBufferBlocking(this.bufferProvider
-				.getMaximumBufferSize());
+			throw new IllegalStateException("Cannot retrieve compression buffer");
+		}
+	}
+
+	public void increaseReferenceCounter() {
+
+		++this.referenceCounter;
+	}
+
+	public Buffer lockCompressionBuffer() throws IOException {
+
+		if (this.compressionBufferLocked) {
+			throw new IllegalStateException("Compression buffer is already locked");
 		}
 
 		this.compressionBufferLocked = true;
@@ -60,6 +69,12 @@ public final class CompressionBufferProvider {
 	}
 
 	public void shutdown() {
+
+		--this.referenceCounter;
+
+		if (this.referenceCounter > 0) {
+			return;
+		}
 
 		if (this.compressionBufferLocked) {
 			throw new IllegalStateException("Shutdown requested but compression buffer is still locked");

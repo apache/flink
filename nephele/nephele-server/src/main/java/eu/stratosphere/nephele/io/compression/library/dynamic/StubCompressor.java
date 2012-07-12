@@ -40,8 +40,20 @@ public class StubCompressor implements Compressor {
 		return 0;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void shutdown() {
+
+		// Nothing to do here
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void increaseChannelCounter() {
 
 		// Nothing to do here
 	}

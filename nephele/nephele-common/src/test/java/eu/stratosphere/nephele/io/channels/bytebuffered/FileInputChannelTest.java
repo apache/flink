@@ -30,8 +30,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.core.classloader.annotations.SuppressStaticInitializationFor;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
@@ -42,7 +40,6 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -83,18 +80,12 @@ public class FileInputChannelTest {
 	 * @throws IOException
 	 */
 	@Test
-	@PrepareForTest(CompressionLoader.class)
 	public void deserializeNextRecordTest() throws IOException, InterruptedException {
 		StringRecord record = new StringRecord("abc");
 		this.uncompressedDataBuffer = mock(Buffer.class);
 		// BufferPairResponse bufferPair = mock(BufferPairResponse.class);
 		// when(bufferPair.getUncompressedDataBuffer()).thenReturn(this.uncompressedDataBuffer,
 		// this.uncompressedDataBuffer, null);
-
-		PowerMockito.mockStatic(CompressionLoader.class);
-		when(
-			CompressionLoader.getDecompressorByCompressionLevel(Matchers.any(CompressionLevel.class),
-				Matchers.any(FileInputChannel.class))).thenReturn(null);
 
 		@SuppressWarnings("unchecked")
 		final InputGate<StringRecord> inGate = mock(InputGate.class);

@@ -44,7 +44,13 @@ public interface Decompressor {
 	void setCurrentInternalDecompressionLibraryIndex(int index);
 
 	/**
-	 * Stops the decompressor and releases all allocated internal resources.
+	 * Notifies the decompressor that is it now by another input channel.
+	 */
+	void increaseChannelCounter();
+
+	/**
+	 * Stops the decompressor and releases all allocated internal resources if the decompressor object is no longer used
+	 * by any input channel.
 	 */
 	void shutdown();
 }

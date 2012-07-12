@@ -35,7 +35,7 @@ public class LzmaDecompressor extends AbstractDecompressor {
 	 * private static final int LZMA_PROPS_SIZE = 5;
 	 */
 
-	public LzmaDecompressor(final CompressionBufferProvider bufferProvider) {
+	LzmaDecompressor(final CompressionBufferProvider bufferProvider) {
 		super(bufferProvider);
 	}
 
