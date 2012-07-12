@@ -26,33 +26,39 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
+import eu.stratosphere.pact.common.generic.GenericReducer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
-import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-public class ReduceTaskExternalITCase extends TaskTestBase
+public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<PactRecord, PactRecord>>
 {
 	private static final Log LOG = LogFactory.getLog(ReduceTaskExternalITCase.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
-
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	
+	
+	public ReduceTaskExternalITCase() {
+		super(3*1024*1024);
+	}
+	
+	
 	@Test
 	public void testSingleLevelMergeReduceTask() {
 
 		int keyCnt = 8192;
 		int valCnt = 8;
 		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addOutput(this.outList);
 		
-		ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
+		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
@@ -60,14 +66,10 @@ public class ReduceTaskExternalITCase extends TaskTestBase
 		final int[] keyPos = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
-		
-		super.registerTask(testTask, MockReduceStub.class);
+		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
@@ -89,11 +91,10 @@ public class ReduceTaskExternalITCase extends TaskTestBase
 		int keyCnt = 32768;
 		int valCnt = 8;
 		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addOutput(this.outList);
 		
-		ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
+		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
@@ -101,14 +102,10 @@ public class ReduceTaskExternalITCase extends TaskTestBase
 		final int[] keyPos = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
-		
-		super.registerTask(testTask, MockReduceStub.class);
+		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
@@ -125,16 +122,15 @@ public class ReduceTaskExternalITCase extends TaskTestBase
 	}
 	
 	@Test
-	public void testSingleLevelMergeCombiningReduceTask() {
-
+	public void testSingleLevelMergeCombiningReduceTask()
+	{
 		int keyCnt = 8192;
 		int valCnt = 8;
 		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
 		super.addOutput(this.outList);
 		
-		ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
+		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
@@ -142,14 +138,10 @@ public class ReduceTaskExternalITCase extends TaskTestBase
 		final int[] keyPos = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
-		
-		super.registerTask(testTask, MockCombiningReduceStub.class);
+		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
@@ -177,11 +169,10 @@ public class ReduceTaskExternalITCase extends TaskTestBase
 		int keyCnt = 32768;
 		int valCnt = 8;
 		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addOutput(this.outList);
 		
-		ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
+		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
@@ -189,14 +180,10 @@ public class ReduceTaskExternalITCase extends TaskTestBase
 		final int[] keyPos = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
-		
-		super.registerTask(testTask, MockCombiningReduceStub.class);
+		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");

@@ -24,17 +24,23 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
+import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.task.TempTaskTest.PrevStub;
+import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
-import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 
-public class TempTaskExternalITCase extends TaskTestBase
+public class TempTaskExternalITCase extends DriverTestBase<Stub>
 {
 	private static final Log LOG = LogFactory.getLog(TempTaskExternalITCase.class);
 	
 	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	
+	
+	public TempTaskExternalITCase() {
+		super(1*1024*1024);
+	}
 		
 	@Test
 	public void testTempTask()
@@ -42,17 +48,14 @@ public class TempTaskExternalITCase extends TaskTestBase
 		int keyCnt = 16384;
 		int valCnt = 32;
 		
-		super.initEnvironment(1024*1024*1);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
 		super.addOutput(this.outList);
 		
-		TempTask<PactRecord> testTask = new TempTask<PactRecord>();
+		TempDriver<PactRecord> testTask = new TempDriver<PactRecord>();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
-		super.registerTask(testTask, PrevStub.class);
-		
 		try {
-			testTask.invoke();
+			testDriver(testTask, PrevStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");

@@ -26,37 +26,41 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
+import eu.stratosphere.pact.common.generic.GenericReducer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
+import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
-import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
 
-public class CombineTaskTest extends TaskTestBase 
+public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?>>
 {
 	private static final Log LOG = LogFactory.getLog(CombineTaskTest.class);
 	
 	final List<PactRecord> outList = new ArrayList<PactRecord>();
 
+	public CombineTaskTest() {
+		super(3*1024*1024);
+	}
+	
 	@Test
 	public void testCombineTask() {
 
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addOutput(this.outList);
 		
-		CombineTask<PactRecord> testTask = new CombineTask<PactRecord>();
+		CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
@@ -64,13 +68,10 @@ public class CombineTaskTest extends TaskTestBase
 		final int[] keyPos = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
-		
-		super.registerTask(testTask, MockCombiningReduceStub.class);
+		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
@@ -97,11 +98,10 @@ public class CombineTaskTest extends TaskTestBase
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addOutput(this.outList);
 		
-		CombineTask<PactRecord> testTask = new CombineTask<PactRecord>();
+		CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
@@ -109,15 +109,12 @@ public class CombineTaskTest extends TaskTestBase
 		final int[] keyPos = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
-		
-		super.registerTask(testTask, MockFailingCombiningReduceStub.class);
+		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
 		
 		boolean stubFailed = false;
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockFailingCombiningReduceStub.class);
 		} catch (Exception e) {
 			stubFailed = true;
 		}
@@ -129,13 +126,12 @@ public class CombineTaskTest extends TaskTestBase
 	}
 	
 	@Test
-	public void testCancelCombineTaskSorting() {
+	public void testCancelCombineTaskSorting()
+	{
+		addInput(new DelayingInfinitiveInputIterator(100));
+		addOutput(new NirvanaOutputList());
 		
-		super.initEnvironment(3*1024*1024);
-		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
-		super.addOutput(new NirvanaOutputList());
-		
-		final CombineTask<PactRecord> testTask = new CombineTask<PactRecord>();
+		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
@@ -143,16 +139,13 @@ public class CombineTaskTest extends TaskTestBase
 		final int[] keyPos = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
-		
-		super.registerTask(testTask, MockFailingCombiningReduceStub.class);
+		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
-					testTask.invoke();
+					testDriver(testTask, MockFailingCombiningReduceStub.class);
 				} catch (Exception ie) {
 					ie.printStackTrace();
 					Assert.fail("Task threw exception although it was properly canceled");
@@ -161,7 +154,7 @@ public class CombineTaskTest extends TaskTestBase
 		};
 		taskRunner.start();
 		
-		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
 		tct.start();
 		
 		try {

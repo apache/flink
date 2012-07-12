@@ -106,9 +106,13 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 	public TypeComparator<PactRecord> createSecondarySortComparator(Configuration config, String keyPrefix, ClassLoader cl)
 	throws ClassNotFoundException
 	{
-		// figure out how many key fields there are
-		final int numKeyFields = config.getInteger(keyPrefix + NUM_KEYS, -1);
 		final int numSSKeyFields = config.getInteger(keyPrefix + NUM_SS_KEYS, -1);
+		if (numSSKeyFields == -1) {
+			// no secondary sort comparator set
+			return null;
+		}
+		
+		final int numKeyFields = config.getInteger(keyPrefix + NUM_KEYS, -1);
 		
 		if (numKeyFields < 0) {
 			throw new CorruptConfigurationException("The number of keys for the comparator with config prefix '" +

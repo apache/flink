@@ -25,21 +25,26 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
+import eu.stratosphere.pact.common.generic.GenericCoGrouper;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
-import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-public class CoGroupTaskExternalITCase extends TaskTestBase
+public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<PactRecord, PactRecord, PactRecord>>
 {
 	private static final Log LOG = LogFactory.getLog(CoGroupTaskExternalITCase.class);
 	
 	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	
+	public CoGroupTaskExternalITCase() {
+		super(6*1024*1024);
+	}
 
 	@Test
 	public void testExternalSortCoGroupTask() {
@@ -50,12 +55,11 @@ public class CoGroupTaskExternalITCase extends TaskTestBase
 		int keyCnt2 = 65536*2;
 		int valCnt2 = 1;
 		
-		super.initEnvironment(6*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addOutput(this.outList);
 		
-		CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
+		CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
@@ -65,15 +69,11 @@ public class CoGroupTaskExternalITCase extends TaskTestBase
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
 		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
-		
-		super.registerTask(testTask, MockCoGroupStub.class);
+		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
+		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
@@ -87,11 +87,11 @@ public class CoGroupTaskExternalITCase extends TaskTestBase
 				
 	}
 	
-	public static class MockCoGroupStub extends CoGroupStub {
-
+	public static class MockCoGroupStub extends CoGroupStub
+	{
 		@Override
-		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector<PactRecord> out) {
+		public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out)
+		{
 			int val1Cnt = 0;
 			
 			while (records1.hasNext()) {

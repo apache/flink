@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2011 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -22,11 +22,11 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 
 /**
- *
+ * The interface to be implemented by drivers that do not run in an own pact task context, but are chained to other tasks.
  *
  * @author Stephan Ewen
  */
-public interface ChainedTask<IT, OT> extends Collector<IT>
+public interface ChainedDriver<IT, OT> extends Collector<IT>
 {
 	public void setup(TaskConfig config, String taskName, AbstractInvokable parent, ClassLoader userCodeClassLoader, Collector<OT> output);
 	
