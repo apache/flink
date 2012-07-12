@@ -212,12 +212,6 @@ public class PactString implements Key, NormalizableKey, CharSequence
 		this.hashCode = 0;
 	}
 	
-	
-	public void setValueUTF8(byte[] bytes, int offset, int len) {
-		throw new UnsupportedOperationException();
-	}
-
-	
 	/**
 	 * Sets the value of this <code>PactString</code>, assuming that the binary data is ASCII coded. The n-th character of the
 	 * <code>PactString</code> corresponds directly to the n-th byte in the given array after the offset.
