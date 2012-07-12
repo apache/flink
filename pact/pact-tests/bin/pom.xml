@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <artifactId>pact</artifactId>
+    <groupId>eu.stratosphere</groupId>
+    <version>0.1</version>
+  </parent>
+
+  <groupId>eu.stratosphere</groupId>
+  <artifactId>pact-tests</artifactId>
+  <version>0.1</version>
+  <name>pact-tests</name>
+
+  <packaging>jar</packaging>
+
+  <dependencies>
+    
+	<dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>nephele-common</artifactId>
+      <version>${version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>nephele-hdfs</artifactId>
+      <version>${version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-common</artifactId>
+      <version>${version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-runtime</artifactId>
+      <version>${version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-compiler</artifactId>
+      <version>${version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-examples</artifactId>
+      <version>${version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-core</artifactId>
+    </dependency>
+
+    <dependency>
+    	<groupId>org.mortbay.jetty</groupId>
+    	<artifactId>jetty</artifactId>
+    	<version>6.1.14</version>
+    	<type>jar</type>
+    	<scope>runtime</scope>
+    </dependency>
+   
+    <dependency>
+    	<groupId>org.mortbay.jetty</groupId>
+    	<artifactId>jetty-util</artifactId>
+    	<version>6.1.14</version>
+    	<type>jar</type>
+    	<scope>runtime</scope>
+    </dependency>
+    
+    <dependency>
+    	<groupId>tomcat</groupId>
+    	<artifactId>jasper-compiler</artifactId>
+    	<version>5.5.12</version>
+    	<type>jar</type>
+    	<scope>runtime</scope>
+    </dependency>
+    
+    <dependency>
+    	<groupId>tomcat</groupId>
+    	<artifactId>jasper-runtime</artifactId>
+    	<version>5.5.12</version>
+    	<type>jar</type>
+    	<scope>runtime</scope>
+    </dependency>
+    
+    <dependency>
+    	<groupId>org.mortbay.jetty</groupId>
+    	<artifactId>servlet-api-2.5</artifactId>
+    	<version>6.1.14</version>
+    	<type>jar</type>
+    	<scope>runtime</scope>
+    </dependency>
+    
+    <dependency>
+    	<groupId>jetty</groupId>
+    	<artifactId>jsp</artifactId>
+    	<version>2.1-6.0.2</version>
+    	<type>jar</type>
+    	<scope>runtime</scope>
+    </dependency>
+    
+    <dependency>
+    	<groupId>jetty</groupId>
+    	<artifactId>jsp-api</artifactId>
+    	<version>2.1-6.0.2</version>
+    	<type>jar</type>
+    	<scope>runtime</scope>
+    </dependency>
+  </dependencies>
+
+  <reporting>
+    <plugins>
+    </plugins>
+  </reporting>
+
+  <build>
+    <plugins>
+            
+     		 <plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.7</version>
+				<configuration>
+					<systemPropertyVariables>
+						<java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+					</systemPropertyVariables>
+					<excludes>
+						<exclude>**/*TestBase*.class</exclude>
+						<exclude>**/*TestNepheleMiniCluster.class</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			
+			<plugin>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>2.6</version>
+				<configuration>
+					<excludes>
+					</excludes>
+				</configuration>
+			</plugin>
+      
+    </plugins>
+  </build>
+</project>

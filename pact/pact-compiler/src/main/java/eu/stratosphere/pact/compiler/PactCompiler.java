@@ -58,12 +58,12 @@ import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 
 /**
  * The optimizer that takes the user specified pact plan and creates an optimized plan that contains
@@ -955,10 +955,8 @@ public class PactCompiler {
 				return false;
 			}
 
-			for (List<PactConnection> cl : visitable.getIncomingConnections()) {
-				for(PactConnection c : cl) {
-					c.getSourcePact().addOutgoingConnection(c);
-				}
+			for (PactConnection conn : visitable.getIncomingConnections()) {
+				conn.getSourcePact().addOutConn(conn);
 			}
 
 			return true;
@@ -1015,22 +1013,18 @@ public class PactCompiler {
 
 			// assign the memory to each node
 			if (this.memoryConsumers > 0) {
-				int memoryPerTask = this.memoryPerInstance / this.memoryConsumers;
-				LOG.debug("Memory per consumer: "+memoryPerTask);
+				final int memoryPerTask = this.memoryPerInstance / this.memoryConsumers;
+				
+				if (LOG.isDebugEnabled())
+					LOG.debug("Memory per consumer: "+memoryPerTask);
+				
 				for (OptimizerNode node : this.allNodes) {
-					int consumerCount = node.getMemoryConsumerCount(); 
+					final int consumerCount = node.getMemoryConsumerCount(); 
 					if (consumerCount > 0) {
 						node.setMemoryPerTask(memoryPerTask * consumerCount);
-						LOG.debug("Assigned "+(memoryPerTask * consumerCount)+" MB to "+node.getPactContract().getName());
-					}
-					
-					for (PactConnection conn : node.getOutgoingConnections()) {
-						if (conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
-							throw new RuntimeException("Range Partitioning currently not implemented.");
-//							node.getPactContract().getParameters().setInteger(HistogramTask.HISTOGRAM_MEMORY, memoryPerTask);
-//							if (LOG.isDebugEnabled())
-//								LOG.debug("Assigned "+(memoryPerTask)+" MB for histogram building during range partitioning");
-						}
+						if (LOG.isDebugEnabled())
+							LOG.debug("Assigned " + (memoryPerTask * consumerCount) + " MB to " + 
+									node.getPactContract().getName());
 					}
 				}
 			}
@@ -1050,30 +1044,29 @@ public class PactCompiler {
 				return false;
 			}
 
-			for (List<PactConnection> cl : visitable.getIncomingConnections()) {
-				for(PactConnection c : cl) {
-					// check for memory consuming temp connection
-					switch(c.getTempMode()) {
-						case NONE:
-							// do nothing
-							break;
-						case TEMP_SENDER_SIDE:
-							// reduce available memory
-							this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
-														c.getSourcePact().getDegreeOfParallelism();
-							LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
-							break;
-						case TEMP_RECEIVER_SIDE:
-							// reduce available memory
-							this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
-														c.getTargetPact().getDegreeOfParallelism();
-							LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
-							break;
-					}
+			for (PactConnection conn : visitable.getIncomingConnections()) {
+				
+				// check for memory consuming temp connection
+				switch(conn.getTempMode()) {
+					case NONE:
+						// do nothing
+						break;
+					case TEMP_SENDER_SIDE:
+						// reduce available memory
+						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
+													conn.getSourcePact().getDegreeOfParallelism();
+						LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
+						break;
+					case TEMP_RECEIVER_SIDE:
+						// reduce available memory
+						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
+													conn.getTargetPact().getDegreeOfParallelism();
+						LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
+						break;
 				}
 			}
 			
-			for (PactConnection conn : visitable.getOutgoingConnections()) {
+			for (PactConnection conn : visitable.getOutConns()) {
 				if(conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
 					// One memory consumer for the histogram
 					this.memoryConsumers += visitable.getInstancesPerMachine();
@@ -1161,17 +1154,15 @@ public class PactCompiler {
 			this.visitedNodes.add(node);
 			
 			// check if temp task is required
-			for (List<PactConnection> inConnList : node.getIncomingConnections()) {
-				for(PactConnection inConn : inConnList) {
-					// check if inConn is a blocked connection
-					if (isBlockedConnection(inConn)) {
-						// check if inConn needs to be temped
-						if (mayCauseDeadlock(inConn)) {
-							// mark connection as temped
-							inConn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
-							// insert connection into temp connection list
-							this.deadlockConnection.add(inConn);
-						}
+			for (PactConnection conn : node.getIncomingConnections()) {
+				// check if inConn is a blocked connection
+				if (isBlockedConnection(conn)) {
+					// check if inConn needs to be temped
+					if (mayCauseDeadlock(conn)) {
+						// mark connection as temped
+						conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
+						// insert connection into temp connection list
+						this.deadlockConnection.add(conn);
 					}
 				}
 			}
@@ -1474,16 +1465,14 @@ public class PactCompiler {
 				return false;
 			}
 
-			if (conn.getSourcePact().getOutgoingConnections().size() > 1) {
+			if (conn.getSourcePact().getOutConns().size() > 1) {
 				return true;
 			}
 			
 			
-			for (List<PactConnection> inConnList : conn.getSourcePact().getIncomingConnections()) {
-				for(PactConnection inConn : inConnList) {
-					if (mayCauseDeadlock(inConn) == true) {
-						return true;
-					}
+			for (PactConnection inConn : conn.getSourcePact().getIncomingConnections()) {
+				if (mayCauseDeadlock(inConn) == true) {
+					return true;
 				}
 			}
 		
@@ -1507,17 +1496,17 @@ public class PactCompiler {
 				PactConnection newConn = new PactConnection(conn, duplicateDataSource, targetPact);
 				
 				// remove connection from original DataSourceNode
-				sourcePact.getOutgoingConnections().remove(conn);
+				sourcePact.getOutConns().remove(conn);
 				// add new connection to new DataSourceNode
-				duplicateDataSource.addOutgoingConnection(newConn);
+				duplicateDataSource.addOutConn(newConn);
 				// replace old connection with new connection
 				if(targetPact instanceof SingleInputNode) {
-					((SingleInputNode)targetPact).addInputConnection(newConn);
+					((SingleInputNode)targetPact).setInConn(newConn);
 				} else if(targetPact instanceof TwoInputNode) {
-					if(((TwoInputNode)targetPact).getFirstInputConnection() == conn) {
-						((TwoInputNode)targetPact).setFirstInputConnection(newConn);
+					if(((TwoInputNode)targetPact).getFirstInConn() == conn) {
+						((TwoInputNode)targetPact).setFirstInConn(newConn);
 					} else {
-						((TwoInputNode)targetPact).setSecondInputConnection(newConn);
+						((TwoInputNode)targetPact).setSecondInConn(newConn);
 					}
 				}
 				
@@ -1525,26 +1514,24 @@ public class PactCompiler {
 				// node has more than one incoming connection
 				// can't push temp further down, insert temping here
 				conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
-			} else if(sourcePact.getOutgoingConnections().size() > 1) {
+			} else if(sourcePact.getOutConns().size() > 1) {
 				// node has more than one outgoing connection
 				// this is the reason for the temp, insert temping here
 				conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
 			} else {
-				List<PactConnection> predConn = sourcePact.getIncomingConnections().get(0);
+				PactConnection predConn = sourcePact.getIncomingConnections().get(0);
 				
-				for(PactConnection c : predConn) {
-					long curSize = sourcePact.getEstimatedOutputSize();
-					long predSize = c.getSourcePact().getEstimatedOutputSize();
-				
-					if(curSize < predSize) {
-						// this conn will ship less data than the preceding conn
-						// insert temping here
-						conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
-					} else {
-						// this conn ships same or more data than preceding conn
-						// insert temp further ahead
-						resolveDeadlock(c);
-					}
+				long curSize = sourcePact.getEstimatedOutputSize();
+				long predSize = predConn.getSourcePact().getEstimatedOutputSize();
+			
+				if(curSize < predSize) {
+					// this conn will ship less data than the preceding conn
+					// insert temping here
+					conn.setTempMode(TempMode.TEMP_RECEIVER_SIDE);
+				} else {
+					// this conn ships same or more data than preceding conn
+					// insert temp further ahead
+					resolveDeadlock(predConn);
 				}
 			}
 		}

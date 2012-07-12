@@ -27,7 +27,8 @@ public class ContractITCaseIOFormats {
 			target.setField(0, keyString);
 			target.setField(1, valueString);
 			
-			LOG.debug("Read in: [" + keyString.getValue() + "," + valueString.getValue() + "]");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Read in: [" + keyString.getValue() + "," + valueString.getValue() + "]");
 			
 			return true;
 		}
@@ -50,7 +51,8 @@ public class ContractITCaseIOFormats {
 			
 			byte[] bytes = this.buffer.toString().getBytes();
 			
-			LOG.debug("Writing out: [" + keyString.toString() + "," + valueInteger.getValue() + "]");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Writing out: [" + keyString.toString() + "," + valueInteger.getValue() + "]");
 			
 			this.stream.write(bytes);
 		}

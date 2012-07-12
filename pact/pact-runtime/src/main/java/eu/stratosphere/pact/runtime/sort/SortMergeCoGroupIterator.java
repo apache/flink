@@ -73,6 +73,10 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 	
 	private final TypeComparator<T2> comparator2;
 	
+	private final TypeComparator<T1> ssComparator1;
+	
+	private final TypeComparator<T2> ssComparator2;
+	
 	private Sorter<T1> sortMerger1;
 
 	private Sorter<T2> sortMerger2;
@@ -108,6 +112,36 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 		this.serializer2 = serializer2;
 		this.comparator1 = comparator1;
 		this.comparator2 = comparator2;
+		this.ssComparator1 = null;
+		this.ssComparator2 = null;
+		this.comp = pairComparator;
+		
+		this.reader1 = reader1;
+		this.reader2 = reader2;
+		this.memoryPerChannel = memory / 2;
+		this.fileHandlesPerChannel = (maxNumFileHandles / 2) < 2 ? 2 : (maxNumFileHandles / 2);
+		this.localStrategy = localStrategy;
+		this.parentTask = parentTask;
+		this.spillingThreshold = spillingThreshold;
+	}
+	
+	public SortMergeCoGroupIterator(MemoryManager memoryManager, IOManager ioManager,
+			MutableObjectIterator<T1> reader1, MutableObjectIterator<T2> reader2,
+			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1, TypeComparator<T1> ssComparator1,
+			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2, TypeComparator<T2> ssComparator2,
+			TypePairComparator<T1, T2> pairComparator,
+			long memory, int maxNumFileHandles, float spillingThreshold,
+			LocalStrategy localStrategy, AbstractTask parentTask)
+	{		
+		this.memoryManager = memoryManager;
+		this.ioManager = ioManager;
+		
+		this.serializer1 = serializer1;
+		this.serializer2 = serializer2;
+		this.comparator1 = comparator1;
+		this.comparator2 = comparator2;
+		this.ssComparator1 = ssComparator1;
+		this.ssComparator2 = ssComparator2;
 		this.comp = pairComparator;
 		
 		this.reader1 = reader1;
@@ -137,17 +171,29 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 		if (this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_FIRST_MERGE)
 		{
 			// merger
-			this.sortMerger1 = new UnilateralSortMerger<T1>(this.memoryManager, this.ioManager,
+			if (ssComparator1 != null) {
+				this.sortMerger1 = new UnilateralSortMerger<T1>(this.memoryManager, this.ioManager,
+					this.reader1, this.parentTask, this.serializer1, this.ssComparator1, 
+					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
+			} else {
+				this.sortMerger1 = new UnilateralSortMerger<T1>(this.memoryManager, this.ioManager,
 					this.reader1, this.parentTask, this.serializer1, this.comparator1, 
 					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
+			}
 		}
 
 		if (this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_SECOND_MERGE)
 		{
 			// merger
-			this.sortMerger2 = new UnilateralSortMerger<T2>(this.memoryManager, this.ioManager,
+			if (ssComparator2 != null) {
+				this.sortMerger2 = new UnilateralSortMerger<T2>(this.memoryManager, this.ioManager,
+					this.reader2, this.parentTask, this.serializer2, this.ssComparator2, 
+					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
+			} else {
+				this.sortMerger2 = new UnilateralSortMerger<T2>(this.memoryManager, this.ioManager,
 					this.reader2, this.parentTask, this.serializer2, this.comparator2, 
 					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
+			}
 		}
 		
 		// =============== These calls freeze until the data is actually available ============

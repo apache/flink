@@ -22,7 +22,7 @@ import eu.stratosphere.pact.common.type.Key;
 /**
  * Abstract superclass for all contracts that represent actual Pacts.
  *
- * @author Stephan Ewen
+ * @author Stephan Ewen, Aljoscha Krettek
  */
 public abstract class AbstractPact<T extends Stub> extends Contract
 {

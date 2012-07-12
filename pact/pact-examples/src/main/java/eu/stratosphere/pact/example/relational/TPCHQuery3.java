@@ -33,17 +33,9 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitCopies;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitProjections;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ExplicitModifications;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperationSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.Reads;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsFirst;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ReadsSecond;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ImplicitOperation.ImplicitOperationMode;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactInteger;
@@ -80,11 +72,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	/**
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
-	@Reads(fields={2,3,4})
-	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
-	@ExplicitProjections(fields={2,3,4})
-	@ExplicitModifications(fields={})
-	@OutCardBounds(lowerBound=0, upperBound=1)
+	@ConstantFields(fields={0,1})
+	@OutCardBounds(upperBound=1, lowerBound=0)
 	public static class FilterO extends MapStub
 	{
 		private String prioFilter;		// filter literal for the order priority
@@ -145,14 +134,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * built of the keys of the inputs.
 	 *
 	 */
-	@ReadsFirst(fields={})
-	@ReadsSecond(fields={})
-	@ImplicitOperationFirst(implicitOperation=ImplicitOperationMode.Copy)
-	@ExplicitProjections(fields={})
-	@ImplicitOperationSecond(implicitOperation=ImplicitOperationMode.Projection)
-	@ExplicitCopies(fields={})
-	@ExplicitModifications(fields={2})
-	@OutCardBounds(lowerBound=1, upperBound=1)
+	@ConstantFieldsFirstExcept(fields={5})
+	@OutCardBounds(upperBound=1, lowerBound=1)
 	public static class JoinLiO extends MatchStub
 	{
 		/**
@@ -176,11 +159,8 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 5:SUM(EXTENDEDPRICE)
 	 */
 	@Combinable
-	@Reads(fields={2})
-	@ImplicitOperation(implicitOperation=ImplicitOperationMode.Copy)
-	@ExplicitProjections(fields={})
-	@ExplicitModifications(fields={2})
-	@OutCardBounds(lowerBound=1, upperBound=1)
+	@ConstantFields(fields={0,1})
+	@OutCardBounds(upperBound=1, lowerBound=1)
 	public static class AggLiO extends ReduceStub
 	{
 		private final PactDouble extendedPrice = new PactDouble();

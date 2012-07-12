@@ -368,15 +368,15 @@ public class RuntimeEnvironment implements Environment, Runnable {
 				throw new InterruptedException();
 			}
 
-		} catch (Exception e) {
+		} catch (Throwable t) {
 
 			if (!this.executionObserver.isCanceled()) {
 
 				// Perform clean up when the task failed and has been not canceled by the user
 				try {
 					this.invokable.cancel();
-				} catch (Exception e2) {
-					LOG.error(StringUtils.stringifyException(e2));
+				} catch (Throwable t2) {
+					LOG.error(StringUtils.stringifyException(t2));
 				}
 			}
 
@@ -386,7 +386,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			if (this.executionObserver.isCanceled()) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
-				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
 			}
 
 			return;
@@ -407,7 +407,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 			// Now we wait until all output channels have written out their data and are closed
 			waitForOutputChannelsToBeClosed();
-		} catch (Exception e) {
+		} catch (Throwable t) {
 
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
@@ -415,7 +415,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			if (this.executionObserver.isCanceled()) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
-				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
 			}
 
 			return;

@@ -97,8 +97,6 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 				target.setField(0, rdfObj);
 				target.setField(1, rdfSubj);
 			}
-			
-			System.out.println(target.getField(0, PactString.class).getValue() + " - " + target.getField(1, PactString.class).getValue());
 
 			return true;	
 		}

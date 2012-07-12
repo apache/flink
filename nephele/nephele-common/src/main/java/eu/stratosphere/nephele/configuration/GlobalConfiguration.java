@@ -241,7 +241,7 @@ public final class GlobalConfiguration {
 
 		// load each xml file
 		for (File f : files) {
-			get().loadResource("file://" + f.getAbsolutePath());
+			get().loadResource(f);
 		}
 
 		// Store the path to the configuration directory itself
@@ -253,10 +253,10 @@ public final class GlobalConfiguration {
 	/**
 	 * Loads an XML document of key-values pairs.
 	 * 
-	 * @param uri
-	 *        the URI pointing to the XML document
+	 * @param file
+	 *        the XML document file
 	 */
-	private void loadResource(final String uri) {
+	private void loadResource(final File file) {
 
 		final DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
 		// Ignore comments in the XML file
@@ -278,7 +278,7 @@ public final class GlobalConfiguration {
 			Document doc = null;
 			Element root = null;
 
-			doc = builder.parse(uri);
+			doc = builder.parse(file);
 
 			if (doc == null) {
 				LOG.warn("Cannot load configuration: doc is null");

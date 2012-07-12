@@ -1,0 +1,3 @@
+Manifest-Version: 1.0
+pact-assembler-class: eu.stratosphere.pact.example.secondarysort.CoGroupSecondarySort
+

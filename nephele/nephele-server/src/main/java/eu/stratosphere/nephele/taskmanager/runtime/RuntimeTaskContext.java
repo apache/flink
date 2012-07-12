@@ -244,10 +244,10 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			}
 		}
 
-		System.out.println("Making checkpoint decision for " + environment.getTaskNameWithIndex());
+//		System.out.println("Making checkpoint decision for " + environment.getTaskNameWithIndex());
 		final boolean checkpointDecision = false; /* CheckpointDecision.getDecision(this.task, rus); */
-		System.out.println("Checkpoint decision for " + environment.getTaskNameWithIndex() + " is "
-			+ checkpointDecision);
+//		System.out.println("Checkpoint decision for " + environment.getTaskNameWithIndex() + " is "
+//			+ checkpointDecision);
 		this.ephemeralCheckpoint.setCheckpointDecisionSynchronously(checkpointDecision);
 
 	}

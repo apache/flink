@@ -80,10 +80,10 @@ public class PactProgram {
 	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
-	public PactProgram(File jarFile, String... args)
-		throws ProgramInvocationException {
+	public PactProgram(File jarFile, String... args) throws ProgramInvocationException
+	{
 		this.jarFile = jarFile;
-		this.args = args;
+		this.args = args == null ? new String[0] : args;
 		this.assemblerClass = getPactAssemblerFromJar(jarFile);
 	}
 
@@ -104,10 +104,10 @@ public class PactProgram {
 	 *         This invocation is thrown if the PlanAssembler can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
-	public PactProgram(File jarFile, String className, String... args)
-		throws ProgramInvocationException {
+	public PactProgram(File jarFile, String className, String... args) throws ProgramInvocationException
+	{
 		this.jarFile = jarFile;
-		this.args = args;
+		this.args = args == null ? new String[0] : args;
 		this.assemblerClass = getPactAssemblerFromJar(jarFile, className);
 	}
 

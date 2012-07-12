@@ -106,6 +106,11 @@ case $STARTSTOP in
 				exit 1
      			fi
 		fi
+
+                # Rotate log files
+                rotateLogFile $log
+                rotateLogFile $out
+
 		echo Starting Nephele task manager on host $HOSTNAME
 		$JAVA_HOME/bin/java $JVM_ARGS $NEPHELE_OPTS $log_setting -classpath $NEPHELE_TM_CLASSPATH eu.stratosphere.nephele.taskmanager.TaskManager -configDir $NEPHELE_CONF_DIR > "$out" 2>&1 < /dev/null &
 		echo $! > $pid

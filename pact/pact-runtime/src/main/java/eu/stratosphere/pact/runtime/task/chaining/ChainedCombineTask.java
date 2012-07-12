@@ -119,7 +119,7 @@ public class ChainedCombineTask<T> implements ChainedTask<T, T>
 			throw new RuntimeException(
 					"The Combine task was initialized with too little memory for local strategy "+
 					config.getLocalStrategy()+" : " + availableMemory + " bytes." +
-				    "Required is at least " + strategyMinMem + " bytes.");
+					"Required is at least " + strategyMinMem + " bytes.");
 		}
 		
 		final MemoryManager memoryManager = this.parent.getEnvironment().getMemoryManager();
@@ -191,19 +191,22 @@ public class ChainedCombineTask<T> implements ChainedTask<T, T>
 	public void closeTask() throws Exception
 	{
 		// wait for the thread that runs the combiner to finish
-		while (!canceled && this.combinerThread.isAlive()) {
+		while (!this.canceled && this.combinerThread.isAlive()) {
 			try {
 				this.combinerThread.join();
 			}
-			catch (InterruptedException iex) {}
-		}
-		
-		if (this.exception != null) {
-			throw new ExceptionInChainedStubException(this.taskName, this.exception);
+			catch (InterruptedException iex) {
+				cancelTask();
+				throw iex;
+			}
 		}
 		
 		if (this.parent != null && this.combinerThread != null) {
 			this.parent.userThreadFinished(this.combinerThread);
+		}
+		
+		if (this.exception != null) {
+			throw new ExceptionInChainedStubException(this.taskName, this.exception);
 		}
 		
 		this.sorter.close();
@@ -226,6 +229,16 @@ public class ChainedCombineTask<T> implements ChainedTask<T, T>
 		this.combinerThread.cancel();
 		this.inputCollector.close();
 		this.sorter.close();
+		
+		try {
+			this.combinerThread.join();
+		} catch (InterruptedException iex) {
+			// do nothing, just leave
+		} finally {
+			if (this.parent != null && this.combinerThread != null) {
+				this.parent.userThreadFinished(this.combinerThread);
+			}
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

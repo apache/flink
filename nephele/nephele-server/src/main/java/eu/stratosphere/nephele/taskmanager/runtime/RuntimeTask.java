@@ -253,13 +253,16 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			}
 
 			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
+				executingThread.join(1000);
+			} catch (InterruptedException e) {}
+			
+			if (!executingThread.isAlive()) {
 				break;
 			}
 
-			LOG.info((cancel == true ? "Canceling " : "Killing ") + this.environment.getTaskName()
-				+ " with state " + this.executionState);
+			if (LOG.isDebugEnabled())
+				LOG.debug("Sending repeated " + (cancel == true ? "canceling" : "killing") + " signal to " +
+					this.environment.getTaskName() + " with state " + this.executionState);
 		}
 	}
 
