@@ -43,6 +43,7 @@ import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -533,6 +534,39 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 */
 	public GlobalProperties getGlobalProperties() {
 		return this.globalProps;
+	}
+	
+
+	/**
+	 * Gets a copy of local properties from this OptimizedNode for the parent node.
+	 * If the parent node has a different DoP all local properties are lost.
+	 * 
+	 * @return The local properties.
+	 */
+	public LocalProperties getLocalPropertiesForParent(OptimizerNode parent) {
+		LocalProperties localPropsForParent = this.localProps.createCopy();
+		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
+			localPropsForParent.reset();
+		}
+		return localPropsForParent;
+	}
+
+	/**
+	 * Gets a copy of global properties from this OptimizedNode for the parent node.
+	 * If the parent node has a different DoP ordering is lost and partitioning is at 
+	 * most PartitionProperty.ANY
+	 * 
+	 * @return The global properties.
+	 */
+	public GlobalProperties getGlobalPropertiesForParent(OptimizerNode parent) {
+		GlobalProperties globalPropsForParent = this.globalProps.createCopy();
+		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
+			globalPropsForParent.setOrdering(null);
+			if (globalPropsForParent.getPartitioning() != PartitionProperty.NONE) {
+				globalPropsForParent.setPartitioning(PartitionProperty.ANY, globalPropsForParent.getPartitionedFields());
+			}
+		}
+		return globalPropsForParent;
 	}
 
 	/**

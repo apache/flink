@@ -230,7 +230,7 @@ public class UnionNode extends OptimizerNode {
 				FieldList newPartitionedFieldsInCommon = partitionedFieldsInCommon;
 				
 				// only property which would survive is a hash partitioning on every input
-				GlobalProperties gpForInput = alternative.getGlobalProperties();
+				GlobalProperties gpForInput = alternative.getGlobalPropertiesForParent(this);
 				if (index == 0 && gpForInput.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
 					newPartitionedFieldsInCommon = gpForInput.getPartitionedFields();
 				}

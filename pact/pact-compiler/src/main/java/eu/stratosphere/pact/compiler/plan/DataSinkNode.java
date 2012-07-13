@@ -297,8 +297,8 @@ public class DataSinkNode extends OptimizerNode {
 		// build all possible alternative plans for this node
 		for(OptimizerNode subPlan : subPlans) {
 
-			final GlobalProperties gp = subPlan.getGlobalProperties().createCopy();
-			final LocalProperties lp = subPlan.getLocalProperties().createCopy();
+			final GlobalProperties gp = subPlan.getGlobalPropertiesForParent(this).createCopy();
+			final LocalProperties lp = subPlan.getLocalPropertiesForParent(this).createCopy();
 
 			final ShipStrategy ss;
 			final LocalStrategy ls;

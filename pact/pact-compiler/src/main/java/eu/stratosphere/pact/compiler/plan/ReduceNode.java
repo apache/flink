@@ -241,8 +241,8 @@ public class ReduceNode extends SingleInputNode {
 
 			if (ss == ShipStrategy.NONE) {
 				
-				gp = subPlan.getGlobalProperties();
-				lp = subPlan.getLocalProperties();
+				gp = subPlan.getGlobalPropertiesForParent(this);
+				lp = subPlan.getLocalPropertiesForParent(this);
 
 				if ((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned()) 
 					 || isFieldSetUnique(keySet, 0)	){

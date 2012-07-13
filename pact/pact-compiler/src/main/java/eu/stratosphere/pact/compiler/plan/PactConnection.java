@@ -363,7 +363,7 @@ public class PactConnection {
 	 * @return The properties of the data after this channel.
 	 */
 	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
-		GlobalProperties gp = source.getGlobalProperties().createCopy();
+		GlobalProperties gp = source.getGlobalPropertiesForParent(target);
 		
 		FieldList keyFields = null;
 		int inputNum = 0;
@@ -388,6 +388,7 @@ public class PactConnection {
 			break;
 		case PARTITION_RANGE:
 			gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, keyFields);
+			gp.setOrdering(null);
 			break;
 		case PARTITION_HASH:
 			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, keyFields);
@@ -430,7 +431,7 @@ public class PactConnection {
 	 * @return The properties of the data after a channel using the given strategy.
 	 */
 	public static LocalProperties getLocalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
-		LocalProperties lp = source.getLocalProperties().createCopy();
+		LocalProperties lp = source.getLocalPropertiesForParent(target);
 
 		if (shipMode == null || shipMode == ShipStrategy.NONE) {
 			throw new CompilerException("Cannot determine properties if shipping strategy is not defined.");
