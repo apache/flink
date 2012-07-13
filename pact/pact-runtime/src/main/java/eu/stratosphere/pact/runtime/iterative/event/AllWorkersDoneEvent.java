@@ -13,43 +13,19 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.concurrent;
+package eu.stratosphere.pact.runtime.iterative.event;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.event.task.EventListener;
 
-import java.util.concurrent.locks.AbstractQueuedSynchronizer;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-public class SuperstepBarrier implements EventListener {
-
-  private Sync sync = new Sync();
-
-  public void setup() {
-    sync = new Sync();
-  }
-
-  public void waitForOtherWorkers() throws InterruptedException {
-    sync.tryAcquireShared(0);
-  }
+public class AllWorkersDoneEvent extends AbstractTaskEvent {
 
   @Override
-  public void eventOccurred(AbstractTaskEvent event) {
-    sync.releaseShared(0);
-  }
+  public void write(DataOutput out) throws IOException {}
 
-  private class Sync extends AbstractQueuedSynchronizer {
-
-    private static final int OPEN = 1;
-
-    @Override
-    protected int tryAcquireShared(int ignored) {
-      return getState() == OPEN ? 1 : -1;
-    }
-
-    @Override
-    protected boolean tryReleaseShared(int ignored) {
-      setState(OPEN);
-      return true;
-    }
-  }
+  @Override
+  public void read(DataInput in) throws IOException {}
 }

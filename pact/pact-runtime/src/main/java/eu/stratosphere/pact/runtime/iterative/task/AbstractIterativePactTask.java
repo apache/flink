@@ -50,11 +50,17 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     //TODO check whether this is an iteration input!!!
     //TODO type safety
     InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
-        (MutableObjectIterator<X>) super.getInput(index), getClass().getSimpleName());
+        (MutableObjectIterator<X>) super.getInput(index), numberOfEventsUntilInterrupt(), getClass().getSimpleName());
 
+    //TODO might not work for unioned inputs
     getEnvironment().getInputGate(index).subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
 
     return interruptingIterator;
+  }
+
+  protected int numberOfEventsUntilInterrupt() {
+    //TODO return number of iteration inputs
+    return 1;
   }
 
   protected void listenToTermination(Callback<TerminationEvent> callback) {

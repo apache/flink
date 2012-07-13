@@ -22,13 +22,18 @@ import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.Writer;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
-import eu.stratosphere.pact.runtime.iterative.concurrent.*;
+import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
+import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
+import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
@@ -82,8 +87,8 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     /** used for receiving the current iteration result from iteration tail */
     BlockingBackChannel backChannel = initBackChannel();
 
-    Broker<SuperstepBarrier> superstepBarrierBroker = SuperstepBarrierBroker.instance();
-
+    final SuperstepBarrier barrier = new SuperstepBarrier();
+    eventualOutputs.get(eventualOutputs.size() - 2).subscribeToEvent(barrier, AllWorkersDoneEvent.class);
 
     TypeSerializer serializer = getInputSerializer(ITERATION_INPUT);
     //TODO type safety
@@ -98,31 +103,39 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
         reinstantiateDriver();
       }
 
-      SuperstepBarrier superstepBarrier = superstepBarrierBroker.get(identifier());
+      barrier.setup();
 
       super.invoke();
+
+      EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
+
       // signal to connected tasks that we are done with the superstep
-      sendEventToAllIterationOutputsAndSync(new EndOfSuperstepEvent());
+      sendEventToAllIterationOutputs(endOfSuperstepEvent);
 
       // blocking call to wait for the result
       DataInputView superStepResult = backChannel.getReadEndAfterSuperstepEnded();
       log.info("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
 
-      log.info("waiting for other works in iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
-      superstepBarrier.waitForOthers();
+      log.info("waiting for other workers in iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      sendEventToSync(endOfSuperstepEvent);
+
+      // wait on barrier
+      barrier.waitForOtherWorkers();
 
       feedBackSuperstepResult(superStepResult, serializer);
 
       numIterations++;
     }
+
     // signal to connected tasks that the iteration terminated
-    sendEventToAllIterationOutputsAndSync(new TerminationEvent());
+    sendEventToAllIterationOutputs(new TerminationEvent());
+    sendEventToSync(new TerminationEvent());
 
     log.info("streaming out final result [" + numIterations + "] [" + System.currentTimeMillis() + "]");
     streamOutFinalOutput();
   }
 
-  // send output to all but the last connected task while iterating
+  // send output to all but the last two connected task while iterating
   private Collector<PactRecord> iterationCollector() {
     int numOutputs = eventualOutputs.size();
     Preconditions.checkState(numOutputs > 2);
@@ -134,6 +147,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     return new PactRecordOutputCollector(writers);
   }
 
+  //TODO we can avoid this if we can detect that we are in the last iteration
   private void streamOutFinalOutput() throws IOException, InterruptedException {
     //TODO type safety
     Writer<PactRecord> writer = (AbstractRecordWriter<PactRecord>) eventualOutputs.get(eventualOutputs.size() - 1);
@@ -149,11 +163,16 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     inputs[ITERATION_INPUT] = new InputViewIterator(superStepResult, serializer);
   }
 
-  private void sendEventToAllIterationOutputsAndSync(AbstractTaskEvent event) throws IOException, InterruptedException {
+  private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {
     //TODO remove implicit assumption
-    for (int outputIndex = 0; outputIndex < eventualOutputs.size() - 1; outputIndex++) {
+    for (int outputIndex = 0; outputIndex < eventualOutputs.size() - 2; outputIndex++) {
       flushAndPublishEvent(eventualOutputs.get(outputIndex), event);
     }
+  }
+
+  private void sendEventToSync(AbstractTaskEvent event) throws IOException, InterruptedException {
+    //TODO remove implicit assumption
+    flushAndPublishEvent(eventualOutputs.get(eventualOutputs.size() - 2), event);
   }
 
 }

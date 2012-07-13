@@ -16,23 +16,21 @@
 package eu.stratosphere.pact.runtime.iterative.task;
 
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
-import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
-import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrierBroker;
+import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.Callback;
-import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
   private boolean terminated = false;
   private int numIterations = 0;
-
-  private SuperstepBarrier superstepBarrier;
 
   private static final Log log = LogFactory.getLog(BulkIterationSynchronizationPactTask.class);
 
@@ -42,26 +40,29 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
   }
 
   @Override
+  protected int numberOfEventsUntilInterrupt() {
+    return numberOfConnectedHeads();
+  }
+
+  private int numberOfConnectedHeads() {
+    //TODO return number of connected workers
+    return 1;
+  }
+
+  @Override
   public void invoke() throws Exception {
 
-    listenToEndOfSuperstep(new Callback<EndOfSuperstepEvent>() {
-      @Override
-      public void execute(EndOfSuperstepEvent event) throws Exception {
-        log.info("received endOfSuperStep [" + System.currentTimeMillis() + "]");
-        superstepBarrier.signalWorkerDone();
-      }
-    });
+    final AtomicInteger nonTerminatedHeadsCounter = new AtomicInteger(numberOfConnectedHeads());
 
     listenToTermination(new Callback<TerminationEvent>() {
       @Override
       public void execute(TerminationEvent event) throws Exception {
-        log.info("received termination [" + System.currentTimeMillis() + "]");
-        terminated = true;
+        int numNonTerminatedHeads = nonTerminatedHeadsCounter.decrementAndGet();
+        if (numNonTerminatedHeads == 0) {
+          terminated = true;
+        }
       }
     });
-
-    Broker<SuperstepBarrier> superstepBarrierBroker = SuperstepBarrierBroker.instance();
-    int numSubtasks = getEnvironment().getCurrentNumberOfSubtasks();
 
     while (!terminated) {
 
@@ -70,13 +71,21 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
         reinstantiateDriver();
       }
 
-      superstepBarrier = new SuperstepBarrier(numSubtasks);
-      superstepBarrierBroker.handIn(identifier(), superstepBarrier);
-
       super.invoke();
+
+      log.info("signaling that all workers are done in iteration [" + numIterations + "] " +
+          "[" + System.currentTimeMillis() + "]");
+      signalAllWorkersDone();
 
       log.info("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
       numIterations++;
+    }
+  }
+
+  private void signalAllWorkersDone() throws IOException, InterruptedException {
+    AllWorkersDoneEvent allWorkersDoneEvent = new AllWorkersDoneEvent();
+    for (int inputGateIndex = 0; inputGateIndex < getEnvironment().getNumberOfInputGates(); inputGateIndex++) {
+      getEnvironment().getInputGate(inputGateIndex).publishEvent(allWorkersDoneEvent);
     }
   }
 }

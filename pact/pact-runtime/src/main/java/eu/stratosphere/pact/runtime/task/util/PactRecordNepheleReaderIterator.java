@@ -66,6 +66,7 @@ public final class PactRecordNepheleReaderIterator implements MutableObjectItera
 			return this.reader.next(target);
 		}
 		catch (InterruptedException iex) {
+      //TODO might break canceling logic!!!
 			return this.interruptionBehavior.onInterrupt(iex);
 		}
 	}

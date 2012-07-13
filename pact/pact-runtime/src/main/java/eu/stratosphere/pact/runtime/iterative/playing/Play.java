@@ -56,6 +56,7 @@ public class Play {
     Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask.class;
     input.setInputClass(clazz);
     input.setNumberOfSubtasks(degreeOfParallelism);
+    input.setNumberOfSubtasksPerInstance(degreeOfParallelism);
     TaskConfig inputConfig = new TaskConfig(input.getConfiguration());
     inputConfig.setStubClass(TextInputFormat.class);
     inputConfig.setLocalStrategy(TaskConfig.LocalStrategy.NONE);
@@ -78,8 +79,7 @@ public class Play {
     tailConfig.setDriver(MapDriver.class);
     tailConfig.setStubClass(AppendMapper.AppendTailMapper.class);
 
-    JobTaskVertex sync = createTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSynch", jobGraph,
-        degreeOfParallelism);
+    JobTaskVertex sync = createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSynch", jobGraph);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setDriver(MapDriver.class);
     syncConfig.setStubClass(EmptyMapStub.class);
@@ -95,6 +95,7 @@ public class Play {
 
     connectLocal(input, head, inputConfig);
     connectLocal(head, intermediate, headConfig);
+    //connectByNetwork(head, sync, headConfig);
     connectLocal(head, sync, headConfig);
     connectLocal(head, output, headConfig);
     connectLocal(intermediate, tail, intermediateConfig);
@@ -121,10 +122,24 @@ public class Play {
     sourceConfig.addOutputShipStrategy(OutputEmitter.ShipStrategy.FORWARD);
   }
 
+  static void connectByNetwork(AbstractJobVertex source, AbstractJobVertex target, TaskConfig sourceConfig)
+      throws JobGraphDefinitionException {
+    source.connectTo(target, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+    sourceConfig.addOutputShipStrategy(OutputEmitter.ShipStrategy.FORWARD);
+  }
+
   static JobTaskVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph, int dop) {
     JobTaskVertex taskVertex = new JobTaskVertex(name, graph);
     taskVertex.setTaskClass(task);
     taskVertex.setNumberOfSubtasks(dop);
+    taskVertex.setNumberOfSubtasksPerInstance(dop);
+    return taskVertex;
+  }
+
+  static JobTaskVertex createSingletonTask(Class<? extends RegularPactTask> task, String name, JobGraph graph) {
+    JobTaskVertex taskVertex = new JobTaskVertex(name, graph);
+    taskVertex.setTaskClass(task);
+    taskVertex.setNumberOfSubtasks(1);
     return taskVertex;
   }
 
@@ -132,6 +147,7 @@ public class Play {
     JobOutputVertex outputVertex = new JobOutputVertex(name, jobGraph);
     outputVertex.setOutputClass(FakeOutputTask.class);
     outputVertex.setNumberOfSubtasks(degreeOfParallelism);
+    outputVertex.setNumberOfSubtasksPerInstance(degreeOfParallelism);
     return outputVertex;
   }
 
