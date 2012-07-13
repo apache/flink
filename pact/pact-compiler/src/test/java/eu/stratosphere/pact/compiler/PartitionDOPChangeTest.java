@@ -34,14 +34,19 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
+import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 
 /**
  */
@@ -117,6 +122,30 @@ public class PartitionDOPChangeTest {
 		
 		//Compile plan to verify that no error is thrown
 		jobGen.compileJobGraph(oPlan);
+		
+		oPlan.accept(new Visitor<OptimizerNode>() {
+			
+			@Override
+			public boolean preVisit(OptimizerNode visitable) {
+				if (visitable instanceof MatchNode) {
+					int forwardedConnections = 0;
+					for (PactConnection inConn : visitable.getIncomingConnections()) {
+						if (inConn.getShipStrategy() == ShipStrategy.FORWARD) {
+							forwardedConnections++;
+						}
+					}
+					
+					Assert.assertTrue("Incompatible shipping strategy chosen for match", forwardedConnections < 2);
+					return false;
+				}
+				return true;
+			}
+			
+			@Override
+			public void postVisit(OptimizerNode visitable) {
+				// DO NOTHING
+			}
+		});
 	}
 	
 	
