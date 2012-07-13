@@ -26,11 +26,15 @@ import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
  */
 public class ZlibDecompressor extends AbstractDecompressor {
 
-	public ZlibDecompressor(final CompressionBufferProvider bufferProvider) {
+	ZlibDecompressor(final CompressionBufferProvider bufferProvider) {
 		super(bufferProvider);
 	}
 
 	native static void initIDs();
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	protected native int decompressBytesDirect(int offset);
 }
