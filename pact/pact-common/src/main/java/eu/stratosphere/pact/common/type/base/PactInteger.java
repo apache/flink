@@ -105,7 +105,7 @@ public class PactInteger implements Key, NormalizableKey
 	@Override
 	public int compareTo(final Key o) {
 		if (!(o instanceof PactInteger))
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to N_Integer!");
+			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to PactInteger!");
 
 		final int other = ((PactInteger) o).value;
 
@@ -128,7 +128,7 @@ public class PactInteger implements Key, NormalizableKey
 	@Override
 	public boolean equals(final Object obj) {
 		if (obj instanceof PactInteger) {
-			return ((PactInteger) obj).value == value;
+			return ((PactInteger) obj).value == this.value;
 		}
 		return false;
 	}

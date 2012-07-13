@@ -44,7 +44,7 @@ import eu.stratosphere.nephele.util.ServerTestUtils;
  * 
  * @author warneke
  */
-public class TransferEnvelopeSerializerTest {
+public class DefaultSerializerTest {
 
 	/**
 	 * The maximum size of the transfer envelope's buffer.
