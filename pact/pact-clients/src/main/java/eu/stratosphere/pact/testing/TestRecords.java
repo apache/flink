@@ -53,7 +53,6 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
-import eu.stratosphere.pact.runtime.task.ReduceTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyComparator;
 
@@ -290,11 +289,15 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 				if (stackTrace[index].getClassName().contains("Test"))
 					testName.append(stackTrace[index].toString());
 			// instantiate a sort-merger
-			AbstractTask parentTask = new ReduceTask<PactRecord, PactRecord>() {
+			AbstractTask parentTask = new AbstractTask() {
 				@Override
 				public String toString() {
 					return "TestPair Sorter " + testName;
 				}
+				@Override
+				public void registerInputOutput() {}
+				@Override
+				public void invoke() throws Exception {}
 			};
 
 			if (info == null)

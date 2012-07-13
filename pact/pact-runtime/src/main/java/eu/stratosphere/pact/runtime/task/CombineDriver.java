@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.generic.GenericReducer;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
@@ -24,6 +27,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorter;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
@@ -37,23 +41,44 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * emitted.
  * 
  * @see eu.stratosphere.pact.common.stub.ReduceStub
+ * 
+ * @author Stephan Ewen
  * @author Fabian Hueske
  * @author Matthias Ringwald
+ * 
+ * @param <T> The data type consumed and produced by the combiner.
  */
-public class CombineTask<T> extends AbstractPactTask<GenericReducer<T, ?>, T>
+public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 {
-	// the minimal amount of memory for the task to operate
-	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;
+	private static final Log LOG = LogFactory.getLog(CoGroupDriver.class);
+	
+	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;	// minimal memory for the task to operate
+
+	
+	private PactTaskContext<GenericReducer<T, ?>, T> taskContext;
 	
 	private CloseableInputProvider<T> input;
-	
+
 	private TypeSerializer<T> serializer;
-	
+
 	private TypeComparator<T> comparator;
+	
+	private volatile boolean running;
 
 	// ------------------------------------------------------------------------
 
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
+	 */
+	@Override
+	public void setup(PactTaskContext<GenericReducer<T, ?>, T> context) {
+		this.taskContext = context;
+		this.running = true;
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
 	 */
 	@Override
@@ -61,17 +86,21 @@ public class CombineTask<T> extends AbstractPactTask<GenericReducer<T, ?>, T>
 		return 1;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
 	 */
 	@Override
 	public Class<GenericReducer<T, ?>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericReducer<T, ?>> clazz = (Class<GenericReducer<T, ?>>) (Class<?>) GenericReducer.class; 
+		final Class<GenericReducer<T, ?>> clazz = (Class<GenericReducer<T, ?>>) (Class<?>) GenericReducer.class;
 		return clazz;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
 	 */
 	@Override
@@ -79,81 +108,85 @@ public class CombineTask<T> extends AbstractPactTask<GenericReducer<T, ?>, T>
 		return true;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
 	 */
 	@Override
 	public void prepare() throws Exception
 	{
-		// set up memory and I/O parameters
-		final long availableMemory = this.config.getMemorySize();
+		final TaskConfig config = this.taskContext.getTaskConfig();
 		
+		// set up memory and I/O parameters
+		final long availableMemory = config.getMemorySize();
+
 		// test minimum memory requirements
 		LocalStrategy ls = config.getLocalStrategy();
-		
+
 		long strategyMinMem = 0;
-		
+
 		switch (ls) {
-			case COMBININGSORT:
-				strategyMinMem = MIN_REQUIRED_MEMORY;
-				break;
+		case COMBININGSORT:
+			strategyMinMem = MIN_REQUIRED_MEMORY;
+			break;
 		}
-	
+
 		if (availableMemory < strategyMinMem) {
 			throw new RuntimeException(
-					"The Combine task was initialized with too little memory for local strategy "+
-					config.getLocalStrategy()+" : " + availableMemory + " bytes." +
-				    "Required is at least " + strategyMinMem + " bytes.");
+					"The Combine task was initialized with too little memory for local strategy " +
+							config.getLocalStrategy() + " : " + availableMemory + " bytes." +
+							"Required is at least " + strategyMinMem + " bytes.");
 		}
-		
-		// obtain the TaskManager's MemoryManager
-		final MemoryManager memoryManager = getEnvironment().getMemoryManager();
 
-		final MutableObjectIterator<T> in = getInput(0);
-		this.serializer = getInputSerializer(0);
-		this.comparator = getInputComparator(0);
-		
-		switch (ls)
-		{
-			// local strategy is COMBININGSORT
-			// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
-			// the combine() method of the ReduceStub.
-			// An iterator on the sorted, grouped, and combined pairs is created and returned
-			case COMBININGSORT:
-				input = new AsynchronousPartialSorter<T>(memoryManager, in, this, 
+		// obtain the TaskManager's MemoryManager
+		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
+
+		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
+		this.serializer = this.taskContext.getInputSerializer(0);
+		this.comparator = this.taskContext.getInputComparator(0);
+
+		switch (ls) {
+		// local strategy is COMBININGSORT
+		// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
+		// the combine() method of the ReduceStub.
+		// An iterator on the sorted, grouped, and combined pairs is created and returned
+		case COMBININGSORT:
+			input = new AsynchronousPartialSorter<T>(memoryManager, in, this.taskContext.getOwningNepheleTask(),
 						this.serializer, this.comparator.duplicate(), availableMemory);
-				break;
-					// obtain and return a grouped iterator from the combining sort-merger
-			default:
-				throw new RuntimeException("Invalid local strategy provided for CombineTask.");
+			break;
+		// obtain and return a grouped iterator from the combining sort-merger
+		default:
+			throw new RuntimeException("Invalid local strategy provided for CombineTask.");
 		}
 	}
 
-
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
 	 */
 	@Override
-	public void run() throws Exception
-	{
+	public void run() throws Exception {
 		if (LOG.isDebugEnabled())
-			LOG.debug(getLogString("Preprocessing done, iterator obtained."));
+			LOG.debug(this.taskContext.formatLogString("Preprocessing done, iterator obtained."));
 
 		final KeyGroupedIterator<T> iter = new KeyGroupedIterator<T>(this.input.getIterator(),
 				this.serializer, this.comparator);
-		
+
 		// cache references on the stack
-		final GenericReducer<T, ?> stub = this.stub;
-		final Collector<T> output = this.output;
-		
+		final GenericReducer<T, ?> stub = this.taskContext.getStub();
+		final Collector<T> output = this.taskContext.getOutputCollector();
+
 		// run stub implementation
-		while (this.running && iter.nextKey())
-		{
+		while (this.running && iter.nextKey()) {
 			stub.combine(iter.getValues(), output);
 		}
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
 	 */
 	@Override
@@ -163,5 +196,12 @@ public class CombineTask<T> extends AbstractPactTask<GenericReducer<T, ?>, T>
 			this.input = null;
 		}
 	}
-	
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
+	 */
+	@Override
+	public void cancel() {
+		this.running = false;
+	}
 }

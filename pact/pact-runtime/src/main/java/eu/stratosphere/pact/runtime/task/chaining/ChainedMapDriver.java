@@ -20,14 +20,14 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.generic.GenericMapper;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.runtime.task.AbstractPactTask;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 
 /**
  * @author Stephan Ewen
  */
-public class ChainedMapTask<IT, OT> implements ChainedTask<IT, OT>
+public class ChainedMapDriver<IT, OT> implements ChainedDriver<IT, OT>
 {
 	private GenericMapper<IT, OT> mapper;
 	
@@ -54,7 +54,7 @@ public class ChainedMapTask<IT, OT> implements ChainedTask<IT, OT>
 		this.collector = output;
 		
 		@SuppressWarnings("unchecked")
-		final GenericMapper<IT, OT> mapper = AbstractPactTask.instantiateUserCode(config, userCodeClassLoader, GenericMapper.class);
+		final GenericMapper<IT, OT> mapper = RegularPactTask.instantiateUserCode(config, userCodeClassLoader, GenericMapper.class);
 		this.mapper = mapper;
 	}
 	
@@ -70,7 +70,7 @@ public class ChainedMapTask<IT, OT> implements ChainedTask<IT, OT>
 		if(this.parent.getEnvironment().getTaskName() != null) {
 			stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
 		}
-		AbstractPactTask.openUserCode(this.mapper, stubConfig);
+		RegularPactTask.openUserCode(this.mapper, stubConfig);
 	}
 	
 	/* (non-Javadoc)
@@ -79,7 +79,7 @@ public class ChainedMapTask<IT, OT> implements ChainedTask<IT, OT>
 	@Override
 	public void closeTask() throws Exception
 	{
-		AbstractPactTask.closeUserCode(this.mapper);
+		RegularPactTask.closeUserCode(this.mapper);
 	}
 	
 	/* (non-Javadoc)
