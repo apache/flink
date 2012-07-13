@@ -15,16 +15,15 @@
 
 package eu.stratosphere.nephele.io.compression.library.snappy;
 
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.util.NativeCodeLoader;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class SnappyLibrary extends AbstractCompressionLibrary {
+public class SnappyLibrary implements CompressionLibrary {
 
 	/**
 	 * The file name of the native snappy library.
@@ -45,32 +44,43 @@ public class SnappyLibrary extends AbstractCompressionLibrary {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public int getUncompressedBufferSize(final int compressedBufferSize) {
-		
+
 		int result = compressedBufferSize - SnappyCompressor.SIZE_LENGTH;
-				
-		return (6*(result-32))/7;
+
+		return (6 * (result - 32)) / 7;
 	}
 
 	native static void initIDs();
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String getLibraryName() {
 		return "SNAPPY";
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Compressor initNewCompressor(final AbstractByteBufferedOutputChannel<?> outputChannel)
-			throws CompressionException {
+	public Compressor createNewCompressor(final CompressionBufferProvider bufferProvider) throws CompressionException {
 
-		return new SnappyCompressor(this);
+		return new SnappyCompressor(bufferProvider);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Decompressor initNewDecompressor(final AbstractByteBufferedInputChannel<?> inputChannel)
+	public Decompressor createNewDecompressor(final CompressionBufferProvider bufferProvider)
 			throws CompressionException {
 
-		return new SnappyDecompressor(this);
+		return new SnappyDecompressor(bufferProvider);
 	}
 }

@@ -30,7 +30,7 @@ public class ZlibLibrary implements CompressionLibrary {
 	 */
 	private static final String NATIVELIBRARYFILENAME = "libzlibcompression.so.1.0";
 
-	public ZlibLibrary(String nativeLibraryDir) throws CompressionException {
+	public ZlibLibrary(final String nativeLibraryDir) throws CompressionException {
 
 		if (!NativeCodeLoader.isLibraryLoaded(NATIVELIBRARYFILENAME)) {
 			try {

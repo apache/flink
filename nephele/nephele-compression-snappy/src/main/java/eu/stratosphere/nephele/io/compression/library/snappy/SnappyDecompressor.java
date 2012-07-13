@@ -15,8 +15,8 @@
 
 package eu.stratosphere.nephele.io.compression.library.snappy;
 
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 
 /**
  * This class provides an interface for decompressing byte-buffers with the native snappy library.
@@ -27,17 +27,15 @@ import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
  */
 public class SnappyDecompressor extends AbstractDecompressor {
 
-	public SnappyDecompressor(final AbstractCompressionLibrary compressionLibrary) {
-		super(compressionLibrary);
+	SnappyDecompressor(final CompressionBufferProvider bufferProvider) {
+		super(bufferProvider);
 	}
 
 	native static void initIDs();
 
-	protected native int decompressBytesDirect(int offset);
-
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected void freeInternalResources() {
-		// TODO Auto-generated method stub
-
-	}
+	protected native int decompressBytesDirect(int offset);
 }
