@@ -23,8 +23,9 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
+import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
@@ -61,14 +62,12 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 	 * @see eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker#requestEmptyWriteBuffers()
 	 */
 	@Override
-	public BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException, IOException {
+	public Buffer requestEmptyWriteBuffer() throws InterruptedException, IOException {
+
 		this.outgoingTransferEnvelope = this.newEnvelope();
 		final int uncompressedBufferSize = this.transitBufferPool.getMaximumBufferSize();
-		Buffer buffer = this.transitBufferPool.requestEmptyBuffer(uncompressedBufferSize);
-		final BufferPairResponse bufferResponse = new BufferPairResponse(null, buffer);
-		// Put the buffer into the transfer envelope
-		this.outgoingTransferEnvelope.setBuffer(bufferResponse.getUncompressedDataBuffer());
-		return bufferResponse;
+
+		return this.transitBufferPool.requestEmptyBuffer(uncompressedBufferSize);
 	}
 
 	protected TransferEnvelope newEnvelope() {
@@ -84,10 +83,12 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 	 * @see eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker#releaseWriteBuffers()
 	 */
 	@Override
-	public void releaseWriteBuffers() throws IOException, InterruptedException {
+	public void releaseWriteBuffer(final Buffer buffer) throws IOException, InterruptedException {
+
 		// Finish the write phase of the buffer
-		final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
 		buffer.finishWritePhase();
+
+		this.outgoingTransferEnvelope.setBuffer(buffer);
 
 		if (this.queuedOutgoingEnvelopes.isEmpty())
 			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(this.outgoingTransferEnvelope);
@@ -165,5 +166,15 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 	@Override
 	public AbstractByteBufferedOutputChannel<?> getChannel() {
 		return this.byteBufferedOutputChannel;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker#getCompressor()
+	 */
+	@Override
+	public Compressor getCompressor() throws CompressionException {
+
+		return null;
 	}
 }

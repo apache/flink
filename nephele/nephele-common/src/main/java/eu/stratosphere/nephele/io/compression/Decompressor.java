@@ -18,45 +18,19 @@ package eu.stratosphere.nephele.io.compression;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 
 public interface Decompressor {
 
 	/**
-	 * Method to decompress the data from the compressed Data-Buffer to the uncompressed Data-Buffer.
-	 */
-	void decompress() throws IOException;
-
-	/**
-	 * Get the uncompressed Data-Buffer.
+	 * Decompresses the data in the given buffer.
 	 * 
-	 * @return the Data-Buffer used to store the uncompressed/output data.
+	 * @param compressedData
+	 *        the buffer containing the compressed data
+	 * @return a buffer containing the uncompressed data
+	 * @throws IOException
+	 *         thrown if an error occurs during the decompression process
 	 */
-	Buffer getUncompresssedDataBuffer();
-
-	/**
-	 * Get the compressed Data-Buffer.
-	 * 
-	 * @return the Data-Buffer used to store the compressed/input data.
-	 */
-	Buffer getCompressedDataBuffer();
-
-	/**
-	 * Set the compressed Data-Buffer. This method is used together with NetworkInputChannels, where we
-	 * use multiply Buffers for the compressed Data.
-	 * 
-	 * @param buffer
-	 *        the Data-Buffer used to store the compressed/input data
-	 */
-	void setCompressedDataBuffer(Buffer buffer);
-
-	/**
-	 * Set the uncompressed data buffer.
-	 * 
-	 * @param buffer
-	 *        the uncompressed data buffer
-	 */
-	void setUncompressedDataBuffer(Buffer buffer);
+	Buffer decompress(Buffer compressedData) throws IOException;
 
 	/**
 	 * Sets the internal decompression library index, as reported by the
@@ -70,10 +44,13 @@ public interface Decompressor {
 	void setCurrentInternalDecompressionLibraryIndex(int index);
 
 	/**
-	 * Stops the decompressor and releases all allocated internal resources.
-	 * 
-	 * @param channelID
-	 *        the ID of the channel requesting the shut down
+	 * Notifies the decompressor that is it now by another input channel.
 	 */
-	void shutdown(ChannelID channelID);
+	void increaseChannelCounter();
+
+	/**
+	 * Stops the decompressor and releases all allocated internal resources if the decompressor object is no longer used
+	 * by any input channel.
+	 */
+	void shutdown();
 }

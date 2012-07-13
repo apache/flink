@@ -19,10 +19,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 
 public abstract class AbstractCompressor implements Compressor {
+
+	private final CompressionBufferProvider bufferProvider;
 
 	protected Buffer uncompressedBuffer;
 
@@ -38,28 +39,19 @@ public abstract class AbstractCompressor implements Compressor {
 
 	public final static int SIZE_LENGTH = 8;
 
-	private final AbstractCompressionLibrary compressionLibrary;
+	private int channelCounter = 1;
 
-	public AbstractCompressor(final AbstractCompressionLibrary compressionLibrary) {
-		this.compressionLibrary = compressionLibrary;
+	protected AbstractCompressor(final CompressionBufferProvider bufferProvider) {
+		this.bufferProvider = bufferProvider;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final Buffer getCompressedDataBuffer() {
+	public final void increaseChannelCounter() {
 
-		return this.compressedBuffer;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final Buffer getUncompresssedDataBuffer() {
-
-		return this.uncompressedBuffer;
+		++this.channelCounter;
 	}
 
 	/**
@@ -70,7 +62,7 @@ public abstract class AbstractCompressor implements Compressor {
 	 *        the buffer to unwrap the {@link ByteBuffer} object from
 	 * @return the unwrapped {@link ByteBuffer} object
 	 */
-	private ByteBuffer getInternalByteBuffer(Buffer buffer) {
+	private ByteBuffer getInternalByteBuffer(final Buffer buffer) {
 
 		if (!(buffer instanceof MemoryBuffer)) {
 			throw new RuntimeException("Provided buffer is not a memory buffer and cannot be used for compression");
@@ -81,11 +73,7 @@ public abstract class AbstractCompressor implements Compressor {
 		return memoryBuffer.getByteBuffer();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final void setCompressedDataBuffer(Buffer buffer) {
+	protected final void setCompressedDataBuffer(final Buffer buffer) {
 
 		if (buffer == null) {
 			this.compressedBuffer = null;
@@ -98,11 +86,7 @@ public abstract class AbstractCompressor implements Compressor {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final void setUncompressedDataBuffer(Buffer buffer) {
+	protected final void setUncompressedDataBuffer(final Buffer buffer) {
 
 		if (buffer == null) {
 			this.uncompressedBuffer = null;
@@ -115,8 +99,14 @@ public abstract class AbstractCompressor implements Compressor {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public final void compress() throws IOException {
+	public final Buffer compress(final Buffer uncompressedData) throws IOException {
+
+		setUncompressedDataBuffer(uncompressedData);
+		setCompressedDataBuffer(this.bufferProvider.lockCompressionBuffer());
 		this.compressedDataBuffer.clear();
 		this.uncompressedDataBufferLength = this.uncompressedDataBuffer.position();
 
@@ -127,8 +117,12 @@ public abstract class AbstractCompressor implements Compressor {
 
 		this.compressedDataBuffer.position(numberOfCompressedBytes + SIZE_LENGTH);
 
-		// If everything went ok, prepare buffers for next run
-		this.uncompressedBuffer.finishWritePhase();
+		final Buffer compressedBuffer = this.compressedBuffer;
+		this.bufferProvider.releaseCompressionBuffer(this.uncompressedBuffer);
+		setUncompressedDataBuffer(null);
+		setCompressedDataBuffer(null);
+
+		return compressedBuffer;
 	}
 
 	protected abstract int compressBytesDirect(int offset);
@@ -146,13 +140,21 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void shutdown(final ChannelID channelID) {
+	public final void shutdown() {
 
-		if (this.compressionLibrary.canBeShutDown(this, channelID)) {
+		--this.channelCounter;
+
+		if (this.channelCounter == 0) {
+			this.bufferProvider.shutdown();
 			freeInternalResources();
 		}
-
 	}
 
-	protected abstract void freeInternalResources();
+	/**
+	 * Frees the resources internally allocated by the compression library.
+	 */
+	protected void freeInternalResources() {
+
+		// Default implementation does nothing
+	}
 }

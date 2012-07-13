@@ -16,16 +16,12 @@
 package eu.stratosphere.nephele.io.channels;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * OutputChannel is an abstract base class to all different kinds of concrete
@@ -92,60 +88,13 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 	 */
 	public abstract void requestClose() throws IOException, InterruptedException;
 
-	// TODO: See if type safety can be improved here
-	@SuppressWarnings("unchecked")
-	public Compressor getCompressor(int bufferSize) throws CompressionException {
-
-		if (getCompressionLevel() == CompressionLevel.NO_COMPRESSION)
-			throw new CompressionException("CompressionLevel is set to NO_COMPRESSION");
-
-		String configurationKey = null;
-
-		switch (this.getType()) {
-		case FILE:
-			configurationKey = "channel.file.compressor";
-			break;
-		case NETWORK:
-			configurationKey = "channel.network.compressor";
-			break;
-		}
-
-		if (configurationKey == null)
-			throw new CompressionException("Cannot determine configuration key for the channel type " + this.getType());
-
-		String className = GlobalConfiguration.getString(configurationKey, null);
-		if (className == null)
-			throw new CompressionException("Configuration does not contain an entry for key " + configurationKey);
-
-		Class<? extends Compressor> compressionClass = null;
-
-		try {
-			compressionClass = (Class<? extends Compressor>) Class.forName(className);
-		} catch (ClassNotFoundException e) {
-			throw new CompressionException("Cannot find compressor class: " + StringUtils.stringifyException(e));
-		}
-
-		Constructor<? extends Compressor> constructor = null;
-
-		try {
-			constructor = compressionClass.getConstructor(int.class, CompressionLevel.class);
-		} catch (SecurityException e) {
-			throw new CompressionException(StringUtils.stringifyException(e));
-		} catch (NoSuchMethodException e) {
-			throw new CompressionException("Cannot find matching constructor for compression class: "
-				+ StringUtils.stringifyException(e));
-		}
-
-		Compressor compressor = null;
-
-		try {
-			compressor = constructor.newInstance(bufferSize, getCompressionLevel());
-		} catch (Exception e) {
-			throw new CompressionException(StringUtils.stringifyException(e));
-		}
-
-		return compressor;
-	}
+	/**
+	 * Initializes the compressor object for this output channel.
+	 * 
+	 * @throws CompressionException
+	 *         thrown if an error occurs during the initialization process
+	 */
+	public abstract void initializeCompressor() throws CompressionException;
 
 	/**
 	 * {@inheritDoc}
