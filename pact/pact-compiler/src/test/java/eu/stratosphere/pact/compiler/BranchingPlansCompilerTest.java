@@ -212,5 +212,43 @@ public class BranchingPlansCompilerTest {
 		jobGen.compileJobGraph(oPlan);
 	}
 	
+
+	@Test
+	public void testBranchingUnion() {
+		// construct the plan
+
+		FileDataSource source1 = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
+		FileDataSource source2 = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
+		
+		MatchContract mat1 = new MatchContract(DummyMatchStub.class, PactInteger.class, 0, 0, source1, source2);
+		
+		MapContract ma1 = new MapContract(IdentityMap.class, mat1);
+		ReduceContract r1 = new ReduceContract(IdentityReduce.class, PactInteger.class, 0, ma1);
+		ReduceContract r2 = new ReduceContract(IdentityReduce.class, PactInteger.class, 0, mat1);
+		
+		MapContract ma2 = new MapContract(IdentityMap.class, mat1);
+		
+		MapContract ma3 = new MapContract(IdentityMap.class, ma2);
+		
+		MatchContract mat2 = new MatchContract(DummyMatchStub.class, PactInteger.class, 0, 0, r1, ma2);
+		mat2.addFirstInput(r2);
+		mat2.addFirstInput(ma2);
+		mat2.addFirstInput(ma3);
+		
+		
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE_1, mat2);
+		
+		
+		// return the PACT plan
+		Plan plan = new Plan(sink, "Branching Union");
+		
+		OptimizedPlan oPlan = this.compiler.compile(plan, this.instanceType);
+		
+		JobGraphGenerator jobGen = new JobGraphGenerator();
+		
+		//Compile plan to verify that no error is thrown
+		jobGen.compileJobGraph(oPlan);
+	}
+	
 	
 }

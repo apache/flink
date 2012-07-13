@@ -152,6 +152,7 @@ public class UnionNode extends OptimizerNode {
 		
 		//merge all open branches of the predecessors and store each individually 
 		for (PactConnection inConn : inConns) {
+			addClosedBranches(inConn.getSourcePact().closedBranchingNodes);
 			List<UnclosedBranchDescriptor> openBranchForInput = inConn.getSourcePact().getBranchesForParent(this);
 			openBranchesOfChildren.add(openBranchForInput);
 			result = mergeLists(result, openBranchForInput);

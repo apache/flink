@@ -17,8 +17,10 @@ package eu.stratosphere.pact.compiler.util;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
+@ConstantFieldsFirstExcept(fields={})
 public class DummyMatchStub extends MatchStub {
 
 	/* (non-Javadoc)

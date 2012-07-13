@@ -386,6 +386,9 @@ public abstract class TwoInputNode extends OptimizerNode
 			return;
 		}
 
+		addClosedBranches(this.getFirstPredNode().closedBranchingNodes);
+		addClosedBranches(this.getSecondPredNode().closedBranchingNodes);
+		
 		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
 		// TODO: check if merge is really necessary
 		result1 = mergeLists(result1, this.getFirstPredNode().getBranchesForParent(this));

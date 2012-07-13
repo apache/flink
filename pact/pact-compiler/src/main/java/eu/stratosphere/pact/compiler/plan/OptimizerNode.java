@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -128,6 +129,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	protected GlobalProperties globalProps; // global properties of the data produced by this node
 
 	protected List<UnclosedBranchDescriptor> openBranches; // stack of branches in the sub-graph that are not joined
+	
+	protected Set<OptimizerNode> closedBranchingNodes; // stack of branching nodes which have already been closed
 	
 	protected Map<OptimizerNode, OptimizerNode> branchPlan; // the actual plan alternative chosen at a branch point
 
@@ -1083,7 +1086,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	{
 		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
-			return this.openBranches;
+			if (this.openBranches == null) return null;
+			return new ArrayList<UnclosedBranchDescriptor>(this.openBranches);
 		}
 		else if (this.outgoingConnections.size() > 1) {
 			// we branch add a branch info to the stack
@@ -1143,11 +1147,42 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			return true;
 	}
 
+	
+	protected void removeClosedBranches(List<UnclosedBranchDescriptor> openList) {
+		if (openList == null || openList.isEmpty() || closedBranchingNodes == null || closedBranchingNodes.isEmpty()) return;
+		
+		Iterator<UnclosedBranchDescriptor> it = openList.iterator();
+		while (it.hasNext()) {
+			if (closedBranchingNodes.contains(it.next().getBranchingNode())) {
+				//this branch was already closed --> remove it from the list
+				it.remove();
+			}
+		}
+	}
+	
+	protected void addClosedBranches(Set<OptimizerNode> alreadyClosed) {
+		if (alreadyClosed == null || alreadyClosed.isEmpty()) return;
+		if (this.closedBranchingNodes == null) 
+			this.closedBranchingNodes = new HashSet<OptimizerNode>(alreadyClosed);
+		else 
+			this.closedBranchingNodes.addAll(alreadyClosed);
+	}
+	
+	protected void addClosedBranch(OptimizerNode alreadyClosed) {
+		if (this.closedBranchingNodes == null) 
+			this.closedBranchingNodes = new HashSet<OptimizerNode>();
+		this.closedBranchingNodes.add(alreadyClosed);
+	}
 	/*
 	 * node IDs are assigned in graph-traversal order (pre-order)
 	 * hence, each list is sorted by ID in ascending order and all consecutive lists start with IDs in ascending order
 	 */
 	protected List<UnclosedBranchDescriptor> mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open) {
+
+		//remove branches which have already been closed
+		removeClosedBranches(child1open);
+		removeClosedBranches(child2open);
+		
 		// check how many open branches we have. the cases:
 		// 1) if both are null or empty, the result is null
 		// 2) if one side is null (or empty), the result is the other side.
@@ -1201,6 +1236,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 				if (joinedInputs == allInputs) {
 					// closed - we can remove it from the stack
+					addClosedBranch(currBanchingNode);
 				} else {
 					// not quite closed
 					result.add(new UnclosedBranchDescriptor(currBanchingNode, joinedInputs));

@@ -242,6 +242,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 			return;
 		}
 
+		addClosedBranches(this.getPredNode().closedBranchingNodes);
+		
 		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
 		// TODO: check if merge of lists is really necessary
 		result = mergeLists(result, this.getPredNode().getBranchesForParent(this)); 
