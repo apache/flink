@@ -239,7 +239,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 		if (this.decompressor == null) {
 			this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(
-				this.inputGate.getCompressionLevel(), new CompressionBufferProvider(this));
+				this.inputGate.getCompressionLevel(), new CompressionBufferProvider(this, true));
 		} else {
 			this.decompressor.increaseChannelCounter();
 		}
