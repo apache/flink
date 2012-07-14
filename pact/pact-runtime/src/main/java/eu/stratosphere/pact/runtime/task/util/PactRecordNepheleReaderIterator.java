@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
-
 /**
  * A {@link MutableObjectIterator} that wraps a Nephele Reader producing {@link PactRecord}s.
  *

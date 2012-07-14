@@ -19,6 +19,7 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.io.DistributionPattern;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
@@ -49,7 +50,7 @@ public class Play {
 
   public static void main(String[] args) throws Exception {
 
-    int degreeOfParallelism = 1;
+    int degreeOfParallelism = 2;
     JobGraph jobGraph = new JobGraph();
 
     JobInputVertex input = new JobInputVertex("FileInput", jobGraph);
@@ -60,7 +61,7 @@ public class Play {
     TaskConfig inputConfig = new TaskConfig(input.getConfiguration());
     inputConfig.setStubClass(TextInputFormat.class);
     inputConfig.setLocalStrategy(TaskConfig.LocalStrategy.NONE);
-    inputConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, "file:///home/ssc/Desktop/i.txt");
+    inputConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, "file:///home/ssc/Desktop/iterations/");
 
     JobTaskVertex head = createTask(BulkIterationHeadPactTask.class, "BulkIterationHead", jobGraph, degreeOfParallelism);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
@@ -79,10 +80,11 @@ public class Play {
     tailConfig.setDriver(MapDriver.class);
     tailConfig.setStubClass(AppendMapper.AppendTailMapper.class);
 
-    JobTaskVertex sync = createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSynch", jobGraph);
+    JobTaskVertex sync = createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSync", jobGraph);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setDriver(MapDriver.class);
     syncConfig.setStubClass(EmptyMapStub.class);
+    syncConfig.setNumberOfBulkIterationHeads(degreeOfParallelism);
 
     JobOutputVertex output = createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
@@ -90,8 +92,8 @@ public class Play {
     outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, "file:///tmp/stratosphere/iterations");
 
 
-    JobOutputVertex tailBlindOutput = createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
-    JobOutputVertex syncBlindOutput = createFakeOutput(jobGraph, "FakeSyncOutput", degreeOfParallelism);
+    JobOutputVertex fakeTailOutput = createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
+    JobOutputVertex fakeSyncOutput = createSingletonFakeOutput(jobGraph, "FakeSyncOutput");
 
     connectLocal(input, head, inputConfig);
     connectLocal(head, intermediate, headConfig);
@@ -99,8 +101,8 @@ public class Play {
     connectLocal(head, sync, headConfig);
     connectLocal(head, output, headConfig);
     connectLocal(intermediate, tail, intermediateConfig);
-    connectLocal(tail, tailBlindOutput, tailConfig);
-    connectLocal(sync, syncBlindOutput, syncConfig);
+    connectLocal(tail, fakeTailOutput, tailConfig);
+    connectLocal(sync, fakeSyncOutput, syncConfig);
 
     head.setVertexToShareInstancesWith(tail);
 
@@ -118,15 +120,16 @@ public class Play {
 
   static void connectLocal(AbstractJobVertex source, AbstractJobVertex target, TaskConfig sourceConfig)
       throws JobGraphDefinitionException {
-    source.connectTo(target, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+    source.connectTo(target, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION,
+        DistributionPattern.POINTWISE);
     sourceConfig.addOutputShipStrategy(OutputEmitter.ShipStrategy.FORWARD);
   }
 
-  static void connectByNetwork(AbstractJobVertex source, AbstractJobVertex target, TaskConfig sourceConfig)
-      throws JobGraphDefinitionException {
-    source.connectTo(target, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-    sourceConfig.addOutputShipStrategy(OutputEmitter.ShipStrategy.FORWARD);
-  }
+//  static void connectByNetwork(AbstractJobVertex source, AbstractJobVertex target, TaskConfig sourceConfig)
+//      throws JobGraphDefinitionException {
+//    source.connectTo(target, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
+//    sourceConfig.addOutputShipStrategy(OutputEmitter.ShipStrategy.FORWARD);
+//  }
 
   static JobTaskVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph, int dop) {
     JobTaskVertex taskVertex = new JobTaskVertex(name, graph);
@@ -141,6 +144,13 @@ public class Play {
     taskVertex.setTaskClass(task);
     taskVertex.setNumberOfSubtasks(1);
     return taskVertex;
+  }
+
+  static JobOutputVertex createSingletonFakeOutput(JobGraph jobGraph, String name) {
+    JobOutputVertex outputVertex = new JobOutputVertex(name, jobGraph);
+    outputVertex.setOutputClass(FakeOutputTask.class);
+    outputVertex.setNumberOfSubtasks(1);
+    return outputVertex;
   }
 
   static JobOutputVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism) {

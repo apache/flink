@@ -57,7 +57,9 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
     listenToTermination(new Callback<TerminationEvent>() {
       @Override
       public void execute(TerminationEvent event) throws Exception {
-        log.info("received termination [" + System.currentTimeMillis() + "]");
+        if (log.isInfoEnabled()) {
+          log.info(formatLogString("received termination"));
+        }
         terminated = true;
       }
     });
@@ -67,19 +69,24 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
 
     while (!terminated) {
 
-      log.info("starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("starting iteration [" + numIterations + "]"));
+      }
+
       if (numIterations > 0) {
         reinstantiateDriver();
       }
 
       super.invoke();
 
-      log.info("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
+      }
+
       backChannel.notifyOfEndOfSuperstep();
 
       numIterations++;
     }
-
   }
 
 }

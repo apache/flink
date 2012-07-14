@@ -60,20 +60,27 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
 
     while (!terminated) {
 
-      log.info("starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("starting iteration [" + numIterations + "]"));
+      }
+
       if (numIterations > 0) {
         reinstantiateDriver();
       }
 
       super.invoke();
 
-      log.info("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
+      }
       numIterations++;
     }
   }
 
   private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-    log.info("got " + event.getClass().getSimpleName() + " [" + System.currentTimeMillis() + "]");
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("propagating " + event.getClass().getSimpleName()));
+    }
     for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
       flushAndPublishEvent(eventualOutput, event);
     }

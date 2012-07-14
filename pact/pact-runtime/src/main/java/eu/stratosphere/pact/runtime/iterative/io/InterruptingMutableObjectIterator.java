@@ -35,7 +35,7 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
   private final MutableObjectIterator<E> delegate;
   private final String owner;
   private final int numberOfEventsUntilInterrupt;
-  private final AtomicInteger numberOfEventsSeen;
+  private final AtomicInteger eventCounter;
 
   private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
 
@@ -44,16 +44,18 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
     Preconditions.checkArgument(numberOfEventsUntilInterrupt > 0);
     this.delegate = delegate;
     this.numberOfEventsUntilInterrupt = numberOfEventsUntilInterrupt;
-    this.numberOfEventsSeen = new AtomicInteger(0);
+    this.eventCounter = new AtomicInteger(0);
     this.owner = owner;
   }
 
   @Override
   public void eventOccurred(AbstractTaskEvent event) {
-    log.info("InterruptibleIterator of " + owner + " received " + event.getClass().getSimpleName() +
-        " [" + System.currentTimeMillis() + "]");
-    int numberOfEventsCurrentlySeen = numberOfEventsSeen.incrementAndGet();
-    if (numberOfEventsCurrentlySeen % numberOfEventsUntilInterrupt == 0) {
+    int numberOfEventsSeen = eventCounter.incrementAndGet();
+    if (log.isInfoEnabled()) {
+      log.info("InterruptibleIterator of " + owner + " received " + event.getClass().getSimpleName() +
+          "(" + numberOfEventsSeen +")");
+    }
+    if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {
       Thread.currentThread().interrupt();
     }
   }

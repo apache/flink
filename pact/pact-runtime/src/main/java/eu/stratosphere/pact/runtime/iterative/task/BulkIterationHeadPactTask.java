@@ -22,7 +22,6 @@ import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.Writer;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
@@ -96,10 +95,11 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
 
     while (numIterations < 3) {
 
-      log.info("Head: starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("starting iteration [" + numIterations + "]"));
+      }
 
       if (numIterations > 0) {
-        // reinstantiate driver
         reinstantiateDriver();
       }
 
@@ -114,9 +114,13 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
 
       // blocking call to wait for the result
       DataInputView superStepResult = backChannel.getReadEndAfterSuperstepEnded();
-      log.info("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
+      }
 
-      log.info("waiting for other workers in iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("waiting for other workers in iteration [" + numIterations + "]"));
+      }
       sendEventToSync(endOfSuperstepEvent);
 
       // wait on barrier
@@ -128,10 +132,13 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     }
 
     // signal to connected tasks that the iteration terminated
-    sendEventToAllIterationOutputs(new TerminationEvent());
-    sendEventToSync(new TerminationEvent());
+    TerminationEvent terminationEvent = new TerminationEvent();
+    sendEventToAllIterationOutputs(terminationEvent);
+    sendEventToSync(terminationEvent);
 
-    log.info("streaming out final result [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("streaming out final result after [" + numIterations + "] iterations"));
+    }
     streamOutFinalOutput();
   }
 
@@ -140,6 +147,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     int numOutputs = eventualOutputs.size();
     Preconditions.checkState(numOutputs > 2);
     List<AbstractRecordWriter<PactRecord>> writers = Lists.newArrayListWithCapacity(numOutputs - 1);
+    //TODO remove implicit assumption
     for (int outputIndex = 0; outputIndex < numOutputs - 2; outputIndex++) {
       //TODO type safety
       writers.add((AbstractRecordWriter<PactRecord>) eventualOutputs.get(outputIndex));

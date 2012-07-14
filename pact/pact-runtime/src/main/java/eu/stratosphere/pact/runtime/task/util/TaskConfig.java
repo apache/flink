@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
@@ -137,7 +138,12 @@ public class TaskConfig
 	private static final String SORT_SPILLING_THRESHOLD = "pact.sort.spillthreshold";
 
 	// --------------------------------------------------------------------------------------------
-	
+
+
+  private static final String NUMBER_OF_BULK_ITERATION_HEADS = "pact.iterative.numberOfBulkIterationHeads";
+
+  // --------------------------------------------------------------------------------------------
+
 	protected final Configuration config;			// the actual configuration holding the values
 
 	
@@ -534,6 +540,21 @@ public class TaskConfig
 	{
 		return this.config.getString(CHAINING_TASKNAME_PREFIX + chainPos, null);
 	}
+
+  // --------------------------------------------------------------------------------------------
+  //                                    Parameters for iterations
+  // --------------------------------------------------------------------------------------------
+
+  public void setNumberOfBulkIterationHeads(int numberOfBulkIterationHeads)
+  {
+    Preconditions.checkArgument(numberOfBulkIterationHeads >= 0);
+    this.config.setInteger(NUMBER_OF_BULK_ITERATION_HEADS, numberOfBulkIterationHeads);
+  }
+
+  public int getNumberOfBulkIterationHeads()
+  {
+    return this.config.getInteger(NUMBER_OF_BULK_ITERATION_HEADS, 0);
+  }
 	
 	// --------------------------------------------------------------------------------------------
 	//                              Utility class for nested Configurations

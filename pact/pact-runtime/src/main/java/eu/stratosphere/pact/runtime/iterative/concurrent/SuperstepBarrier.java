@@ -20,18 +20,22 @@ import eu.stratosphere.nephele.event.task.EventListener;
 
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
+/** a resettable one-shot latch */
 public class SuperstepBarrier implements EventListener {
 
   private Sync sync = new Sync();
 
+  /** setup the barrier, has to be called at the beginning of each superstep */
   public void setup() {
     sync = new Sync();
   }
 
+  /** wait on the barrier */
   public void waitForOtherWorkers() throws InterruptedException {
     sync.tryAcquireShared(0);
   }
 
+  /** barrier will release the waiting thread if an event occurs*/
   @Override
   public void eventOccurred(AbstractTaskEvent event) {
     sync.releaseShared(0);

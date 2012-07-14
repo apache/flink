@@ -41,18 +41,13 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
 
   @Override
   protected int numberOfEventsUntilInterrupt() {
-    return numberOfConnectedHeads();
-  }
-
-  private int numberOfConnectedHeads() {
-    //TODO return number of connected workers
-    return 1;
+    return getTaskConfig().getNumberOfBulkIterationHeads();
   }
 
   @Override
   public void invoke() throws Exception {
 
-    final AtomicInteger nonTerminatedHeadsCounter = new AtomicInteger(numberOfConnectedHeads());
+    final AtomicInteger nonTerminatedHeadsCounter = new AtomicInteger(getTaskConfig().getNumberOfBulkIterationHeads());
 
     listenToTermination(new Callback<TerminationEvent>() {
       @Override
@@ -66,18 +61,26 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
 
     while (!terminated) {
 
-      log.info("starting iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("starting iteration [" + numIterations + "]"));
+      }
+
       if (numIterations > 0) {
         reinstantiateDriver();
       }
 
       super.invoke();
 
-      log.info("signaling that all workers are done in iteration [" + numIterations + "] " +
-          "[" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("signaling that all workers are done in iteration [" + numIterations + "]"));
+      }
+
       signalAllWorkersDone();
 
-      log.info("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]");
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]"));
+      }
+
       numIterations++;
     }
   }

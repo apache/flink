@@ -47,10 +47,13 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
   @Override
   public <X> MutableObjectIterator<X> getInput(int index) {
+
+    String owner = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
+        getEnvironment().getCurrentNumberOfSubtasks() + ")";
     //TODO check whether this is an iteration input!!!
     //TODO type safety
     InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
-        (MutableObjectIterator<X>) super.getInput(index), numberOfEventsUntilInterrupt(), getClass().getSimpleName());
+        (MutableObjectIterator<X>) super.getInput(index), numberOfEventsUntilInterrupt(), owner);
 
     //TODO might not work for unioned inputs
     getEnvironment().getInputGate(index).subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
