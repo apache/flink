@@ -109,7 +109,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	CompressionBufferProvider getCompressionBufferProvider() {
 
 		if (this.compressionBufferProvider == null) {
-			this.compressionBufferProvider = new CompressionBufferProvider(this);
+			this.compressionBufferProvider = new CompressionBufferProvider(this, false);
 		} else {
 			this.compressionBufferProvider.increaseReferenceCounter();
 		}
