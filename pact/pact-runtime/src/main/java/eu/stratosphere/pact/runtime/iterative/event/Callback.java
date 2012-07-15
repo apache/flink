@@ -20,5 +20,4 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 public interface Callback<E extends AbstractTaskEvent> {
 
   void execute(E event) throws Exception;
-
 }

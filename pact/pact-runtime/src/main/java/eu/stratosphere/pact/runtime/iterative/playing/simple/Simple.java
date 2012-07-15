@@ -80,7 +80,7 @@ public class Simple {
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setDriver(MapDriver.class);
     syncConfig.setStubClass(EmptyMapStub.class);
-    syncConfig.setNumberOfBulkIterationHeads(degreeOfParallelism);
+    syncConfig.setNumberOfIterationInputs(degreeOfParallelism);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
@@ -92,6 +92,7 @@ public class Simple {
     JobOutputVertex fakeSyncOutput = JobGraphUtils.createSingletonFakeOutput(jobGraph, "FakeSyncOutput");
 
     JobGraphUtils.connectLocal(input, head, inputConfig);
+    //TODO implicit order should be documented/configured somehow
     JobGraphUtils.connectLocal(head, intermediate, headConfig);
     JobGraphUtils.connectLocal(head, sync, headConfig);
     JobGraphUtils.connectLocal(head, output, headConfig);

@@ -139,9 +139,6 @@ public class TaskConfig
 
 	// --------------------------------------------------------------------------------------------
 
-
-  private static final String NUMBER_OF_BULK_ITERATION_HEADS = "pact.iterative.numberOfBulkIterationHeads";
-
   private static final String NUMBER_OF_ITERATION_INPUTS = "pact.iterative.numberOfIterationInputs";
 
   // --------------------------------------------------------------------------------------------
@@ -546,17 +543,6 @@ public class TaskConfig
   // --------------------------------------------------------------------------------------------
   //                                    Parameters for iterations
   // --------------------------------------------------------------------------------------------
-
-  public void setNumberOfBulkIterationHeads(int numberOfBulkIterationHeads)
-  {
-    Preconditions.checkArgument(numberOfBulkIterationHeads >= 0);
-    this.config.setInteger(NUMBER_OF_BULK_ITERATION_HEADS, numberOfBulkIterationHeads);
-  }
-
-  public int getNumberOfBulkIterationHeads()
-  {
-    return this.config.getInteger(NUMBER_OF_BULK_ITERATION_HEADS, 0);
-  }
 
   public void setNumberOfIterationInputs(int numberOfIterationInputs)
   {

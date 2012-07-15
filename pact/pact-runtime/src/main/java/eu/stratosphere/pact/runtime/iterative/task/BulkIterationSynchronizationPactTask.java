@@ -40,14 +40,9 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
   }
 
   @Override
-  protected int numberOfEventsUntilInterrupt() {
-    return getTaskConfig().getNumberOfBulkIterationHeads();
-  }
-
-  @Override
   public void invoke() throws Exception {
 
-    final AtomicInteger nonTerminatedHeadsCounter = new AtomicInteger(getTaskConfig().getNumberOfBulkIterationHeads());
+    final AtomicInteger nonTerminatedHeadsCounter = new AtomicInteger(getTaskConfig().getNumberOfIterationInputs());
 
     listenToTermination(new Callback<TerminationEvent>() {
       @Override
