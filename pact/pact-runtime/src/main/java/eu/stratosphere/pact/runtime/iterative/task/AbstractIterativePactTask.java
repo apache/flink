@@ -62,8 +62,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   }
 
   protected int numberOfEventsUntilInterrupt() {
-    //TODO return number of iteration inputs
-    return 1;
+    return getTaskConfig().getNumberOfIterationInputs();
   }
 
   protected void listenToTermination(Callback<TerminationEvent> callback) {

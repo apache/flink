@@ -13,13 +13,27 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.task;
+package eu.stratosphere.pact.runtime.iterative.playing.iterativemapreduce;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.MapStub;
+import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactString;
 
-public class EmptyMapStub extends MapStub {
+import java.util.regex.Pattern;
+
+public class TokenTokenInputFormat extends TextInputFormat {
+
+  private static final Pattern SEPARATOR = Pattern.compile(",");
+
   @Override
-  public void map(PactRecord record, Collector<PactRecord> out) throws Exception {}
+  public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
+    String str = new String(bytes, 0, numBytes);
+    String[] parts = SEPARATOR.split(str);
+
+    target.clear();
+    target.addField(new PactString(parts[0]));
+    target.addField(new PactString(parts[1]));
+
+    return true;
+  }
 }

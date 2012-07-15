@@ -13,13 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.task;
+package eu.stratosphere.pact.runtime.iterative.playing.iterativemapreduce;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactString;
 
-public class EmptyMapStub extends MapStub {
+public class AppendTokenMapper extends MapStub {
+
   @Override
-  public void map(PactRecord record, Collector<PactRecord> out) throws Exception {}
+  public void map(PactRecord record, Collector<PactRecord> collector) throws Exception {
+
+    PactString token = record.getField(1, PactString.class);
+    String value = token.getValue() + "-map";
+    System.out.println("MAP: " + value);
+    token.setValue(value);
+    record.setField(1, token);
+
+    collector.collect(record);
+  }
 }
