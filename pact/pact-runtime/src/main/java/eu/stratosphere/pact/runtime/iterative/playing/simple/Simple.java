@@ -36,10 +36,7 @@ import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-
 public class Simple {
-
-  static final int MEGABYTE = 1024 * 1024;
 
   public static void main(String[] args) throws Exception {
 
@@ -61,26 +58,30 @@ public class Simple {
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
     headConfig.setStubClass(AppendMapper.AppendHeadMapper.class);
-    headConfig.setMemorySize(10 * MEGABYTE);
+    headConfig.setMemorySize(10 * JobGraphUtils.MEGABYTE);
+    headConfig.setBackChannelMemoryFraction(0.8f);
+    headConfig.setNumberOfIterations(3);
 
     JobTaskVertex intermediate = JobGraphUtils.createTask(BulkIterationIntermediatePactTask.class, "BulkIntermediate",
         jobGraph, degreeOfParallelism);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
     intermediateConfig.setDriver(MapDriver.class);
     intermediateConfig.setStubClass(AppendMapper.AppendIntermediateMapper.class);
+    intermediateConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, 1);
 
     JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setDriver(MapDriver.class);
     tailConfig.setStubClass(AppendMapper.AppendTailMapper.class);
+    tailConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, 1);
 
     JobTaskVertex sync = JobGraphUtils.createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSync",
         jobGraph);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setDriver(MapDriver.class);
     syncConfig.setStubClass(EmptyMapStub.class);
-    syncConfig.setNumberOfIterationInputs(degreeOfParallelism);
+    syncConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, degreeOfParallelism);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());

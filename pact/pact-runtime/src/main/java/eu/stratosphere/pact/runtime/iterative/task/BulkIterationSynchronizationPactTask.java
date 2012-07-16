@@ -42,9 +42,10 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
   @Override
   public void invoke() throws Exception {
 
-    final AtomicInteger nonTerminatedHeadsCounter = new AtomicInteger(getTaskConfig().getNumberOfIterationInputs());
+    int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(0);
+    final AtomicInteger nonTerminatedHeadsCounter = new AtomicInteger(numberOfEventsUntilInterrupt);
 
-    listenToTermination(new Callback<TerminationEvent>() {
+    listenToTermination(0, new Callback<TerminationEvent>() {
       @Override
       public void execute(TerminationEvent event) throws Exception {
         int numNonTerminatedHeads = nonTerminatedHeadsCounter.decrementAndGet();
@@ -81,9 +82,6 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
   }
 
   private void signalAllWorkersDone() throws IOException, InterruptedException {
-    AllWorkersDoneEvent allWorkersDoneEvent = new AllWorkersDoneEvent();
-    for (int inputGateIndex = 0; inputGateIndex < getEnvironment().getNumberOfInputGates(); inputGateIndex++) {
-      getEnvironment().getInputGate(inputGateIndex).publishEvent(allWorkersDoneEvent);
-    }
+    getEnvironment().getInputGate(0).publishEvent(new AllWorkersDoneEvent());
   }
 }

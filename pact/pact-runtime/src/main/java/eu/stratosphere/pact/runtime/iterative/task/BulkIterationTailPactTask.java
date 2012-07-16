@@ -54,7 +54,8 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
     // Initially retreive the backchannel from the iteration head
     final BlockingBackChannel backChannel = retrieveBackChannel();
 
-    listenToTermination(new Callback<TerminationEvent>() {
+    //TODO needs to be made fit for dual input tasks
+    listenToTermination(0, new Callback<TerminationEvent>() {
       @Override
       public void execute(TerminationEvent event) throws Exception {
         if (log.isInfoEnabled()) {

@@ -27,6 +27,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
@@ -43,18 +44,30 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
   @Override
   public void invoke() throws Exception {
 
-    listenToEndOfSuperstep(new Callback<EndOfSuperstepEvent>() {
+    final AtomicInteger endOfSuperstepEventCounter = new AtomicInteger(0);
+    final AtomicInteger terminationEventCounter = new AtomicInteger(0);
+
+    //TODO needs to be made fit for dual input tasks
+    final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(0);
+
+    listenToEndOfSuperstep(0, new Callback<EndOfSuperstepEvent>() {
       @Override
       public void execute(EndOfSuperstepEvent event) throws Exception {
-        propagateEvent(event);
+        int numEndOfSuperstepEvents = endOfSuperstepEventCounter.incrementAndGet();
+        if (numEndOfSuperstepEvents % numberOfEventsUntilInterrupt == 0) {
+          propagateEvent(event);
+        }
       }
     });
 
-    listenToTermination(new Callback<TerminationEvent>() {
+    listenToTermination(0, new Callback<TerminationEvent>() {
       @Override
       public void execute(TerminationEvent event) throws Exception {
-        propagateEvent(event);
-        terminated = true;
+        int numTerminationEvents = terminationEventCounter.incrementAndGet();
+        if (numTerminationEvents % numberOfEventsUntilInterrupt == 0) {
+          propagateEvent(event);
+          terminated = true;
+        }
       }
     });
 

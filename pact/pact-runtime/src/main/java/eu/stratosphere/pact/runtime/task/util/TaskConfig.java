@@ -139,7 +139,11 @@ public class TaskConfig
 
 	// --------------------------------------------------------------------------------------------
 
-  private static final String NUMBER_OF_ITERATION_INPUTS = "pact.iterative.numberOfIterationInputs";
+  private static final String NUMBER_OF_EVENTS_UNTIL_INTERRUPT = "pact.iterative.numberOfEventsUntilInterrupt.";
+
+  private static final String NUMBER_OF_ITERATIONS = "pact.iterative.numberOfIterations";
+
+  private static final String BACKCHANNEL_MEMORY_FRACTION = "pact.iterative.backChannelMemoryFraction";
 
   // --------------------------------------------------------------------------------------------
 
@@ -544,15 +548,46 @@ public class TaskConfig
   //                                    Parameters for iterations
   // --------------------------------------------------------------------------------------------
 
-  public void setNumberOfIterationInputs(int numberOfIterationInputs)
+  public void setBackChannelMemoryFraction(float fraction)
   {
-    Preconditions.checkArgument(numberOfIterationInputs > 0);
-    this.config.setInteger(NUMBER_OF_ITERATION_INPUTS, numberOfIterationInputs);
+    Preconditions.checkArgument(fraction > 0 && fraction < 1);
+    this.config.setFloat(BACKCHANNEL_MEMORY_FRACTION, fraction);
   }
 
-  public int getNumberOfIterationInputs()
+  public float getBackChannelMemoryFraction()
   {
-    return this.config.getInteger(NUMBER_OF_ITERATION_INPUTS, 1);
+    float backChannelMemoryFraction = this.config.getFloat(BACKCHANNEL_MEMORY_FRACTION, 0);
+    Preconditions.checkState(backChannelMemoryFraction > 0);
+    return backChannelMemoryFraction;
+  }
+
+  public void setNumberOfIterations(int numberOfIterations)
+  {
+    Preconditions.checkArgument(numberOfIterations > 0);
+    this.config.setInteger(NUMBER_OF_ITERATIONS, numberOfIterations);
+  }
+
+  public int getNumberOfIterations()
+  {
+    int numberOfIterations = this.config.getInteger(NUMBER_OF_ITERATIONS, 0);
+    Preconditions.checkState(numberOfIterations > 0);
+    return numberOfIterations;
+  }
+
+  public boolean isIterativeInputGate(int inputGateIndex)
+  {
+    return getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex) > 0;
+  }
+
+  public void setNumberOfEventsUntilInterruptInIterativeGate(int inputGateIndex, int numEvents)
+  {
+    Preconditions.checkArgument(numEvents > 0);
+    this.config.setInteger(NUMBER_OF_EVENTS_UNTIL_INTERRUPT + inputGateIndex, numEvents);
+  }
+
+  public int getNumberOfEventsUntilInterruptInIterativeGate(int inputGateIndex)
+  {
+    return this.config.getInteger(NUMBER_OF_EVENTS_UNTIL_INTERRUPT + inputGateIndex, 0);
   }
 	
 	// --------------------------------------------------------------------------------------------

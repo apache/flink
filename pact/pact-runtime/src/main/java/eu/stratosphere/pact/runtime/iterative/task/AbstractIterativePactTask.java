@@ -46,36 +46,39 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   }
 
   @Override
-  public <X> MutableObjectIterator<X> getInput(int index) {
+  public <X> MutableObjectIterator<X> getInput(int inputGateIndex) {
+
+    // only wrap iterative gates
+    if (!getTaskConfig().isIterativeInputGate(inputGateIndex)) {
+      return super.getInput(inputGateIndex);
+    }
+
+    int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex);
 
     String owner = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
         getEnvironment().getCurrentNumberOfSubtasks() + ")";
-    //TODO check whether this is an iteration input!!!
     //TODO type safety
     InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
-        (MutableObjectIterator<X>) super.getInput(index), numberOfEventsUntilInterrupt(), owner);
+        (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, owner);
 
     //TODO might not work for unioned inputs
-    getEnvironment().getInputGate(index).subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
+    getEnvironment().getInputGate(inputGateIndex).subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
 
     return interruptingIterator;
   }
 
-  protected int numberOfEventsUntilInterrupt() {
-    return getTaskConfig().getNumberOfIterationInputs();
+  protected void listenToTermination(int inputGateIndex, Callback<TerminationEvent> callback) {
+    listenToEvent(inputGateIndex, TerminationEvent.class, callback);
   }
 
-  protected void listenToTermination(Callback<TerminationEvent> callback) {
-    listenToEvent(TerminationEvent.class, callback);
+  protected void listenToEndOfSuperstep(int inputGateIndex, Callback<EndOfSuperstepEvent> callback) {
+    listenToEvent(inputGateIndex, EndOfSuperstepEvent.class, callback);
   }
 
-  protected void listenToEndOfSuperstep(Callback<EndOfSuperstepEvent> callback) {
-    listenToEvent(EndOfSuperstepEvent.class, callback);
-  }
+  private <E extends AbstractTaskEvent> void listenToEvent(int inputGateIndex, Class<E> eventClass,
+      final Callback<E> callback) {
 
-  private <E extends AbstractTaskEvent> void listenToEvent(Class<E> eventClass, final Callback<E> callback) {
-    //TODO use correct input gate
-    getEnvironment().getInputGate(0).subscribeToEvent(new EventListener() {
+    getEnvironment().getInputGate(inputGateIndex).subscribeToEvent(new EventListener() {
       @Override
       public void eventOccurred(AbstractTaskEvent event) {
         try {

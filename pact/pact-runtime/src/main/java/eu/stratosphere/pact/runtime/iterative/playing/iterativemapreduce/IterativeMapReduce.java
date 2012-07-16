@@ -60,6 +60,8 @@ public class IterativeMapReduce {
     headConfig.setDriver(MapDriver.class);
     headConfig.setStubClass(AppendTokenMapper.class);
     headConfig.setMemorySize(10 * JobGraphUtils.MEGABYTE);
+    headConfig.setBackChannelMemoryFraction(0.8f);
+    headConfig.setNumberOfIterations(3);
 
     JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
@@ -71,14 +73,14 @@ public class IterativeMapReduce {
         new Class[] { PactString.class });
     tailConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     tailConfig.setNumFilehandles(2);
-    tailConfig.setNumberOfIterationInputs(degreeOfParallelism);
+    tailConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, degreeOfParallelism);
 
     JobTaskVertex sync = JobGraphUtils.createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSync",
         jobGraph);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setDriver(MapDriver.class);
     syncConfig.setStubClass(EmptyMapStub.class);
-    syncConfig.setNumberOfIterationInputs(degreeOfParallelism);
+    syncConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, degreeOfParallelism);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());

@@ -38,6 +38,7 @@ import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.PactRecordOutputCollector;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -56,11 +57,12 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
    **/
   private BlockingBackChannel initBackChannel() throws Exception {
 
+    TaskConfig taskConfig = getTaskConfig();
+
     // compute the size of the memory available to the backchannel
-    long completeMemorySize = getTaskConfig().getMemorySize();
-    //TODO make this configurable!
-    long backChannelMemorySize = (long) (completeMemorySize * 0.8);
-    getTaskConfig().setMemorySize(completeMemorySize - backChannelMemorySize);
+    long completeMemorySize = taskConfig.getMemorySize();
+    long backChannelMemorySize = (long) (completeMemorySize * taskConfig.getBackChannelMemoryFraction());
+    taskConfig.setMemorySize(completeMemorySize - backChannelMemorySize);
 
     // allocate the memory available to the backchannel
     List<MemorySegment> segments = Lists.newArrayList();
@@ -78,6 +80,11 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     return backChannel;
   }
 
+  private AbstractRecordWriter<?> getSyncOutput() {
+    //TODO should position be configured?
+    return eventualOutputs.get(eventualOutputs.size() - 2);
+  }
+
   @Override
   public void invoke() throws Exception {
 
@@ -87,13 +94,13 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     BlockingBackChannel backChannel = initBackChannel();
 
     final SuperstepBarrier barrier = new SuperstepBarrier();
-    eventualOutputs.get(eventualOutputs.size() - 2).subscribeToEvent(barrier, AllWorkersDoneEvent.class);
+    getSyncOutput().subscribeToEvent(barrier, AllWorkersDoneEvent.class);
 
     TypeSerializer serializer = getInputSerializer(ITERATION_INPUT);
     //TODO type safety
     output = (Collector<OT>) iterationCollector();
 
-    while (numIterations < 3) {
+    while (numIterations < getTaskConfig().getNumberOfIterations()) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + numIterations + "]"));
@@ -179,8 +186,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
   }
 
   private void sendEventToSync(AbstractTaskEvent event) throws IOException, InterruptedException {
-    //TODO remove implicit assumption
-    flushAndPublishEvent(eventualOutputs.get(eventualOutputs.size() - 2), event);
+    flushAndPublishEvent(getSyncOutput(), event);
   }
 
 }
