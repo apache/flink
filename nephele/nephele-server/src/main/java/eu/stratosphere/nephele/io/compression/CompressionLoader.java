@@ -27,8 +27,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public class CompressionLoader {
@@ -219,7 +217,7 @@ public class CompressionLoader {
 	}
 
 	public static synchronized Compressor getCompressorByCompressionLevel(final CompressionLevel level,
-			final AbstractByteBufferedOutputChannel<?> outputChannel) {
+			final CompressionBufferProvider compressionBufferProvider) {
 
 		if (level == CompressionLevel.NO_COMPRESSION) {
 			return null;
@@ -235,7 +233,7 @@ public class CompressionLoader {
 				return null;
 			}
 
-			return cl.getCompressor(outputChannel);
+			return cl.createNewCompressor(compressionBufferProvider);
 
 		} catch (CompressionException e) {
 			LOG.error("Cannot load native compressor: " + StringUtils.stringifyException(e));
@@ -244,7 +242,7 @@ public class CompressionLoader {
 	}
 
 	public static synchronized Decompressor getDecompressorByCompressionLevel(final CompressionLevel level,
-			final AbstractByteBufferedInputChannel<?> inputChannel) {
+			final CompressionBufferProvider compressionBufferProvider) {
 
 		if (level == CompressionLevel.NO_COMPRESSION) {
 			return null;
@@ -260,7 +258,7 @@ public class CompressionLoader {
 				return null;
 			}
 
-			return cl.getDecompressor(inputChannel);
+			return cl.createNewDecompressor(compressionBufferProvider);
 
 		} catch (CompressionException e) {
 			LOG.error("Cannot load native decompressor: " + StringUtils.stringifyException(e));
@@ -279,31 +277,31 @@ public class CompressionLoader {
 		return c.getUncompressedBufferSize(compressedBufferSize);
 	}
 
-	public static synchronized int getCompressedBufferSize(int uncompressedBufferSize, CompressionLevel cl) {
-		switch (cl) {
-		case HEAVY_COMPRESSION:
-			/*
-			 * Calculate size of compressed data buffer according to
-			 * http://gpwiki.org/index.php/LZO
-			 */
-			// TODO check that for LZMA
-			return uncompressedBufferSize + ((uncompressedBufferSize / 1024) * 16);
-		case MEDIUM_COMPRESSION:
-			/*
-			 * Calculate size of compressed data buffer according to
-			 * zlib manual
-			 * http://www.zlib.net/zlib_tech.html
-			 */
-			return uncompressedBufferSize + (int) ((uncompressedBufferSize / 100) * 0.04) + 6;
-		case DYNAMIC_COMPRESSION:
-		case LIGHT_COMPRESSION:
-			/*
-			 * Calculate size of compressed data buffer according to
-			 * LZO Manual http://www.oberhumer.com/opensource/lzo/lzofaq.php
-			 */
-			return uncompressedBufferSize + (uncompressedBufferSize / 16) + 64 + 3;
-		default:
-			return uncompressedBufferSize;
-		}
-	}
+	// public static synchronized int getCompressedBufferSize(int uncompressedBufferSize, CompressionLevel cl) {
+	// switch (cl) {
+	// case HEAVY_COMPRESSION:
+	// /*
+	// * Calculate size of compressed data buffer according to
+	// * http://gpwiki.org/index.php/LZO
+	// */
+	// // TODO check that for LZMA
+	// return uncompressedBufferSize + ((uncompressedBufferSize / 1024) * 16);
+	// case MEDIUM_COMPRESSION:
+	// /*
+	// * Calculate size of compressed data buffer according to
+	// * zlib manual
+	// * http://www.zlib.net/zlib_tech.html
+	// */
+	// return uncompressedBufferSize + (int) ((uncompressedBufferSize / 100) * 0.04) + 6;
+	// case DYNAMIC_COMPRESSION:
+	// case LIGHT_COMPRESSION:
+	// /*
+	// * Calculate size of compressed data buffer according to
+	// * LZO Manual http://www.oberhumer.com/opensource/lzo/lzofaq.php
+	// */
+	// return uncompressedBufferSize + (uncompressedBufferSize / 16) + 64 + 3;
+	// default:
+	// return uncompressedBufferSize;
+	// }
+	// }
 }

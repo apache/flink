@@ -22,6 +22,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
+import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
@@ -84,6 +85,14 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the index of the channel from which a data unit has been consumed
 	 */
 	void notifyDataUnitConsumed(int channelIndex);
+
+	/**
+	 * Initializes the decompressor objects inside the input channels attached to this gate.
+	 * 
+	 * @throws CompressionException
+	 *         thrown if an error occurs while loading the decompressor objects
+	 */
+	void initializeDecompressors() throws CompressionException;
 
 	/**
 	 * Activates all of the task's input channels.

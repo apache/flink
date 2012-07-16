@@ -30,6 +30,7 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
@@ -53,6 +54,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
 	private final EnvelopeConsumptionLog envelopeConsumptionLog;
+
+	private CompressionBufferProvider compressionBufferProvider = null;
 
 	RuntimeTaskContext(final RuntimeTask task, final CheckpointState initialCheckpointState,
 			final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
@@ -94,6 +97,24 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	EphemeralCheckpoint getEphemeralCheckpoint() {
 
 		return this.ephemeralCheckpoint;
+	}
+
+	/**
+	 * Returns (and if necessary previously creates) a compression buffer provider for output gate contexts. This method
+	 * must not be called from input gate contexts since input gate contexts are supposed to have their own compression
+	 * buffer provider objects.
+	 * 
+	 * @return the compression buffer provider for the output gate context
+	 */
+	CompressionBufferProvider getCompressionBufferProvider() {
+
+		if (this.compressionBufferProvider == null) {
+			this.compressionBufferProvider = new CompressionBufferProvider(this, false);
+		} else {
+			this.compressionBufferProvider.increaseReferenceCounter();
+		}
+
+		return this.compressionBufferProvider;
 	}
 
 	/**
