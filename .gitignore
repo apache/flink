@@ -1,4 +1,5 @@
 *.iml
+.idea
 .idea/*
 *.swp
 logs.zip
