@@ -19,19 +19,21 @@ import java.io.IOException;
 
 public class ReaderInterruptionBehaviors {
 
-  private ReaderInterruptionBehaviors() {}
+	public static final ReaderInterruptionBehavior EXCEPTION_ON_INTERRUPT = new ReaderInterruptionBehavior() {
+		@Override
+		public boolean onInterrupt(InterruptedException e) throws IOException {
+			throw new IOException("Reader was interrupted.", e);
+		}
+	};
 
-  public static final ReaderInterruptionBehavior EXCEPTION_ON_INTERRUPT = new ReaderInterruptionBehavior() {
-    @Override
-    public boolean onInterrupt(InterruptedException e) throws IOException {
-      throw new IOException("Reader was interrupted.", e);
-    }
-  };
-
-  public static final ReaderInterruptionBehavior FALSE_ON_INTERRUPT = new ReaderInterruptionBehavior() {
-    @Override
-    public boolean onInterrupt(InterruptedException e) throws IOException {
-      return false;
-    }
-  };
+	public static final ReaderInterruptionBehavior FALSE_ON_INTERRUPT = new ReaderInterruptionBehavior() {
+		@Override
+		public boolean onInterrupt(InterruptedException e) throws IOException {
+			return false;
+		}
+	};
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private ReaderInterruptionBehaviors() {}
 }

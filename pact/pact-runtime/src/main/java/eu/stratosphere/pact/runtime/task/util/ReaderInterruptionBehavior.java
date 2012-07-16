@@ -18,5 +18,7 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.io.IOException;
 
 public interface ReaderInterruptionBehavior {
-  boolean onInterrupt(InterruptedException e) throws IOException;
+	
+	boolean onInterrupt(InterruptedException e) throws IOException;
+
 }

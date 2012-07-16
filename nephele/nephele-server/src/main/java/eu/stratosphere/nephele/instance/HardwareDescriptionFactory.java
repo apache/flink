@@ -104,8 +104,6 @@ public class HardwareDescriptionFactory {
 	 */
 	private static float RUNTIME_MEMORY_THRESHOLD = 0.7f;
 
-	private static boolean isNativeCodeLoaded = false;
-
 	/**
 	 * Private constructor, so class cannot be instantiated.
 	 */
@@ -140,14 +138,14 @@ public class HardwareDescriptionFactory {
 	 * Constructs a new hardware description object.
 	 * 
 	 * @param numberOfCPUCores
-	 *            the number of CPU cores available to the JVM on the compute
-	 *            node
+	 *        the number of CPU cores available to the JVM on the compute
+	 *        node
 	 * @param sizeOfPhysicalMemory
-	 *            the size of physical memory in bytes available on the compute
-	 *            node
+	 *        the size of physical memory in bytes available on the compute
+	 *        node
 	 * @param sizeOfFreeMemory
-	 *            the size of free memory in bytes available to the JVM on the
-	 *            compute node
+	 *        the size of free memory in bytes available to the JVM on the
+	 *        compute node
 	 * @return the hardware description object
 	 */
 	public static HardwareDescription construct(int numberOfCPUCores,
@@ -160,8 +158,8 @@ public class HardwareDescriptionFactory {
 	/**
 	 * Returns the size of free memory in bytes available to the JVM.
 	 * 
-	 * @return the size of the free memory in bytes available to the JVM or
-	 *         <code>-1</code> if the size cannot be determined
+	 * @return the size of the free memory in bytes available to the JVM or <code>-1</code> if the size cannot be
+	 *         determined
 	 */
 	private static long getSizeOfFreeMemory() {
 
@@ -453,25 +451,49 @@ public class HardwareDescriptionFactory {
 	 * @return the size of the physical memory in bytes or <code>-1</code> if
 	 *         the size could not be determined
 	 */
-	private static synchronized long getSizeOfPhysicalMemoryForWindows() {
+	private static long getSizeOfPhysicalMemoryForWindows() {
 
-		if (!isNativeCodeLoaded) {
-			// TODO: Get rid of absolute path here
-			System.load("C:\\Users\\warneke\\workspace\\stratosphere\\nephele\\nephele-server\\src\\main\\native\\HardwareDescriptionFactory.dll");
+		BufferedReader bi = null;
+		long sizeOfPhyiscalMemory = 0L;
 
-			isNativeCodeLoaded = true;
+		try {
+			Process proc = Runtime.getRuntime().exec("wmic memorychip get capacity");
+
+			bi = new BufferedReader(
+					new InputStreamReader(proc.getInputStream()));
+
+			String line = bi.readLine();
+			if (line == null) {
+				return -1L;
+			}
+
+			if (!line.startsWith("Capacity")) {
+				return -1L;
+			}
+
+			while ((line = bi.readLine()) != null) {
+
+				if (line.isEmpty()) {
+					continue;
+				}
+
+				line = line.replaceAll(" ", "");
+
+				sizeOfPhyiscalMemory += Long.parseLong(line);
+			}
+
+		} catch (Exception e) {
+			LOG.error(e);
+			return -1L;
+		} finally {
+			if (bi != null) {
+				try {
+					bi.close();
+				} catch (IOException ioe) {
+				}
+			}
 		}
 
-		return getPhysicalMemoryFromGlobalMemoryStatus();
+		return sizeOfPhyiscalMemory;
 	}
-
-	/**
-	 * This is a wrapper to the native WIN32 call GlobalMemoryStatus. The
-	 * wrapper extracts the size of the physical memory on a Windows platform in
-	 * bytes.
-	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
-	 *         the size could not be determined
-	 */
-	private static native long getPhysicalMemoryFromGlobalMemoryStatus();
 }

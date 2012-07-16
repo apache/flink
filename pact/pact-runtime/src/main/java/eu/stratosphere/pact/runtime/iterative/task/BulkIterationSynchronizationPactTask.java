@@ -82,6 +82,6 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
   }
 
   private void signalAllWorkersDone() throws IOException, InterruptedException {
-    getEnvironment().getInputGate(0).publishEvent(new AllWorkersDoneEvent());
+    getReader(0).publishEvent(new AllWorkersDoneEvent());
   }
 }

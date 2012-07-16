@@ -32,6 +32,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * deals with the runtime setup and teardown and the control-flow logic. The later appears especially
  * in the case of iterations.
  *
+ * @see PactDriver
+ *
  * @author Stephan Ewen
  */
 public interface PactTaskContext<S extends Stub, OT>
@@ -49,6 +51,8 @@ public interface PactTaskContext<S extends Stub, OT>
 	<X> TypeSerializer<X> getInputSerializer(int index);
 	
 	<X> TypeComparator<X> getInputComparator(int index);
+	
+	<X> TypeComparator<X> getSecondarySortComparator(int index);
 	
 	S getStub();
 	

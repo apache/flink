@@ -18,7 +18,6 @@ package eu.stratosphere.pact.compiler.jobgen;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map.Entry;
@@ -30,7 +29,6 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PartitionProperty;
-//import eu.stratosphere.pact.compiler.OutputContract;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
@@ -164,85 +162,80 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			+ (visitable.getDegreeOfParallelism() >= 1 ? visitable.getDegreeOfParallelism() : "default") + "\"");
 
 		// output node predecessors
-		List<List<PactConnection>> connLists = visitable.getIncomingConnections();
+		List<PactConnection> inConns = visitable.getIncomingConnections();
 		String child1name = "", child2name = "";
 
-		if (connLists != null && connLists.size() > 0) {
+		if (inConns != null && inConns.size() > 0) {
 			// start predecessor list
 			this.jsonString.append(",\n\t\t\"predecessors\": [");
 			int connCnt = 0;
-			int inputCnt = 0;
-			for(List<PactConnection> oneList : connLists) {
+			for(PactConnection conn : inConns) {
 				
-				for (PactConnection conn : oneList) {
-	
-					this.jsonString.append(inputCnt == 0 ? "\n" : ",\n");
-					if (connCnt == 0) {
-						child1name += child1name.length() > 0 ? ", " : ""; 
-						child1name += conn.getSourcePact().getPactContract().getName();
-					} else if (connCnt == 1) {
-						child2name += child2name.length() > 0 ? ", " : ""; 
-						child2name = conn.getSourcePact().getPactContract().getName();
-					}
-	
-					// output predecessor id
-					this.jsonString.append("\t\t\t{\"id\": " + this.nodeIds.get(conn.getSourcePact()));
-	
-					// output connection side
-					if (connLists.size() == 2) {
-						this.jsonString.append(", \"side\": \"" + (connCnt == 0 ? "first" : "second") + "\"");
-					}
-					// output shipping strategy and channel type
-					String shipStrategy = null;
-					String channelType = null;
-					switch (conn.getShipStrategy()) {
-					case NONE:
-						// nothing
-						break;
-					case FORWARD:
-						shipStrategy = "Local Forward";
-						channelType = "memory";
-						break;
-					case BROADCAST:
-						shipStrategy = "Broadcast";
-						channelType = "network";
-						break;
-					case PARTITION_HASH:
-						shipStrategy = "Partition";
-						channelType = "network";
-						break;
-					case PARTITION_RANGE:
-						shipStrategy = "Partition (range)";
-						channelType = "network";
-						break;
-					case PARTITION_LOCAL_HASH:
-						shipStrategy = "Partition local";
-						channelType = "memory";
-					case SFR:
-						shipStrategy = "SFR";
-						channelType = "network";
-						break;
-					default:
-						throw new CompilerException("Unknown ship strategy '" + conn.getShipStrategy().name()
-							+ "' in JSON generator.");
-					}
-	
-					if (shipStrategy != null) {
-						this.jsonString.append(", \"shippingStrategy\": \"" + shipStrategy + "\"");
-					}
-					if (channelType != null) {
-						this.jsonString.append(", \"channelType\": \"" + channelType + "\"");
-					}
-	
-					if (conn.getTempMode() != TempMode.NONE) {
-						String tempMode = conn.getTempMode().toString();
-						this.jsonString.append(", \"tempMode\": \"" + tempMode + "\"");
-					}
-	
-					this.jsonString.append('}');
-					
-					inputCnt++;
+				this.jsonString.append(connCnt == 0 ? "\n" : ",\n");
+				if (connCnt == 0) {
+					child1name += child1name.length() > 0 ? ", " : ""; 
+					child1name += conn.getSourcePact().getPactContract().getName();
+				} else if (connCnt == 1) {
+					child2name += child2name.length() > 0 ? ", " : ""; 
+					child2name = conn.getSourcePact().getPactContract().getName();
 				}
+
+				// output predecessor id
+				this.jsonString.append("\t\t\t{\"id\": " + this.nodeIds.get(conn.getSourcePact()));
+
+				// output connection side
+				if (inConns.size() == 2) {
+					this.jsonString.append(", \"side\": \"" + (connCnt == 0 ? "first" : "second") + "\"");
+				}
+				// output shipping strategy and channel type
+				String shipStrategy = null;
+				String channelType = null;
+				switch (conn.getShipStrategy()) {
+				case NONE:
+					// nothing
+					break;
+				case FORWARD:
+					shipStrategy = "Local Forward";
+					channelType = "memory";
+					break;
+				case BROADCAST:
+					shipStrategy = "Broadcast";
+					channelType = "network";
+					break;
+				case PARTITION_HASH:
+					shipStrategy = "Partition";
+					channelType = "network";
+					break;
+				case PARTITION_RANGE:
+					shipStrategy = "Partition (range)";
+					channelType = "network";
+					break;
+				case PARTITION_LOCAL_HASH:
+					shipStrategy = "Partition local";
+					channelType = "memory";
+				case SFR:
+					shipStrategy = "SFR";
+					channelType = "network";
+					break;
+				default:
+					throw new CompilerException("Unknown ship strategy '" + conn.getShipStrategy().name()
+						+ "' in JSON generator.");
+				}
+
+				if (shipStrategy != null) {
+					this.jsonString.append(", \"shippingStrategy\": \"" + shipStrategy + "\"");
+				}
+				if (channelType != null) {
+					this.jsonString.append(", \"channelType\": \"" + channelType + "\"");
+				}
+
+				if (conn.getTempMode() != TempMode.NONE) {
+					String tempMode = conn.getTempMode().toString();
+					this.jsonString.append(", \"tempMode\": \"" + tempMode + "\"");
+				}
+
+				this.jsonString.append('}');
+				
 				connCnt++;
 			}
 			// finish predecessors
@@ -324,7 +317,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 			addProperty(jsonString, "Partitioning", gp.getPartitioning().name(), true);
 			if (gp.getPartitioning() != PartitionProperty.NONE) {
-				addProperty(jsonString, "Partitioned on", Arrays.toString(gp.getPartitionedFields()), false);
+				addProperty(jsonString, "Partitioned on", gp.getPartitionedFields().toString(), false);
 			}
 			if (gp.getOrdering() != null) {
 				addProperty(jsonString, "Order", gp.getOrdering().toString(), false);	

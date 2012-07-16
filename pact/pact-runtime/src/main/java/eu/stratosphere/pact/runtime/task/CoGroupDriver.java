@@ -137,8 +137,18 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 		// get the key positions and types
 		final TypeSerializer<IT1> serializer1 = this.taskContext.getInputSerializer(0);
 		final TypeSerializer<IT2> serializer2 = this.taskContext.getInputSerializer(1);
-		final TypeComparator<IT1> comparator1 = this.taskContext.getInputComparator(0);
-		final TypeComparator<IT2> comparator2 = this.taskContext.getInputComparator(1);
+		final TypeComparator<IT1> groupComparator1 = this.taskContext.getInputComparator(0);
+		final TypeComparator<IT2> groupComparator2 = this.taskContext.getInputComparator(1);
+		
+		TypeComparator<IT1> sortComparator1 = this.taskContext.getSecondarySortComparator(0);
+		TypeComparator<IT2> sortComparator2 = this.taskContext.getSecondarySortComparator(1);
+		
+		if (sortComparator1 == null) {
+			sortComparator1 = groupComparator1.duplicate();
+		}
+		if (sortComparator2 == null) {
+			sortComparator2 = groupComparator2.duplicate();
+		}
 		
 		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
 		try {
@@ -172,8 +182,8 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 		case SORT_SECOND_MERGE:
 		case MERGE:
 			this.coGroupIterator = new SortMergeCoGroupIterator<IT1, IT2>(memoryManager, ioManager, 
-					in1, in2, serializer1, comparator1, serializer2, comparator2, 
-					pairComparatorFactory.createComparator12(comparator1, comparator2),
+					in1, in2, serializer1, groupComparator1, sortComparator1, serializer2, groupComparator2, sortComparator2,
+					pairComparatorFactory.createComparator12(groupComparator1, groupComparator2),
 					availableMemory, maxFileHandles, spillThreshold, ls, this.taskContext.getOwningNepheleTask());
 			break;
 			default:

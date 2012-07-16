@@ -58,7 +58,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	
 	private PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
 	
-	private MatchTaskIterator<IT1, IT2, OT> matchIterator;				// the iterator that does the actual matching
+	private volatile MatchTaskIterator<IT1, IT2, OT> matchIterator;		// the iterator that does the actual matching
 	
 	private volatile boolean running;
 	
@@ -86,9 +86,9 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	 */
 	@Override
 	public Class<GenericMatcher<IT1, IT2, OT>> getStubType() {
-        @SuppressWarnings("unchecked")
-        final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class;
-        return clazz;
+		@SuppressWarnings("unchecked")
+		final Class<GenericMatcher<IT1, IT2, OT>> clazz = (Class<GenericMatcher<IT1, IT2, OT>>) (Class<?>) GenericMatcher.class;
+		return clazz;
 	}
 	
 	/* (non-Javadoc)

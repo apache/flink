@@ -102,7 +102,7 @@ public final class RecoveryLogic {
 						&& cancelResult.getReturnCode() != ReturnCode.TASK_NOT_FOUND) {
 
 					verticesToBeRestarted.remove(vertex.getID());
-					LOG.error(cancelResult.getDescription());
+					LOG.error("Unable to cancel vertex" + cancelResult.getDescription());
 					return false;
 				}
 			}

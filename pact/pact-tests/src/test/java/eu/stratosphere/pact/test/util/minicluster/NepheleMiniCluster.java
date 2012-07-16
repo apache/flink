@@ -15,7 +15,9 @@
 
 package eu.stratosphere.pact.test.util.minicluster;
 
+import java.io.IOException;
 import java.net.Inet4Address;
+import java.net.InetSocketAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -23,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -30,10 +33,15 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
+import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
+import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.pact.test.util.FileWriter;
 
 /**
@@ -72,18 +80,12 @@ public class NepheleMiniCluster {
 	// Public methods
 	// ------------------------------------------------------------------------
 
-	public void submitJobAndWait(JobGraph jobGraph) throws Exception {
-		Configuration configuration = jobGraph.getJobConfiguration();
-
-		// local ip as job manager (localhost or 127.0.0.1 does not work)
+	public JobClient getJobClient(JobGraph jobGraph) throws Exception
+	{
+		final Configuration configuration = jobGraph.getJobConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 
-		// terminate job logic is broken
-		configuration.setBoolean(ConfigConstants.JOBCLIENT_SHUTDOWN_TERMINATEJOB_KEY, false);
-
-		// submit
-		JobClient jobClient = new JobClient(jobGraph, configuration);
-		jobClient.submitJobAndWait();
+		return new JobClient(jobGraph, configuration);
 	}
 
 	// ------------------------------------------------------------------------
@@ -137,6 +139,10 @@ public class NepheleMiniCluster {
 					"        <value>" + dataPort + "</value>",
 					"    </property>",
 					"    <property>",
+					"        <key>" + ConfigConstants.JOB_EXECUTION_RETRIES_KEY + "</key>",
+					"        <value>0</value>",
+					"    </property>",
+					"    <property>",
 					"        <key>taskmanager.setup.usediscovery</key>",
 					"        <value>false</value>",
 					"    </property>",
@@ -167,35 +173,31 @@ public class NepheleMiniCluster {
 
 		// thread
 		LOG.info("Initializing job manager thread with '" + nepheleConfigDirJob + "'.");
+		this.jobManager = new JobManager(nepheleConfigDirJob, "local");
+		
 		runner = new Thread() {
 			@Override
 			public void run() {
-				// create a new job manager object
-				jobManager = new JobManager(nepheleConfigDirJob, "local");
-
 				// run the main task loop
 				jobManager.runTaskLoop();
 			}
 		};
-		runner.setDaemon(true);
-		runner.start();
+		this.runner.setDaemon(true);
+		this.runner.start();
 
-		// wait for job-manager / instance
+		waitForJobManagerToBeAvailable("localhost", jobManagerRpcPort, 60 * 1000);
 		try {
 			Thread.sleep(10000);
-		} catch (InterruptedException e) {
-
-		}
+		} catch (InterruptedException iex) {}
 	}
 
-	@SuppressWarnings("deprecation")
 	public void stop() throws Exception {
 		if (jobManager != null) {
 			jobManager.shutdown();
 		}
 
 		if (runner != null) {
-			runner.stop();
+			runner.interrupt();
 			runner.join();
 			runner = null;
 		}
@@ -228,7 +230,7 @@ public class NepheleMiniCluster {
 			}
 		}
 
-		if (matchesIPv4.isEmpty() && matchesIPv6.isEmpty()) {
+		if (matchesIPv4.isEmpty() && matchesIPv6.isEmpty() == true) {
 			throw new Exception("Interface " + getNetworkInterface().getName() + " has no interface address attached.");
 		}
 
@@ -254,5 +256,44 @@ public class NepheleMiniCluster {
 		}
 
 		throw new SocketException("Cannot find network interface which is not a loopback interface.");
+	}
+	
+	private static void waitForJobManagerToBeAvailable(String hostname, int port, int timeoutMillies)
+	throws IOException
+	{
+		final InetSocketAddress address = new InetSocketAddress(hostname, port);
+		ExtendedManagementProtocol jobManagerConnection = null;
+		
+		try {
+			jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
+				address, NetUtils.getSocketFactory());
+			
+			Map<InstanceType, InstanceTypeDescription> map = null;
+			final long startTime = System.currentTimeMillis();
+			
+			do {
+				try {
+					map = jobManagerConnection.getMapOfAvailableInstanceTypes();
+					if (map != null && map.size() > 0) {
+						break;
+					}
+				} catch (Exception e) {}
+				Thread.sleep(500);
+			} while ((System.currentTimeMillis() - startTime) < timeoutMillies);
+		}
+		catch (Throwable t) {
+			LOG.error(t);
+			throw new IOException("Waiting for JobManager to come up failed.", t);
+		}
+		finally {
+			
+			if (jobManagerConnection != null) {
+				try {
+					RPC.stopProxy(jobManagerConnection);
+				} catch (Throwable t) {
+					LOG.error("Could not cleanly shut down connection from compiler to job manager,", t);
+				}
+			}
+		}
 	}
 }

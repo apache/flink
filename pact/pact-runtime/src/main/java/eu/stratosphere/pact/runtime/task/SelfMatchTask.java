@@ -47,8 +47,8 @@ package eu.stratosphere.pact.runtime.task;
  * The iterator returns all k-v pairs grouped by their key. A Cartesian product is build 
  * over pairs that share the same key. Each element of these Cartesian products is handed 
  * to the <code>match()</code> method of the MatchStub.
- *
- * @see eu.stratosphere.pact.common.stubs.MatchStub
+ * 
+ * @see eu.stratosphere.pact.common.stub.MatchStub
  * @author Fabian Hueske
  * @author Matthias Ringwald
  */

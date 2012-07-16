@@ -145,7 +145,7 @@
 			<plugin>
 				<!-- just define the Java version to be used for compiling and plugins -->
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
+				<version>2.0</version>
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>
@@ -431,6 +431,20 @@
 								<format>xml</format>
 								<format>html</format>
 							</formats>
+							<instrumentation>
+								<excludes>
+						            <exclude>eu/stratosphere/**/example/**/*.class</exclude>
+							        <exclude>eu/stratosphere/**/examples/**/*.class</exclude>
+							        <exclude>eu/stratosphere/**/*Test.class</exclude>
+					            </excludes>
+								<ignores>
+								  <ignore>org.apache.log4j.*</ignore>
+								  <ignore>org.apache.commons.logging.*</ignore>
+					              <ignore>eu.stratosphere.*examples.*</ignore>
+					              <ignore>eu.stratosphere.*example.*</ignore>
+						          <ignore>eu.stratosphere.*Test</ignore>
+					            </ignores>
+						    </instrumentation>
 						</configuration>
 						<executions>
 							<execution>
@@ -481,5 +495,7 @@
 		<module>pact</module>
 		<module>build-tools</module>
 		<module>stratosphere-dist</module>
+		<module>sopremo</module>
+	<!--	<module>simple</module>-->
 	</modules>
 </project>

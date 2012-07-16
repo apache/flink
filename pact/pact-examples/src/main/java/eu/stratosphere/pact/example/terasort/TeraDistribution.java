@@ -15,6 +15,9 @@
 
 package eu.stratosphere.pact.example.terasort;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -23,30 +26,44 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * 
  * @author warneke
  */
-public class TeraDistribution implements DataDistribution {
-
+public class TeraDistribution implements DataDistribution
+{
 	private static final int ALPHABETH_SIZE = 95;
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.DataDistribution#getBucketBoundary(int, int)
+	 */
 	@Override
-	public PactRecord getSplit(int splitId, int totalSplits) {
-
-		byte[] buf = new byte[TeraKey.KEY_SIZE];
-
-		double threshold = (double) ALPHABETH_SIZE / (double) (totalSplits + 1) * (double) (splitId + 1);
+	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets)
+	{
+		final byte[] buf = new byte[TeraKey.KEY_SIZE];
+		double threshold = (double) ALPHABETH_SIZE / (double) (totalNumBuckets + 1) * (double) (bucketNum + 1);
 
 		for (int i = 0; i < buf.length; ++i) {
-			int ch = (int) Math.floor(threshold) % ALPHABETH_SIZE;
+			final int ch = (int) Math.floor(threshold) % ALPHABETH_SIZE;
 			buf[i] = (byte) (' ' + ch);
 
 			threshold = threshold - (double) ch;
 			threshold = threshold * ALPHABETH_SIZE;
 		}
 
-		final TeraKey split = new TeraKey(buf);
+		final TeraKey split = new TeraKey(buf, 0);
 		PactRecord splitRec = new PactRecord();
 		splitRec.setField(0, split);
-		// System.out.println("Split for " + splitId + " is " + split);
-
 		return splitRec;
 	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 */
+	@Override
+	public void write(DataOutput out)
+	{}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 */
+	@Override
+	public void read(DataInput in)
+	{}
 }

@@ -26,8 +26,8 @@ public class TokenTokenInputFormat extends TextInputFormat {
   private static final Pattern SEPARATOR = Pattern.compile(",");
 
   @Override
-  public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
-    String str = new String(bytes, 0, numBytes);
+  public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+    String str = new String(bytes, offset, numBytes);
     String[] parts = SEPARATOR.split(str);
 
     target.clear();

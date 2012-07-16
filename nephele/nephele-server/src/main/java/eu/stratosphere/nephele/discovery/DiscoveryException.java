@@ -27,16 +27,14 @@ public class DiscoveryException extends Exception {
 	 */
 	private static final long serialVersionUID = 7647491334281738439L;
 
-  public DiscoveryException(String msg) {
-    super(msg);
-  }
-
 	/**
-	 * Constructs a new discovery exception w
+	 * Constructs a new discovery exception with the specified error message.
 	 * 
-	 * @param cause the   error that should b e transported with this exceptiopn
+	 * @param msg
+	 *        the error message that should be transported with this exception
 	 */
-  public DiscoveryException(Throwable cause) {
-    super(cause);
-  }
+	public DiscoveryException(String msg) {
+		super(msg);
+	}
+
 }

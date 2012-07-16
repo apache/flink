@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 import java.io.IOException;
@@ -53,7 +53,7 @@ public class JobGraphUtils {
   public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target, TaskConfig sourceConfig,
                            DistributionPattern distributionPattern) throws JobGraphDefinitionException {
     source.connectTo(target, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, distributionPattern);
-    sourceConfig.addOutputShipStrategy(OutputEmitter.ShipStrategy.FORWARD);
+    sourceConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
   }
 
   public static JobTaskVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph, int dop) {

@@ -239,7 +239,7 @@ public class UnilateralSortMerger<E> implements Sorter<E>
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
 	 *                              actually begins spilling data to disk.
-	 * @param noSpillingMemory When set to true, no memory will be allocated for writing and no spilling thread
+	 * @param noSpilling When set to true, no memory will be allocated for writing and no spilling thread
 	 *                   will be spawned.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.

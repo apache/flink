@@ -22,7 +22,6 @@ public class FieldList  extends ArrayList<Integer>{
 			}
 			this.add(columnIndexes[i]);
 		}
-		
 	}
 	
 }

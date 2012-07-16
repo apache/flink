@@ -49,7 +49,7 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
  * 
  * 
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public final class PactRecord implements Value
 {
@@ -228,7 +228,7 @@ public final class PactRecord implements Value
 	{
 		// range check
 		if (fieldNum < 0 || fieldNum >= this.numFields) {
-			throw new IndexOutOfBoundsException();
+			throw new IndexOutOfBoundsException(fieldNum + " for range [0.." + (this.numFields - 1) + "]");
 		}
 		
 		// get offset and check for null
@@ -462,6 +462,16 @@ public final class PactRecord implements Value
 		return this.firstModifiedPos != Integer.MAX_VALUE;
 	}
 	
+	public final boolean isNull(int fieldNum) {
+		// range check
+		if (fieldNum < 0 || fieldNum >= this.numFields) {
+			throw new IndexOutOfBoundsException();
+		}
+		
+		// get offset and check for null
+		final int offset = this.offsets[fieldNum];
+		return offset == NULL_INDICATOR_OFFSET;
+	}
 //	/**
 //	 * Removes the field at the given position.
 //	 * 
@@ -1054,110 +1064,95 @@ public final class PactRecord implements Value
 		initFields(data, 0, len);
 	}
 	
-	private final void initFields(byte[] data, int begin, int len)
+	private final void initFields(final byte[] data, final int begin, final int len)
 	{
-		// read number of fields, variable length encoded reverse at the back
-		int pos = begin + len - 2;
-		int numFields = data[begin + len - 1] & 0xFF;
-		if (numFields >= MAX_BIT) {
-			int shift = 7;
-			int curr;
-			numFields = numFields & 0x7f;
-			while ((curr = data[pos--]) >= MAX_BIT) {
-				numFields |= (curr & 0x7f) << shift;
-				shift += 7;
+		try {
+			// read number of fields, variable length encoded reverse at the back
+			int pos = begin + len - 2;
+			int numFields = data[begin + len - 1] & 0xFF;
+			if (numFields >= MAX_BIT) {
+				int shift = 7;
+				int curr;
+				numFields = numFields & 0x7f;
+				while ((curr = data[pos--]) >= MAX_BIT) {
+					numFields |= (curr & 0x7f) << shift;
+					shift += 7;
+				}
+				numFields |= curr << shift;
 			}
-			numFields |= curr << shift;
-		}
-		this.numFields = numFields;
-		
-		// ensure that all arrays are there and of sufficient size
-		if (this.offsets == null || this.offsets.length < numFields) {
-			this.offsets = new int[numFields];
-		}
-		if (this.lengths == null || this.lengths.length < numFields) {
-			this.lengths = new int[numFields];
-		}
-		if (this.readFields == null || this.readFields.length < numFields) {
-			this.readFields = new Value[numFields];
-		}
-		if (this.writeFields == null || this.writeFields.length < numFields) {
-			this.writeFields = new Value[numFields];
-		}
-		
-		final int beginMasks = pos; // beginning of bitmap for null fields
-		final int fieldsBy8 = (numFields >>> 3) + ((numFields & 0x7) == 0 ? 0 : 1);
-		
-		pos = beginMasks - fieldsBy8; 
-		int lastNonNullField = -1;
-		
-		for (int field = 0, chunk = 0; chunk < fieldsBy8; chunk++) {
-			int mask = data[beginMasks - chunk];
-			for (int i = 0; i < 8 && field < numFields; i++, field++) {
-				if ((mask & 0x1) == 0x1) {
-					// not null, so read the offset value, if we are not the first non-null fields
-					if (lastNonNullField >= 0) {
-						// offset value is variable length encoded
-						int start = data[pos--] & 0xff;
-						if (start >= MAX_BIT) {
-							int shift = 7;
-							int curr;
-							start = start & 0x7f;
-							while ((curr = data[pos--] & 0xff) >= MAX_BIT) {
-								start |= (curr & 0x7f) << shift;
-								shift += 7;
+			this.numFields = numFields;
+			
+			// ensure that all arrays are there and of sufficient size
+			if (this.offsets == null || this.offsets.length < numFields) {
+				this.offsets = new int[numFields];
+			}
+			if (this.lengths == null || this.lengths.length < numFields) {
+				this.lengths = new int[numFields];
+			}
+			if (this.readFields == null || this.readFields.length < numFields) {
+				this.readFields = new Value[numFields];
+			}
+			if (this.writeFields == null || this.writeFields.length < numFields) {
+				this.writeFields = new Value[numFields];
+			}
+			
+			final int beginMasks = pos; // beginning of bitmap for null fields
+			final int fieldsBy8 = (numFields >>> 3) + ((numFields & 0x7) == 0 ? 0 : 1);
+			
+			pos = beginMasks - fieldsBy8; 
+			int lastNonNullField = -1;
+			
+			for (int field = 0, chunk = 0; chunk < fieldsBy8; chunk++) {
+				int mask = data[beginMasks - chunk];
+				for (int i = 0; i < 8 && field < numFields; i++, field++) {
+					if ((mask & 0x1) == 0x1) {
+						// not null, so read the offset value, if we are not the first non-null fields
+						if (lastNonNullField >= 0) {
+							// offset value is variable length encoded
+							int start = data[pos--] & 0xff;
+							if (start >= MAX_BIT) {
+								int shift = 7;
+								int curr;
+								start = start & 0x7f;
+								while ((curr = data[pos--] & 0xff) >= MAX_BIT) {
+									start |= (curr & 0x7f) << shift;
+									shift += 7;
+								}
+								start |= curr << shift;
 							}
-							start |= curr << shift;
+							this.offsets[field] = start + begin;
+							this.lengths[lastNonNullField] = start + begin - this.offsets[lastNonNullField];
 						}
-						this.offsets[field] = start + begin;
-						this.lengths[lastNonNullField] = start + begin - this.offsets[lastNonNullField];
+						else {
+							this.offsets[field] = begin;
+						}
+						lastNonNullField = field;
 					}
 					else {
-						this.offsets[field] = begin;
+						// field is null
+						this.offsets[field] = NULL_INDICATOR_OFFSET;
 					}
-					lastNonNullField = field;
+					mask >>= 1;
 				}
-				else {
-					// field is null
-					this.offsets[field] = NULL_INDICATOR_OFFSET;
+			}
+			if (lastNonNullField >= 0) {
+				this.lengths[lastNonNullField] = pos - this.offsets[lastNonNullField] + 1;
+			}
+			this.firstModifiedPos = Integer.MAX_VALUE;
+		}
+		catch (ArrayIndexOutOfBoundsException aioobex) {
+			StringBuilder bld = new StringBuilder(len * 4 + 64);
+			bld.append("Record deserialization error: Record byte signature: ");
+			
+			for (int i = 0; i < len; i++) {
+				int num = data[i + begin] & 0xff;
+				bld.append(num);
+				if (i < len - 1) {
+					bld.append(',');
 				}
-				mask >>= 1;
 			}
+			throw new RuntimeException(bld.toString(), aioobex);
 		}
-		if (lastNonNullField >= 0) {
-			this.lengths[lastNonNullField] = pos - this.offsets[lastNonNullField] + 1;
-		}
-		this.firstModifiedPos = Integer.MAX_VALUE;
-	}
-	
-	/**
-	 * @param fields
-	 * @param holders
-	 * @param binData
-	 * @param offset
-	 * @return
-	 */
-	public boolean readBinary(int[] fields, Value[] holders, byte[] binData, int offset)
-	{
-		// read the length
-		int val = binData[offset++] & 0xff;
-		if (val >= MAX_BIT) {
-			int shift = 7;
-			int curr;
-			val = val & 0x7f;
-			while ((curr = binData[offset++] & 0xff) >= MAX_BIT) {
-				val |= (curr & 0x7f) << shift;
-				shift += 7;
-			}
-			val |= curr << shift;
-		}
-		
-		// initialize the fields
-		this.binaryData = binData;
-		initFields(binData, offset, val);
-		
-		// get the values
-		return getFieldsInto(fields, holders);
 	}
 	
 	/**
@@ -1193,25 +1188,7 @@ public final class PactRecord implements Value
 	 */
 	public void deserialize(DataInputView source) throws IOException
 	{
-		int val = source.readUnsignedByte();
-		if (val >= MAX_BIT) {
-			int shift = 7;
-			int curr;
-			val = val & 0x7f;
-			while ((curr = source.readUnsignedByte()) >= MAX_BIT) {
-				val |= (curr & 0x7f) << shift;
-				shift += 7;
-			}
-			val |= curr << shift;
-		}
-		this.binaryLen = val;
-
-		// read the binary representation
-		if (this.binaryData == null || this.binaryData.length < this.binaryLen) {
-			this.binaryData = new byte[this.binaryLen];
-		}
-		source.readFully(this.binaryData, 0, this.binaryLen);
-		initFields(this.binaryData, 0, this.binaryLen);
+		read(source);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -1308,11 +1285,19 @@ public final class PactRecord implements Value
 
 		@Override
 		public void readFully(byte[] b, int off, int len) throws IOException {
-			if (this.position < this.end && this.position <= this.end - len && off <= b.length - len) {
-				System.arraycopy(this.memory, position, b, off, len);
-				position += len;
-			} else {
-				throw new EOFException();
+			if (len >= 0) {
+				if (off <= b.length - len) {
+					if (this.position <= this.end - len) {
+						System.arraycopy(this.memory, position, b, off, len);
+						position += len;
+					} else {
+						throw new EOFException();
+					}
+				} else {
+					throw new ArrayIndexOutOfBoundsException();
+				}
+			} else if (len < 0) {
+				throw new IllegalArgumentException("Length may not be negative.");
 			}
 		}
 
@@ -1332,10 +1317,10 @@ public final class PactRecord implements Value
 			if (this.position < this.end) {
 				// read until a newline is found
 				StringBuilder bld = new StringBuilder();
-				char curr = readChar();
+				char curr = (char) readUnsignedByte();
 				while (position < this.end && curr != '\n') {
 					bld.append(curr);
-					curr = readChar();
+					curr = (char) readUnsignedByte();
 				}
 				// trim a trailing carriage return
 				int len = bld.length();
@@ -1690,5 +1675,5 @@ public final class PactRecord implements Value
 				throw new IOException("Serialization failed because the record length would exceed 2GB.");
 			}
 		}
-	}
+	};
 }

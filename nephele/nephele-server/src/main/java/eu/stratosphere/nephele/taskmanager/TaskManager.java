@@ -108,7 +108,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	private final PluginCommunicationProtocol pluginCommunicationService;
 
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	private final ExecutorService executorService = Executors.newCachedThreadPool();
 
 	private static final int handlerCount = 1;
 
@@ -281,7 +281,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Get the directory for storing temporary files
 		final String[] tmpDirPaths = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-														ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
+
 		checkTempDirs(tmpDirPaths);
 
 		// Initialize the byte buffered channel manager
@@ -862,12 +863,14 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	private void checkTaskExecution() {
 
-		final Iterator<Task> it = this.runningTasks.values().iterator();
+		final Iterator<Map.Entry<ExecutionVertexID, Task>> it = this.runningTasks.entrySet().iterator();
 		while (it.hasNext()) {
-			final Task task = it.next();
+			final Map.Entry<ExecutionVertexID, Task> task = it.next();
 
-			if (task.isTerminated()) {
-				task.markAsFailed();
+			if (task.getValue().isTerminated()) {
+				if (this.runningTasks.containsKey(task.getKey())) {
+					task.getValue().markAsFailed();
+				}
 			}
 		}
 	}

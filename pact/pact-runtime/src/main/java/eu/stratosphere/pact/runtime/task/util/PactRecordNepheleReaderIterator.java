@@ -22,17 +22,17 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
- * A {@link MutableObjectIterator} that wraps a Nephele Reader producing {@link PactRecord}s.
- *
- * @author Stephan Ewen
- */
+* A {@link MutableObjectIterator} that wraps a Nephele Reader producing {@link PactRecord}s.
+*
+* @author Stephan Ewen
+*/
 public final class PactRecordNepheleReaderIterator implements MutableObjectIterator<PactRecord>
 {
 
-  private final MutableReader<PactRecord> reader;		// the source
-  private final ReaderInterruptionBehavior interruptionBehavior;
+ private final MutableReader<PactRecord> reader;		// the source
+ private final ReaderInterruptionBehavior interruptionBehavior;
 
-  /**
+	/**
 	 * Creates a new iterator, wrapping the given reader.
 	 * 
 	 * @param reader The reader to wrap.
@@ -42,30 +42,30 @@ public final class PactRecordNepheleReaderIterator implements MutableObjectItera
 		this(reader, ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT);
 	}
 
-  /**
-   * Creates a new iterator, wrapping the given reader.
-   *
-   * @param reader The reader to wrap.
-   * @param interruptionBehavior how to behave in case of an interruption
-   */
-  public PactRecordNepheleReaderIterator(MutableReader<PactRecord> reader, ReaderInterruptionBehavior
-      interruptionBehavior)
-  {
-    this.reader = reader;
-    this.interruptionBehavior = interruptionBehavior;
-  }
+	/**
+	 * Creates a new iterator, wrapping the given reader.
+	 * 
+	 * @param reader
+	 *        The reader to wrap.
+	 * @param interruptionBehavior
+	 *        how to behave in case of an interruption
+	 */
+	public PactRecordNepheleReaderIterator(MutableReader<PactRecord> reader,
+			ReaderInterruptionBehavior interruptionBehavior)
+	{
+		this.reader = reader;
+		this.interruptionBehavior = interruptionBehavior;
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.util.MutableObjectIterator#next(java.lang.Object)
 	 */
 	@Override
-	public boolean next(PactRecord target) throws IOException
-	{
+	public boolean next(PactRecord target) throws IOException {
 		try {
 			return this.reader.next(target);
 		}
 		catch (InterruptedException iex) {
-      //TODO might break canceling logic!!!
 			return this.interruptionBehavior.onInterrupt(iex);
 		}
 	}

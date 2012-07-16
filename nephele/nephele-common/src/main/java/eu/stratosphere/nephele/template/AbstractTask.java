@@ -21,5 +21,4 @@ package eu.stratosphere.nephele.template;
  * @author warneke
  */
 public abstract class AbstractTask extends AbstractInvokable {
-
 }

@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -34,8 +34,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.Record;
 
-final class CheckpointEnvironment implements Environment {
-
+final class CheckpointEnvironment implements Environment
+{
 	private final ExecutionVertexID vertexID;
 
 	private final Environment environment;
@@ -213,10 +213,9 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public OutputGate<? extends Record> createOutputGate(final GateID gateID,
-			final Class<? extends Record> outputClass,
-			final ChannelSelector<? extends Record> selector, final boolean isBroadcast) {
-
+	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID,
+			final Class<T> outputClass, final ChannelSelector<T> selector, final boolean isBroadcast)
+	{
 		throw new IllegalStateException("Checkpoint replay task called createOutputGate");
 	}
 
@@ -224,9 +223,9 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer) {
-
+	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
+														final RecordDeserializerFactory<T> deserializer)
+	{
 		throw new IllegalStateException("Checkpoint replay task called createInputGate");
 	}
 
@@ -284,16 +283,7 @@ final class CheckpointEnvironment implements Environment {
 		return this.environment.getInputGateIDs();
 	}
 
-    @Override
-    public InputGate<? extends Record> getInputGate(int pos) {
-        return environment.getInputGate(pos);
-    }
-
-    public OutputGate<? extends Record> getOutputGate(int pos) {
-        return environment.getOutputGate(pos);
-    }
-
-    /**
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override

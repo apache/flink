@@ -27,7 +27,7 @@ public final class DummyInputFormat extends DelimitedInputFormat
 	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 		target.setField(0, this.integer);
 		target.setField(1, this.integer);
 		return true;

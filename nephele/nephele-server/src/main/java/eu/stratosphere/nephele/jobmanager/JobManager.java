@@ -194,11 +194,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// First of all, start discovery manager
 		try {
-      LOG.error("discovery manager: " + ipcAddress + " " + ipcPort);
 			DiscoveryService.startDiscoveryService(ipcAddress, ipcPort);
 		} catch (DiscoveryException e) {
-			//LOG.error("Cannot start discovery manager: " + StringUtils.stringifyException(e));
-      LOG.error("Cannot start discovery manager: ", e);
+			LOG.error("Cannot start discovery manager: " + StringUtils.stringifyException(e));
 			System.exit(FAILURERETURNCODE);
 		}
 
@@ -774,6 +772,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		if (eg == null) {
 			LOG.error("Cannot find execution graph to job ID " + jobID);
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
+		}
+
+		final InternalJobStatus jobStatus = eg.getJobStatus();
+		if (jobStatus == InternalJobStatus.FAILING || jobStatus == InternalJobStatus.CANCELING) {
+			return ConnectionInfoLookupResponse.createJobIsAborting();
 		}
 
 		final ExecutionEdge edge = eg.getEdgeByID(sourceChannelID);

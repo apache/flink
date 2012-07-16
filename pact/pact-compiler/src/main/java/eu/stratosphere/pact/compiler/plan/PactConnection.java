@@ -21,11 +21,12 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.pact.common.contract.AbstractPact;
+import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PartitionProperty;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 
 /**
  * A connection between to PACTs. Represents a channel together with a data shipping
@@ -58,7 +59,7 @@ public class PactConnection {
 	
 	private int replicationFactor; // the factor by which the data that is shipped over this connection is replicated
 	
-	private int[] scramblePartitionedFields; // The fields which are used  for partitioning, this is only used if the partitioned fields
+	private int[] scramblePartitionedFields; // The fields which are used for partitioning, this is only used if the partitioned fields
 									 // are not the key fields
 
 
@@ -361,28 +362,21 @@ public class PactConnection {
 	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
 		GlobalProperties gp = source.getGlobalProperties().createCopy();
 		
-		//TODO make nicer
-		int[] keyFields = null;
+		FieldList keyFields = null;
 		int inputNum = 0;
-		for (List<PactConnection> connections : target.getIncomingConnections()) {
-			boolean isThisConnection = false;
-			for (PactConnection connection : connections) {
-				if (connection.getSourcePact().getId() == source.getId()) {
-					if (connection.getScramblePartitionedFields() != null) {
-						keyFields = connection.getScramblePartitionedFields();
-					}
-					else if (target.getPactContract() instanceof AbstractPact<?>) {
-						keyFields = ((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum);
-					}
-					break;
-				}	
-			}
-			if (isThisConnection) {
+		// search for connection and obtain key set
+		for (PactConnection conn : target.getIncomingConnections()) {
+			if (conn.getSourcePact().getId() == source.getId()) {
+				if (conn.getScramblePartitionedFields() != null) {
+					// TODO get scrambled fields right!
+					throw new CompilerException("Scrambled Fields are not supported yet!");
+					//keyFields = conn.getScramblePartitionedFields();
+				} else if (target.getPactContract() instanceof AbstractPact<?>) {
+					keyFields = new FieldList(((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum));
+				}
 				break;
 			}
-			else {
-				inputNum++;
-			}
+			inputNum++;
 		}
 		
 		switch (shipMode) {
@@ -394,12 +388,10 @@ public class PactConnection {
 			break;
 		case PARTITION_HASH:
 			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, keyFields);
-//			gp.setKeyOrder(Order.NONE);
 			gp.setOrdering(null);
 			break;
 		case FORWARD:
 			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
-//				gp.setKeyOrder(Order.NONE);
 				gp.setOrdering(null);
 			}
 			// nothing else changes

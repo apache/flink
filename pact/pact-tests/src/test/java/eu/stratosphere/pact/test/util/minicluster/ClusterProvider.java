@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.test.util.minicluster;
 
+import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
@@ -52,7 +53,7 @@ public abstract class ClusterProvider {
 		return filesystemRunning;
 	}
 
-	public abstract void submitJobAndWait(JobGraph jobGraph, String jarFilePath) throws Exception;
+	public abstract JobClient getJobClient(JobGraph jobGraph, String jarFilePath) throws Exception;
 
 	protected abstract void startNephele() throws Exception;
 

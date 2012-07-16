@@ -42,13 +42,13 @@ public class TextInputFormat extends DelimitedInputFormat
 	private static final Log LOG = LogFactory.getLog(TextInputFormat.class);
 	
 	
-	private final PactString theString = new PactString();
+	protected final PactString theString = new PactString();
 	
-	private CharsetDecoder decoder;
+	protected CharsetDecoder decoder;
 	
-	private ByteBuffer byteWrapper;
+	protected ByteBuffer byteWrapper;
 	
-	private boolean ascii;
+	protected boolean ascii;
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -67,11 +67,11 @@ public class TextInputFormat extends DelimitedInputFormat
 			throw new RuntimeException("Unsupported charset: " + charsetName);
 		}
 		
-		this.decoder = Charset.forName(charsetName).newDecoder();
-		this.byteWrapper = ByteBuffer.allocate(1);
-		
 		if (charsetName.equals("ISO-8859-1") || charsetName.equalsIgnoreCase("ASCII")) {
 			this.ascii = true;
+		} else {
+			this.decoder = Charset.forName(charsetName).newDecoder();
+			this.byteWrapper = ByteBuffer.allocate(1);
 		}
 	}
 
@@ -80,12 +80,12 @@ public class TextInputFormat extends DelimitedInputFormat
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
 	 */
-	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes)
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
 	{
 		PactString str = this.theString;
 		
 		if (this.ascii) {
-			str.setValueAscii(bytes, 0, numBytes);
+			str.setValueAscii(bytes, offset, numBytes);
 		}
 		else {
 			ByteBuffer byteWrapper = this.byteWrapper;
@@ -93,8 +93,9 @@ public class TextInputFormat extends DelimitedInputFormat
 				byteWrapper = ByteBuffer.wrap(bytes, 0, bytes.length);
 				this.byteWrapper = byteWrapper;
 			}
-			byteWrapper.position(0);
-			byteWrapper.limit(numBytes);
+			byteWrapper.clear();
+			byteWrapper.position(offset);
+			byteWrapper.limit(offset + numBytes);
 				
 			try {
 				CharBuffer result = this.decoder.decode(byteWrapper);
@@ -102,7 +103,7 @@ public class TextInputFormat extends DelimitedInputFormat
 			}
 			catch (CharacterCodingException e) {
 				byte[] copy = new byte[numBytes];
-				System.arraycopy(bytes, 0, copy, 0, numBytes);
+				System.arraycopy(bytes, offset, copy, 0, numBytes);
 				LOG.warn("Line could not be encoded: " + Arrays.toString(copy), e);
 				return false;
 			}

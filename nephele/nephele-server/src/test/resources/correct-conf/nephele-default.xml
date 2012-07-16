@@ -25,19 +25,19 @@
 	<value>eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler</value>
     </property>
     <property>
-        <key>backChannel.network.compressor</key>
+        <key>channel.network.compressor</key>
         <value>de.tu_berlin.cit.nephele.io.compression.lzo.LzoCompressor</value>
     </property>
     <property>
-        <key>backChannel.network.decompressor</key>
+        <key>channel.network.decompressor</key>
         <value>de.tu_berlin.cit.nephele.io.compression.lzo.LzoDecompressor</value>
     </property>
     <property>
-        <key>backChannel.file.compressor</key>
+        <key>channel.file.compressor</key>
         <value>de.tu_berlin.cit.nephele.io.compression.lzo.LzoCompressor</value>
     </property>
     <property>
-        <key>backChannel.file.decompressor</key>
+        <key>channel.file.decompressor</key>
         <value>de.tu_berlin.cit.nephele.io.compression.lzo.LzoDecompressor</value>
     </property>
     <property>

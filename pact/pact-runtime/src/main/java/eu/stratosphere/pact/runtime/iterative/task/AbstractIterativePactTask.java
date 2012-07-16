@@ -61,24 +61,22 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
         (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, owner);
 
-    //TODO might not work for unioned inputs
-    getEnvironment().getInputGate(inputGateIndex).subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
+    getReader(inputGateIndex).subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
 
     return interruptingIterator;
   }
 
-  protected void listenToTermination(int inputGateIndex, Callback<TerminationEvent> callback) {
-    listenToEvent(inputGateIndex, TerminationEvent.class, callback);
+  protected void listenToTermination(int inputIndex, Callback<TerminationEvent> callback) {
+    listenToEvent(inputIndex, TerminationEvent.class, callback);
   }
 
-  protected void listenToEndOfSuperstep(int inputGateIndex, Callback<EndOfSuperstepEvent> callback) {
-    listenToEvent(inputGateIndex, EndOfSuperstepEvent.class, callback);
+  protected void listenToEndOfSuperstep(int inputIndex, Callback<EndOfSuperstepEvent> callback) {
+    listenToEvent(inputIndex, EndOfSuperstepEvent.class, callback);
   }
 
-  private <E extends AbstractTaskEvent> void listenToEvent(int inputGateIndex, Class<E> eventClass,
+  private <E extends AbstractTaskEvent> void listenToEvent(int inputIndex, Class<E> eventClass,
       final Callback<E> callback) {
-
-    getEnvironment().getInputGate(inputGateIndex).subscribeToEvent(new EventListener() {
+    getReader(inputIndex).subscribeToEvent(new EventListener() {
       @Override
       public void eventOccurred(AbstractTaskEvent event) {
         try {

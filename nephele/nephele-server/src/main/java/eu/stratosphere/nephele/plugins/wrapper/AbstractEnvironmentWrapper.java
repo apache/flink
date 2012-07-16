@@ -21,7 +21,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordDeserializerFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -204,10 +204,9 @@ public abstract class AbstractEnvironmentWrapper implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public OutputGate<? extends Record> createOutputGate(final GateID gateID,
-			final Class<? extends Record> outputClass, final ChannelSelector<? extends Record> selector,
-			final boolean isBroadcast) {
-
+	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID,
+			final Class<T> outputClass, final ChannelSelector<T> selector, final boolean isBroadcast)
+	{
 		return this.wrappedEnvironment.createOutputGate(gateID, outputClass, selector, isBroadcast);
 	}
 
@@ -215,9 +214,9 @@ public abstract class AbstractEnvironmentWrapper implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer) {
-
+	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
+													final RecordDeserializerFactory<T> deserializer)
+	{
 		return this.wrappedEnvironment.createInputGate(gateID, deserializer);
 	}
 

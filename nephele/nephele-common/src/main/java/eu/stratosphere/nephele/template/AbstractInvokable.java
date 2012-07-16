@@ -39,7 +39,7 @@ public abstract class AbstractInvokable {
 	 * Must be overwritten by the concrete task. This method is called by the task manager
 	 * when the actual execution of the task starts.
 	 * 
-	 * @throws Exception
+	 * @throws Execution
 	 *         thrown if any exception occurs during the execution of the tasks
 	 */
 	public abstract void invoke() throws Exception;

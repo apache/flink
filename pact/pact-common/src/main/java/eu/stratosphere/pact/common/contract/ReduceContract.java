@@ -38,7 +38,12 @@ import eu.stratosphere.pact.common.type.Key;
 public class ReduceContract extends SingleInputContract<ReduceStub>
 {	
 	private static final String DEFAULT_NAME = "<Unnamed Reducer>";	// the default name for contracts
-
+	
+	/**
+	 * The ordering for the order inside a reduce group.
+	 */
+	private Ordering secondaryOrder;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -202,6 +207,27 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 		this(c, keyClasses, keyColumns, name);
 		setInputs(inputs);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Sets the order of the elements within a reduce group.
+	 * 
+	 * @param order The order for the elements in a reduce group.
+	 */
+	public void setSecondaryOrder(Ordering order) {
+		this.secondaryOrder = order;
+	}
+	
+	/**
+	 * Gets the secondary order, i.e. the order of elements within a reduce group. If no such order has been
+	 * set, this method returns null.
+	 * 
+	 * @return The secondary order.
+	 */
+	public Ordering getSecondaryOrder() {
+		return this.secondaryOrder;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -256,5 +282,5 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 */
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
-	public @interface Combinable {}
+	public @interface Combinable {};
 }

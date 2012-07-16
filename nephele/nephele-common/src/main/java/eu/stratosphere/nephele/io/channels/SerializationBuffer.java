@@ -67,12 +67,7 @@ public class SerializationBuffer<T extends IOReadableWritable> {
 	 *         empty
 	 */
 	public boolean dataLeftFromPreviousSerialization() {
-
-		if (leftInSerializationBuffer() > 0) {
-			return true;
-		}
-
-		return false;
+		return leftInSerializationBuffer() > 0;
 	}
 
 	/**

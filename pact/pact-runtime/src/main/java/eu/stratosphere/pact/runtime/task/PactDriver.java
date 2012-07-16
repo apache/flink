@@ -19,9 +19,16 @@ import eu.stratosphere.pact.common.stubs.Stub;
 
 
 /**
+ * The interface to be implemented by all pact drivers that run alone (or as the primary driver) in a nephele task.
+ * The driver is the code that deals with everything that specific to a certain PACT. It implements the actual
+ * <i>map</i> or <i>reduce</i> specific code.
  *
+ * @see PactTaskContext
  *
  * @author Stephan Ewen
+ * 
+ * @param <S> The type of stub driven by this driver.
+ * @param <OT> The data type of the records produced by this driver.
  */
 public interface PactDriver<S extends Stub, OT>
 {

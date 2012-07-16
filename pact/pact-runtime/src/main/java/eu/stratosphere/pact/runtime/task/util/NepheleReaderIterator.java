@@ -34,7 +34,7 @@ public final class NepheleReaderIterator<T> implements MutableObjectIterator<T>
 	
 	private final DeserializationDelegate<T> delegate;
 
-  private final ReaderInterruptionBehavior interruptionBehavior;
+	private final ReaderInterruptionBehavior interruptionBehavior;
 
 	/**
 	 * Creates a new iterator, wrapping the given reader.
@@ -46,20 +46,22 @@ public final class NepheleReaderIterator<T> implements MutableObjectIterator<T>
 		this(reader, serializer, ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT);
 	}
 
-  /**
-   * Creates a new iterator, wrapping the given reader.
-   *
-   * @param reader The reader to wrap.
-   * @param serializer serializer
-   * @param interruptionBehavior behavior in case of interruptions
-   */
-  public NepheleReaderIterator(MutableReader<DeserializationDelegate<T>> reader, TypeSerializer<T> serializer,
-      ReaderInterruptionBehavior interruptionBehavior)
-  {
-    this.reader = reader;
-    this.delegate = new DeserializationDelegate<T>(serializer);
-    this.interruptionBehavior = interruptionBehavior;
-  }
+	/**
+	 * Creates a new iterator, wrapping the given reader.
+	 * 
+	 * @param reader
+	 *        The reader to wrap.
+	 * @param serializer
+	 *        serializer
+	 * @param interruptionBehavior
+	 *        behavior in case of interruptions
+	 */
+	public NepheleReaderIterator(MutableReader<DeserializationDelegate<T>> reader, TypeSerializer<T> serializer,
+			ReaderInterruptionBehavior interruptionBehavior) {
+		this.reader = reader;
+		this.delegate = new DeserializationDelegate<T>(serializer);
+		this.interruptionBehavior = interruptionBehavior;
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.util.MutableObjectIterator#next(java.lang.Object)

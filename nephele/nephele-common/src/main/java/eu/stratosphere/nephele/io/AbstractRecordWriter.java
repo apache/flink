@@ -75,16 +75,14 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 *        <code>true</code> if this record writer shall broadcast the records to all connected channels,
 	 *        <code>false/<code> otherwise
 	 */
-	// TODO: See if type safety can be improved here
-	@SuppressWarnings("unchecked")
-	private void connectOutputGate(Class<T> outputClass, ChannelSelector<T> selector, boolean isBroadcast) {
-
+	private void connectOutputGate(Class<T> outputClass, ChannelSelector<T> selector, boolean isBroadcast)
+	{
 		GateID gateID = this.environment.getNextUnboundOutputGateID();
 		if (gateID == null) {
 			gateID = new GateID();
 		}
 
-		this.outputGate = (OutputGate<T>) this.environment.createOutputGate(gateID, outputClass, selector, isBroadcast);
+		this.outputGate = this.environment.createOutputGate(gateID, outputClass, selector, isBroadcast);
 		this.environment.registerOutputGate(this.outputGate);
 	}
 
@@ -103,10 +101,13 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 		this.outputGate.writeRecord(record);
 	}
 
-	// TODO (en)
-	@Deprecated
-	public OutputGate<T> getOutputGate() {
-		return outputGate;
+	/**
+	 * Returns the list of OutputChannels connected to this RecordWriter.
+	 * 
+	 * @return the list of OutputChannels connected to this RecordWriter
+	 */
+	public List<AbstractOutputChannel<T>> getOutputChannels() {
+		return this.outputGate.getOutputChannels();
 	}
 
 	/**

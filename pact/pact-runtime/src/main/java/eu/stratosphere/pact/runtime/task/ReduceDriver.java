@@ -136,6 +136,11 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 		final MutableObjectIterator<IT> in = this.taskContext.getInput(0);
 		this.serializer = this.taskContext.getInputSerializer(0);
 		this.comparator = this.taskContext.getInputComparator(0);
+		
+		TypeComparator<IT> sortComparator = this.taskContext.getSecondarySortComparator(0);
+		if (sortComparator == null) {
+			sortComparator = this.comparator.duplicate();
+		}
 
 		// obtain grouped iterator defined by local strategy
 		switch (config.getLocalStrategy()) {
@@ -150,7 +155,7 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 		case SORT:
 			// instantiate a sort-merger
 			this.input = new UnilateralSortMerger<IT>(memoryManager, ioManager, in,
-						this.taskContext.getOwningNepheleTask(), this.serializer, this.comparator.duplicate(),
+						this.taskContext.getOwningNepheleTask(), this.serializer, sortComparator,
 						availableMemory, maxFileHandles,
 				spillThreshold);
 			break;
@@ -159,7 +164,7 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 			// instantiate a combining sort-merger
 			this.input = new CombiningUnilateralSortMerger<IT>(this.taskContext.getStub(), memoryManager,
 						ioManager, in, this.taskContext.getOwningNepheleTask(), this.serializer,
-						this.comparator.duplicate(), availableMemory, maxFileHandles, spillThreshold, false);
+						sortComparator, availableMemory, maxFileHandles, spillThreshold, false);
 			break;
 		default:
 			throw new Exception("Invalid local strategy provided for ReduceTask: " + ls.name());

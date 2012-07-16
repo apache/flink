@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.test.util;
 
 import junit.framework.Assert;
+import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -147,7 +148,8 @@ public abstract class FailingTestBase extends TestBase {
 			boolean jobFailed = false;
 			try {
 				// submit failing job
-				cluster.submitJobAndWait(failingJob, getFailingJarFilePath());
+				final JobClient client = this.cluster.getJobClient(this.failingJob, getFailingJarFilePath());
+				client.submitJobAndWait();
 			} catch(JobExecutionException jee) {
 				// check that job execution failed
 				jobFailed = true;
@@ -160,7 +162,8 @@ public abstract class FailingTestBase extends TestBase {
 			
 			try {
 				// submit working job
-				cluster.submitJobAndWait(job, getJarFilePath());
+				final JobClient client = this.cluster.getJobClient(this.job, getFailingJarFilePath());
+				client.submitJobAndWait();
 			} catch (Exception e) {
 				// this job should not fail
 				Assert.fail(e.getMessage());

@@ -36,7 +36,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -362,15 +362,15 @@ public class RuntimeEnvironment implements Environment, Runnable {
 				throw new InterruptedException();
 			}
 
-		} catch (Exception e) {
+		} catch (Throwable t) {
 
 			if (!this.executionObserver.isCanceled()) {
 
 				// Perform clean up when the task failed and has been not canceled by the user
 				try {
 					this.invokable.cancel();
-				} catch (Exception e2) {
-					LOG.error(StringUtils.stringifyException(e2));
+				} catch (Throwable t2) {
+					LOG.error(StringUtils.stringifyException(t2));
 				}
 			}
 
@@ -380,7 +380,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			if (this.executionObserver.isCanceled()) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
-				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
 			}
 
 			return;
@@ -401,7 +401,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 			// Now we wait until all output channels have written out their data and are closed
 			waitForOutputChannelsToBeClosed();
-		} catch (Exception e) {
+		} catch (Throwable t) {
 
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
@@ -409,7 +409,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			if (this.executionObserver.isCanceled()) {
 				changeExecutionState(ExecutionState.CANCELED, null);
 			} else {
-				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(e));
+				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
 			}
 
 			return;
@@ -442,13 +442,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public OutputGate<? extends Record> createOutputGate(final GateID gateID, Class<? extends Record> outputClass,
-			final ChannelSelector<? extends Record> selector, final boolean isBroadcast) {
-
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		final RuntimeOutputGate<? extends Record> rog = (RuntimeOutputGate<? extends Record>) new RuntimeOutputGate(
-			getJobID(), gateID, outputClass, getNumberOfOutputGates(), selector, isBroadcast);
-
+	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID, Class<T> outputClass,
+			final ChannelSelector<T> selector, final boolean isBroadcast)
+	{
+		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gateID, outputClass,
+															getNumberOfOutputGates(), selector, isBroadcast);
 		return rog;
 	}
 
@@ -456,13 +454,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InputGate<? extends Record> createInputGate(final GateID gateID,
-			final RecordDeserializer<? extends Record> deserializer) {
-
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		final RuntimeInputGate<? extends Record> rig = (RuntimeInputGate<? extends Record>) new RuntimeInputGate(
-			getJobID(), gateID, deserializer, getNumberOfInputGates());
-
+	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
+										final RecordDeserializerFactory<T> deserializerFactory)
+	{
+		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory, getNumberOfInputGates());
 		return rig;
 	}
 
@@ -515,7 +510,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 *        the index of the output gate to return
 	 * @return the output gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-    @Override
 	public OutputGate<? extends Record> getOutputGate(final int pos) {
 		if (pos < this.outputGates.size()) {
 			return this.outputGates.get(pos);

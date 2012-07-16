@@ -21,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
@@ -51,7 +52,7 @@ public class CommonTestUtils {
 
 		return filename + ".dat";
 	}
-	
+
 	/**
 	 * Constructs a random directory name. The directory is a string of 16 hex characters
 	 * prefix.
@@ -68,7 +69,7 @@ public class CommonTestUtils {
 		}
 
 		return filename;
-	}	
+	}
 
 	/**
 	 * Reads the path to the directory for temporary files from the configuration and returns it.
@@ -78,9 +79,9 @@ public class CommonTestUtils {
 	public static String getTempDir() {
 
 		return GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":")[0];
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator)[0];
 	}
-	
+
 	/**
 	 * Creates a copy of the given {@link IOReadableWritable} object by an in-memory serialization and subsequent
 	 * deserialization.
@@ -92,22 +93,22 @@ public class CommonTestUtils {
 	 *         thrown if an error occurs while creating the copy of the object
 	 */
 	@SuppressWarnings("unchecked")
-	public static IOReadableWritable createCopy(IOReadableWritable original) throws IOException {
+	public static <T extends IOReadableWritable> T createCopy(final T original) throws IOException {
 
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
 
 		original.write(dos);
-		
+
 		final String className = original.getClass().getName();
 		if (className == null) {
 			fail("Class name is null");
 		}
 
-		Class<? extends IOReadableWritable> clazz = null;
+		Class<T> clazz = null;
 
 		try {
-			clazz = (Class<? extends IOReadableWritable>) Class.forName(className);
+			clazz = (Class<T>) Class.forName(className);
 		} catch (ClassNotFoundException e) {
 			fail(e.getMessage());
 		}
@@ -116,7 +117,7 @@ public class CommonTestUtils {
 			fail("Cannot find class with name " + className);
 		}
 
-		IOReadableWritable copy = null;
+		T copy = null;
 		try {
 			copy = clazz.newInstance();
 		} catch (InstantiationException e) {
@@ -133,7 +134,7 @@ public class CommonTestUtils {
 		final DataInputStream dis = new DataInputStream(bais);
 
 		copy.read(dis);
-		
+
 		return copy;
 	}
 }

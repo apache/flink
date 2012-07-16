@@ -228,6 +228,15 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 	}
 
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getSecondarySortComparator(int)
+	 */
+	@Override
+	public <X> TypeComparator<X> getSecondarySortComparator(int index) {
+		return null;
+	}
+
+
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getStub()
 	 */
 	@Override
