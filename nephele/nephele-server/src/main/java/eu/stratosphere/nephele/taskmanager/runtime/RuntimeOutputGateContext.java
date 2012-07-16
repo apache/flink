@@ -175,9 +175,12 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 			// Construction for in-memory and network channels
 			final RuntimeDispatcher runtimeDispatcher = new RuntimeDispatcher(
 				this.taskContext.getTransferEnvelopeDispatcher());
-			final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
-				runtimeDispatcher);
-			final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, spillingBarrier);
+			/*
+			 * final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
+			 * runtimeDispatcher);
+			 * final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, spillingBarrier);
+			 */
+			final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, runtimeDispatcher);
 			final EphemeralCheckpoint checkpoint = this.taskContext.getEphemeralCheckpoint();
 			if (checkpoint != null) {
 				final EphemeralCheckpointForwarder checkpointForwarder = new EphemeralCheckpointForwarder(checkpoint,
