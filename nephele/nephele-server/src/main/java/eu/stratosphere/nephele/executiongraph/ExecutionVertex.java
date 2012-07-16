@@ -409,7 +409,8 @@ public final class ExecutionVertex {
 			final TaskCancelResult tsr = cancelTask();
 			if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS
 				|| tsr.getReturnCode() != AbstractTaskResult.ReturnCode.TASK_NOT_FOUND) {
-				LOG.error("Unable to cancel vertex " + this + ": " + tsr.getDescription());
+				LOG.error("Unable to cancel vertex " + this + ": " + tsr.getReturnCode().toString()
+					+ ((tsr.getDescription() != null) ? (" (" + tsr.getDescription() + ")") : ""));
 			}
 		}
 	}
