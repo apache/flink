@@ -47,13 +47,13 @@ public class JobGraphUtils {
 
   public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target, TaskConfig sourceConfig)
       throws JobGraphDefinitionException {
-    connectLocal(source, target, sourceConfig, DistributionPattern.POINTWISE);
+    connectLocal(source, target, sourceConfig, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
   }
 
   public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target, TaskConfig sourceConfig,
-                           DistributionPattern distributionPattern) throws JobGraphDefinitionException {
+      DistributionPattern distributionPattern, ShipStrategy shipStrategy) throws JobGraphDefinitionException {
     source.connectTo(target, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, distributionPattern);
-    sourceConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
+    sourceConfig.addOutputShipStrategy(shipStrategy);
   }
 
   public static JobTaskVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph, int dop) {

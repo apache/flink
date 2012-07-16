@@ -1,19 +1,4 @@
-/***********************************************************************************************************************
- *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- *
- **********************************************************************************************************************/
-
-package eu.stratosphere.pact.runtime.iterative.playing.iterativemapreduce;
+package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -25,8 +10,10 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
+import eu.stratosphere.pact.runtime.iterative.playing.iterativemapreduce.AppendTokenOutFormat;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationSynchronizationPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
@@ -35,46 +22,59 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.MapDriver;
+import eu.stratosphere.pact.runtime.task.MatchDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-public class IterativeMapReduce {
+public class PageRank {
 
   public static void main(String[] args) throws Exception {
 
-    int degreeOfParallelism = 2;
+    int degreeOfParallelism = 1;
     JobGraph jobGraph = new JobGraph();
 
-    JobInputVertex input = new JobInputVertex("FileInput", jobGraph);
+    JobInputVertex pageWithRankInput = new JobInputVertex("PageWithRankInput", jobGraph);
     Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask.class;
-    input.setInputClass(clazz);
-    input.setNumberOfSubtasks(degreeOfParallelism);
-    input.setNumberOfSubtasksPerInstance(degreeOfParallelism);
-    TaskConfig inputConfig = new TaskConfig(input.getConfiguration());
-    inputConfig.setStubClass(TokenTokenInputFormat.class);
-    inputConfig.setLocalStrategy(TaskConfig.LocalStrategy.NONE);
-    inputConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, "file:///home/ssc/Desktop/iterative-mapreduce/");
+    pageWithRankInput.setInputClass(clazz);
+    pageWithRankInput.setNumberOfSubtasks(degreeOfParallelism);
+    pageWithRankInput.setNumberOfSubtasksPerInstance(degreeOfParallelism);
+    TaskConfig pageWithRankInputConfig = new TaskConfig(pageWithRankInput.getConfiguration());
+    pageWithRankInputConfig.setStubClass(PageWithRankInputFormat.class);
+    pageWithRankInputConfig.setLocalStrategy(TaskConfig.LocalStrategy.NONE);
+    pageWithRankInputConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY,
+        "file:///home/ssc/Desktop/iterative-mapreduce/");
+
+    JobInputVertex transitionMatrixInput = new JobInputVertex("TransitionMatrixInput", jobGraph);
+    transitionMatrixInput.setNumberOfSubtasks(degreeOfParallelism);
+    transitionMatrixInput.setNumberOfSubtasksPerInstance(degreeOfParallelism);
+    TaskConfig transitionMatrixInputConfig = new TaskConfig(transitionMatrixInput.getConfiguration());
+    transitionMatrixInputConfig.setStubClass(TransitionMatrixInputFormat.class);
+    transitionMatrixInputConfig.setLocalStrategy(TaskConfig.LocalStrategy.NONE);
+    transitionMatrixInputConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY,
+        "file:///home/ssc/Desktop/iterative-mapreduce/");
 
     JobTaskVertex head = JobGraphUtils.createTask(BulkIterationHeadPactTask.class, "BulkIterationHead", jobGraph,
         degreeOfParallelism);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
-    headConfig.setDriver(MapDriver.class);
-    headConfig.setStubClass(AppendTokenMapper.class);
+    headConfig.setDriver(MatchDriver.class);
+    headConfig.setStubClass(DotProductMatch.class);
+    headConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(), "pact.in.param.0.", new int[] { 0 },
+        new Class[] { PactLong.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(), "pact.in.param.1.", new int[] { 0 },
+        new Class[] { PactLong.class });
     headConfig.setMemorySize(10 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
     headConfig.setNumberOfIterations(3);
-    headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(),
-        headConfig.getPrefixForOutputParameters(0), new int[] { 0 }, new Class[] { PactString.class });
 
     JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT);
     tailConfig.setDriver(ReduceDriver.class);
-    tailConfig.setStubClass(AppendTokenReducer.class);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(tail.getConfiguration(),
-        tailConfig.getPrefixForInputParameters(0), new int[] { 0 }, new Class[] { PactString.class });
+    tailConfig.setStubClass(DotProductReducer.class);
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(tail.getConfiguration(), "pact.in.param.0.", new int[] { 0 },
+        new Class[] { PactString.class });
     tailConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     tailConfig.setNumFilehandles(2);
     tailConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, degreeOfParallelism);
@@ -94,9 +94,11 @@ public class IterativeMapReduce {
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
     JobOutputVertex fakeSyncOutput = JobGraphUtils.createSingletonFakeOutput(jobGraph, "FakeSyncOutput");
 
-    JobGraphUtils.connectLocal(input, head, inputConfig);
+    JobGraphUtils.connectLocal(pageWithRankInput, head, pageWithRankInputConfig, DistributionPattern.BIPARTITE,
+        ShipStrategy.BROADCAST);
+    JobGraphUtils.connectLocal(transitionMatrixInput, head, transitionMatrixInputConfig);
     //TODO implicit order should be documented/configured somehow
-    JobGraphUtils.connectLocal(head, tail, headConfig, DistributionPattern.BIPARTITE, ShipStrategy.PARTITION_HASH);
+    JobGraphUtils.connectLocal(head, tail, headConfig, DistributionPattern.BIPARTITE, ShipStrategy.FORWARD);
     JobGraphUtils.connectLocal(head, sync, headConfig);
     JobGraphUtils.connectLocal(head, output, headConfig);
     JobGraphUtils.connectLocal(tail, fakeTailOutput, tailConfig);
@@ -109,6 +111,6 @@ public class IterativeMapReduce {
     Configuration conf = GlobalConfiguration.getConfiguration();
 
     JobGraphUtils.submit(jobGraph, conf);
-  }
 
+  }
 }
