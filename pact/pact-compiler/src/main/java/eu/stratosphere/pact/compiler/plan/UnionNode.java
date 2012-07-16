@@ -328,7 +328,7 @@ public class UnionNode extends OptimizerNode {
 		// init estimated cardinalities with the fields of the first input
 		// remove the field which are unknown for other inputs later on
 		for (FieldSet fieldSet : inConns.get(0).getSourcePact().getEstimatedCardinalities().keySet()) {
-			this.estimatedCardinality.put(fieldSet, 0L);
+			this.estimatedCardinality.put(fieldSet, -1L);
 		}
 		
 		
@@ -366,8 +366,8 @@ public class UnionNode extends OptimizerNode {
 					toRemove.add(cardinality.getKey());
 				}
 				else {
-					//to be conservative we assume the inputs are disjoint
-					inputCard += cardinality.getValue();
+					//to be conservative for joins we use the max for new column cardinality
+					inputCard = Math.max(inputCard, cardinality.getValue());
 					cardinality.setValue(inputCard);
 				}
 			}
