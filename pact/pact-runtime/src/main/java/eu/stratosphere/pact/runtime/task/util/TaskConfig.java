@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
@@ -147,7 +149,11 @@ public class TaskConfig
 	private static final String SORT_SPILLING_THRESHOLD = "pact.sort.spillthreshold";
 
 	// --------------------------------------------------------------------------------------------
-	
+
+  private static final String NUMBER_OF_ITERATION_INPUTS = "pact.iterative.numberOfIterationInputs";
+
+  // --------------------------------------------------------------------------------------------
+
 	protected final Configuration config;			// the actual configuration holding the values
 
 	
@@ -592,6 +598,19 @@ public class TaskConfig
 	public String getChainedTaskName(int chainPos)
 	{
 		return this.config.getString(CHAINING_TASKNAME_PREFIX + chainPos, null);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Parameters for iterations
+	// --------------------------------------------------------------------------------------------
+
+	public void setNumberOfIterationInputs(int numberOfIterationInputs) {
+		Preconditions.checkArgument(numberOfIterationInputs > 0);
+		this.config.setInteger(NUMBER_OF_ITERATION_INPUTS, numberOfIterationInputs);
+	}
+
+	public int getNumberOfIterationInputs() {
+		return this.config.getInteger(NUMBER_OF_ITERATION_INPUTS, 1);
 	}
 	
 	// --------------------------------------------------------------------------------------------
