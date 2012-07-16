@@ -68,9 +68,11 @@ final class ReplayOutputChannelBroker extends AbstractOutputChannelForwarder imp
 				this.nextEnvelopeToSend = uee.getExpectedSequenceNumber();
 			}
 		} else if (event instanceof ReceiverNotFoundEvent) {
-			final ReceiverNotFoundEvent rnfe = (ReceiverNotFoundEvent) event;
-			LOG.warn("Cannot find receiver " + rnfe.getReceiverID() + " for envelope " + rnfe.getSequenceNumber()
-				+ ", next envelope to send is " + this.nextEnvelopeToSend);
+			if (LOG.isDebugEnabled()) {
+				final ReceiverNotFoundEvent rnfe = (ReceiverNotFoundEvent) event;
+				LOG.debug("Cannot find receiver " + rnfe.getReceiverID() + " for envelope " + rnfe.getSequenceNumber()
+					+ ", next envelope to send is " + this.nextEnvelopeToSend);
+			}
 		} else {
 			LOG.warn("Received unknown event: " + event);
 		}
