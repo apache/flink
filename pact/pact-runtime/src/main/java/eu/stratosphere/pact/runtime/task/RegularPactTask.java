@@ -19,9 +19,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
+
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.BroadcastRecordWriter;
 import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
@@ -40,6 +42,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
 import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
@@ -82,6 +85,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	protected List<AbstractRecordWriter<?>> eventualOutputs;
 
 	protected MutableObjectIterator<?>[] inputs;
+	
+	protected MutableReader<?>[] inputReaders;
 
 	protected TypeSerializer<?>[] inputSerializers;
 
@@ -320,6 +325,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		final int numInputs = this.driver.getNumberOfInputs();
 
 		final MutableObjectIterator<?>[] inputs = new MutableObjectIterator[numInputs];
+		final MutableReader<?>[] inputReaders = new MutableReader[numInputs];
+		
 		final TypeSerializer<?>[] inputSerializers = new TypeSerializer[numInputs];
 		final TypeComparator<?>[] inputComparators = this.driver.requiresComparatorOnInput() ?
 											new TypeComparator[numInputs] : null;
@@ -349,12 +356,14 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				// non-union case
 				if (serializerFactory.getDataType() == PactRecord.class) {
 					// have a special case for the PactRecord serialization
-					inputs[i] = new PactRecordNepheleReaderIterator(new MutableRecordReader<PactRecord>(this),
-						readerInterruptionBehavior());
+					final MutableRecordReader<PactRecord> reader = new MutableRecordReader<PactRecord>(this);
+					inputReaders[i] = reader;
+					inputs[i] = new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior());
 				} else {
 					// generic data type serialization
 					final MutableRecordReader<DeserializationDelegate<?>> reader =
 													new MutableRecordReader<DeserializationDelegate<?>>(this);
+					inputReaders[i] = reader;
 					@SuppressWarnings({ "unchecked", "rawtypes" })
 					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i],
 						readerInterruptionBehavior());
@@ -369,8 +378,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					for (int j = 0; j < groupSize; ++j) {
 						readers[j] = new MutableRecordReader<PactRecord>(this);
 					}
-					inputs[i] = new PactRecordNepheleReaderIterator(new MutableUnionRecordReader<PactRecord>(readers),
-						readerInterruptionBehavior());
+					final MutableUnionRecordReader<PactRecord> reader = new MutableUnionRecordReader<PactRecord>(readers);
+					inputReaders[i] = reader;
+					inputs[i] = new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior());
 				} else {
 					@SuppressWarnings("unchecked")
 					MutableRecordReader<DeserializationDelegate<?>>[] readers = new MutableRecordReader[groupSize];
@@ -378,6 +388,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 						readers[j] = new MutableRecordReader<DeserializationDelegate<?>>(this);
 					}
 					final MutableUnionRecordReader<DeserializationDelegate<?>> reader = new MutableUnionRecordReader<DeserializationDelegate<?>>(readers);
+					inputReaders[i] = reader;
+					
 					@SuppressWarnings({ "unchecked", "rawtypes" })
 					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i],
 						readerInterruptionBehavior());
@@ -412,6 +424,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		}
 
 		this.inputs = inputs;
+		this.inputReaders = inputReaders;
 		this.inputSerializers = inputSerializers;
 		this.inputComparators = inputComparators;
 		this.secondarySortComparators = secondarySortComparators;
@@ -516,6 +529,21 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 
 		@SuppressWarnings("unchecked")
 		final MutableObjectIterator<X> in = (MutableObjectIterator<X>) this.inputs[index];
+		return in;
+	}
+	
+	/**
+	 * @param <X>
+	 * @param index
+	 * @return
+	 */
+	public <X extends Record> MutableReader<X> getReader(int index) {
+		if (index < 0 || index > this.driver.getNumberOfInputs()) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		@SuppressWarnings("unchecked")
+		final MutableReader<X> in = (MutableReader<X>) this.inputReaders[index];
 		return in;
 	}
 
