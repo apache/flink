@@ -23,6 +23,11 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
+/**
+ * The class implements an {@link OutputChannelContext} for a replay task.
+ * 
+ * @author warneke
+ */
 public final class ReplayOutputChannelContext extends AbstractOutputChannelContext implements OutputChannelContext {
 
 	private final JobID jobID;
