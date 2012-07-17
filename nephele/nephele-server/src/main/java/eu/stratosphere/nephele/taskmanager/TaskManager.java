@@ -693,21 +693,11 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 				}
 			}
 
-			// Check if there are still vertices running that belong to the same job
-			int numberOfVerticesBelongingToThisJob = 0;
-			final Iterator<Task> iterator = this.runningTasks.values().iterator();
-			while (iterator.hasNext()) {
-				final Task candidateTask = iterator.next();
-				if (task.getJobID().equals(candidateTask.getJobID())) {
-					numberOfVerticesBelongingToThisJob++;
-				}
-			}
-
-			// If there are no other vertices belonging to the same job, we can unregister the job's class loader
-			if (numberOfVerticesBelongingToThisJob == 0) {
-				try {
-					LibraryCacheManager.unregister(task.getJobID());
-				} catch (IOException e) {
+			// Unregister task from library cache manager
+			try {
+				LibraryCacheManager.unregister(task.getJobID());
+			} catch (IOException e) {
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Unregistering the job vertex ID " + id + " caused an IOException");
 				}
 			}
