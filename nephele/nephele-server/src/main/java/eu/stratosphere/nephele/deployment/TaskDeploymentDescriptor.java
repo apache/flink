@@ -165,6 +165,14 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 			throw new IllegalArgumentException("Argument invokableClass must not be null");
 		}
 
+		if (outputGates == null) {
+			throw new IllegalArgumentException("Argument outputGates must not be null");
+		}
+
+		if (inputGates == null) {
+			throw new IllegalArgumentException("Argument inputGates must not be null");
+		}
+
 		this.jobID = jobID;
 		this.vertexID = vertexID;
 		this.taskName = taskName;
