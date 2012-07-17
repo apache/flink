@@ -44,7 +44,8 @@ public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 
 	@Override
 	public boolean equals(final Object o) {
-		return o instanceof NullNode ? true : false;
+		return o == Instance;
+//		return o instanceof NullNode ? true : false;
 	}
 
 	@Override

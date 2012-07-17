@@ -232,4 +232,18 @@ public abstract class AbstractJsonNode implements IJsonNode {
 		Arrays.fill(target, fromIndex, toIndex, (byte) 0);
 	}
 
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (this.getClass() != obj.getClass()) {
+			return false;
+		}
+		final AbstractJsonNode other = (AbstractJsonNode) obj;
+		return this.compareTo(other) == 0;
+	}
 }
