@@ -33,7 +33,7 @@ import eu.stratosphere.pact.testing.AssertUtil;
 @Ignore
 public abstract class ObjectNodeBaseTest<T extends IObjectNode> extends JsonNodeTest<T> {
 
-//	protected T node;
+	// protected T node;
 
 	@Override
 	@Before
@@ -95,4 +95,8 @@ public abstract class ObjectNodeBaseTest<T extends IObjectNode> extends JsonNode
 		Assert.assertEquals(this.node, this.node.putAll(this.node));
 	}
 
+	@Test
+	public void shouldBeEqualWithAnotherObjectNode() {
+		Assert.assertEquals(this.createObjectNode(), this.createObjectNode());
+	}
 }

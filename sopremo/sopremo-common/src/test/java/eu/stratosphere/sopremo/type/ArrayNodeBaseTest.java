@@ -124,4 +124,9 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> extends JsonNodeTe
 		Iterator<IJsonNode> it = this.node.iterator();
 		AssertUtil.assertIteratorEquals(expected.iterator(), it, Equaler.JavaEquals);
 	}
+
+	@Test
+	public void shouldBeEqualWithAnotherArrayNode() {
+		Assert.assertEquals(this.higherNode(), this.higherNode());
+	}
 }
