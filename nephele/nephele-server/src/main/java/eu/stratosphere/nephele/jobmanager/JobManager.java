@@ -1057,6 +1057,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				continue;
 			}
 
+			if (abstractInstance instanceof DummyInstance) {
+				continue;
+			}
+
 			final Runnable runnable = new Runnable() {
 
 				@Override
