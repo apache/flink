@@ -32,7 +32,7 @@ public class OrderedPartsJoin extends MatchStub
 	 *
 	 */
 	@Override
-	public void match(PactRecord value1, PactRecord value2, Collector out)
+	public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out)
 			throws Exception {
 
 		PactInteger year = value1.getField(1, PactInteger.class);

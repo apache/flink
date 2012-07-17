@@ -15,7 +15,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class LongNode extends NumericNode implements INumericNode {
+public class LongNode extends AbstractNumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -33,6 +33,13 @@ public class LongNode extends NumericNode implements INumericNode {
 	 */
 	public LongNode(final long value) {
 		this.value = new PactLong(value);
+	}
+
+	/**
+	 * Initializes LongNode.
+	 */
+	public LongNode() {
+		this(0);
 	}
 
 	@Override
@@ -141,10 +148,9 @@ public class LongNode extends NumericNode implements INumericNode {
 	}
 
 	@Override
-	public LongNode clone() {
-		final LongNode clone = (LongNode) super.clone();
-		clone.value = new PactLong(this.value.getValue());
-		return clone;
+	public void copyValueFrom(IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
+		this.value.setValue(((LongNode) otherNode).getLongValue());
 	}
 
 	@Override

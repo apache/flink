@@ -16,7 +16,6 @@ package eu.stratosphere.util;
 
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
 
 /**
  * Concatenates {@link Iterable}s on-the-fly.<br>
@@ -28,9 +27,8 @@ public class ConcatenatingIterable<T> extends AbstractIterable<T> {
 
 	private Iterable<? extends Iterable<? extends T>> inputs;
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public ConcatenatingIterable(final Iterable<T>... iterables) {
-		this.inputs = (List) Arrays.asList(iterables);
+	public ConcatenatingIterable(final Iterable<? extends T>... iterables) {
+		this.inputs = Arrays.asList(iterables);
 	}
 
 	public ConcatenatingIterable(final Iterable<? extends Iterable<? extends T>> iterables) {

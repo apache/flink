@@ -61,7 +61,7 @@ public class Sink extends ElementaryOperator<Sink> {
 	}
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), 1, 0);
 		final Sink clone = (Sink) this.clone();
 		module.addInternalOutput(clone);

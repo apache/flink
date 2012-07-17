@@ -25,7 +25,7 @@ public final class IdentityMap extends MapStub
 	 * @see eu.stratosphere.pact.common.stubs.MapStub#map(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void map(PactRecord record, Collector out) throws Exception {
+	public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 		out.collect(record);
 	}
 }

@@ -27,21 +27,22 @@ import org.junit.Test;
 
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings( {"javadoc", "unchecked"} )
-public class CoGroupTaskTest extends TaskTestBase {
-
+public class CoGroupTaskTest extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(CoGroupTaskTest.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testSortBoth1CoGroupTask() {
@@ -53,17 +54,24 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CoGroupTask testTask = new CoGroupTask();
+		CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -92,17 +100,24 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CoGroupTask testTask = new CoGroupTask();
+		CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -131,17 +146,24 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true), 2);
 		super.addOutput(this.outList);
 		
-		CoGroupTask testTask = new CoGroupTask();
+		CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -170,17 +192,24 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 4;
 		
 		super.initEnvironment(5*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true),1 );
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true),1 );
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CoGroupTask testTask = new CoGroupTask();
+		CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -208,18 +237,25 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int keyCnt2 = 200;
 		int valCnt2 = 4;
 		
-		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true), 2);
+		super.initEnvironment(1024 * 1024);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true), 2);
 		super.addOutput(this.outList);
 		
-		CoGroupTask testTask = new CoGroupTask();
+		CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
 		super.getTaskConfig().setMemorySize(0);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -248,17 +284,24 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		CoGroupTask testTask = new CoGroupTask();
+		CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockFailingCoGroupStub.class);
 		
@@ -283,17 +326,24 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt = 2;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addInput(new DelayingInfinitiveInputIterator(1000), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final CoGroupTask testTask = new CoGroupTask();
+		final CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -330,16 +380,23 @@ public class CoGroupTaskTest extends TaskTestBase {
 		
 		super.initEnvironment(6*1024*1024);
 		super.addInput(new DelayingInfinitiveInputIterator(1000), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final CoGroupTask testTask = new CoGroupTask();
+		final CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockCoGroupStub.class);
 		
@@ -374,17 +431,24 @@ public class CoGroupTaskTest extends TaskTestBase {
 		int valCnt = 5;
 		
 		super.initEnvironment(6*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final CoGroupTask testTask = new CoGroupTask();
+		final CoGroupTask<PactRecord, PactRecord, PactRecord> testTask = new CoGroupTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockDelayingCoGroupStub.class);
 		
@@ -416,7 +480,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 
 		@Override
 		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector out) {
+				Iterator<PactRecord> records2, Collector<PactRecord> out) {
 			int val1Cnt = 0;
 			
 			while (records1.hasNext()) {
@@ -445,7 +509,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 		
 		@Override
 		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector out) throws RuntimeException {
+				Iterator<PactRecord> records2, Collector<PactRecord> out) throws RuntimeException {
 			int val1Cnt = 0;
 			
 			while (records1.hasNext()) {
@@ -481,7 +545,7 @@ public class CoGroupTaskTest extends TaskTestBase {
 
 		@Override
 		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector out) {
+				Iterator<PactRecord> records2, Collector<PactRecord> out) {
 			
 			while(records1.hasNext()) {
 				try {

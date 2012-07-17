@@ -80,7 +80,7 @@ import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.runtime.task.util.OutputEmitter.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 
 /**
  * The primary resource to test one or more implemented PACT stubs. It is
@@ -271,6 +271,15 @@ public class TestPlan implements Closeable {
 	 */
 	public List<FileDataSink> getSinks() {
 		return this.sinks;
+	}
+
+	/**
+	 * Returns the sources.
+	 * 
+	 * @return the sources
+	 */
+	public List<FileDataSource> getSources() {
+		return this.sources;
 	}
 
 	/**
@@ -500,9 +509,6 @@ public class TestPlan implements Closeable {
 			// need a format which is deserializable without configuration
 			if (!fileSink.getFormatClass().equals(SequentialOutputFormat.class)) {
 				TestRecords expectedValues = this.expectedOutputs.get(fileSink);
-				// but only if we need to check for values anyways
-				if (expectedValues == null)
-					continue;
 
 				final FileDataSink safeSink = createDefaultSink(fileSink.getName());
 
@@ -511,7 +517,9 @@ public class TestPlan implements Closeable {
 				wrappedSinks.add(fileSink);
 				wrappedSinks.add(safeSink);
 
-				this.expectedOutputs.put(safeSink, expectedValues);
+				// only add to expected outputs if we need to check for values
+				if (expectedValues != null)
+					this.expectedOutputs.put(safeSink, expectedValues);
 				this.actualOutputs.put(safeSink, this.getActualOutput(fileSink));
 				this.getActualOutput(fileSink).fromFile(SequentialInputFormat.class, safeSink.getFilePath());
 
@@ -635,7 +643,7 @@ public class TestPlan implements Closeable {
 		final OptimizedPlan optimizedPlan = this.compile(plan);
 		this.replaceShippingStrategy(optimizedPlan);
 		final JobGraph jobGraph = new JobGraphGenerator().compileJobGraph(optimizedPlan);
-		for(AbstractJobVertex vertex : jobGraph.getAllJobVertices())
+		for (AbstractJobVertex vertex : jobGraph.getAllJobVertices())
 			vertex.setNumberOfExecutionRetries(0);
 		LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
 		return new ExecutionGraph(jobGraph, MockInstanceManager.INSTANCE);
@@ -653,11 +661,9 @@ public class TestPlan implements Closeable {
 		// PactConnection.class.getDeclaredField("shipStrategy");
 		// declaredField.setAccessible(true);
 		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
-			for (final List<PactConnection> pactConnections : node.getIncomingConnections())
-				for (PactConnection pactConnection : pactConnections)
-					// declaredField.set(pactConnection, ShipStrategy.FORWARD);
-					pactConnection.setShipStrategy(ShipStrategy.FORWARD);
-			for (final PactConnection pactConnection : node.getOutgoingConnections())
+			for (final PactConnection pactConnection : node.getIncomingConnections())
+				pactConnection.setShipStrategy(ShipStrategy.FORWARD);
+			for (final PactConnection pactConnection : node.getOutConns())
 				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
 				pactConnection.setShipStrategy(ShipStrategy.FORWARD);
 		}
@@ -1103,7 +1109,7 @@ public class TestPlan implements Closeable {
 			throw new IllegalStateException("Cannot create temporary file for prefix " + prefix, e);
 		}
 	}
-	
+
 	@Override
 	public void close() throws IOException {
 		ClosableManager closableManager = new ClosableManager();

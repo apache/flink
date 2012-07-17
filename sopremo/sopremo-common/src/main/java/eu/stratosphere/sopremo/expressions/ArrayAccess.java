@@ -5,7 +5,6 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
@@ -66,12 +65,6 @@ public class ArrayAccess extends EvaluationExpression {
 		// throw new IllegalArgumentException("negative endIndex < negative startIndex");
 		this.startIndex = startIndex;
 		this.endIndex = endIndex;
-
-		if (startIndex != endIndex) {
-			this.expectedTarget = ArrayNode.class;
-		} else {
-			this.expectedTarget = JsonNode.class;
-		}
 	}
 
 	@Override
@@ -83,36 +76,31 @@ public class ArrayAccess extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		if (!node.isArray())
 			return MissingNode.getInstance();
 
+		final IArrayNode arrayNode = (IArrayNode) node;
 		if (this.isSelectingAll()) {
-			target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-
-			((IArrayNode) target).clear();
-			((IArrayNode) target).addAll((IArrayNode) node);
-			return target;
+			final IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
+			targetArray.addAll(arrayNode);
+			return targetArray;
 		}
-		final int size = ((IArrayNode) node).size();
+		final int size = arrayNode.size();
 		if (this.isSelectingRange()) {
-
-			target = SopremoUtil.reuseTarget(target, ArrayNode.class);
-
-			((IArrayNode) target).clear();
+			final IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 			int index = this.resolveIndex(this.startIndex, size);
 			final int endIndex = this.resolveIndex(this.endIndex, size);
 			final int increment = index < endIndex ? 1 : -1;
 
 			for (boolean moreElements = true; moreElements; index += increment) {
-				((IArrayNode) target).add(((IArrayNode) node).get(index));
+				targetArray.add(arrayNode.get(index));
 				moreElements = index != endIndex;
 			}
-			return target;
+			return targetArray;
 		}
 
-		// TODO Reuse target (problem: result could be any kind of JsonNode)
-		final IJsonNode value = ((IArrayNode) node).get(this.resolveIndex(this.startIndex, size));
+		final IJsonNode value = arrayNode.get(this.resolveIndex(this.startIndex, size));
 		return value == null ? NullNode.getInstance() : value;
 	}
 

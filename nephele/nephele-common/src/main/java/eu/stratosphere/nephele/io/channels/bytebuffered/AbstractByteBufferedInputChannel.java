@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.DeserializationBuffer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
@@ -47,15 +46,21 @@ import eu.stratosphere.nephele.types.Record;
 public abstract class AbstractByteBufferedInputChannel<T extends Record> extends AbstractInputChannel<T> {
 
 	/**
-	 * The deserialization buffer used to deserialize records.
+	 * The deserializer used to deserialize records.
 	 */
-	private final DeserializationBuffer<T> deserializationBuffer;
+	private final RecordDeserializer<T> deserializer;
 
-	private Buffer compressedDataBuffer = null;
+	/**
+	 * Buffer for the uncompressed (raw) data.
+	 */
+	private Buffer uncompressedDataBuffer;
+	
+	/**
+	 * Buffer for the compressed data.
+	 */
+	private Buffer compressedDataBuffer;
 
-	private ByteBufferedInputChannelBroker inputChannelBroker = null;
-
-	private volatile boolean brokerAggreedToCloseChannel = false;
+	private ByteBufferedInputChannelBroker inputChannelBroker;
 
 	/**
 	 * The Decompressor-Object to decompress incoming data
@@ -63,16 +68,18 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	private final Decompressor decompressor;
 
 	/**
-	 * Buffer for the uncompressed data.
+	 * The exception observed in this channel while processing the buffers. Checked and thrown
+	 * per-buffer.
 	 */
-	private Buffer uncompressedDataBuffer = null;
-
-	private volatile IOException ioException = null;
+	private volatile IOException ioException;
 
 	/**
 	 * Stores the number of bytes read through this input channel since its instantiation.
 	 */
-	private long amountOfDataTransmitted = 0L;
+	private long amountOfDataTransmitted;
+	
+	private volatile boolean brokerAggreedToCloseChannel;
+	
 
 	/**
 	 * Creates a new network input channel.
@@ -84,15 +91,18 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	 * @param type
 	 *        the type of record transported through this channel
 	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 *        the ID of the channel
+	 * @param connectedChannelID
+	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 */
-	public AbstractByteBufferedInputChannel(InputGate<T> inputGate, int channelIndex,
-			RecordDeserializer<T> deserializer, ChannelID channelID, CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, channelID, compressionLevel);
-		this.deserializationBuffer = new DeserializationBuffer<T>(deserializer, false);
-
+	public AbstractByteBufferedInputChannel(final InputGate<T> inputGate, final int channelIndex,
+			final RecordDeserializer<T> deserializer, final ChannelID channelID, final ChannelID connectedChannelID,
+			final CompressionLevel compressionLevel)
+	{
+		super(inputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
+		this.deserializer = deserializer;
 		this.decompressor = CompressionLoader.getDecompressorByCompressionLevel(compressionLevel, this);
 	}
 
@@ -122,7 +132,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 			}
 		}
 
-		final T nextRecord = this.deserializationBuffer.readData(target, this.uncompressedDataBuffer);
+		final T nextRecord = this.deserializer.readData(target, this.uncompressedDataBuffer);
 
 		if (this.uncompressedDataBuffer.remaining() == 0) {
 			releasedConsumedReadBuffer();
@@ -191,7 +201,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 	@Override
 	public void close() throws IOException, InterruptedException {
 
-		this.deserializationBuffer.clear();
+		this.deserializer.clear();
 		if (this.uncompressedDataBuffer != null) {
 			releasedConsumedReadBuffer();
 		}
@@ -282,7 +292,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 
 		this.brokerAggreedToCloseChannel = true;
 
-		this.deserializationBuffer.clear();
+		this.deserializer.clear();
 
 		// The buffers are recycled by the input channel wrapper
 

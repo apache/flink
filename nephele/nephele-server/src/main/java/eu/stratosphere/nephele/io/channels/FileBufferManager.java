@@ -92,7 +92,7 @@ public final class FileBufferManager {
 	private FileBufferManager() {
 
 		this.tmpDirs = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(":");
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
 
 		// check temp dirs
 		for (int i = 0; i < this.tmpDirs.length; i++) {
@@ -114,7 +114,7 @@ public final class FileBufferManager {
 
 		this.distributedTempPath = CheckpointUtils.getDistributedCheckpointPath();
 		FileSystem distFS = null;
-		if (this.distributedTempPath != null) {
+		if (this.distributedTempPath != null && CheckpointUtils.allowDistributedCheckpoints()) {
 
 			try {
 
@@ -136,7 +136,6 @@ public final class FileBufferManager {
 		final FileBufferManager fbm = getInstance();
 		final File f = fbm.constructLocalFile(ownerID);
 		if (f.exists()) {
-			System.out.println("Deleting " + f);
 			f.delete();
 			return true;
 		}

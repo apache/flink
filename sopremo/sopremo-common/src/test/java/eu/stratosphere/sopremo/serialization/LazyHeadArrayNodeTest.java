@@ -17,9 +17,8 @@ public class LazyHeadArrayNodeTest extends ArrayNodeBaseTest<LazyHeadArrayNode> 
 
 	@Override
 	public void initArrayNode() {
-		HeadArraySchema schema = new HeadArraySchema();
-		schema.setHeadSize(5);
-		PactRecord record = schema.jsonToRecord(
+		final HeadArraySchema schema = new HeadArraySchema(5);
+		final PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
 		this.node = new LazyHeadArrayNode(record, schema);
@@ -27,8 +26,8 @@ public class LazyHeadArrayNodeTest extends ArrayNodeBaseTest<LazyHeadArrayNode> 
 
 	@Test
 	public void shouldIncrementOthersField() {
-		PactRecord record = this.node.getJavaValue();
-		IArrayNode others = (IArrayNode) SopremoUtil.unwrap(record.getField(5, JsonNodeWrapper.class));
+		final PactRecord record = this.node.getJavaValue();
+		final IArrayNode others = (IArrayNode) SopremoUtil.unwrap(record.getField(5, JsonNodeWrapper.class));
 
 		Assert.assertEquals(0, others.size());
 
@@ -43,8 +42,7 @@ public class LazyHeadArrayNodeTest extends ArrayNodeBaseTest<LazyHeadArrayNode> 
 
 	@Override
 	protected IJsonNode lowerNode() {
-		HeadArraySchema schema = new HeadArraySchema();
-		schema.setHeadSize(5);
+		HeadArraySchema schema = new HeadArraySchema(5);
 		PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
@@ -53,8 +51,7 @@ public class LazyHeadArrayNodeTest extends ArrayNodeBaseTest<LazyHeadArrayNode> 
 
 	@Override
 	protected IJsonNode higherNode() {
-		HeadArraySchema schema = new HeadArraySchema();
-		schema.setHeadSize(5);
+		HeadArraySchema schema = new HeadArraySchema(5);
 		PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(3)), null, null);
 

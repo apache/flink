@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -17,7 +18,7 @@ public class OrExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = 1988076954287158279L;
 
-	private final EvaluationExpression[] expressions;
+	private final List<BooleanExpression> expressions;
 
 	/**
 	 * Initializes an OrExpression with the given {@link EvaluationExpression}s.
@@ -25,13 +26,18 @@ public class OrExpression extends BooleanExpression {
 	 * @param expressions
 	 *        the expressions which evaluate to the input for this OrExpression
 	 */
-	public OrExpression(final EvaluationExpression... expressions) {
-		if (expressions.length == 0)
-			throw new IllegalArgumentException();
-		this.expressions = new EvaluationExpression[expressions.length];
-		for (int index = 0; index < expressions.length; index++)
-			this.expressions[index] = UnaryExpression.wrap(expressions[index]);
-		this.expectedTarget = BooleanNode.class;
+	public OrExpression(final BooleanExpression... expressions) {
+		this(Arrays.asList(expressions));
+	}
+
+	/**
+	 * Initializes an OrExpression with the given {@link EvaluationExpression}s.
+	 * 
+	 * @param expressions
+	 *        the expressions which evaluate to the input for this OrExpression
+	 */
+	public OrExpression(final List<BooleanExpression> expressions) {
+		this.expressions = new ArrayList<BooleanExpression>(expressions);
 	}
 
 	@Override
@@ -39,7 +45,7 @@ public class OrExpression extends BooleanExpression {
 		if (!super.equals(obj))
 			return false;
 		final OrExpression other = (OrExpression) obj;
-		return Arrays.equals(this.expressions, other.expressions);
+		return this.expressions.equals(other.expressions);
 	}
 
 	@Override
@@ -59,8 +65,10 @@ public class OrExpression extends BooleanExpression {
 	 */
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {
-		for (int index = 0; index < expressions.length; index++)
-			expressions[index] = expressions[index].transformRecursively(function);
+		final List<BooleanExpression> booleans =
+			BooleanExpression.ensureBooleanExpressions(this.transformChildExpressions(function, this.expressions));
+		this.expressions.clear();
+		this.expressions.addAll(booleans);
 		return function.call(this);
 	}
 
@@ -69,7 +77,7 @@ public class OrExpression extends BooleanExpression {
 	 * 
 	 * @return the expressions
 	 */
-	public EvaluationExpression[] getExpressions() {
+	public List<BooleanExpression> getExpressions() {
 		return this.expressions;
 	}
 
@@ -77,15 +85,13 @@ public class OrExpression extends BooleanExpression {
 	public int hashCode() {
 		final int prime = 41;
 		int result = super.hashCode();
-		result = prime * result + Arrays.hashCode(this.expressions);
+		result = prime * result + this.expressions.hashCode();
 		return result;
 	}
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		builder.append(this.expressions[0]);
-		for (int index = 1; index < this.expressions.length; index++)
-			builder.append(" OR ").append(this.expressions[index]);
+		this.appendChildExpressions(builder, this.expressions, " OR ");
 	}
 
 	/**
@@ -108,9 +114,11 @@ public class OrExpression extends BooleanExpression {
 	 *        the expressions that should be used as conditions for the created OrExpression
 	 * @return the created OrExpression
 	 */
-	public static OrExpression valueOf(final List<BooleanExpression> childConditions) {
-		if (childConditions.size() == 1)
-			return valueOf(childConditions.get(0));
-		return new OrExpression(childConditions.toArray(new BooleanExpression[childConditions.size()]));
+	public static OrExpression valueOf(final List<? extends EvaluationExpression> childConditions) {
+		List<BooleanExpression> booleans = BooleanExpression.ensureBooleanExpressions(childConditions);
+		if (booleans.size() == 1)
+			return valueOf(booleans.get(0));
+		return new OrExpression(booleans.toArray(new BooleanExpression[booleans.size()]));
 	}
+
 }

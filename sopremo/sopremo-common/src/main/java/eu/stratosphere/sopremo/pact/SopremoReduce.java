@@ -34,13 +34,13 @@ public abstract class SopremoReduce extends ReduceStub {
 		// We need to pass our class loader since the default class loader is
 		// not able to resolve classes coming from the Sopremo user jar file.
 		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT,
-				EvaluationContext.class, this.getClass().getClassLoader());
+			EvaluationContext.class, this.getClass().getClassLoader());
 		this.cachedIterator = new RecordToJsonIterator(this.context.getInputSchema(0));
 		this.collector = new JsonCollector(this.context.getOutputSchema(0));
 		SopremoUtil.configureStub(this, parameters);
 	}
 
-	protected EvaluationContext getContext() {
+	protected final EvaluationContext getContext() {
 		return this.context;
 	}
 
@@ -65,7 +65,7 @@ public abstract class SopremoReduce extends ReduceStub {
 	 * eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void reduce(final Iterator<PactRecord> records, final Collector out) throws Exception {
+	public void reduce(final Iterator<PactRecord> records, final Collector<PactRecord> out) throws Exception {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);
 		this.cachedIterator.setIterator(records);

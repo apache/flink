@@ -6,6 +6,7 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.CompositeOperator;
 import eu.stratosphere.sopremo.ElementarySopremoModule;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.Name;
@@ -13,12 +14,15 @@ import eu.stratosphere.sopremo.OutputCardinality;
 import eu.stratosphere.sopremo.Property;
 import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.AndExpression;
+import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.BinaryBooleanExpression;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.util.IsInstancePredicate;
 
 @InputCardinality(min = 2)
@@ -30,7 +34,9 @@ public class Join extends CompositeOperator<Join> {
 	 */
 	private static final long serialVersionUID = 6428723643579047169L;
 
-	private EvaluationExpression joinCondition = new ConstantExpression(true);
+	private BooleanExpression joinCondition = new AndExpression();
+
+	private transient List<BinaryBooleanExpression> binaryConditions = new ArrayList<BinaryBooleanExpression>();
 
 	private EvaluationExpression resultProjection = ObjectCreation.CONCATENATION;
 
@@ -49,11 +55,17 @@ public class Join extends CompositeOperator<Join> {
 
 	@Property
 	@Name(preposition = "where")
-	public void setJoinCondition(EvaluationExpression joinCondition) {
+	public void setJoinCondition(BooleanExpression joinCondition) {
 		if (joinCondition == null)
 			throw new NullPointerException("joinCondition must not be null");
 
+		final ArrayList<BinaryBooleanExpression> expressions = new ArrayList<BinaryBooleanExpression>();
+		addBinaryExpressions(joinCondition, expressions);
+		if (expressions.size() == 0)
+			throw new IllegalArgumentException("No join condition given");
+
 		this.joinCondition = joinCondition;
+		this.binaryConditions = expressions;
 	}
 
 	public Join withResultProjection(EvaluationExpression resultProjection) {
@@ -61,24 +73,41 @@ public class Join extends CompositeOperator<Join> {
 		return this;
 	}
 
-	public Join withJoinCondition(EvaluationExpression joinCondition) {
+	public Join withJoinCondition(BooleanExpression joinCondition) {
 		this.setJoinCondition(joinCondition);
 		return this;
 	}
 
+	private void addBinaryExpressions(BooleanExpression joinCondition, List<BinaryBooleanExpression> expressions) {
+		if (joinCondition instanceof BinaryBooleanExpression)
+			expressions.add((BinaryBooleanExpression) joinCondition);
+		else if (joinCondition instanceof AndExpression)
+			for (BooleanExpression expression : ((AndExpression) joinCondition).getExpressions())
+				addBinaryExpressions(expression, expressions);
+		else
+			throw new IllegalArgumentException("Cannot handle expression " + joinCondition);
+	}
+
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final int numInputs = this.getInputs().size();
 
 		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
 
-		List<TwoSourceJoin> joins;
-		if (this.joinCondition instanceof AndExpression)
-			joins = this.getInitialJoinOrder((AndExpression) this.joinCondition, module);
-		else
-			joins = Arrays.asList(this.getTwoSourceJoinForExpression(this.joinCondition, module));
+		switch (this.binaryConditions.size()) {
+		case 0:
+			throw new IllegalStateException("No join condition specified");
+		case 1:
+			// only two way join
+			final TwoSourceJoin join = new TwoSourceJoin().
+				withInputs(module.getInputs()).
+				withCondition(this.binaryConditions.get(0)).
+				withResultProjection(getResultProjection());
+			module.getOutput(0).setInput(0, join);
+			break;
 
-		if (joins.size() > 1) {
+		default:
+			List<TwoSourceJoin> joins = this.getInitialJoinOrder(module);
 			// return new TwoSourceJoin().
 			// withCondition(this.joinCondition).
 			// withInputs(getInputs()).
@@ -103,13 +132,15 @@ public class Join extends CompositeOperator<Join> {
 					inputs.set(inputIndex, twoSourceJoin);
 				}
 				twoSourceJoin.setInputs(actualInputs);
+				twoSourceJoin.setResultProjection(new AggregationExpression(new ArrayUnion()));
 			}
+
+			final TwoSourceJoin lastJoin = joins.get(joins.size() - 1);
+			module.getOutput(0).setInput(0,
+				new Projection().withInputs(lastJoin).withResultProjection(getResultProjection()));
 		}
 
-		module.getOutput(0).setInput(0, new Projection().
-			withTransformation(this.resultProjection).
-			withInputs(joins.get(joins.size() - 1)));
-		return module.asElementary();
+		return module.asElementary(context);
 	}
 
 	@Override
@@ -133,31 +164,35 @@ public class Join extends CompositeOperator<Join> {
 		return builder.toString();
 	}
 
-	public EvaluationExpression getJoinCondition() {
+	public BooleanExpression getJoinCondition() {
 		return this.joinCondition;
 	}
 
-	private List<TwoSourceJoin> getInitialJoinOrder(final AndExpression condition, SopremoModule module) {
+	private List<TwoSourceJoin> getInitialJoinOrder(SopremoModule module) {
 		final List<TwoSourceJoin> joins = new ArrayList<TwoSourceJoin>();
-		for (final EvaluationExpression expression : condition.getExpressions())
+		for (final BinaryBooleanExpression expression : this.binaryConditions)
 			joins.add(this.getTwoSourceJoinForExpression(expression, module));
 
 		// TODO: add some kind of optimization?
 		return joins;
 	}
 
-	private TwoSourceJoin getTwoSourceJoinForExpression(final EvaluationExpression condition, SopremoModule module) {
-		if (!(condition instanceof BinaryBooleanExpression))
-			throw new IllegalArgumentException(String.format("Can only join over binary conditions: %s", condition));
-
-		BinaryBooleanExpression binaryCondition = (BinaryBooleanExpression) condition;
-		List<EvaluationExpression> inputSelections = condition.findAll(new IsInstancePredicate(InputSelection.class));
+	private TwoSourceJoin getTwoSourceJoinForExpression(final BinaryBooleanExpression binaryCondition,
+			SopremoModule module) {
+		List<EvaluationExpression> inputSelections = binaryCondition.findAll(new IsInstancePredicate(InputSelection.class));
 		if (inputSelections.size() != 2)
-			throw new IllegalArgumentException(String.format("Condition must refer to two source: %s", condition));
+			throw new IllegalArgumentException(String.format("Condition must refer to two source: %s", binaryCondition));
+
+		BinaryBooleanExpression adjustedExpression = (BinaryBooleanExpression) binaryCondition.clone();
+		final int firstIndex = ((InputSelection) inputSelections.get(0)).getIndex();
+		final int secondIndex = ((InputSelection) inputSelections.get(1)).getIndex();
+		adjustedExpression.replace(inputSelections.get(0), new PathExpression(new InputSelection(0), new ArrayAccess(
+			firstIndex)));
+		adjustedExpression.replace(inputSelections.get(1), new PathExpression(new InputSelection(1), new ArrayAccess(
+			secondIndex)));
 		return new TwoSourceJoin().
-			withCondition(binaryCondition).
-			withInputs(module.getInput(((InputSelection) inputSelections.get(0)).getIndex()),
-				module.getInput(((InputSelection) inputSelections.get(1)).getIndex()));
+			withInputs(module.getInput(firstIndex), module.getInput(secondIndex)).
+			withCondition(adjustedExpression);
 	}
 
 	@Override

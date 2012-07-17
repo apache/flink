@@ -17,9 +17,8 @@ package eu.stratosphere.pact.runtime.util;
 
 import java.io.IOException;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
@@ -28,17 +27,15 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public final class KeyGroupedMutableObjectIterator
+public final class KeyGroupedMutableObjectIterator<E>
 {
-	private final MutableObjectIterator<PactRecord> iterator;
-
-	private final int[] keyPositions;
+	private final MutableObjectIterator<E> iterator;
 	
-	private final Class<? extends Key>[] keyClasses;
-
-	private Key[] currentKeys;
+	private final TypeSerializer<E> serializer;
 	
-	private PactRecord next;
+	private final TypeComparator<E> comparator;
+	
+	private E next;
 
 	private ValuesIterator valuesIterator;
 
@@ -52,25 +49,16 @@ public final class KeyGroupedMutableObjectIterator
 	 * @param keyPositions The positions of the keys in the records.
 	 * @param keyClasses The types of the key fields.
 	 */
-	public KeyGroupedMutableObjectIterator(MutableObjectIterator<PactRecord> iterator, int[] keyPositions, 
-			Class<? extends Key>[] keyClasses)
+	public KeyGroupedMutableObjectIterator(MutableObjectIterator<E> iterator,
+			TypeSerializer<E> serializer, TypeComparator<E> comparator)
 	{
-		if (keyPositions.length != keyClasses.length || keyPositions.length < 1) {
-			throw new IllegalArgumentException(
-				"Positions and types of the key fields must be of same length and contain at least one entry.");
+		if (iterator == null || serializer == null || comparator == null) {
+			throw new NullPointerException();
 		}
 		
 		this.iterator = iterator;
-		this.keyPositions = keyPositions;
-		this.keyClasses = keyClasses;
-		
-		this.currentKeys = new Key[keyClasses.length];
-		for (int i = 0; i < keyClasses.length; i++) {
-			if (keyClasses[i] == null) {
-				throw new NullPointerException("Key type " + i + " is null.");
-			}
-			this.currentKeys[i] = InstantiationUtil.instantiate(keyClasses[i], Key.class);
-		}
+		this.serializer = serializer;
+		this.comparator = comparator;
 	}
 
 	/**
@@ -83,18 +71,15 @@ public final class KeyGroupedMutableObjectIterator
 	{
 		// first element
 		if (this.next == null) {
-			this.next = new PactRecord();
+			this.next = this.serializer.createInstance();
 			if (this.iterator.next(this.next)) {
-				this.next.getFieldsInto(this.keyPositions, this.currentKeys);
+				this.comparator.setReference(this.next);
 				this.nextIsFresh = false;
 				this.valuesIterator = new ValuesIterator();
 				this.valuesIterator.nextIsUnconsumed = true;
 				return true;
 			} else {
 				// empty input, set everything null
-				for (int i = 0; i < currentKeys.length; i++) {
-					this.currentKeys[i] = null;
-				}
 				this.valuesIterator = null;
 				return false;
 			}
@@ -103,7 +88,7 @@ public final class KeyGroupedMutableObjectIterator
 		// Whole value-iterator was read and a new key is available.
 		if (this.nextIsFresh) {
 			this.nextIsFresh = false;
-			this.next.getFieldsInto(keyPositions, currentKeys);
+			this.comparator.setReference(this.next);
 			this.valuesIterator.nextIsUnconsumed = true;
 			return true;
 		}
@@ -112,37 +97,19 @@ public final class KeyGroupedMutableObjectIterator
 		// Required if user code / reduce() method did not read the whole value iterator.
 		while (true) {
 			if (this.iterator.next(this.next)) {
-				for (int i = 0; i < this.currentKeys.length; i++) {
-					final Key k = this.next.getField(this.keyPositions[i], this.keyClasses[i]);
-					if (!this.currentKeys[i].equals(k)) {
-						// one of the keys does not match, so we have a new group
-						// store the current keys
-						this.next.getFieldsInto(this.keyPositions, this.currentKeys);						
-						this.nextIsFresh = false;
-						this.valuesIterator.nextIsUnconsumed = true;
-						return true;
-					}
+				if (!this.comparator.equalToReference(this.next)) {
+					// the keys do not match, so we have a new group. store the current keys
+					this.comparator.setReference(this.next);						
+					this.nextIsFresh = false;
+					this.valuesIterator.nextIsUnconsumed = true;
+					return true;
 				}
 			}
 			else {
-				for (int i = 0; i < currentKeys.length; i++) {
-					this.currentKeys[i] = null;
-				}
 				this.valuesIterator = null;
 				return false;
 			}
 		}
-	}
-
-	/**
-	 * Returns the current key. The current key is initially <code>null</code> (before the first call to
-	 * {@link #nextKey()} and after all distinct keys are consumed. In general, this method returns
-	 * always a non-null value, if a previous call to {@link #nextKey()} return <code>true</code>.
-	 * 
-	 * @return The current key.
-	 */
-	public Key[] getKeys() {
-		return this.currentKeys;
 	}
 
 	/**
@@ -152,40 +119,39 @@ public final class KeyGroupedMutableObjectIterator
 	 * 
 	 * @return Iterator over all values that belong to the current key.
 	 */
-	public MutableObjectIterator<PactRecord> getValues() {
-		return valuesIterator;
+	public MutableObjectIterator<E> getValues() {
+		return this.valuesIterator;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-	private final class ValuesIterator implements MutableObjectIterator<PactRecord>
+	private final class ValuesIterator implements MutableObjectIterator<E>
 	{
+		private final TypeSerializer<E> serializer = KeyGroupedMutableObjectIterator.this.serializer;
+		private final TypeComparator<E> comparator = KeyGroupedMutableObjectIterator.this.comparator; 
+		
 		private boolean nextIsUnconsumed = false;
 
 		@Override
-		public boolean next(PactRecord target)
+		public boolean next(E target)
 		{
 			if (KeyGroupedMutableObjectIterator.this.next == null || KeyGroupedMutableObjectIterator.this.nextIsFresh) {
 				return false;
 			}
 			if (this.nextIsUnconsumed) {
-				KeyGroupedMutableObjectIterator.this.next.copyTo(target);
+				this.serializer.copyTo(KeyGroupedMutableObjectIterator.this.next, target);
 				return true;
 			}
 			
 			try {
 				if (KeyGroupedMutableObjectIterator.this.iterator.next(target)) {
 					// check whether the keys are equal
-					for (int i = 0; i < KeyGroupedMutableObjectIterator.this.keyPositions.length; i++) {
-						Key k = target.getField(keyPositions[i], keyClasses[i]);
-						if (!(currentKeys[i].equals(k))) {
-							// moved to the next key, no more values here
-							target.copyTo(KeyGroupedMutableObjectIterator.this.next);
-							KeyGroupedMutableObjectIterator.this.nextIsFresh = true;
-							return false;
-						}
+					if (!this.comparator.equalToReference(target)) {
+						// moved to the next key, no more values here
+						this.serializer.copyTo(target, KeyGroupedMutableObjectIterator.this.next);
+						KeyGroupedMutableObjectIterator.this.nextIsFresh = true;
+						return false;
 					}
-					
 					// same key, next value is in "next"
 					return true;
 				}

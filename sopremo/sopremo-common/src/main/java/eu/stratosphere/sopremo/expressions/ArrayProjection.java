@@ -26,7 +26,6 @@ public class ArrayProjection extends EvaluationExpression {
 	 */
 	public ArrayProjection(final EvaluationExpression expression) {
 		this.expression = expression;
-		this.expectedTarget = ArrayNode.class;
 	}
 
 	@Override
@@ -51,12 +50,12 @@ public class ArrayProjection extends EvaluationExpression {
 		// spread
 		final IArrayNode array = (IArrayNode) node;
 
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 
 		for (int index = 0, size = array.size(); index < size; index++)
-			((IArrayNode) target).add(this.expression.evaluate(array.get(index), ((IArrayNode) target).get(index),
-				context));
-		return target;
+			targetArray.add(this.expression.evaluate(array.get(index), targetArray.get(index), context));
+		
+		return targetArray;
 	}
 
 	/*

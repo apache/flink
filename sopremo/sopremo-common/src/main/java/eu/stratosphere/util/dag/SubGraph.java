@@ -75,7 +75,7 @@ public interface SubGraph<Node, InputNode extends Node, OutputNode extends Node>
 	 * @return the internal output at the specified position
 	 */
 	public OutputNode getInternalOutputNodes(int index);
-	
+
 	/**
 	 * Sets the output at the specified position.
 	 * 

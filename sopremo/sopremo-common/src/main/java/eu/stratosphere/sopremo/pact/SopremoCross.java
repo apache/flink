@@ -32,7 +32,7 @@ public abstract class SopremoCross extends CrossStub {
 		// We need to pass our class loader since the default class loader is
 		// not able to resolve classes coming from the Sopremo user jar file.
 		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT,
-				EvaluationContext.class, this.getClass().getClassLoader());
+			EvaluationContext.class, this.getClass().getClassLoader());
 		this.inputSchema1 = this.context.getInputSchema(0);
 		this.inputSchema2 = this.context.getInputSchema(1);
 		this.collector = new JsonCollector(this.context.getOutputSchema(0));
@@ -57,7 +57,7 @@ public abstract class SopremoCross extends CrossStub {
 	 * eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void cross(final PactRecord record1, final PactRecord record2, final Collector out) {
+	public void cross(final PactRecord record1, final PactRecord record2, final Collector<PactRecord> out) {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);
 		final IJsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);
@@ -73,7 +73,7 @@ public abstract class SopremoCross extends CrossStub {
 		}
 	}
 
-	protected EvaluationContext getContext() {
+	protected final EvaluationContext getContext() {
 		return this.context;
 	}
 }

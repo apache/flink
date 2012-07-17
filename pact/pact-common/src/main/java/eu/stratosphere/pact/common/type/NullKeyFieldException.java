@@ -24,7 +24,9 @@ public class NullKeyFieldException extends RuntimeException
 	/**
 	 * UID for serialization interoperability. 
 	 */
-	private static final long serialVersionUID = 5645812615711209578L;
+	private static final long serialVersionUID = -3254501285363420762L;
+	
+	private final int fieldNumber;
 
 	/**
      * Constructs an {@code NullKeyFieldException} with {@code null}
@@ -32,6 +34,7 @@ public class NullKeyFieldException extends RuntimeException
      */
 	public NullKeyFieldException() {
 		super();
+		this.fieldNumber = -1;
 	}
 
 	/**
@@ -41,6 +44,7 @@ public class NullKeyFieldException extends RuntimeException
      */
 	public NullKeyFieldException(String message) {
 		super(message);
+		this.fieldNumber = -1;
 	}
 	
 	/**
@@ -51,5 +55,16 @@ public class NullKeyFieldException extends RuntimeException
      */
 	public NullKeyFieldException(int fieldNumber) {
 		super("Field " + fieldNumber + " is null, but expected to hold a key.");
+		this.fieldNumber = fieldNumber;
+	}
+	
+	/**
+	 * Gets the field number that was attempted to access. If the number is not set, this method returns
+	 * {@code -1}.
+	 * 
+	 * @return The field number that was attempted to access, or {@code -1}, if not set.
+	 */
+	public int getFieldNumber() {
+		return this.fieldNumber;
 	}
 }

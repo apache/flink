@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpression> {
 	@Override
 	protected GroupingExpression createDefaultInstance(final int index) {
-		return new GroupingExpression(new ConstantExpression(index), EvaluationExpression.NULL);
+		return new GroupingExpression(new ConstantExpression(index), ConstantExpression.NULL);
 	}
 
 	@Test

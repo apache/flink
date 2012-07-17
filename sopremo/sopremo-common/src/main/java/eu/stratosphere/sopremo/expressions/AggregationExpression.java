@@ -17,7 +17,9 @@ public class AggregationExpression extends EvaluationExpression {
 
 	private final AggregationFunction function;
 
-	private EvaluationExpression preprocessing;
+	private CachingExpression<IJsonNode> preprocessing;
+
+	private transient IJsonNode aggregator;
 
 	/**
 	 * Initializes an AggregationExpression with the given {@link AggregationFunction}.
@@ -40,24 +42,28 @@ public class AggregationExpression extends EvaluationExpression {
 	 */
 	public AggregationExpression(final AggregationFunction function, final EvaluationExpression preprocessing) {
 		this.function = function.clone();
-		this.preprocessing = preprocessing;
+		this.preprocessing = CachingExpression.ofSubclass(preprocessing, IJsonNode.class);
 	}
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode nodes, IJsonNode target, final EvaluationContext context) {
-		// TODO reuse target (problem: required target could be any kind of JsonNode)
-		this.function.initialize();
+		this.aggregator = this.function.initialize(this.aggregator);
 		for (final IJsonNode node : (IArrayNode) nodes)
-			this.function.aggregate(this.preprocessing.evaluate(node, null, context), context);
-		return this.function.getFinalAggregate();
+			this.aggregator =
+				this.function.aggregate(this.preprocessing.evaluate(node, context), this.aggregator, context);
+		return this.function.getFinalAggregate(this.aggregator, target);
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {
-		this.preprocessing = this.preprocessing.transformRecursively(function);
+		this.preprocessing = (CachingExpression<IJsonNode>) this.preprocessing.transformRecursively(function);
 		return function.call(this);
 	}
 
@@ -76,7 +82,7 @@ public class AggregationExpression extends EvaluationExpression {
 	 * @return the preprocessing
 	 */
 	public EvaluationExpression getPreprocessing() {
-		return this.preprocessing;
+		return this.preprocessing.getInnerExpression();
 	}
 
 	@Override
@@ -104,7 +110,7 @@ public class AggregationExpression extends EvaluationExpression {
 		builder.append('(');
 		if (this.preprocessing != EvaluationExpression.VALUE)
 			this.preprocessing.toString(builder);
-//			builder.append(this.preprocessing);
+		// builder.append(this.preprocessing);
 		builder.append(')');
 	}
 }

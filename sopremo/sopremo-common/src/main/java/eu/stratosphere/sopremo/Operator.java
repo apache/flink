@@ -40,7 +40,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		SerializableSopremoType, JsonStream, Cloneable, BeanInfo {
 
 	public final static List<EvaluationExpression> ALL_KEYS =
-		Collections.unmodifiableList(new ArrayList<EvaluationExpression>());
+		Collections.unmodifiableList(Arrays.asList(EvaluationExpression.VALUE));
 
 	/**
 	 * 
@@ -63,10 +63,10 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	public Operator() {
 		final InputCardinality inputs = ReflectUtil.getAnnotation(this.getClass(), InputCardinality.class);
 		if (inputs == null)
-			throw new IllegalStateException("No InputCardinality annotation found @ " + getClass());
+			throw new IllegalStateException("No InputCardinality annotation found @ " + this.getClass());
 		final OutputCardinality outputs = ReflectUtil.getAnnotation(this.getClass(), OutputCardinality.class);
 		if (outputs == null)
-			throw new IllegalStateException("No OutputCardinality annotation found @ " + getClass());
+			throw new IllegalStateException("No OutputCardinality annotation found @ " + this.getClass());
 		this.setNumberOfInputs(inputs.value() != -1 ? inputs.value() : inputs.min(),
 			inputs.value() != -1 ? inputs.value() : inputs.max());
 		this.setNumberOfOutputs(outputs.value() != -1 ? outputs.value() : outputs.min(),
@@ -92,7 +92,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		this.name = this.getClass().getSimpleName();
 	}
 
-	public abstract ElementarySopremoModule asElementaryOperators();
+	public abstract ElementarySopremoModule asElementaryOperators(EvaluationContext context);
 
 	/**
 	 * Converts this operator to a {@link PactModule} using the provided {@link EvaluationContext}.
@@ -102,63 +102,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * @return the {@link PactModule} representing this operator
 	 */
 	public abstract PactModule asPactModule(EvaluationContext context);
-
-	// /**
-	// * Initializes the Operator with the given number of outputs and the given input {@link JsonStream}s. A JsonStream
-	// * is either the output of another operator or the operator itself.
-	// *
-	// * @param numberOfOutputs
-	// * the number of outputs
-	// * @param inputs
-	// * the input JsonStreams produces by other operators
-	// */
-	// Operator(final int numberOfOutputs, final JsonStream... inputs) {
-	// this(1, Arrays.asList(inputs));
-	// }
-	//
-	// /**
-	// * Initializes the Operator with the given number of outputs, and the given input {@link JsonStream}s. A
-	// JsonStream
-	// * is either the output of another operator or the operator itself.
-	// *
-	// * @param numberOfOutputs
-	// * the number of outputs
-	// * @param inputs
-	// * the input JsonStreams produces by other operators
-	// */
-	// Operator(final int numberOfOutputs, final List<? extends JsonStream> inputs) {
-	// if (inputs == null)
-	// throw new NullPointerException();
-	// if (numberOfOutputs < 0)
-	// throw new IllegalArgumentException("numberOfOutputs < 0");
-	//
-	// for (final JsonStream input : inputs)
-	// this.inputs.add(input == null ? null : input.getSource());
-	// this.name = this.getClass().getSimpleName();
-	// this.setNumberOfOutputs(numberOfOutputs);
-	// }
-	//
-	// /**
-	// * Initializes the Operator with the given input {@link JsonStream}s. A JsonStream is
-	// * either the output of another operator or the operator itself. The number of outputs is set to 1.
-	// *
-	// * @param inputs
-	// * the input JsonStreams produces by other operators
-	// */
-	// Operator(final JsonStream... inputs) {
-	// this(1, inputs);
-	// }
-	//
-	// /**
-	// * Initializes the Operator with the given input {@link JsonStream}s. A JsonStream is
-	// * either the output of another operator or the operator itself. The number of outputs is set to 1.
-	// *
-	// * @param inputs
-	// * the input JsonStreams produces by other operators
-	// */
-	// Operator(final List<? extends JsonStream> inputs) {
-	// this(1, inputs);
-	// }
 
 	@Override
 	public Operator<Self> clone() {
@@ -407,8 +350,8 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 *        the new name of this operator
 	 */
 	public Self withName(final String name) {
-		setName(name);
-		return self();
+		this.setName(name);
+		return this.self();
 	}
 
 	/*

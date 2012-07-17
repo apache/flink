@@ -19,59 +19,51 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
-public final class KeyGroupedIterator
+public final class KeyGroupedIterator<E>
 {
-	private final MutableObjectIterator<PactRecord> iterator;
+	private final MutableObjectIterator<E> iterator;
 
-	private final int[] keyPositions;
+	private final TypeSerializer<E> serializer;
 	
-	private final Class<? extends Key>[] keyClasses;
-
-	private Key[] currentKeys;
+	private final TypeComparator<E> comparator;
 	
-	private PactRecord next;
+	private E current;
+	
+	private E lookahead;
 
 	private ValuesIterator valuesIterator;
 
-	private boolean nextIsFresh;
+	private boolean lookAheadHasNext;
+	
+	private boolean done;
 
 	/**
 	 * Initializes the KeyGroupedIterator. It requires an iterator which returns its result
 	 * sorted by the key fields.
 	 * 
 	 * @param iterator An iterator over records, which are sorted by the key fields, in any order.
-	 * @param keyPositions The positions of the keys in the records.
-	 * @param keyClasses The types of the key fields.
+	 * @param serializer The serializer for the data type iterated over.
+	 * @param comparator The comparator for the data type iterated over.
 	 */
-	public KeyGroupedIterator(MutableObjectIterator<PactRecord> iterator, int[] keyPositions, 
-			Class<? extends Key>[] keyClasses)
+	public KeyGroupedIterator(MutableObjectIterator<E> iterator,
+			TypeSerializer<E> serializer, TypeComparator<E> comparator)
 	{
-		if (keyPositions.length != keyClasses.length || keyPositions.length < 1) {
-			throw new IllegalArgumentException(
-				"Positions and types of the key fields must be of same length and contain at least one entry.");
+		if (iterator == null || serializer == null || comparator == null) {
+			throw new NullPointerException();
 		}
 		
 		this.iterator = iterator;
-		this.keyPositions = keyPositions;
-		this.keyClasses = keyClasses;
-		
-		this.currentKeys = new Key[keyClasses.length];
-		for (int i = 0; i < keyClasses.length; i++) {
-			if (keyClasses[i] == null) {
-				throw new NullPointerException("Key type " + i + " is null.");
-			}
-			this.currentKeys[i] = InstantiationUtil.instantiate(keyClasses[i], Key.class);
-		}
+		this.serializer = serializer;
+		this.comparator = comparator;
 	}
 
 	/**
@@ -82,68 +74,65 @@ public final class KeyGroupedIterator
 	 */
 	public boolean nextKey() throws IOException
 	{
-		// first element
-		if (this.next == null) {
-			this.next = new PactRecord();
-			if (this.iterator.next(this.next)) {
-				this.next.getFieldsInto(this.keyPositions, this.currentKeys);
-				this.nextIsFresh = false;
+		// first element (or empty)
+		if (this.current == null) {
+			if (this.done) {
+				this.valuesIterator = null;
+				return false;
+			}
+			this.current = this.serializer.createInstance();
+			if (this.iterator.next(this.current)) {
+				this.comparator.setReference(this.current);
+				this.lookAheadHasNext = false;
 				this.valuesIterator = new ValuesIterator();
-				this.valuesIterator.nextIsUnconsumed = true;
+				this.valuesIterator.currentIsUnconsumed = true;
 				return true;
 			} else {
 				// empty input, set everything null
-				for (int i = 0; i < currentKeys.length; i++) {
-					this.currentKeys[i] = null;
-				}
 				this.valuesIterator = null;
+				this.current = null;
+				this.done = true;
 				return false;
 			}
 		}
 
 		// Whole value-iterator was read and a new key is available.
-		if (this.nextIsFresh) {
-			this.nextIsFresh = false;
-			this.next.getFieldsInto(keyPositions, currentKeys);
-			this.valuesIterator.nextIsUnconsumed = true;
+		if (this.lookAheadHasNext) {
+			this.lookAheadHasNext = false;
+			this.current = this.lookahead;
+			this.lookahead = null;
+			this.comparator.setReference(this.current);
+			this.valuesIterator.currentIsUnconsumed = true;
 			return true;
 		}
 
 		// try to move to next key.
 		// Required if user code / reduce() method did not read the whole value iterator.
 		while (true) {
-			if (this.iterator.next(this.next)) {
-				for (int i = 0; i < this.currentKeys.length; i++) {
-					final Key k = this.next.getField(this.keyPositions[i], this.keyClasses[i]);
-					if (!this.currentKeys[i].equals(k)) {
-						// one of the keys does not match, so we have a new group
-						// store the current keys
-						this.next.getFieldsInto(this.keyPositions, this.currentKeys);						
-						this.nextIsFresh = false;
-						this.valuesIterator.nextIsUnconsumed = true;
-						return true;
-					}
+			if (this.iterator.next(this.current)) {
+				if (!this.comparator.equalToReference(this.current)) {
+					// the keys do not match, so we have a new group. store the current keys
+					this.comparator.setReference(this.current);						
+					this.lookAheadHasNext = false;
+					this.valuesIterator.currentIsUnconsumed = true;
+					return true;
 				}
 			}
 			else {
-				for (int i = 0; i < currentKeys.length; i++) {
-					this.currentKeys[i] = null;
-				}
 				this.valuesIterator = null;
+				this.current = null;
+				this.done = true;
 				return false;
 			}
 		}
 	}
-
-	/**
-	 * Returns the current key. The current key is initially <code>null</code> (before the first call to
-	 * {@link #nextKey()} and after all distinct keys are consumed. In general, this method returns
-	 * always a non-null value, if a previous call to {@link #nextKey()} return <code>true</code>.
-	 * 
-	 * @return The current key.
-	 */
-	public Key[] getKeys() {
-		return this.currentKeys;
+	
+	public TypeComparator<E> getComparatorWithCurrentReference() {
+		return this.comparator;
+	}
+	
+	public E getCurrent() {
+		return this.current;
 	}
 
 	/**
@@ -154,52 +143,53 @@ public final class KeyGroupedIterator
 	 * @return Iterator over all values that belong to the current key.
 	 */
 	public ValuesIterator getValues() {
-		return valuesIterator;
+		return this.valuesIterator;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-	public final class ValuesIterator implements Iterator<PactRecord>
+	public final class ValuesIterator implements Iterator<E>
 	{
-		private PactRecord bufferRec = new PactRecord();
-		private boolean nextIsUnconsumed = false;
+		private final TypeSerializer<E> serializer = KeyGroupedIterator.this.serializer;
+		private final TypeComparator<E> comparator = KeyGroupedIterator.this.comparator; 
+		
+		private E staging = this.serializer.createInstance();
+		private boolean currentIsUnconsumed = false;
 		
 		private ValuesIterator() {}
 
 		@Override
 		public boolean hasNext()
 		{
-			if (KeyGroupedIterator.this.next == null || KeyGroupedIterator.this.nextIsFresh) {
+			if (KeyGroupedIterator.this.current == null || KeyGroupedIterator.this.lookAheadHasNext) {
 				return false;
 			}
-			if (this.nextIsUnconsumed) {
+			if (this.currentIsUnconsumed) {
 				return true;
 			}
 			
 			try {
-				if (KeyGroupedIterator.this.iterator.next(this.bufferRec)) {
-					// exchange the buffer record and the next record
-					PactRecord tmp = this.bufferRec;
-					this.bufferRec = KeyGroupedIterator.this.next;
-					KeyGroupedIterator.this.next = tmp;
-					
-					// check whether the keys are equal
-					for (int i = 0; i < KeyGroupedIterator.this.keyPositions.length; i++) {
-						Key k = tmp.getField(keyPositions[i], keyClasses[i]);
-						if (!(currentKeys[i].equals(k))) {
-							// moved to the next key, no more values here
-							KeyGroupedIterator.this.nextIsFresh = true;
-							return false;
-						}
+				// read the next value into the staging record to make sure we keep the
+				// current as it is in case the key changed
+				if (KeyGroupedIterator.this.iterator.next(this.staging)) {
+					if (this.comparator.equalToReference(this.staging)) {
+						// same key, next value is in staging, so exchange staging with current
+						final E tmp = this.staging;
+						this.staging = KeyGroupedIterator.this.current;
+						KeyGroupedIterator.this.current = tmp;
+						this.currentIsUnconsumed = true;
+						return true;
+					} else {
+						// moved to the next key, no more values here
+						KeyGroupedIterator.this.lookAheadHasNext = true;
+						KeyGroupedIterator.this.lookahead = this.staging;
+						this.staging = KeyGroupedIterator.this.current;
+						return false;						
 					}
-					
-					// same key, next value is in "next"
-					this.nextIsUnconsumed = true;
-					return true;
 				}
 				else {
 					// backing iterator is consumed
-					KeyGroupedIterator.this.next = null;
+					KeyGroupedIterator.this.done = true;
 					return false;
 				}
 			}
@@ -213,10 +203,10 @@ public final class KeyGroupedIterator
 		 * Prior to call this method, call hasNext() once!
 		 */
 		@Override
-		public PactRecord next() {
-			if (this.nextIsUnconsumed || hasNext()) {
-				this.nextIsUnconsumed = false;
-				return KeyGroupedIterator.this.next;
+		public E next() {
+			if (this.currentIsUnconsumed || hasNext()) {
+				this.currentIsUnconsumed = false;
+				return KeyGroupedIterator.this.current;
 			} else {
 				throw new NoSuchElementException();
 			}

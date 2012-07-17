@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.runtime.util;
 
 
+import java.io.IOException;
 import java.util.Iterator;
 
 
@@ -23,11 +24,11 @@ import java.util.Iterator;
  * The resettable iterator is a specialization of the iterator, allowing to reset the iterator and re-retrieve elements.
  * Whether the iterator is completely reset or only partially depends on the actual implementation.
  */
-public interface ResettableIterator<E> extends Iterator<E> {
-
+public interface ResettableIterator<E> extends Iterator<E>
+{
 	/**
 	 * Resets the iterator.
 	 */
-	public void reset();
+	public void reset() throws IOException;
 	
 }

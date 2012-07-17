@@ -34,11 +34,6 @@ public final class ManagementGate extends ManagementAttachment {
 	private final ManagementVertex managementVertex;
 
 	/**
-	 * The name of the record type transported through this gate.
-	 */
-	private final String recordType;
-
-	/**
 	 * <code>true</code> if this gate represents an input gate in the actual execution graph, <code>false</code>
 	 * otherwise.
 	 */
@@ -76,16 +71,12 @@ public final class ManagementGate extends ManagementAttachment {
 	 * @param isInputGate
 	 *        <code>true</code> if this gate represents an input gate in the actual execution graph, <code>false</code>
 	 *        otherwise
-	 * @param recordType
-	 *        the name of the record type transported through this gate
 	 */
 	public ManagementGate(final ManagementVertex managementVertex, final ManagementGateID gateID,
-			final int index, final boolean isInputGate,
-			final String recordType) {
+			final int index, final boolean isInputGate) {
 		this.isInputGate = isInputGate;
 		this.managementVertex = managementVertex;
 		this.gateID = gateID;
-		this.recordType = recordType;
 		this.index = index;
 
 		managementVertex.addGate(this);
@@ -133,15 +124,6 @@ public final class ManagementGate extends ManagementAttachment {
 		}
 
 		this.backwardEdges.set(index, managementEdge);
-	}
-
-	/**
-	 * Returns the name of the record type transported through this gate.
-	 * 
-	 * @return the name of the record type transported through this gate
-	 */
-	public String getRecordType() {
-		return this.recordType;
 	}
 
 	/**

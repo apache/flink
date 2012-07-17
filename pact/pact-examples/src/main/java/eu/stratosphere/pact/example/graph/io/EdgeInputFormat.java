@@ -39,27 +39,28 @@ public final class EdgeInputFormat extends DelimitedInputFormat
 	 * @see eu.stratosphere.pact.common.io.DelimitedInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int numBytes)
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes)
 	{
+		final int limit = offset + numBytes;
 		int first = 0, second = 0;
 		final char delimiter = this.delimiter;
 		
-		int pos = 0;
-		while (pos < numBytes && bytes[pos] != delimiter) {
+		int pos = offset;
+		while (pos < limit && bytes[pos] != delimiter) {
 			first = first * 10 + (bytes[pos++] - '0');
 		}
 		pos += 1;// skip the delimiter
-		while (pos < numBytes) {
+		while (pos < limit) {
 			second = second * 10 + (bytes[pos++] - '0');
 		}
 		
 		if (first <= 0 || second <= 0 || first == second)
 			return false;
 		
-		i1.setValue(first);
-		i2.setValue(second);
-		target.setField(0, i1);
-		target.setField(1, i2);
+		this.i1.setValue(first);
+		this.i2.setValue(second);
+		target.setField(0, this.i1);
+		target.setField(1, this.i2);
 		return true;
 	}
 	

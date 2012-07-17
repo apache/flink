@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
@@ -28,8 +29,21 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 
 	private Schema schema;
 
+	private EvaluationExpression resultProjection = EvaluationExpression.VALUE;
+
 	public LinkedList<Operator<?>> getOperatorStack() {
 		return this.operatorStack;
+	}
+
+	public EvaluationExpression getResultProjection() {
+		return this.resultProjection;
+	}
+
+	public void setResultProjection(EvaluationExpression resultProjection) {
+		if (resultProjection == null)
+			throw new NullPointerException("resultProjection must not be null");
+
+		this.resultProjection = resultProjection;
 	}
 
 	public Bindings getBindings() {

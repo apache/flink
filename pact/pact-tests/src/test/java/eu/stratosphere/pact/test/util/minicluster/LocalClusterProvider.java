@@ -17,13 +17,13 @@ package eu.stratosphere.pact.test.util.minicluster;
 
 import java.io.File;
 
+import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.filesystem.HDFSProvider;
 import eu.stratosphere.pact.test.util.filesystem.LocalFSProvider;
-import eu.stratosphere.pact.test.util.filesystem.MiniDFSProvider;
 
 public class LocalClusterProvider extends ClusterProvider {
 
@@ -51,8 +51,6 @@ public class LocalClusterProvider extends ClusterProvider {
 
 		if(config.getString(Constants.FILESYSTEM_TYPE, "").equals("local_fs")) {
 			filesystemProvider = new LocalFSProvider();
-		} else if(config.getString(Constants.FILESYSTEM_TYPE, "").equals("mini_hdfs")) {
-			filesystemProvider = new MiniDFSProvider();
 		} else {
 			throw new IllegalConfigurationException("Invalid file system type: "+config.getString(Constants.FILESYSTEM_TYPE, ""));
 		}
@@ -102,9 +100,12 @@ public class LocalClusterProvider extends ClusterProvider {
 		f.delete();
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.test.util.minicluster.ClusterProvider#getJobClient(eu.stratosphere.nephele.jobgraph.JobGraph, java.lang.String)
+	 */
 	@Override
-	public void submitJobAndWait(JobGraph jobGraph, String jarFilePath) throws Exception {
-		nephele.submitJobAndWait(jobGraph);
+	public JobClient getJobClient(JobGraph jobGraph, String jarFilePath) throws Exception
+	{
+		return this.nephele.getJobClient(jobGraph);
 	}
-
 }

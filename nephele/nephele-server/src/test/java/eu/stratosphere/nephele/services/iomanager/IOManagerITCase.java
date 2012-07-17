@@ -17,9 +17,10 @@ package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.List;
 import java.util.Random;
 
 import junit.framework.Assert;
@@ -94,24 +95,23 @@ public class IOManagerITCase {
 		final Random rnd = new Random(SEED);
 		final AbstractInvokable memOwner = new DefaultMemoryManagerTest.DummyInvokable();
 		
-		final int minSegmentSize = 4 * 1024;
-		final int maxSegmentSize = SEGMENT_SIZE / NUM_CHANNELS;
-		
 		Channel.ID[] ids = new Channel.ID[NUM_CHANNELS];
-		Writer[] writers = new Writer[NUM_CHANNELS];
-		Reader[] readers = new Reader[NUM_CHANNELS];
+		BlockChannelWriter[] writers = new BlockChannelWriter[NUM_CHANNELS];
+		BlockChannelReader[] readers = new BlockChannelReader[NUM_CHANNELS];
+		ChannelWriterOutputView[] outs = new ChannelWriterOutputView[NUM_CHANNELS];
+		ChannelReaderInputView[] ins = new ChannelReaderInputView[NUM_CHANNELS];
 		
 		int[] writingCounters = new int[NUM_CHANNELS];
 		int[] readingCounters = new int[NUM_CHANNELS];
 		
 		// instantiate the channels and writers
-		for (int i = 0; i < NUM_CHANNELS; i++) {
+		for (int i = 0; i < NUM_CHANNELS; i++)
+		{
 			ids[i] = this.ioManager.createChannel();
+			writers[i] = this.ioManager.createBlockChannelWriter(ids[i]);
 			
-			final int segmentSize = rnd.nextInt(maxSegmentSize - minSegmentSize) + minSegmentSize;
-			Collection<MemorySegment> memSegs= memoryManager.allocate(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2, segmentSize);
-				
-			writers[i] = ioManager.createChannelWriter(ids[i], memSegs);
+			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2);
+			outs[i] = new ChannelWriterOutputView(writers[i], memSegs, this.memoryManager.getPageSize());
 		}
 		
 		
@@ -133,42 +133,49 @@ public class IOManagerITCase {
 			int channel = skewedSample(rnd, NUM_CHANNELS - 1);
 			
 			val.value = String.valueOf(writingCounters[channel]++);
-			writers[channel].write(val);
+			val.write(outs[channel]);
 		}
 		LOG.info("Writing done, flushing contents...");
 		
 		// close all writers
 		for (int i = 0; i < NUM_CHANNELS; i++) {
-			memoryManager.release(writers[i].close());
+			this.memoryManager.release(outs[i].close());
 		}
+		outs = null;
 		writers = null;
 		
 		// instantiate the readers for sequential read
 		LOG.info("Reading channels sequentially...");
-		for (int i = 0; i < NUM_CHANNELS; i++) {
-			final int segmentSize = rnd.nextInt(maxSegmentSize - minSegmentSize) + minSegmentSize;
-			Collection<MemorySegment> memSegs= memoryManager.allocate(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2, segmentSize);
+		for (int i = 0; i < NUM_CHANNELS; i++)
+		{
+			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2);
 			
-			LOG.info("Reading channel " + i + "/" + NUM_CHANNELS + '.');
+			LOG.info("Reading channel " + (i+1) + "/" + NUM_CHANNELS + '.');
 				
-			Reader reader = ioManager.createChannelReader(ids[i], memSegs, false);
+			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(ids[i]);
+			final ChannelReaderInputView in = new ChannelReaderInputView(reader, memSegs, false);
 			int nextVal = 0;
 			
-			while (reader.read(val)) {
-				int intValue = 0;
-				try {
-					intValue = Integer.parseInt(val.value);
+			try {
+				while (true) {
+					val.read(in);
+					int intValue = 0;
+					try {
+						intValue = Integer.parseInt(val.value);
+					}
+					catch (NumberFormatException nfex) {
+						Assert.fail("Invalid value read from reader. Valid decimal number expected.");
+					}
+					Assert.assertEquals("Written and read values do not match during sequential read.", nextVal, intValue);
+					nextVal++;
 				}
-				catch (NumberFormatException nfex) {
-					Assert.fail("Invalid value read from reader. Valid decimal number expected.");
-				}
-				Assert.assertEquals("Written and read values do not match during sequential read.", nextVal, intValue);
-				nextVal++;
+			} catch (EOFException eofex) {
+				// expected
 			}
 			
 			Assert.assertEquals("NUmber of written numbers differs from number of read numbers.", writingCounters[i], nextVal);
 			
-			memoryManager.release(reader.close());
+			this.memoryManager.release(in.close());
 		}
 		LOG.info("Sequential reading done.");
 		
@@ -176,10 +183,10 @@ public class IOManagerITCase {
 		LOG.info("Reading channels randomly...");
 		for (int i = 0; i < NUM_CHANNELS; i++) {
 			
-			final int segmentSize = rnd.nextInt(maxSegmentSize - minSegmentSize) + minSegmentSize;
-			Collection<MemorySegment> memSegs = memoryManager.allocate(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2, segmentSize);
+			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2);
 				
-			readers[i] = ioManager.createChannelReader(ids[i], memSegs, true);
+			readers[i] = this.ioManager.createBlockChannelReader(ids[i]);
+			ins[i] = new ChannelReaderInputView(readers[i], memSegs, false);
 		}
 		
 		nextLogCount = 0;
@@ -194,28 +201,42 @@ public class IOManagerITCase {
 				nextLogCount = (int) (nextLogFraction * NUMBERS_TO_BE_WRITTEN);
 			}
 			
-			int channel = skewedSample(rnd, NUM_CHANNELS - 1);
-			
-			if (!readers[channel].read(val)) {
-				continue;
+			while (true) {
+				final int channel = skewedSample(rnd, NUM_CHANNELS - 1);
+				if (ins[channel] != null) {
+					try {
+						val.read(ins[channel]);
+						int intValue;
+						try {
+							intValue = Integer.parseInt(val.value);
+						}
+						catch (NumberFormatException nfex) {
+							Assert.fail("Invalid value read from reader. Valid decimal number expected.");
+							return;
+						}
+						
+						Assert.assertEquals("Written and read values do not match.", readingCounters[channel]++, intValue);
+						
+						break;
+					} catch (EOFException eofex) {
+						this.memoryManager.release(ins[channel].close());
+						ins[channel] = null;
+					}
+				}
 			}
 			
-			int intValue = 0;
-			try {
-				intValue = Integer.parseInt(val.value);
-			}
-			catch (NumberFormatException nfex) {
-				Assert.fail("Invalid value read from reader. Valid decimal number expected.");
-			}
-			
-			Assert.assertEquals("Written and read values do not match.", readingCounters[channel]++, intValue);
 		}
 		LOG.info("Random reading done.");
 		
 		// close all readers
 		for (int i = 0; i < NUM_CHANNELS; i++) {
-			memoryManager.release(readers[i].close());
+			if (ins[i] != null) {
+				this.memoryManager.release(ins[i].close());
+			}
+			readers[i].closeAndDelete();
 		}
+		
+		ins = null;
 		readers = null;
 		
 		// check that files are deleted

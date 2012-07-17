@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.InputCardinality;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -12,6 +13,21 @@ import eu.stratosphere.sopremo.type.NullNode;
 @InputCardinality(2)
 public abstract class TwoSourceJoinBase<Self extends TwoSourceJoinBase<Self>> extends ElementaryOperator<Self> {
 	private static final long serialVersionUID = -3368425939867140718L;
+
+	public TwoSourceJoinBase() {
+		super();
+		this.setResultProjection(ObjectCreation.CONCATENATION);
+	}
+
+	public TwoSourceJoinBase(int minInputs, int maxInputs) {
+		super(minInputs, maxInputs);
+		this.setResultProjection(ObjectCreation.CONCATENATION);
+	}
+
+	public TwoSourceJoinBase(int inputs) {
+		super(inputs);
+		this.setResultProjection(ObjectCreation.CONCATENATION);
+	}
 
 	protected static void leftOuterJoin(IArrayNode result, IArrayNode values2, JsonCollector out) {
 		result.set(0, NullNode.getInstance());

@@ -16,23 +16,17 @@ package eu.stratosphere.pact.testing;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Assert;
 
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
-import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
-import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.TaskSubmissionWrapper;
-import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
@@ -40,8 +34,6 @@ import eu.stratosphere.nephele.util.SerializableArrayList;
  */
 public class MockDeployManager implements DeploymentManager {
 	public final static MockDeployManager INSTANCE = new MockDeployManager();
-
-	private InputSplitManager inputSplitManager = new InputSplitManager();
 
 	/**
 	 * {@inheritDoc}
@@ -69,8 +61,6 @@ public class MockDeployManager implements DeploymentManager {
 		// executionVertex.updateExecutionState(ExecutionState.STARTING, null);
 		// }
 		//
-		// Method executionGraph field of vertex is immutable, so no need to synchronized access
-		this.inputSplitManager.registerJob(verticesToBeDeployed.get(0).getExecutionGraph());
 
 		for (final ExecutionVertex vertex : verticesToBeDeployed)
 			vertex.updateExecutionState(ExecutionState.STARTING, null);
@@ -83,15 +73,19 @@ public class MockDeployManager implements DeploymentManager {
 			 */
 			@Override
 			public void run() {
-				final List<TaskSubmissionWrapper> submissionList = new SerializableArrayList<TaskSubmissionWrapper>();
+				final List<TaskDeploymentDescriptor> submissionList =
+					new SerializableArrayList<TaskDeploymentDescriptor>();
 
 				// Check the consistency of the call
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {
-					RuntimeEnvironment environment = vertex.getEnvironment();
-					environment.setInputSplitProvider(new MockInputSplitProvider(vertex));
-					submissionList.add(new TaskSubmissionWrapper(vertex.getID(), environment, vertex
-						.getExecutionGraph().getJobConfiguration(), CheckpointState.NONE, vertex
-						.constructInitialActiveOutputChannelsSet()));
+					// RuntimeEnvironment environment = vertex.getEnvironment();
+					// environment.setExecutionObserver(new MockInputSplitProvider(vertex));
+
+					submissionList.add(vertex.constructDeploymentDescriptor());
+
+					// new TaskDeploymentDescriptor(vertex.getID(), environment, vertex
+					// .getExecutionGraph().getJobConfiguration(), CheckpointState.NONE, vertex
+					// .constructInitialActiveOutputChannelsSet()));
 				}
 
 				List<TaskSubmissionResult> submissionResultList = null;
@@ -117,22 +111,6 @@ public class MockDeployManager implements DeploymentManager {
 		};
 
 		ConcurrentUtil.invokeLater(deploymentRunnable);
-	}
-
-	private final class MockInputSplitProvider implements InputSplitProvider {
-		private ExecutionVertex vertex;
-
-		final AtomicInteger sequenceNumber = new AtomicInteger(0);
-
-		public MockInputSplitProvider(ExecutionVertex vertex) {
-			this.vertex = vertex;
-		}
-
-		@Override
-		public InputSplit getNextInputSplit() {
-			return MockDeployManager.this.inputSplitManager.getNextInputSplit(this.vertex,
-				this.sequenceNumber.getAndIncrement());
-		}
 	}
 
 }

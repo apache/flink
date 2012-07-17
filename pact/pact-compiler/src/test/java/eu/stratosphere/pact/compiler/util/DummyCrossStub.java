@@ -25,7 +25,7 @@ public class DummyCrossStub extends CrossStub {
 	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void cross(PactRecord record1, PactRecord record2, Collector out) {
+	public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 		out.collect(record1);
 		out.collect(record2);
 	}

@@ -97,7 +97,7 @@
     		<artifactId>pact-runtime</artifactId>
     		<version>${version}</version>
     	</dependency>
-    	<!--<dependency>
+    	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>sopremo-common</artifactId>
     		<version>${version}</version>
@@ -106,7 +106,17 @@
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>sopremo-base</artifactId>
     		<version>${version}</version>
-    	</dependency>-->
+    	</dependency>		
+    	<dependency>
+    		<groupId>eu.stratosphere</groupId>
+    		<artifactId>sopremo-query</artifactId>
+    		<version>${version}</version>
+    	</dependency>		
+    	<dependency>
+    		<groupId>eu.stratosphere</groupId>
+    		<artifactId>meteor-meteor</artifactId>
+    		<version>${version}</version>
+    	</dependency>
     	
     	<!--  SOURCES -->
     	<dependency>

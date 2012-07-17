@@ -10,7 +10,7 @@ import java.io.ObjectOutputStream;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class MissingNode extends JsonNode implements IPrimitiveNode {
+public class MissingNode extends AbstractJsonNode implements IPrimitiveNode {
 
 	/**
 	 * 
@@ -95,6 +95,11 @@ public class MissingNode extends JsonNode implements IPrimitiveNode {
 	@Override
 	public int compareToSameType(final IJsonNode other) {
 		return 0;
+	}
+
+	@Override
+	public void copyValueFrom(IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
 	}
 
 	@SuppressWarnings("unused")

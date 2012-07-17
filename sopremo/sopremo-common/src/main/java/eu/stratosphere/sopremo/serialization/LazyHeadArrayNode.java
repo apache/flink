@@ -3,15 +3,14 @@ package eu.stratosphere.sopremo.serialization;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.AbstractArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
@@ -20,7 +19,7 @@ import eu.stratosphere.util.ConcatenatingIterator;
  * This {@link IArrayNode} supports {@link PactRecord}s more efficient by working directly with the record instead of
  * transforming it to a JsonNode. The record is handled by a {@link HeadArraySchema}.
  */
-public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
+public class LazyHeadArrayNode extends AbstractArrayNode {
 
 	/**
 	 * 
@@ -39,131 +38,13 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 	 * @param schema
 	 *        the schema that should be used for transformations
 	 */
-	public LazyHeadArrayNode(PactRecord record, HeadArraySchema schema) {
+	public LazyHeadArrayNode(final PactRecord record, final HeadArraySchema schema) {
 		this.record = record;
 		this.schema = schema;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public Iterator<IJsonNode> iterator() {
-		Iterator<IJsonNode> iterator2 = this.getOtherField().iterator();
-		Iterator<IJsonNode> iterator1 = new AbstractIterator<IJsonNode>() {
-
-			int lastIndex = 0;
-
-			@Override
-			protected IJsonNode loadNext() {
-				while (this.lastIndex < LazyHeadArrayNode.this.schema.getHeadSize()) {
-					if (!LazyHeadArrayNode.this.record.isNull(this.lastIndex)) {
-						IJsonNode value = SopremoUtil.unwrap(LazyHeadArrayNode.this.record.getField(this.lastIndex,
-							JsonNodeWrapper.class));
-						this.lastIndex++;
-						return value;
-					}
-
-					return this.noMoreElements();
-				}
-				return this.noMoreElements();
-			}
-
-		};
-
-		return new ConcatenatingIterator<IJsonNode>(iterator1, iterator2);
-	}
-
-	@Override
-	public Type getType() {
-		return Type.ArrayNode;
-	}
-
-	@Override
-	public void read(DataInput in) throws IOException {
-		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
-	}
-
-	@Override
-	public PactRecord getJavaValue() {
-		return this.record;
-	}
-
-	@Override
-	public int compareToSameType(IJsonNode other) {
-		final LazyHeadArrayNode node = (LazyHeadArrayNode) other;
-		final Iterator<IJsonNode> entries1 = this.iterator(), entries2 = node.iterator();
-
-		while (entries1.hasNext() && entries2.hasNext()) {
-			final IJsonNode entry1 = entries1.next(), entry2 = entries2.next();
-			final int comparison = entry1.compareTo(entry2);
-			if (comparison != 0)
-				return comparison;
-		}
-
-		if (!entries1.hasNext())
-			return entries2.hasNext() ? -1 : 0;
-		if (!entries2.hasNext())
-			return 1;
-		return 0;
-	}
-
-	@Override
-	public StringBuilder toString(StringBuilder sb) {
-		sb.append('[');
-
-		int count = 0;
-		for (final IJsonNode node : this) {
-			if (count > 0)
-				sb.append(',');
-			++count;
-
-			node.toString(sb);
-		}
-
-		sb.append(']');
-		return sb;
-	}
-
-	/**
-	 * Returns the last field of the record. This 'other' field stores all nodes after reaching the defined head size of
-	 * the schema.
-	 * 
-	 * @return the 'other' field of the record
-	 */
-	public IArrayNode getOtherField() {
-		return (IArrayNode) SopremoUtil.unwrap(this.record.getField(this.schema.getHeadSize(),
-			JsonNodeWrapper.class));
-	}
-
-	@Override
-	public int size() {
-		final IArrayNode others = this.getOtherField();
-		// we have to manually iterate over our record to get his size
-		// because there is a difference between NullNode and MissingNode
-		int count = 0;
-		for (int i = 0; i < this.schema.getHeadSize(); i++)
-			if (!this.record.isNull(i))
-				count++;
-			else
-				return count;
-		return count + others.size();
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.IArrayNode#isEmpty()
-	 */
-	@Override
-	public boolean isEmpty() {
-		return this.schema.getHeadSize() == 0 ? getOtherField().isEmpty() : this.record.isNull(0);
-	}
-
-	@Override
-	public IArrayNode add(IJsonNode node) {
+	public IArrayNode add(final IJsonNode node) {
 		if (node == null)
 			throw new NullPointerException();
 
@@ -178,11 +59,11 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	@Override
-	public IArrayNode add(int index, IJsonNode element) {
+	public IArrayNode add(final int index, final IJsonNode element) {
 		if (element == null)
 			throw new NullPointerException();
 
-		if (index < 0 || index > this.size()) 
+		if (index < 0 || index > this.size())
 			throw new ArrayIndexOutOfBoundsException(index);
 
 		if (index < this.schema.getHeadSize()) {
@@ -211,7 +92,34 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	@Override
-	public IJsonNode get(int index) {
+	public void clear() {
+		for (int i = 0; i < this.schema.getHeadSize(); i++)
+			this.record.setNull(i);
+
+		this.getOtherField().clear();
+	}
+
+	@Override
+	public int compareToSameType(final IJsonNode other) {
+		final LazyHeadArrayNode node = (LazyHeadArrayNode) other;
+		final Iterator<IJsonNode> entries1 = this.iterator(), entries2 = node.iterator();
+
+		while (entries1.hasNext() && entries2.hasNext()) {
+			final IJsonNode entry1 = entries1.next(), entry2 = entries2.next();
+			final int comparison = entry1.compareTo(entry2);
+			if (comparison != 0)
+				return comparison;
+		}
+
+		if (!entries1.hasNext())
+			return entries2.hasNext() ? -1 : 0;
+		if (!entries2.hasNext())
+			return 1;
+		return 0;
+	}
+
+	@Override
+	public IJsonNode get(final int index) {
 		if (index < 0 || index >= this.size())
 			return MissingNode.getInstance();
 
@@ -221,23 +129,66 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	@Override
-	public IJsonNode set(int index, IJsonNode node) {
-		if (node == null)
-			throw new NullPointerException();
+	public PactRecord getJavaValue() {
+		return this.record;
+	}
 
-		if (index < this.schema.getHeadSize()) {
-			for (int i = 0; i < index; i++)
-				if (this.record.isNull(i))
-					throw new IndexOutOfBoundsException();
-			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
-			this.record.setField(index, node);
-			return oldNode;
-		}
-		return this.getOtherField().set(index - this.schema.getHeadSize(), node);
+	/**
+	 * Returns the last field of the record. This 'other' field stores all nodes after reaching the defined head size of
+	 * the schema.
+	 * 
+	 * @return the 'other' field of the record
+	 */
+	public IArrayNode getOtherField() {
+		return (IArrayNode) SopremoUtil.unwrap(this.record.getField(this.schema.getHeadSize(),
+			JsonNodeWrapper.class));
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IArrayNode#isEmpty()
+	 */
+	@Override
+	public boolean isEmpty() {
+		return this.schema.getHeadSize() == 0 ? this.getOtherField().isEmpty() : this.record.isNull(0);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public Iterator<IJsonNode> iterator() {
+		final Iterator<IJsonNode> iterator2 = this.getOtherField().iterator();
+		final Iterator<IJsonNode> iterator1 = new AbstractIterator<IJsonNode>() {
+
+			int lastIndex = 0;
+
+			@Override
+			protected IJsonNode loadNext() {
+				while (this.lastIndex < LazyHeadArrayNode.this.schema.getHeadSize()) {
+					if (!LazyHeadArrayNode.this.record.isNull(this.lastIndex)) {
+						final IJsonNode value = SopremoUtil.unwrap(LazyHeadArrayNode.this.record.getField(
+							this.lastIndex,
+							JsonNodeWrapper.class));
+						this.lastIndex++;
+						return value;
+					}
+
+					return this.noMoreElements();
+				}
+				return this.noMoreElements();
+			}
+
+		};
+
+		return new ConcatenatingIterator<IJsonNode>(iterator1, iterator2);
 	}
 
 	@Override
-	public IJsonNode remove(int index) {
+	public void read(final DataInput in) throws IOException {
+		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
+	}
+
+	@Override
+	public IJsonNode remove(final int index) {
 		if (index < 0 || index >= this.size())
 			return MissingNode.getInstance();
 
@@ -247,9 +198,8 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 
 			for (int i = this.schema.getHeadSize() - 1; i >= index; i--) {
 				buffer = this.record.getField(i, JsonNodeWrapper.class);
-				if (buffer == null) {
+				if (buffer == null)
 					buffer = MissingNode.getInstance();
-				}
 				if (oldNode.isMissing())
 					this.record.setNull(i);
 				else
@@ -263,44 +213,55 @@ public class LazyHeadArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	@Override
-	public void clear() {
+	public IJsonNode set(final int index, final IJsonNode node) {
+		if (node == null)
+			throw new NullPointerException();
+
+		if (index < this.schema.getHeadSize()) {
+			for (int i = 0; i < index; i++)
+				if (this.record.isNull(i))
+					throw new IndexOutOfBoundsException();
+			final IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(index, JsonNodeWrapper.class));
+			this.record.setField(index, node);
+			return oldNode;
+		}
+		return this.getOtherField().set(index - this.schema.getHeadSize(), node);
+	}
+
+	@Override
+	public int size() {
+		final IArrayNode others = this.getOtherField();
+		// we have to manually iterate over our record to get his size
+		// because there is a difference between NullNode and MissingNode
+		int count = 0;
 		for (int i = 0; i < this.schema.getHeadSize(); i++)
-			this.record.setNull(i);
-
-		this.getOtherField().clear();
+			if (!this.record.isNull(i))
+				count++;
+			else
+				return count;
+		return count + others.size();
 	}
 
 	@Override
-	public IArrayNode addAll(Collection<? extends IJsonNode> c) {
-		for (IJsonNode node : c)
-			this.add(node);
+	public StringBuilder toString(final StringBuilder sb) {
+		sb.append('[');
 
-		return this;
+		int count = 0;
+		for (final IJsonNode node : this) {
+			if (count > 0)
+				sb.append(',');
+			++count;
+
+			node.toString(sb);
+		}
+
+		sb.append(']');
+		return sb;
 	}
 
 	@Override
-	public IArrayNode addAll(IArrayNode arraynode) {
-		for (IJsonNode node : arraynode)
-			this.add(node);
-
-		return this;
-	}
-
-	@Override
-	public IJsonNode[] toArray() {
-		IJsonNode[] result = new IJsonNode[this.size()];
-		int i = 0;
-		for (IJsonNode node : this)
-			result[i++] = node;
-
-		return result;
-	}
-
-	@Override
-	public IArrayNode addAll(IJsonNode[] nodes) {
-		for (IJsonNode node : nodes) 
-			this.add(node);
-		return this;
+	public void write(final DataOutput out) throws IOException {
+		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
 	}
 
 	@Override

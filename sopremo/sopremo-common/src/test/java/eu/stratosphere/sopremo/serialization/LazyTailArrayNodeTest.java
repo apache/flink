@@ -35,13 +35,11 @@ public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode> 
 	 */
 	@Override
 	public void initArrayNode() {
-		TailArraySchema schema = new TailArraySchema();
-		schema.setTailSize(5);
-		PactRecord record = schema.jsonToRecord(
+		final TailArraySchema schema = new TailArraySchema(5);
+		final PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
 		this.node = new LazyTailArrayNode(record, schema);
-
 	}
 
 	@Override
@@ -50,8 +48,7 @@ public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode> 
 
 	@Override
 	protected IJsonNode lowerNode() {
-		TailArraySchema schema = new TailArraySchema();
-		schema.setTailSize(5);
+		TailArraySchema schema = new TailArraySchema(5);
 		PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
@@ -60,8 +57,7 @@ public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode> 
 
 	@Override
 	protected IJsonNode higherNode() {
-		TailArraySchema schema = new TailArraySchema();
-		schema.setTailSize(5);
+		TailArraySchema schema = new TailArraySchema(5);
 		PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(3)), null, null);
 

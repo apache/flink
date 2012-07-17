@@ -93,7 +93,7 @@ public class Replace extends CompositeOperator<Replace> {
 	}
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
 
 		if (this.arrayElementsReplacement) {
@@ -155,7 +155,7 @@ public class Replace extends CompositeOperator<Replace> {
 				replaceAtom.withInputs(sopremoModule.getInput(0), sopremoModule.getInput(1)));
 		}
 
-		return sopremoModule.asElementary();
+		return sopremoModule.asElementary(context);
 	}
 
 	@Override

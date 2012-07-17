@@ -23,8 +23,7 @@ import java.util.Map;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.impl.Log4JLogger;
-import org.apache.log4j.Level;
+import org.apache.commons.logging.impl.SimpleLog;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -33,6 +32,7 @@ import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.type.AbstractJsonNode.Type;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
@@ -40,10 +40,9 @@ import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IPrimitiveNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.JsonNode.Type;
 import eu.stratosphere.sopremo.type.LongNode;
 import eu.stratosphere.util.reflect.BoundType;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * Provides utility methods for sopremo
@@ -52,7 +51,14 @@ public class SopremoUtil {
 
 	public static final boolean DEBUG = true;
 
-	public static final Log LOG = LogFactory.getLog(SopremoUtil.class);
+	public static final Log NORMAL_LOG = LogFactory.getLog(SopremoUtil.class), TRACE_LOG = new SimpleLog(
+		SopremoUtil.class.getName());
+
+	static {
+		((SimpleLog) TRACE_LOG).setLevel(SimpleLog.LOG_LEVEL_TRACE);
+	}
+
+	public static Log LOG = NORMAL_LOG;
 
 	public static final String CONTEXT = "context";
 
@@ -65,7 +71,8 @@ public class SopremoUtil {
 	 *        the configuration that should be used
 	 */
 	static void configureStub(final Stub stub, final Configuration parameters) {
-		for (final Field stubField : stub.getClass().getDeclaredFields())
+		final Class<? extends Stub> stubClass = stub.getClass();
+		for (final Field stubField : stubClass.getDeclaredFields())
 			if ((stubField.getModifiers() & (Modifier.TRANSIENT
 				| Modifier.FINAL | Modifier.STATIC)) == 0)
 				if (parameters.getString(stubField.getName(), null) != null)
@@ -75,11 +82,12 @@ public class SopremoUtil {
 							.deserializeCachingAware(parameters,
 								stubField.getName(),
 								stubField.getType(),
-								stubField.getGenericType()));
+								stubField.getGenericType(),
+								stubClass.getClassLoader()));
 					} catch (final Exception e) {
 						LOG.error(String.format(
 							"Could not set field %s of class %s: %s",
-							stubField.getName(), stub.getClass(),
+							stubField.getName(), stubClass,
 							StringUtils.stringifyException(e)));
 					}
 	}
@@ -96,10 +104,10 @@ public class SopremoUtil {
 	 * @return the deserialized value of the given key
 	 */
 	@SuppressWarnings("unchecked")
-	public static Object deserializeCachingAware(final Configuration config,
-			final String key, final Class<?> targetRawType,
-			final java.lang.reflect.Type targetType) {
-		final Object object = deserialize(config, key, Serializable.class);
+	public static Object deserializeCachingAware(final Configuration config, final String key,
+			final Class<?> targetRawType, final java.lang.reflect.Type targetType, final ClassLoader classLoader) {
+
+		final Object object = deserialize(config, key, Serializable.class, classLoader);
 		if (CachingExpression.class.isAssignableFrom(targetRawType)
 			&& !(object instanceof CachingExpression)) {
 			final Class<IJsonNode> cachingType;
@@ -115,17 +123,16 @@ public class SopremoUtil {
 		return object;
 	}
 
-	public static <T extends Serializable> T deserialize(
-			final Configuration config, final String key,
+	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
 			final Class<T> objectClass) {
-		return deserialize(config, key, objectClass,
-			ClassLoader.getSystemClassLoader());
+
+		return deserialize(config, key, objectClass, ClassLoader.getSystemClassLoader());
+
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T extends Serializable> T deserialize(
-			final Configuration config, final String key,
-			final Class<T> objectClass, final ClassLoader classLoader) {
+	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
+			@SuppressWarnings("unused") final Class<T> objectClass, final ClassLoader classLoader) {
 		final String string = config.getString(key, null);
 		if (string == null)
 			return null;
@@ -139,27 +146,22 @@ public class SopremoUtil {
 	 *        the datainput that contains the serialized node
 	 * @return the deserialized node
 	 */
-	public static IJsonNode deserializeNode(final DataInput in) {
+
+	public static IJsonNode deserializeNode(final DataInput in) throws IOException {
 		IJsonNode value = null;
 		try {
 			final int readInt = in.readInt();
 			if (readInt == Type.CustomNode.ordinal()) {
 				final String className = in.readUTF();
-				value = (IJsonNode) Class.forName(className).newInstance();
+				value = (IJsonNode) ReflectUtil.newInstance(Class.forName(className));
 			} else
-				value = Type.values()[readInt].getClazz().newInstance();
+				value = ReflectUtil.newInstance(Type.values()[readInt].getClazz());
 			value.read(in);
 		} catch (final ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (final InstantiationException e) {
-			e.printStackTrace();
-		} catch (final IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (final IOException e) {
-			e.printStackTrace();
+			throw new IllegalStateException("Cannot instantiate value because class is not in class path", e);
 		}
 
-		return value;
+		return value.canonicalize();
 	}
 
 	/**
@@ -175,8 +177,8 @@ public class SopremoUtil {
 	 * @throws ClassNotFoundException
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> T deserializeObject(final ObjectInputStream ois,
-			final Class<T> clazz) throws IOException, ClassNotFoundException {
+	public static <T> T deserializeObject(final ObjectInputStream ois, @SuppressWarnings("unused") final Class<T> clazz)
+			throws IOException, ClassNotFoundException {
 		if (ois.readBoolean())
 			return (T) ois.readObject();
 
@@ -389,12 +391,11 @@ public class SopremoUtil {
 	}
 
 	public static void trace() {
-		((Log4JLogger) LOG).getLogger().setLevel(Level.TRACE);
+		LOG = TRACE_LOG;
 	}
 
 	public static void untrace() {
-		((Log4JLogger) LOG).getLogger().setLevel(
-			((Log4JLogger) LOG).getLogger().getParent().getLevel());
+		LOG = NORMAL_LOG;
 	}
 
 	/**
@@ -435,24 +436,28 @@ public class SopremoUtil {
 	 *        the class that is expected for reusage
 	 * @return the IJsonNode that is prepared for reusage
 	 */
-	public static IJsonNode reuseTarget(IJsonNode target, Class<? extends JsonNode> clazz) {
-		if (target == null || !clazz.isInstance(target)) {
-
-			try {
-				target = clazz.newInstance();
-			} catch (final InstantiationException e) {
-				throw new IllegalStateException("Expected type "
-					+ clazz.toString()
-					+ " has no public parameterless constructor.");
-			} catch (final IllegalAccessException e) {
-				throw new IllegalStateException("Expected type "
-					+ clazz.toString()
-					+ " has no public parameterless constructor.");
-			}
-		}
+	@SuppressWarnings("unchecked")
+	public static <T extends IJsonNode> T reinitializeTarget(IJsonNode target, final Class<T> clazz) {
+		if (target == null || !clazz.isInstance(target))
+			target = ReflectUtil.newInstance(clazz).canonicalize();
 		else
 			target.clear();
-		return target;
+		return (T) target;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends IJsonNode> T ensureType(IJsonNode target, final Class<T> clazz) {
+		if (target == null || !clazz.isInstance(target))
+			target = ReflectUtil.newInstance(clazz).canonicalize();
+		return (T) target;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends IJsonNode> T ensureType(IJsonNode target, final Class<T> interfaceType,
+			final Class<? extends T> defaultInstantation) {
+		if (target == null || !interfaceType.isInstance(target))
+			target = ReflectUtil.newInstance(defaultInstantation).canonicalize();
+		return (T) target;
 	}
 
 	/**
@@ -465,9 +470,11 @@ public class SopremoUtil {
 	 *        the IJsonNode that should be used as the target
 	 * @return the reused IJsonNode
 	 */
-	public static IJsonNode reusePrimitive(IJsonNode source, IJsonNode target) {
-		Class<? extends IJsonNode> sourceClass = source.getClass();
-		if ((sourceClass != target.getClass()) || sourceClass.equals(BooleanNode.class) || source.isNull()) {
+	public static IJsonNode reusePrimitive(final IJsonNode source,
+			final IJsonNode target) {
+		final Class<? extends IJsonNode> sourceClass = source.getClass();
+		if (sourceClass != target.getClass()
+			|| sourceClass.equals(BooleanNode.class) || source.isNull()) {
 			return source;
 		}
 		if (!(source instanceof IPrimitiveNode)) {

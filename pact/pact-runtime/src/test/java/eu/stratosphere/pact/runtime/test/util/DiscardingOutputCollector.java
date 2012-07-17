@@ -19,7 +19,7 @@ package eu.stratosphere.pact.runtime.test.util;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-public class DiscardingOutputCollector implements Collector
+public class DiscardingOutputCollector implements Collector<PactRecord>
 {
 	@Override
 	public void collect(PactRecord rec) {}

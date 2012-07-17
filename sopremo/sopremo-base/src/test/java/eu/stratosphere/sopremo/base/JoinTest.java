@@ -7,6 +7,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.AndExpression;
+import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
@@ -20,7 +21,7 @@ public class JoinTest extends SopremoTest<Join> {
 	protected Join createDefaultInstance(final int index) {
 		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("field", createPath("0", "[" + index + "]"));
-		final EvaluationExpression condition = new ComparativeExpression(createPath("0", "id"),
+		final BooleanExpression condition = new ComparativeExpression(createPath("0", "id"),
 			BinaryOperator.EQUAL, createPath("1", "userid"));
 		return new Join().
 			withJoinCondition(condition).
@@ -47,7 +48,7 @@ public class JoinTest extends SopremoTest<Join> {
 		sopremoPlan.getExpectedOutput(0).
 			addObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance").
 			addObject("Name", "George", "EmpId", 3401, "DeptName", "Finance");
-		sopremoPlan.trace();
+		
 		sopremoPlan.run();
 	}
 
@@ -110,7 +111,7 @@ public class JoinTest extends SopremoTest<Join> {
 			addObject("name", "Jon Doe", "url", "java.sun.com/javase/6/docs/api/", "company", "oracle").
 			addObject("name", "Jane Doe", "url", "www.oracle.com", "company", "oracle").
 			addObject("name", "Max Mustermann", "url", "www.oracle.com", "company", "oracle");
-
+		
 		sopremoPlan.run();
 	}
 

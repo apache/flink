@@ -130,7 +130,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	public OutputNode getInternalOutputNodes(int index) {
 		return this.internalOutputNodes.get(index);
 	}
-	
+
 	@Override
 	public void setOutput(int index, OutputNode output) {
 		this.outputNodes[index] = output;

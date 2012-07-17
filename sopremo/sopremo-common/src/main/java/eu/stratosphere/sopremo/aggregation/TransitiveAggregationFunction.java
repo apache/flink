@@ -1,6 +1,7 @@
 package eu.stratosphere.sopremo.aggregation;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
@@ -12,8 +13,6 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	 * 
 	 */
 	private static final long serialVersionUID = -4836890030948315219L;
-
-	private transient IJsonNode aggregate;
 
 	private final IJsonNode initialAggregate;
 
@@ -31,15 +30,6 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	}
 
 	/**
-	 * Aggregates by passing the last result and the given {@link IJsonNode} to the aggregate implementation of the
-	 * subclass
-	 */
-	@Override
-	public void aggregate(final IJsonNode node, final EvaluationContext context) {
-		this.aggregate = this.aggregate(this.aggregate, node, context);
-	}
-
-	/**
 	 * This method must be implemented to specify how this function aggregates the nodes
 	 * 
 	 * @param aggregate
@@ -50,15 +40,24 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	 *        additional context informations
 	 * @return the aggregate after processing
 	 */
-	protected abstract IJsonNode aggregate(IJsonNode aggregate, IJsonNode node, EvaluationContext context);
+	public abstract IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregationTarget,
+			final EvaluationContext context);
 
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.aggregation.AggregationFunction#getFinalAggregate(eu.stratosphere.sopremo.type.IJsonNode,
+	 * eu.stratosphere.sopremo.type.IJsonNode)
+	 */
 	@Override
-	public IJsonNode getFinalAggregate() {
-		return this.aggregate;
+	public IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target) {
+		return aggregator;
 	}
 
 	@Override
-	public void initialize() {
-		this.aggregate = this.initialAggregate.clone();
+	public IJsonNode initialize(IJsonNode aggregationTarget) {
+		aggregationTarget = SopremoUtil.ensureType(aggregationTarget, this.initialAggregate.getClass());
+		aggregationTarget.copyValueFrom(this.initialAggregate);
+		return aggregationTarget;
 	}
 }

@@ -30,8 +30,8 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.io.GenericInputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.compiler.PactCompiler;
@@ -110,7 +110,7 @@ public class CustomDataTypeTest extends TestBase
 		}
 	}
 	
-	public static final class BlackholeOutputFormat extends OutputFormat
+	public static final class BlackholeOutputFormat implements OutputFormat<PactRecord>
 	{
 		@Override
 		public void configure(Configuration parameters) {

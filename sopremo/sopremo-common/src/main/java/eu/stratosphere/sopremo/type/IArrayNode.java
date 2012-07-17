@@ -127,4 +127,8 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 */
 	public abstract boolean isEmpty();
 
+	/**
+	 * @param nodes
+	 */
+	public abstract void setAll(IJsonNode[] nodes);
 }

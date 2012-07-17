@@ -21,7 +21,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
  * Abstract stub class for all PACT stubs. PACT stubs must be overwritten to provide user implementations
  * for PACT programs.
  */
-public abstract class Stub
+public interface Stub
 {
 	/**
 	 * Initialization method for the stub. It is called before the actual working methods 
@@ -70,8 +70,7 @@ public abstract class Stub
 	 * 
 	 * @see eu.stratosphere.nephele.configuration.Configuration
 	 */
-	public void open(Configuration parameters) throws Exception
-	{}
+	void open(Configuration parameters) throws Exception;
 
 	/**
 	 * Teardown method for the user code. It is called after the last call to the main working methods
@@ -84,6 +83,5 @@ public abstract class Stub
 	 *                   runtime catches an exception, it aborts the task and lets the fail-over logic
 	 *                   decide whether to retry the task execution.
 	 */
-	public void close() throws Exception
-	{}
+	void close() throws Exception;
 }

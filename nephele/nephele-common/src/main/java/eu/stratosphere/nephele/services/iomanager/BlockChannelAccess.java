@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -109,28 +110,6 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	{
 		return this.closed;
 	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#returnBuffer(eu.stratosphere.nephele.services.iomanager.Buffer)
-	 */
-	@Override
-	protected void returnBuffer(MemorySegment buffer)
-	{
-		this.returnBuffers.add(buffer);
-		
-		// decrement the number of missing buffers. If we are currently closing, notify the 
-		if (this.closed) {
-			synchronized (this.closeLock) {
-				int num = this.requestsNotReturned.decrementAndGet();
-				if (num == 0) {
-					this.closeLock.notifyAll();
-				}
-			}
-		}
-		else {
-			this.requestsNotReturned.decrementAndGet();
-		}
-	}
 	
 	/**
 	 * Closes the reader and waits until all pending asynchronous requests are
@@ -194,6 +173,27 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 		}
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.services.iomanager.ChannelAccess#returnBuffer(eu.stratosphere.nephele.services.iomanager.Buffer)
+	 */
+	@Override
+	protected void returnBuffer(MemorySegment buffer)
+	{
+		this.returnBuffers.add(buffer);
+		
+		// decrement the number of missing buffers. If we are currently closing, notify the 
+		if (this.closed) {
+			synchronized (this.closeLock) {
+				int num = this.requestsNotReturned.decrementAndGet();
+				if (num == 0) {
+					this.closeLock.notifyAll();
+				}
+			}
+		}
+		else {
+			this.requestsNotReturned.decrementAndGet();
+		}
+	}
 }
 
 //--------------------------------------------------------------------------------------------
@@ -221,7 +221,13 @@ final class SegmentReadRequest implements ReadRequest
 	{
 		final FileChannel c = this.channel.fileChannel;
 		if (c.size() - c.position() > 0) {
-			this.channel.fileChannel.read(this.segment.wrap(0, this.segment.size()));
+			try {
+				final ByteBuffer wrapper = this.segment.wrap(0, this.segment.size());
+				this.channel.fileChannel.read(wrapper);
+			} catch (NullPointerException npex) {
+				// the memory has been cleared asynchronouosly through task failing or canceling
+				// ignore the request, since the result cannot be read
+			}
 		}
 	}
 
@@ -258,7 +264,12 @@ final class SegmentWriteRequest implements WriteRequest
 	@Override
 	public void write() throws IOException
 	{
-		this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
+		try {
+			this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
+		} catch (NullPointerException npex) {
+			// the memory has been cleared asynchronouosly through task failing or canceling
+			// ignore the request, since there is nothing to write.
+		}
 	}
 
 	/* (non-Javadoc)

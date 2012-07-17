@@ -24,8 +24,8 @@ import eu.stratosphere.nephele.types.Record;
 public final class FileOutputChannel<T extends Record> extends AbstractByteBufferedOutputChannel<T> {
 
 	public FileOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			CompressionLevel compressionLevel) {
-		super(outputGate, channelIndex, channelID, compressionLevel);
+			ChannelID connectedChannelID, CompressionLevel compressionLevel) {
+		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
 	}
 
 	@Override

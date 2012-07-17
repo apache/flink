@@ -147,7 +147,6 @@ public final class LocalProperties implements Cloneable {
 		}
 		
 		return !isTrivial();
-		
 	}
 	
 	public LocalProperties createInterestingLocalProperties(OptimizerNode node, int input) {

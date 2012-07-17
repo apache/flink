@@ -66,16 +66,15 @@ public class CsvInputFormat extends TextInputFormat {
 	// public boolean reachedEnd() {
 	// return this.end;
 	// }
-
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.io.TextInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord,
-	 * byte[], int)
+	 * byte[], int, int)
 	 */
 	@Override
-	public boolean readRecord(final PactRecord target, final byte[] bytes, final int numBytes) {
+	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 		// if (!this.end) {
-		final CsvReader reader = new CsvReader(new ByteArrayInputStream(bytes), this.encoding);
+		final CsvReader reader = new CsvReader(new ByteArrayInputStream(bytes, offset, numBytes), this.encoding);
 		reader.setDelimiter(this.fieldDelimiter);
 		try {
 			if (reader.readRecord()) {

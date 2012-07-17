@@ -7,6 +7,7 @@ import java.io.OutputStreamWriter;
 
 import junit.framework.Assert;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -46,6 +47,7 @@ public class JsonInputFormatTest {
 	 * @throws IOException
 	 */
 	@Test
+	@Ignore
 	public void completeTestPasses() throws IOException {
 		final FileDataSource read = new FileDataSource(
 			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
@@ -72,6 +74,7 @@ public class JsonInputFormatTest {
 	 * @throws IOException
 	 */
 	@Test
+	@Ignore
 	public void completeTestPassesWithExpectedValues() throws IOException {
 		final FileDataSource read = new FileDataSource(
 			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");

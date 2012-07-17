@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
@@ -30,7 +31,6 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
 import eu.stratosphere.sopremo.type.LongNode;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -43,7 +43,7 @@ public class JsonParser {
 
 	private final BufferedReader reader;
 
-	private final Stack<JsonNode> state = new ObjectArrayList<JsonNode>();
+	private final Stack<AbstractJsonNode> state = new ObjectArrayList<AbstractJsonNode>();
 
 	ContainerNode root = new ContainerNode();
 
@@ -109,7 +109,7 @@ public class JsonParser {
 	 * @return the JsonNode-representation of the provided data
 	 * @throws IOException
 	 */
-	public JsonNode readValueAsTree() throws IOException {
+	public AbstractJsonNode readValueAsTree() throws IOException {
 
 		this.state.push(this.root);
 
@@ -177,7 +177,7 @@ public class JsonParser {
 	 *        the string that should be parsed
 	 * @return the created node
 	 */
-	private static JsonNode parsePrimitive(final String value) {
+	private static AbstractJsonNode parsePrimitive(final String value) {
 		if (value.equals("null"))
 			return NullNode.getInstance();
 		if (value.equals("true"))
@@ -360,13 +360,13 @@ public class JsonParser {
 	/**
 	 * {@link JsonNode} that represents an unfinished complex-node in the parsing-process.
 	 */
-	private class ContainerNode extends JsonNode {
+	private class ContainerNode extends AbstractJsonNode {
 
 		private static final long serialVersionUID = -7285733826083281420L;
 
 		private final List<String> keys = new ArrayList<String>();
 
-		private final List<JsonNode> values = new ArrayList<JsonNode>();
+		private final List<AbstractJsonNode> values = new ArrayList<AbstractJsonNode>();
 
 		/**
 		 * Adds the data contained in the given {@link StringBuilder} as a key.
@@ -384,7 +384,7 @@ public class JsonParser {
 		 * @param node
 		 *        the node that should be added as a value
 		 */
-		public void addValue(final JsonNode node) {
+		public void addValue(final AbstractJsonNode node) {
 			this.values.add(node);
 		}
 
@@ -397,7 +397,7 @@ public class JsonParser {
 		 * @return the removed JsonNode
 		 * @throws JsonParseException
 		 */
-		public JsonNode remove(final int index) throws JsonParseException {
+		public AbstractJsonNode remove(final int index) throws JsonParseException {
 			if (this.keys.isEmpty())
 				return this.values.remove(index);
 			throw new JsonParseException();
@@ -409,13 +409,13 @@ public class JsonParser {
 		 * @return the created JsonNode
 		 * @throws JsonParseException
 		 */
-		public JsonNode build() throws JsonParseException {
-			JsonNode node;
+		public AbstractJsonNode build() throws JsonParseException {
+			AbstractJsonNode node;
 
 			if (this.keys.size() == 0) {
 				// this ContainerNode represents an ArrayNode
 				node = new ArrayNode();
-				for (final JsonNode value : this.values)
+				for (final AbstractJsonNode value : this.values)
 					((IArrayNode) node).add(value);
 
 			} else {
@@ -476,6 +476,10 @@ public class JsonParser {
 
 		@Override
 		public void copyNormalizedKey(byte[] target, int offset, int len) {
+		}
+
+		public void copyValueFrom(IJsonNode otherNode) {
+
 		}
 	}
 }

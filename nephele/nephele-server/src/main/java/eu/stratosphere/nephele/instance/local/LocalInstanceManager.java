@@ -301,11 +301,14 @@ public class LocalInstanceManager implements InstanceManager {
 		final HardwareDescription hardwareDescription = HardwareDescriptionFactory.extractFromSystem();
 
 		int diskCapacityInGB = 0;
-		final String tempDir = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
-		if (tempDir != null) {
-			File f = new File(tempDir);
-			diskCapacityInGB = (int) (f.getFreeSpace() / (1024L * 1024L * 1024L));
+		final String tempDirs[] = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
+		
+		for (final String tempDir : tempDirs) {
+			if (tempDir != null) {
+				File f = new File(tempDir);
+				diskCapacityInGB = Math.max(diskCapacityInGB, (int) (f.getFreeSpace() / (1024L * 1024L * 1024L)));
+			}
 		}
 
 		final int physicalMemory = (int) (hardwareDescription.getSizeOfPhysicalMemory() / (1024L * 1024L));

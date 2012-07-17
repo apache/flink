@@ -203,7 +203,7 @@ public class VertexEvent extends AbstractEvent {
 	public String toString() {
 
 		return timestampToString(getTimestamp()) + ":\t" + this.jobVertexName + " (" + (this.indexOfSubtask + 1) + "/"
-			+ this.totalNumberOfSubtasks + ") switch to " + this.currentExecutionState
+			+ this.totalNumberOfSubtasks + ") switched to " + this.currentExecutionState
 			+ ((this.description != null) ? ("\n" + this.description) : "");
 	}
 

@@ -36,13 +36,11 @@ public class GroupingExpression extends EvaluationExpression {
 	public GroupingExpression(final EvaluationExpression groupingExpression, final EvaluationExpression resultExpression) {
 		this.groupingExpression = groupingExpression;
 		this.resultExpression = resultExpression;
-		this.expectedTarget = ArrayNode.class;
 	}
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		ArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 
 		if (((IArrayNode) node).size() == 0)
 			return target;
@@ -55,18 +53,21 @@ public class GroupingExpression extends EvaluationExpression {
 		IJsonNode groupKey = nodes.get(0).get(0);
 		for (int index = 1; index < nodes.size(); index++)
 			if (!nodes.get(index).get(0).equals(groupKey)) {
-				((IArrayNode) target).add(this.evaluateGroup(nodes.subList(groupStart, index), context));
+				targetArray.add(this.evaluateGroup(nodes.subList(groupStart, index), context));
 				groupKey = nodes.get(index).get(0);
 				groupStart = index;
 			}
 
-		((IArrayNode) target).add(this.evaluateGroup(nodes.subList(groupStart, nodes.size()), context));
+		targetArray.add(this.evaluateGroup(nodes.subList(groupStart, nodes.size()), context));
 
-		return target;
+		return targetArray;
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
 	 */
 	@Override
 	public EvaluationExpression transformRecursively(TransformFunction function) {

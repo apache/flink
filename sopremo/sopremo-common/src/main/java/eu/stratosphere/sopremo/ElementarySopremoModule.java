@@ -60,7 +60,7 @@ public class ElementarySopremoModule extends SopremoModule {
 	 * @see eu.stratosphere.sopremo.SopremoModule#asElementary()
 	 */
 	@Override
-	public ElementarySopremoModule asElementary() {
+	public ElementarySopremoModule asElementary(EvaluationContext context) {
 		return this;
 	}
 
@@ -163,7 +163,7 @@ public class ElementarySopremoModule extends SopremoModule {
 
 		private void convertDAGToModules() {
 			// final Schema schema = getSchema();
-			OneTimeTraverser.INSTANCE.traverse(getAllOutputs(),
+			OneTimeTraverser.INSTANCE.traverse(ElementarySopremoModule.this.getAllOutputs(),
 				OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 					@Override
 					public void nodeTraversed(final Operator<?> node) {
@@ -208,7 +208,7 @@ public class ElementarySopremoModule extends SopremoModule {
 
 		private List<Contract> findPACTSinks() {
 			final List<Contract> pactSinks = new ArrayList<Contract>();
-			for (final Operator<?> sink : getAllOutputs()) {
+			for (final Operator<?> sink : ElementarySopremoModule.this.getAllOutputs()) {
 				final FileDataSink[] outputs = this.modules.get(sink).getAllOutputs();
 				for (final FileDataSink outputStub : outputs)
 					if (sink instanceof Sink)
@@ -237,10 +237,9 @@ public class ElementarySopremoModule extends SopremoModule {
 	 */
 	public void inferSchema(SchemaFactory schemaFactory) {
 		final Set<EvaluationExpression> keyExpressions = new HashSet<EvaluationExpression>();
-		for (ElementaryOperator<?> operator : getReachableNodes()) {
+		for (ElementaryOperator<?> operator : this.getReachableNodes())
 			for (List<? extends EvaluationExpression> expressions : operator.getAllKeyExpressions())
 				keyExpressions.addAll(expressions);
-		}
 
 		this.schema = schemaFactory.create(keyExpressions);
 	}

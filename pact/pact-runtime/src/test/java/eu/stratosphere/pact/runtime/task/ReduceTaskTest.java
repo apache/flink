@@ -28,23 +28,24 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings("javadoc")
-public class ReduceTaskTest extends TaskTestBase {
+public class ReduceTaskTest extends TaskTestBase
+{
 
 	private static final Log LOG = LogFactory.getLog(ReduceTaskTest.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
+	final List<PactRecord> outList = new ArrayList<PactRecord>();
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testSortReduceTask() {
 
@@ -52,15 +53,20 @@ public class ReduceTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(this.outList);
 		
-		ReduceTask testTask = new ReduceTask();
+		ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
+		
 		
 		super.registerTask(testTask, MockReduceStub.class);
 		
@@ -81,23 +87,27 @@ public class ReduceTaskTest extends TaskTestBase {
 				
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testNoneReduceTask() {
 
 		int keyCnt = 100;
 		int valCnt = 20;
 		
-		super.initEnvironment(1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, true), 1);
+		super.initEnvironment(1024 * 1024);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true), 1);
 		super.addOutput(this.outList);
 		
-		ReduceTask testTask = new ReduceTask();
+		ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
 		super.getTaskConfig().setMemorySize(0);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
 		
 		super.registerTask(testTask, MockReduceStub.class);
 		
@@ -118,7 +128,6 @@ public class ReduceTaskTest extends TaskTestBase {
 				
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testCombiningReduceTask() {
 
@@ -126,15 +135,19 @@ public class ReduceTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(this.outList);
 		
-		ReduceTask testTask = new ReduceTask();
+		ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		final int[] keyPos = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[])new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -160,7 +173,6 @@ public class ReduceTaskTest extends TaskTestBase {
 		
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testFailingReduceTask() {
 
@@ -168,15 +180,20 @@ public class ReduceTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(this.outList);
 		
-		ReduceTask testTask = new ReduceTask();
+		ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[])new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
 		
 		super.registerTask(testTask, MockFailingReduceStub.class);
 		
@@ -194,7 +211,6 @@ public class ReduceTaskTest extends TaskTestBase {
 				
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testCancelReduceTaskWhileSorting() {
 		
@@ -202,12 +218,17 @@ public class ReduceTaskTest extends TaskTestBase {
 		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
 		super.addOutput(new NirvanaOutputList());
 		
-		final ReduceTask testTask = new ReduceTask();
+		final ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[])new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
 		
 		super.registerTask(testTask, MockReduceStub.class);
 		
@@ -236,7 +257,6 @@ public class ReduceTaskTest extends TaskTestBase {
 		
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testCancelReduceTaskWhileReducing() {
 		
@@ -244,15 +264,20 @@ public class ReduceTaskTest extends TaskTestBase {
 		final int valCnt = 2;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(new NirvanaOutputList());
 		
-		final ReduceTask testTask = new ReduceTask();
+		final ReduceTask<PactRecord, PactRecord> testTask = new ReduceTask<PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
 		
 		super.registerTask(testTask, MockDelayingReduceStub.class);
 		
@@ -287,7 +312,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		private final PactInteger value = new PactInteger();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int cnt = 0;
@@ -310,7 +335,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		private final PactInteger combineValue = new PactInteger();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int sum = 0;
@@ -327,7 +352,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector out)
+		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int sum = 0;
@@ -353,7 +378,7 @@ public class ReduceTaskTest extends TaskTestBase {
 		private final PactInteger value = new PactInteger();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int valCnt = 0;
@@ -376,7 +401,7 @@ public class ReduceTaskTest extends TaskTestBase {
 	public static class MockDelayingReduceStub extends ReduceStub {
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out) {
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) {
 			while(records.hasNext()) {
 				try {
 					Thread.sleep(100);

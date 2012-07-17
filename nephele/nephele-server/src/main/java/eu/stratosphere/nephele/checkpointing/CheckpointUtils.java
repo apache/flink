@@ -133,6 +133,10 @@ public final class CheckpointUtils {
 				return true;
 			}
 
+			if (!allowDistributedCheckpoints()) {
+				return false;
+			}
+
 			final Path distributedCheckpointPath = getDistributedCheckpointPath();
 			if (distributedCheckpointPath == null) {
 				return false;
@@ -167,7 +171,7 @@ public final class CheckpointUtils {
 			if (!removeCheckpointMetaData(new Path(localChPath + Path.SEPARATOR + METADATA_PREFIX + "_" + vertexID))) {
 
 				final Path distributedChPath = getDistributedCheckpointPath();
-				if (distributedChPath != null) {
+				if (distributedChPath != null && allowDistributedCheckpoints()) {
 					removeCheckpointMetaData(new Path(distributedChPath + Path.SEPARATOR + METADATA_PREFIX + "_"
 						+ vertexID));
 				}
@@ -258,7 +262,7 @@ public final class CheckpointUtils {
 		return GlobalConfiguration.getBoolean("checkpoint.useavg", false);
 	}
 
-	public static boolean createDistributedCheckpoint() {
+	public static boolean allowDistributedCheckpoints() {
 
 		return GlobalConfiguration.getBoolean("checkpoint.distributed", false);
 	}

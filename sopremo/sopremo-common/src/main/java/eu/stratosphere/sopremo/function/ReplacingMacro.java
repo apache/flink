@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.function;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * @author Arvid Heise
@@ -38,7 +39,8 @@ public class ReplacingMacro extends MacroBase {
 	 * @see eu.stratosphere.sopremo.function.Callable#call(java.lang.Object, eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationContext context) {
+	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationExpression target,
+			final EvaluationContext context) {
 		return this.replacement;
 	}
 }

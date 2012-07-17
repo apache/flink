@@ -33,13 +33,12 @@ public class GenerateExpression extends EvaluationExpression {
 		else if (patternString.indexOf("%", patternPos + 1) == -1)
 			patternString = patternString.replaceAll("%", "%s_%");
 		this.pattern = patternString;
-		this.expectedTarget = TextNode.class;
 	}
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
-		((TextNode) target).setValue(String.format(this.pattern, context.getTaskId(), this.id++));
-		return target;
+		TextNode textTarget = SopremoUtil.reinitializeTarget(target, TextNode.class);
+		textTarget.setValue(String.format(this.pattern, context.getTaskId(), this.id++));
+		return textTarget;
 	}
 }

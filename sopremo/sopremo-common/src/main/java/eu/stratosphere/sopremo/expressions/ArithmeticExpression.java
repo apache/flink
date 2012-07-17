@@ -8,16 +8,16 @@ import java.util.Map;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.NumberCoercer;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
+import eu.stratosphere.sopremo.type.AbstractJsonNode;
+import eu.stratosphere.sopremo.type.AbstractJsonNode.Type;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
-import eu.stratosphere.sopremo.type.JsonNode;
-import eu.stratosphere.sopremo.type.JsonNode.Type;
 import eu.stratosphere.sopremo.type.LongNode;
-import eu.stratosphere.sopremo.type.NumericNode;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for
@@ -35,6 +35,8 @@ public class ArithmeticExpression extends EvaluationExpression {
 	private final ArithmeticExpression.ArithmeticOperator operator;
 
 	private EvaluationExpression firstOperand, secondOperand;
+
+	private IJsonNode lastFirstValue, lastSecondValue;
 
 	/**
 	 * Returns the first operand.
@@ -105,7 +107,6 @@ public class ArithmeticExpression extends EvaluationExpression {
 		this.operator = operator;
 		this.firstOperand = op1;
 		this.secondOperand = op2;
-		this.expectedTarget = NumericNode.class;
 	}
 
 	@Override
@@ -121,8 +122,9 @@ public class ArithmeticExpression extends EvaluationExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		// TODO Reuse target (problem: result could be any kind of NumericNode)
-		return this.operator.evaluate((NumericNode) this.firstOperand.evaluate(node, null, context),
-			(NumericNode) this.secondOperand.evaluate(node, null, context));
+		this.lastFirstValue = this.firstOperand.evaluate(node, this.lastFirstValue, context);
+		this.lastSecondValue = this.secondOperand.evaluate(node, this.lastSecondValue, context);
+		return this.operator.evaluate((INumericNode) this.lastFirstValue, (INumericNode) this.lastSecondValue, target);
 	}
 
 	/*
@@ -261,19 +263,21 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 		private final String sign;
 
-		private final Map<JsonNode.Type, NumberEvaluator> typeEvaluators = new EnumMap<JsonNode.Type, NumberEvaluator>(
-			JsonNode.Type.class);
+		private final Map<AbstractJsonNode.Type, NumberEvaluator<INumericNode>> typeEvaluators =
+			new EnumMap<AbstractJsonNode.Type, NumberEvaluator<INumericNode>>(
+				AbstractJsonNode.Type.class);
 
+		@SuppressWarnings({ "rawtypes", "unchecked" })
 		private ArithmeticOperator(final String sign, final NumberEvaluator integerEvaluator,
 				final NumberEvaluator longEvaluator,
 				final NumberEvaluator doubleEvaluator, final NumberEvaluator bigIntegerEvaluator,
 				final NumberEvaluator bigDecimalEvaluator) {
 			this.sign = sign;
-			this.typeEvaluators.put(JsonNode.Type.IntNode, integerEvaluator);
-			this.typeEvaluators.put(JsonNode.Type.LongNode, longEvaluator);
-			this.typeEvaluators.put(JsonNode.Type.DoubleNode, doubleEvaluator);
-			this.typeEvaluators.put(JsonNode.Type.BigIntegerNode, bigIntegerEvaluator);
-			this.typeEvaluators.put(JsonNode.Type.DecimalNode, bigDecimalEvaluator);
+			this.typeEvaluators.put(AbstractJsonNode.Type.IntNode, integerEvaluator);
+			this.typeEvaluators.put(AbstractJsonNode.Type.LongNode, longEvaluator);
+			this.typeEvaluators.put(AbstractJsonNode.Type.DoubleNode, doubleEvaluator);
+			this.typeEvaluators.put(AbstractJsonNode.Type.BigIntegerNode, bigIntegerEvaluator);
+			this.typeEvaluators.put(AbstractJsonNode.Type.DecimalNode, bigDecimalEvaluator);
 		}
 
 		/**
@@ -285,10 +289,13 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 *        the right operand
 		 * @return the result of the operation
 		 */
-		public NumericNode evaluate(final NumericNode left, final NumericNode right) {
-			final Type widerType = NumberCoercer.INSTANCE.getWiderType(left,
-				right);
-			return this.typeEvaluators.get(widerType).evaluate(left, right);
+		public INumericNode evaluate(final INumericNode left, final INumericNode right, IJsonNode target) {
+			final Type widerType = NumberCoercer.INSTANCE.getWiderType(left, right);
+			final NumberEvaluator<INumericNode> evaluator = this.typeEvaluators.get(widerType);
+			final Class<? extends INumericNode> implementationType = evaluator.getReturnType();
+			INumericNode numericTarget = SopremoUtil.ensureType(target, implementationType);
+			evaluator.evaluate(left, right, numericTarget);
+			return numericTarget;
 		}
 
 		@Override
@@ -297,23 +304,37 @@ public class ArithmeticExpression extends EvaluationExpression {
 		}
 	}
 
-	private abstract static class BigDecimalEvaluator implements NumberEvaluator {
+	private abstract static class BigDecimalEvaluator implements NumberEvaluator<DecimalNode> {
 		protected abstract BigDecimal evaluate(BigDecimal left, BigDecimal right);
 
 		@Override
-		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
-			return DecimalNode.valueOf(this.evaluate(left.getDecimalValue(),
-				right.getDecimalValue()));
+		public void evaluate(INumericNode left, INumericNode right, DecimalNode numericTarget) {
+			numericTarget.setValue(this.evaluate(left.getDecimalValue(), right.getDecimalValue()));
+		}
+
+		@Override
+		public Class<DecimalNode> getReturnType() {
+			return DecimalNode.class;
 		}
 	}
 
-	private abstract static class BigIntegerEvaluator implements NumberEvaluator {
+	private abstract static class BigIntegerEvaluator implements NumberEvaluator<BigIntegerNode> {
 		protected abstract BigInteger evaluate(BigInteger left, BigInteger right);
 
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.sopremo.expressions.ArithmeticExpression.NumberEvaluator#evaluate(eu.stratosphere.sopremo
+		 * .type.INumericNode, eu.stratosphere.sopremo.type.INumericNode, eu.stratosphere.sopremo.type.NumericNode)
+		 */
 		@Override
-		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
-			return BigIntegerNode.valueOf(this.evaluate(left.getBigIntegerValue(),
-				right.getBigIntegerValue()));
+		public void evaluate(INumericNode left, INumericNode right, BigIntegerNode numericTarget) {
+			numericTarget.setValue(this.evaluate(left.getBigIntegerValue(), right.getBigIntegerValue()));
+		}
+
+		@Override
+		public Class<BigIntegerNode> getReturnType() {
+			return BigIntegerNode.class;
 		}
 	}
 
@@ -322,7 +343,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 	 * 
 	 * @author Arvid Heise
 	 */
-	static class DivisionEvaluator implements NumberEvaluator {
+	static class DivisionEvaluator implements NumberEvaluator<DecimalNode> {
 		private static final DivisionEvaluator INSTANCE = new DivisionEvaluator();
 
 		// This is an arbitrary value, picked as a reasonable choice for a precision
@@ -333,10 +354,15 @@ public class ArithmeticExpression extends EvaluationExpression {
 		// for typical user math.
 		public static final int DIVISION_MIN_SCALE = 10;
 
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.sopremo.expressions.ArithmeticExpression.NumberEvaluator#evaluate(eu.stratosphere.sopremo
+		 * .type.INumericNode, eu.stratosphere.sopremo.type.INumericNode, eu.stratosphere.sopremo.type.NumericNode)
+		 */
 		@Override
-		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
-			return DecimalNode.valueOf(divideImpl(left.getDecimalValue(),
-				right.getDecimalValue()));
+		public void evaluate(INumericNode left, INumericNode right, DecimalNode numericTarget) {
+			numericTarget.setValue(divideImpl(left.getDecimalValue(), right.getDecimalValue()));
 		}
 
 		public static BigDecimal divideImpl(final BigDecimal bigLeft, final BigDecimal bigRight) {
@@ -352,37 +378,58 @@ public class ArithmeticExpression extends EvaluationExpression {
 				return result;
 			}
 		}
+
+		@Override
+		public Class<DecimalNode> getReturnType() {
+			return DecimalNode.class;
+		}
 	}
 
-	private abstract static class DoubleEvaluator implements NumberEvaluator {
+	private abstract static class DoubleEvaluator implements NumberEvaluator<DoubleNode> {
 		protected abstract double evaluate(double left, double right);
 
 		@Override
-		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
-			return DoubleNode.valueOf(this.evaluate(left.getDoubleValue(),
-				right.getDoubleValue()));
+		public void evaluate(final INumericNode left, final INumericNode right, DoubleNode numericTarget) {
+			numericTarget.setValue(this.evaluate(left.getDoubleValue(), right.getDoubleValue()));
+		}
+
+		@Override
+		public Class<DoubleNode> getReturnType() {
+			return DoubleNode.class;
 		}
 	}
 
-	private abstract static class IntegerEvaluator implements NumberEvaluator {
+	private abstract static class IntegerEvaluator implements NumberEvaluator<IntNode> {
 		protected abstract int evaluate(int left, int right);
 
 		@Override
-		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
-			return IntNode.valueOf(this.evaluate(left.getIntValue(), right.getIntValue()));
+		public void evaluate(final INumericNode left, final INumericNode right, IntNode numericTarget) {
+			numericTarget.setValue(this.evaluate(left.getIntValue(), right.getIntValue()));
+		}
+
+		@Override
+		public Class<IntNode> getReturnType() {
+			return IntNode.class;
 		}
 	}
 
-	private abstract static class LongEvaluator implements NumberEvaluator {
+	private abstract static class LongEvaluator implements NumberEvaluator<LongNode> {
 		protected abstract long evaluate(long left, long right);
 
 		@Override
-		public NumericNode evaluate(final INumericNode left, final INumericNode right) {
-			return LongNode.valueOf(this.evaluate(left.getLongValue(), right.getLongValue()));
+		public void evaluate(final INumericNode left, final INumericNode right, LongNode numericTarget) {
+			numericTarget.setValue(this.evaluate(left.getLongValue(), right.getLongValue()));
+		}
+
+		@Override
+		public Class<LongNode> getReturnType() {
+			return LongNode.class;
 		}
 	}
 
-	private static interface NumberEvaluator {
-		public NumericNode evaluate(INumericNode left, INumericNode right);
+	private static interface NumberEvaluator<ReturnType extends INumericNode> {
+		public void evaluate(INumericNode left, INumericNode right, ReturnType numericTarget);
+
+		public Class<ReturnType> getReturnType();
 	}
 }

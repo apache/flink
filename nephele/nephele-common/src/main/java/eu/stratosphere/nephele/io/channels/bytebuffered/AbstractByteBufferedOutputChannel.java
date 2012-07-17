@@ -80,13 +80,15 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * @param channelIndex
 	 *        the channel's index at the associated output gate
 	 * @param channelID
-	 *        the channel ID to assign to the new channel, <code>null</code> to generate a new ID
+	 *        the ID of the channel
+	 * @param connectedChannelID
+	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
 	 */
-	public AbstractByteBufferedOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			CompressionLevel compressionLevel) {
-		super(outputGate, channelIndex, channelID, compressionLevel);
+	protected AbstractByteBufferedOutputChannel(final OutputGate<T> outputGate, final int channelIndex,
+			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
+		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
 
 		this.compressor = CompressionLoader.getCompressorByCompressionLevel(compressionLevel, this);
 	}

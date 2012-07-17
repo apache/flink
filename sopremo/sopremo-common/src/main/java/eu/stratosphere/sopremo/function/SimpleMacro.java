@@ -33,14 +33,10 @@ public abstract class SimpleMacro<In extends EvaluationExpression> extends Macro
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationContext context) {
+	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationExpression target,
+			final EvaluationContext context) {
 		return this.call((In) params[0], context);
 	}
 
-	/**
-	 * @param evaluationExpression
-	 * @param context
-	 * @return
-	 */
 	public abstract EvaluationExpression call(In inputExpr, EvaluationContext context);
 }

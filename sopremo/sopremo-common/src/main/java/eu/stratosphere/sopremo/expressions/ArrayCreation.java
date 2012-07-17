@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -22,7 +22,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = 1681947333740209285L;
 
-	private EvaluationExpression[] elements;
+	private List<EvaluationExpression> elements;
 
 	/**
 	 * Initializes ArrayCreation to create an array of the given expressions.
@@ -31,8 +31,7 @@ public class ArrayCreation extends ContainerExpression {
 	 *        the expressions that evaluate to the elements in the array
 	 */
 	public ArrayCreation(final EvaluationExpression... elements) {
-		this.elements = elements;
-		this.expectedTarget = ArrayNode.class;
+		this.elements = new ArrayList<EvaluationExpression>(Arrays.asList(elements));
 	}
 
 	/**
@@ -42,12 +41,11 @@ public class ArrayCreation extends ContainerExpression {
 	 *        the expressions that evaluate to the elements in the array
 	 */
 	public ArrayCreation(final List<EvaluationExpression> elements) {
-		this.elements = elements.toArray(new EvaluationExpression[elements.size()]);
-		this.expectedTarget = ArrayNode.class;
+		this.elements = new ArrayList<EvaluationExpression>(elements);
 	}
 
 	public int size() {
-		return this.elements.length;
+		return this.elements.size();
 	}
 
 	@Override
@@ -55,39 +53,22 @@ public class ArrayCreation extends ContainerExpression {
 		if (!super.equals(obj))
 			return false;
 		final ArrayCreation other = (ArrayCreation) obj;
-		return Arrays.equals(this.elements, other.elements);
+		return this.elements.equals(other.elements);
 	}
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		target = SopremoUtil.reuseTarget(target, this.expectedTarget);
+		IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 
-		int index = 0;
+		for (int index = 0; index < this.elements.size(); index++)
+			targetArray.add(this.elements.get(index).evaluate(node, targetArray.get(index), context));
 
-		for (final EvaluationExpression expression : this.elements)
-			((IArrayNode) target).add(expression.evaluate(node, ((IArrayNode) target).get(index++), context));
-
-		return target;
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
-	 */
-	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
-		for (int index = 0; index < this.elements.length; index++)
-			this.elements[index] = this.elements[index].transformRecursively(function);
-		return function.call(this);
+		return targetArray;
 	}
 
 	@Override
 	public int hashCode() {
-		return 53 * super.hashCode() + Arrays.hashCode(this.elements);
-	}
-
-	@Override
-	public Iterator<EvaluationExpression> iterator() {
-		return Arrays.asList(this.elements).iterator();
+		return 53 * super.hashCode() + this.elements.hashCode();
 	}
 
 	/*
@@ -96,7 +77,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	@Override
 	public List<? extends EvaluationExpression> getChildren() {
-		return Arrays.asList(this.elements);
+		return this.elements;
 	}
 
 	/*
@@ -105,11 +86,12 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	@Override
 	public void setChildren(final List<? extends EvaluationExpression> children) {
-		this.elements = children.toArray(this.elements);
+		this.elements.clear();
+		this.elements.addAll(children);
 	}
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		builder.append(Arrays.toString(this.elements));
+		appendChildExpressions(builder, this.getChildren(), ", ");
 	}
 }

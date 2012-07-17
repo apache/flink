@@ -34,7 +34,7 @@ public class SopremoPlan {
 	 * @return the converted Pact plan
 	 */
 	public Plan asPactPlan() {
-		return new Plan(checkForSinks(assemblePact()));
+		return new Plan(this.checkForSinks(this.assemblePact()));
 	}
 
 	/**
@@ -69,7 +69,7 @@ public class SopremoPlan {
 	 * @return a list of Pact sinks
 	 */
 	public Collection<Contract> assemblePact() {
-		final ElementarySopremoModule elementaryModule = this.module.asElementary();
+		final ElementarySopremoModule elementaryModule = this.module.asElementary(this.context);
 		elementaryModule.inferSchema(this.schemaFactory);
 		this.context.setSchema(elementaryModule.getSchema());
 		return elementaryModule.assemblePact(this.context);

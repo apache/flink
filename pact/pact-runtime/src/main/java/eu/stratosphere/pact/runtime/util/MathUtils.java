@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.util;
 
 
 /**
- *
+ * Collection of simple mathematical routines.
  *
  * @author Stephan Ewen
  */
@@ -46,6 +46,29 @@ public final class MathUtils
 	}
 	
 	/**
+	 * Computes the logarithm of the given value to the base of 2. This method throws an error,
+	 * if the given argument is not a power of 2.
+	 * 
+	 * @param value The value to compute the logarithm for.
+	 * @return The logarithm to the base of 2.
+	 * @throws ArithmeticException Thrown, if the given value is zero.
+	 * @throws IllegalArgumentException Thrown, if the given value is not a power of two.
+	 */
+	public static final int log2strict(int value) throws ArithmeticException, IllegalArgumentException
+	{
+		if (value == 0)
+			throw new ArithmeticException("Logarithm of zero is undefined.");
+		if ((value & (value - 1)) != 0)
+			throw new IllegalArgumentException("The given value " + value + " is not a power of two.");
+		
+		int log = 0;
+		while ((value = value >>> 1) != 0)
+			log++;
+		
+		return log;
+	}
+	
+	/**
 	 * Decrements the given number down to the closest power of two. If the argument is a
 	 * power of two, it remains unchanged.
 	 * 
@@ -55,6 +78,23 @@ public final class MathUtils
 	public static final int roundDownToPowerOf2(int value)
 	{
 		return Integer.highestOneBit(value);
+	}
+	
+	/**
+	 * Casts the given value to a 32 bit integer, if it can be safely done. If the cast would change the numeric
+	 * value, this method raises an exception.
+	 * <p>
+	 * This method is a protection in places where one expects to be able to safely case, but where unexpected
+	 * situations could make the cast unsafe and would cause hidden problems that are hard to track down.
+	 * 
+	 * @param value The value to be cast to an integer.
+	 * @return The given value as an integer.
+	 */
+	public static final int checkedDownCast(long value) {
+		if (value > Integer.MAX_VALUE) {
+			throw new IllegalArgumentException("Cannot downcast long value " + value + " to integer.");
+		}
+		return (int) value;
 	}
 	
 	// ============================================================================================

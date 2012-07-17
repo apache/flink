@@ -92,7 +92,9 @@ public class ReflectUtil {
 					break;
 				} else if (superClass.isAssignableFrom(xface))
 					minDistance = Math.min(minDistance, getDistance(superClass, xface) + 1);
-			return minDistance;
+			if (minDistance != Integer.MAX_VALUE)
+				return minDistance;
+			return getDistance(superClass, subclass.getSuperclass()) + 1;
 		}
 
 		int distance = 1;
@@ -220,5 +222,4 @@ public class ReflectUtil {
 			}
 		return methods;
 	}
-
 }

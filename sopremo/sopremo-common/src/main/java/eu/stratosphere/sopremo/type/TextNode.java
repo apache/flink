@@ -13,7 +13,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class TextNode extends JsonNode implements IPrimitiveNode {
+public class TextNode extends AbstractJsonNode implements IPrimitiveNode {
 
 	/**
 	 * 
@@ -152,10 +152,9 @@ public class TextNode extends JsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public TextNode clone() {
-		final TextNode clone = (TextNode) super.clone();
-		clone.value = new PactString(this.value.getValue());
-		return clone;
+	public void copyValueFrom(IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
+		this.value.setValue(((TextNode) otherNode).getTextValue());
 	}
 
 	@Override

@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -17,7 +18,7 @@ public class AndExpression extends BooleanExpression {
 	 */
 	private static final long serialVersionUID = 1988076954287158279L;
 
-	private final EvaluationExpression[] expressions;
+	private final List<BooleanExpression> expressions;
 
 	/**
 	 * Initializes an AndExpression with the given {@link EvaluationExpression}s.
@@ -25,13 +26,18 @@ public class AndExpression extends BooleanExpression {
 	 * @param expressions
 	 *        the expressions which evaluate to the input for this AndExpression
 	 */
-	public AndExpression(final EvaluationExpression... expressions) {
-		if (expressions.length == 0)
-			throw new IllegalArgumentException();
-		this.expressions = new EvaluationExpression[expressions.length];
-		for (int index = 0; index < expressions.length; index++)
-			this.expressions[index] = UnaryExpression.wrap(expressions[index]);
-		this.expectedTarget = BooleanNode.class;
+	public AndExpression(final BooleanExpression... expressions) {
+		this(Arrays.asList(expressions));
+	}
+
+	/**
+	 * Initializes an AndExpression with the given {@link EvaluationExpression}s.
+	 * 
+	 * @param expressions
+	 *        the expressions which evaluate to the input for this AndExpression
+	 */
+	public AndExpression(final List<? extends BooleanExpression> expressions) {
+		this.expressions = new ArrayList<BooleanExpression>(expressions);
 	}
 
 	@Override
@@ -39,28 +45,17 @@ public class AndExpression extends BooleanExpression {
 		if (!super.equals(obj))
 			return false;
 		final AndExpression other = (AndExpression) obj;
-		return Arrays.equals(this.expressions, other.expressions);
+		return this.expressions.equals(other.expressions);
 	}
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 		// we can ignore 'target' because no new Object is created
 		for (final EvaluationExpression booleanExpression : this.expressions)
-			if (booleanExpression.evaluate(node, null, context) == BooleanNode.FALSE) {
+			if (booleanExpression.evaluate(node, null, context) == BooleanNode.FALSE)
 				return BooleanNode.FALSE;
-			}
 
 		return BooleanNode.TRUE;
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions.TransformFunction)
-	 */
-	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
-		for (int index = 0; index < this.expressions.length; index++)
-			this.expressions[index] = this.expressions[index].transformRecursively(function);
-		return function.call(this);
 	}
 
 	/**
@@ -68,7 +63,7 @@ public class AndExpression extends BooleanExpression {
 	 * 
 	 * @return the expressions
 	 */
-	public EvaluationExpression[] getExpressions() {
+	public List<BooleanExpression> getExpressions() {
 		return this.expressions;
 	}
 
@@ -76,15 +71,30 @@ public class AndExpression extends BooleanExpression {
 	public int hashCode() {
 		final int prime = 41;
 		int result = super.hashCode();
-		result = prime * result + Arrays.hashCode(this.expressions);
+		result = prime * result + this.expressions.hashCode();
 		return result;
 	}
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		builder.append("(").append(this.expressions[0]).append(")");
-		for (int index = 1; index < this.expressions.length; index++)
-			builder.append(" AND ").append("(").append(this.expressions[index]).append(")");
+		builder.append("(");
+		this.appendChildExpressions(builder, this.expressions, " AND ");
+		builder.append(")");
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
+	 * .TransformFunction)
+	 */
+	@Override
+	public EvaluationExpression transformRecursively(TransformFunction function) {
+		final List<BooleanExpression> booleans =
+			BooleanExpression.ensureBooleanExpressions(this.transformChildExpressions(function, this.expressions));
+		this.expressions.clear();
+		this.expressions.addAll(booleans);
+		return function.call(this);
 	}
 
 	/**
@@ -107,9 +117,10 @@ public class AndExpression extends BooleanExpression {
 	 *        the expressions that should be used as conditions for the created AndExpression
 	 * @return the created AndExpression
 	 */
-	public static AndExpression valueOf(final List<BooleanExpression> childConditions) {
-		if (childConditions.size() == 1)
-			return valueOf(childConditions.get(0));
-		return new AndExpression(childConditions.toArray(new BooleanExpression[childConditions.size()]));
+	public static AndExpression valueOf(final List<? extends EvaluationExpression> childConditions) {
+		List<BooleanExpression> booleanExpressions = BooleanExpression.ensureBooleanExpressions(childConditions);
+		if (booleanExpressions.size() == 1)
+			return valueOf(booleanExpressions.get(0));
+		return new AndExpression(booleanExpressions.toArray(new BooleanExpression[booleanExpressions.size()]));
 	}
 }

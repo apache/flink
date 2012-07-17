@@ -16,7 +16,6 @@ package eu.stratosphere.sopremo.serialization;
 
 import junit.framework.Assert;
 
-import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -33,89 +32,82 @@ import eu.stratosphere.sopremo.type.IntNode;
  */
 public class TailArraySchemaTest {
 
-	private TailArraySchema schema;
-
-	@Before
-	public void setUp() {
-		this.schema = new TailArraySchema();
-	}
-
 	@Test
 	public void shouldConvertFromJsonToRecord() {
-		this.schema.setTailSize(2);
-		IArrayNode array = new ArrayNode();
+		final TailArraySchema schema = new TailArraySchema(2);
+		final IArrayNode array = new ArrayNode();
 		array.add(IntNode.valueOf(1));
-		PactRecord result = this.schema.jsonToRecord(array, null, null);
+		final PactRecord result = schema.jsonToRecord(array, null, null);
 
-		PactRecord expected = new PactRecord(3);
+		final PactRecord expected = new PactRecord(3);
 		expected.setField(2, SopremoUtil.wrap(IntNode.valueOf(1)));
 		expected.setField(0, SopremoUtil.wrap(new ArrayNode()));
 
-		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, this.schema.getPactSchema()));
+		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, schema.getPactSchema()));
+	}
+
+	@Test
+	public void shouldConvertFromJsonToRecordWithOthers() {
+		final TailArraySchema schema = new TailArraySchema(2);
+		final IArrayNode array = new ArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3),
+			IntNode.valueOf(4), IntNode.valueOf(5));
+		final PactRecord result = schema.jsonToRecord(array, null, null);
+
+		final PactRecord expected = new PactRecord(3);
+		expected.setField(1, SopremoUtil.wrap(IntNode.valueOf(4)));
+		expected.setField(2, SopremoUtil.wrap(IntNode.valueOf(5)));
+		// others field
+		expected.setField(0,
+			SopremoUtil.wrap(new ArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3))));
+
+		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, schema.getPactSchema()));
 	}
 
 	@Test
 	public void shouldConvertFromJsonToRecordWithoutOthers() {
-		
-		this.schema.setTailSize(2);
-		IArrayNode array = new ArrayNode(IntNode.valueOf(1), IntNode.valueOf(2));
-		PactRecord result = this.schema.jsonToRecord(array, null, null);
+		final TailArraySchema schema = new TailArraySchema(2);
+		final IArrayNode array = new ArrayNode(IntNode.valueOf(1), IntNode.valueOf(2));
+		final PactRecord result = schema.jsonToRecord(array, null, null);
 
-		PactRecord expected = new PactRecord(3);
+		final PactRecord expected = new PactRecord(3);
 		expected.setField(1, SopremoUtil.wrap(IntNode.valueOf(1)));
 		expected.setField(2, SopremoUtil.wrap(IntNode.valueOf(2)));
 		// others field
 		expected.setField(0, SopremoUtil.wrap(new ArrayNode()));
 
-		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, this.schema.getPactSchema()));
-	}
-
-	@Test
-	public void shouldConvertFromJsonToRecordWithOthers() {
-		this.schema.setTailSize(2);
-		IArrayNode array = new ArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3),
-			IntNode.valueOf(4), IntNode.valueOf(5));
-		PactRecord result = this.schema.jsonToRecord(array, null, null);
-
-		PactRecord expected = new PactRecord(3);
-		expected.setField(1, SopremoUtil.wrap(IntNode.valueOf(4)));
-		expected.setField(2, SopremoUtil.wrap(IntNode.valueOf(5)));
-		// others field
-		expected.setField(0, SopremoUtil.wrap(new ArrayNode(IntNode.valueOf(1),IntNode.valueOf(2),IntNode.valueOf(3))));
-
-		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, this.schema.getPactSchema()));
+		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, schema.getPactSchema()));
 	}
 
 	@Test
 	public void shouldConvertFromRecordToJson() {
-		PactRecord record = new PactRecord();
-		this.schema.setTailSize(4);
+		final PactRecord record = new PactRecord();
+		final TailArraySchema schema = new TailArraySchema(4);
 
 		record.setField(0, SopremoUtil.wrap(new ArrayNode(IntNode.valueOf(0))));
 		record.setField(1, SopremoUtil.wrap(IntNode.valueOf(1)));
-		record.setField(2, SopremoUtil.wrap(IntNode.valueOf(2)));		
+		record.setField(2, SopremoUtil.wrap(IntNode.valueOf(2)));
 		record.setField(3, SopremoUtil.wrap(IntNode.valueOf(3)));
 		record.setField(4, SopremoUtil.wrap(IntNode.valueOf(4)));
 
-		
-		IArrayNode expected = new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3), IntNode.valueOf(4));
-		IJsonNode result = this.schema.recordToJson(record, null);
+		final IArrayNode expected = new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2),
+			IntNode.valueOf(3), IntNode.valueOf(4));
+		final IJsonNode result = schema.recordToJson(record, null);
 
 		Assert.assertEquals(expected, result);
 	}
 
 	@Test
 	public void shouldKeepIdentityOnConversion() {
-		PactRecord record = new PactRecord(6);
-		this.schema.setTailSize(5);
+		final PactRecord record = new PactRecord(6);
+		final TailArraySchema schema = new TailArraySchema(5);
 
 		record.setField(5, SopremoUtil.wrap(IntNode.valueOf(0)));
 		record.setField(4, SopremoUtil.wrap(IntNode.valueOf(1)));
 		record.setField(0, SopremoUtil.wrap(new ArrayNode()));
 
-		IJsonNode node = this.schema.recordToJson(record, null);
-		PactRecord result = this.schema.jsonToRecord(node, null, null);
+		final IJsonNode node = schema.recordToJson(record, null);
+		final PactRecord result = schema.jsonToRecord(node, null, null);
 
-		Assert.assertTrue(PactRecordEqualer.recordsEqual(record, result, this.schema.getPactSchema()));
+		Assert.assertTrue(PactRecordEqualer.recordsEqual(record, result, schema.getPactSchema()));
 	}
 }

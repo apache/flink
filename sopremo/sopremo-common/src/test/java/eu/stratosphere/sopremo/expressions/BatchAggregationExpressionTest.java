@@ -1,17 +1,20 @@
 package eu.stratosphere.sopremo.expressions;
 
 import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+
+import java.util.Arrays;
+
 import junit.framework.Assert;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.DefaultFunctions;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 
@@ -39,16 +42,25 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 	}
 
 	@Test
-	public void should() {
+	public void shouldPerformBatch() {
 		final BatchAggregationExpression batch = new BatchAggregationExpression(DefaultFunctions.SUM);
 		batch.add(DefaultFunctions.AVERAGE);
 		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), null, this.context);
-		final IJsonNode[] expected = { new IntNode(1 + 2 + 3 + 4 + 5),
-			new DoubleNode((double) (1 + 2 + 3 + 4 + 5) / 5),
-			new DoubleNode((double) (1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5) };
-		Assert.assertEquals(JsonUtil.asArray(expected), result);
+		
+		Assert.assertTrue(result instanceof IArrayNode);
+		final IArrayNode resultArray = (IArrayNode) result;
+		final double[] doubleResult = new double[resultArray.size()];
+		for (int index = 0; index < doubleResult.length; index++) {
+			Assert.assertTrue(resultArray.get(index) instanceof INumericNode);
+			doubleResult[index] = ((INumericNode) resultArray.get(index)).getDoubleValue();
+		}
+		
+		final double[] expected = { 1 + 2 + 3 + 4 + 5,
+			(double) (1 + 2 + 3 + 4 + 5) / 5,
+			(double) (1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5 };
+		Assert.assertTrue(Arrays.equals(expected, doubleResult));
 	}
 
 	@Test

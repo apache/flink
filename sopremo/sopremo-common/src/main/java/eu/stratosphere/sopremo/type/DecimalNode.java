@@ -14,7 +14,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class DecimalNode extends NumericNode implements INumericNode {
+public class DecimalNode extends AbstractNumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -170,6 +170,12 @@ public class DecimalNode extends NumericNode implements INumericNode {
 	@Override
 	public int compareToSameType(final IJsonNode other) {
 		return this.value.compareTo(((DecimalNode) other).value);
+	}
+
+	@Override
+	public void copyValueFrom(IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
+		this.value = ((DecimalNode) otherNode).value;
 	}
 
 	@Override

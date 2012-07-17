@@ -18,11 +18,12 @@ package eu.stratosphere.nephele.services.memorymanager;
 
 import java.io.DataInput;
 import java.io.EOFException;
+import java.io.IOException;
 
 
 /**
- * This interface defines a view over a {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment} that
- * can be used to sequentially read the contents of the memory.
+ * This interface defines a view over some memory that can be used to sequentially read the contents of the memory.
+ * The view is typically backed by one or more {@link eu.stratosphere.nephele.services.memorymanager.MemorySegment}.
  *
  * @author Alexander Alexandrov
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
@@ -30,26 +31,14 @@ import java.io.EOFException;
 public interface DataInputView extends DataInput
 {
 	/**
-	 * Gets the current write position.
+	 * Skips {@code numBytes} bytes of memory. In contrast to the {@link #skipBytes(int)} method,
+	 * this method always skips the desired number of bytes or throws an {@link java.io.EOFException}.
 	 * 
-	 * @return The current write position.
-	 */
-	public int getPosition();
-
-	/**
-	 * Sets the current write position.
+	 * @param numBytes The number of bytes to skip.
 	 * 
-	 * @param position The current write position.
+	 * @throws EOFException Thrown, when less then {@code numBytes} remain in the input.
+	 * @throws IOException Thrown, if any I/O related problem occurred such that the input could not
+	 *                     be advanced to the desired position.
 	 */
-	public DataInputView setPosition(int position);
-
-	/**
-	 * Skips {@code size} memory.
-	 */
-	public DataInputView skip(int size) throws EOFException;
-
-	/**
-	 * Resets the write position to zero.
-	 */
-	public DataInputView reset();
+	public void skipBytesToRead(int numBytes) throws IOException;
 }

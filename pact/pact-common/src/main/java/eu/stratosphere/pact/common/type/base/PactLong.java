@@ -130,7 +130,7 @@ public class PactLong implements Key, NormalizableKey
 	public boolean equals(final Object obj)
 	{
 		if (obj != null & obj instanceof PactLong) {
-			return this.value == ((PactLong) obj).value;  
+			return this.value == ((PactLong) obj).value;
 		}
 		return false;
 	}

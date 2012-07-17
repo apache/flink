@@ -36,12 +36,11 @@ public abstract class SopremoMap extends MapStub {
 		if (outputSchema == null)
 			throw new IllegalStateException(
 				"Could not deserialize output schema");
-
 		this.collector = new JsonCollector(outputSchema);
 		SopremoUtil.configureStub(this, parameters);
 	}
 
-	protected EvaluationContext getContext() {
+	protected final EvaluationContext getContext() {
 		return this.context;
 	}
 
@@ -62,7 +61,7 @@ public abstract class SopremoMap extends MapStub {
 	 * .type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void map(final PactRecord record, final Collector out)
+	public void map(final PactRecord record, final Collector<PactRecord> out)
 			throws Exception {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);

@@ -1,0 +1,217 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package eu.stratosphere.pact.common.generic.types;
+
+import java.io.IOException;
+
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.pact.common.type.NormalizableKey;
+
+/**
+ * This interface describes the methods that are required for a data type to be handled by the pact
+ * runtime. Specifically, this interface contains the methods used for hashing, comparing, and creating
+ * auxiliary structures.
+ * <p>
+ * The methods in this interface depend not only on the record, but also on what fields of a record are
+ * used for the comparison or hashing. That set of fields is typically a subset of a record's fields.
+ * In general, this class assumes a contract on hash codes and equality the same way as defined for
+ * {@link java.lang.Object#equals(Object)} {@link java.lang.Object#equals(Object)}
+ * <p>
+ * Implementing classes are stateful, because several methods require to set one record as the reference for
+ * comparisons and later comparing a candidate against it. Therefore, the classes implementing this interface are
+ * not thread safe. The runtime will ensure that no instance is used twice in different threads, but will create
+ * a copy for that purpose. It is hence imperative that the copied created by the {@link #duplicate()} method
+ * share no state with the instance from which they were copied: They have to be deep copies.  
+ *
+ * @see java.lang.Object#hashCode()
+ * @see java.lang.Object#equals(Object)
+ * @see java.util.Comparator#compare(Object, Object)
+ *
+ * @author Stephan Ewen
+ * 
+ * @param T The data type that the comparator works on.
+ */
+public interface TypeComparator<T>
+{	
+	/**
+	 * Computes a hash value for the given record. The hash value should include all fields in the record
+	 * relevant to the comparison.
+	 * <p>
+	 * The hash code is typically not used as it is in hash tables and for partitioning, but it is further
+	 * scrambled to make sure that a projection of the hash values to a lower cardinality space is as
+	 * results in a rather uniform value distribution.
+	 * However, any collisions produced by this method cannot be undone. While it is NOT
+	 * important to create hash codes that cover the full spectrum of bits in the integer, it IS important 
+	 * to avoid collisions when combining two value as good as possible.
+	 * 
+	 * @param record The record to be hashed.
+	 * @return A hash value for the record.
+	 * 
+	 * @see java.lang.Object#hashCode()
+	 */
+	public int hash(T record);
+	
+	/**
+	 * Sets the given element as the comparison reference for future calls to
+	 * {@link #equalToReference(Object)} and {@link #compareToReference(TypeComparator)}. This method
+	 * must set the given element into this comparator instance's state. If the comparison happens on a subset
+	 * of the fields from the record, this method may extract those fields.
+	 * <p>
+	 * A typical example for checking the equality of two elements is the following:
+	 * <pre>
+	 * E e1 = ...;
+	 * E e2 = ...;
+	 * 
+	 * TypeComparator<E> acc = ...;
+	 * 
+	 * acc.setReference(e1);
+	 * boolean equal = acc.equalToReference(e2);
+	 * </pre>
+	 * 
+	 * The rational behind this method is that elements are typically compared using certain features that
+	 * are extracted from them, (such de-serializing as a subset of fields). When setting the
+	 * reference, this extraction happens. The extraction needs happen only once per element,
+	 * even though an element is often compared to multiple other elements, such as when finding equal elements
+	 * in the process of grouping the elements.
+	 * 
+	 * @param toCompare The element to set as the comparison reference.
+	 */
+	public void setReference(T toCompare);
+	
+	/**
+	 * Checks, whether the given element is equal to the element that has been set as the comparison
+	 * reference in this comparator instance.
+	 * 
+	 * @param candidate The candidate to check.
+	 * @return True, if the element is equal to the comparison reference, false otherwise.
+	 * 
+	 * @see #setReference(Object)
+	 */
+	public boolean equalToReference(T candidate);
+	
+	/**
+	 * This method compares the element that has been set as reference in this type accessor, to the
+	 * element set as reference in the given type accessor. Similar to comparing two
+	 * elements {@code e1} and {@code e2} via a comparator, this method can be used the
+	 * following way.
+	 * 
+	 * <pre>
+	 * E e1 = ...;
+	 * E e2 = ...;
+	 * 
+	 * TypeComparator<E> acc1 = ...;
+	 * TypeComparator<E> acc2 = ...;
+	 * 
+	 * acc1.setReference(e1);
+	 * acc2.setReference(e2);
+	 * 
+	 * int comp = acc1.compareToReference(acc2);
+	 * </pre>
+	 * 
+	 * The rational behind this method is that elements are typically compared using certain features that
+	 * are extracted from them, (such de-serializing as a subset of fields). When setting the
+	 * reference, this extraction happens. The extraction needs happen only once per element,
+	 * even though an element is typically compared to many other elements when establishing a
+	 * sorted order. The actual comparison performed by this method may be very cheap, as it
+	 * happens on the extracted features.
+	 * 
+	 * @param referencedComparator The type accessors where the element for comparison has been set
+	 *                            as reference.
+	 * 
+	 * @return A value smaller than zero, if the reference value of {@code referencedAccessors} is smaller
+	 *         than the reference value of this type accessor; a value greater than zero, if it is larger;
+	 *         zero, if both are equal.
+	 * 
+	 * @see #setReference(Object)
+	 */
+	public int compareToReference(TypeComparator<T> referencedComparator);
+	
+	/**
+	 * Compares two records in serialized from. The return value indicates the order of the two in the same way
+	 * as defined by {@link java.util.Comparator#compare(Object, Object)}.
+	 * <p>
+	 * This method may de-serialize the records or compare them directly based on their binary representation. 
+	 * 
+	 * @param firstSource The input view containing the first record.
+	 * @param secondSource The input view containing the second record.
+	 * @return An integer defining
+	 * @throws IOException Thrown, if any of the input views raised an exception when reading the records.
+	 * 
+	 *  @see java.util.Comparator#compare(Object, Object)
+	 */
+	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException;
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Checks whether the data type supports the creation of a normalized key for comparison.
+	 * 
+	 * @return True, if the data type supports the creation of a normalized key for comparison, false otherwise.
+	 */
+	public boolean supportsNormalizedKey();
+
+	/**
+	 * Gets the number of bytes that the normalized key would maximally take. A value of
+	 * {@link java.lang.Integer.MAX_VALUE} is interpreted as infinite.
+	 * 
+	 * @return The number of bytes that the normalized key would maximally take.
+	 */
+	public int getNormalizeKeyLen();
+	
+	/**
+	 * Checks, whether the given number of bytes for a normalized suffice to determine the order of elements
+	 * of the data type for which this comparator provides the comparison methods. For example, if the
+	 * data type is ordered with respect to an integer value it contains, then this method would return
+	 * true, if the number of key bytes was larger or equal to four.
+	 * 
+	 * @return True, if the given number of bytes for a normalized suffice to determine the order of elements,
+	 *         false otherwise.
+	 */
+	public boolean isNormalizedKeyPrefixOnly(int keyBytes);
+	
+	/**
+	 * Writes a normalized key for the given record into the target byte array, starting at the specified position
+	 * an writing exactly the given number of bytes. Note that the comparison of the bytes is treating the bytes
+	 * as unsigned bytes: {@code int byteI = bytes[i] & 0xFF;}
+	 * <p>
+	 * If the meaningful part of the normalized key takes less than the given number of bytes, than it must be padded.
+	 * Padding is typically required for variable length data types, such as strings. The padding uses a special
+	 * character, either {@code 0} or {@code 0xff}, depending on whether shorter values are sorted to the beginning or
+	 * the end. 
+	 * <p>
+	 * This method is similar to {@link NormalizableKey#copyNormalizedKey(byte[], int, int)}. In the case that
+	 * multiple fields of a record contribute to the normalized key, it is crucial that the fields align on the
+	 * byte field, i.e. that every field always takes up the exact same number of bytes.
+	 * 
+	 * @param record The record for which to create the normalized key.
+	 * @param target The byte array into which to write the normalized key bytes.
+	 * @param offset The offset in the byte array, where to start writing the normalized key bytes.
+	 * @param numBytes The number of bytes to be written exactly. 
+	 * 
+	 * @see NormalizableKey#copyNormalizedKey(byte[], int, int)
+	 */
+	public void putNormalizedKey(T record, byte[] target, int offset, int numBytes);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Creates a copy of this class. The copy must be deep such that no state set in the copy affects this
+	 * instance of the comparator class.
+	 * 
+	 * @return A deep copy of this comparator instance.
+	 */
+	public TypeComparator<T> duplicate();
+}

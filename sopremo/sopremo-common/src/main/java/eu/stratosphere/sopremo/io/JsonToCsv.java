@@ -176,7 +176,7 @@ public class JsonToCsv {
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void map(final PactRecord record, final Collector out) throws Exception {
+		public void map(final PactRecord record, final Collector<PactRecord> out) throws Exception {
 			final StringBuilder string = new StringBuilder();
 
 			this.node = this.schema.recordToJson(record, this.node);
@@ -196,7 +196,7 @@ public class JsonToCsv {
 		 */
 		private void discoverEntries(final IJsonNode value, final LinkedList<EvaluationExpression> path) {
 			if (value instanceof ObjectNode)
-				for (final Entry<String, IJsonNode> entry : ((IObjectNode) value).getEntries()) {
+				for (final Entry<String, IJsonNode> entry : (IObjectNode) value) {
 					path.push(new ObjectAccess(entry.getKey()));
 					this.discoverEntries(entry.getValue(), path);
 					path.pop();

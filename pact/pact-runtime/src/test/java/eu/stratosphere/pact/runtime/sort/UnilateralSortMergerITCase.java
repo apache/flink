@@ -29,8 +29,12 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
@@ -63,27 +67,35 @@ public class UnilateralSortMergerITCase
 	private IOManager ioManager;
 
 	private MemoryManager memoryManager;
+	
+	private TypeSerializer<PactRecord> pactRecordSerializer;
+	
+	private TypeComparator<PactRecord> pactRecordComparator;
 
 	// --------------------------------------------------------------------------------------------
 
+	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
-		ioManager = new IOManager();
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.ioManager = new IOManager();
+		
+		this.pactRecordSerializer = PactRecordSerializer.get();
+		this.pactRecordComparator = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 	}
 
 	@After
 	public void afterTest() {
-		ioManager.shutdown();
-		if (!ioManager.isProperlyShutDown()) {
+		this.ioManager.shutdown();
+		if (!this.ioManager.isProperlyShutDown()) {
 			Assert.fail("I/O Manager was not properly shut down.");
 		}
 		
-		if (memoryManager != null) {
+		if (this.memoryManager != null) {
 			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.", 
-				memoryManager.verifyEmpty());
-			memoryManager.shutdown();
-			memoryManager = null;
+				this.memoryManager.verifyEmpty());
+			this.memoryManager.shutdown();
+			this.memoryManager = null;
 		}
 	}
 
@@ -101,10 +113,9 @@ public class UnilateralSortMergerITCase
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
 		
-		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 2,
-			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
-			source, this.parentTask, 0.9f);
+		Sorter<PactRecord> merger = new UnilateralSortMerger<PactRecord>(this.memoryManager, this.ioManager, 
+			source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
+			64 * 1024 * 1024, 2, 0.9f);
 
 		// emit data
 		LOG.debug("Reading and sorting data...");
@@ -149,10 +160,9 @@ public class UnilateralSortMergerITCase
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
 		
-		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 64 * 1024 * 1024, 1 * 1024 * 1024, 10, 2,
-			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
-			source, this.parentTask, 0.9f);
+		Sorter<PactRecord> merger = new UnilateralSortMerger<PactRecord>(this.memoryManager, this.ioManager, 
+				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
+				64 * 1024 * 1024, 10, 2, 0.9f);
 
 		// emit data
 		LOG.debug("Reading and sorting data...");
@@ -197,10 +207,9 @@ public class UnilateralSortMergerITCase
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
 		
-		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 16 * 1024 * 1024, 64,
-			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
-			source, this.parentTask, 0.7f);
+		Sorter<PactRecord> merger = new UnilateralSortMerger<PactRecord>(this.memoryManager, this.ioManager, 
+				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
+				16 * 1024 * 1024, 64, 0.7f);
 
 		// emit data
 		LOG.debug("Reading and sorting data...");
@@ -248,10 +257,9 @@ public class UnilateralSortMergerITCase
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
 		
-		@SuppressWarnings("unchecked")
-		SortMerger merger = new UnilateralSortMerger(this.memoryManager, this.ioManager, 1024 * 1024 * 64, 16, 
-			new Comparator[] {keyComparator}, new int[] {0}, new Class[] {TestData.Key.class},
-			source, this.parentTask, 0.7f);
+		Sorter<PactRecord> merger = new UnilateralSortMerger<PactRecord>(this.memoryManager, this.ioManager, 
+				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
+				64 * 1024 * 1024, 16, 0.7f);
 		
 		// emit data
 		LOG.debug("Emitting data...");

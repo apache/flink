@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
@@ -21,7 +20,7 @@ public class MethodCall extends ContainerExpression {
 
 	private final String function;
 
-	private EvaluationExpression[] paramExprs;
+	private List<CachingExpression<IJsonNode>> paramExprs;
 
 	/**
 	 * Initializes a MethodCall with the given function name and expressions which evaluate to the method parameters.
@@ -33,7 +32,20 @@ public class MethodCall extends ContainerExpression {
 	 */
 	public MethodCall(final String function, final EvaluationExpression... params) {
 		this.function = function;
-		this.paramExprs = params;
+		this.paramExprs = CachingExpression.listOfAny(Arrays.asList(params));
+	}
+
+	/**
+	 * Initializes a MethodCall with the given function name and expressions which evaluate to the method parameters.
+	 * 
+	 * @param function
+	 *        the name of the function that should be called
+	 * @param params
+	 *        expressions which evaluate to the method parameters
+	 */
+	public MethodCall(final String function, final List<EvaluationExpression> params) {
+		this.function = function;
+		this.paramExprs = CachingExpression.listOfAny(params);
 	}
 
 	@Override
@@ -41,44 +53,24 @@ public class MethodCall extends ContainerExpression {
 		if (!super.equals(obj))
 			return false;
 		final MethodCall other = (MethodCall) obj;
-		return this.function.equals(other.function)
-			&& Arrays.equals(this.paramExprs, other.paramExprs);
+		return this.function.equals(other.function) && this.paramExprs.equals(other.paramExprs);
 	}
 
 	@Override
 	public int hashCode() {
 		int hash = super.hashCode();
 		hash = hash * 53 + this.function.hashCode();
-		hash = hash * 53 + Arrays.hashCode(this.paramExprs);
+		hash = hash * 53 + this.paramExprs.hashCode();
 		return hash;
 	}
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		// TODO Reuse target (problem: result could be any kind of JsonNode)
-		final IJsonNode[] params = new IJsonNode[this.paramExprs.length];
+		final IJsonNode[] params = new IJsonNode[this.paramExprs.size()];
 		for (int index = 0; index < params.length; index++)
-			params[index] = this.paramExprs[index].evaluate(node, null, context);
+			params[index] = this.paramExprs.get(index).evaluate(node, context);
 
-		return context.getFunctionRegistry().evaluate(this.function, JsonUtil.asArray(params), context);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
-	 */
-	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
-		for (int index = 0; index < paramExprs.length; index++)
-			paramExprs[index] = paramExprs[index].transformRecursively(function);
-		return function.call(this);
-	}
-
-	@Override
-	public Iterator<EvaluationExpression> iterator() {
-		return Arrays.asList(this.paramExprs).iterator();
+		return context.getFunctionRegistry().evaluate(this.function, JsonUtil.asArray(params), target, context);
 	}
 
 	/*
@@ -87,7 +79,7 @@ public class MethodCall extends ContainerExpression {
 	 */
 	@Override
 	public List<? extends EvaluationExpression> getChildren() {
-		return Arrays.asList(this.paramExprs);
+		return this.paramExprs;
 	}
 
 	/*
@@ -96,18 +88,14 @@ public class MethodCall extends ContainerExpression {
 	 */
 	@Override
 	public void setChildren(final List<? extends EvaluationExpression> children) {
-		this.paramExprs = children.toArray(this.paramExprs);
+		this.paramExprs = CachingExpression.listOfAny(children);
 	}
 
 	@Override
 	public void toString(final StringBuilder builder) {
 		builder.append(this.function);
 		builder.append('(');
-		for (int index = 0; index < this.paramExprs.length; index++) {
-			builder.append(this.paramExprs[index]);
-			if (index < this.paramExprs.length - 1)
-				builder.append(", ");
-		}
+		appendChildExpressions(builder, this.getChildren(), ", ");
 		builder.append(')');
 	}
 

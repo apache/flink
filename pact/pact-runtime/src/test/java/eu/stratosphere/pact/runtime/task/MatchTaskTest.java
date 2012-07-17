@@ -26,21 +26,23 @@ import org.junit.Test;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings( {"javadoc", "unchecked"} )
-public class MatchTaskTest extends TaskTestBase {
 
+public class MatchTaskTest extends TaskTestBase
+{
 	private static final Log LOG = LogFactory.getLog(MatchTaskTest.class);
 	
-	List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 
 	@Test
 	public void testSortBoth1MatchTask() {
@@ -52,18 +54,25 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 2;
 				
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -92,18 +101,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
-
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -132,18 +147,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -172,18 +193,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -212,18 +239,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -252,18 +285,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -293,18 +332,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(5 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -334,18 +379,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(3 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, true), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, true), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -374,18 +425,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockFailingMatchStub.class);
 		
@@ -411,17 +468,23 @@ public class MatchTaskTest extends TaskTestBase {
 		
 		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
-
+		
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -456,18 +519,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -502,18 +571,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockDelayingMatchStub.class);
 		
@@ -553,19 +628,25 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 2;
 				
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -594,18 +675,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -634,18 +721,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -674,18 +767,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 1;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -714,18 +813,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -754,18 +859,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockFailingMatchStub.class);
 		
@@ -792,18 +903,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt2 = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt2, valCnt2, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
 		super.addOutput(this.outList);
 		
-		MatchTask testTask = new MatchTask();
+		MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockFailingMatchStub.class);
 		
@@ -828,17 +945,23 @@ public class MatchTaskTest extends TaskTestBase {
 		
 		super.initEnvironment(6 * 1024 * 1024);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -873,18 +996,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addInput(new DelayingInfinitiveInputIterator(100), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockMatchStub.class);
 		
@@ -919,18 +1048,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockDelayingMatchStub.class);
 		
@@ -966,18 +1101,24 @@ public class MatchTaskTest extends TaskTestBase {
 		int valCnt = 20;
 		
 		super.initEnvironment(6 * 1024 * 1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 2);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 2);
 		super.addOutput(new NirvanaOutputList());
 		
-		final MatchTask testTask = new MatchTask();
+		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(4);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(1, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
 
+		final int[] keyPos1 = new int[]{0};
+		final int[] keyPos2 = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
 		
 		super.registerTask(testTask, MockDelayingMatchStub.class);
 		
@@ -1011,7 +1152,7 @@ public class MatchTaskTest extends TaskTestBase {
 	public static class MockMatchStub extends MatchStub {
 
 		@Override
-		public void match(PactRecord record1, PactRecord record2, Collector out) throws Exception {
+		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) throws Exception {
 			out.collect(record1);
 		}
 		
@@ -1022,7 +1163,7 @@ public class MatchTaskTest extends TaskTestBase {
 		int cnt = 0;
 		
 		@Override
-		public void match(PactRecord record1, PactRecord record2, Collector out) {
+		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 			
 			if(++this.cnt>=10) {
 				throw new RuntimeException("Expected Test Exception");
@@ -1038,7 +1179,7 @@ public class MatchTaskTest extends TaskTestBase {
 	public static class MockDelayingMatchStub extends MatchStub {
 
 		@Override
-		public void match(PactRecord record1, PactRecord record2, Collector out) {
+		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
 			
 			try {
 				Thread.sleep(100);

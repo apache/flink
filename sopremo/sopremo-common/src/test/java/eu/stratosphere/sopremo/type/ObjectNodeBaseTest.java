@@ -14,16 +14,18 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.type;
 
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
+import java.util.TreeMap;
 
 import junit.framework.Assert;
 
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import eu.stratosphere.pact.testing.AssertUtil;
 
 /**
  * @author Michael Hopstock
@@ -39,7 +41,11 @@ public abstract class ObjectNodeBaseTest<T extends IObjectNode> extends JsonNode
 	}
 
 	@Before
-	public abstract void initObjectNode();
+	public void initObjectNode() {
+		this.node = createObjectNode();
+	}
+
+	public abstract T createObjectNode();
 
 	@Test
 	public void shouldSetAndGetValue() {
@@ -49,7 +55,7 @@ public abstract class ObjectNodeBaseTest<T extends IObjectNode> extends JsonNode
 
 	@Test
 	public void shouldHaveCorrectSize() {
-		this.node.removeAll();
+		this.node.clear();
 		Assert.assertEquals(0, this.node.size());
 		this.node.put("key1", IntNode.valueOf(23)).put("key2", IntNode.valueOf(42));
 		Assert.assertEquals(2, this.node.size());
@@ -69,8 +75,8 @@ public abstract class ObjectNodeBaseTest<T extends IObjectNode> extends JsonNode
 
 	@Test
 	public void shouldCreateIterator() {
-		this.node.removeAll();
-		Map<String, IJsonNode> expected = new HashMap<String, IJsonNode>();
+		this.node.clear();
+		Map<String, IJsonNode> expected = new TreeMap<String, IJsonNode>();
 
 		for (int i = 0; i < 5; i++) {
 			String key = "key" + i;
@@ -80,8 +86,8 @@ public abstract class ObjectNodeBaseTest<T extends IObjectNode> extends JsonNode
 			this.node.put(key, value);
 		}
 
-		Set<Entry<String, IJsonNode>> it = this.node.getEntries();
-		Assert.assertEquals(expected.entrySet(), it);
+		Iterator<Entry<String, IJsonNode>> it = this.node.iterator();
+		AssertUtil.assertIteratorEquals(expected.entrySet().iterator(), it);
 	}
 
 	@Test

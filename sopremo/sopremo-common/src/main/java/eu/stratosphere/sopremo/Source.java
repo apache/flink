@@ -10,7 +10,6 @@ import java.util.Map.Entry;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.io.FileInputFormat;
-import eu.stratosphere.pact.common.io.GeneratorInputFormat;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -90,7 +89,7 @@ public class Source extends ElementaryOperator<Source> {
 
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
-		final String inputPath = this.inputPath, name = getName();
+		final String inputPath = this.inputPath, name = this.getName();
 		GenericDataSource<?> contract;
 		if (this.isAdhoc()) {
 			contract = new GenericDataSource<GeneratorInputFormat>(
@@ -145,7 +144,7 @@ public class Source extends ElementaryOperator<Source> {
 		if (this.getClass() != obj.getClass())
 			return false;
 		final Source other = (Source) obj;
-		return (this.inputPath == null ? other.inputFormat == null
+		return (this.inputPath == null ? other.inputPath == null
 			: this.inputPath.equals(other.inputPath))
 			&& (this.adhocExpression == null ? this.adhocExpression == null
 				: this.adhocExpression.equals(other.adhocExpression));

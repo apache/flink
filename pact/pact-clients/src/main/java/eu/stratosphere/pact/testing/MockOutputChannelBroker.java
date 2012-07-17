@@ -110,7 +110,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 		return !this.queuedOutgoingEnvelopes.isEmpty();
 	}
 
-	protected void flushQueuedOutgoingEnvelopes() {
+	protected void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
 		while (!this.queuedOutgoingEnvelopes.isEmpty())
 			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(this.queuedOutgoingEnvelopes.poll());
 	}

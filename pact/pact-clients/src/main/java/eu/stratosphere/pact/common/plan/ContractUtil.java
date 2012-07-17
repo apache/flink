@@ -1,6 +1,7 @@
 package eu.stratosphere.pact.common.plan;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,10 +20,10 @@ import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.contract.SingleInputContract;
+import eu.stratosphere.pact.common.generic.io.InputFormat;
+import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.InputFormat;
-import eu.stratosphere.pact.common.io.OutputFormat;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.MapStub;
@@ -155,5 +156,21 @@ public class ContractUtil {
 			((DualInputContract<?>) contract).setFirstInputs(inputs.get(0));
 			((DualInputContract<?>) contract).setSecondInputs(inputs.get(1));
 		}
+	}
+
+	/**
+	 * Swaps two inputs of the given contract.
+	 * 
+	 * @param contract
+	 *        the contract
+	 * @param input1
+	 *        the first input index
+	 * @param input2
+	 *        the second input index
+	 */
+	public static void swapInputs(Contract contract, int input1, int input2) {
+		final List<List<Contract>> inputs = new ArrayList<List<Contract>>(getInputs(contract));
+		Collections.swap(inputs, input1, input2);
+		setInputs(contract, inputs);
 	}
 }

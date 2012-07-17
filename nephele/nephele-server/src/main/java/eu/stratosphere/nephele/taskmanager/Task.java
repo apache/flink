@@ -21,12 +21,10 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
-import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
-import eu.stratosphere.nephele.template.InputSplitProvider;
 
 public interface Task {
 
@@ -80,30 +78,6 @@ public interface Task {
 	void killExecution();
 
 	/**
-	 * Registers the central memory manager with the task.
-	 * 
-	 * @param memoryManager
-	 *        the central memory manager
-	 */
-	void registerMemoryManager(MemoryManager memoryManager);
-
-	/**
-	 * Registers the central IO manager with the task.
-	 * 
-	 * @param ioManager
-	 *        the central IO manager
-	 */
-	void registerIOManager(IOManager ioManager);
-
-	/**
-	 * Registers the input splits provider with the task.
-	 * 
-	 * @param inputSplitProvider
-	 *        the input split provider
-	 */
-	void registerInputSplitProvider(InputSplitProvider inputSplitProvider);
-
-	/**
 	 * Registers the task manager profiler with the task.
 	 * 
 	 * @param taskManagerProfiler
@@ -136,5 +110,6 @@ public interface Task {
 	 */
 	ExecutionState getExecutionState();
 
-	TaskContext createTaskContext(TransferEnvelopeDispatcher transferEnvelopeDispatcher, LocalBufferPoolOwner previousBufferPoolOwner);
+	TaskContext createTaskContext(TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+			LocalBufferPoolOwner previousBufferPoolOwner);
 }

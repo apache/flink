@@ -19,8 +19,6 @@ import java.io.Closeable;
 
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
-
-
 /**
  * Utility interface for a provider of an input that can be closed.
  *

@@ -55,6 +55,11 @@ public final class ConfigConstants {
 	 * The key for the config parameter defining the directories for temporary files.
 	 */
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
+	
+	/**
+	 * The key for the config parameter defining the default number of retries for failed tasks.
+	 */
+	public static final String JOB_EXECUTION_RETRIES_KEY = "job.execution.retries";
 
 	/**
 	 * The key for the config parameter defining the amount of memory available for the task manager's
@@ -90,6 +95,11 @@ public final class ConfigConstants {
 	 * The default amount of memory assigned to each task manager (in megabytes).
 	 */
 	public static final int DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY = 512;
+	
+	/**
+	 * The default number of retries for failed tasks.
+	 */
+	public static final int DEFAULT_JOB_EXECUTION_RETRIES = 2;
 
 	/**
 	 * The default minimal amount of memory that the memory manager does not occupy (in megabytes).

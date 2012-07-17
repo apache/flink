@@ -16,7 +16,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class IntNode extends NumericNode implements INumericNode, NormalizableKey {
+public class IntNode extends AbstractNumericNode implements INumericNode {
 
 	/**
 	 * 
@@ -156,10 +156,9 @@ public class IntNode extends NumericNode implements INumericNode, NormalizableKe
 	}
 
 	@Override
-	public IntNode clone() {
-		final IntNode clone = (IntNode) super.clone();
-		clone.value = new PactInteger(this.value.getValue());
-		return clone;
+	public void copyValueFrom(IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
+		this.value.setValue(((IntNode) otherNode).getIntValue());
 	}
 
 	@Override
@@ -181,5 +180,9 @@ public class IntNode extends NumericNode implements INumericNode, NormalizableKe
 	@Override
 	public void copyNormalizedKey(byte[] target, int offset, int len) {
 		this.value.copyNormalizedKey(target, offset, len);
+	}
+
+	public void increment() {
+		this.value.setValue(this.value.getValue() + 1);
 	}
 }

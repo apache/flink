@@ -19,10 +19,11 @@ public class OuterJoin extends TwoSourceJoinBase<OuterJoin> {
 	 * Sets the mode of the outer join.
 	 * 
 	 * @param mode
-	 *            the mode to set
+	 *        the mode to set
 	 */
 	public void setMode(Mode mode) {
-		if (mode == null) throw new NullPointerException("mode must not be null");
+		if (mode == null)
+			throw new NullPointerException("mode must not be null");
 
 		this.mode = mode;
 	}
@@ -31,11 +32,11 @@ public class OuterJoin extends TwoSourceJoinBase<OuterJoin> {
 	 * Sets the mode of the outer join.
 	 * 
 	 * @param mode
-	 *            the mode to set
+	 *        the mode to set
 	 * @return this
 	 */
 	public OuterJoin withMode(Mode mode) {
-		setMode(mode);
+		this.setMode(mode);
 		return this;
 	}
 
@@ -43,14 +44,14 @@ public class OuterJoin extends TwoSourceJoinBase<OuterJoin> {
 	 * Sets the mode of the outer join.
 	 * 
 	 * @param retainLeft
-	 *            whether left side should be retained
+	 *        whether left side should be retained
 	 * @param retainRight
-	 *            whether right side should be retained
+	 *        whether right side should be retained
 	 * @return this
 	 */
 	public OuterJoin withMode(boolean retainLeft, boolean retainRight) {
 		int modeIndex = (retainLeft ? 1 : 0) + 2 * (retainRight ? 1 : 0);
-		setMode(Mode.values()[modeIndex]);
+		this.setMode(Mode.values()[modeIndex]);
 		return this;
 	}
 

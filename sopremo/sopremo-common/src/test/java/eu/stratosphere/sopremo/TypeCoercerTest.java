@@ -21,7 +21,7 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.LongNode;
-import eu.stratosphere.sopremo.type.NumericNode;
+import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -35,7 +35,8 @@ public class TypeCoercerTest {
 
 	private final Object expectedResult;
 
-	public TypeCoercerTest(final IJsonNode value, final Class<? extends IJsonNode> targetType, final Object expectedResult) {
+	public TypeCoercerTest(final IJsonNode value, final Class<? extends IJsonNode> targetType,
+			final Object expectedResult) {
 		this.value = value;
 		this.targetType = targetType;
 		this.expectedResult = expectedResult;
@@ -44,24 +45,11 @@ public class TypeCoercerTest {
 	@Test
 	public void shouldPerformTheCoercionAsExpected() {
 		try {
-			final IJsonNode result = TypeCoercer.INSTANCE.coerce(this.value, this.targetType);
-
-			// workaround for BigIntegerNode bug
-			if (this.expectedResult instanceof BigIntegerNode) {
-				Assert.assertTrue(
-					String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
-					this.targetType.isInstance(result));
-				Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result),
-					((BigIntegerNode) this.expectedResult).getBigIntegerValue(),
-					((BigIntegerNode) result).getBigIntegerValue());
-			} else {
-				Assert.assertTrue(
-					String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
-					this.targetType.isInstance(result));
-				Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result),
-					this.expectedResult,
-					result);
-			}
+			final IJsonNode result = TypeCoercer.INSTANCE.coerce(this.value, null, this.targetType);
+			Assert.assertTrue(String.format("%s->%s=%s", this.value.getClass(), this.targetType, result.getClass()),
+				this.targetType.isInstance(result));
+			Assert.assertEquals(String.format("%s->%s=%s", this.value, this.targetType, result), this.expectedResult,
+				result);
 		} catch (final CoercionException e) {
 			Assert.assertTrue(String.format("%s->%s=Exception", this.value, this.targetType),
 				this.expectedResult == CONVERSION_ERROR);
@@ -75,8 +63,8 @@ public class TypeCoercerTest {
 			{ BooleanNode.FALSE, BooleanNode.class, BooleanNode.FALSE },
 			{ BooleanNode.TRUE, TextNode.class, TextNode.valueOf("true") },
 			{ BooleanNode.FALSE, TextNode.class, TextNode.valueOf("false") },
-			{ BooleanNode.TRUE, NumericNode.class, IntNode.valueOf(1) },
-			{ BooleanNode.FALSE, NumericNode.class, IntNode.valueOf(0) },
+			{ BooleanNode.TRUE, AbstractNumericNode.class, IntNode.valueOf(1) },
+			{ BooleanNode.FALSE, AbstractNumericNode.class, IntNode.valueOf(0) },
 			{ BooleanNode.TRUE, IntNode.class, IntNode.valueOf(1) },
 			{ BooleanNode.FALSE, IntNode.class, IntNode.valueOf(0) },
 			{ BooleanNode.TRUE, DoubleNode.class, DoubleNode.valueOf(1) },
@@ -90,14 +78,14 @@ public class TypeCoercerTest {
 			// paradox but we do not parse the string but check if it is empty
 			{ TextNode.valueOf("false"), BooleanNode.class, BooleanNode.TRUE },
 			{ TextNode.valueOf("string"), TextNode.class, TextNode.valueOf("string") },
-			{ TextNode.valueOf("12.34"), NumericNode.class, DecimalNode.valueOf(new BigDecimal("12.34")) },
+			{ TextNode.valueOf("12.34"), AbstractNumericNode.class, DecimalNode.valueOf(new BigDecimal("12.34")) },
 			{ TextNode.valueOf("12"), IntNode.class, IntNode.valueOf(12) },
 			{ TextNode.valueOf("12"), LongNode.class, LongNode.valueOf(12) },
 			{ TextNode.valueOf("12.5"), DoubleNode.class, DoubleNode.valueOf(12.5) },
 			{ TextNode.valueOf("12"), BigIntegerNode.class, BigIntegerNode.valueOf(BigInteger.valueOf(12)) },
 			{ TextNode.valueOf("12.34"), DecimalNode.class, DecimalNode.valueOf(new BigDecimal("12.34")) },
 			{ TextNode.valueOf("bla"), ArrayNode.class, createArray(TextNode.valueOf("bla")) },
-			{ TextNode.valueOf("bla"), NumericNode.class, CONVERSION_ERROR },
+			{ TextNode.valueOf("bla"), AbstractNumericNode.class, CONVERSION_ERROR },
 			{ TextNode.valueOf("bla"), IntNode.class, CONVERSION_ERROR },
 			{ TextNode.valueOf("bla"), DoubleNode.class, CONVERSION_ERROR },
 			{ TextNode.valueOf("bla"), LongNode.class, CONVERSION_ERROR },

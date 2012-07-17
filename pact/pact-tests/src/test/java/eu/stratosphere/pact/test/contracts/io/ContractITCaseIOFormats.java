@@ -21,13 +21,14 @@ public class ContractITCaseIOFormats {
 		private final PactString valueString = new PactString();
 		
 		@Override
-		public boolean readRecord(PactRecord target, byte[] bytes, int numBytes) {
-			this.keyString.setValueAscii(bytes, 0, 1);
-			this.valueString.setValueAscii(bytes, 2, 1);
+		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+			this.keyString.setValueAscii(bytes, offset, 1);
+			this.valueString.setValueAscii(bytes, offset + 2, 1);
 			target.setField(0, keyString);
 			target.setField(1, valueString);
 			
-			LOG.debug("Read in: [" + keyString.getValue() + "," + valueString.getValue() + "]");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Read in: [" + keyString.getValue() + "," + valueString.getValue() + "]");
 			
 			return true;
 		}
@@ -50,7 +51,8 @@ public class ContractITCaseIOFormats {
 			
 			byte[] bytes = this.buffer.toString().getBytes();
 			
-			LOG.debug("Writing out: [" + keyString.toString() + "," + valueInteger.getValue() + "]");
+			if (LOG.isDebugEnabled())
+				LOG.debug("Writing out: [" + keyString.toString() + "," + valueInteger.getValue() + "]");
 			
 			this.stream.write(bytes);
 		}

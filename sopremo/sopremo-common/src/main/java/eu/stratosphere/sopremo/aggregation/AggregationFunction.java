@@ -34,7 +34,8 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 	 * @param context
 	 *        additional context informations
 	 */
-	public abstract void aggregate(IJsonNode node, EvaluationContext context);
+	public abstract IJsonNode aggregate(IJsonNode node, IJsonNode aggregator, EvaluationContext context);
+
 
 	/**
 	 * Creates an {@link AggregationExpression} for this function
@@ -84,12 +85,14 @@ public abstract class AggregationFunction implements SerializableSopremoType, Cl
 	 * 
 	 * @return the result
 	 */
-	public abstract IJsonNode getFinalAggregate();
-
+	public abstract IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target);
+	
 	/**
 	 * Initializes this function
 	 */
-	public void initialize() {
+	public IJsonNode initialize(IJsonNode aggregator) {
+		return aggregator;
+
 	}
 
 	@Override

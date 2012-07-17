@@ -20,7 +20,6 @@ import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.InputSelection;
 
 /**
  * Some convenience method to implement complex operators.
@@ -33,7 +32,7 @@ public class OperatorUtil {
 		Arrays.fill(elements, ConstantExpression.MISSING);
 		elements[index] = EvaluationExpression.VALUE;
 		return new Projection().
-			withTransformation(new ArrayCreation(elements)).
+			withResultProjection(new ArrayCreation(elements)).
 			withInputs(input);
 	}
 	

@@ -37,7 +37,7 @@ public abstract class Callable<Result, InputType> extends AbstractSopremoType im
 		return this.name;
 	}
 
-	public abstract Result call(InputType params, EvaluationContext context);
+	public abstract Result call(InputType params, Result target, EvaluationContext context);
 
 	/*
 	 * (non-Javadoc)

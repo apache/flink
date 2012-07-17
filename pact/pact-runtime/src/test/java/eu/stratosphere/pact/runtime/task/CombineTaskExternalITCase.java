@@ -29,14 +29,17 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
-import eu.stratosphere.pact.runtime.test.util.RegularlyGeneratedInputGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-@SuppressWarnings( {"javadoc", "unchecked"} )
-public class CombineTaskExternalITCase extends TaskTestBase {
+
+public class CombineTaskExternalITCase extends TaskTestBase
+{
 
 	private static final Log LOG = LogFactory.getLog(CombineTaskExternalITCase.class);
 	
@@ -49,15 +52,19 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(this.outList);
 		
-		CombineTask testTask = new CombineTask();
+		CombineTask<PactRecord> testTask = new CombineTask<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+		
+		final int[] keyPos = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -79,8 +86,8 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		for (PactRecord record : this.outList) {
 			PactInteger key = new PactInteger();
 			PactInteger value = new PactInteger();
-			record.getField(0, key);
-			record.getField(1, value);
+			key = record.getField(0, key);
+			value = record.getField(1, value);
 			PactInteger prevVal = aggMap.get(key);
 			if (prevVal != null) {
 				aggMap.put(key, new PactInteger(prevVal.getValue() + value.getValue()));
@@ -90,7 +97,7 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 			}
 		}
 		
-		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
+		Assert.assertTrue("Resultset size was "+aggMap.size()+". Expected was "+keyCnt, aggMap.size() == keyCnt);
 		
 		for (PactInteger integer : aggMap.values()) {
 			Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
@@ -107,15 +114,19 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		int valCnt = 8;
 		
 		super.initEnvironment(3*1024*1024);
-		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
 		super.addOutput(this.outList);
 		
-		CombineTask testTask = new CombineTask();
+		CombineTask<PactRecord> testTask = new CombineTask<PactRecord>();
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
 		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
 		super.getTaskConfig().setNumFilehandles(2);
-		super.getTaskConfig().setLocalStrategyKeyTypes(0, new int[]{0});
-		super.getTaskConfig().setLocalStrategyKeyTypes(new Class[]{ PactInteger.class });
+
+		final int[] keyPos = new int[]{0};
+		@SuppressWarnings("unchecked")
+		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
+			super.getTaskConfig().getPrefixForInputParameters(0), keyPos, keyClasses);
 		
 		super.registerTask(testTask, MockCombiningReduceStub.class);
 		
@@ -167,7 +178,7 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		private final PactInteger combineValue = new PactInteger();
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector out)
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int sum = 0;
@@ -184,7 +195,7 @@ public class CombineTaskExternalITCase extends TaskTestBase {
 		}
 		
 		@Override
-		public void combine(Iterator<PactRecord> records, Collector out)
+		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out)
 				throws Exception {
 			PactRecord element = null;
 			int sum = 0;

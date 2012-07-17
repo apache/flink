@@ -28,11 +28,11 @@ public class MethodRegistry extends AbstractSopremoType implements SerializableS
 		this.bindings = bindings;
 	}
 
-	public IJsonNode evaluate(final String functionName, final ArrayNode params, final EvaluationContext context) {
+	public IJsonNode evaluate(final String functionName, final ArrayNode params, IJsonNode target, final EvaluationContext context) {
 		final JsonMethod function = this.getFunction(functionName);
 		if (function == null)
 			throw new EvaluationException(String.format("Unknown function %s", functionName));
-		return function.call(params, context);
+		return function.call(params, target, context);
 	}
 
 	public JsonMethod getFunction(final String functionName) {
