@@ -46,10 +46,13 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        the type of record that can be transported through this channel
  */
-public abstract class AbstractByteBufferedInputChannel<T extends Record> extends AbstractInputChannel<T>
-{
+public abstract class AbstractByteBufferedInputChannel<T extends Record> extends AbstractInputChannel<T> {
+
+	/**
+	 * The log object used to report warnings and errors.
+	 */
 	private static final Log LOG = LogFactory.getLog(AbstractByteBufferedInputChannel.class);
-	
+
 	/**
 	 * The deserializer used to deserialize records.
 	 */
