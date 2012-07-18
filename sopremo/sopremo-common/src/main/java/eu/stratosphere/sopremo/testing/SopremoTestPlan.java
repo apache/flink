@@ -865,7 +865,7 @@ public class SopremoTestPlan {
 		public PactModule asPactModule(final EvaluationContext context) {
 			final PactModule pactModule = new PactModule(this.toString(), 0, 1);
 			final FileDataSource contract = TestPlan.createDefaultSource(this
-				.getInputName());
+				.getInputPath());
 			pactModule.getOutput(0).setInput(contract);
 			// pactModule.setInput(0, contract);
 			SopremoUtil.serialize(contract.getParameters(), IOConstants.SCHEMA,

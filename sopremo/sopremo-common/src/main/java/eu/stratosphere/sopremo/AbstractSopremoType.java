@@ -15,6 +15,8 @@
 package eu.stratosphere.sopremo;
 
 /**
+ * Provides basic implementations of the required methods of {@link SopremoType}
+ * 
  * @author Arvid Heise
  */
 public abstract class AbstractSopremoType implements SopremoType {
@@ -27,6 +29,13 @@ public abstract class AbstractSopremoType implements SopremoType {
 		return toString(this);
 	}
 
+	/**
+	 * Returns a string representation of the given {@link SopremoType}.
+	 * 
+	 * @param type
+	 *        the SopremoType that should be used
+	 * @return the string representation
+	 */
 	public static String toString(final SopremoType type) {
 		final StringBuilder builder = new StringBuilder();
 		type.toString(builder);
