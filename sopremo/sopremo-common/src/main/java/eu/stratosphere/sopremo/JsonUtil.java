@@ -112,6 +112,13 @@ public class JsonUtil {
 		return new ArrayNode(streamNodes);
 	}
 
+	/**
+	 * Creates a new {@link PathExpression} from the given parts.
+	 * 
+	 * @param parts
+	 *        the parts that should be used
+	 * @return the expression
+	 */
 	public static EvaluationExpression createPath(final List<String> parts) {
 		final List<EvaluationExpression> fragments = new ArrayList<EvaluationExpression>();
 		for (int index = 0; index < parts.size(); index++) {
@@ -136,14 +143,39 @@ public class JsonUtil {
 		return PathExpression.wrapIfNecessary(fragments);
 	}
 
+	/**
+	 * Creates a new {@link PathExpression} from the given parts.
+	 * 
+	 * @param parts
+	 *        the parts that should be used
+	 * @return the expression
+	 */
 	public static EvaluationExpression createPath(final String... parts) {
 		return createPath(Arrays.asList(parts));
 	}
 
+	/**
+	 * Creates an {@link ArrayNode} that contains all given constants as elements. This method converts the whole array
+	 * of parameters to an ArrayNode.
+	 * 
+	 * @param constants
+	 *        the constants that should be used to fill the array
+	 * @return the array
+	 */
 	public static ArrayNode createArrayNode(final Object... constants) {
 		return (ArrayNode) JsonUtil.OBJECT_MAPPER.valueToTree(constants);
 	}
 
+	/**
+	 * Creates an {@link ArrayNode} that contains all given constants as elements. This method converts each parameter
+	 * to an appropriate JsonNode before creating the ArrayNode.
+	 * 
+	 * @param constants
+	 *        the constants that should be used to fill the array
+	 * @return the array
+	 * @param constants
+	 * @return
+	 */
 	public static IArrayNode createCompactArray(final Object... constants) {
 		final AbstractJsonNode[] nodes = new AbstractJsonNode[constants.length];
 		for (int index = 0; index < nodes.length; index++)
@@ -151,6 +183,15 @@ public class JsonUtil {
 		return JsonUtil.asArray(nodes);
 	}
 
+	/**
+	 * Creates an {@link ObjectNode} that contains all given fields with there related value. The key and value of each
+	 * field has do be specified like the following example:</br>
+	 * createObjectNode("key1", value1, "key2", value2, ...)
+	 * 
+	 * @param fields
+	 *        the key-value pairs that should be used
+	 * @return the object node
+	 */
 	public static ObjectNode createObjectNode(final Object... fields) {
 		if (fields.length % 2 != 0)
 			throw new IllegalArgumentException("must have an even number of params");
@@ -160,6 +201,13 @@ public class JsonUtil {
 		return objectNode;
 	}
 
+	/**
+	 * Creates an {@link AbstractJsonNode} for the given value.
+	 * 
+	 * @param value
+	 *        the value that should be used
+	 * @return the node
+	 */
 	public static AbstractJsonNode createValueNode(final Object value) {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(value);
 	}
