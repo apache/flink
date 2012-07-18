@@ -91,6 +91,11 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	static final long DEFAULT_LEASE_PERIOD = 60 * 60 * 1000; // 1 hour in ms.
 
 	/**
+	 * The global (default) AMI to be used for TM instances
+	 */
+	static final String AWS_AMI_KEY_GLOBAL = "instancemanager.ec2.defaultami";
+	
+	/**
 	 * The configuration key to access the AWS access ID of a job.
 	 */
 	static final String AWS_ACCESS_ID_KEY = "job.ec2.awsaccessid";
@@ -104,6 +109,12 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 * The configuration key to access the AMI to run the task managers on.
 	 */
 	static final String AWS_AMI_KEY = "job.ec2.ami";
+	
+
+	/**
+	 * The SSH Keypair to be installed on TMs (optional)
+	 */
+	static final String AWS_SSH_KEYPAIR = "job.ec2.sshkeypair";
 
 	/**
 	 * The cloud manager checks the floating instances every base interval to terminate the floating instances which
@@ -585,8 +596,13 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		}
 
 		if (conf.getString(AWS_AMI_KEY, null) == null) {
-			throw new InstanceException("Unable to allocate cloud instance: Cannot find AMI image ID");
+			LOG.info("No Job-specific AMI found. Trying to use default AMI from global configuration.");
+			if(GlobalConfiguration.getString(AWS_AMI_KEY_GLOBAL, null) == null){
+				throw new InstanceException("Unable to allocate cloud instance: no AWS AMI key found in global or job configuration.");
+			}
 		}
+		
+
 
 		// First we check, if there are any orphaned instances that are accessible with the provided configuration
 		checkAndConvertOrphanedInstances(conf);
@@ -712,15 +728,22 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		final String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
 		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
 
-		final String imageID = conf.getString(AWS_AMI_KEY, null);
-		LOG.info("Read Amazon Machine Image from job configuration: " + imageID);
+		String imageID = conf.getString(AWS_AMI_KEY, null); 
+		
+		if(imageID == null){
+			imageID = GlobalConfiguration.getString(AWS_AMI_KEY_GLOBAL, null);
+			LOG.info("Read Amazon Machine Image from global configuration: " + imageID);
+		}else{
+			LOG.info("Read Amazon Machine Image from job configuration: " + imageID);
+		}
+		
 
 		final String jobManagerIPAddress = GlobalConfiguration.getString("jobmanager.rpc.address", null);
 		if (jobManagerIPAddress == null) {
 			LOG.error("JobManager IP address is not set (jobmanager.rpc.address)");
 			return null;
 		}
-		final String sshKeyPair = conf.getString("job.ec2.sshkeypair", null);
+		final String sshKeyPair = conf.getString(AWS_SSH_KEYPAIR, null);
 
 		final AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 		final LinkedList<String> instanceIDs = new LinkedList<String>();
