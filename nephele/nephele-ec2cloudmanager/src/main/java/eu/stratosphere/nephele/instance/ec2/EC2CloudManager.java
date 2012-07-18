@@ -91,6 +91,21 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	static final long DEFAULT_LEASE_PERIOD = 60 * 60 * 1000; // 1 hour in ms.
 
 	/**
+	 * The global (default) AMI to be used for TM instances
+	 */
+	static final String AWS_AMI_KEY_GLOBAL = "instancemanager.ec2.defaultami";
+
+	/**
+	 * The configuration key to access the AWS access ID of a job.
+	 */
+	static final String AWS_ACCESS_ID_KEY_GLOBAL = "instancemanager.ec2.defaultawsaccessid";
+
+	/**
+	 * The configuration key to access the AWS secret key of a job.
+	 */
+	static final String AWS_SECRET_KEY_KEY_GLOBAL = "instancemanager.ec2.defaultawssecretkey";
+
+	/**
 	 * The configuration key to access the AWS access ID of a job.
 	 */
 	static final String AWS_ACCESS_ID_KEY = "job.ec2.awsaccessid";
@@ -104,6 +119,11 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 * The configuration key to access the AMI to run the task managers on.
 	 */
 	static final String AWS_AMI_KEY = "job.ec2.ami";
+
+	/**
+	 * The SSH Keypair to be installed on TMs (optional)
+	 */
+	static final String AWS_SSH_KEYPAIR = "job.ec2.sshkeypair";
 
 	/**
 	 * The cloud manager checks the floating instances every base interval to terminate the floating instances which
@@ -444,8 +464,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 *         something wrong happens to the global configuration
 	 */
 	private EC2CloudInstance isReservedInstance(final InstanceConnectionInfo instanceConnectionInfo,
-			final HardwareDescription hardwareDescription)
-			throws InstanceException {
+			final HardwareDescription hardwareDescription) throws InstanceException {
 
 		if (instanceConnectionInfo == null) {
 			LOG.warn("Supplied instance connection info is null");
@@ -565,8 +584,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	 */
 	@Override
 	public void requestInstance(final JobID jobID, Configuration conf, final InstanceRequestMap instanceRequestMap,
-			final List<String> splitAffinityList)
-			throws InstanceException {
+			final List<String> splitAffinityList) throws InstanceException {
 
 		if (conf == null) {
 			throw new IllegalArgumentException("No job configuration provided, unable to acquire credentials");
@@ -574,18 +592,30 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 		// First check, if all required configuration entries are available
 
-		final String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
+		String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
 		if (awsAccessId == null) {
-			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS access ID");
+			LOG.info("No Job-specific AWS access ID found. Trying to read from global configuration.");
+			awsAccessId = GlobalConfiguration.getString(AWS_ACCESS_ID_KEY_GLOBAL, null);
+			if (awsAccessId == null) {
+				throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS access ID");
+			}
 		}
 
-		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
+		String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
 		if (awsSecretKey == null) {
-			throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
+			LOG.info("No Job-specific AWS secret key found. Trying to read from global configuration.");
+			awsSecretKey = GlobalConfiguration.getString(AWS_SECRET_KEY_KEY_GLOBAL, null);
+			if (awsSecretKey == null) {
+				throw new InstanceException("Unable to allocate cloud instance: Cannot find AWS secret key");
+			}
 		}
 
 		if (conf.getString(AWS_AMI_KEY, null) == null) {
-			throw new InstanceException("Unable to allocate cloud instance: Cannot find AMI image ID");
+			LOG.info("No Job-specific AMI found. Trying to use default AMI from global configuration.");
+			if (GlobalConfiguration.getString(AWS_AMI_KEY_GLOBAL, null) == null) {
+				throw new InstanceException(
+					"Unable to allocate cloud instance: no AWS AMI key found in global or job configuration.");
+			}
 		}
 
 		// First we check, if there are any orphaned instances that are accessible with the provided configuration
@@ -709,18 +739,31 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	private LinkedList<String> allocateCloudInstance(final Configuration conf, final InstanceType type,
 			final int mincount, final int maxcount) {
 
-		final String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
-		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
+		String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
+		if(awsAccessId == null){
+			awsAccessId = GlobalConfiguration.getString(AWS_ACCESS_ID_KEY_GLOBAL, null);
+		}
+		
+		String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
+		if(awsSecretKey == null){
+			awsSecretKey = GlobalConfiguration.getString(AWS_SECRET_KEY_KEY_GLOBAL, null);
+		}
+		
+		String imageID = conf.getString(AWS_AMI_KEY, null);
 
-		final String imageID = conf.getString(AWS_AMI_KEY, null);
-		LOG.info("Read Amazon Machine Image from job configuration: " + imageID);
+		if (imageID == null) {
+			imageID = GlobalConfiguration.getString(AWS_AMI_KEY_GLOBAL, null);
+			LOG.info("Read Amazon Machine Image from global configuration: " + imageID);
+		} else {
+			LOG.info("Read Amazon Machine Image from job configuration: " + imageID);
+		}
 
 		final String jobManagerIPAddress = GlobalConfiguration.getString("jobmanager.rpc.address", null);
 		if (jobManagerIPAddress == null) {
 			LOG.error("JobManager IP address is not set (jobmanager.rpc.address)");
 			return null;
 		}
-		final String sshKeyPair = conf.getString("job.ec2.sshkeypair", null);
+		final String sshKeyPair = conf.getString(AWS_SSH_KEYPAIR, null);
 
 		final AmazonEC2Client ec2client = EC2ClientFactory.getEC2Client(awsAccessId, awsSecretKey);
 		final LinkedList<String> instanceIDs = new LinkedList<String>();
@@ -791,9 +834,15 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			return;
 		}
 
-		final String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
-		final String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
-
+		String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
+		if(awsAccessId == null){
+			awsAccessId = GlobalConfiguration.getString(AWS_ACCESS_ID_KEY_GLOBAL, null);
+		}
+		String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
+		if(awsSecretKey == null){
+			awsSecretKey = GlobalConfiguration.getString(AWS_SECRET_KEY_KEY_GLOBAL, null);
+		}
+		
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Checking orphaned instances, " + this.orphanedInstances.size() + " orphaned instances listed.");
 		}
