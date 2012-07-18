@@ -639,7 +639,7 @@ public class TaskConfig
     return getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex) > 0;
   }
 
-  public void setNumberOfEventsUntilInterruptInIterativeGate(int inputGateIndex, int numEvents)
+  public void setGateIterativeAndSetNumberOfEventsUntilInterrupt(int inputGateIndex, int numEvents)
   {
     Preconditions.checkArgument(numEvents > 0);
     this.config.setInteger(NUMBER_OF_EVENTS_UNTIL_INTERRUPT + inputGateIndex, numEvents);

@@ -48,7 +48,6 @@ import java.util.List;
 public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 
-  private static final int ITERATION_INPUT = 0;
   private static final Log log = LogFactory.getLog(BulkIterationHeadPactTask.class);
 
   /**
@@ -80,9 +79,18 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     return backChannel;
   }
 
+  //TODO should positions be configured?
+
   private AbstractRecordWriter<?> getSyncOutput() {
-    //TODO should position be configured?
     return eventualOutputs.get(eventualOutputs.size() - 2);
+  }
+
+  private AbstractRecordWriter<?> getFinalOutput() {
+    return eventualOutputs.get(eventualOutputs.size() - 1);
+  }
+
+  private int getIterationInputIndex() {
+    return 0;
   }
 
   @Override
@@ -96,7 +104,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     final SuperstepBarrier barrier = new SuperstepBarrier();
     getSyncOutput().subscribeToEvent(barrier, AllWorkersDoneEvent.class);
 
-    TypeSerializer serializer = getInputSerializer(ITERATION_INPUT);
+    TypeSerializer serializer = getInputSerializer(getIterationInputIndex());
     //TODO type safety
     output = (Collector<OT>) iterationCollector();
 
@@ -165,17 +173,20 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
   //TODO we can avoid this if we can detect that we are in the last iteration
   private void streamOutFinalOutput() throws IOException, InterruptedException {
     //TODO type safety
-    Writer<PactRecord> writer = (AbstractRecordWriter<PactRecord>) eventualOutputs.get(eventualOutputs.size() - 1);
-    MutableObjectIterator<PactRecord> results = (MutableObjectIterator<PactRecord>) inputs[ITERATION_INPUT];
+    Writer<PactRecord> writer = (Writer<PactRecord>) getFinalOutput();
+    MutableObjectIterator<PactRecord> results = (MutableObjectIterator<PactRecord>) inputs[getIterationInputIndex()];
 
+    int recordsPut = 0;
     PactRecord record = new PactRecord();
     while (results.next(record)) {
       writer.emit(record);
+      recordsPut++;
     }
+    System.out.println("Records to final out: " + recordsPut);
   }
 
   private void feedBackSuperstepResult(DataInputView superStepResult, TypeSerializer serializer) {
-    inputs[ITERATION_INPUT] = new InputViewIterator(superStepResult, serializer);
+    inputs[getIterationInputIndex()] = new InputViewIterator(superStepResult, serializer);
   }
 
   private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {
@@ -186,6 +197,9 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
   }
 
   private void sendEventToSync(AbstractTaskEvent event) throws IOException, InterruptedException {
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("sending " + event.getClass().getSimpleName() + " to sync"));
+    }
     flushAndPublishEvent(getSyncOutput(), event);
   }
 

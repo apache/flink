@@ -3,23 +3,20 @@ package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.BulkIterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationSynchronizationPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.EmptyMapStub;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.MatchDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
@@ -47,16 +44,23 @@ public class PageRank {
     JobTaskVertex head = JobGraphUtils.createTask(BulkIterationHeadPactTask.class, "BulkIterationHead", jobGraph,
         degreeOfParallelism);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
-    headConfig.setDriver(MatchDriver.class);
-    headConfig.setStubClass(DotProductMatch.class);
-    headConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(), "pact.in.param.0.", new int[] { 0 },
-        new Class[] { PactLong.class });
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(), "pact.in.param.1.", new int[] { 0 },
-        new Class[] { PactLong.class });
-    headConfig.setMemorySize(20 * JobGraphUtils.MEGABYTE);
+    headConfig.setDriver(MapDriver.class);
+    headConfig.setStubClass(IdentityMap.class);
+    headConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
     headConfig.setNumberOfIterations(1);
+
+    JobTaskVertex intermediate = JobGraphUtils.createTask(BulkIterationIntermediatePactTask.class,
+        "BulkIterationIntermediate", jobGraph, degreeOfParallelism);
+    TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
+    intermediateConfig.setDriver(MatchDriver.class);
+    intermediateConfig.setStubClass(DotProductMatch.class);
+    intermediateConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfiguration(),
+        "pact.in.param.0.", new int[] { 0 }, new Class[] { PactLong.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfiguration(),
+        "pact.in.param.1.", new int[] { 0 }, new Class[] { PactLong.class });
+    intermediateConfig.setMemorySize(20 * JobGraphUtils.MEGABYTE);
 
     JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
@@ -68,14 +72,12 @@ public class PageRank {
         new Class[] { PactLong.class });
     tailConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     tailConfig.setNumFilehandles(2);
-    tailConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, degreeOfParallelism);
 
     JobTaskVertex sync = JobGraphUtils.createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSync",
         jobGraph);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setDriver(MapDriver.class);
     syncConfig.setStubClass(EmptyMapStub.class);
-    syncConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, degreeOfParallelism);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
@@ -85,12 +87,19 @@ public class PageRank {
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
     JobOutputVertex fakeSyncOutput = JobGraphUtils.createSingletonFakeOutput(jobGraph, "FakeSyncOutput");
 
-    JobGraphUtils.connectLocal(pageWithRankInput, head, DistributionPattern.BIPARTITE, ShipStrategy.BROADCAST);
-    JobGraphUtils.connectLocal(transitionMatrixInput, head, DistributionPattern.POINTWISE,
+    JobGraphUtils.connectLocal(pageWithRankInput, head);
+    JobGraphUtils.connectLocal(head, intermediate, DistributionPattern.BIPARTITE, ShipStrategy.BROADCAST);
+    JobGraphUtils.connectLocal(transitionMatrixInput, intermediate, DistributionPattern.BIPARTITE,
         ShipStrategy.PARTITION_HASH);
+    intermediateConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+
+    JobGraphUtils.connectLocal(intermediate, tail, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    tailConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, 1);
+
     //TODO implicit order should be documented/configured somehow
-    JobGraphUtils.connectLocal(head, tail, DistributionPattern.BIPARTITE, ShipStrategy.FORWARD);
     JobGraphUtils.connectLocal(head, sync);
+    syncConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+
     JobGraphUtils.connectLocal(head, output);
     JobGraphUtils.connectLocal(tail, fakeTailOutput);
     JobGraphUtils.connectLocal(sync, fakeSyncOutput);

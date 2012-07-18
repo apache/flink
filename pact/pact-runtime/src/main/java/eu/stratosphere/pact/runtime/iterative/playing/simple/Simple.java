@@ -22,8 +22,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
@@ -32,7 +30,6 @@ import eu.stratosphere.pact.runtime.iterative.task.BulkIterationIntermediatePact
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationSynchronizationPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.EmptyMapStub;
-import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -60,21 +57,21 @@ public class Simple {
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
     intermediateConfig.setDriver(MapDriver.class);
     intermediateConfig.setStubClass(AppendMapper.AppendIntermediateMapper.class);
-    intermediateConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, 1);
+    intermediateConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, 1);
 
     JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setDriver(MapDriver.class);
     tailConfig.setStubClass(AppendMapper.AppendTailMapper.class);
-    tailConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, 1);
+    tailConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, 1);
 
     JobTaskVertex sync = JobGraphUtils.createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSync",
         jobGraph);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setDriver(MapDriver.class);
     syncConfig.setStubClass(EmptyMapStub.class);
-    syncConfig.setNumberOfEventsUntilInterruptInIterativeGate(0, degreeOfParallelism);
+    syncConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
