@@ -69,9 +69,9 @@ public abstract class AbstractObjectNode extends AbstractJsonNode implements IOb
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.clear();
-		for (Entry<String, IJsonNode> child : this)
+		for (final Entry<String, IJsonNode> child : this)
 			this.put(child.getKey(), child.getValue());
 	}
 

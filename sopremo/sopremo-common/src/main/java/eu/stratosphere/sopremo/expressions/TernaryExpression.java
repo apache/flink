@@ -115,8 +115,8 @@ public class TernaryExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		// no need to reuse the target of the coercion - a boolean node is never created anew 
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+		// no need to reuse the target of the coercion - a boolean node is never created anew
 		if (TypeCoercer.INSTANCE.coerce(this.ifClause.evaluate(node, context), null, BooleanNode.class) == BooleanNode.TRUE)
 			return this.ifExpression.evaluate(node, target, context);
 		return this.thenExpression.evaluate(node, target, context);
@@ -130,7 +130,7 @@ public class TernaryExpression extends EvaluationExpression {
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.ifClause = (CachingExpression<IJsonNode>) function.call(this.ifClause);
 		this.ifExpression = function.call(this.ifExpression);
 		this.thenExpression = function.call(this.thenExpression);

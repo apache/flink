@@ -38,7 +38,7 @@ public abstract class CompositeOperator<Self extends CompositeOperator<Self>> ex
 	 * @param maxInputs
 	 *        the maximum number of inputs
 	 */
-	public CompositeOperator(int minInputs, int maxInputs, int minOutputs, int maxOutputs) {
+	public CompositeOperator(final int minInputs, final int maxInputs, final int minOutputs, final int maxOutputs) {
 		super(minInputs, maxInputs, minOutputs, maxOutputs);
 	}
 

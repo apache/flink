@@ -71,7 +71,7 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode {
 		return this.getJavaValue();
 	}
 
-	public void setValue(String value) {
+	public void setValue(final String value) {
 		this.value.setValue(value);
 	}
 
@@ -152,7 +152,7 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value.setValue(((TextNode) otherNode).getTextValue());
 	}
@@ -169,7 +169,7 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 		this.value.copyNormalizedKey(target, offset, len);
 	}
 

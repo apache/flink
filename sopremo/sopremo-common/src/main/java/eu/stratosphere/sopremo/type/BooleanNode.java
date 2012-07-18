@@ -106,7 +106,7 @@ public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value = ((BooleanNode) otherNode).value;
 	}
@@ -136,16 +136,16 @@ public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 
 		if (len >= this.getMaxNormalizedKeyLen()) {
-			ByteArrayOutputStream stream = new ByteArrayOutputStream();
+			final ByteArrayOutputStream stream = new ByteArrayOutputStream();
 			try {
 				this.write(new DataOutputStream(stream));
-				byte[] result = stream.toByteArray();
+				final byte[] result = stream.toByteArray();
 				target[offset] = result[result.length - 1];
 				this.fillWithZero(target, offset + 1, offset + len);
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				e.printStackTrace();
 			}
 		}

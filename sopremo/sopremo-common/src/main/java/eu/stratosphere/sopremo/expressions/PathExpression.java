@@ -54,7 +54,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		CollectionUtil.ensureSize(this.fragmentTargets, this.fragments.size());
 	}
 
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
 		this.fragmentTargets = new ArrayList<IJsonNode>();
 		CollectionUtil.ensureSize(this.fragmentTargets, this.fragments.size());
@@ -90,7 +90,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		IJsonNode fragmentNode = node;
 		for (int index = 0; index < this.fragments.size(); index++)
 			this.fragmentTargets.set(index,

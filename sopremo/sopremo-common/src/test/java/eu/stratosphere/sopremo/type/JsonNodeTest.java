@@ -48,24 +48,23 @@ public abstract class JsonNodeTest<T extends IJsonNode> {
 	public void shouldNormalizeKeys() {
 		int lenght = 100;
 
-		IJsonNode lower = this.lowerNode();
-		IJsonNode higher = this.higherNode();
+		final IJsonNode lower = this.lowerNode();
+		final IJsonNode higher = this.higherNode();
 
-		lenght = (higher.getMaxNormalizedKeyLen() < lenght) ? higher.getMaxNormalizedKeyLen() : lenght;
+		lenght = higher.getMaxNormalizedKeyLen() < lenght ? higher.getMaxNormalizedKeyLen() : lenght;
 
-		byte[] lowerTarget = new byte[lenght];
-		byte[] higherTarget = new byte[lenght];
+		final byte[] lowerTarget = new byte[lenght];
+		final byte[] higherTarget = new byte[lenght];
 
 		lower.copyNormalizedKey(lowerTarget, 0, lenght);
 		higher.copyNormalizedKey(higherTarget, 0, lenght);
 
 		for (int i = 0; i < lenght; i++) {
-			byte lowerByte = lowerTarget[i];
-			byte higherByte = higherTarget[i];
+			final byte lowerByte = lowerTarget[i];
+			final byte higherByte = higherTarget[i];
 
-			if (lowerByte < higherByte) {
+			if (lowerByte < higherByte)
 				break;
-			}
 
 			Assert.assertTrue(lowerByte == higherByte);
 		}

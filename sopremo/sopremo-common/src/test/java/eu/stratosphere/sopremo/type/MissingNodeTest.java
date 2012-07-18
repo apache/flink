@@ -17,8 +17,8 @@ public class MissingNodeTest {
 
 	@Test
 	public void shouldHaveACompletelyZeroedKey() {
-		byte[] target = new byte[5];
-		byte[] expected = new byte[] { 0, 0, 0, 0, 0 };
+		final byte[] target = new byte[5];
+		final byte[] expected = new byte[] { 0, 0, 0, 0, 0 };
 
 		MissingNode.getInstance().copyNormalizedKey(target, 0, 5);
 

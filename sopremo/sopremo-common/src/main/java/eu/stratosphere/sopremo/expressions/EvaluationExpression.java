@@ -9,6 +9,7 @@ import java.util.Set;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ExpressionTag;
+import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.SerializableSopremoType;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.IdentityList;
@@ -45,7 +46,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 		private static final long serialVersionUID = -6430819532311429108L;
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 			return node;
 		}
 
@@ -71,7 +72,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 		this.tags.add(tag);
 	}
 
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
 		this.tags = new IdentitySet<ExpressionTag>();
 	}
@@ -86,7 +87,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 			final EvaluationExpression klone = (EvaluationExpression) super.clone();
 			klone.tags.addAll(this.tags);
 			return klone;
-		} catch (CloneNotSupportedException e) {
+		} catch (final CloneNotSupportedException e) {
 			throw new IllegalStateException("Cannot occur");
 		}
 	}
@@ -117,7 +118,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 		final Reference<T> ref = new Reference<T>();
 		this.transformRecursively(new TransformFunction() {
 			@Override
-			public EvaluationExpression call(EvaluationExpression evaluationExpression) {
+			public EvaluationExpression call(final EvaluationExpression evaluationExpression) {
 				if (ref.getValue() == null && evaluableClass.isInstance(evaluationExpression))
 					ref.setValue((T) evaluationExpression);
 				return evaluationExpression;
@@ -130,7 +131,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 		final ArrayList<EvaluationExpression> expressions = new ArrayList<EvaluationExpression>();
 		this.transformRecursively(new TransformFunction() {
 			@Override
-			public EvaluationExpression call(EvaluationExpression evaluationExpression) {
+			public EvaluationExpression call(final EvaluationExpression evaluationExpression) {
 				if (predicate.isTrue(evaluationExpression))
 					expressions.add(evaluationExpression);
 				return evaluationExpression;
@@ -148,7 +149,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 	 *        the transformation function
 	 * @return the transformed expression
 	 */
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		return function.call(this);
 	}
 
@@ -166,7 +167,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 			final EvaluationExpression replaceFragment) {
 		return this.replace(replacePredicate, new TransformFunction() {
 			@Override
-			public EvaluationExpression call(EvaluationExpression argument) {
+			public EvaluationExpression call(final EvaluationExpression argument) {
 				return replaceFragment;
 			}
 		});
@@ -186,7 +187,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 			final TransformFunction replaceFunction) {
 		return this.transformRecursively(new TransformFunction() {
 			@Override
-			public EvaluationExpression call(EvaluationExpression evaluationExpression) {
+			public EvaluationExpression call(final EvaluationExpression evaluationExpression) {
 				return replacePredicate.isTrue(evaluationExpression) ? replaceFunction.call(evaluationExpression)
 					: evaluationExpression;
 			}
@@ -221,13 +222,13 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 		// remove in three steps
 		// 1. replace all removed expression with REMOVED
 		// 2. remove all REMOVED in containers
-		EvaluationExpression taggedValues = this.transformRecursively(new TransformFunction() {
+		final EvaluationExpression taggedValues = this.transformRecursively(new TransformFunction() {
 			@Override
-			public EvaluationExpression call(EvaluationExpression evaluationExpression) {
+			public EvaluationExpression call(final EvaluationExpression evaluationExpression) {
 				if (predicate.isTrue(evaluationExpression))
 					return REMOVED;
 				if (evaluationExpression instanceof ContainerExpression) {
-					List<EvaluationExpression> children = new IdentityList<EvaluationExpression>();
+					final List<EvaluationExpression> children = new IdentityList<EvaluationExpression>();
 					children.addAll(((ContainerExpression) evaluationExpression).getChildren());
 					children.removeAll(Arrays.asList(REMOVED));
 					((ContainerExpression) evaluationExpression).setChildren(children);
@@ -357,7 +358,7 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 		return this.tags;
 	}
 
-	protected List<EvaluationExpression> transformChildExpressions(TransformFunction function,
+	protected List<EvaluationExpression> transformChildExpressions(final TransformFunction function,
 			final List<? extends EvaluationExpression> children2) {
 		final List<EvaluationExpression> children = new ArrayList<EvaluationExpression>(children2);
 		for (int index = 0; index < children.size(); index++)
@@ -365,7 +366,8 @@ public abstract class EvaluationExpression implements SerializableSopremoType, C
 		return children;
 	}
 
-	protected void appendChildExpressions(final StringBuilder builder, final List<? extends EvaluationExpression> children, String separator) {
+	protected void appendChildExpressions(final StringBuilder builder,
+			final List<? extends EvaluationExpression> children, final String separator) {
 		for (int index = 0; index < children.size(); index++) {
 			children.get(index).toString(builder);
 			if (index < children.size() - 1)

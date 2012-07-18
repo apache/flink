@@ -48,7 +48,7 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), null, this.context);
-		
+
 		Assert.assertTrue(result instanceof IArrayNode);
 		final IArrayNode resultArray = (IArrayNode) result;
 		final double[] doubleResult = new double[resultArray.size()];
@@ -56,7 +56,7 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 			Assert.assertTrue(resultArray.get(index) instanceof INumericNode);
 			doubleResult[index] = ((INumericNode) resultArray.get(index)).getDoubleValue();
 		}
-		
+
 		final double[] expected = { 1 + 2 + 3 + 4 + 5,
 			(double) (1 + 2 + 3 + 4 + 5) / 5,
 			(double) (1 * 1 + 2 * 2 + 3 * 3 + 4 * 4 + 5 * 5) / 5 };
@@ -65,7 +65,7 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 
 	@Test
 	public void shouldReuseTarget() {
-		ArrayNode target = new ArrayNode();
+		final ArrayNode target = new ArrayNode();
 		final BatchAggregationExpression batch = new BatchAggregationExpression(DefaultFunctions.SUM);
 		batch.add(DefaultFunctions.AVERAGE);
 		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
@@ -74,10 +74,10 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 
 		Assert.assertSame(target, result);
 	}
-	
+
 	@Test
 	public void shouldNotReuseTargetWithWrongType() {
-		ObjectNode target = new ObjectNode();
+		final ObjectNode target = new ObjectNode();
 		final BatchAggregationExpression batch = new BatchAggregationExpression(DefaultFunctions.SUM);
 		batch.add(DefaultFunctions.AVERAGE);
 		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,

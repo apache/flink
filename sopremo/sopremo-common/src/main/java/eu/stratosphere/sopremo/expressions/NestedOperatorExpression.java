@@ -34,19 +34,19 @@ public class NestedOperatorExpression extends UnevaluableExpression {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (!super.equals(obj))
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		NestedOperatorExpression other = (NestedOperatorExpression) obj;
+		final NestedOperatorExpression other = (NestedOperatorExpression) obj;
 		return this.operator.equals(other.operator);
 	}
 
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		this.appendTags(builder);
 		builder.append("<").append(this.operator).append(">");
 	}

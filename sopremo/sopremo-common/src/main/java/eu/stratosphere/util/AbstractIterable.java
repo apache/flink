@@ -30,14 +30,14 @@ public abstract class AbstractIterable<T> implements Iterable<T> {
 		return this.toString(10);
 	}
 
-	public String toString(int numberOfElements) {
-		StringBuilder builder = new StringBuilder(this.getClass().getSimpleName()).append(' ');
+	public String toString(final int numberOfElements) {
+		final StringBuilder builder = new StringBuilder(this.getClass().getSimpleName()).append(' ');
 		this.appendElements(builder, this, numberOfElements);
 		return builder.toString();
 	}
 
-	protected void appendElements(StringBuilder builder, Iterable<?> iterable, int numberOfElements) {
-		Iterator<?> inputIterator = iterable.iterator();
+	protected void appendElements(final StringBuilder builder, final Iterable<?> iterable, final int numberOfElements) {
+		final Iterator<?> inputIterator = iterable.iterator();
 		for (int input = 0; input < numberOfElements && inputIterator.hasNext(); input++)
 			builder.append(inputIterator.next()).append(' ');
 		if (inputIterator.hasNext())

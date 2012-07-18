@@ -53,35 +53,35 @@ public final class NumberCoercer {
 
 		this.coercers.put(AbstractJsonNode.Type.IntNode, new Coercer<INumericNode, IntNode>() {
 			@Override
-			public IntNode coerce(INumericNode from, IntNode target) {
+			public IntNode coerce(final INumericNode from, final IntNode target) {
 				target.setValue(from.getIntValue());
 				return target;
 			}
 		});
 		this.coercers.put(AbstractJsonNode.Type.LongNode, new Coercer<INumericNode, LongNode>() {
 			@Override
-			public LongNode coerce(INumericNode from, LongNode target) {
+			public LongNode coerce(final INumericNode from, final LongNode target) {
 				target.setValue(from.getLongValue());
 				return target;
 			}
 		});
 		this.coercers.put(AbstractJsonNode.Type.DoubleNode, new Coercer<INumericNode, DoubleNode>() {
 			@Override
-			public DoubleNode coerce(INumericNode from, DoubleNode target) {
+			public DoubleNode coerce(final INumericNode from, final DoubleNode target) {
 				target.setValue(from.getDoubleValue());
 				return target;
 			}
 		});
 		this.coercers.put(AbstractJsonNode.Type.DecimalNode, new Coercer<INumericNode, DecimalNode>() {
 			@Override
-			public DecimalNode coerce(INumericNode from, DecimalNode target) {
+			public DecimalNode coerce(final INumericNode from, final DecimalNode target) {
 				target.setValue(from.getDecimalValue());
 				return target;
 			}
 		});
 		this.coercers.put(AbstractJsonNode.Type.BigIntegerNode, new Coercer<INumericNode, BigIntegerNode>() {
 			@Override
-			public BigIntegerNode coerce(INumericNode from, BigIntegerNode target) {
+			public BigIntegerNode coerce(final INumericNode from, final BigIntegerNode target) {
 				target.setValue(from.getBigIntegerValue());
 				return target;
 			}

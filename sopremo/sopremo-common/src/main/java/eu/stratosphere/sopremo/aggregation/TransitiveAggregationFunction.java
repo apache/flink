@@ -40,6 +40,7 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	 *        additional context informations
 	 * @return the aggregate after processing
 	 */
+	@Override
 	public abstract IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregationTarget,
 			final EvaluationContext context);
 
@@ -50,7 +51,7 @@ public abstract class TransitiveAggregationFunction extends AggregationFunction 
 	 * eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target) {
+	public IJsonNode getFinalAggregate(final IJsonNode aggregator, final IJsonNode target) {
 		return aggregator;
 	}
 

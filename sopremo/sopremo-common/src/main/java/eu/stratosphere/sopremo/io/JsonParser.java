@@ -475,10 +475,11 @@ public class JsonParser {
 		}
 
 		@Override
-		public void copyNormalizedKey(byte[] target, int offset, int len) {
+		public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 		}
 
-		public void copyValueFrom(IJsonNode otherNode) {
+		@Override
+		public void copyValueFrom(final IJsonNode otherNode) {
 
 		}
 	}

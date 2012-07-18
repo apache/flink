@@ -34,17 +34,17 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	private static final long serialVersionUID = -4428612687995653881L;
 
 	protected EvaluationExpression innerExpression;
-	
-	private Class<CacheType> cacheType;
 
-	public CachingExpression(EvaluationExpression expression, Class<CacheType> cacheType) {
+	private final Class<CacheType> cacheType;
+
+	public CachingExpression(final EvaluationExpression expression, final Class<CacheType> cacheType) {
 		this.innerExpression = expression;
 		this.cacheType = cacheType;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (!super.equals(obj))
@@ -62,7 +62,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public final CacheType evaluate(IJsonNode node, IJsonNode target, EvaluationContext context) {
+	public final CacheType evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// ignores target, maintains its own target
 		return this.evaluate(node, context);
 	}
@@ -80,11 +80,11 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	}
 
 	@Override
-	public IJsonNode set(IJsonNode node, IJsonNode value, EvaluationContext context) {
+	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
 		return this.innerExpression.set(node, value, context);
 	}
 
-	public void setInnerExpression(EvaluationExpression expression) {
+	public void setInnerExpression(final EvaluationExpression expression) {
 		if (expression == null)
 			throw new NullPointerException("expression must not be null");
 
@@ -96,7 +96,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public void toString(StringBuilder builder) {
+	public void toString(final StringBuilder builder) {
 		this.innerExpression.toString(builder);
 	}
 
@@ -107,7 +107,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.innerExpression = this.innerExpression.transformRecursively(function);
 		return function.call(this);
 	}
@@ -120,9 +120,9 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	 *        the expressions to wrap
 	 * @return a list of caching expressions
 	 */
-	public static List<CachingExpression<IJsonNode>> listOfAny(List<? extends EvaluationExpression> expressions) {
+	public static List<CachingExpression<IJsonNode>> listOfAny(final List<? extends EvaluationExpression> expressions) {
 		final ArrayList<CachingExpression<IJsonNode>> list = new ArrayList<CachingExpression<IJsonNode>>();
-		for (EvaluationExpression evaluationExpression : expressions)
+		for (final EvaluationExpression evaluationExpression : expressions)
 			list.add(ofAny(evaluationExpression));
 		return list;
 	}
@@ -139,7 +139,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	 */
 	@SuppressWarnings("unchecked")
 	public static <CacheType extends IJsonNode> CachingExpression<CacheType> of(EvaluationExpression expression,
-			Class<CacheType> cacheType) {
+			final Class<CacheType> cacheType) {
 		try {
 			if (expression instanceof CachingExpression) {
 				if (expression instanceof EagerCachingExpression
@@ -149,7 +149,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 			}
 			final CacheType cachedVariable = ReflectionUtil.newInstance(cacheType);
 			return new EagerCachingExpression<CacheType>(expression, cacheType, cachedVariable);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			return ofSubclass(expression, cacheType);
 		}
 	}
@@ -162,7 +162,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	 *        the expression to wrap
 	 * @return a caching expression
 	 */
-	public static CachingExpression<IJsonNode> ofAny(EvaluationExpression expression) {
+	public static CachingExpression<IJsonNode> ofAny(final EvaluationExpression expression) {
 		return ofSubclass(expression, IJsonNode.class);
 	}
 
@@ -178,7 +178,7 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	 */
 	@SuppressWarnings("unchecked")
 	public static <CacheType extends IJsonNode> CachingExpression<CacheType> ofSubclass(
-			EvaluationExpression expression, Class<CacheType> cacheType) {
+			EvaluationExpression expression, final Class<CacheType> cacheType) {
 		if (expression instanceof CachingExpression) {
 			if (expression instanceof LazyCachingExpression
 				&& ((CachingExpression<?>) expression).cacheType == cacheType)
@@ -196,14 +196,15 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 
 		private transient final CacheType cachedVariable;
 
-		public EagerCachingExpression(EvaluationExpression expression, Class<CacheType> cacheType, CacheType cachedVariable) {
+		public EagerCachingExpression(final EvaluationExpression expression, final Class<CacheType> cacheType,
+				final CacheType cachedVariable) {
 			super(expression, cacheType);
 			this.cachedVariable = cachedVariable;
 		}
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public CacheType evaluate(IJsonNode node, EvaluationContext context) {
+		public CacheType evaluate(final IJsonNode node, final EvaluationContext context) {
 			return (CacheType) this.innerExpression.evaluate(node, this.cachedVariable, context);
 		}
 	}
@@ -216,13 +217,13 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 
 		private transient CacheType cachedVariable;
 
-		public LazyCachingExpression(EvaluationExpression expression, Class<CacheType> cacheType) {
+		public LazyCachingExpression(final EvaluationExpression expression, final Class<CacheType> cacheType) {
 			super(expression, cacheType);
 		}
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public CacheType evaluate(IJsonNode node, EvaluationContext context) {
+		public CacheType evaluate(final IJsonNode node, final EvaluationContext context) {
 			return this.cachedVariable = (CacheType) this.innerExpression.evaluate(node, this.cachedVariable, context);
 		}
 	}

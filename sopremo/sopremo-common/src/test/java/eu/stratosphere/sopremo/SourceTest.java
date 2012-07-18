@@ -18,15 +18,16 @@ public class SourceTest extends SopremoTest<Source> {
 
 	@Test
 	public void shouldGenerateAdhocInput() {
-		SopremoTestPlan plan = new SopremoTestPlan(new Source(new ConstantExpression(42)));
+		final SopremoTestPlan plan = new SopremoTestPlan(new Source(new ConstantExpression(42)));
 		plan.getExpectedOutput(0).add(IntNode.valueOf(42));
 		plan.run();
 	}
 
 	@Test
 	public void shouldGenerateMultipleAdhocInput() {
-		SopremoTestPlan plan =
-			new SopremoTestPlan(new Source(new ArrayCreation(new ConstantExpression(42), new ConstantExpression("test"))));
+		final SopremoTestPlan plan =
+			new SopremoTestPlan(new Source(
+				new ArrayCreation(new ConstantExpression(42), new ConstantExpression("test"))));
 		plan.getExpectedOutput(0).
 			add(IntNode.valueOf(42)).
 			add(TextNode.valueOf("test"));

@@ -10,33 +10,33 @@ public class BooleanNodeTest extends JsonNodeTest<BooleanNode> {
 
 	@Test
 	public void shouldNormalizeTRUECorrectly() {
-		BooleanNode node = BooleanNode.TRUE;
-		byte[] array = new byte[node.getMaxNormalizedKeyLen()];
+		final BooleanNode node = BooleanNode.TRUE;
+		final byte[] array = new byte[node.getMaxNormalizedKeyLen()];
 		node.copyNormalizedKey(array, 0, 1);
 
-		byte[] expected = { (byte) 1 };
+		final byte[] expected = { (byte) 1 };
 
 		Assert.assertTrue(Arrays.equals(array, expected));
 	}
 
 	@Test
 	public void shouldNormalizeFALSECorrectly() {
-		BooleanNode node = BooleanNode.FALSE;
-		byte[] array = new byte[node.getMaxNormalizedKeyLen()];
+		final BooleanNode node = BooleanNode.FALSE;
+		final byte[] array = new byte[node.getMaxNormalizedKeyLen()];
 		node.copyNormalizedKey(array, 0, 1);
 
-		byte[] expected = { (byte) 0 };
+		final byte[] expected = { (byte) 0 };
 
 		Assert.assertTrue(Arrays.equals(array, expected));
 	}
 
 	@Test
 	public void shouldFillBytearrayIfLenghtToBig() {
-		BooleanNode node = BooleanNode.TRUE;
-		byte[] array = new byte[4];
+		final BooleanNode node = BooleanNode.TRUE;
+		final byte[] array = new byte[4];
 		node.copyNormalizedKey(array, 0, 4);
 
-		byte[] expected = { (byte) 1, (byte) 0, (byte) 0, (byte) 0 };
+		final byte[] expected = { (byte) 1, (byte) 0, (byte) 0, (byte) 0 };
 
 		Assert.assertTrue(Arrays.equals(array, expected));
 	}

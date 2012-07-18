@@ -60,7 +60,8 @@ public abstract class SopremoMatch extends MatchStub {
 	 * eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void match(final PactRecord record1, final PactRecord record2, final Collector<PactRecord> out) throws Exception {
+	public void match(final PactRecord record1, final PactRecord record2, final Collector<PactRecord> out)
+			throws Exception {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);
 		final IJsonNode input1 = this.inputSchema1.recordToJson(record1, this.cachedInput1);

@@ -16,7 +16,6 @@ package eu.stratosphere.sopremo.function;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
  * @author Arvid Heise

@@ -243,7 +243,7 @@ public class BuiltinFunctionsTest {
 
 	@Test
 	public void shouldCalculateAvg() {
-		IJsonNode aggregator = DefaultFunctions.AVERAGE.initialize(null);
+		final IJsonNode aggregator = DefaultFunctions.AVERAGE.initialize(null);
 		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(50), aggregator, this.context);
 		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(25), aggregator, this.context);
 		DefaultFunctions.AVERAGE.aggregate(IntNode.valueOf(75), aggregator, this.context);

@@ -37,7 +37,7 @@ public class TypeHierarchyBrowser {
 			 * @see eu.stratosphere.util.reflect.ClassHierarchyVisiter.Mode#getSuperTypes(java.lang.Class)
 			 */
 			@Override
-			Iterable<? extends Class<?>> getSuperTypes(Class<?> startClass) {
+			Iterable<? extends Class<?>> getSuperTypes(final Class<?> startClass) {
 				final Class<?> superclass = startClass.getSuperclass();
 				if (superclass == null)
 					return Collections.emptyList();
@@ -50,7 +50,7 @@ public class TypeHierarchyBrowser {
 			 * @see eu.stratosphere.util.reflect.ClassHierarchyVisiter.Mode#shouldInvokeCallback(java.lang.Class)
 			 */
 			@Override
-			boolean shouldInvokeCallback(Class<?> superType) {
+			boolean shouldInvokeCallback(final Class<?> superType) {
 				return superType.isInterface();
 			}
 		},
@@ -60,16 +60,16 @@ public class TypeHierarchyBrowser {
 			 * @see eu.stratosphere.util.reflect.TypeHierarchyBrowser.Mode#prepare(java.util.Deque)
 			 */
 			@Override
-			List<Class<?>> prepare(List<Class<?>> nextTypes) {
+			List<Class<?>> prepare(final List<Class<?>> nextTypes) {
 				Collections.sort(nextTypes, new Comparator<Class<?>>() {
 					/*
 					 * (non-Javadoc)
 					 * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
 					 */
 					@Override
-					public int compare(Class<?> o1, Class<?> o2) {
-						int interface1 = o1.isInterface() ? 1 : 0;
-						int interface2 = o2.isInterface() ? 1 : 0;
+					public int compare(final Class<?> o1, final Class<?> o2) {
+						final int interface1 = o1.isInterface() ? 1 : 0;
+						final int interface2 = o2.isInterface() ? 1 : 0;
 						return interface1 - interface2;
 					}
 				});
@@ -79,7 +79,7 @@ public class TypeHierarchyBrowser {
 		INTERFACE_FIRST {
 			@SuppressWarnings("unchecked")
 			@Override
-			Iterable<? extends Class<?>> getSuperTypes(Class<?> startClass) {
+			Iterable<? extends Class<?>> getSuperTypes(final Class<?> startClass) {
 				final Class<?> superclass = startClass.getSuperclass();
 				if (superclass == null)
 					return Arrays.asList(startClass.getInterfaces());
@@ -92,16 +92,16 @@ public class TypeHierarchyBrowser {
 			 * @see eu.stratosphere.util.reflect.TypeHierarchyBrowser.Mode#prepare(java.util.Deque)
 			 */
 			@Override
-			List<Class<?>> prepare(List<Class<?>> nextTypes) {
+			List<Class<?>> prepare(final List<Class<?>> nextTypes) {
 				Collections.sort(nextTypes, new Comparator<Class<?>>() {
 					/*
 					 * (non-Javadoc)
 					 * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
 					 */
 					@Override
-					public int compare(Class<?> o1, Class<?> o2) {
-						int interface1 = o1.isInterface() ? 0 : 1;
-						int interface2 = o2.isInterface() ? 0 : 1;
+					public int compare(final Class<?> o1, final Class<?> o2) {
+						final int interface1 = o1.isInterface() ? 0 : 1;
+						final int interface2 = o2.isInterface() ? 0 : 1;
 						return interface1 - interface2;
 					}
 				});
@@ -110,12 +110,12 @@ public class TypeHierarchyBrowser {
 		},
 		ALL;
 
-		boolean shouldInvokeCallback(@SuppressWarnings("unused") Class<?> superType) {
+		boolean shouldInvokeCallback(@SuppressWarnings("unused") final Class<?> superType) {
 			return true;
 		}
 
 		@SuppressWarnings("unchecked")
-		Iterable<? extends Class<?>> getSuperTypes(Class<?> startClass) {
+		Iterable<? extends Class<?>> getSuperTypes(final Class<?> startClass) {
 			final Class<?> superclass = startClass.getSuperclass();
 			if (superclass == null)
 				return Arrays.asList(startClass.getInterfaces());
@@ -123,7 +123,7 @@ public class TypeHierarchyBrowser {
 				Arrays.asList(startClass.getInterfaces()));
 		}
 
-		List<Class<?>> prepare(List<Class<?>> nextTypes) {
+		List<Class<?>> prepare(final List<Class<?>> nextTypes) {
 			return nextTypes;
 		}
 	}
@@ -145,7 +145,7 @@ public class TypeHierarchyBrowser {
 	 * @param maxDepth
 	 *        the maximum depth
 	 */
-	public void visit(Class<?> startType, Mode mode, Visitor<Class<?>> callback, int maxDepth) {
+	public void visit(final Class<?> startType, final Mode mode, final Visitor<Class<?>> callback, final int maxDepth) {
 		if (maxDepth <= 0)
 			return;
 
@@ -154,20 +154,19 @@ public class TypeHierarchyBrowser {
 		for (int depth = 1; depth <= maxDepth && !currentTypes.isEmpty(); depth++) {
 			final boolean shouldDescend = depth + 1 <= maxDepth;
 
-			for (Class<?> type : currentTypes) {
-				Iterable<? extends Class<?>> superTypes = mode.getSuperTypes(type);
-				for (Class<?> superType : superTypes) {
-					if (mode.shouldInvokeCallback(superType)) {
-						if (!callback.visited(superType, depth)) 						
+			for (final Class<?> type : currentTypes) {
+				final Iterable<? extends Class<?>> superTypes = mode.getSuperTypes(type);
+				for (final Class<?> superType : superTypes) {
+					if (mode.shouldInvokeCallback(superType))
+						if (!callback.visited(superType, depth))
 							return;
-					}
 					if (shouldDescend)
 						nextTypes.add(superType);
 				}
 			}
 
 			currentTypes.clear();
-			List<Class<?>> swap = currentTypes;
+			final List<Class<?>> swap = currentTypes;
 			currentTypes = mode.prepare(nextTypes);
 			nextTypes = swap;
 		}
@@ -187,7 +186,7 @@ public class TypeHierarchyBrowser {
 	 * @param callback
 	 *        the callback to call
 	 */
-	public void visit(Class<?> startType, Mode mode, Visitor<Class<?>> callback) {
-		visit(startType, mode, callback, Integer.MAX_VALUE);
+	public void visit(final Class<?> startType, final Mode mode, final Visitor<Class<?>> callback) {
+		this.visit(startType, mode, callback, Integer.MAX_VALUE);
 	}
 }

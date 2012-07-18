@@ -1,9 +1,7 @@
 package eu.stratosphere.sopremo.type;
 
-import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -54,7 +52,7 @@ public class DecimalNode extends AbstractNumericNode implements INumericNode {
 		return new DecimalNode(v);
 	}
 
-	public void setValue(BigDecimal value) {
+	public void setValue(final BigDecimal value) {
 		this.value = value;
 	}
 
@@ -173,7 +171,7 @@ public class DecimalNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value = ((DecimalNode) otherNode).value;
 	}

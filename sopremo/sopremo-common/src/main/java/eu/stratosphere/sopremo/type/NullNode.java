@@ -45,7 +45,7 @@ public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 	@Override
 	public boolean equals(final Object o) {
 		return o == Instance;
-//		return o instanceof NullNode ? true : false;
+		// return o instanceof NullNode ? true : false;
 	}
 
 	@Override
@@ -88,7 +88,7 @@ public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 	}
 
@@ -120,7 +120,7 @@ public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 		PactNull.getInstance().copyNormalizedKey(target, offset, len);
 	}
 }

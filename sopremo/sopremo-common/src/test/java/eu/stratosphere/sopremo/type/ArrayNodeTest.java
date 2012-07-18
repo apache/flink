@@ -11,30 +11,28 @@ public class ArrayNodeTest extends ArrayNodeBaseTest<ArrayNode> {
 	@Override
 	public void initArrayNode() {
 		this.node = new ArrayNode();
-		int numberOfNodes = 10;
+		final int numberOfNodes = 10;
 
-		for (int i = 0; i < numberOfNodes; i++) {
+		for (int i = 0; i < numberOfNodes; i++)
 			this.node.add(i, IntNode.valueOf(i));
-		}
 	}
 
 	@Test
 	public void shouldReturnCorrectSubarray() {
-		int numberOfNodesInSubarray = 5;
-		int startIndex = 3;
-		IArrayNode result = new ArrayNode();
+		final int numberOfNodesInSubarray = 5;
+		final int startIndex = 3;
+		final IArrayNode result = new ArrayNode();
 
-		for (int i = 0; i < numberOfNodesInSubarray; i++) {
+		for (int i = 0; i < numberOfNodesInSubarray; i++)
 			result.add(i, IntNode.valueOf(startIndex + i));
-		}
 
 		Assert.assertEquals(result, this.node.subArray(startIndex, startIndex + numberOfNodesInSubarray));
 	}
 
 	@Test
 	public void shouldCreateNewArrayNodeFromIterator() {
-		Iterator<IJsonNode> it = this.node.iterator();
-		ArrayNode newArray = ArrayNode.valueOf(it);
+		final Iterator<IJsonNode> it = this.node.iterator();
+		final ArrayNode newArray = ArrayNode.valueOf(it);
 
 		Assert.assertEquals(this.node, newArray);
 	}

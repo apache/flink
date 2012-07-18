@@ -659,7 +659,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		}
 
 		@Override
-		public void toString(StringBuilder builder) {
+		public void toString(final StringBuilder builder) {
 			builder.append(this.getOperator().toString()).append('@').append(this.index);
 		}
 	}

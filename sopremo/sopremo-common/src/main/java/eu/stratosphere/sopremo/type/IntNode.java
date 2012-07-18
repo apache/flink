@@ -8,7 +8,6 @@ import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
@@ -60,7 +59,7 @@ public class IntNode extends AbstractNumericNode implements INumericNode {
 	 * @param value
 	 *        the value to set
 	 */
-	public void setValue(int value) {
+	public void setValue(final int value) {
 		this.value.setValue(value);
 	}
 
@@ -156,7 +155,7 @@ public class IntNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value.setValue(((IntNode) otherNode).getIntValue());
 	}
@@ -178,7 +177,7 @@ public class IntNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 		this.value.copyNormalizedKey(target, offset, len);
 	}
 

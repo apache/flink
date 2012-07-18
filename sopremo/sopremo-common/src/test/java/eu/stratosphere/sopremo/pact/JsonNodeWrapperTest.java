@@ -93,6 +93,22 @@ public class JsonNodeWrapperTest extends JsonNodeTest<JsonNodeWrapper> {
 		}
 	}
 
+	@Test
+	public void shouldNotEqualWithNonWrapperNodes() {
+		Assert.assertFalse(this.node.equals(IntNode.valueOf(42)));
+	}
+
+	@Test
+	public void shouldNotEqualWithNull() {
+		Assert.assertFalse(this.node.equals(null));
+	}
+
+	@Test
+	public void shouldEqualWithNullIfValueIsNull() {
+		this.node = new JsonNodeWrapper(null);
+		Assert.assertTrue(this.node.equals(new JsonNodeWrapper(null)));
+	}
+
 	@Override
 	public void testValue() {
 	}

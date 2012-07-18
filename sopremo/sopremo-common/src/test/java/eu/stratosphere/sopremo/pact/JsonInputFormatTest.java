@@ -132,7 +132,7 @@ public class JsonInputFormatTest {
 		jsonWriter.write("[{\"id\": 1}, {\"id\": 2}, {\"id\": 3}, {\"id\": 4}, {\"id\": 5}]");
 		jsonWriter.close();
 
-		Configuration config = new Configuration();
+		final Configuration config = new Configuration();
 		SopremoUtil.serialize(config, IOConstants.SCHEMA, SCHEMA);
 		final JsonInputFormat inputFormat = FormatUtil.openInput(JsonInputFormat.class, file.toURI()
 			.toString(), config);
@@ -161,7 +161,7 @@ public class JsonInputFormatTest {
 		jsonWriter.write("{\"array\": [{\"id\": 1}, {\"id\": 2}, {\"id\": 3}, {\"id\": 4}, {\"id\": 5}]}");
 		jsonWriter.close();
 
-		Configuration config = new Configuration();
+		final Configuration config = new Configuration();
 		SopremoUtil.serialize(config, IOConstants.SCHEMA, SCHEMA);
 		final JsonInputFormat inputFormat = FormatUtil.openInput(JsonInputFormat.class, file.toURI()
 			.toString(), config);

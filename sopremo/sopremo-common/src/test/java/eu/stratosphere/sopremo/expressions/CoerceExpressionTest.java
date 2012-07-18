@@ -30,7 +30,8 @@ public class CoerceExpressionTest extends EvaluableExpressionTest<CoerceExpressi
 
 	@Test
 	public void shouldChangeTypeOfTextInterpretedNumberToInt() {
-		final IJsonNode result = new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("42"), null, this.context);
+		final IJsonNode result = new CoerceExpression(IntNode.class).evaluate(TextNode.valueOf("42"), null,
+			this.context);
 
 		Assert.assertEquals(IntNode.valueOf(42), result);
 	}

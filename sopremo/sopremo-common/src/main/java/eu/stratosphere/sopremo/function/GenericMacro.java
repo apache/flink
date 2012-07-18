@@ -45,7 +45,8 @@ public class GenericMacro extends MacroBase {
 	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationExpression target, final EvaluationContext context) {
+	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationExpression target,
+			final EvaluationContext context) {
 		return ReflectUtil.newInstance(this.expressionClass, (Object[]) params);
 	}
 }

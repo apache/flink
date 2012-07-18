@@ -99,10 +99,10 @@ public class Source extends ElementaryOperator<Source> {
 				this.adhocExpression);
 		} else {
 			try {
-				URI validURI = new URI(inputPath);
+				final URI validURI = new URI(inputPath);
 				if (validURI.getScheme() == null)
 					throw new IllegalStateException("Source does not have a valid schema: " + inputPath);
-			} catch (URISyntaxException e) {
+			} catch (final URISyntaxException e) {
 				throw new IllegalStateException("Source does not have a valid path: " + inputPath, e);
 			}
 

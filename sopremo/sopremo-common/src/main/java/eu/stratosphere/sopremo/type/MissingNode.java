@@ -98,12 +98,12 @@ public class MissingNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 	}
 
 	@SuppressWarnings("unused")
-	private void writeObject(ObjectOutputStream oos) throws IOException {
+	private void writeObject(final ObjectOutputStream oos) throws IOException {
 	}
 
 	@SuppressWarnings("unused")
@@ -126,7 +126,7 @@ public class MissingNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 		this.fillWithZero(target, offset, offset + len);
 	}
 

@@ -22,6 +22,16 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 
 /**
+ * This Factory provides the functionality described in {@link SchemaFactory} in an simple way.
+ * Only the following conditions are checked:</br>
+ * <ul>
+ * <li>no key expressions are provided: {@link DirectSchema}</br>
+ * <li>all key expressions are {@link ObjectAccess}: {@link ObjectSchema}</br>
+ * <li>all key expressions are {@link ArrayAccess}:</br>
+ * - startIndex of the first key expression is 0: {@link HeadArraySchema}</br>
+ * - else: {@link TailArraySchema}</br>
+ * <li>non of the conditions described above are true: {@link GeneralSchema}
+ * 
  * @author Arvid Heise
  */
 public class NaiveSchemaFactory implements SchemaFactory {

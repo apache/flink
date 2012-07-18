@@ -21,7 +21,7 @@ public class SopremoPlan {
 
 	private EvaluationContext context = new EvaluationContext();
 
-	private SchemaFactory schemaFactory = new NaiveSchemaFactory();
+	private final SchemaFactory schemaFactory = new NaiveSchemaFactory();
 
 	public SopremoPlan() {
 		this.module = new SopremoModule("plan", 0, 0);
@@ -41,8 +41,8 @@ public class SopremoPlan {
 	 * Checks if all contracts are {@link GenericDataSink}s.
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private Collection<GenericDataSink> checkForSinks(Collection<Contract> contracts) {
-		for (Contract contract : contracts)
+	private Collection<GenericDataSink> checkForSinks(final Collection<Contract> contracts) {
+		for (final Contract contract : contracts)
 			if (!GenericDataSink.class.isInstance(contract))
 				throw new IllegalStateException("Contract without connected sink detected " + contract);
 		return (Collection) contracts;

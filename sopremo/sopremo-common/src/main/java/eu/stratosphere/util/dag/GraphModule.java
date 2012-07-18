@@ -108,7 +108,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	}
 
 	@Override
-	public void setInput(int index, InputNode input) {
+	public void setInput(final int index, final InputNode input) {
 		this.inputNodes[index] = input;
 	}
 
@@ -127,12 +127,12 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	}
 
 	@Override
-	public OutputNode getInternalOutputNodes(int index) {
+	public OutputNode getInternalOutputNodes(final int index) {
 		return this.internalOutputNodes.get(index);
 	}
 
 	@Override
-	public void setOutput(int index, OutputNode output) {
+	public void setOutput(final int index, final OutputNode output) {
 		this.outputNodes[index] = output;
 	}
 

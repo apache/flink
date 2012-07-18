@@ -43,7 +43,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 
 	@Test
 	public void shouldReuseTarget() {
-		IJsonNode target = new ArrayNode();
+		final IJsonNode target = new ArrayNode();
 		this.context.getFunctionRegistry().register(DefaultFunctions.class);
 
 		final ArrayNode input = new ArrayNode();
@@ -69,7 +69,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 
 	@Test
 	public void shouldNotReuseTargetIfWrongType() {
-		IJsonNode target = new ObjectNode();
+		final IJsonNode target = new ObjectNode();
 		this.context.getFunctionRegistry().register(DefaultFunctions.class);
 
 		final ArrayNode input = new ArrayNode();

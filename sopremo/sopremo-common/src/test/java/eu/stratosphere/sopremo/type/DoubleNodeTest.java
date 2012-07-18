@@ -10,18 +10,17 @@ public class DoubleNodeTest extends JsonNodeTest<DoubleNode> {
 
 	@Test
 	public void shouldGenerateFullyZeroedNormalizedKey() {
-		int arraySize = 100;
+		final int arraySize = 100;
 
-		DoubleNode node = DoubleNode.valueOf(42.42);
+		final DoubleNode node = DoubleNode.valueOf(42.42);
 
-		byte[] target = new byte[arraySize];
-		byte[] expected = new byte[arraySize];
+		final byte[] target = new byte[arraySize];
+		final byte[] expected = new byte[arraySize];
 
 		node.copyNormalizedKey(target, 0, arraySize);
 
-		for (int i = 0; i < arraySize; i++) {
+		for (int i = 0; i < arraySize; i++)
 			expected[i] = (byte) 0;
-		}
 
 		Assert.assertTrue(Arrays.equals(expected, target));
 	}

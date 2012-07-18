@@ -22,7 +22,8 @@ public class JsonCollector {
 
 	private PactRecord record;
 
-	private CachingExpression<IJsonNode> resultProjection = CachingExpression.ofSubclass(EvaluationExpression.VALUE,
+	private final CachingExpression<IJsonNode> resultProjection = CachingExpression.ofSubclass(
+		EvaluationExpression.VALUE,
 		IJsonNode.class);
 
 	/**
@@ -41,7 +42,7 @@ public class JsonCollector {
 	 * @param collector
 	 *        the collector to set
 	 */
-	public void configure(final Collector<PactRecord> collector, EvaluationContext context) {
+	public void configure(final Collector<PactRecord> collector, final EvaluationContext context) {
 		this.collector = collector;
 		this.context = context;
 		this.resultProjection.setInnerExpression(context.getResultProjection());

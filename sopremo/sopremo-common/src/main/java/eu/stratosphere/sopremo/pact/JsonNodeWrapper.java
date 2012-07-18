@@ -78,7 +78,7 @@ public class JsonNodeWrapper extends AbstractJsonNode implements IJsonNode {
 	 * @return the wrapped node after casting
 	 */
 	@SuppressWarnings("unchecked")
-	public <T extends IJsonNode> T getValue(Class<T> klass) {
+	public <T extends IJsonNode> T getValue(final Class<T> klass) {
 		return (T) this.value;
 	}
 
@@ -105,14 +105,40 @@ public class JsonNodeWrapper extends AbstractJsonNode implements IJsonNode {
 		return this.value.getJavaValue();
 	}
 
+	// @Override
+	// public int hashCode() {
+	// return this.value.hashCode();
+	// }
+
+	// @Override
+	// public boolean equals(final Object o) {
+	// return this.value.equals(((JsonNodeWrapper) o).getValue());
+	// }
+
 	@Override
 	public int hashCode() {
-		return this.value.hashCode();
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((this.value == null) ? 0 : this.value.hashCode());
+		return result;
 	}
 
 	@Override
-	public boolean equals(final Object o) {
-		return this.value.equals(((JsonNodeWrapper) o).getValue());
+	public boolean equals(Object obj) {
+		if (obj == null) {
+			return false;
+		}
+		if (this == obj)
+			return true;
+		if (getClass() != obj.getClass())
+			return false;
+		JsonNodeWrapper other = (JsonNodeWrapper) obj;
+		if (this.value == null) {
+			if (other.getValue() != null)
+				return false;
+		} else if (!this.value.equals(other.getValue()))
+			return false;
+		return true;
 	}
 
 	@Override
@@ -131,7 +157,7 @@ public class JsonNodeWrapper extends AbstractJsonNode implements IJsonNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		if (!(otherNode instanceof JsonNodeWrapper))
 			throw new IllegalArgumentException("Other node is not a JsonNodeWrapper");
 		if (this.value.getType() != otherNode.getType())
@@ -166,22 +192,21 @@ public class JsonNodeWrapper extends AbstractJsonNode implements IJsonNode {
 
 	@Override
 	public int getMaxNormalizedKeyLen() {
-		return (this.value.getMaxNormalizedKeyLen() > Integer.MAX_VALUE - 4) ? Integer.MAX_VALUE : this.value
+		return this.value.getMaxNormalizedKeyLen() > Integer.MAX_VALUE - 4 ? Integer.MAX_VALUE : this.value
 			.getMaxNormalizedKeyLen();
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 		if (len > 0) {
 			target[offset] = this.convertToByteArray(this.value.getType().ordinal());
 
-			if (len > 1) {
+			if (len > 1)
 				this.value.copyNormalizedKey(target, offset + 1, len - 1);
-			}
 		}
 	}
 
-	private byte convertToByteArray(int value) {
+	private byte convertToByteArray(final int value) {
 
 		return (byte) value;
 	}

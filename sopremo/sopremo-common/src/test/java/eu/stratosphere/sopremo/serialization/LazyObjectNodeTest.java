@@ -68,8 +68,8 @@ public class LazyObjectNodeTest extends ObjectNodeBaseTest<LazyObjectNode> {
 
 	@Override
 	protected IJsonNode lowerNode() {
-		ObjectSchema schema = new ObjectSchema("firstName", "lastName", "age");
-		PactRecord record = schema.jsonToRecord(
+		final ObjectSchema schema = new ObjectSchema("firstName", "lastName", "age");
+		final PactRecord record = schema.jsonToRecord(
 			new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
 				.put("gender", TextNode.valueOf("female")), null, null);
 
@@ -78,8 +78,8 @@ public class LazyObjectNodeTest extends ObjectNodeBaseTest<LazyObjectNode> {
 
 	@Override
 	protected IJsonNode higherNode() {
-		ObjectSchema schema = new ObjectSchema("firstName", "lastName", "age");
-		PactRecord record = schema.jsonToRecord(
+		final ObjectSchema schema = new ObjectSchema("firstName", "lastName", "age");
+		final PactRecord record = schema.jsonToRecord(
 			new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
 				.put("gender", TextNode.valueOf("male")), null, null);
 

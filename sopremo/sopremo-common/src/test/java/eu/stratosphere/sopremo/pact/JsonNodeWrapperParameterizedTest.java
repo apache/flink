@@ -49,17 +49,17 @@ public class JsonNodeWrapperParameterizedTest {
 
 	private static int ARRAY_LENGHT = 100;
 
-	private JsonNodeWrapper wrapper1;
+	private final JsonNodeWrapper wrapper1;
 
-	private JsonNodeWrapper wrapper2;
+	private final JsonNodeWrapper wrapper2;
 
 	private final boolean shouldBeEqual;
 
-	private byte[] target1;
+	private final byte[] target1;
 
-	private byte[] target2;
+	private final byte[] target2;
 
-	public JsonNodeWrapperParameterizedTest(IJsonNode node1, IJsonNode node2, boolean shouldBeEqual) {
+	public JsonNodeWrapperParameterizedTest(final IJsonNode node1, final IJsonNode node2, final boolean shouldBeEqual) {
 		this.wrapper1 = (JsonNodeWrapper) SopremoUtil.wrap(node1);
 		this.wrapper2 = (JsonNodeWrapper) SopremoUtil.wrap(node2);
 		this.shouldBeEqual = shouldBeEqual;
@@ -86,4 +86,8 @@ public class JsonNodeWrapperParameterizedTest {
 		Assert.assertEquals(this.shouldBeEqual, Arrays.equals(this.target1, this.target2));
 	}
 
+	@Test
+	public void shouldCorrectlyEqualTwoWrapper() {
+		Assert.assertEquals(this.shouldBeEqual, this.wrapper1.equals(this.wrapper2));
+	}
 }

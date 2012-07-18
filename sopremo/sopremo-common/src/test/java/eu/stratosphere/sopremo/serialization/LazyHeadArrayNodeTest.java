@@ -42,8 +42,8 @@ public class LazyHeadArrayNodeTest extends ArrayNodeBaseTest<LazyHeadArrayNode> 
 
 	@Override
 	protected IJsonNode lowerNode() {
-		HeadArraySchema schema = new HeadArraySchema(5);
-		PactRecord record = schema.jsonToRecord(
+		final HeadArraySchema schema = new HeadArraySchema(5);
+		final PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
 		return new LazyHeadArrayNode(record, schema);
@@ -51,8 +51,8 @@ public class LazyHeadArrayNodeTest extends ArrayNodeBaseTest<LazyHeadArrayNode> 
 
 	@Override
 	protected IJsonNode higherNode() {
-		HeadArraySchema schema = new HeadArraySchema(5);
-		PactRecord record = schema.jsonToRecord(
+		final HeadArraySchema schema = new HeadArraySchema(5);
+		final PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(3)), null, null);
 
 		return new LazyHeadArrayNode(record, schema);

@@ -164,7 +164,8 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		try {
 			return this.invokeDirectly(this.getMember(signature), context, signature.adjustParameters(params));
 		} catch (final Exception e) {
-			throw new EvaluationException("Cannot invoke " + this.getMember(signature) + " with " + Arrays.toString(params), e);
+			throw new EvaluationException("Cannot invoke " + this.getMember(signature) + " with "
+				+ Arrays.toString(params), e);
 		}
 	}
 

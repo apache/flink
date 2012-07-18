@@ -65,15 +65,12 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * To exert more control, several hooks are available that are called in fixed
  * order.
  * <ul>
- * <li>{@link #getStubClass()} allows to choose a different Stub than the first
- * inner class inheriting from {@link Stub}.
- * <li>{@link #getContract()} instantiates a contract matching the stub class
- * resulting from the previous callback. This callback is especially useful if a
- * PACT stub is chosen that is not supported in Sopremo yet.
- * <li>{@link #configureContract(Contract, Configuration, EvaluationContext)} is
- * a callback used to set parameters of the {@link Configuration} of the stub.
- * <li>{@link #asPactModule(EvaluationContext)} gives complete control over the
- * creation of the {@link PactModule}.
+ * <li>{@link #getStubClass()} allows to choose a different Stub than the first inner class inheriting from {@link Stub}.
+ * <li>{@link #getContract()} instantiates a contract matching the stub class resulting from the previous callback. This
+ * callback is especially useful if a PACT stub is chosen that is not supported in Sopremo yet.
+ * <li>{@link #configureContract(Contract, Configuration, EvaluationContext)} is a callback used to set parameters of
+ * the {@link Configuration} of the stub.
+ * <li>{@link #asPactModule(EvaluationContext)} gives complete control over the creation of the {@link PactModule}.
  * </ul>
  * 
  * @author Arvid Heise
@@ -82,7 +79,7 @@ import eu.stratosphere.util.reflect.ReflectUtil;
 public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 		extends Operator<Self> {
 	private static final org.apache.commons.logging.Log LOG = LogFactory
-			.getLog(ElementaryOperator.class);
+		.getLog(ElementaryOperator.class);
 
 	private final List<List<? extends EvaluationExpression>> keyExpressions = new ArrayList<List<? extends EvaluationExpression>>();
 
@@ -124,9 +121,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	 * Initializes the ElementaryOperator with the given number of inputs.
 	 * 
 	 * @param minInputs
-	 *            the minimum number of inputs
+	 *        the minimum number of inputs
 	 * @param maxInputs
-	 *            the maximum number of inputs
+	 *        the maximum number of inputs
 	 */
 	public ElementaryOperator(final int minInputs, final int maxInputs) {
 		super(minInputs, maxInputs, 1, 1);
@@ -136,7 +133,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	 * Initializes the ElementaryOperator with the given number of inputs.
 	 * 
 	 * @param inputs
-	 *            the number of inputs
+	 *        the number of inputs
 	 */
 	public ElementaryOperator(final int inputs) {
 		this(inputs, inputs);
@@ -151,7 +148,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	 * Returns the key expressions of the given input.
 	 * 
 	 * @param inputIndex
-	 *            the index of the input
+	 *        the index of the input
 	 * @return the key expressions of the given input
 	 */
 	@SuppressWarnings("unchecked")
@@ -160,7 +157,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 		if (inputIndex >= this.keyExpressions.size())
 			return Collections.EMPTY_LIST;
 		final List<? extends EvaluationExpression> expressions = this.keyExpressions
-				.get(inputIndex);
+			.get(inputIndex);
 		if (expressions == null)
 			return Collections.EMPTY_LIST;
 		return expressions;
@@ -170,9 +167,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	 * Sets the keyExpressions to the specified value.
 	 * 
 	 * @param keyExpressions
-	 *            the keyExpressions to set
+	 *        the keyExpressions to set
 	 * @param inputIndex
-	 *            the index of the input
+	 *        the index of the input
 	 */
 	@Property(hidden = true)
 	public void setKeyExpressions(final int inputIndex,
@@ -187,13 +184,13 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	 * Sets the keyExpressions of the given input to the specified value.
 	 * 
 	 * @param keyExpressions
-	 *            the keyExpressions to set
+	 *        the keyExpressions to set
 	 */
 	public void setKeyExpressions(final int index,
 			final EvaluationExpression... keyExpressions) {
 		if (keyExpressions.length == 0)
 			throw new IllegalArgumentException(
-					"keyExpressions must not be null");
+				"keyExpressions must not be null");
 
 		this.setKeyExpressions(index, Arrays.asList(keyExpressions));
 	}
@@ -202,9 +199,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	 * Sets the keyExpressions of the given input to the specified value.
 	 * 
 	 * @param keyExpressions
-	 *            the keyExpressions to set
+	 *        the keyExpressions to set
 	 * @param inputIndex
-	 *            the index of the input
+	 *        the index of the input
 	 * @return this
 	 */
 	public Self withKeyExpression(final int index,
@@ -217,9 +214,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	 * Sets the keyExpressions of the given input to the specified value.
 	 * 
 	 * @param keyExpressions
-	 *            the keyExpressions to set
+	 *        the keyExpressions to set
 	 * @param inputIndex
-	 *            the index of the input
+	 *        the index of the input
 	 * @return this
 	 */
 	public Self withKeyExpressions(final int index,
@@ -235,7 +232,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 		this.configureContract(contract, contract.getParameters(), context);
 
 		final List<List<Contract>> inputLists = ContractUtil
-				.getInputs(contract);
+			.getInputs(contract);
 		final List<Contract> distinctInputs = new IdentityList<Contract>();
 		for (final List<Contract> inputs : inputLists) {
 			// assume at least one input for each contract input slot
@@ -246,11 +243,11 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 					distinctInputs.add(input);
 		}
 		final PactModule module = new PactModule(this.toString(),
-				distinctInputs.size(), 1);
+			distinctInputs.size(), 1);
 		for (final List<Contract> inputs : inputLists)
 			for (int index = 0; index < inputs.size(); index++)
 				inputs.set(index, module.getInput(distinctInputs.indexOf(inputs
-						.get(index))));
+					.get(index))));
 		ContractUtil.setInputs(contract, inputLists);
 
 		module.getOutput(0).addInput(contract);
@@ -274,12 +271,12 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	 * non-final, non-static fields.
 	 * 
 	 * @param contract
-	 *            the contract to configure
+	 *        the contract to configure
 	 * @param stubConfiguration
-	 *            the configuration of the stub
+	 *        the configuration of the stub
 	 * @param context
-	 *            the context in which the {@link PactModule} is created and
-	 *            evaluated
+	 *        the context in which the {@link PactModule} is created and
+	 *        evaluated
 	 */
 	protected void configureContract(final Contract contract,
 			final Configuration stubConfiguration,
@@ -289,9 +286,9 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 		context.popOperator();
 
 		for (final Field stubField : contract.getUserCodeClass()
-				.getDeclaredFields())
+			.getDeclaredFields())
 			if ((stubField.getModifiers() & (Modifier.TRANSIENT
-					| Modifier.FINAL | Modifier.STATIC)) == 0) {
+				| Modifier.FINAL | Modifier.STATIC)) == 0) {
 				Class<?> clazz = this.getClass();
 				do {
 					Field thisField;
@@ -299,27 +296,27 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 						thisField = clazz.getDeclaredField(stubField.getName());
 						thisField.setAccessible(true);
 						SopremoUtil.serialize(stubConfiguration,
-								stubField.getName(),
-								(Serializable) thisField.get(this));
+							stubField.getName(),
+							(Serializable) thisField.get(this));
 					} catch (final NoSuchFieldException e) {
 						// ignore field of stub if the field does not exist in
 						// this operator
 					} catch (final Exception e) {
 						LOG.error(String.format(
-								"Could not serialize field %s of class %s: %s",
-								stubField.getName(), contract.getClass(), e));
+							"Could not serialize field %s of class %s: %s",
+							stubField.getName(), contract.getClass(), e));
 					}
 				} while ((clazz = clazz.getSuperclass()) != ElementaryOperator.class);
 			}
 
 		final DegreeOfParallelism degreeOfParallelism = ReflectUtil
-				.getAnnotation(this.getClass(), DegreeOfParallelism.class);
+			.getAnnotation(this.getClass(), DegreeOfParallelism.class);
 		if (degreeOfParallelism != null)
 			contract.setDegreeOfParallelism(degreeOfParallelism.value());
 	}
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
+	public ElementarySopremoModule asElementaryOperators(final EvaluationContext context) {
 		final ElementarySopremoModule module =
 			new ElementarySopremoModule(this.getName(), this.getInputs().size(), this.getOutputs()
 				.size());
@@ -343,44 +340,44 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 		if (stubClass == null)
 			throw new IllegalStateException("no implementing stub found");
 		final Class<? extends Contract> contractClass = ContractUtil
-				.getContractClass(stubClass);
+			.getContractClass(stubClass);
 		if (contractClass == null)
 			throw new IllegalStateException("no associated contract found");
 
 		try {
 			if (contractClass == ReduceContract.class) {
 				final int[] keyIndices = this.getKeyIndices(globalSchema,
-						this.getKeyExpressions(0));
+					this.getKeyExpressions(0));
 				return new ReduceContract(
-						(Class<? extends ReduceStub>) stubClass,
-						this.getKeyClasses(globalSchema, keyIndices),
-						keyIndices, this.toString());
+					(Class<? extends ReduceStub>) stubClass,
+					this.getKeyClasses(globalSchema, keyIndices),
+					keyIndices, this.toString());
 			} else if (contractClass == CoGroupContract.class) {
 				final int[] keyIndices1 = this.getKeyIndices(globalSchema,
-						this.getKeyExpressions(0));
+					this.getKeyExpressions(0));
 				final int[] keyIndices2 = this.getKeyIndices(globalSchema,
-						this.getKeyExpressions(1));
+					this.getKeyExpressions(1));
 				return new CoGroupContract(
-						(Class<? extends CoGroupStub>) stubClass,
-						this.getCommonKeyClasses(globalSchema, keyIndices1,
-								keyIndices2), keyIndices1, keyIndices2,
-						this.toString());
+					(Class<? extends CoGroupStub>) stubClass,
+					this.getCommonKeyClasses(globalSchema, keyIndices1,
+						keyIndices2), keyIndices1, keyIndices2,
+					this.toString());
 			} else if (contractClass == MatchContract.class) {
 				final int[] keyIndices1 = this.getKeyIndices(globalSchema,
-						this.getKeyExpressions(0));
+					this.getKeyExpressions(0));
 				final int[] keyIndices2 = this.getKeyIndices(globalSchema,
-						this.getKeyExpressions(1));
+					this.getKeyExpressions(1));
 				return new MatchContract(
-						(Class<? extends MatchStub>) stubClass,
-						this.getCommonKeyClasses(globalSchema, keyIndices1,
-								keyIndices2), keyIndices1, keyIndices2,
-						this.toString());
+					(Class<? extends MatchStub>) stubClass,
+					this.getCommonKeyClasses(globalSchema, keyIndices1,
+						keyIndices2), keyIndices1, keyIndices2,
+					this.toString());
 			}
 			return ReflectUtil.newInstance(contractClass, stubClass,
-					this.toString());
+				this.toString());
 		} catch (final Exception e) {
 			throw new IllegalStateException("Cannot create contract from stub "
-					+ stubClass, e);
+				+ stubClass, e);
 		}
 	}
 
@@ -388,15 +385,15 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 			final Schema globalSchema, final int[] keyIndices1,
 			final int[] keyIndices2) {
 		final Class<? extends Key>[] keyClasses1 = this.getKeyClasses(
-				globalSchema, keyIndices1);
+			globalSchema, keyIndices1);
 		final Class<? extends Key>[] keyClasses2 = this.getKeyClasses(
-				globalSchema, keyIndices2);
+			globalSchema, keyIndices2);
 		if (!Arrays.equals(keyClasses1, keyClasses2))
 			throw new IllegalStateException(
-					String.format(
-							"The key classes are not compatible (schema %s; indices %s %s; key classes: %s %s)",
-							globalSchema, keyIndices1, keyIndices2,
-							keyClasses1, keyClasses2));
+				String.format(
+					"The key classes are not compatible (schema %s; indices %s %s; key classes: %s %s)",
+					globalSchema, keyIndices1, keyIndices2,
+					keyClasses1, keyClasses2));
 		return keyClasses1;
 	}
 
@@ -427,46 +424,43 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	private Class<? extends Key>[] getKeyClasses(final Schema globalSchema,
 			final int[] keyIndices) {
 		final Class<? extends Value>[] pactSchema = globalSchema
-				.getPactSchema();
+			.getPactSchema();
 		final Class<? extends Key>[] keyClasses = new Class[keyIndices.length];
 		for (int index = 0; index < keyIndices.length; index++) {
 			final Class<? extends Value> schemaClass = pactSchema[keyIndices[index]];
 			if (!Key.class.isAssignableFrom(schemaClass))
 				throw new IllegalStateException(
-						"Schema wrapped a key value with a class that does not implement Key");
+					"Schema wrapped a key value with a class that does not implement Key");
 			keyClasses[index] = (Class<? extends Key>) schemaClass;
 		}
 		return keyClasses;
 	}
-	
-	
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
 		result = prime * result + this.keyExpressions.hashCode();
-		result = prime * result +  this.resultProjection.hashCode();
+		result = prime * result + this.resultProjection.hashCode();
 		return result;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
-		ElementaryOperator<?> other = (ElementaryOperator<?>) obj;
+		final ElementaryOperator<?> other = (ElementaryOperator<?>) obj;
 		return this.keyExpressions.equals(other.keyExpressions) && this.resultProjection.equals(other.resultProjection);
 	}
-	
 
 	@Override
 	public String toString() {
 		final StringBuilder builder = new StringBuilder(this.getName());
-		if(this.getResultProjection() != EvaluationExpression.VALUE)
+		if (this.getResultProjection() != EvaluationExpression.VALUE)
 			builder.append(" to ").append(this.getResultProjection());
 		return builder.toString();
 	}
@@ -479,18 +473,18 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 				allSchema[index] = index;
 			return allSchema;
 		}
-		IntSet keyIndices = new IntOpenHashSet();
-		for (EvaluationExpression expression : keyExpressions)
+		final IntSet keyIndices = new IntOpenHashSet();
+		for (final EvaluationExpression expression : keyExpressions)
 			keyIndices.addAll(globalSchema.indicesOf(expression));
 		if (keyIndices.isEmpty()) {
 			if (keyExpressions.iterator().hasNext())
 				throw new IllegalStateException(
-						String.format(
-								"Operator %s did not specify key expression that it now requires",
-								this.getClass()));
+					String.format(
+						"Operator %s did not specify key expression that it now requires",
+						this.getClass()));
 
 			throw new IllegalStateException(String.format(
-					"Needs to specify key expressions: %s", this.getClass()));
+				"Needs to specify key expressions: %s", this.getClass()));
 		}
 		return keyIndices.toIntArray();
 	}
@@ -500,8 +494,8 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	/**
 	 * Returns the stub class that represents the functionality of this
 	 * operator.<br>
-	 * This method returns the first static inner class found with
-	 * {@link Class#getDeclaredClasses()} that is extended from {@link Stub} by
+	 * This method returns the first static inner class found with {@link Class#getDeclaredClasses()} that is extended
+	 * from {@link Stub} by
 	 * default.
 	 * 
 	 * @return the stub class
@@ -510,7 +504,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	protected Class<? extends Stub> getStubClass() {
 		for (final Class<?> stubClass : this.getClass().getDeclaredClasses())
 			if ((stubClass.getModifiers() & Modifier.STATIC) != 0
-					&& Stub.class.isAssignableFrom(stubClass))
+				&& Stub.class.isAssignableFrom(stubClass))
 				return (Class<? extends Stub>) stubClass;
 		return null;
 	}

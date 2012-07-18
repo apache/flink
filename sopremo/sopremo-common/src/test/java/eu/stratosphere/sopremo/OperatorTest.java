@@ -288,14 +288,15 @@ public class OperatorTest extends SopremoTest<OperatorTest.OpImpl> {
 			this.index = index;
 		}
 
-		/* (non-Javadoc)
+		/*
+		 * (non-Javadoc)
 		 * @see eu.stratosphere.sopremo.Operator#asElementaryOperators()
 		 */
 		@Override
-		public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
+		public ElementarySopremoModule asElementaryOperators(final EvaluationContext context) {
 			return null;
 		}
-		
+
 		@Override
 		public PactModule asPactModule(final EvaluationContext context) {
 			return null;

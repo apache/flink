@@ -7,7 +7,6 @@ import java.util.Collections;
 import java.util.List;
 
 import junit.framework.Assert;
-
 import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Test;
@@ -29,7 +28,7 @@ public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 	 * @see eu.stratosphere.sopremo.expressions.OrExpressionTest#initVerifier(nl.jqno.equalsverifier.EqualsVerifier)
 	 */
 	@Override
-	protected void initVerifier(EqualsVerifier<ArrayCreation> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<ArrayCreation> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier.withPrefabValues(List.class, new ArrayList<Object>(), new ArrayList<EvaluationExpression>(
 			Collections.singleton(EvaluationExpression.VALUE)));
@@ -48,8 +47,9 @@ public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 
 	@Test
 	public void shouldReuseTarget() {
-		IJsonNode target = new ArrayNode();
-		IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(IntNode.valueOf(42),
+		final IJsonNode target = new ArrayNode();
+		final IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(
+			IntNode.valueOf(42),
 			target, this.context);
 
 		Assert.assertEquals(new ArrayNode(IntNode.valueOf(42)), result);
@@ -58,8 +58,9 @@ public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 
 	@Test
 	public void shouldNotReuseTargetIfWrongType() {
-		IJsonNode target = new ObjectNode();
-		IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(IntNode.valueOf(42),
+		final IJsonNode target = new ObjectNode();
+		final IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(
+			IntNode.valueOf(42),
 			target, this.context);
 
 		Assert.assertEquals(new ArrayNode(IntNode.valueOf(42)), result);

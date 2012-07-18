@@ -65,8 +65,8 @@ public class CoerceExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, context), target,  this.targetType);
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, context), target, this.targetType);
 	}
 
 	/*
@@ -77,7 +77,7 @@ public class CoerceExpression extends EvaluationExpression {
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.valueExpression = (CachingExpression<IJsonNode>) this.valueExpression.transformRecursively(function);
 		return function.call(this);
 	}

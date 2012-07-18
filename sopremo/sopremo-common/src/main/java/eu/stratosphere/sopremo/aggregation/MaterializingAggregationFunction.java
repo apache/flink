@@ -34,14 +34,14 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 		super(name);
 	}
 
-
 	/**
 	 * (non-Javadoc)
+	 * 
 	 * @see eu.stratosphere.sopremo.aggregation.AggregationFunction#aggregate(eu.stratosphere.sopremo.type.IJsonNode,
-	 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
+	 *      eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationValue, EvaluationContext context) {
+	public IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregationValue, final EvaluationContext context) {
 		((IArrayNode) aggregationValue).add(node);
 		return aggregationValue;
 	}
@@ -51,7 +51,7 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 	 * @see eu.stratosphere.sopremo.aggregation.AggregationFunction#initialize(eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode initialize(IJsonNode aggregationValue) {
+	public IJsonNode initialize(final IJsonNode aggregationValue) {
 		return SopremoUtil.reinitializeTarget(aggregationValue, ArrayNode.class);
 	}
 
@@ -62,11 +62,11 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 	 * eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target) {
+	public IJsonNode getFinalAggregate(final IJsonNode aggregator, final IJsonNode target) {
 		return this.processNodes((IArrayNode) aggregator, target);
 	}
 
-	protected IJsonNode processNodes(final IArrayNode nodeArray, @SuppressWarnings("unused") IJsonNode target) {
+	protected IJsonNode processNodes(final IArrayNode nodeArray, @SuppressWarnings("unused") final IJsonNode target) {
 		return nodeArray;
 	}
 }

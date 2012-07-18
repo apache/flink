@@ -1,10 +1,5 @@
 package eu.stratosphere.sopremo.type;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.DataOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -22,7 +17,7 @@ public class ArrayNode extends AbstractArrayNode {
 	 */
 	private static final long serialVersionUID = 898220542834090837L;
 
-	private List<IJsonNode> children = new ArrayList<IJsonNode>();
+	private final List<IJsonNode> children = new ArrayList<IJsonNode>();
 
 	/**
 	 * Initializes an empty ArrayNode.

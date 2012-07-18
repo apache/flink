@@ -37,12 +37,11 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> extends JsonNodeTe
 
 	@Test
 	public void shouldCalculateTheCorrectSize() {
-		int initialSize = this.node.size();
-		int numberOfNewNodes = 6;
+		final int initialSize = this.node.size();
+		final int numberOfNewNodes = 6;
 
-		for (int i = 0; i < numberOfNewNodes; i++) {
+		for (int i = 0; i < numberOfNewNodes; i++)
 			this.node.add(TextNode.valueOf("newNode: " + i));
-		}
 
 		Assert.assertEquals(initialSize + numberOfNewNodes, this.node.size());
 	}
@@ -53,7 +52,7 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> extends JsonNodeTe
 		this.node.add(0, TextNode.valueOf("firstname"));
 		this.node.add(1, TextNode.valueOf("lastname"));
 
-		int initialSize = this.node.size();
+		final int initialSize = this.node.size();
 
 		this.node.remove(0);
 		// index of following nodes should be decremented by 1 after removal of a node
@@ -64,8 +63,8 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> extends JsonNodeTe
 
 	@Test
 	public void shouldReturnCorrectNodesAfterRemoval() {
-		IJsonNode value1 = TextNode.valueOf("firstname");
-		IJsonNode value2 = TextNode.valueOf("lastname");
+		final IJsonNode value1 = TextNode.valueOf("firstname");
+		final IJsonNode value2 = TextNode.valueOf("lastname");
 
 		this.node.add(0, value1);
 		this.node.add(1, value2);
@@ -115,16 +114,16 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> extends JsonNodeTe
 	@Test
 	public void shouldCreateIterator() {
 		this.node.clear();
-		List<IJsonNode> expected = new ArrayList<IJsonNode>();
+		final List<IJsonNode> expected = new ArrayList<IJsonNode>();
 
 		for (int i = 0; i < 10; i++) {
-			IJsonNode value = IntNode.valueOf(i);
+			final IJsonNode value = IntNode.valueOf(i);
 
 			expected.add(value);
 			this.node.add(value);
 		}
 
-		Iterator<IJsonNode> it = this.node.iterator();
+		final Iterator<IJsonNode> it = this.node.iterator();
 		AssertUtil.assertIteratorEquals(expected.iterator(), it, Equaler.JavaEquals);
 	}
 

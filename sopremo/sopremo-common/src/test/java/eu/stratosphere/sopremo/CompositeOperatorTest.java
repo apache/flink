@@ -77,10 +77,10 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		}
 
 		@Override
-		public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
+		public ElementarySopremoModule asElementaryOperators(final EvaluationContext context) {
 			return ElementarySopremoModule.valueOf(this.getName(),
-				new ElementaryOperatorImpl().withInputs(getInput(0),
-					new ElementaryOperatorImpl().withInputs(getInput(1), getInput(2))));
+				new ElementaryOperatorImpl().withInputs(this.getInput(0),
+					new ElementaryOperatorImpl().withInputs(this.getInput(1), this.getInput(2))));
 		}
 
 		@Override

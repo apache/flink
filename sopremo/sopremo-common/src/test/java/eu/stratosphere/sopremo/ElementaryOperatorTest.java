@@ -68,7 +68,7 @@ public class ElementaryOperatorTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void getContractShouldReturnTheMatchingContractToTheFirstStub() {
-		ObjectSchema schema = new ObjectSchema("someField");
+		final ObjectSchema schema = new ObjectSchema("someField");
 		final Contract contract = new OperatorWithTwoStubs().getContract(schema);
 		assertEquals(ReduceContract.class, contract.getClass());
 		assertTrue(Arrays.asList(OperatorWithTwoStubs.Implementation1.class,
@@ -108,7 +108,7 @@ public class ElementaryOperatorTest {
 		assertEquals(OperatorWithOneStub.Implementation.class,
 			new OperatorWithOneStub().getStubClass());
 	}
-	
+
 	@InputCardinality(1)
 	static class OperatorWithInstanceStub extends ElementaryOperator<OperatorWithInstanceStub> {
 		private static final long serialVersionUID = 1L;
@@ -124,7 +124,7 @@ public class ElementaryOperatorTest {
 			}
 		}
 	}
-	
+
 	@InputCardinality(1)
 	static class OperatorWithNoStubs extends ElementaryOperator<OperatorWithNoStubs> {
 		private static final long serialVersionUID = 1L;
@@ -154,7 +154,7 @@ public class ElementaryOperatorTest {
 		 * Initializes ElementaryOperatorTest.OperatorWithTwoStubs.
 		 */
 		public OperatorWithTwoStubs() {
-			setKeyExpressions(0, new ObjectAccess("someField"));
+			this.setKeyExpressions(0, new ObjectAccess("someField"));
 		}
 
 		static class Implementation1 extends SopremoReduce {
@@ -179,21 +179,23 @@ public class ElementaryOperatorTest {
 			}
 		}
 	}
-	
+
 	@InputCardinality(1)
 	static class OperatorWithUnknownStub extends ElementaryOperator<OperatorWithUnknownStub> {
 		private static final long serialVersionUID = 1L;
 
 		static class Implementation implements Stub {
 
-			/* (non-Javadoc)
+			/*
+			 * (non-Javadoc)
 			 * @see eu.stratosphere.pact.common.stubs.Stub#open(eu.stratosphere.nephele.configuration.Configuration)
 			 */
 			@Override
-			public void open(Configuration parameters) throws Exception {
+			public void open(final Configuration parameters) throws Exception {
 			}
 
-			/* (non-Javadoc)
+			/*
+			 * (non-Javadoc)
 			 * @see eu.stratosphere.pact.common.stubs.Stub#close()
 			 */
 			@Override
@@ -201,7 +203,7 @@ public class ElementaryOperatorTest {
 			}
 		}
 	}
-	
+
 	@InputCardinality(1)
 	static class UninstanceableContract extends SingleInputContract<Stub> {
 

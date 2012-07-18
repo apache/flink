@@ -51,7 +51,8 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -8021932798231751696L;
 
 		@Override
-		public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationTarget, EvaluationContext context) {
+		public IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregationTarget,
+				final EvaluationContext context) {
 			return ArithmeticOperator.ADDITION.evaluate((AbstractNumericNode) node,
 				(AbstractNumericNode) aggregationTarget, aggregationTarget);
 		}
@@ -65,8 +66,10 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = -4700372075569392783L;
 
 		@Override
-		public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationTarget, EvaluationContext context) {
-			return ArithmeticOperator.ADDITION.evaluate(ONE, (AbstractNumericNode) aggregationTarget, aggregationTarget);
+		public IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregationTarget,
+				final EvaluationContext context) {
+			return ArithmeticOperator.ADDITION
+				.evaluate(ONE, (AbstractNumericNode) aggregationTarget, aggregationTarget);
 		}
 	};
 
@@ -77,7 +80,8 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = 273172975676646935L;
 
 		@Override
-		public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationTarget, EvaluationContext context) {
+		public IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregationTarget,
+				final EvaluationContext context) {
 			return aggregationTarget.isNull() ? node : aggregationTarget;
 		}
 	};
@@ -112,15 +116,15 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		private static final long serialVersionUID = 483420587993286076L;
 
 		@Override
-		public IJsonNode initialize(IJsonNode aggregationValue) {
-			ArrayNode array = SopremoUtil.reinitializeTarget(aggregationValue, ArrayNode.class);
+		public IJsonNode initialize(final IJsonNode aggregationValue) {
+			final ArrayNode array = SopremoUtil.reinitializeTarget(aggregationValue, ArrayNode.class);
 			array.add(new IntNode(0));
 			array.add(new IntNode(0));
 			return array;
 		}
 
 		@Override
-		public IJsonNode aggregate(IJsonNode node, IJsonNode aggregator, EvaluationContext context) {
+		public IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregator, final EvaluationContext context) {
 			// sum
 			final ArrayNode avgState = (ArrayNode) aggregator;
 			IJsonNode sum = avgState.get(0);
@@ -138,7 +142,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		 * , eu.stratosphere.sopremo.type.IJsonNode)
 		 */
 		@Override
-		public IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target) {
+		public IJsonNode getFinalAggregate(final IJsonNode aggregator, final IJsonNode target) {
 			final ArrayNode avgState = (ArrayNode) aggregator;
 			if (avgState.get(1).equals(ZERO))
 				return NaN;

@@ -46,7 +46,7 @@ public class AggregationExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode nodes, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode nodes, final IJsonNode target, final EvaluationContext context) {
 		this.aggregator = this.function.initialize(this.aggregator);
 		for (final IJsonNode node : (IArrayNode) nodes)
 			this.aggregator =
@@ -62,7 +62,7 @@ public class AggregationExpression extends EvaluationExpression {
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.preprocessing = (CachingExpression<IJsonNode>) this.preprocessing.transformRecursively(function);
 		return function.call(this);
 	}

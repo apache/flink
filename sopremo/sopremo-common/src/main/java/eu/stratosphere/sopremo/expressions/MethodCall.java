@@ -65,7 +65,7 @@ public class MethodCall extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		final IJsonNode[] params = new IJsonNode[this.paramExprs.size()];
 		for (int index = 0; index < params.length; index++)
 			params[index] = this.paramExprs.get(index).evaluate(node, context);
@@ -95,7 +95,7 @@ public class MethodCall extends ContainerExpression {
 	public void toString(final StringBuilder builder) {
 		builder.append(this.function);
 		builder.append('(');
-		appendChildExpressions(builder, this.getChildren(), ", ");
+		this.appendChildExpressions(builder, this.getChildren(), ", ");
 		builder.append(')');
 	}
 

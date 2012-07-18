@@ -39,7 +39,7 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 		return this.resultProjection;
 	}
 
-	public void setResultProjection(EvaluationExpression resultProjection) {
+	public void setResultProjection(final EvaluationExpression resultProjection) {
 		if (resultProjection == null)
 			throw new NullPointerException("resultProjection must not be null");
 

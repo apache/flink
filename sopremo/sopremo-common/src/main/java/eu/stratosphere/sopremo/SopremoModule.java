@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.util.dag.GraphModule;
 import eu.stratosphere.util.dag.GraphPrinter;
 import eu.stratosphere.util.dag.GraphTraverseListener;
@@ -136,7 +137,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 		 * @param inputs
 		 * @param outputs
 		 */
-		public ModuleOperator(Source[] inputs, Sink[] outputs) {
+		public ModuleOperator(final Source[] inputs, final Sink[] outputs) {
 			super(inputs.length, outputs.length);
 			this.setInputs(inputs);
 			this.setOutputs(outputs);
@@ -147,12 +148,12 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 		 * @see eu.stratosphere.sopremo.Operator#toElementaryOperators()
 		 */
 		@Override
-		public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
+		public ElementarySopremoModule asElementaryOperators(final EvaluationContext context) {
 			return SopremoModule.this.asElementary(context);
 		}
 	}
 
-	public ElementarySopremoModule asElementary(EvaluationContext context) {
+	public ElementarySopremoModule asElementary(final EvaluationContext context) {
 		return new ElementaryAssembler(context).assemble(this);
 	}
 
@@ -160,13 +161,13 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 		private final Map<Operator<?>, ElementarySopremoModule> modules =
 			new IdentityHashMap<Operator<?>, ElementarySopremoModule>();
 
-		private EvaluationContext context;
+		private final EvaluationContext context;
 
-		public ElementaryAssembler(EvaluationContext context) {
+		public ElementaryAssembler(final EvaluationContext context) {
 			this.context = context;
 		}
 
-		public ElementarySopremoModule assemble(SopremoModule sopremoModule) {
+		public ElementarySopremoModule assemble(final SopremoModule sopremoModule) {
 			this.convertDAGToModules(sopremoModule);
 
 			final int sinkCount = sopremoModule.getOutputs().length;
@@ -187,13 +188,13 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 			for (int sinkIndex = 0; sinkIndex < sinkCount; sinkIndex++)
 				elementarySopremoModule.getOutput(sinkIndex).setInput(0,
 					this.modules.get(sopremoModule.getOutput(sinkIndex)).getInternalOutputNodes(0).getInput(0));
-			for (Sink sink : sopremoModule.getInternalOutputNodes())
+			for (final Sink sink : sopremoModule.getInternalOutputNodes())
 				elementarySopremoModule.addInternalOutput(this.modules.get(sink).getInternalOutputNodes(0));
 
 			return elementarySopremoModule;
 		}
 
-		private void convertDAGToModules(SopremoModule sopremoModule) {
+		private void convertDAGToModules(final SopremoModule sopremoModule) {
 			OneTimeTraverser.INSTANCE.traverse(sopremoModule.getAllOutputs(),
 				OperatorNavigator.INSTANCE, new GraphTraverseListener<Operator<?>>() {
 					@Override
@@ -235,7 +236,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 			}
 		}
 
-		protected JsonStream traceInput(Operator<?> operator, int index) {
+		protected JsonStream traceInput(final Operator<?> operator, final int index) {
 			final Operator<?>.Output inputSource = operator.getInput(index).getSource();
 			final ElementarySopremoModule inputModule = this.modules.get(inputSource.getOperator());
 			final JsonStream input = inputModule.getOutput(inputSource.getIndex()).getInput(0);

@@ -72,7 +72,7 @@ public class CsvInputFormat extends TextInputFormat {
 	 * byte[], int, int)
 	 */
 	@Override
-	public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
+	public boolean readRecord(final PactRecord target, final byte[] bytes, final int offset, final int numBytes) {
 		// if (!this.end) {
 		final CsvReader reader = new CsvReader(new ByteArrayInputStream(bytes, offset, numBytes), this.encoding);
 		reader.setDelimiter(this.fieldDelimiter);

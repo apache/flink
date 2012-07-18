@@ -35,9 +35,9 @@ public class ObjectCreation extends ContainerExpression {
 		private static final long serialVersionUID = 5274811723343043990L;
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-			ObjectNode targetObject = SopremoUtil.reinitializeTarget(target, ObjectNode.class);
-			for (IJsonNode jsonNode : (IArrayNode) node)
+		public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+			final ObjectNode targetObject = SopremoUtil.reinitializeTarget(target, ObjectNode.class);
+			for (final IJsonNode jsonNode : (IArrayNode) node)
 				if (!jsonNode.isNull())
 					targetObject.putAll((IObjectNode) jsonNode);
 			return targetObject;
@@ -116,8 +116,8 @@ public class ObjectCreation extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		ObjectNode targetObject = SopremoUtil.reinitializeTarget(target, ObjectNode.class);
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+		final ObjectNode targetObject = SopremoUtil.reinitializeTarget(target, ObjectNode.class);
 		for (final Mapping<?> mapping : this.mappings)
 			mapping.evaluate(node, targetObject, context);
 		return targetObject;
@@ -131,7 +131,7 @@ public class ObjectCreation extends ContainerExpression {
 	 */
 	@Override
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		for (final Mapping mapping : this.mappings) {
 			mapping.expression.transformRecursively(function);
 			if (mapping.target instanceof EvaluationExpression)
@@ -229,7 +229,7 @@ public class ObjectCreation extends ContainerExpression {
 		}
 
 		@Override
-		protected void evaluate(IJsonNode node, IObjectNode target, final EvaluationContext context) {
+		protected void evaluate(final IJsonNode node, final IObjectNode target, final EvaluationContext context) {
 			final IJsonNode exprNode = this.getExpression().evaluate(node, null, context);
 			target.putAll((IObjectNode) exprNode);
 		}
@@ -260,7 +260,7 @@ public class ObjectCreation extends ContainerExpression {
 		private static final long serialVersionUID = -4873817871983692783L;
 
 		@Override
-		protected void evaluate(IJsonNode node, IObjectNode target, final EvaluationContext context) {
+		protected void evaluate(final IJsonNode node, final IObjectNode target, final EvaluationContext context) {
 			final IJsonNode value = this.expression.evaluate(node, target.get(this.target), context);
 			// if (!value.isNull())
 			target.put(this.target, value);
@@ -290,7 +290,7 @@ public class ObjectCreation extends ContainerExpression {
 		 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
 		 */
 		@Override
-		protected void evaluate(IJsonNode node, IObjectNode target, final EvaluationContext context) {
+		protected void evaluate(final IJsonNode node, final IObjectNode target, final EvaluationContext context) {
 			throw new EvaluationException("Only tag mapping");
 		}
 	}
@@ -302,14 +302,14 @@ public class ObjectCreation extends ContainerExpression {
 		 */
 		private static final long serialVersionUID = 3767842798206835622L;
 
-		public ExpressionAssignment(EvaluationExpression target, EvaluationExpression expression) {
+		public ExpressionAssignment(final EvaluationExpression target, final EvaluationExpression expression) {
 			super(target, expression);
 		}
 
 		private IJsonNode lastResult;
 
 		@Override
-		protected void evaluate(IJsonNode node, IObjectNode target, EvaluationContext context) {
+		protected void evaluate(final IJsonNode node, final IObjectNode target, final EvaluationContext context) {
 			this.lastResult = this.expression.evaluate(node, this.lastResult, context);
 			this.target.set(target, this.lastResult, context);
 		}

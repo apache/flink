@@ -22,8 +22,9 @@ import eu.stratosphere.pact.testing.Equaler;
  * @author Arvid Heise
  */
 public class IteratorUtil {
-	public static <T> boolean equal(Iterator<? extends T> expectedIterator, Iterator<? extends T> actualIterator,
-			Equaler<T> equaler) {
+	public static <T> boolean equal(final Iterator<? extends T> expectedIterator,
+			final Iterator<? extends T> actualIterator,
+			final Equaler<T> equaler) {
 
 		for (; actualIterator.hasNext() && expectedIterator.hasNext();) {
 			final T expected = expectedIterator.next(), actual = actualIterator.next();
@@ -34,12 +35,13 @@ public class IteratorUtil {
 		return !actualIterator.hasNext() && !expectedIterator.hasNext();
 	}
 
-	public static <T> boolean equal(Iterator<? extends T> expectedIterator, Iterator<? extends T> actualIterator) {
+	public static <T> boolean equal(final Iterator<? extends T> expectedIterator,
+			final Iterator<? extends T> actualIterator) {
 		return IteratorUtil.equal(expectedIterator, actualIterator, Equaler.JavaEquals);
 	}
 
-	public static <T> int hashCode(Iterator<? extends T> iterator, HashCoder<T> hashCoder) {
-		int prime = 101;
+	public static <T> int hashCode(final Iterator<? extends T> iterator, final HashCoder<T> hashCoder) {
+		final int prime = 101;
 		int result = 1;
 		for (; iterator.hasNext();)
 			result = prime * result + hashCoder.hashCodeFor(iterator.next());
@@ -47,11 +49,12 @@ public class IteratorUtil {
 		return result;
 	}
 
-	public static <T> int hashCode(Iterator<? extends T> iterator) {
+	public static <T> int hashCode(final Iterator<? extends T> iterator) {
 		return IteratorUtil.hashCode(iterator, HashCoder.JavaHashCode);
 	}
 
-	public static <T> String toString(Iterator<? extends T> iterator, int maxEntries, Stringifier<T> stringifier) {
+	public static <T> String toString(final Iterator<? extends T> iterator, final int maxEntries,
+			final Stringifier<T> stringifier) {
 		final StringBuilder stringBuilder = new StringBuilder();
 		for (int index = 0; index < maxEntries && iterator.hasNext(); index++) {
 			if (index > 0)
@@ -63,7 +66,7 @@ public class IteratorUtil {
 		return stringBuilder.toString();
 	}
 
-	public static <T> String toString(Iterator<? extends T> iterator, int maxEntries) {
+	public static <T> String toString(final Iterator<? extends T> iterator, final int maxEntries) {
 		return toString(iterator, maxEntries, Stringifier.JavaString);
 	}
 }

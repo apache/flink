@@ -1,15 +1,12 @@
 package eu.stratosphere.sopremo.type;
 
-import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.Arrays;
 
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -72,7 +69,7 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 		return new DoubleNode(v);
 	}
 
-	public void setValue(double value) {
+	public void setValue(final double value) {
 		this.value.setValue(value);
 	}
 
@@ -177,7 +174,7 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value = ((DoubleNode) otherNode).value;
 	}
@@ -194,7 +191,7 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 		this.fillWithZero(target, offset, offset + len);
 	}
 }

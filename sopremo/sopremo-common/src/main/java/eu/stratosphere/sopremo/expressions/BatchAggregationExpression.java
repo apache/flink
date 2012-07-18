@@ -58,7 +58,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		CollectionUtil.ensureSize(this.lastAggregators, this.partials.size());
 	}
 
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
 		this.lastInputCounter = Integer.MIN_VALUE;
 		this.lastPreprocessingResults = new ArrayList<IJsonNode>();
@@ -102,13 +102,13 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		// partials are transformed separately, where appropriate
 		return function.call(this);
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		if (this.lastInputCounter == context.getInputCounter())
 			return this.results;
 		this.results = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
@@ -119,7 +119,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 				this.partials.get(index).getFunction().initialize(this.lastAggregators.get(index)));
 		for (final IJsonNode input : (ArrayNode) node)
 			for (int index = 0; index < this.partials.size(); index++) {
-				AggregationExpression partial = this.partials.get(index);
+				final AggregationExpression partial = this.partials.get(index);
 				final IJsonNode preprocessedValue =
 					partial.getPreprocessing().evaluate(input, this.lastPreprocessingResults.get(index), context);
 				this.lastAggregators.set(index,
@@ -160,7 +160,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		}
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+		public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 			return ((IArrayNode) BatchAggregationExpression.this.evaluate(node, null, context)).get(this.index);
 		}
 	}

@@ -474,12 +474,10 @@ public class SopremoUtil {
 			final IJsonNode target) {
 		final Class<? extends IJsonNode> sourceClass = source.getClass();
 		if (sourceClass != target.getClass()
-			|| sourceClass.equals(BooleanNode.class) || source.isNull()) {
+			|| sourceClass.equals(BooleanNode.class) || source.isNull())
 			return source;
-		}
-		if (!(source instanceof IPrimitiveNode)) {
+		if (!(source instanceof IPrimitiveNode))
 			return source;
-		}
 
 		if (sourceClass.equals(IntNode.class))
 			((IntNode) target).setValue(((IntNode) source).getIntValue());

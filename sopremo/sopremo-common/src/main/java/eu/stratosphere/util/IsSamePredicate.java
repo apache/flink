@@ -26,7 +26,7 @@ public class IsSamePredicate implements Predicate<Object> {
 	 * @param object
 	 *        the object to compare to
 	 */
-	public IsSamePredicate(Object object) {
+	public IsSamePredicate(final Object object) {
 		this.object = object;
 	}
 
@@ -35,7 +35,7 @@ public class IsSamePredicate implements Predicate<Object> {
 	 * @see eu.stratosphere.util.Predicate#isTrue(java.lang.Object)
 	 */
 	@Override
-	public boolean isTrue(Object param) {
+	public boolean isTrue(final Object param) {
 		return this.object == param;
 	}
 

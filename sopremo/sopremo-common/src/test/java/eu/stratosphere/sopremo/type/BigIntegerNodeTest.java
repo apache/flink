@@ -10,11 +10,11 @@ public class BigIntegerNodeTest extends JsonNodeTest<BigIntegerNode> {
 
 	@Test
 	public void shouldNormalizeCorrectly() {
-		BigIntegerNode node = new BigIntegerNode(BigInteger.valueOf(42));
-		byte[] target = new byte[5];
+		final BigIntegerNode node = new BigIntegerNode(BigInteger.valueOf(42));
+		final byte[] target = new byte[5];
 		node.copyNormalizedKey(target, 0, 5);
 
-		byte[] expected = { (byte) 0, (byte) 0, (byte) 0, (byte) 1, (byte) 42 };
+		final byte[] expected = { (byte) 0, (byte) 0, (byte) 0, (byte) 1, (byte) 42 };
 
 		Assert.assertTrue(Arrays.equals(expected, target));
 	}

@@ -40,9 +40,9 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.clear();
-		for (IJsonNode child : (IArrayNode) otherNode)
+		for (final IJsonNode child : (IArrayNode) otherNode)
 			this.add(child);
 	}
 
@@ -59,14 +59,14 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 	}
 
 	@Override
-	public IArrayNode addAll(IArrayNode node) {
-		for (IJsonNode n : node)
+	public IArrayNode addAll(final IArrayNode node) {
+		for (final IJsonNode n : node)
 			this.add(n);
 		return this;
 	}
 
 	@Override
-	public IArrayNode addAll(IJsonNode[] nodes) {
+	public IArrayNode addAll(final IJsonNode[] nodes) {
 		this.addAll(Arrays.asList(nodes));
 		return this;
 	}
@@ -98,17 +98,17 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 	 * @see eu.stratosphere.sopremo.type.IArrayNode#setAll(eu.stratosphere.sopremo.type.IJsonNode[])
 	 */
 	@Override
-	public void setAll(IJsonNode[] nodes) {
+	public void setAll(final IJsonNode[] nodes) {
 		this.clear();
-		for (IJsonNode node : nodes)
+		for (final IJsonNode node : nodes)
 			this.add(node);
 	}
 
 	@Override
 	public IJsonNode[] toArray() {
-		IJsonNode[] result = new IJsonNode[this.size()];
+		final IJsonNode[] result = new IJsonNode[this.size()];
 		int i = 0;
-		for (IJsonNode node : this)
+		for (final IJsonNode node : this)
 			result[i++] = node;
 
 		return result;

@@ -20,12 +20,12 @@ package eu.stratosphere.sopremo.pact;
  * @author Arvid Heise
  */
 public interface IOConstants {
-	
+
 	/**
 	 * Constant to define which encoding is used
 	 */
 	public static final String ENCODING = "Encoding";
-	
+
 	/**
 	 * Constant to define which {@link Schema} is used
 	 */

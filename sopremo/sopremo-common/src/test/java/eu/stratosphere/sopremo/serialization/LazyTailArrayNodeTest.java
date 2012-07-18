@@ -14,14 +14,16 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
-import org.junit.Ignore;
-import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
+
 import junit.framework.Assert;
+
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
+
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.ArrayNodeBaseTest;
@@ -53,8 +55,8 @@ public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode> 
 
 	@Override
 	protected IJsonNode lowerNode() {
-		TailArraySchema schema = new TailArraySchema(5);
-		PactRecord record = schema.jsonToRecord(
+		final TailArraySchema schema = new TailArraySchema(5);
+		final PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
 		return new LazyTailArrayNode(record, schema);
@@ -62,8 +64,8 @@ public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode> 
 
 	@Override
 	protected IJsonNode higherNode() {
-		TailArraySchema schema = new TailArraySchema(5);
-		PactRecord record = schema.jsonToRecord(
+		final TailArraySchema schema = new TailArraySchema(5);
+		final PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(3)), null, null);
 
 		return new LazyTailArrayNode(record, schema);
@@ -75,9 +77,9 @@ public class LazyTailArrayNodeTest extends ArrayNodeBaseTest<LazyTailArrayNode> 
 		super.shouldNormalizeKeys();
 	}
 
-	public LazyTailArrayNodeTest(int tailSize) {
-		TailArraySchema schema = new TailArraySchema(tailSize);
-		PactRecord record = schema.jsonToRecord(
+	public LazyTailArrayNodeTest(final int tailSize) {
+		final TailArraySchema schema = new TailArraySchema(tailSize);
+		final PactRecord record = schema.jsonToRecord(
 			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
 
 		this.node = new LazyTailArrayNode(record, schema);

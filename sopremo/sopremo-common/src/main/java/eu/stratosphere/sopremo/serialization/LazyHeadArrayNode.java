@@ -270,7 +270,7 @@ public class LazyHeadArrayNode extends AbstractArrayNode {
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
 	}
 

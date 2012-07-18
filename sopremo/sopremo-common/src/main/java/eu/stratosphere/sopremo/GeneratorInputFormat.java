@@ -70,7 +70,7 @@ public class GeneratorInputFormat extends GenericInputFormat {
 		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
 		final EvaluationExpression expression =
 			SopremoUtil.deserialize(parameters, ADHOC_EXPRESSION_PARAMETER_KEY, EvaluationExpression.class);
-		IJsonNode value = expression.evaluate(NullNode.getInstance(), null, this.context);
+		final IJsonNode value = expression.evaluate(NullNode.getInstance(), null, this.context);
 
 		if (value.isArray()) {
 			this.numValues = ((ArrayNode) value).size();
@@ -137,7 +137,7 @@ public class GeneratorInputFormat extends GenericInputFormat {
 			throw new IOException("End of input split is reached");
 
 		final IJsonNode value = this.valueIterator.next();
-		PactRecord result = this.schema.jsonToRecord(value, record, this.context);
+		final PactRecord result = this.schema.jsonToRecord(value, record, this.context);
 		if (result != record)
 			result.copyTo(record);
 		return true;

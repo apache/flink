@@ -35,7 +35,7 @@ public class TypeHierarchyBrowserTest {
 
 	private static final Visitor<Class<?>> DEFAULT_VISITOR = new Visitor<Class<?>>() {
 		@Override
-		public boolean visited(Class<?> node, int distance) {
+		public boolean visited(final Class<?> node, final int distance) {
 			return true;
 		}
 	};
@@ -57,8 +57,14 @@ public class TypeHierarchyBrowserTest {
 			new ExpectedValues().add(Object.class, 1).add(I.class, 1) });
 		cases.add(new Object[] { BI.class, Mode.CLASS_FIRST, Integer.MAX_VALUE, null,
 			new ExpectedValues().add(A.class, 1).add(I.class, 1).add(Object.class, 2) });
-		cases.add(new Object[] { CI.class, Mode.CLASS_FIRST, Integer.MAX_VALUE, null,
-			new ExpectedValues().add(B.class, 1).add(J.class, 1).add(A.class, 2).add(I.class, 2).add(Object.class, 3) });
+		cases
+			.add(new Object[] {
+				CI.class,
+				Mode.CLASS_FIRST,
+				Integer.MAX_VALUE,
+				null,
+				new ExpectedValues().add(B.class, 1).add(J.class, 1).add(A.class, 2).add(I.class, 2)
+					.add(Object.class, 3) });
 		cases.add(new Object[] { DI.class, Mode.CLASS_FIRST, Integer.MAX_VALUE, null,
 			new ExpectedValues().add(CI.class, 1).add(I.class, 1).add(B.class, 2).add(J.class, 2).add(A.class, 3).
 				add(I.class, 3).add(Object.class, 4) });
@@ -86,8 +92,14 @@ public class TypeHierarchyBrowserTest {
 			new ExpectedValues().add(Object.class, 1).add(I.class, 1) });
 		cases.add(new Object[] { BI.class, Mode.ALL, Integer.MAX_VALUE, null,
 			new ExpectedValues().add(A.class, 1).add(I.class, 1).add(Object.class, 2) });
-		cases.add(new Object[] { CI.class, Mode.ALL, Integer.MAX_VALUE, null,
-			new ExpectedValues().add(B.class, 1).add(J.class, 1).add(A.class, 2).add(I.class, 2).add(Object.class, 3) });
+		cases
+			.add(new Object[] {
+				CI.class,
+				Mode.ALL,
+				Integer.MAX_VALUE,
+				null,
+				new ExpectedValues().add(B.class, 1).add(J.class, 1).add(A.class, 2).add(I.class, 2)
+					.add(Object.class, 3) });
 		cases.add(new Object[] { DI.class, Mode.ALL, Integer.MAX_VALUE, null,
 			new ExpectedValues().add(CI.class, 1).add(I.class, 1).add(B.class, 2).add(J.class, 2).add(A.class, 3).
 				add(I.class, 3).add(Object.class, 4) });
@@ -96,8 +108,14 @@ public class TypeHierarchyBrowserTest {
 			new ExpectedValues().add(I.class, 1).add(Object.class, 1) });
 		cases.add(new Object[] { BI.class, Mode.INTERFACE_FIRST, Integer.MAX_VALUE, null,
 			new ExpectedValues().add(I.class, 1).add(A.class, 1).add(Object.class, 2) });
-		cases.add(new Object[] { CI.class, Mode.INTERFACE_FIRST, Integer.MAX_VALUE, null,
-			new ExpectedValues().add(J.class, 1).add(B.class, 1).add(I.class, 2).add(A.class, 2).add(Object.class, 3) });
+		cases
+			.add(new Object[] {
+				CI.class,
+				Mode.INTERFACE_FIRST,
+				Integer.MAX_VALUE,
+				null,
+				new ExpectedValues().add(J.class, 1).add(B.class, 1).add(I.class, 2).add(A.class, 2)
+					.add(Object.class, 3) });
 		cases.add(new Object[] { DI.class, Mode.INTERFACE_FIRST, Integer.MAX_VALUE, null,
 			new ExpectedValues().add(I.class, 1).add(CI.class, 1).add(J.class, 2).add(B.class, 2).
 				add(I.class, 3).add(A.class, 3).add(Object.class, 4) });
@@ -116,7 +134,7 @@ public class TypeHierarchyBrowserTest {
 			 * @see eu.stratosphere.util.reflect.Visitor#visited(java.lang.Object, int)
 			 */
 			@Override
-			public boolean visited(Class<?> node, int distance) {
+			public boolean visited(final Class<?> node, final int distance) {
 				return node != J.class;
 			}
 		}, new ExpectedValues().add(I.class, 1).add(CI.class, 1).add(J.class, 2) });
@@ -125,10 +143,10 @@ public class TypeHierarchyBrowserTest {
 	}
 
 	private static class ExpectedValues {
-		private List<AbstractMap.SimpleEntry<Class<?>, Integer>> values =
+		private final List<AbstractMap.SimpleEntry<Class<?>, Integer>> values =
 			new ArrayList<AbstractMap.SimpleEntry<Class<?>, Integer>>();
 
-		public ExpectedValues add(Class<?> clazz, int distance) {
+		public ExpectedValues add(final Class<?> clazz, final int distance) {
 			this.values.add(new AbstractMap.SimpleEntry<Class<?>, Integer>(clazz, distance));
 			return this;
 		}
@@ -143,18 +161,19 @@ public class TypeHierarchyBrowserTest {
 		}
 	}
 
-	private Class<?> startClass;
+	private final Class<?> startClass;
 
-	private Mode mode;
+	private final Mode mode;
 
-	private int maxDepth;
+	private final int maxDepth;
 
-	private List<? extends Map.Entry<Class<?>, Integer>> expectedClasses;
+	private final List<? extends Map.Entry<Class<?>, Integer>> expectedClasses;
 
-	private Visitor<Class<?>> visitor;
+	private final Visitor<Class<?>> visitor;
 
-	public TypeHierarchyBrowserTest(Class<?> startClass, Mode mode, int maxDepth, Visitor<Class<?>> visitor,
-			ExpectedValues expectedClasses) {
+	public TypeHierarchyBrowserTest(final Class<?> startClass, final Mode mode, final int maxDepth,
+			final Visitor<Class<?>> visitor,
+			final ExpectedValues expectedClasses) {
 		this.startClass = startClass;
 		this.mode = mode;
 		this.maxDepth = maxDepth;
@@ -167,7 +186,7 @@ public class TypeHierarchyBrowserTest {
 		final List<SimpleEntry<Class<?>, Integer>> actual = new ArrayList<SimpleEntry<Class<?>, Integer>>();
 		TypeHierarchyBrowser.INSTANCE.visit(this.startClass, this.mode, new Visitor<Class<?>>() {
 			@Override
-			public boolean visited(Class<?> node, int distance) {
+			public boolean visited(final Class<?> node, final int distance) {
 				actual.add(new SimpleEntry<Class<?>, Integer>(node, distance));
 				return TypeHierarchyBrowserTest.this.visitor.visited(node, distance);
 			}

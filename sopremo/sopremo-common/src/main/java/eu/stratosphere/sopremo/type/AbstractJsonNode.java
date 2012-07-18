@@ -178,7 +178,7 @@ public abstract class AbstractJsonNode implements IJsonNode {
 		return this.compareToSameType((IJsonNode) other);
 	}
 
-	protected void checkForSameType(IJsonNode other) {
+	protected void checkForSameType(final IJsonNode other) {
 		if (other.getType() != this.getType())
 			throw new IllegalArgumentException(String.format(
 				"The type of this node %s does not match the type of the other node %s: %s", this.getType(),
@@ -212,37 +212,33 @@ public abstract class AbstractJsonNode implements IJsonNode {
 	}
 
 	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
-		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+		final ByteArrayOutputStream stream = new ByteArrayOutputStream();
 		try {
 			this.write(new DataOutputStream(stream));
-			byte[] result = stream.toByteArray();
-			int resultLenght = result.length;
-			for (int i = 0; i < resultLenght; i++) {
+			final byte[] result = stream.toByteArray();
+			final int resultLenght = result.length;
+			for (int i = 0; i < resultLenght; i++)
 				target[offset + i] = result[i];
-			}
 			this.fillWithZero(target, offset + resultLenght, offset + len);
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 
 		}
 	}
 
-	protected void fillWithZero(byte[] target, int fromIndex, int toIndex) {
+	protected void fillWithZero(final byte[] target, final int fromIndex, final int toIndex) {
 		Arrays.fill(target, fromIndex, toIndex, (byte) 0);
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
+	public boolean equals(final Object obj) {
+		if (this == obj)
 			return true;
-		}
-		if (obj == null) {
+		if (obj == null)
 			return false;
-		}
-		if (this.getClass() != obj.getClass()) {
+		if (this.getClass() != obj.getClass())
 			return false;
-		}
 		final AbstractJsonNode other = (AbstractJsonNode) obj;
 		return this.compareTo(other) == 0;
 	}

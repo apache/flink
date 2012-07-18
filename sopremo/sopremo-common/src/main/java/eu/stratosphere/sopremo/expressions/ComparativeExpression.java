@@ -47,8 +47,9 @@ public class ComparativeExpression extends BinaryBooleanExpression {
 		return this.binaryOperator == other.binaryOperator && this.expr1.equals(other.expr1)
 			&& this.expr2.equals(other.expr2);
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#clone()
 	 */
 	@Override
@@ -64,7 +65,7 @@ public class ComparativeExpression extends BinaryBooleanExpression {
 	// return binaryOperator.evaluate(expr1.evaluate(input), expr2.evaluate(input));
 	// }
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// // we can ignore 'target' because no new Object is created
 		return BooleanNode.valueOf(this.binaryOperator.evaluate(this.expr1.evaluate(node, null, context),
 			this.expr2.evaluate(node, null, context)));
@@ -77,7 +78,7 @@ public class ComparativeExpression extends BinaryBooleanExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.expr1 = this.expr1.transformRecursively(function);
 		this.expr2 = this.expr2.transformRecursively(function);
 		return function.call(this);

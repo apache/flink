@@ -43,7 +43,8 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 	 * eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void coGroup(final Iterator<PactRecord> records1, final Iterator<PactRecord> records2, final Collector<PactRecord> out) {
+	public void coGroup(final Iterator<PactRecord> records1, final Iterator<PactRecord> records2,
+			final Collector<PactRecord> out) {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);
 		this.cachedIterator1.setIterator(records1);

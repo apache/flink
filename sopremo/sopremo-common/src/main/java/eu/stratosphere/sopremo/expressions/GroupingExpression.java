@@ -39,8 +39,8 @@ public class GroupingExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		ArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+		final ArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 
 		if (((IArrayNode) node).size() == 0)
 			return target;
@@ -70,7 +70,7 @@ public class GroupingExpression extends EvaluationExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.groupingExpression = this.groupingExpression.transformRecursively(function);
 		this.resultExpression = this.resultExpression.transformRecursively(function);
 		return function.call(this);

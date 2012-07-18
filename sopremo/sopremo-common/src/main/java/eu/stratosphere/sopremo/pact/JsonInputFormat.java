@@ -26,6 +26,7 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.sopremo.io.JsonParseException;
 import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.serialization.Schema;
@@ -77,7 +78,7 @@ public class JsonInputFormat extends FileInputFormat {
 	@Override
 	public boolean nextRecord(final PactRecord record) throws IOException {
 		if (!this.end) {
-			PactRecord result = this.schema.jsonToRecord(this.parser.readValueAsTree(), record, null);
+			final PactRecord result = this.schema.jsonToRecord(this.parser.readValueAsTree(), record, null);
 			if (result != record)
 				result.copyTo(record);
 			this.checkEnd();

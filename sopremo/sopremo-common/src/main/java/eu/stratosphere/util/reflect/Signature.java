@@ -3,6 +3,8 @@ package eu.stratosphere.util.reflect;
 import java.io.Serializable;
 import java.util.Arrays;
 
+import javassist.bytecode.SignatureAttribute.MethodSignature;
+
 /**
  * General signature of a method that handles exactly the specified argument types.
  * 

@@ -51,7 +51,7 @@ public class ElementarySopremoModule extends SopremoModule {
 	 * @param numberOfInputs
 	 * @param numberOfOutputs
 	 */
-	public ElementarySopremoModule(String name, int numberOfInputs, int numberOfOutputs) {
+	public ElementarySopremoModule(final String name, final int numberOfInputs, final int numberOfOutputs) {
 		super(name, numberOfInputs, numberOfOutputs);
 	}
 
@@ -60,7 +60,7 @@ public class ElementarySopremoModule extends SopremoModule {
 	 * @see eu.stratosphere.sopremo.SopremoModule#asElementary()
 	 */
 	@Override
-	public ElementarySopremoModule asElementary(EvaluationContext context) {
+	public ElementarySopremoModule asElementary(final EvaluationContext context) {
 		return this;
 	}
 
@@ -235,10 +235,10 @@ public class ElementarySopremoModule extends SopremoModule {
 	/**
 	 * @param schemaFactory
 	 */
-	public void inferSchema(SchemaFactory schemaFactory) {
+	public void inferSchema(final SchemaFactory schemaFactory) {
 		final Set<EvaluationExpression> keyExpressions = new HashSet<EvaluationExpression>();
-		for (ElementaryOperator<?> operator : this.getReachableNodes())
-			for (List<? extends EvaluationExpression> expressions : operator.getAllKeyExpressions())
+		for (final ElementaryOperator<?> operator : this.getReachableNodes())
+			for (final List<? extends EvaluationExpression> expressions : operator.getAllKeyExpressions())
 				keyExpressions.addAll(expressions);
 
 		this.schema = schemaFactory.create(keyExpressions);
