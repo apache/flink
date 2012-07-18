@@ -213,6 +213,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 				case PARTITION_LOCAL_HASH:
 					shipStrategy = "Partition local";
 					channelType = "memory";
+					break;
 				case SFR:
 					shipStrategy = "SFR";
 					channelType = "network";
