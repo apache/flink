@@ -7,6 +7,9 @@ import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonOutputFormat;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
+/**
+ * Represents a data sink in a PactPlan.
+ */
 @InputCardinality(1)
 @OutputCardinality(0)
 public class Sink extends ElementaryOperator<Sink> {
@@ -19,23 +22,52 @@ public class Sink extends ElementaryOperator<Sink> {
 
 	private Class<? extends FileOutputFormat> outputFormat;
 
+	/**
+	 * Initializes a Sink with the given {@link FileOutputFormat} and the given name.
+	 * 
+	 * @param outputFormat
+	 *        the FileOutputFormat that should be used
+	 * @param outputName
+	 *        the name of this Sink
+	 */
 	public Sink(final Class<? extends FileOutputFormat> outputFormat, final String outputName) {
 		this.outputFormat = outputFormat;
 		this.outputName = outputName;
 	}
 
+	/**
+	 * Initializes a Sink with the given name. This Sink uses {@link Sink#Sink(Class, String)} with the given name and
+	 * a {@link JsonOutputFormat} to write the data.
+	 * 
+	 * @param outputName
+	 *        the name of this Sink
+	 */
 	public Sink(final String outputName) {
 		this(JsonOutputFormat.class, outputName);
 	}
 
+	/**
+	 * Initializes a Sink. This constructor uses {@link Sink#Sink(String)} with an empty string.
+	 */
 	public Sink() {
 		this("");
 	}
 
+	/**
+	 * Returns the {@link FileOutputFormat} of this Sink.
+	 * 
+	 * @return the OutputFormat
+	 */
 	public Class<? extends FileOutputFormat> getOutputFormat() {
 		return this.outputFormat;
 	}
 
+	/**
+	 * Sets a new {@link FileOutputFormat}.
+	 * 
+	 * @param outputFormat
+	 *        the format that should be used
+	 */
 	public void setOutputFormat(final Class<? extends FileOutputFormat> outputFormat) {
 		if (outputFormat == null)
 			throw new NullPointerException("outputFormat must not be null");
@@ -69,6 +101,11 @@ public class Sink extends ElementaryOperator<Sink> {
 		return module;
 	}
 
+	/**
+	 * Returns the name of this Sink.
+	 * 
+	 * @return the name
+	 */
 	public String getOutputName() {
 		return this.outputName;
 	}

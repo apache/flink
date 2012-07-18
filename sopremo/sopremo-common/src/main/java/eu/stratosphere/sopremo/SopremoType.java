@@ -15,9 +15,17 @@
 package eu.stratosphere.sopremo;
 
 /**
+ * Interface for all datatypes used in Sopremo.
+ * 
  * @author Arvid Heise
  */
 public interface SopremoType {
+	/**
+	 * Writes the string representation of this type into the given {@link StringBuilder}.
+	 * 
+	 * @param builder
+	 *        the StringBuilder that should be used
+	 */
 	public void toString(StringBuilder builder);
 
 	@Override

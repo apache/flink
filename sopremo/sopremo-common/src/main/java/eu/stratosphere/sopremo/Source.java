@@ -19,6 +19,9 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
+/**
+ * Represents a data source in a PactPlan.
+ */
 @InputCardinality(0)
 public class Source extends ElementaryOperator<Source> {
 	/**
