@@ -154,7 +154,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		this.envelopeConsumptionLog.reportEnvelopeConsumed(this.byteBufferedInputChannel);
 
 		if (buffer.remaining() > 0) {
-			LOG.error("consumedReadBuffer has " + buffer.remaining() + " unconsumed bytes left!!");
+			LOG.warn("ConsumedReadBuffer has " + buffer.remaining() + " unconsumed bytes left (early end of reading?).");
 		}
 
 		// Recycle consumed read buffer

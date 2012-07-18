@@ -822,8 +822,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
 				final InetSocketAddress isa = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
 
-				// TODO: Check if 0 is ok here
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, 0));
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge
+					.getConnectionID()));
 			}
 		}
 
@@ -1054,6 +1054,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			final AbstractInstance abstractInstance = entry.getKey();
 			if (abstractInstance == null) {
 				LOG.error("Cannot remove checkpoint: abstractInstance is null");
+				continue;
+			}
+
+			if (abstractInstance instanceof DummyInstance) {
 				continue;
 			}
 

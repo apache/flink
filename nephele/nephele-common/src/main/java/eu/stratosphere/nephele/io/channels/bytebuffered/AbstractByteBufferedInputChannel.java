@@ -18,6 +18,9 @@ package eu.stratosphere.nephele.io.channels.bytebuffered;
 import java.io.EOFException;
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.InputGate;
@@ -43,8 +46,10 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        the type of record that can be transported through this channel
  */
-public abstract class AbstractByteBufferedInputChannel<T extends Record> extends AbstractInputChannel<T> {
-
+public abstract class AbstractByteBufferedInputChannel<T extends Record> extends AbstractInputChannel<T>
+{
+	private static final Log LOG = LogFactory.getLog(AbstractByteBufferedInputChannel.class);
+	
 	/**
 	 * The deserializer used to deserialize records.
 	 */
@@ -191,16 +196,14 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 		}
 
 		// This code fragment makes sure the isClosed method works in case the channel input has not been fully consumed
-		if (this.getType() == ChannelType.NETWORK) {
-			if (!this.brokerAggreedToCloseChannel) {
-				while (!this.brokerAggreedToCloseChannel) {
-
-					requestReadBufferFromBroker();
-					if (this.dataBuffer != null) {
-						releasedConsumedReadBuffer();
-					}
-					Thread.sleep(500);
+		if (this.getType() == ChannelType.NETWORK || this.getType() == ChannelType.INMEMORY) {
+			while (!this.brokerAggreedToCloseChannel) {
+				requestReadBufferFromBroker();
+				if (this.dataBuffer != null) {
+					releasedConsumedReadBuffer();
+					continue;
 				}
+				Thread.sleep(200);
 			}
 		}
 
@@ -267,7 +270,7 @@ public abstract class AbstractByteBufferedInputChannel<T extends Record> extends
 				.getCurrentInternalCompressionLibraryIndex());
 		} else {
 			// TODO: Handle unknown event
-			System.out.println("Received unknown event:" + event);
+			LOG.error("Received unknown event: " + event);
 		}
 	}
 
