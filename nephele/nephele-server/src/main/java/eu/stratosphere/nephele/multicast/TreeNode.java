@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResp
 import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
 
 /**
- * Each physical Node (instance) within a multicast-tree is represented by a TreeNode object.
+ * Each physical node (instance) within a multicast tree is represented by a TreeNode object.
  * It contains the connection info for the certain node and a list of the local output channels.
  * 
  * @author casp
@@ -40,7 +40,7 @@ public class TreeNode implements Comparable<TreeNode> {
 	private final InstanceConnectionInfo nodeConnectionInfo;
 
 	private final int connectionID;
-	
+
 	private final LinkedList<ChannelID> localTargets;
 
 	private final LinkedList<TreeNode> children = new LinkedList<TreeNode>();
@@ -103,8 +103,8 @@ public class TreeNode implements Comparable<TreeNode> {
 	private InstanceConnectionInfo getConnectionInfo() {
 		return this.nodeConnectionInfo;
 	}
-	
-	private int getConnectionID(){
+
+	private int getConnectionID() {
 		return this.connectionID;
 	}
 
@@ -161,33 +161,33 @@ public class TreeNode implements Comparable<TreeNode> {
 	 * @param table
 	 */
 	private void generateRecursiveForwardingTable(MulticastForwardingTable table) {
-		ConnectionInfoLookupResponse actualentry = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
+
+		final ConnectionInfoLookupResponse lookupResponse = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
 
 		// add local targets
-		for (ChannelID i : this.localTargets) {
-			actualentry.addLocalTarget(i);
+		for (final ChannelID i : this.localTargets) {
+			lookupResponse.addLocalTarget(i);
 		}
 
 		// add remote targets
-		for (TreeNode n : this.children) {
+		for (final TreeNode n : this.children) {
 
 			// Instance Connection info associated with the remote target
 			final InstanceConnectionInfo ici = n.getConnectionInfo();
-			
+
 			// get the connection ID associated with the remote target endpoint
 			final int icid = n.getConnectionID();
-			
+
 			final InetSocketAddress isa = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
 
-			actualentry.addRemoteTarget(new RemoteReceiver(isa, icid));
+			lookupResponse.addRemoteTarget(new RemoteReceiver(isa, icid));
 		}
 
-		table.addConnectionInfo(this.nodeConnectionInfo, actualentry);
+		table.addConnectionInfo(this.nodeConnectionInfo, lookupResponse);
 
-		for (TreeNode n : this.children) {
+		for (final TreeNode n : this.children) {
 			n.generateRecursiveForwardingTable(table);
 		}
-
 	}
 
 	/**
@@ -196,12 +196,14 @@ public class TreeNode implements Comparable<TreeNode> {
 	 * @return
 	 */
 	public String printTree() {
+
 		StringBuilder sb = new StringBuilder();
 		this.printRecursiveTree(sb);
 		return sb.toString();
 	}
 
 	private void printRecursiveTree(StringBuilder sb) {
+
 		if (this.children.size() > 0) {
 			sb.append("STRUCT ");
 
@@ -220,12 +222,13 @@ public class TreeNode implements Comparable<TreeNode> {
 		}
 	}
 
-	private class IntegerProperty {
+	private static class IntegerProperty {
+
 		private String key = null;
 
 		private int value = 0;
 
-		public IntegerProperty(String key, int value) {
+		public IntegerProperty(final String key, final int value) {
 			this.key = key;
 			this.value = value;
 		}
@@ -238,7 +241,7 @@ public class TreeNode implements Comparable<TreeNode> {
 			return this.value;
 		}
 
-		public void setValue(int value) {
+		public void setValue(final int value) {
 			this.value = value;
 		}
 	}
