@@ -9,3 +9,5 @@ target
 filter.properties
 tmp/*
 pact/pact-tests/tmp/*
+*.iml
+.idea/*

@@ -45,15 +45,9 @@ public class IterativeMapReduce {
     int degreeOfParallelism = 2;
     JobGraph jobGraph = new JobGraph();
 
-    JobInputVertex input = new JobInputVertex("FileInput", jobGraph);
-    Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask.class;
-    input.setInputClass(clazz);
-    input.setNumberOfSubtasks(degreeOfParallelism);
-    input.setNumberOfSubtasksPerInstance(degreeOfParallelism);
-    TaskConfig inputConfig = new TaskConfig(input.getConfiguration());
-    inputConfig.setStubClass(TokenTokenInputFormat.class);
-    inputConfig.setLocalStrategy(TaskConfig.LocalStrategy.NONE);
-    inputConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, "file:///home/ssc/Desktop/iterative-mapreduce/");
+    JobInputVertex input = JobGraphUtils.createInput(TokenTokenInputFormat.class,
+        "file:///home/ssc/Desktop/stratosphere/test-inputs/iterative-mapreduce/", "FileInput", jobGraph,
+        degreeOfParallelism);
 
     JobTaskVertex head = JobGraphUtils.createTask(BulkIterationHeadPactTask.class, "BulkIterationHead", jobGraph,
         degreeOfParallelism);
@@ -94,18 +88,17 @@ public class IterativeMapReduce {
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
     JobOutputVertex fakeSyncOutput = JobGraphUtils.createSingletonFakeOutput(jobGraph, "FakeSyncOutput");
 
-    JobGraphUtils.connectLocal(input, head, inputConfig);
+    JobGraphUtils.connectLocal(input, head);
     //TODO implicit order should be documented/configured somehow
-    JobGraphUtils.connectLocal(head, tail, headConfig, DistributionPattern.BIPARTITE, ShipStrategy.PARTITION_HASH);
-    JobGraphUtils.connectLocal(head, sync, headConfig);
-    JobGraphUtils.connectLocal(head, output, headConfig);
-    JobGraphUtils.connectLocal(tail, fakeTailOutput, tailConfig);
-    JobGraphUtils.connectLocal(sync, fakeSyncOutput, syncConfig);
+    JobGraphUtils.connectLocal(head, tail, DistributionPattern.BIPARTITE, ShipStrategy.PARTITION_HASH);
+    JobGraphUtils.connectLocal(head, sync);
+    JobGraphUtils.connectLocal(head, output);
+    JobGraphUtils.connectLocal(tail, fakeTailOutput);
+    JobGraphUtils.connectLocal(sync, fakeSyncOutput);
 
     head.setVertexToShareInstancesWith(tail);
 
-    GlobalConfiguration.loadConfiguration(
-        "/home/ssc/Entwicklung/projects/stratosphere-iterations/stratosphere-dist/src/main/stratosphere-bin/conf");
+    GlobalConfiguration.loadConfiguration("/home/ssc/Desktop/stratosphere/local-conf");
     Configuration conf = GlobalConfiguration.getConfiguration();
 
     JobGraphUtils.submit(jobGraph, conf);

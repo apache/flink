@@ -24,10 +24,15 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
+import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
+import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
+import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankInputFormat;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
+import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -45,15 +50,28 @@ public class JobGraphUtils {
     client.submitJobAndWait();
   }
 
-  public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target, TaskConfig sourceConfig)
-      throws JobGraphDefinitionException {
-    connectLocal(source, target, sourceConfig, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+  public static JobInputVertex createInput(Class<?> stubClass, String path, String name, JobGraph graph,
+      int degreeOfParallelism) {
+    JobInputVertex inputVertex = new JobInputVertex(name, graph);
+    Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask.class;
+    inputVertex.setInputClass(clazz);
+    inputVertex.setNumberOfSubtasks(degreeOfParallelism);
+    inputVertex.setNumberOfSubtasksPerInstance(degreeOfParallelism);
+    TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
+    inputConfig.setStubClass(stubClass);
+    inputConfig.setStubParameter(FileInputFormat.FILE_PARAMETER_KEY, path);
+    return inputVertex;
   }
 
-  public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target, TaskConfig sourceConfig,
+  public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target)
+      throws JobGraphDefinitionException {
+    connectLocal(source, target, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+  }
+
+  public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target,
       DistributionPattern distributionPattern, ShipStrategy shipStrategy) throws JobGraphDefinitionException {
     source.connectTo(target, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, distributionPattern);
-    sourceConfig.addOutputShipStrategy(shipStrategy);
+    new TaskConfig(source.getConfiguration()).addOutputShipStrategy(shipStrategy);
   }
 
   public static JobTaskVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph, int dop) {
@@ -90,6 +108,7 @@ public class JobGraphUtils {
     JobOutputVertex sinkVertex = new JobOutputVertex(name, jobGraph);
     sinkVertex.setOutputClass(DataSinkTask.class);
     sinkVertex.setNumberOfSubtasks(degreeOfParallelism);
+    sinkVertex.setNumberOfSubtasksPerInstance(degreeOfParallelism);
     return sinkVertex;
   }
 }
