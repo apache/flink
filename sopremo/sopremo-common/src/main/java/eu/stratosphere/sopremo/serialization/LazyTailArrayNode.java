@@ -252,6 +252,16 @@ public class LazyTailArrayNode extends AbstractArrayNode {
 		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
 	}
 
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 0;
+	}
+
+	@Override
+	public void copyNormalizedKey(byte[] target, int offset, int len) {
+		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
+	}
+
 	/**
 	 * @author Michael Hopstock
 	 */
@@ -280,15 +290,4 @@ public class LazyTailArrayNode extends AbstractArrayNode {
 
 		}
 	}
-
-	@Override
-	public int getMaxNormalizedKeyLen() {
-		return 0;
-	}
-
-	@Override
-	public void copyNormalizedKey(byte[] target, int offset, int len) {
-		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
-	}
-
 }
