@@ -17,22 +17,27 @@ import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
 /**
- * <p>This implementation builds on the fixed-size PactRecord. It needs therefore a {@link TailArraySchema}.Because it is
+ * <p>
+ * This implementation builds on the fixed-size PactRecord. It needs therefore a {@link TailArraySchema}.Because it is
  * fixed-size, it has leading field, called "others", which is also an implementation of the IArrayNode interface. All
  * fields behind that are either <code>null</code> (when the tail is not filled completely yet) or with any JsonNode. If
  * the tail gets fully filled, each upcoming JsonNode, which gets added, goes into the "others" field.<br/>
- * So this is an abstraction of an array due to the PactRecord serialization.</p> * 
- * <p>Visualization with a tailSize of 5:<br/>
+ * So this is an abstraction of an array due to the PactRecord serialization.
+ * </p>
+ * *
+ * <p>
+ * Visualization with a tailSize of 5:<br/>
  * <ul>
- * 	<li>intern representation: <code>[[], null, null, null, IJsonNode, IJsonNode]</code></li>
- * 	<li>extern representation: <code>[IJsonNode, IJsonNode]</code></li>
+ * <li>intern representation: <code>[[], null, null, null, IJsonNode, IJsonNode]</code></li>
+ * <li>extern representation: <code>[IJsonNode, IJsonNode]</code></li>
  * </ul>
  * Tail filled:<br/>
  * <ul>
- * 	<li>intern representation: <code>[[IJsonNode, ...], IJsonNode, IJsonNode, IJsonNode, IJsonNode, IJsonNode]</code></li>
- * 	<li>extern representation: <code>[IJsonNode, ..., IJsonNode, IJsonNode, IJsonNode, IJsonNode, IJsonNode]</code></li>
+ * <li>intern representation: <code>[[IJsonNode, ...], IJsonNode, IJsonNode, IJsonNode, IJsonNode, IJsonNode]</code></li>
+ * <li>extern representation: <code>[IJsonNode, ..., IJsonNode, IJsonNode, IJsonNode, IJsonNode, IJsonNode]</code></li>
  * </ul>
  * </p>
+ * 
  * @author Michael Hopstock
  */
 public class LazyTailArrayNode extends JsonNode implements IArrayNode {
@@ -49,94 +54,6 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 	public LazyTailArrayNode(PactRecord record, TailArraySchema schema) {
 		this.record = record;
 		this.schema = schema;
-	}
-
-	@Override
-	public Iterator<IJsonNode> iterator() {
-		Iterator<IJsonNode> othersIterator = this.getOtherField().iterator();
-		Iterator<IJsonNode> tailIterator = new FixedIndexIterator(1, this.schema.getTailSize() + 1);
-
-		return new ConcatenatingIterator<IJsonNode>(othersIterator, tailIterator);
-	}
-
-	@Override
-	public Type getType() {
-		return Type.ArrayNode;
-	}
-
-	@Override
-	public void read(DataInput in) throws IOException {
-		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
-	}
-
-	@Override
-	public PactRecord getJavaValue() {
-		return this.record;
-	}
-
-	@Override
-	public int compareToSameType(IJsonNode other) {
-		final LazyTailArrayNode node = (LazyTailArrayNode) other;
-		final Iterator<IJsonNode> entries1 = this.iterator(), entries2 = node.iterator();
-
-		while (entries1.hasNext() && entries2.hasNext()) {
-			final IJsonNode entry1 = entries1.next(), entry2 = entries2.next();
-			final int comparison = entry1.compareTo(entry2);
-			if (comparison != 0)
-				return comparison;
-		}
-
-		if (!entries1.hasNext())
-			return entries2.hasNext() ? -1 : 0;
-		if (!entries2.hasNext())
-			return 1;
-		return 0;
-	}
-
-	@Override
-	public StringBuilder toString(StringBuilder sb) {
-		sb.append('[');
-
-		int count = 0;
-		for (final IJsonNode node : this) {
-			if (count > 0)
-				sb.append(',');
-			++count;
-
-			node.toString(sb);
-		}
-
-		sb.append(']');
-		return sb;
-	}
-
-	/**
-	 * Returns the arrayNode "others", which is the first in the PactRecord before the tail starts.
-	 * 
-	 * @return the field "others" of the PactRecord
-	 */
-	public IArrayNode getOtherField() {
-		return (IArrayNode) SopremoUtil.unwrap(this.record.getField(0,
-			JsonNodeWrapper.class));
-	}
-
-	@Override
-	public int size() {
-		final IArrayNode others = this.getOtherField();
-		// we have to manually iterate over our record to get his size
-		// because there is a difference between NullNode and MissingNode
-		int count = 0;
-		for (int i = 1; i <= this.schema.getTailSize(); i++) {
-			if (!this.record.isNull(i)) {
-				count++;
-			}
-		}
-		return count + others.size();
 	}
 
 	@Override
@@ -224,6 +141,34 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	@Override
+	public void clear() {
+		for (int i = 1; i <= this.schema.getTailSize(); i++) {
+			this.record.setNull(i);
+		}
+
+		this.getOtherField().clear();
+	}
+
+	@Override
+	public int compareToSameType(IJsonNode other) {
+		final LazyTailArrayNode node = (LazyTailArrayNode) other;
+		final Iterator<IJsonNode> entries1 = this.iterator(), entries2 = node.iterator();
+
+		while (entries1.hasNext() && entries2.hasNext()) {
+			final IJsonNode entry1 = entries1.next(), entry2 = entries2.next();
+			final int comparison = entry1.compareTo(entry2);
+			if (comparison != 0)
+				return comparison;
+		}
+
+		if (!entries1.hasNext())
+			return entries2.hasNext() ? -1 : 0;
+		if (!entries2.hasNext())
+			return 1;
+		return 0;
+	}
+
+	@Override
 	public IJsonNode get(int index) {
 		int size = this.size();
 		if (index < 0 || index >= size) {
@@ -241,34 +186,31 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	@Override
-	public IJsonNode set(int index, IJsonNode node) {
-		if (node == null) {
-			throw new NullPointerException();
-		}
+	public PactRecord getJavaValue() {
+		return this.record;
+	}
 
-		if (node.isMissing()) {
-			return this.remove(index);
-		}
+	/**
+	 * Returns the arrayNode "others", which is the first in the PactRecord before the tail starts.
+	 * 
+	 * @return the field "others" of the PactRecord
+	 */
+	public IArrayNode getOtherField() {
+		return (IArrayNode) SopremoUtil.unwrap(this.record.getField(0,
+			JsonNodeWrapper.class));
+	}
 
-		if (index < 0 || index >= this.size()) {
-			if (index == this.size()) {
-				this.add(node);
-				return MissingNode.getInstance();
-			} else {
-				throw new IndexOutOfBoundsException();
-			}
-		}
-		int recordPosition = this.schema.getTailSize() - size() + index;
-		if (recordPosition < 0) {
-			return this.getOtherField().set(index, node);
-		} else {
-			// save node for return
-			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(recordPosition + 1,
-				JsonNodeWrapper.class));
-			// replace it
-			this.record.setField(recordPosition + 1, node);
-			return oldNode;
-		}
+	@Override
+	public Iterator<IJsonNode> iterator() {
+		Iterator<IJsonNode> othersIterator = this.getOtherField().iterator();
+		Iterator<IJsonNode> tailIterator = new FixedIndexIterator(1, this.schema.getTailSize() + 1);
+
+		return new ConcatenatingIterator<IJsonNode>(othersIterator, tailIterator);
+	}
+
+	@Override
+	public void read(DataInput in) throws IOException {
+		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
 	}
 
 	@Override
@@ -306,12 +248,75 @@ public class LazyTailArrayNode extends JsonNode implements IArrayNode {
 	}
 
 	@Override
-	public void clear() {
-		for (int i = 1; i <= this.schema.getTailSize(); i++) {
-			this.record.setNull(i);
+	public IJsonNode set(int index, IJsonNode node) {
+		if (node == null) {
+			throw new NullPointerException();
 		}
 
-		this.getOtherField().clear();
+		if (node.isMissing()) {
+			return this.remove(index);
+		}
+
+		if (index < 0 || index >= this.size()) {
+			if (index == this.size()) {
+				this.add(node);
+				return MissingNode.getInstance();
+			} else {
+				throw new IndexOutOfBoundsException();
+			}
+		}
+		int recordPosition = this.schema.getTailSize() - size() + index;
+		if (recordPosition < 0) {
+			return this.getOtherField().set(index, node);
+		} else {
+			// save node for return
+			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(recordPosition + 1,
+				JsonNodeWrapper.class));
+			// replace it
+			this.record.setField(recordPosition + 1, node);
+			return oldNode;
+		}
+	}
+
+	@Override
+	public int size() {
+		final IArrayNode others = this.getOtherField();
+		// we have to manually iterate over our record to get his size
+		// because there is a difference between NullNode and MissingNode
+		int count = 0;
+		for (int i = 1; i <= this.schema.getTailSize(); i++) {
+			if (!this.record.isNull(i)) {
+				count++;
+			}
+		}
+		return count + others.size();
+	}
+
+	@Override
+	public StringBuilder toString(StringBuilder sb) {
+		sb.append('[');
+
+		int count = 0;
+		for (final IJsonNode node : this) {
+			if (count > 0)
+				sb.append(',');
+			++count;
+
+			node.toString(sb);
+		}
+
+		sb.append(']');
+		return sb;
+	}
+
+	@Override
+	public void write(DataOutput out) throws IOException {
+		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
+	}
+
+	@Override
+	public Type getType() {
+		return Type.ArrayNode;
 	}
 
 	@Override
