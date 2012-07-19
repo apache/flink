@@ -17,16 +17,16 @@ package eu.stratosphere.meteor.base;
 import org.junit.Test;
 
 import eu.stratosphere.meteor.MeteorTest;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.Sink;
-import eu.stratosphere.sopremo.SopremoPlan;
-import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.OrExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
+import eu.stratosphere.sopremo.io.Sink;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
+import eu.stratosphere.sopremo.type.JsonUtil;
 
 /**
  * @author Arvid Heise

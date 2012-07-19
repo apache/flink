@@ -14,9 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.meteor;
 
-import eu.stratosphere.sopremo.JsonStream;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
+import eu.stratosphere.sopremo.operator.JsonStream;
 
 /**
  * @author Arvid Heise

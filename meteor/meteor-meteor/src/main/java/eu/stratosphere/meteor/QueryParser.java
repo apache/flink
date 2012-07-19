@@ -17,14 +17,14 @@ import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CharStream;
 import org.antlr.runtime.CommonTokenStream;
 
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.OperatorInfo;
-import eu.stratosphere.sopremo.OperatorInfo.InputPropertyInfo;
-import eu.stratosphere.sopremo.OperatorInfo.OperatorPropertyInfo;
-import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.operator.JsonStream;
+import eu.stratosphere.sopremo.operator.Operator;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
+import eu.stratosphere.sopremo.query.OperatorInfo;
 import eu.stratosphere.sopremo.query.PlanCreator;
 import eu.stratosphere.sopremo.query.QueryParserException;
+import eu.stratosphere.sopremo.query.OperatorInfo.InputPropertyInfo;
+import eu.stratosphere.sopremo.query.OperatorInfo.OperatorPropertyInfo;
 import eu.stratosphere.util.StringUtil;
 
 public class QueryParser extends PlanCreator {
@@ -57,15 +57,19 @@ public class QueryParser extends PlanCreator {
 		return parser.parse();
 	}
 
-	public String toJavaString(final InputStream stream) throws IOException, QueryParserException {
-		return this.toJavaString(new ANTLRInputStream(stream));
+	public static String getPrefixedName(String prefix, String name) {
+		return String.format("%s:%s", prefix, name);
+	}
+	
+	public String toSopremoCode(final InputStream stream) throws IOException, QueryParserException {
+		return this.toSopremoCode(new ANTLRInputStream(stream));
 	}
 
-	public String toJavaString(final String script) throws QueryParserException {
-		return this.toJavaString(new ANTLRStringStream(script));
+	public String toSopremoCode(final String script) throws QueryParserException {
+		return this.toSopremoCode(new ANTLRStringStream(script));
 	}
 
-	protected String toJavaString(final CharStream input) {
+	protected String toSopremoCode(final CharStream input) {
 		final MeteorLexer lexer = new MeteorLexer(input);
 		final CommonTokenStream tokens = new CommonTokenStream();
 		tokens.setTokenSource(lexer);
@@ -74,11 +78,11 @@ public class QueryParser extends PlanCreator {
 		parser.setTreeAdaptor(adaptor);
 		final SopremoPlan result = parser.parse();
 		final JavaRenderInfo info = new JavaRenderInfo(parser, adaptor);
-		this.toJavaString(result, info);
+		this.toSopremoCode(result, info);
 		return info.builder.toString();
 	}
 
-	protected String toJavaString(final SopremoPlan result, final JavaRenderInfo info) {
+	protected String toSopremoCode(final SopremoPlan result, final JavaRenderInfo info) {
 		for (final Operator<?> op : result.getContainedOperators())
 			this.appendJavaOperator(op, info);
 		return info.builder.toString();
