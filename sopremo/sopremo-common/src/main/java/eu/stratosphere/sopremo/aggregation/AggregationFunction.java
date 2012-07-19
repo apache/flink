@@ -1,11 +1,11 @@
 package eu.stratosphere.sopremo.aggregation;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-public abstract class AggregationFunction implements SerializableSopremoType, Cloneable {
+public abstract class AggregationFunction implements ISerializableSopremoType, Cloneable {
 	/**
 	 * 
 	 */

@@ -4,8 +4,10 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
+import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.function.SopremoMethod;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 
 /**
  * Calls the specified function with the provided parameters and returns the result.
@@ -70,7 +72,10 @@ public class MethodCall extends ContainerExpression {
 		for (int index = 0; index < params.length; index++)
 			params[index] = this.paramExprs.get(index).evaluate(node, context);
 
-		return context.getFunctionRegistry().evaluate(this.function, JsonUtil.asArray(params), target, context);
+		final SopremoMethod method = context.getFunctionRegistry().findMethod(this.function);
+		if (method == null)
+			throw new EvaluationException(String.format("Unknown function %s", this.function));
+		return method.call(JsonUtil.asArray(params), target, context);
 	}
 
 	/*

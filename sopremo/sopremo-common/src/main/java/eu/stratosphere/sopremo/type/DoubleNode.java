@@ -23,6 +23,8 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 	private static final long serialVersionUID = -192178456171338173L;
 
 	private transient PactDouble value;
+	
+	public final static DoubleNode NaN = DoubleNode.valueOf(Double.NaN);
 
 	/**
 	 * Initializes a DoubleNode which represents 0.0

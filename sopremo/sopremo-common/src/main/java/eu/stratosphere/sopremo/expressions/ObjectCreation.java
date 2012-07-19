@@ -8,7 +8,7 @@ import java.util.List;
 import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -315,7 +315,7 @@ public class ObjectCreation extends ContainerExpression {
 		}
 	}
 
-	public abstract static class Mapping<Target> extends AbstractSopremoType implements SerializableSopremoType {
+	public abstract static class Mapping<Target> extends AbstractSopremoType implements ISerializableSopremoType {
 		/**
 		 * 
 		 */

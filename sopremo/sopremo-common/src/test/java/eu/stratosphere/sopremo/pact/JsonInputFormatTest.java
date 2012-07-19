@@ -24,7 +24,10 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.TestRecords;
+import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.io.Source;
 import eu.stratosphere.sopremo.serialization.DirectSchema;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
@@ -49,23 +52,12 @@ public class JsonInputFormatTest {
 	@Test
 	@Ignore
 	public void completeTestPasses() throws IOException {
-		final FileDataSource read = new FileDataSource(
-			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
-		SopremoUtil.serialize(read.getParameters(), IOConstants.SCHEMA, SCHEMA);
+		final Source read = new Source(JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"));
 
-		final MapContract map =
-			new MapContract(IdentityMap.class, "Map");
-		map.setInput(read);
-
-		final FileDataSink output = this.createOutput(map, SequentialOutputFormat.class);
-		SopremoUtil.serialize(output.getParameters(), IOConstants.SCHEMA, SCHEMA);
-
-		final TestPlan testPlan = new TestPlan(output);
+		final SopremoTestPlan testPlan = new SopremoTestPlan(read);
 		testPlan.run();
-		final TestRecords input = testPlan.getInput();
-		input.setSchema(SCHEMA.getPactSchema());
-		Assert.assertEquals("input and output should be equal in identity map", input, testPlan
-			.getActualOutput());
+		Assert.assertEquals("input and output should be equal in identity map", testPlan.getInput(0), testPlan
+			.getActualOutput(0));
 	}
 
 	/**
@@ -76,20 +68,10 @@ public class JsonInputFormatTest {
 	@Test
 	@Ignore
 	public void completeTestPassesWithExpectedValues() throws IOException {
-		final FileDataSource read = new FileDataSource(
-			JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"), "Input");
-		SopremoUtil.serialize(read.getParameters(), IOConstants.SCHEMA, SCHEMA);
+		final Source read = new Source(JsonInputFormat.class, this.getResource("SopremoTestPlan/test.json"));
 
-		final MapContract map = new MapContract(IdentityMap.class, "Map");
-		map.setInput(read);
-
-		final FileDataSink output = this.createOutput(map,
-			JsonOutputFormat.class);
-		SopremoUtil.serialize(output.getParameters(), IOConstants.SCHEMA, SCHEMA);
-
-		final TestPlan testPlan = new TestPlan(output);
-		testPlan.getExpectedOutput(output, SCHEMA.getPactSchema()).fromFile(JsonInputFormat.class,
-			this.getResource("SopremoTestPlan/test.json"));
+		final SopremoTestPlan testPlan = new SopremoTestPlan(read);
+		testPlan.getExpectedOutput(0).load(this.getResource("SopremoTestPlan/test.json"));
 		testPlan.run();
 	}
 
@@ -133,9 +115,11 @@ public class JsonInputFormatTest {
 		jsonWriter.close();
 
 		Configuration config = new Configuration();
-		SopremoUtil.serialize(config, IOConstants.SCHEMA, SCHEMA);
-		final JsonInputFormat inputFormat = FormatUtil.openInput(JsonInputFormat.class, file.toURI()
-			.toString(), config);
+		final EvaluationContext context = new EvaluationContext();
+		context.setSchema(SCHEMA);
+		SopremoUtil.serialize(config, SopremoUtil.CONTEXT, context);
+		final JsonInputFormat inputFormat =
+			FormatUtil.openInput(JsonInputFormat.class, file.toURI().toString(), config);
 		final PactRecord record = new PactRecord();
 		for (int index = 1; index <= 5; index++) {
 			Assert.assertFalse("more pairs expected @ " + index, inputFormat.reachedEnd());
@@ -162,9 +146,11 @@ public class JsonInputFormatTest {
 		jsonWriter.close();
 
 		Configuration config = new Configuration();
-		SopremoUtil.serialize(config, IOConstants.SCHEMA, SCHEMA);
-		final JsonInputFormat inputFormat = FormatUtil.openInput(JsonInputFormat.class, file.toURI()
-			.toString(), config);
+		final EvaluationContext context = new EvaluationContext();
+		context.setSchema(SCHEMA);
+		SopremoUtil.serialize(config, SopremoUtil.CONTEXT, context);
+		final JsonInputFormat inputFormat =
+			FormatUtil.openInput(JsonInputFormat.class, file.toURI().toString(), config);
 		final PactRecord record = new PactRecord();
 
 		if (!inputFormat.reachedEnd())

@@ -37,6 +37,7 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 public class JsonParser {
+	// TODO: rewrite to a state-based parser, that supports escaping	
 
 	private final BufferedReader reader;
 

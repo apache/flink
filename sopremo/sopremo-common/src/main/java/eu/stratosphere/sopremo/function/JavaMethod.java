@@ -10,41 +10,7 @@ import eu.stratosphere.util.reflect.DynamicMethod;
 import eu.stratosphere.util.reflect.ExtensionMethod;
 import eu.stratosphere.util.reflect.Signature;
 
-public class JavaMethod extends JsonMethod {
-	// private final class AutoBoxingMethod extends ExtensionMethod<IJsonNode> {
-	// /**
-	// *
-	// */
-	// private static final long serialVersionUID = 9145091116604733007L;
-	//
-	// private AutoBoxingMethod(final String name) {
-	// super(name);
-	// }
-	//
-	// @Override
-	// protected Class<?>[] getSignatureTypes(final Method member) {
-	// final Class<?>[] parameterTypes = super.getParameterTypes(member);
-	// for (int index = 0; index < parameterTypes.length; index++)
-	// if (!parameterTypes[index].isArray())
-	// parameterTypes[index] = JavaToJsonMapper.INSTANCE.classToJsonType(parameterTypes[index]);
-	// return parameterTypes;
-	// }
-	//
-	// @Override
-	// protected IJsonNode invokeDirectly(final Method method, final Object context, final Object[] params)
-	// throws IllegalAccessException, InvocationTargetException {
-	// for (int index = 0; index < params.length; index++)
-	// params[index] = box(params[index]);
-	// return JavaToJsonMapper.INSTANCE.valueToTree(super.invokeDirectly(method, context, params));
-	// }
-	//
-	// private Object box(final Object value) {
-	// if (value.getClass().isArray())
-	// return value;
-	// return JavaToJsonMapper.INSTANCE.valueToTree(value);
-	// }
-	// }
-
+public class JavaMethod extends SopremoMethod {
 	/**
 	 * 
 	 */
@@ -53,8 +19,6 @@ public class JavaMethod extends JsonMethod {
 	private final DynamicMethod<IJsonNode> method;
 
 	public JavaMethod(final String name) {
-		super(name);
-
 		this.method = new ExtensionMethod<IJsonNode>(name);
 	}
 
@@ -73,5 +37,14 @@ public class JavaMethod extends JsonMethod {
 	@Override
 	public IJsonNode call(final IArrayNode params, final IJsonNode target, final EvaluationContext context) {
 		return this.method.invoke(null, (Object[]) params.toArray());
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.ISopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append("Java method ").append(this.method);
 	}
 }

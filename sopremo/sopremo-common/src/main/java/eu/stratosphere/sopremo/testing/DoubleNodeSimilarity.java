@@ -5,9 +5,9 @@ import java.util.Map.Entry;
 
 import eu.stratosphere.pact.testing.AbstractValueSimilarity;
 import eu.stratosphere.sopremo.pact.JsonNodeWrapper;
-import eu.stratosphere.sopremo.type.AbstractJsonNode.Type;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode.Type;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 

@@ -18,9 +18,7 @@ package eu.stratosphere.sopremo.pact;
  * @author Arvid Heise
  */
 public interface IOConstants {
-	public static final String ENCODING = "Encoding", SCHEMA = "targetSchema";
-
-	public static final String COLUMN_NAMES = "columnNames";
+	public static final String ENCODING = "io.encoding";
 
 	public static final String FIELD_DELIMITER = "fieldDelimiter";
 }

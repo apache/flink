@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
@@ -25,21 +26,21 @@ import eu.stratosphere.pact.testing.AssertUtil;
 import eu.stratosphere.pact.testing.TestPlan;
 import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.OperatorNavigator;
-import eu.stratosphere.sopremo.Sink;
-import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.SopremoPlan;
-import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.io.JsonParser;
+import eu.stratosphere.sopremo.io.Sink;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.operator.JsonStream;
+import eu.stratosphere.sopremo.operator.Operator;
+import eu.stratosphere.sopremo.operator.OperatorNavigator;
+import eu.stratosphere.sopremo.operator.SopremoModule;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
 import eu.stratosphere.sopremo.pact.IOConstants;
 import eu.stratosphere.sopremo.pact.JsonInputFormat;
 import eu.stratosphere.sopremo.pact.RecordToJsonIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.CollectionUtil;
 import eu.stratosphere.util.IteratorUtil;
@@ -82,7 +83,7 @@ public class SopremoTestPlan {
 
 		this.inputs = new Input[unconnectedInputs.size()];
 		for (int index = 0; index < this.inputs.length; index++) {
-			this.inputs[index] = new Input(index);
+			this.inputs[index] = new Input(this, index);
 			final Operator<?> unconnectedNode = unconnectedInputs.get(index);
 			if (unconnectedNode instanceof Source)
 				this.setInputOperator(index, (Source) unconnectedNode);
@@ -104,7 +105,7 @@ public class SopremoTestPlan {
 				this.actualOutputs[index].setOperator((Sink) unconnectedOutputs.get(index));
 			else
 				this.actualOutputs[index].getOperator().setInput(0, unconnectedOutputs.get(index));
-			this.expectedOutputs[index] = new ExpectedOutput(index);
+			this.expectedOutputs[index] = new ExpectedOutput(this, index);
 		}
 	}
 
@@ -194,10 +195,10 @@ public class SopremoTestPlan {
 	protected void initInputsAndOutputs(final int numInputs, final int numOutputs) {
 		this.inputs = new Input[numInputs];
 		for (int index = 0; index < numInputs; index++)
-			this.inputs[index] = new Input(index);
+			this.inputs[index] = new Input(this, index);
 		this.expectedOutputs = new ExpectedOutput[numOutputs];
 		for (int index = 0; index < numOutputs; index++)
-			this.expectedOutputs[index] = new ExpectedOutput(index);
+			this.expectedOutputs[index] = new ExpectedOutput(this, index);
 		this.actualOutputs = new ActualOutput[numOutputs];
 		for (int index = 0; index < numOutputs; index++)
 			this.actualOutputs[index] = new ActualOutput(index);
@@ -250,7 +251,9 @@ public class SopremoTestPlan {
 			this.actualRecords = testPlan.getActualOutput(this.getIndex());
 
 			FileDataSink sink = testPlan.getSinks().get(this.getIndex());
-			this.schema = SopremoUtil.deserialize(sink.getParameters(), IOConstants.SCHEMA, Schema.class);
+			this.schema =
+				SopremoUtil.deserialize(sink.getParameters(), SopremoUtil.CONTEXT, EvaluationContext.class).getInputSchema(
+					0);
 		}
 
 		@Override
@@ -265,13 +268,19 @@ public class SopremoTestPlan {
 
 	static abstract class ModifiableChannel<O extends Operator<?>, C extends ModifiableChannel<O, C>> extends
 			InternalChannel<O, C> implements Iterable<IJsonNode> {
-
 		private final List<IJsonNode> values = new ArrayList<IJsonNode>();
 
 		private boolean empty = false;
 
-		public ModifiableChannel(final O operator, final int index) {
+		private SopremoTestPlan testPlan;
+
+		public ModifiableChannel(final SopremoTestPlan testPlan, final O operator, final int index) {
 			super(operator, index);
+			this.testPlan = testPlan;
+		}
+
+		protected EvaluationContext getContext() {
+			return testPlan.getEvaluationContext();
 		}
 
 		@SuppressWarnings("unchecked")
@@ -284,7 +293,7 @@ public class SopremoTestPlan {
 
 		public void load(final String file) throws IOException {
 			try {
-				if (!FileSystem.get(new URI(this.file)).exists(new Path(this.file)))
+				if (!FileSystem.get(new URI(file)).exists(new Path(file)))
 					throw new FileNotFoundException();
 			} catch (URISyntaxException e) {
 				throw new IllegalArgumentException(String.format("File %s is not a valid URI", file));
@@ -313,8 +322,11 @@ public class SopremoTestPlan {
 				testRecords.setSchema(schema.getPactSchema());
 				if (this.isEmpty())
 					testRecords.setEmpty();
-				else if (this.file != null)
-					testRecords.fromFile(JsonInputFormat.class, this.file);
+				else if (this.file != null) {
+					Configuration configuration = new Configuration();
+					SopremoUtil.serialize(configuration, SopremoUtil.CONTEXT, getContext());
+					testRecords.fromFile(JsonInputFormat.class, this.file, configuration);
+				}
 				else
 					for (IJsonNode node : this.values)
 						testRecords.add(schema.jsonToRecord(node, null, null));
@@ -381,7 +393,6 @@ public class SopremoTestPlan {
 
 	static abstract class InternalChannel<O extends Operator<?>, C extends InternalChannel<O, C>> implements
 			Iterable<IJsonNode> {
-
 		protected String file;
 
 		protected O operator;
@@ -436,8 +447,8 @@ public class SopremoTestPlan {
 	}
 
 	public static class ExpectedOutput extends ModifiableChannel<Source, ExpectedOutput> {
-		public ExpectedOutput(final int index) {
-			super(new MockupSource(index), index);
+		public ExpectedOutput(SopremoTestPlan testPlan, final int index) {
+			super(testPlan, new MockupSource(index), index);
 		}
 
 		/*
@@ -491,8 +502,9 @@ public class SopremoTestPlan {
 	}
 
 	public static class Input extends ModifiableChannel<Source, Input> {
-		public Input(final int index) {
-			super(new MockupSource(index), index);
+
+		public Input(SopremoTestPlan testPlan, final int index) {
+			super(testPlan, new MockupSource(index), index);
 		}
 
 		/*
@@ -521,7 +533,7 @@ public class SopremoTestPlan {
 		public Iterator<IJsonNode> iterator() {
 			if (this.operator != null && !(this.operator instanceof MockupSource)) {
 				if (this.operator.isAdhoc())
-					return JsonUtil.asArray(this.operator.getAdhocValues()).iterator();
+					return JsonUtil.asArray(this.operator.getAdhocValues(getContext())).iterator();
 				return this.iteratorFromFile(this.operator.getInputPath());
 			}
 			return super.iterator();
@@ -547,7 +559,7 @@ public class SopremoTestPlan {
 			final FileDataSink contract = TestPlan.createDefaultSink(this.getOutputName());
 			contract.setInput(pactModule.getInput(0));
 			pactModule.addInternalOutput(contract);
-			SopremoUtil.serialize(contract.getParameters(), IOConstants.SCHEMA, context.getOutputSchema(0));
+			SopremoUtil.serialize(contract.getParameters(), SopremoUtil.CONTEXT, context);
 			return pactModule;
 		}
 
@@ -596,8 +608,7 @@ public class SopremoTestPlan {
 			final PactModule pactModule = new PactModule(this.toString(), 0, 1);
 			final FileDataSource contract = TestPlan.createDefaultSource(this.getInputName());
 			pactModule.getOutput(0).setInput(contract);
-			// pactModule.setInput(0, contract);
-			SopremoUtil.serialize(contract.getParameters(), IOConstants.SCHEMA, context.getInputSchema(0));
+			SopremoUtil.serialize(contract.getParameters(), SopremoUtil.CONTEXT, context);
 			return pactModule;
 		}
 

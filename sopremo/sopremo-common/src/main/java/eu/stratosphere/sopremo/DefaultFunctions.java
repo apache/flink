@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -21,7 +19,11 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.OptimizerHints;
 import eu.stratosphere.sopremo.expressions.Scope;
-import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.packages.BuiltinProvider;
+import eu.stratosphere.sopremo.packages.ConstantRegistryCallback;
+import eu.stratosphere.sopremo.packages.FunctionRegistryCallback;
+import eu.stratosphere.sopremo.packages.IConstantRegistry;
+import eu.stratosphere.sopremo.packages.IMethodRegistry;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -30,10 +32,10 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.ConcatenatingIterator;
-import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * Base built-in functions.
@@ -41,10 +43,7 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * @author Arvid Heise
  */
 public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallback, ConstantRegistryCallback {
-	private static final AbstractNumericNode ZERO = new IntNode(0), ONE = new IntNode(1),
-			NaN = DoubleNode.valueOf(Double.NaN);
-
-	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", ZERO) {
+	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", IntNode.ZERO) {
 		/**
 		 * 
 		 */
@@ -58,7 +57,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 
 	};
 
-	public static final AggregationFunction COUNT = new TransitiveAggregationFunction("count", ZERO) {
+	public static final AggregationFunction COUNT = new TransitiveAggregationFunction("count", IntNode.ZERO) {
 		/**
 		 * 
 		 */
@@ -66,7 +65,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 
 		@Override
 		public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationTarget, EvaluationContext context) {
-			return ArithmeticOperator.ADDITION.evaluate(ONE, (AbstractNumericNode) aggregationTarget, aggregationTarget);
+			return ArithmeticOperator.ADDITION.evaluate(IntNode.ONE, (AbstractNumericNode) aggregationTarget, aggregationTarget);
 		}
 	};
 
@@ -140,8 +139,8 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 		@Override
 		public IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target) {
 			final ArrayNode avgState = (ArrayNode) aggregator;
-			if (avgState.get(1).equals(ZERO))
-				return NaN;
+			if (avgState.get(1).equals(IntNode.ZERO))
+				return DoubleNode.NaN;
 			return ArithmeticOperator.DIVISION.evaluate((INumericNode) avgState.get(0), (INumericNode) avgState.get(1),
 				target);
 		}
@@ -269,7 +268,7 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	public static IJsonNode sum(final IJsonNode node) {
 		final Iterator<IJsonNode> iterator = ((ArrayNode) node).iterator();
 		if (!iterator.hasNext())
-			return ZERO;
+			return IntNode.ZERO;
 		INumericNode sum = (INumericNode) iterator.next();
 		for (; iterator.hasNext();)
 			sum = ArithmeticExpression.ArithmeticOperator.ADDITION.evaluate(sum, (INumericNode) iterator.next(), sum);
@@ -384,21 +383,24 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	}
 
 	@Override
-	public void registerFunctions(final MethodRegistry registry) {
-		final List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
-		for (final Method method : methods)
-			try {
-				if (method.getDeclaringClass() == String.class)
-					registry.register(method);
-			} catch (final Exception e) {
-				// System.out.println("Could not register " + method);
-			}
+	public void registerFunctions(final IMethodRegistry registry) {
+//		final List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
+//		for (final Method method : methods)
+//			try {
+//				if (method.getDeclaringClass() == String.class)
+//					registry.register(method);
+//			} catch (final Exception e) {
+//				// System.out.println("Could not register " + method);
+//			}
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.packages.ConstantRegistryCallback#registerConstants(eu.stratosphere.sopremo.packages.ConstantRegistry)
+	 */
 	@Override
-	public void registerConstants(final EvaluationContext context) {
-		context.getBindings().set("pi", new ConstantExpression(Math.PI));
-		context.getBindings().set("e", new ConstantExpression(Math.E));
+	public void registerConstants(IConstantRegistry constantRegistry) {
+		constantRegistry.registerConstant("pi", new ConstantExpression(Math.PI));
+		constantRegistry.registerConstant("e", new ConstantExpression(Math.E));
 	}
 
 	//

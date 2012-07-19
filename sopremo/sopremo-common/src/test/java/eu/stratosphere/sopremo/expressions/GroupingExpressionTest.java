@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
-import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createObjectNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createValueNode;
 import junit.framework.Assert;
 
 import org.junit.Test;

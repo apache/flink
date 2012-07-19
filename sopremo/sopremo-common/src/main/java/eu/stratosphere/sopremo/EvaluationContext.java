@@ -5,7 +5,11 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.operator.Operator;
+import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
+import eu.stratosphere.sopremo.packages.DefaultMethodRegistry;
+import eu.stratosphere.sopremo.packages.IConstantRegistry;
+import eu.stratosphere.sopremo.packages.IMethodRegistry;
 import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
 
@@ -14,12 +18,12 @@ import eu.stratosphere.sopremo.serialization.Schema;
  * 
  * @author Arvid Heise
  */
-public class EvaluationContext extends AbstractSopremoType implements SerializableSopremoType {
+public class EvaluationContext extends AbstractSopremoType implements ISerializableSopremoType {
 	private static final long serialVersionUID = 7701485388451926506L;
 
-	private final Bindings bindings = new Bindings();
+	private final IMethodRegistry methodRegistry;
 
-	private final MethodRegistry functionRegistry;
+	private final IConstantRegistry constantRegistry;
 
 	private int inputCounter = 0;
 
@@ -46,18 +50,6 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 		this.resultProjection = resultProjection;
 	}
 
-	public Bindings getBindings() {
-		return this.bindings;
-	}
-
-	public void addScope() {
-		this.bindings.addScope();
-	}
-
-	public void removeScope() {
-		this.bindings.removeScope();
-	}
-
 	public String operatorTrace() {
 		final Iterator<Operator<?>> descendingIterator = this.operatorStack.descendingIterator();
 		final StringBuilder builder = new StringBuilder(descendingIterator.next().getName());
@@ -81,12 +73,10 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	/**
 	 * Initializes EvaluationContext.
 	 */
-	public EvaluationContext() {
-		this(0, 0);
-	}
-
-	public EvaluationContext(final int numInputs, final int numOutputs) {
-		this.functionRegistry = new MethodRegistry(this.bindings);
+	public EvaluationContext(final int numInputs, final int numOutputs, IMethodRegistry methodRegistry,
+			IConstantRegistry constantRegistry) {
+		this.methodRegistry = methodRegistry;
+		this.constantRegistry = constantRegistry;
 		this.setInputsAndOutputs(numInputs, numOutputs);
 	}
 
@@ -98,12 +88,20 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	}
 
 	public EvaluationContext(final EvaluationContext context) {
-		this(context.inputSchemas.length, context.outputSchemas.length);
-		this.bindings.putAll(context.bindings);
+		this(context.inputSchemas.length, context.outputSchemas.length, context.methodRegistry,
+			context.constantRegistry);
 		this.inputCounter = context.inputCounter;
 		this.inputSchemas = context.inputSchemas.clone();
 		this.outputSchemas = context.outputSchemas.clone();
 		this.schema = context.schema;
+	}
+	
+	/**
+	 * Initializes EvaluationContext.
+	 *
+	 */
+	public EvaluationContext() {
+		this(0, 0, new DefaultMethodRegistry(), new DefaultConstantRegistry());
 	}
 
 	/**
@@ -111,8 +109,8 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	 * 
 	 * @return the FunctionRegistry
 	 */
-	public MethodRegistry getFunctionRegistry() {
-		return this.functionRegistry;
+	public IMethodRegistry getFunctionRegistry() {
+		return this.methodRegistry;
 	}
 
 	public int getInputCounter() {
@@ -160,8 +158,10 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	@Override
 	public void toString(final StringBuilder builder) {
 		builder.append("Context @ ").append(this.operatorStack).append("\n").
-			append("Bindings: ");
-		this.bindings.toString(builder);
+			append("Methods: ");
+		this.methodRegistry.toString(builder);
+		builder.append("\nConstants: ");
+		this.constantRegistry.toString(builder);
 	}
 
 	/**

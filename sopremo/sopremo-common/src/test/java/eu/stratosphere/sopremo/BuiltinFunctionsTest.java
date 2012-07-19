@@ -1,8 +1,8 @@
 package eu.stratosphere.sopremo;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
-import static eu.stratosphere.sopremo.JsonUtil.createCompactArray;
-import static eu.stratosphere.sopremo.JsonUtil.createValueNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createCompactArray;
+import static eu.stratosphere.sopremo.type.JsonUtil.createValueNode;
 
 import java.math.BigDecimal;
 
@@ -14,6 +14,7 @@ import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**

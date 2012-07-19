@@ -29,6 +29,53 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Tommy Neubert
  */
 public interface IJsonNode extends Serializable, Value, Key {
+	/**
+	 * This enumeration contains all possible types of JsonNode.
+	 * 
+	 * @author Michael Hopstock
+	 * @author Tommy Neubert
+	 */
+	public enum Type {
+		IntNode(IntNode.class, true),
+		LongNode(LongNode.class, true),
+		BigIntegerNode(BigIntegerNode.class, true),
+		DecimalNode(DecimalNode.class, true),
+		DoubleNode(DoubleNode.class, true),
+
+		ArrayNode(ArrayNode.class, false),
+		ObjectNode(ObjectNode.class, false),
+		TextNode(TextNode.class, false),
+		BooleanNode(BooleanNode.class, false),
+		NullNode(NullNode.class, false),
+		MissingNode(MissingNode.class, false),
+		CustomNode(AbstractJsonNode.class, false);
+
+		private final Class<? extends AbstractJsonNode> clazz;
+
+		private final boolean numeric;
+
+		private Type(final Class<? extends AbstractJsonNode> clazz, final boolean isNumeric) {
+			this.clazz = clazz;
+			this.numeric = isNumeric;
+		}
+
+		/**
+		 * Returns either the node represented by a specific enumeration element is numeric or not.
+		 */
+		public boolean isNumeric() {
+			return this.numeric;
+		}
+
+		/**
+		 * Returns an instantiable class of the node which is represented by a specific enumeration element.
+		 * 
+		 * @return the class of the represented node
+		 */
+		public Class<? extends AbstractJsonNode> getClazz() {
+			return this.clazz;
+		}
+
+	};
 
 	public abstract void clear();
 
