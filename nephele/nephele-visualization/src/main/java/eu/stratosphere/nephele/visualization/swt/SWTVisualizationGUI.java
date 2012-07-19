@@ -16,6 +16,8 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -193,8 +195,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 					final String jobName = gvi.getJobName();
 					final JobID jobID = gvi.getJobID();
+					final long submissionTimestamp = gvi.getSubmissionTimestamp();
 
-					this.jobToolTip = new SWTJobToolTip(shell, jobName, jobID, 0L, pt.x, pt.y);
+					this.jobToolTip = new SWTJobToolTip(shell, jobName, jobID, submissionTimestamp, pt.x, pt.y);
 					break;
 				}
 
@@ -504,12 +507,23 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 			// Check for new jobs
 			final List<RecentJobEvent> newJobs = this.jobManager.getRecentJobs();
+
+			// Sort jobs according to submission time stamps
+			Collections.sort(newJobs, new Comparator<RecentJobEvent>() {
+
+				@Override
+				public int compare(final RecentJobEvent o1, final RecentJobEvent o2) {
+
+					return (int) (o1.getSubmissionTimestamp() - o2.getSubmissionTimestamp());
+				}
+			});
+
 			if (!newJobs.isEmpty()) {
 				final Iterator<RecentJobEvent> it = newJobs.iterator();
 				while (it.hasNext()) {
 					final RecentJobEvent newJobEvent = it.next();
 					addJob(newJobEvent.getJobID(), newJobEvent.getJobName(), newJobEvent.isProfilingAvailable(),
-						newJobEvent.getTimestamp());
+						newJobEvent.getSubmissionTimestamp(), newJobEvent.getTimestamp());
 				}
 			}
 
@@ -584,8 +598,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		((SWTJobTabItem) control).updateView();
 	}
 
-	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable, final long referenceTime)
-			throws IOException {
+	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable, final long submissionTimestamp,
+			final long referenceTime) throws IOException {
 
 		synchronized (this.recentJobs) {
 
@@ -600,7 +614,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 			// Create graph visualization object
 			final GraphVisualizationData graphVisualizationData = new GraphVisualizationData(jobID, jobName,
-				isProfilingAvailable, managementGraph, networkTopology);
+				isProfilingAvailable, submissionTimestamp, managementGraph, networkTopology);
 
 			managementGraph.setAttachment(graphVisualizationData);
 			final Iterator<ManagementVertex> it = new ManagementGraphIterator(managementGraph, true);

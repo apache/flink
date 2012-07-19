@@ -68,11 +68,11 @@ public abstract class SWTToolTip {
 
 		this.shell.setLocation(x, y + OFFSET);
 
-		this.shell.setVisible(true);
-
 		if (pack) {
 			this.shell.pack();
 		}
+
+		this.shell.setVisible(true);
 	}
 
 	public void dispose() {
