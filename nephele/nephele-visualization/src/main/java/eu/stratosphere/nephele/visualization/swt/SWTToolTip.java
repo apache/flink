@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
@@ -36,18 +37,26 @@ public abstract class SWTToolTip {
 
 	public SWTToolTip(Shell parent, int x, int y) {
 
-		this.shell = new Shell(parent, SWT.TOOL | SWT.ON_TOP);
+		this.shell = new Shell(parent, SWT.TOOL | SWT.ON_TOP | SWT.NO_FOCUS);
 		final GridLayout gridLayout = new GridLayout(1, false);
 
 		this.shell.setLayout(gridLayout);
 
+		final Color backgroundColor = this.shell.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND);
+		final Color foregroundColor = this.shell.getDisplay().getSystemColor(SWT.COLOR_INFO_FOREGROUND);
+
+		this.shell.setBackground(backgroundColor);
+		this.shell.setForeground(foregroundColor);
+
 		this.titleLabel = new Label(this.shell, SWT.NONE);
 		this.titleLabel.setFont(FontScheme.getToolTipTitleFont(parent.getDisplay()));
+		this.titleLabel.setBackground(backgroundColor);
+		this.titleLabel.setForeground(foregroundColor);
 
 		this.titleLabel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
 	}
 
-	protected void finishInstantiation(int x, int y, int width) {
+	protected void finishInstantiation(int x, int y, int width, boolean pack) {
 
 		final Rectangle displayBounds = this.shell.getDisplay().getPrimaryMonitor().getBounds();
 
@@ -60,7 +69,10 @@ public abstract class SWTToolTip {
 		this.shell.setLocation(x, y + OFFSET);
 
 		this.shell.setVisible(true);
-		this.shell.open();
+
+		if (pack) {
+			this.shell.pack();
+		}
 	}
 
 	public void dispose() {
@@ -94,18 +106,27 @@ public abstract class SWTToolTip {
 
 	public abstract void updateView();
 
-	protected Composite createWarningComposite(String text, int imageType) {
+	protected Composite createWarningComposite(final String text, final int imageType) {
 
 		final Image image = getShell().getDisplay().getSystemImage(imageType);
+
+		final Color backgroundColor = getShell().getBackground();
+		final Color foregroundColor = getShell().getForeground();
 
 		final Composite composite = new Composite(getShell(), SWT.NONE);
 		final GridLayout gridLayout = new GridLayout(2, false);
 		composite.setLayout(gridLayout);
+		composite.setBackground(backgroundColor);
+		composite.setForeground(foregroundColor);
 		Composite imageCanvas = new SWTImageCanvas(composite, SWT.NONE, image);
 		imageCanvas.setLayoutData(new GridData(ICONSIZE, ICONSIZE));
+		imageCanvas.setBackground(backgroundColor);
+		imageCanvas.setForeground(foregroundColor);
 
 		final Label label = new Label(composite, SWT.NONE);
 		label.setLayoutData(new GridData(GridData.CENTER, GridData.CENTER, true, true));
+		label.setBackground(backgroundColor);
+		label.setForeground(foregroundColor);
 		label.setText(text);
 
 		return composite;

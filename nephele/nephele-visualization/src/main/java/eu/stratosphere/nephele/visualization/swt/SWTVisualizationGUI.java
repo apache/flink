@@ -32,6 +32,7 @@ import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -114,7 +115,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	 * The sequence number of the last processed event received from the job manager.
 	 */
 	private long lastProcessedEventSequenceNumber = -1;
-	
+
 	public SWTVisualizationGUI(ExtendedManagementProtocol jobManager, int queryInterval) {
 
 		this.jobManager = jobManager;
@@ -150,6 +151,62 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 		this.jobTree = new Tree(jobGroup, SWT.SINGLE | SWT.BORDER);
 		this.jobTree.addSelectionListener(this);
+
+		// Disable native tooltip implementation
+		this.jobTree.setToolTipText("");
+
+		// Implementation of the extended tree tooltips
+		final Listener toolTipListener = new Listener() {
+
+			private SWTJobToolTip jobToolTip = null;
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void handleEvent(final Event event) {
+
+				switch (event.type) {
+				case SWT.Dispose:
+				case SWT.KeyDown:
+				case SWT.MouseMove:
+					if (this.jobToolTip != null) {
+						this.jobToolTip.dispose();
+						this.jobToolTip = null;
+					}
+					break;
+				case SWT.MouseHover:
+					final TreeItem ti = jobTree.getItem(new Point(event.x, event.y));
+					if (ti == null) {
+						break;
+					}
+					if (this.jobToolTip != null && !this.jobToolTip.isDisposed()) {
+						this.jobToolTip.dispose();
+					}
+
+					final Point pt = jobTree.toDisplay(event.x, event.y);
+
+					final GraphVisualizationData gvi = (GraphVisualizationData) ti.getData();
+					if (gvi == null) {
+						break;
+					}
+
+					final String jobName = gvi.getJobName();
+					final JobID jobID = gvi.getJobID();
+
+					this.jobToolTip = new SWTJobToolTip(shell, jobName, jobID, 0L, pt.x, pt.y);
+					break;
+				}
+
+			}
+
+		};
+
+		// Register tooltip listener
+		this.jobTree.addListener(SWT.Dispose, toolTipListener);
+		this.jobTree.addListener(SWT.KeyDown, toolTipListener);
+		this.jobTree.addListener(SWT.MouseMove, toolTipListener);
+		this.jobTree.addListener(SWT.MouseHover, toolTipListener);
 
 		this.jobTabFolder = new CTabFolder(horizontalSash, SWT.TOP);
 		this.jobTabFolder.addSelectionListener(this);
@@ -481,14 +538,14 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 						while (eventIt.hasNext()) {
 
 							final AbstractEvent event = eventIt.next();
-							
+
 							// Did we already process this event?
-							if(this.lastProcessedEventSequenceNumber >= event.getSequenceNumber()){
+							if (this.lastProcessedEventSequenceNumber >= event.getSequenceNumber()) {
 								continue;
 							}
 
 							dispatchEvent(event, graphVisualizationData);
-							
+
 							this.lastProcessedEventSequenceNumber = event.getSequenceNumber();
 						}
 
