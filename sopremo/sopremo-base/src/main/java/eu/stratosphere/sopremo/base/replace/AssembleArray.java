@@ -14,16 +14,16 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.base.replace;
 
-import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
+import eu.stratosphere.sopremo.operator.ElementaryOperator;
+import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.AbstractNumericNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 
 /**
  * @author Arvid Heise

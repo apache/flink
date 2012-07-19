@@ -1,13 +1,13 @@
 package eu.stratosphere.sopremo.base;
 
-import static eu.stratosphere.sopremo.JsonUtil.createPath;
+import static eu.stratosphere.sopremo.type.JsonUtil.createPath;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.BinaryBooleanExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
+import eu.stratosphere.sopremo.expressions.ExpressionTag;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;

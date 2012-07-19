@@ -1,11 +1,10 @@
 package eu.stratosphere.sopremo.base;
 
-import static eu.stratosphere.sopremo.JsonUtil.createPath;
+import static eu.stratosphere.sopremo.type.JsonUtil.createPath;
 
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.DefaultFunctions;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.BatchAggregationExpression;
@@ -15,6 +14,7 @@ import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
+import eu.stratosphere.sopremo.type.JsonUtil;
 
 public class GroupingTest extends SopremoTest<Grouping> {
 	@Override

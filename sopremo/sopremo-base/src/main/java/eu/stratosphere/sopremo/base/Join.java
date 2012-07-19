@@ -4,16 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Name;
-import eu.stratosphere.sopremo.OutputCardinality;
-import eu.stratosphere.sopremo.Property;
-import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
@@ -23,6 +14,15 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.operator.CompositeOperator;
+import eu.stratosphere.sopremo.operator.ElementarySopremoModule;
+import eu.stratosphere.sopremo.operator.InputCardinality;
+import eu.stratosphere.sopremo.operator.JsonStream;
+import eu.stratosphere.sopremo.operator.Name;
+import eu.stratosphere.sopremo.operator.OutputCardinality;
+import eu.stratosphere.sopremo.operator.Property;
+import eu.stratosphere.sopremo.operator.SopremoModule;
 import eu.stratosphere.util.IsInstancePredicate;
 
 @InputCardinality(min = 2)
