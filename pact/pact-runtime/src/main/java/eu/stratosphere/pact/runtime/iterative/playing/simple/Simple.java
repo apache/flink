@@ -57,21 +57,21 @@ public class Simple {
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
     intermediateConfig.setDriver(MapDriver.class);
     intermediateConfig.setStubClass(AppendMapper.AppendIntermediateMapper.class);
-    intermediateConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, 1);
+    intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
     JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setDriver(MapDriver.class);
     tailConfig.setStubClass(AppendMapper.AppendTailMapper.class);
-    tailConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, 1);
+    tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
     JobTaskVertex sync = JobGraphUtils.createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSync",
         jobGraph);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setDriver(MapDriver.class);
     syncConfig.setStubClass(EmptyMapStub.class);
-    syncConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+    syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());

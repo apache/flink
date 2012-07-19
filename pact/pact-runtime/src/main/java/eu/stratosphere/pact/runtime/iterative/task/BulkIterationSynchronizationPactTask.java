@@ -74,7 +74,7 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
       signalAllWorkersDone();
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("finishing iteration [" + numIterations + "] [" + System.currentTimeMillis() + "]"));
+        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
       }
 
       numIterations++;

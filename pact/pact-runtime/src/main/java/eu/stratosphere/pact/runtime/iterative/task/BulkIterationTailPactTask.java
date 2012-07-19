@@ -28,6 +28,8 @@ import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 //TODO could this be an output???
 public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
@@ -51,6 +53,9 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
   @Override
   public void invoke() throws Exception {
 
+    final AtomicInteger terminationEventCounter = new AtomicInteger(0);
+    final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(0);
+
     // Initially retreive the backchannel from the iteration head
     final BlockingBackChannel backChannel = retrieveBackChannel();
 
@@ -58,10 +63,10 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
     listenToTermination(0, new Callback<TerminationEvent>() {
       @Override
       public void execute(TerminationEvent event) throws Exception {
-        if (log.isInfoEnabled()) {
-          log.info(formatLogString("received termination"));
+        int numTerminationEvents = terminationEventCounter.incrementAndGet();
+        if (numTerminationEvents % numberOfEventsUntilInterrupt == 0) {
+          terminated = true;
         }
-        terminated = true;
       }
     });
 

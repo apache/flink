@@ -26,15 +26,22 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.event.Callback;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.iterative.io.CachingMutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 
 /** base class for all tasks able to participate in an iteration */
 public abstract class AbstractIterativePactTask<S extends Stub, OT> extends RegularPactTask<S, OT> {
+
+  private MutableObjectIterator cachedInput = null;
+
+  private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
 
   protected String identifier() {
     return getEnvironment().getJobID() + "#" + getEnvironment().getIndexInSubtaskGroup();
@@ -45,8 +52,26 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
   }
 
+  protected boolean hasCachedInput() {
+    return cachedInput != null;
+  }
+
   @Override
   public <X> MutableObjectIterator<X> getInput(int inputGateIndex) {
+    //TODO must be configured!!!
+    if (inputGateIndex == 1) {
+      if (!hasCachedInput()) {
+        if (log.isInfoEnabled()) {
+          log.info(formatLogString("wrapping input [" + inputGateIndex + "] with a caching iterator"));
+        }
+        cachedInput = new CachingMutableObjectIterator<X>((MutableObjectIterator<X>) super.getInput(inputGateIndex));
+      } else {
+        if (log.isInfoEnabled()) {
+          log.info(formatLogString("returning cached iterator for input [" + inputGateIndex + "]"));
+        }
+      }
+      return cachedInput;
+    }
 
     // only wrap iterative gates
     if (!getTaskConfig().isIterativeInputGate(inputGateIndex)) {
@@ -62,6 +87,11 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
         (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, owner);
 
     getReader(inputGateIndex).subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
+
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("wrapping input [" + inputGateIndex + "] with an interrupting iterator that waits " +
+          "for [" + numberOfEventsUntilInterrupt + "] event(s)"));
+    }
 
     return interruptingIterator;
   }

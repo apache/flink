@@ -47,7 +47,6 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
     final AtomicInteger endOfSuperstepEventCounter = new AtomicInteger(0);
     final AtomicInteger terminationEventCounter = new AtomicInteger(0);
 
-    //TODO needs to be made fit for dual input tasks
     final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(0);
 
     listenToEndOfSuperstep(0, new Callback<EndOfSuperstepEvent>() {
@@ -83,10 +82,18 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
 
       super.invoke();
 
+      if (hasCachedInput()) {
+        sendAdditionalEvent(new EndOfSuperstepEvent());
+      }
+
       if (log.isInfoEnabled()) {
         log.info(formatLogString("finishing iteration [" + numIterations + "]"));
       }
       numIterations++;
+    }
+
+    if (hasCachedInput()) {
+      sendAdditionalEvent(new TerminationEvent());
     }
   }
 
@@ -99,4 +106,12 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
     }
   }
 
+  private void sendAdditionalEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("sending additional " + event.getClass().getSimpleName()));
+    }
+    for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
+      flushAndPublishEvent(eventualOutput, event);
+    }
+  }
 }

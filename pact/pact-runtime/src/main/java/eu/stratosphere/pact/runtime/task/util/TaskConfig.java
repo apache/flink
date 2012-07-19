@@ -608,46 +608,39 @@ public class TaskConfig
 	// Parameters for iterations
 	// --------------------------------------------------------------------------------------------
 
-  public void setBackChannelMemoryFraction(float fraction)
-  {
+  public void setBackChannelMemoryFraction(float fraction) {
     Preconditions.checkArgument(fraction > 0 && fraction < 1);
-    this.config.setFloat(BACKCHANNEL_MEMORY_FRACTION, fraction);
+    config.setFloat(BACKCHANNEL_MEMORY_FRACTION, fraction);
   }
 
-  public float getBackChannelMemoryFraction()
-  {
-    float backChannelMemoryFraction = this.config.getFloat(BACKCHANNEL_MEMORY_FRACTION, 0);
+  public float getBackChannelMemoryFraction() {
+    float backChannelMemoryFraction = config.getFloat(BACKCHANNEL_MEMORY_FRACTION, 0);
     Preconditions.checkState(backChannelMemoryFraction > 0);
     return backChannelMemoryFraction;
   }
 
-  public void setNumberOfIterations(int numberOfIterations)
-  {
+  public void setNumberOfIterations(int numberOfIterations) {
     Preconditions.checkArgument(numberOfIterations > 0);
-    this.config.setInteger(NUMBER_OF_ITERATIONS, numberOfIterations);
+    config.setInteger(NUMBER_OF_ITERATIONS, numberOfIterations);
   }
 
-  public int getNumberOfIterations()
-  {
-    int numberOfIterations = this.config.getInteger(NUMBER_OF_ITERATIONS, 0);
+  public int getNumberOfIterations() {
+    int numberOfIterations = config.getInteger(NUMBER_OF_ITERATIONS, 0);
     Preconditions.checkState(numberOfIterations > 0);
     return numberOfIterations;
   }
 
-  public boolean isIterativeInputGate(int inputGateIndex)
-  {
+  public boolean isIterativeInputGate(int inputGateIndex) {
     return getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex) > 0;
   }
 
-  public void setGateIterativeAndSetNumberOfEventsUntilInterrupt(int inputGateIndex, int numEvents)
-  {
+  public void setGateIterativeWithNumberOfEventsUntilInterrupt(int inputGateIndex, int numEvents) {
     Preconditions.checkArgument(numEvents > 0);
-    this.config.setInteger(NUMBER_OF_EVENTS_UNTIL_INTERRUPT + inputGateIndex, numEvents);
+    config.setInteger(NUMBER_OF_EVENTS_UNTIL_INTERRUPT + inputGateIndex, numEvents);
   }
 
-  public int getNumberOfEventsUntilInterruptInIterativeGate(int inputGateIndex)
-  {
-    return this.config.getInteger(NUMBER_OF_EVENTS_UNTIL_INTERRUPT + inputGateIndex, 0);
+  public int getNumberOfEventsUntilInterruptInIterativeGate(int inputGateIndex) {
+    return config.getInteger(NUMBER_OF_EVENTS_UNTIL_INTERRUPT + inputGateIndex, 0);
   }
 	
 	// --------------------------------------------------------------------------------------------

@@ -91,14 +91,14 @@ public class PageRank {
     JobGraphUtils.connectLocal(head, intermediate, DistributionPattern.BIPARTITE, ShipStrategy.BROADCAST);
     JobGraphUtils.connectLocal(transitionMatrixInput, intermediate, DistributionPattern.BIPARTITE,
         ShipStrategy.PARTITION_HASH);
-    intermediateConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+    intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
     JobGraphUtils.connectLocal(intermediate, tail, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
-    tailConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, 1);
+    tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 2 * degreeOfParallelism);
 
     //TODO implicit order should be documented/configured somehow
     JobGraphUtils.connectLocal(head, sync);
-    syncConfig.setGateIterativeAndSetNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+    syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
     JobGraphUtils.connectLocal(head, output);
     JobGraphUtils.connectLocal(tail, fakeTailOutput);
