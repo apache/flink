@@ -19,8 +19,6 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
-import eu.stratosphere.pact.runtime.iterative.event.Callback;
-import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
@@ -28,14 +26,11 @@ import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 //TODO could this be an output???
 public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 
   private int numIterations = 0;
-  private boolean terminated = false;
 
   private static final Log log = LogFactory.getLog(BulkIterationTailPactTask.class);
 
@@ -53,27 +48,13 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
   @Override
   public void invoke() throws Exception {
 
-    final AtomicInteger terminationEventCounter = new AtomicInteger(0);
-    final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(0);
-
     // Initially retreive the backchannel from the iteration head
     final BlockingBackChannel backChannel = retrieveBackChannel();
-
-    //TODO needs to be made fit for dual input tasks
-    listenToTermination(0, new Callback<TerminationEvent>() {
-      @Override
-      public void execute(TerminationEvent event) throws Exception {
-        int numTerminationEvents = terminationEventCounter.incrementAndGet();
-        if (numTerminationEvents % numberOfEventsUntilInterrupt == 0) {
-          terminated = true;
-        }
-      }
-    });
 
     // redirect output to the backchannel
     output = new DataOutputCollector<OT>(backChannel.getWriteEnd(), createOutputTypeSerializer());
 
-    while (!terminated) {
+    while (!isTerminated()) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + numIterations + "]"));
@@ -89,7 +70,9 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
         log.info(formatLogString("finishing iteration [" + numIterations + "]"));
       }
 
-      backChannel.notifyOfEndOfSuperstep();
+      if (!isTerminated()) {
+        backChannel.notifyOfEndOfSuperstep();
+      }
 
       numIterations++;
     }

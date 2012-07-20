@@ -190,6 +190,9 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
   }
 
   private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("sending " + event.getClass().getSimpleName() + " to all iteration outputs"));
+    }
     //TODO remove implicit assumption
     for (int outputIndex = 0; outputIndex < eventualOutputs.size() - 2; outputIndex++) {
       flushAndPublishEvent(eventualOutputs.get(outputIndex), event);

@@ -40,7 +40,7 @@ public class IterativeMapReduce {
   public static void main(String[] args) throws Exception {
 
     int degreeOfParallelism = 2;
-    JobGraph jobGraph = new JobGraph();
+    JobGraph jobGraph = new JobGraph("Iterative MapReduce");
 
     JobInputVertex input = JobGraphUtils.createInput(TokenTokenInputFormat.class,
         "file:///home/ssc/Desktop/stratosphere/test-inputs/iterative-mapreduce/", "FileInput", jobGraph,

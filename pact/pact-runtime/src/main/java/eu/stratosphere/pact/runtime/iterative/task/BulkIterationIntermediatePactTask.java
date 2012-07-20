@@ -18,7 +18,6 @@ package eu.stratosphere.pact.runtime.iterative.task;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.runtime.iterative.event.Callback;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
@@ -27,12 +26,10 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
   private int numIterations = 0;
-  private boolean terminated = false;
 
   private static final Log log = LogFactory.getLog(BulkIterationIntermediatePactTask.class);
 
@@ -44,33 +41,7 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
   @Override
   public void invoke() throws Exception {
 
-    final AtomicInteger endOfSuperstepEventCounter = new AtomicInteger(0);
-    final AtomicInteger terminationEventCounter = new AtomicInteger(0);
-
-    final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(0);
-
-    listenToEndOfSuperstep(0, new Callback<EndOfSuperstepEvent>() {
-      @Override
-      public void execute(EndOfSuperstepEvent event) throws Exception {
-        int numEndOfSuperstepEvents = endOfSuperstepEventCounter.incrementAndGet();
-        if (numEndOfSuperstepEvents % numberOfEventsUntilInterrupt == 0) {
-          propagateEvent(event);
-        }
-      }
-    });
-
-    listenToTermination(0, new Callback<TerminationEvent>() {
-      @Override
-      public void execute(TerminationEvent event) throws Exception {
-        int numTerminationEvents = terminationEventCounter.incrementAndGet();
-        if (numTerminationEvents % numberOfEventsUntilInterrupt == 0) {
-          propagateEvent(event);
-          terminated = true;
-        }
-      }
-    });
-
-    while (!terminated) {
+    while (!isTerminated()) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + numIterations + "]"));
@@ -82,19 +53,18 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
 
       super.invoke();
 
-      if (hasCachedInput()) {
-        sendAdditionalEvent(new EndOfSuperstepEvent());
-      }
-
       if (log.isInfoEnabled()) {
         log.info(formatLogString("finishing iteration [" + numIterations + "]"));
       }
+
+      if (!isTerminated()) {
+        propagateEvent(new EndOfSuperstepEvent());
+      }
+
       numIterations++;
     }
 
-    if (hasCachedInput()) {
-      sendAdditionalEvent(new TerminationEvent());
-    }
+    propagateEvent(new TerminationEvent());
   }
 
   private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
@@ -106,12 +76,4 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
     }
   }
 
-  private void sendAdditionalEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-    if (log.isInfoEnabled()) {
-      log.info(formatLogString("sending additional " + event.getClass().getSimpleName()));
-    }
-    for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
-      flushAndPublishEvent(eventualOutput, event);
-    }
-  }
 }

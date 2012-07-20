@@ -38,7 +38,7 @@ public class Simple {
   public static void main(String[] args) throws Exception {
 
     int degreeOfParallelism = 2;
-    JobGraph jobGraph = new JobGraph();
+    JobGraph jobGraph = new JobGraph("SimpleIteration");
 
     JobInputVertex input = JobGraphUtils.createInput(TextInputFormat.class,
         "file:///home/ssc/Desktop/stratosphere/test-inputs/simple", "FileInput", jobGraph, degreeOfParallelism) ;
@@ -77,7 +77,6 @@ public class Simple {
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
     outputConfig.setStubClass(SimpleOutFormat.class);
     outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, "file:///tmp/stratosphere/iterations");
-
 
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
     JobOutputVertex fakeSyncOutput = JobGraphUtils.createSingletonFakeOutput(jobGraph, "FakeSyncOutput");

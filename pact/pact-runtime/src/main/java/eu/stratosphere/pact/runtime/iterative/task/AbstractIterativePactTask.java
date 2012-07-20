@@ -16,14 +16,18 @@
 package eu.stratosphere.pact.runtime.iterative.task;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
+import eu.stratosphere.nephele.io.MutableReader;
+import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
+import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.iterative.event.Callback;
+import eu.stratosphere.pact.runtime.io.SpillingBuffer;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.CachingMutableObjectIterator;
@@ -35,11 +39,16 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** base class for all tasks able to participate in an iteration */
-public abstract class AbstractIterativePactTask<S extends Stub, OT> extends RegularPactTask<S, OT> {
+public abstract class AbstractIterativePactTask<S extends Stub, OT> extends RegularPactTask<S, OT>
+    implements Terminable {
 
-  private MutableObjectIterator cachedInput = null;
+  private MutableObjectIterator<?>[] wrappedInputs;
+
+  private AtomicBoolean terminated = new AtomicBoolean(false);
 
   private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
 
@@ -52,71 +61,87 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
   }
 
-  protected boolean hasCachedInput() {
-    return cachedInput != null;
+  private SpillingBuffer reserveMemoryForCaching(double fraction) {
+    //TODO ok to steal memory from match tasks, etc?
+    long completeMemorySize = getTaskConfig().getMemorySize();
+    long cacheMemorySize = (long) (completeMemorySize * fraction);
+    getTaskConfig().setMemorySize(completeMemorySize - cacheMemorySize);
+
+    try {
+      List<MemorySegment> memory = getMemoryManager().allocatePages(getOwningNepheleTask(), cacheMemorySize);
+      return new SpillingBuffer(getIOManager(), new ListMemorySegmentSource(memory), getMemoryManager().getPageSize());
+    } catch (MemoryAllocationException e) {
+      throw new IllegalStateException("Unable to allocate memory for input caching", e);
+    }
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return terminated.get();
+  }
+
+  @Override
+  public void terminate() {
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("terminating."));
+    }
+    terminated.set(true);
+  }
+
+  @Override
+  protected void initInputs() throws Exception {
+    super.initInputs();
+    wrappedInputs = new MutableObjectIterator<?>[getEnvironment().getNumberOfInputGates()];
   }
 
   @Override
   public <X> MutableObjectIterator<X> getInput(int inputGateIndex) {
-    //TODO must be configured!!!
-    if (inputGateIndex == 1) {
-      if (!hasCachedInput()) {
-        if (log.isInfoEnabled()) {
-          log.info(formatLogString("wrapping input [" + inputGateIndex + "] with a caching iterator"));
-        }
-        cachedInput = new CachingMutableObjectIterator<X>((MutableObjectIterator<X>) super.getInput(inputGateIndex));
-      } else {
-        if (log.isInfoEnabled()) {
-          log.info(formatLogString("returning cached iterator for input [" + inputGateIndex + "]"));
-        }
+
+    if (wrappedInputs[inputGateIndex] != null) {
+      return (MutableObjectIterator<X>) wrappedInputs[inputGateIndex];
+    }
+
+    if (getTaskConfig().isCachedInputGate(inputGateIndex)) {
+
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("wrapping input [" + inputGateIndex + "] with a caching iterator"));
       }
+
+      SpillingBuffer spillingBuffer = reserveMemoryForCaching(getTaskConfig().getInputGateCacheMemoryFraction());
+      //TODO type safety
+      MutableObjectIterator<X> cachedInput = new CachingMutableObjectIterator<X>((MutableObjectIterator<X>)
+          super.getInput(inputGateIndex), spillingBuffer, (TypeSerializer<X>) getInputSerializer(inputGateIndex));
+
+      wrappedInputs[inputGateIndex] = cachedInput;
+
       return cachedInput;
     }
 
-    // only wrap iterative gates
-    if (!getTaskConfig().isIterativeInputGate(inputGateIndex)) {
-      return super.getInput(inputGateIndex);
-    }
+    if (getTaskConfig().isIterativeInputGate(inputGateIndex)) {
 
-    int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex);
+      int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex);
 
-    String owner = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
-        getEnvironment().getCurrentNumberOfSubtasks() + ")";
-    //TODO type safety
-    InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
-        (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, owner);
+      String owner = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
+          getEnvironment().getCurrentNumberOfSubtasks() + ")";
+      //TODO type safety
+      InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
+          (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, owner, this);
 
-    getReader(inputGateIndex).subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
+      MutableReader<Record> inputReader = getReader(inputGateIndex);
+      inputReader.subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
+      inputReader.subscribeToEvent(interruptingIterator, TerminationEvent.class);
 
-    if (log.isInfoEnabled()) {
-      log.info(formatLogString("wrapping input [" + inputGateIndex + "] with an interrupting iterator that waits " +
-          "for [" + numberOfEventsUntilInterrupt + "] event(s)"));
-    }
-
-    return interruptingIterator;
-  }
-
-  protected void listenToTermination(int inputIndex, Callback<TerminationEvent> callback) {
-    listenToEvent(inputIndex, TerminationEvent.class, callback);
-  }
-
-  protected void listenToEndOfSuperstep(int inputIndex, Callback<EndOfSuperstepEvent> callback) {
-    listenToEvent(inputIndex, EndOfSuperstepEvent.class, callback);
-  }
-
-  private <E extends AbstractTaskEvent> void listenToEvent(int inputIndex, Class<E> eventClass,
-      final Callback<E> callback) {
-    getReader(inputIndex).subscribeToEvent(new EventListener() {
-      @Override
-      public void eventOccurred(AbstractTaskEvent event) {
-        try {
-          callback.execute((E) event);
-        } catch (Exception e) {
-          //TODO do something meaningful here
-          e.printStackTrace(System.out);
-        }
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("wrapping input [" + inputGateIndex + "] with an interrupting iterator that waits " +
+            "for [" + numberOfEventsUntilInterrupt + "] event(s)"));
       }
-    }, eventClass);
+
+      wrappedInputs[inputGateIndex] = interruptingIterator;
+
+      return interruptingIterator;
+    }
+
+    return super.getInput(inputGateIndex);
   }
 
   protected void flushAndPublishEvent(AbstractRecordWriter<?> writer, AbstractTaskEvent event)

@@ -19,6 +19,9 @@ import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.iterative.task.Terminable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -33,28 +36,61 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class InterruptingMutableObjectIterator<E> implements MutableObjectIterator<E>, EventListener {
 
   private final MutableObjectIterator<E> delegate;
-  private final String owner;
+  private final String name;
   private final int numberOfEventsUntilInterrupt;
-  private final AtomicInteger eventCounter;
+  private final AtomicInteger endOfSuperstepEventCounter;
+  private final AtomicInteger terminationEventCounter;
+  private final Terminable parent;
 
   private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
 
   public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
-      String owner) {
+      String name, Terminable parent) {
     Preconditions.checkArgument(numberOfEventsUntilInterrupt > 0);
     this.delegate = delegate;
     this.numberOfEventsUntilInterrupt = numberOfEventsUntilInterrupt;
-    this.eventCounter = new AtomicInteger(0);
-    this.owner = owner;
+    this.name = name;
+    this.parent = parent;
+
+    endOfSuperstepEventCounter = new AtomicInteger(0);
+    terminationEventCounter = new AtomicInteger(0);
   }
 
   @Override
   public void eventOccurred(AbstractTaskEvent event) {
-    int numberOfEventsSeen = eventCounter.incrementAndGet();
-    if (log.isInfoEnabled()) {
-      log.info("InterruptibleIterator of " + owner + " received " + event.getClass().getSimpleName() +
-          "(" + numberOfEventsSeen +")");
+
+    if (EndOfSuperstepEvent.class.equals(event.getClass())) {
+      onEndOfSuperstep();
+      return;
     }
+
+    if (TerminationEvent.class.equals(event.getClass()))   {
+      onTermination();
+      return;
+    }
+
+    throw new IllegalStateException("Unable to handle event " + event.getClass().getName());
+  }
+
+  private void onTermination() {
+    int numberOfEventsSeen = terminationEventCounter.incrementAndGet();
+    if (log.isInfoEnabled()) {
+      log.info("InterruptibleIterator of " + name + " received Termination event (" + numberOfEventsSeen +")");
+    }
+
+    Preconditions.checkState(numberOfEventsSeen <= numberOfEventsUntilInterrupt);
+
+    if (numberOfEventsSeen == numberOfEventsUntilInterrupt) {
+      parent.terminate();
+    }
+  }
+
+  private void onEndOfSuperstep() {
+    int numberOfEventsSeen = endOfSuperstepEventCounter.incrementAndGet();
+    if (log.isInfoEnabled()) {
+      log.info("InterruptibleIterator of " + name + " received EndOfSuperstep event (" + numberOfEventsSeen +")");
+    }
+
     if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {
       Thread.currentThread().interrupt();
     }

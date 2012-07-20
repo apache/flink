@@ -17,19 +17,15 @@ package eu.stratosphere.pact.runtime.iterative.task;
 
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
-import eu.stratosphere.pact.runtime.iterative.event.Callback;
-import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
-  private boolean terminated = false;
   private int numIterations = 0;
 
   private static final Log log = LogFactory.getLog(BulkIterationSynchronizationPactTask.class);
@@ -42,20 +38,7 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
   @Override
   public void invoke() throws Exception {
 
-    int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(0);
-    final AtomicInteger nonTerminatedHeadsCounter = new AtomicInteger(numberOfEventsUntilInterrupt);
-
-    listenToTermination(0, new Callback<TerminationEvent>() {
-      @Override
-      public void execute(TerminationEvent event) throws Exception {
-        int numNonTerminatedHeads = nonTerminatedHeadsCounter.decrementAndGet();
-        if (numNonTerminatedHeads == 0) {
-          terminated = true;
-        }
-      }
-    });
-
-    while (!terminated) {
+    while (!isTerminated()) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + numIterations + "]"));
@@ -68,13 +51,15 @@ public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends Ab
       super.invoke();
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("signaling that all workers are done in iteration [" + numIterations + "]"));
+        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
       }
 
-      signalAllWorkersDone();
+      if (!isTerminated()) {
+        if (log.isInfoEnabled()) {
+          log.info(formatLogString("signaling that all workers are done in iteration [" + numIterations + "]"));
+        }
 
-      if (log.isInfoEnabled()) {
-        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
+        signalAllWorkersDone();
       }
 
       numIterations++;
