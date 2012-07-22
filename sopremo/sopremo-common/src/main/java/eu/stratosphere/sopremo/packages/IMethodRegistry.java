@@ -15,9 +15,7 @@
 package eu.stratosphere.sopremo.packages;
 
 import java.lang.reflect.Method;
-import java.util.Map;
 
-import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.function.SopremoMethod;
 
 /**
@@ -25,14 +23,8 @@ import eu.stratosphere.sopremo.function.SopremoMethod;
  * 
  * @author Arvid Heise
  */
-public interface IMethodRegistry extends ISerializableSopremoType {
-	public abstract SopremoMethod findMethod(String name);
+public interface IMethodRegistry extends IRegistry<SopremoMethod> {
+	public void put(final Method method);
 
-	public abstract void registerMethod(String name, SopremoMethod method);
-
-	public abstract void register(final Method method);
-
-	public abstract void register(final Class<?> javaFunctions);
-
-	public Map<String, SopremoMethod> getRegisteredMethods();
+	public void put(final Class<?> javaFunctions);
 }

@@ -72,7 +72,7 @@ public class MethodCall extends ContainerExpression {
 		for (int index = 0; index < params.length; index++)
 			params[index] = this.paramExprs.get(index).evaluate(node, context);
 
-		final SopremoMethod method = context.getFunctionRegistry().findMethod(this.function);
+		final SopremoMethod method = context.getFunctionRegistry().get(this.function);
 		if (method == null)
 			throw new EvaluationException(String.format("Unknown function %s", this.function));
 		return method.call(JsonUtil.asArray(params), target, context);

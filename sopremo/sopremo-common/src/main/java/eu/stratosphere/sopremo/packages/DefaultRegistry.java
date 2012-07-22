@@ -12,29 +12,46 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.query;
+package eu.stratosphere.sopremo.packages;
 
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.packages.Registry;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
+ * Default implementation of {@link IRegistry}.
+ * 
  * @author Arvid Heise
  */
-public class ConstantRegistry implements Registry<EvaluationExpression> {
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.Registry#register(java.lang.String, java.lang.Object)
+public class DefaultRegistry<T> implements IRegistry<T> {
+	/**
+	 * 
 	 */
+	private static final long serialVersionUID = 8600814085154060117L;
+	
+	private Map<String, T> elements = new HashMap<String, T>();
+
 	@Override
-	public void register(String name, EvaluationExpression t) {
+	public T get(String name) {
+		return this.elements.get(name);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.Registry#find(java.lang.String)
-	 */
-	@Override
-	public EvaluationExpression find(String name) {
-		return null;
+	public void put(String name, T element) {
+		this.elements.put(name, element);
 	}
 
+	@Override
+	public Set<String> keySet() {
+		return Collections.unmodifiableSet(this.elements.keySet());
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.ISopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append("Registry").append(this.elements);
+	}
 }

@@ -28,6 +28,10 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * @author Arvid Heise
  */
 public abstract class AbstractMethodRegistry implements IMethodRegistry {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -7146219799851814361L;
 
 	private static boolean isCompatibleSignature(final Method method) {
 		if (!IJsonNode.class.isAssignableFrom(method.getReturnType()))
@@ -52,27 +56,22 @@ public abstract class AbstractMethodRegistry implements IMethodRegistry {
 	}
 
 	@Override
-	public abstract SopremoMethod findMethod(String name);
-
-	@Override
-	public abstract void registerMethod(String name, SopremoMethod method);
-
-	public void register(final Class<?> javaFunctions) {
+	public void put(final Class<?> javaFunctions) {
 		final List<Method> functions = getCompatibleMethods(
 			ReflectUtil.getMethods(javaFunctions, null, Modifier.STATIC | Modifier.PUBLIC));
 
 		for (final Method method : functions)
-			this.register(method);
+			this.put(method);
 
 		if (FunctionRegistryCallback.class.isAssignableFrom(javaFunctions))
 			((FunctionRegistryCallback) ReflectUtil.newInstance(javaFunctions)).registerFunctions(this);
 	}
 
 	@Override
-	public void register(final Method method) {
-		SopremoMethod javaMethod = findMethod(method.getName());
+	public void put(final Method method) {
+		SopremoMethod javaMethod = get(method.getName());
 		if (javaMethod == null || !(javaMethod instanceof JavaMethod))
-			this.registerMethod(method.getName(), javaMethod = new JavaMethod(method.getName()));
+			this.put(method.getName(), javaMethod = new JavaMethod(method.getName()));
 		((JavaMethod) javaMethod).addSignature(method);
 	}
 

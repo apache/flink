@@ -17,6 +17,7 @@ package eu.stratosphere.sopremo.packages;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import eu.stratosphere.sopremo.function.SopremoMethod;
 
@@ -24,6 +25,10 @@ import eu.stratosphere.sopremo.function.SopremoMethod;
  * @author Arvid Heise
  */
 public class DefaultMethodRegistry extends AbstractMethodRegistry {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -7660926261580208403L;
 	private Map<String, SopremoMethod> methods = new HashMap<String, SopremoMethod>();
 
 	/*
@@ -31,7 +36,7 @@ public class DefaultMethodRegistry extends AbstractMethodRegistry {
 	 * @see eu.stratosphere.sopremo.packages.AbstractMethodRegistry#findMethod(java.lang.String)
 	 */
 	@Override
-	public SopremoMethod findMethod(String name) {
+	public SopremoMethod get(String name) {
 		return this.methods.get(name);
 	}
 
@@ -41,7 +46,7 @@ public class DefaultMethodRegistry extends AbstractMethodRegistry {
 	 * eu.stratosphere.sopremo.function.MeteorMethod)
 	 */
 	@Override
-	public void registerMethod(String name, SopremoMethod method) {
+	public void put(String name, SopremoMethod method) {
 		this.methods.put(name, method);
 	}
 
@@ -50,8 +55,8 @@ public class DefaultMethodRegistry extends AbstractMethodRegistry {
 	 * @see eu.stratosphere.sopremo.packages.IMethodRegistry#getRegisteredMethods()
 	 */
 	@Override
-	public Map<String, SopremoMethod> getRegisteredMethods() {
-		return Collections.unmodifiableMap(this.methods);
+	public Set<String> keySet() {
+		return Collections.unmodifiableSet(this.methods.keySet());
 	}
 
 	/*

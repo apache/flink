@@ -399,8 +399,8 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	 */
 	@Override
 	public void registerConstants(IConstantRegistry constantRegistry) {
-		constantRegistry.registerConstant("pi", new ConstantExpression(Math.PI));
-		constantRegistry.registerConstant("e", new ConstantExpression(Math.E));
+		constantRegistry.put("pi", new ConstantExpression(Math.PI));
+		constantRegistry.put("e", new ConstantExpression(Math.E));
 	}
 
 	//

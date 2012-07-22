@@ -27,7 +27,7 @@ public class GroupingTest extends SopremoTest<Grouping> {
 //	@Test
 //	public void shouldGroupThreeSources() {
 //		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
-//		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+//		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(DefaultFunctions.class);
 //
 //		final BatchAggregationExpression batch = new BatchAggregationExpression();
 //
@@ -84,7 +84,7 @@ public class GroupingTest extends SopremoTest<Grouping> {
 	public void shouldGroupTwoSources() {
 
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(DefaultFunctions.class);
 
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
 		final ObjectCreation transformation = new ObjectCreation();
@@ -126,7 +126,7 @@ public class GroupingTest extends SopremoTest<Grouping> {
 	@Test
 	public void shouldGroupWithSingleSource() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(DefaultFunctions.class);
 
 		final ObjectCreation transformation = new ObjectCreation();
 		final BatchAggregationExpression batch = new BatchAggregationExpression();
@@ -159,7 +159,7 @@ public class GroupingTest extends SopremoTest<Grouping> {
 	@Test
 	public void shouldPerformSimpleGroupBy() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(DefaultFunctions.class);
 
 		final Grouping aggregation = new Grouping().withResultProjection(DefaultFunctions.COUNT.asExpression());
 		aggregation.setInputs(sopremoPlan.getInputOperator(0));

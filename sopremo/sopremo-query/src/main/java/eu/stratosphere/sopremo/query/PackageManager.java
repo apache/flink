@@ -16,19 +16,14 @@ package eu.stratosphere.sopremo.query;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Modifier;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
-import java.util.Queue;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
-import eu.stratosphere.sopremo.operator.Operator;
-import eu.stratosphere.sopremo.packages.BuiltinProvider;
-import eu.stratosphere.sopremo.packages.ConstantRegistryCallback;
-import eu.stratosphere.util.reflect.ReflectUtil;
+import eu.stratosphere.sopremo.io.Sink;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
+import eu.stratosphere.sopremo.packages.IConstantRegistry;
+import eu.stratosphere.sopremo.packages.IMethodRegistry;
 
 /**
  * @author Arvid Heise
@@ -38,24 +33,39 @@ public class PackageManager {
 
 	private String defaultJarPath;
 
+	public final static IOperatorRegistry IORegistry = new DefaultOperatorRegistry();
+
+	static {
+		IORegistry.put(Sink.class);
+		IORegistry.put(Source.class);
+	}
+	
+	public PackageManager() {
+		this.operatorRegistries.push(IORegistry);
+	}
+	
+	private StackedConstantRegistry constantRegistries = new StackedConstantRegistry();
+	private StackedMethodRegistry methodRegistries = new StackedMethodRegistry();
+	private StackedOperatorRegistry operatorRegistries = new StackedOperatorRegistry();
+
 	/**
 	 * Imports sopremo-&lt;packageName&gt;.jar or returns a cached package structure.
 	 * 
 	 * @param packageName
 	 */
 	public PackageInfo getPackageInfo(String packageName) {
-		final PackageInfo packageInfo = packages.get(packageName);
+		PackageInfo packageInfo = packages.get(packageName);
 		if (packageInfo == null) {
 			File packagePath = this.getPackagePath(packageName);
-			packageInfo = new PackageInfo(packageName, packagePath);
+			packageInfo = new PackageInfo(packageName);
 
 			QueryUtil.LOG.debug("adding package " + packagePath);
 			try {
 				if (packagePath.getName().endsWith(".jar"))
-					this.importFromJar(packageInfo);
+					packageInfo.importFromJar(packagePath);
 				else
 					// should only happen while debugging
-					this.importFromProject(packageInfo);
+					packageInfo.importFromProject(packagePath);
 			} catch (IOException e) {
 				throw new IllegalArgumentException(String.format("could not load package %s", packagePath));
 			}
@@ -69,8 +79,16 @@ public class PackageManager {
 	 * 
 	 * @return the operatorFactory
 	 */
-	public OperatorRegistry getOperatorFactory() {
-		return this.operatorFactory;
+	public IOperatorRegistry getOperatorRegistry() {
+		return this.operatorRegistries;
+	}
+	
+	public IConstantRegistry getConstantRegistry() {
+		return this.constantRegistries;
+	}
+	
+	public IMethodRegistry getMethodRegistry() {
+		return this.methodRegistries;
 	}
 
 	protected File getPackagePath(String packageName) {
@@ -85,54 +103,14 @@ public class PackageManager {
 		throw new IllegalArgumentException(String.format("no package %s found", sopremoPackage));
 	}
 
-	private void importFromProject(PackageInfo info) {
-		Queue<File> directories = new LinkedList<File>();
-		directories.add(info.getPackagePath());
-		while (!directories.isEmpty())
-			for (File file : directories.poll().listFiles())
-				if (file.isDirectory())
-					directories.add(file);
-				else if (file.getName().endsWith(".class") && !file.getName().contains("$"))
-					this.importFromFile(info, file);
+	public void importPackage(String packageName) {
+		importPackage(getPackageInfo(packageName));
 	}
 
-	private void importFromFile(PackageInfo info, File file) {
-		String classFileName = file.getName();
-		String className = classFileName.replaceAll(".class$", "").replaceAll("/|\\\\", ".").replaceAll("^\\.", "");
-		importClass(info, className);
+	public void importPackage(PackageInfo packageInfo) {
+		this.constantRegistries.push(packageInfo.getConstantRegistry());
+		this.methodRegistries.push(packageInfo.getMethodRegistry());
+		this.operatorRegistries.push(packageInfo.getOperatorRegistry());
 	}
 
-	@SuppressWarnings("unchecked")
-	protected void importClass(PackageInfo info, String className) {
-		Class<?> clazz;
-		try {
-			clazz = Class.forName(className);
-			if (Operator.class.isAssignableFrom(clazz) && (clazz.getModifiers() & Modifier.ABSTRACT) == 0) {
-				QueryUtil.LOG.trace("adding operator " + clazz);
-				info.getOperatorRegistry().addOperator((Class<? extends Operator<?>>) clazz);
-			} else if (BuiltinProvider.class.isAssignableFrom(clazz))
-				this.addFunctionsAndConstants(info, clazz);
-		} catch (ClassNotFoundException e) {
-			QueryUtil.LOG.warn("could not load operator " + className);
-		}
-	}
-
-	private void addFunctionsAndConstants(PackageInfo info, Class<?> clazz) {
-		info.getMethodRegistry().register(clazz);
-		if (ConstantRegistryCallback.class.isAssignableFrom(clazz))
-			((ConstantRegistryCallback) ReflectUtil.newInstance(clazz)).registerConstants(this.getContext());
-	}
-
-	@SuppressWarnings("unused")
-	private void importFromJar(String classPath, File file) throws IOException {
-		Enumeration<JarEntry> entries = new JarFile(file).entries();
-		while (entries.hasMoreElements()) {
-			JarEntry jarEntry = entries.nextElement();
-			if (jarEntry.getName().endsWith(".class")) {
-				String className =
-					jarEntry.getName().replaceAll(".class$", "").replaceAll("/|\\\\", ".").replaceAll("^\\.", "");
-				importClass(className);
-			}
-		}
-	}
 }

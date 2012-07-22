@@ -4,19 +4,14 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 import org.antlr.runtime.BitSet;
 import org.antlr.runtime.FailedPredicateException;
@@ -30,30 +25,30 @@ import org.antlr.runtime.Token;
 import org.antlr.runtime.TokenStream;
 import org.antlr.runtime.UnwantedTokenException;
 
-import eu.stratosphere.sopremo.Bindings.BindingConstraint;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ExpressionTagFactory;
 import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.function.Callable;
+import eu.stratosphere.sopremo.function.ExpressionFunction;
 import eu.stratosphere.sopremo.function.Inlineable;
 import eu.stratosphere.sopremo.function.JavaMethod;
 import eu.stratosphere.sopremo.function.MacroBase;
-import eu.stratosphere.sopremo.function.ExpressionFunction;
 import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.operator.Operator;
 import eu.stratosphere.sopremo.operator.SopremoPlan;
-import eu.stratosphere.sopremo.packages.BuiltinProvider;
-import eu.stratosphere.sopremo.packages.ConstantRegistryCallback;
 import eu.stratosphere.sopremo.packages.AbstractMethodRegistry;
+import eu.stratosphere.sopremo.packages.IConstantRegistry;
+import eu.stratosphere.sopremo.packages.IMethodRegistry;
+import eu.stratosphere.sopremo.query.Bindings.BindingConstraint;
 import eu.stratosphere.sopremo.query.OperatorInfo.OperatorPropertyInfo;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.InputSuggestion;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 public abstract class AbstractQueryParser extends Parser {
-	private PackageManager packageImporter = new PackageManager();
+	private PackageManager packageManager = new PackageManager();
 	
 	private InputSuggestion<OperatorInfo<?>> operatorSuggestion;
 
@@ -83,19 +78,32 @@ public abstract class AbstractQueryParser extends Parser {
 
 	public AbstractQueryParser(TokenStream input, RecognizerSharedState state) {
 		super(input, state);
-		packageImporter.importPackage("base");
+		packageManager.importPackage("base");
 	}
 
 	public AbstractQueryParser(TokenStream input) {
 		super(input);
-		packageImporter.importPackage("base");
+		packageManager.importPackage("base");
 	}
 
-	public OperatorRegistry getOperatorFactory() {
-		return packageImporter.getOperatorFactory();
-	}
 
 	
+	
+	public IOperatorRegistry getOperatorRegistry() {
+		return this.packageManager.getOperatorRegistry();
+	}
+
+	public IConstantRegistry getConstantRegistry() {
+		return this.packageManager.getConstantRegistry();
+	}
+
+	public IMethodRegistry getMethodRegistry() {
+		return this.packageManager.getMethodRegistry();
+	}
+
+
+
+
 	private BindingConstraint[] bindingContraints;
 
 	public <T> T getBinding(Token name, Class<T> expectedType) {

@@ -38,7 +38,7 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 	@Before
 	public void setup() {
 		this.context = new EvaluationContext();
-		this.context.getFunctionRegistry().register(this.getClass());
+		this.context.getFunctionRegistry().put(this.getClass());
 	}
 
 	@Test

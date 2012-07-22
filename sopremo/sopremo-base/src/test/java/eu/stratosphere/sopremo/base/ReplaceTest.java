@@ -93,7 +93,7 @@ public class ReplaceTest extends SopremoTest<Replace> {
 			withDictionaryKeyExtraction(new ArrayAccess(0)).
 			withDictionaryValueExtraction(new ArrayAccess(1));
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(replace);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(DefaultFunctions.class);
 		sopremoPlan.getInput(0).
 			addObject("field1", 1, "fieldToReplace", "key1", "field2", 2).
 			addObject("field1", 2, "fieldToReplace", "notInList", "field2", 2).
@@ -181,7 +181,7 @@ public class ReplaceTest extends SopremoTest<Replace> {
 			EvaluationExpression.VALUE));
 		lookup.setArrayElementsReplacement(true);
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(lookup);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(DefaultFunctions.class);
 
 		sopremoPlan.getInput(0).
 			addObject("field1", 1, "fieldToReplace", new int[] { 1, 2, 3 }, "field2", 2).

@@ -31,7 +31,7 @@ public class DifferenceTest extends SopremoTest<Difference> {
 	@Test
 	public void shouldSupportComplexObject() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(DefaultFunctions.class);
 
 		final Difference difference = new Difference();
 		difference.setInputs(sopremoPlan.getInputOperators(0, 2));

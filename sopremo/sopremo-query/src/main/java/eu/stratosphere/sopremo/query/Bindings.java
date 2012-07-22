@@ -1,13 +1,16 @@
-package eu.stratosphere.sopremo;
+package eu.stratosphere.sopremo.query;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 
+import eu.stratosphere.sopremo.AbstractSopremoType;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.MethodPointerExpression;
 import eu.stratosphere.sopremo.function.SopremoMethod;
 
+@Deprecated
 public class Bindings extends AbstractSopremoType implements ISerializableSopremoType {
 	/**
 	 * 

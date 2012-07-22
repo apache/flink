@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import eu.stratosphere.sopremo.operator.Operator;
-import eu.stratosphere.sopremo.query.OperatorRegistry.NameChooser;
 
 public class OperatorInfo<Op extends Operator<Op>> extends InfoBase<Op> {
 

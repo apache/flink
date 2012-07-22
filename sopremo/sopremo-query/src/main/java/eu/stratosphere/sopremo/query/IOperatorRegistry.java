@@ -12,14 +12,16 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.packages;
+package eu.stratosphere.sopremo.query;
 
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.operator.Operator;
+import eu.stratosphere.sopremo.packages.IRegistry;
 
 /**
- * Registry that manages constants in the form of {@link EvaluationExpression}s.
+ * Registry that manages {@link Operator}s.
  * 
  * @author Arvid Heise
  */
-public interface IConstantRegistry extends IRegistry<EvaluationExpression> {
+public interface IOperatorRegistry extends IRegistry<OperatorInfo<?>> {
+	void put(Class<? extends Operator<?>> clazz);
 }

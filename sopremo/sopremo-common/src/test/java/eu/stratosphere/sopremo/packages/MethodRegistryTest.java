@@ -45,41 +45,42 @@ public class MethodRegistryTest {
 
 	@Test
 	public void shouldAddJavaFunctions() {
-		this.registry.register(JavaFunctions.class);
+		this.registry.put(JavaFunctions.class);
 
-		Assert.assertEquals("should have been 2 functions", 2, this.registry.getRegisteredMethods().size());
-		for (final SopremoMethod function : this.registry.getRegisteredMethods().values())
-			Assert.assertEquals("should have been a java function", JavaMethod.class, function.getClass());
+		Assert.assertEquals("should have been 2 functions", 2, this.registry.keySet().size());
+		for (final String name : this.registry.keySet())
+			Assert.assertEquals("should have been a java function", JavaMethod.class,
+				this.registry.get(name).getClass());
 
 		Assert.assertEquals("should have been 5 count signatures", 5,
-			((JavaMethod) this.registry.findMethod("count")).getSignatures().size());
+			((JavaMethod) this.registry.get("count")).getSignatures().size());
 		Assert.assertEquals("should have been 1 sum signatures", 1,
-			((JavaMethod) this.registry.findMethod("sum")).getSignatures().size());
+			((JavaMethod) this.registry.get("sum")).getSignatures().size());
 	}
 
 	@Test(expected = EvaluationException.class)
 	public void shouldFailIfNoApproporiateMatchingJavaFunction() {
-		this.registry.register(JavaFunctions.class);
+		this.registry.put(JavaFunctions.class);
 
 		evaluate("sum", new IntNode(1), new IntNode(2), new TextNode("3"));
 	}
 
 	@Test
 	public void shouldInvokeArrayJavaFunctionForArrayNode() {
-		this.registry.register(JavaFunctions.class);
+		this.registry.put(JavaFunctions.class);
 
 		Assert.assertSame(ARRAY_NODE, evaluate("count", new ArrayNode()));
 	}
 
 	private IJsonNode evaluate(String name, IJsonNode... parameters) {
-		final SopremoMethod method = this.registry.findMethod(name);
+		final SopremoMethod method = this.registry.get(name);
 		Assert.assertNotNull(method);
 		return method.call(JsonUtil.asArray(parameters), null, this.context);
 	}
 
 	@Test
 	public void shouldInvokeDerivedVarargJavaFunction() {
-		this.registry.register(JavaFunctions.class);
+		this.registry.put(JavaFunctions.class);
 
 		Assert.assertSame(SUM_NODE, evaluate("sum", new IntNode(1), new IntNode(2), new IntNode(3)));
 		Assert.assertSame(SUM_NODE, evaluate("sum", new IntNode(1)));
@@ -87,28 +88,28 @@ public class MethodRegistryTest {
 
 	@Test
 	public void shouldInvokeExactMatchingJavaFunction() {
-		this.registry.register(JavaFunctions.class);
+		this.registry.put(JavaFunctions.class);
 
 		Assert.assertSame(TWO_INT_NODE, evaluate("count", new IntNode(1), new IntNode(2)));
 	}
 
 	@Test
 	public void shouldInvokeFallbackJavaFunction() {
-		this.registry.register(JavaFunctions.class);
+		this.registry.put(JavaFunctions.class);
 
 		Assert.assertSame(GENERIC_NODE, evaluate("count", new ObjectNode()));
 	}
 
 	@Test
 	public void shouldInvokeGenericVarargJavaFunctionsIfNoExactMatch() {
-		this.registry.register(JavaFunctions.class);
+		this.registry.put(JavaFunctions.class);
 
 		Assert.assertSame(GENERIC_VARARG_NODE, evaluate("count", new ObjectNode(), new ObjectNode(), new ObjectNode()));
 	}
 
 	@Test
 	public void shouldInvokeMostSpecificVarargJavaFunction() {
-		this.registry.register(JavaFunctions.class);
+		this.registry.put(JavaFunctions.class);
 
 		Assert.assertSame(ONE_INT_VARARG_NODE, evaluate("count", new IntNode(1), new IntNode(2), new IntNode(3)));
 		Assert.assertSame(ONE_INT_VARARG_NODE, evaluate("count", new IntNode(1)));

@@ -19,7 +19,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 
 	@Test
 	public void testAggregation() {
-		this.context.getFunctionRegistry().register(DefaultFunctions.class);
+		this.context.getFunctionRegistry().put(DefaultFunctions.class);
 
 		final ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));
@@ -44,7 +44,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 	@Test
 	public void shouldReuseTarget() {
 		IJsonNode target = new ArrayNode();
-		this.context.getFunctionRegistry().register(DefaultFunctions.class);
+		this.context.getFunctionRegistry().put(DefaultFunctions.class);
 
 		final ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));
@@ -70,7 +70,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 	@Test
 	public void shouldNotReuseTargetIfWrongType() {
 		IJsonNode target = new ObjectNode();
-		this.context.getFunctionRegistry().register(DefaultFunctions.class);
+		this.context.getFunctionRegistry().put(DefaultFunctions.class);
 
 		final ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));

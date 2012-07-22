@@ -7,16 +7,9 @@ import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.io.Source;
 import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.operator.Operator;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 public class OperatorRegistry {
-	public final static OperatorRegistry IORegistry = new OperatorRegistry();
-
-	static {
-		IORegistry.addOperator(Sink.class);
-		IORegistry.addOperator(Source.class);
-	}
 
 	private final NameChooser operatorNameChooser = new DefaultNameChooser();
 
@@ -58,37 +51,5 @@ public class OperatorRegistry {
 
 	public Map<String, OperatorInfo<?>> getOperatorInfos() {
 		return this.operators;
-	}
-
-	public static class DefaultNameChooser implements NameChooser {
-		private final int[] preferredOrder;
-
-		public DefaultNameChooser() {
-			this(3, 0, 1, 2);
-		}
-
-		public DefaultNameChooser(final int... preferredOrder) {
-			this.preferredOrder = preferredOrder;
-		}
-
-		@Override
-		public String choose(final String[] nouns, final String[] verbs, final String[] adjectives,
-				final String[] prepositions) {
-			final String[][] names = { nouns, verbs, adjectives, prepositions };
-			for (final int pos : this.preferredOrder) {
-				final String value = this.firstOrNull(names[pos]);
-				if (value != null)
-					return value;
-			}
-			return null;
-		}
-
-		private String firstOrNull(final String[] names) {
-			return names == null || names.length == 0 ? null : names[0];
-		}
-	}
-
-	public static interface NameChooser {
-		public String choose(String[] nouns, String[] verbs, String[] adjectives, String[] prepositions);
 	}
 }

@@ -32,7 +32,7 @@ public class IntersectionTest extends SopremoTest<Intersection> {
 	@Test
 	public void shouldSupportComplexObject() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(DefaultFunctions.class);
 
 		final Intersection intersection = new Intersection();
 		intersection.setInputs(sopremoPlan.getInputOperators(0, 2));

@@ -32,7 +32,7 @@ public class SopremoPlan {
 
 	public SopremoPlan() {
 		this.module = new SopremoModule("plan", 0, 0);
-		this.context.getFunctionRegistry().register(DefaultFunctions.class);
+		this.context.getFunctionRegistry().put(DefaultFunctions.class);
 	}
 
 	/**
