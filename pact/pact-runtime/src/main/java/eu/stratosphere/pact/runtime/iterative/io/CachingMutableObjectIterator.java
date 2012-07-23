@@ -19,8 +19,9 @@ import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.SpillingBuffer;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
-import java.io.EOFException;
 import java.io.IOException;
 
 public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T> {
@@ -28,45 +29,59 @@ public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T>
   private final MutableObjectIterator<T> delegate;
   private final SpillingBuffer spillingBuffer;
   private final TypeSerializer<T> typeSerializer;
+  private final String name;
 
   private DataInputView cache;
 
+  private static final Log log = LogFactory.getLog(CachingMutableObjectIterator.class);
+
   public CachingMutableObjectIterator(MutableObjectIterator<T> delegate, SpillingBuffer spillingBuffer,
-      TypeSerializer<T> typeSerializer) {
+      TypeSerializer<T> typeSerializer, String name) {
     this.delegate = delegate;
     this.spillingBuffer = spillingBuffer;
     this.typeSerializer = typeSerializer;
+    this.name = name;
   }
 
   private boolean isCached() {
     return cache != null;
   }
 
-  private boolean readFromDelegateAndCache(T record) throws IOException{
+  //TODO remove counting once code is stable
+  private int recordsRead = 0;
+
+  private boolean readFromDelegateAndCache(T record) throws IOException {
+
+    log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +")");
+
     boolean recordFound = delegate.next(record);
     if (recordFound) {
-      System.out.println("caching record...");
+      log.info("CachingIterator of " + name + " read and cached record("+ (recordsRead) +")");
+      recordsRead++;
       typeSerializer.serialize(record, spillingBuffer);
     } else {
+      log.info("CachingIterator of " + name + " releases input");
       // input is completely read, flip the buffer
-      cache = spillingBuffer.flip();
+      //if (!isCached()) {
+        cache = spillingBuffer.flip();
+      //}
     }
     return recordFound;
   }
 
-  private boolean readFromCache(T record) throws IOException {
+  /* private boolean readFromCache(T record) throws IOException {
     return false;
-    /*try {
+    try {
       typeSerializer.deserialize(record, cache);
       return true;
     } catch (EOFException eofex) {
       //TODO reset cache
       return false;
-    }     */
-  }
+    }
+  }*/
 
   @Override
   public boolean next(T record) throws IOException {
-    return isCached() ? readFromCache(record) : readFromDelegateAndCache(record);
+    return readFromDelegateAndCache(record);
   }
 }

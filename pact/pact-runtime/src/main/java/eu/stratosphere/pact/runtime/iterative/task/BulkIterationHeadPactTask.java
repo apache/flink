@@ -133,12 +133,12 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
         log.info(formatLogString("finishing iteration [" + numIterations + "]"));
       }
 
+      sendEventToSync(endOfSuperstepEvent);
+
       if (log.isInfoEnabled()) {
         log.info(formatLogString("waiting for other workers in iteration [" + numIterations + "]"));
       }
-      sendEventToSync(endOfSuperstepEvent);
 
-      // wait on barrier
       barrier.waitForOtherWorkers();
 
       feedBackSuperstepResult(superStepResult, serializer);

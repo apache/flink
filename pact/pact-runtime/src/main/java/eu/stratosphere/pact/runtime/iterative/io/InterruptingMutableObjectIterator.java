@@ -40,17 +40,17 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
   private final int numberOfEventsUntilInterrupt;
   private final AtomicInteger endOfSuperstepEventCounter;
   private final AtomicInteger terminationEventCounter;
-  private final Terminable parent;
+  private final Terminable owningIterativeTask;
 
   private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
 
   public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
-      String name, Terminable parent) {
+      String name, Terminable owningIterativeTask) {
     Preconditions.checkArgument(numberOfEventsUntilInterrupt > 0);
     this.delegate = delegate;
     this.numberOfEventsUntilInterrupt = numberOfEventsUntilInterrupt;
     this.name = name;
-    this.parent = parent;
+    this.owningIterativeTask = owningIterativeTask;
 
     endOfSuperstepEventCounter = new AtomicInteger(0);
     terminationEventCounter = new AtomicInteger(0);
@@ -81,7 +81,7 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
     Preconditions.checkState(numberOfEventsSeen <= numberOfEventsUntilInterrupt);
 
     if (numberOfEventsSeen == numberOfEventsUntilInterrupt) {
-      parent.terminate();
+      owningIterativeTask.terminate();
     }
   }
 
@@ -96,9 +96,23 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
     }
   }
 
+  private int recordsRead = 0;
+
+  //TODO remove counting once code is stable
   @Override
   public boolean next(E target) throws IOException {
-    return delegate.next(target);
+
+    log.info("InterruptibleIterator of " + name + " waiting for record("+ (recordsRead) +")");
+
+    boolean recordFound = delegate.next(target);
+
+    if (recordFound) {
+      log.info("InterruptibleIterator of " + name + " read record("+ (recordsRead) +")");
+      recordsRead++;
+    } else {
+      log.info("InterruptibleIterator of " + name + " releases input");
+    }
+    return recordFound;
   }
 
 }
