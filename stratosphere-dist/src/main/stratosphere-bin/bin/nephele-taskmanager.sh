@@ -67,11 +67,15 @@ constructTaskManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'httpcore' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'guava' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'httpclient' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'aws-java-sdk' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'guava' ]]; then
 			add=1
 		fi
 

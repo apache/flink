@@ -13,26 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.compression;
 
-import eu.stratosphere.nephele.io.channels.Buffer;
+public interface CompressionLibrary {
 
-public class BufferPairResponse {
+	Compressor createNewCompressor(CompressionBufferProvider bufferProvider) throws CompressionException;
 
-	private final Buffer compressedDataBuffer;
+	Decompressor createNewDecompressor(CompressionBufferProvider bufferProvider) throws CompressionException;
 
-	private final Buffer uncompressedDataBuffer;
+	int getUncompressedBufferSize(int compressedBufferSize);
 
-	public BufferPairResponse(Buffer compressedDataBuffer, Buffer uncompressedDataBuffer) {
-		this.compressedDataBuffer = compressedDataBuffer;
-		this.uncompressedDataBuffer = uncompressedDataBuffer;
-	}
-
-	public Buffer getCompressedDataBuffer() {
-		return this.compressedDataBuffer;
-	}
-
-	public Buffer getUncompressedDataBuffer() {
-		return this.uncompressedDataBuffer;
-	}
+	String getLibraryName();
 }

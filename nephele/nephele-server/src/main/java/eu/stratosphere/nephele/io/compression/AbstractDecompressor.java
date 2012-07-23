@@ -19,15 +19,18 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
+import eu.stratosphere.nephele.io.channels.MemoryBufferPoolConnector;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 
 public abstract class AbstractDecompressor implements Decompressor {
 
-	private Buffer uncompressedBuffer;
+	private final CompressionBufferProvider bufferProvider;
 
-	protected Buffer compressedBuffer;
+	private MemoryBuffer uncompressedBuffer;
+
+	protected MemoryBuffer compressedBuffer;
 
 	protected ByteBuffer uncompressedDataBuffer;
 
@@ -39,42 +42,29 @@ public abstract class AbstractDecompressor implements Decompressor {
 
 	protected final static int SIZE_LENGTH = 8;
 
-	private final AbstractCompressionLibrary compressionLibrary;
+	private int channelCounter = 1;
 
-	public AbstractDecompressor(final AbstractCompressionLibrary compressionLibrary) {
-		this.compressionLibrary = compressionLibrary;
+	protected AbstractDecompressor(final CompressionBufferProvider bufferProvider) {
+		this.bufferProvider = bufferProvider;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Buffer getCompressedDataBuffer() {
+	public final void increaseChannelCounter() {
 
-		return this.compressedBuffer;
+		++this.channelCounter;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Buffer getUncompresssedDataBuffer() {
-
-		return this.uncompressedBuffer;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setCompressedDataBuffer(Buffer buffer) {
+	protected void setCompressedDataBuffer(final MemoryBuffer buffer) {
 
 		if (buffer == null) {
 			this.compressedBuffer = null;
 			this.compressedDataBuffer = null;
 			this.compressedDataBufferLength = 0;
 		} else {
-			this.compressedDataBuffer = getInternalByteBuffer(buffer);
+			this.compressedDataBuffer = buffer.getByteBuffer();
 			this.compressedDataBufferLength = this.compressedDataBuffer.limit();
 			this.compressedBuffer = buffer;
 
@@ -83,44 +73,37 @@ public abstract class AbstractDecompressor implements Decompressor {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setUncompressedDataBuffer(Buffer buffer) {
+	protected void setUncompressedDataBuffer(final MemoryBuffer buffer) {
 
 		if (buffer == null) {
 			this.uncompressedBuffer = null;
 			this.uncompressedDataBuffer = null;
 			this.uncompressedDataBufferLength = 0;
 		} else {
-			this.uncompressedDataBuffer = getInternalByteBuffer(buffer);
+			this.uncompressedDataBuffer = buffer.getByteBuffer();
 			this.uncompressedBuffer = buffer;
 			// Uncompressed buffer length is set the setCompressDataBuffer method
 		}
 	}
 
 	/**
-	 * Checks if the provided buffer is backed by memory and
-	 * returns the encapsulated {@link ByteBuffer} object.
-	 * 
-	 * @param buffer
-	 *        the buffer to unwrap the {@link ByteBuffer} object from
-	 * @return the unwrapped {@link ByteBuffer} object
+	 * {@inheritDoc}
 	 */
-	protected ByteBuffer getInternalByteBuffer(Buffer buffer) {
+	@Override
+	public Buffer decompress(Buffer compressedData) throws IOException {
 
-		if (!(buffer instanceof MemoryBuffer)) {
-			throw new RuntimeException("Provided buffer is not a memory buffer and cannot be used for compression");
+		boolean tmpBufferUsed = false;
+		if (!compressedData.isBackedByMemory()) {
+			tmpBufferUsed = true;
+			final MemoryBuffer tmpBuffer = this.bufferProvider.lockTemporaryBuffer();
+			tmpBuffer.reset(this.bufferProvider.getMaximumBufferSize());
+			compressedData.copyToBuffer(tmpBuffer);
+			compressedData.recycleBuffer();
+			compressedData = tmpBuffer;
 		}
 
-		final MemoryBuffer memoryBuffer = (MemoryBuffer) buffer;
-
-		return memoryBuffer.getByteBuffer();
-	}
-
-	@Override
-	public void decompress() throws IOException {
+		setCompressedDataBuffer((MemoryBuffer) compressedData);
+		setUncompressedDataBuffer(this.bufferProvider.lockCompressionBuffer());
 
 		if (this.uncompressedDataBuffer.position() > 0) {
 			throw new IllegalStateException("Uncompressed data buffer is expected to be empty");
@@ -132,11 +115,47 @@ public abstract class AbstractDecompressor implements Decompressor {
 			throw new IOException("Compression libary returned error-code: " + result);
 		}
 
-		this.uncompressedDataBuffer.position(result);
-		this.uncompressedBuffer.finishWritePhase();
+		if (this.uncompressedBuffer.isInWriteMode()) {
+			this.uncompressedDataBuffer.position(result);
+			this.uncompressedBuffer.finishWritePhase();
+		} else {
+			this.uncompressedDataBuffer.position(0);
+			this.uncompressedDataBuffer.limit(result);
+		}
+		// System.out.println("UNCOMPRESSED SIZE: " + this.uncompressedBuffer.size());
 
-		// Make sure the framework considers the buffer to be fully consumed
-		this.compressedDataBuffer.position(this.compressedDataBuffer.limit());
+		Buffer uncompressedBuffer = this.uncompressedBuffer;
+
+		// Release the compression buffer again
+		this.bufferProvider.releaseCompressionBuffer(this.compressedBuffer);
+
+		setCompressedDataBuffer(null);
+		setUncompressedDataBuffer(null);
+
+		if (tmpBufferUsed) {
+
+			final MemoryBuffer memBuffer = (MemoryBuffer) uncompressedBuffer;
+			final ByteBuffer bb = memBuffer.getByteBuffer();
+
+			uncompressedBuffer = BufferFactory.createFromMemory(bb.remaining(), bb, new MemoryBufferPoolConnector() {
+
+				/**
+				 * {@inheritDoc}
+				 */
+				@Override
+				public void recycle(final ByteBuffer byteBuffer) {
+
+					bufferProvider.releaseTemporaryBuffer(memBuffer);
+				}
+			});
+
+			// Fake transition to read mode
+			bb.position(bb.limit());
+			bb.limit(bb.capacity());
+			uncompressedBuffer.finishWritePhase();
+		}
+
+		return uncompressedBuffer;
 	}
 
 	protected int bufferToInt(ByteBuffer buffer, int offset) {
@@ -157,7 +176,7 @@ public abstract class AbstractDecompressor implements Decompressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void setCurrentInternalDecompressionLibraryIndex(int index) {
+	public void setCurrentInternalDecompressionLibraryIndex(final int index) {
 
 		throw new IllegalStateException(
 			"setCurrentInternalDecompressionLibraryIndex called with wrong compression level activated");
@@ -167,13 +186,21 @@ public abstract class AbstractDecompressor implements Decompressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void shutdown(final ChannelID channelID) {
+	public final void shutdown() {
 
-		if (this.compressionLibrary.canBeShutDown(this, channelID)) {
+		--this.channelCounter;
+
+		if (this.channelCounter == 0) {
+			this.bufferProvider.shutdown();
 			freeInternalResources();
 		}
-
 	}
 
-	protected abstract void freeInternalResources();
+	/**
+	 * Frees the resources internally allocated by the compression library.
+	 */
+	protected void freeInternalResources() {
+
+		// Default implementation does nothing
+	}
 }

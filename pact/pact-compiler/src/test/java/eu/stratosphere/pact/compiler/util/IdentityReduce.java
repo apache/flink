@@ -19,9 +19,10 @@ import java.util.Iterator;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-
+@ConstantFieldsExcept(fields={})
 public final class IdentityReduce extends ReduceStub 
 {
 	/* (non-Javadoc)

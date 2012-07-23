@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.jobmanager.scheduler;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 import eu.stratosphere.nephele.execution.ExecutionListener;
@@ -25,6 +26,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionPipeline;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 
@@ -89,9 +91,14 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 
 		if (newExecutionState == ExecutionState.CANCELED || newExecutionState == ExecutionState.FINISHED) {
 
-			synchronized (this.executionVertex.getExecutionGraph()) {
+			synchronized (eg) {
 
 				if (this.scheduler.getVerticesToBeRestarted().remove(this.executionVertex.getID()) != null) {
+
+					if (eg.getJobStatus() == InternalJobStatus.FAILING) {
+						return;
+					}
+
 					this.executionVertex.updateExecutionState(ExecutionState.ASSIGNED, "Restart as part of recovery");
 
 					// Run through the deployment procedure
@@ -122,7 +129,21 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 					}
 
 				} else {
-					// TODO: Cancel the entire job in this case
+
+					// Make sure the map with the vertices to be restarted is cleaned up properly
+					synchronized (eg) {
+
+						final Iterator<ExecutionVertex> it = this.scheduler.getVerticesToBeRestarted().values()
+							.iterator();
+
+						while (it.hasNext()) {
+							if (eg.equals(it.next().getExecutionGraph())) {
+								it.remove();
+							}
+						}
+					}
+
+					// Actual cancellation of job is performed by job manager
 				}
 			}
 		}

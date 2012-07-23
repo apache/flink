@@ -19,14 +19,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 
 public abstract class AbstractCompressor implements Compressor {
 
-	protected Buffer uncompressedBuffer;
+	private final CompressionBufferProvider bufferProvider;
 
-	private Buffer compressedBuffer;
+	protected MemoryBuffer uncompressedBuffer;
+
+	private MemoryBuffer compressedBuffer;
 
 	protected ByteBuffer uncompressedDataBuffer;
 
@@ -38,63 +39,44 @@ public abstract class AbstractCompressor implements Compressor {
 
 	public final static int SIZE_LENGTH = 8;
 
-	private final AbstractCompressionLibrary compressionLibrary;
+	private int channelCounter = 1;
 
-	public AbstractCompressor(final AbstractCompressionLibrary compressionLibrary) {
-		this.compressionLibrary = compressionLibrary;
+	protected AbstractCompressor(final CompressionBufferProvider bufferProvider) {
+		this.bufferProvider = bufferProvider;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final Buffer getCompressedDataBuffer() {
+	public final void increaseChannelCounter() {
 
-		return this.compressedBuffer;
+		++this.channelCounter;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final Buffer getUncompresssedDataBuffer() {
-
-		return this.uncompressedBuffer;
-	}
-
-	/**
-	 * Checks if the provided buffer is backed by memory and
-	 * returns the encapsulated {@link ByteBuffer} object.
-	 * 
-	 * @param buffer
-	 *        the buffer to unwrap the {@link ByteBuffer} object from
-	 * @return the unwrapped {@link ByteBuffer} object
-	 */
-	private ByteBuffer getInternalByteBuffer(Buffer buffer) {
-
-		if (!(buffer instanceof MemoryBuffer)) {
-			throw new RuntimeException("Provided buffer is not a memory buffer and cannot be used for compression");
-		}
-
-		final MemoryBuffer memoryBuffer = (MemoryBuffer) buffer;
-
-		return memoryBuffer.getByteBuffer();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final void setCompressedDataBuffer(Buffer buffer) {
+	protected final void setCompressedDataBuffer(final MemoryBuffer buffer) {
 
 		if (buffer == null) {
 			this.compressedBuffer = null;
 			this.compressedDataBuffer = null;
 			this.compressedDataBufferLength = 0;
 		} else {
-			this.compressedDataBuffer = getInternalByteBuffer(buffer);
+			this.compressedDataBuffer = buffer.getByteBuffer();
 			this.compressedDataBufferLength = this.compressedDataBuffer.limit();
 			this.compressedBuffer = buffer;
+		}
+	}
+
+	protected final void setUncompressedDataBuffer(final MemoryBuffer buffer) {
+
+		if (buffer == null) {
+			this.uncompressedBuffer = null;
+			this.uncompressedDataBuffer = null;
+			this.uncompressedDataBufferLength = 0;
+		} else {
+			this.uncompressedDataBuffer = buffer.getByteBuffer();
+			this.uncompressedDataBufferLength = this.uncompressedDataBuffer.limit();
+			this.uncompressedBuffer = buffer;
 		}
 	}
 
@@ -102,21 +84,14 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void setUncompressedDataBuffer(Buffer buffer) {
+	public final Buffer compress(final Buffer uncompressedData) throws IOException {
 
-		if (buffer == null) {
-			this.uncompressedBuffer = null;
-			this.uncompressedDataBuffer = null;
-			this.uncompressedDataBufferLength = 0;
-		} else {
-			this.uncompressedDataBuffer = getInternalByteBuffer(buffer);
-			this.uncompressedDataBufferLength = this.uncompressedDataBuffer.limit();
-			this.uncompressedBuffer = buffer;
+		if (!uncompressedData.isBackedByMemory()) {
+			throw new IllegalStateException("Uncompressed data buffer is not backed by memory");
 		}
-	}
 
-	@Override
-	public final void compress() throws IOException {
+		setUncompressedDataBuffer((MemoryBuffer) uncompressedData);
+		setCompressedDataBuffer(this.bufferProvider.lockCompressionBuffer());
 		this.compressedDataBuffer.clear();
 		this.uncompressedDataBufferLength = this.uncompressedDataBuffer.position();
 
@@ -127,8 +102,12 @@ public abstract class AbstractCompressor implements Compressor {
 
 		this.compressedDataBuffer.position(numberOfCompressedBytes + SIZE_LENGTH);
 
-		// If everything went ok, prepare buffers for next run
-		this.uncompressedBuffer.finishWritePhase();
+		final Buffer compressedBuffer = this.compressedBuffer;
+		this.bufferProvider.releaseCompressionBuffer(this.uncompressedBuffer);
+		setUncompressedDataBuffer(null);
+		setCompressedDataBuffer(null);
+
+		return compressedBuffer;
 	}
 
 	protected abstract int compressBytesDirect(int offset);
@@ -146,13 +125,21 @@ public abstract class AbstractCompressor implements Compressor {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void shutdown(final ChannelID channelID) {
+	public final void shutdown() {
 
-		if (this.compressionLibrary.canBeShutDown(this, channelID)) {
+		--this.channelCounter;
+
+		if (this.channelCounter == 0) {
+			this.bufferProvider.shutdown();
 			freeInternalResources();
 		}
-
 	}
 
-	protected abstract void freeInternalResources();
+	/**
+	 * Frees the resources internally allocated by the compression library.
+	 */
+	protected void freeInternalResources() {
+
+		// Default implementation does nothing
+	}
 }

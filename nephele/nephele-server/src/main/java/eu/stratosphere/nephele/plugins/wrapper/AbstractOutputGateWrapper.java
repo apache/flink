@@ -144,6 +144,15 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
+	public CompressionLevel getCompressionLevel() {
+
+		return this.wrappedOutputGate.getCompressionLevel();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	public GateID getGateID() {
 
 		return this.wrappedOutputGate.getGateID();
@@ -183,6 +192,15 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	public void setChannelType(final ChannelType channelType) {
 
 		this.wrappedOutputGate.setChannelType(channelType);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void setCompressionLevel(final CompressionLevel compressionLevel) {
+
+		this.wrappedOutputGate.setCompressionLevel(compressionLevel);
 	}
 
 	/**

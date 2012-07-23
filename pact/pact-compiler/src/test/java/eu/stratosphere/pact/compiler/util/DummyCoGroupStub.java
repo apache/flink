@@ -13,18 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.compression;
+package eu.stratosphere.pact.compiler.util;
 
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import java.util.Iterator;
 
-public interface CompressionLibrary {
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.PactRecord;
 
-	Compressor getCompressor(final AbstractByteBufferedOutputChannel<?> outputChannel) throws CompressionException;
+public class DummyCoGroupStub extends CoGroupStub {
 
-	Decompressor getDecompressor(AbstractByteBufferedInputChannel<?> inputChannel) throws CompressionException;
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+	 */
+	@Override
+	public void coGroup(Iterator<PactRecord> records1,
+			Iterator<PactRecord> records2, Collector<PactRecord> out) {
+		while (records1.hasNext()) {
+			out.collect(records1.next());
+		}
+		while (records2.hasNext()) {
+			out.collect(records2.next());
+		}
+	}
 
-	int getUncompressedBufferSize(int compressedBufferSize);
-
-	String getLibraryName();
 }

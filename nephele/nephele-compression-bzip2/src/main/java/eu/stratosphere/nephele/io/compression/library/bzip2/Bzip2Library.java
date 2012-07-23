@@ -15,24 +15,22 @@
 
 package eu.stratosphere.nephele.io.compression.library.bzip2;
 
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.util.NativeCodeLoader;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class Bzip2Library extends AbstractCompressionLibrary {
+public class Bzip2Library implements CompressionLibrary {
 
 	/**
 	 * The file name of the native bzip2 library.
 	 */
 	private static final String NATIVELIBRARYFILENAME = "libbzip2compression.so.1.0";
 
-	public Bzip2Library(String nativeLibraryDir)
-												throws CompressionException {
+	public Bzip2Library(final String nativeLibraryDir) throws CompressionException {
 
 		if (!NativeCodeLoader.isLibraryLoaded(NATIVELIBRARYFILENAME)) {
 			try {
@@ -47,8 +45,11 @@ public class Bzip2Library extends AbstractCompressionLibrary {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int getUncompressedBufferSize(int compressedBufferSize) {
+	public int getUncompressedBufferSize(final int compressedBufferSize) {
 
 		/*
 		 * Calculate size of compressed data buffer according to
@@ -57,22 +58,30 @@ public class Bzip2Library extends AbstractCompressionLibrary {
 		return ((compressedBufferSize - 600) / 101) * 100;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String getLibraryName() {
 		return "BZIP2";
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Compressor initNewCompressor(AbstractByteBufferedOutputChannel<?> outputChannel)
-			throws CompressionException {
+	public Compressor createNewCompressor(final CompressionBufferProvider bufferProvider) throws CompressionException {
 
-		return new Bzip2Compressor(this);
+		return new Bzip2Compressor(bufferProvider);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Decompressor initNewDecompressor(AbstractByteBufferedInputChannel<?> inputChannel)
+	public Decompressor createNewDecompressor(final CompressionBufferProvider bufferProvider)
 			throws CompressionException {
 
-		return new Bzip2Decompressor(this);
+		return new Bzip2Decompressor(bufferProvider);
 	}
 }

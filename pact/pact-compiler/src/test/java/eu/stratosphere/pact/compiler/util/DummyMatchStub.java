@@ -13,33 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.compression;
+package eu.stratosphere.pact.compiler.util;
 
-import java.util.HashSet;
-import java.util.Set;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.pact.common.type.PactRecord;
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
+@ConstantFieldsFirstExcept(fields={})
+public class DummyMatchStub extends MatchStub {
 
-abstract class AbstractCacheEntry {
-
-	private final Set<ChannelID> assignedChannels = new HashSet<ChannelID>();
-
-	void addAssignedChannel(final ChannelID channelID) {
-
-		if (!this.assignedChannels.add(channelID)) {
-			throw new IllegalStateException(channelID + " has already been added to the set of assigned channels");
-		}
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
+	 */
+	@Override
+	public void match(PactRecord value1, PactRecord value2,
+			Collector<PactRecord> out) throws Exception {
+		out.collect(value1);
+		
 	}
 
-	void removeAssignedChannel(final ChannelID channelID) {
-
-		if (!this.assignedChannels.remove(channelID)) {
-			throw new IllegalStateException(channelID + " has not been in the set of assigned channels");
-		}
-	}
-
-	boolean hasAssignedChannels() {
-
-		return (!this.assignedChannels.isEmpty());
-	}
 }

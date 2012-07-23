@@ -52,6 +52,11 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 	private boolean isProfilingEnabled;
 
 	/**
+	 * The time stamp of the job submission.
+	 */
+	private long submissionTimestamp;
+
+	/**
 	 * Constructs a new event.
 	 * 
 	 * @param jobID
@@ -62,11 +67,13 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 	 *        the status of the job
 	 * @param isProfilingEnabled
 	 *        <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise
+	 * @param submissionTimestamp
+	 *        the time stamp of the job submission
 	 * @param timestamp
 	 *        the time stamp of the event
 	 */
 	public RecentJobEvent(final JobID jobID, final String jobName, final JobStatus jobStatus,
-			final boolean isProfilingEnabled, final long timestamp) {
+			final boolean isProfilingEnabled, final long submissionTimestamp, final long timestamp) {
 		super(timestamp);
 
 		if (jobStatus == null) {
@@ -77,6 +84,7 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 		this.jobName = jobName;
 		this.jobStatus = jobStatus;
 		this.isProfilingEnabled = isProfilingEnabled;
+		this.submissionTimestamp = submissionTimestamp;
 	}
 
 	/**
@@ -123,6 +131,16 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 	}
 
 	/**
+	 * Returns the time stamp of the job submission.
+	 * 
+	 * @return the time stamp of the job submission
+	 */
+	public long getSubmissionTimestamp() {
+
+		return this.submissionTimestamp;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -141,6 +159,9 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 
 		// Read if profiling is enabled
 		this.isProfilingEnabled = in.readBoolean();
+
+		// Read the submission time stamp
+		this.submissionTimestamp = in.readLong();
 	}
 
 	/**
@@ -161,6 +182,9 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 
 		// Write out if profiling is enabled
 		out.writeBoolean(this.isProfilingEnabled);
+
+		// Write out the submission time stamp
+		out.writeLong(this.submissionTimestamp);
 	}
 
 	/**
@@ -188,6 +212,10 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 		}
 
 		if (this.isProfilingEnabled != newJobEvent.isProfilingAvailable()) {
+			return false;
+		}
+
+		if (this.submissionTimestamp != newJobEvent.getSubmissionTimestamp()) {
 			return false;
 		}
 
