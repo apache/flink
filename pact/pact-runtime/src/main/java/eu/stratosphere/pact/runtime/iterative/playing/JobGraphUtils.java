@@ -73,6 +73,13 @@ public class JobGraphUtils {
     source.connectTo(target, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, distributionPattern);
     new TaskConfig(source.getConfiguration()).addOutputShipStrategy(shipStrategy);
   }
+  
+  public static void connectNetwork(AbstractJobVertex source, AbstractJobVertex target,
+	      DistributionPattern distributionPattern, ShipStrategy shipStrategy)
+  throws JobGraphDefinitionException {
+	    source.connectTo(target, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, distributionPattern);
+	    new TaskConfig(source.getConfiguration()).addOutputShipStrategy(shipStrategy);
+	  }
 
   public static JobTaskVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph, int dop) {
     JobTaskVertex taskVertex = new JobTaskVertex(name, graph);

@@ -41,15 +41,15 @@ public class PageRank {
 
   public static void main(String[] args) throws Exception {
 
-    int degreeOfParallelism = 1;
+    int degreeOfParallelism = 2;
     JobGraph jobGraph = new JobGraph("PageRank");
 
     JobInputVertex pageWithRankInput = JobGraphUtils.createInput(PageWithRankInputFormat.class,
-        "file:///home/ssc/Desktop/stratosphere/test-inputs/pagerank/pageWithRank", "PageWithRankInput", jobGraph,
+        "file:///data/tmp/stratosphere/test-inputs/pagerank/pageWithRank", "PageWithRankInput", jobGraph,
         degreeOfParallelism);
 
     JobInputVertex transitionMatrixInput = JobGraphUtils.createInput(TransitionMatrixInputFormat.class,
-        "file:///home/ssc/Desktop/stratosphere/test-inputs/pagerank/transitionMatrix", "TransitionMatrixInput",
+        "file:///data/tmp/stratosphere/test-inputs/pagerank/transitionMatrix", "TransitionMatrixInput",
         jobGraph, degreeOfParallelism);
     TaskConfig transitionMatrixInputConfig = new TaskConfig(transitionMatrixInput.getConfiguration());
     transitionMatrixInputConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
@@ -105,7 +105,7 @@ public class PageRank {
     JobOutputVertex fakeSyncOutput = JobGraphUtils.createSingletonFakeOutput(jobGraph, "FakeSyncOutput");
 
     JobGraphUtils.connectLocal(pageWithRankInput, head);
-    JobGraphUtils.connectLocal(head, intermediate, DistributionPattern.BIPARTITE, ShipStrategy.BROADCAST);
+    JobGraphUtils.connectNetwork(head, intermediate, DistributionPattern.BIPARTITE, ShipStrategy.BROADCAST);
     JobGraphUtils.connectLocal(transitionMatrixInput, intermediate, DistributionPattern.BIPARTITE,
         ShipStrategy.PARTITION_HASH);
     intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
@@ -121,9 +121,18 @@ public class PageRank {
     JobGraphUtils.connectLocal(tail, fakeTailOutput);
     JobGraphUtils.connectLocal(sync, fakeSyncOutput);
 
-    head.setVertexToShareInstancesWith(tail);
+    fakeTailOutput.setVertexToShareInstancesWith(tail);
+    tail.setVertexToShareInstancesWith(head);
+    
+    pageWithRankInput.setVertexToShareInstancesWith(head);
+    transitionMatrixInput.setVertexToShareInstancesWith(head);
+    intermediate.setVertexToShareInstancesWith(head);
+    output.setVertexToShareInstancesWith(head);
+    
+    sync.setVertexToShareInstancesWith(head);
+    fakeSyncOutput.setVertexToShareInstancesWith(sync);
 
-    GlobalConfiguration.loadConfiguration("/home/ssc/Desktop/stratosphere/local-conf");
+    GlobalConfiguration.loadConfiguration("/data/tmp/stratosphere/local-conf");
     Configuration conf = GlobalConfiguration.getConfiguration();
 
     JobGraphUtils.submit(jobGraph, conf);
