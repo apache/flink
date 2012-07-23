@@ -8,6 +8,10 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 /**
+ * InputFormat that reads a binary file and parses the content as integer values.
+ * Output records have two fields: first, the parse integer value, second an optional payload
+ * string with configurable length.
+ * 
  * @author Stephan Ewen
  */
 public class BinaryIntInputFormat extends FixedLengthInputFormat

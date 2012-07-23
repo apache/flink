@@ -34,6 +34,7 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -52,7 +53,7 @@ import eu.stratosphere.pact.common.util.FieldSet;
  * Its documentation and the data generator (DBGEN) can be found
  * on http://www.tpc.org/tpch/ .This implementation is tested with
  * the DB2 data format.  
- * THe PACT program implements a modified version of the query 3 of 
+ * The PACT program implements a modified version of the query 3 of 
  * the TPC-H benchmark including one join, some filtering and an
  * aggregation.
  * 
@@ -72,14 +73,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	/**
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
-	@ConstantFields(fields={0,1})
+	@ConstantFieldsExcept(fields={2,3,4})
 	@OutCardBounds(upperBound=1, lowerBound=0)
 	public static class FilterO extends MapStub
 	{
 		private String prioFilter;		// filter literal for the order priority
 		private int yearFilter;			// filter literal for the year
 		
-		// reusable variables for the fields touched in the mapper
+		// reusable objects for the fields touched in the mapper
 		private PactString orderStatus;
 		private PactString orderDate;
 		private PactString orderPrio;
@@ -102,7 +103,9 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		 *  AND YEAR(o_orderdate) > Y
 		 *  AND o_orderpriority LIKE "Z"
 	 	 *  
-	 	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY
+	 	 * Output Schema: 
+	 	 *   0:ORDERKEY, 
+	 	 *   1:SHIPPRIORITY
 		 */
 		@Override
 		public void map(final PactRecord record, final Collector<PactRecord> out)
@@ -129,19 +132,20 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * Match PACT realizes the join between LineItem and Order table. The 
-	 * SuperKey OutputContract is annotated because the new key is
-	 * built of the keys of the inputs.
+	 * Match PACT realizes the join between LineItem and Order table.
 	 *
 	 */
 	@ConstantFieldsFirstExcept(fields={5})
-	@OutCardBounds(upperBound=1, lowerBound=1)
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinLiO extends MatchStub
 	{
 		/**
 		 * Implements the join between LineItem and Order table on the order key.
 		 * 
-		 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 5:EXTENDEDPRICE
+		 * Output Schema:
+		 *   0:ORDERKEY
+		 *   1:SHIPPRIORITY
+		 *   5:EXTENDEDPRICE
 		 */
 		@Override
 		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out)
@@ -156,7 +160,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * The Combinable annotation is set as the partial sums can be calculated
 	 * already in the combiner
 	 *
-	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 5:SUM(EXTENDEDPRICE)
 	 */
 	@Combinable
 	@ConstantFields(fields={0,1})
@@ -165,6 +168,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	{
 		private final PactDouble extendedPrice = new PactDouble();
 		
+		/**
+		 * Implements the sum aggregation.
+		 * 
+		 * Output Schema:
+		 *   0:ORDERKEY
+		 *   1:SHIPPRIORITY
+		 *   5:SUM(EXTENDEDPRICE)
+		 */
 		@Override
 		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out)
 		{

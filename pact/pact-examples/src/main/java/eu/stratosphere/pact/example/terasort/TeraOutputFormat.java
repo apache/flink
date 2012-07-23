@@ -22,7 +22,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 
 
 /**
- * The class is responsible for converting a key-value pair back into a line which is afterward written back to disk.
+ * The class is responsible for converting a two field record back into a line which is afterward written back to disk.
  * Each line ends with a newline character.
  * 
  * @author warneke

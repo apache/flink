@@ -22,7 +22,7 @@ import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
- * This class implements a uniform data distribution for the TeraSort benchmark.
+ * This class implements the uniform data distribution of the TeraSort benchmark.
  * 
  * @author warneke
  */
