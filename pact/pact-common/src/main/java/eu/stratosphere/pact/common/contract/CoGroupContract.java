@@ -38,12 +38,12 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	/**
 	 * The ordering for the order inside a group from input one.
 	 */
-	private Ordering secondaryOrder1;
+	private Ordering groupOrder1;
 	
 	/**
 	 * The ordering for the order inside a group from input two.
 	 */
-	private Ordering secondaryOrder2;
+	private Ordering groupOrder2;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -418,11 +418,11 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	 * @param inputNum The number of the input (here either <i>0</i> or <i>1</i>).
 	 * @param order The order for the elements in a group.
 	 */
-	public void setSecondaryOrder(int inputNum, Ordering order) {
+	public void setGroupOrder(int inputNum, Ordering order) {
 		if (inputNum == 0)
-			this.secondaryOrder1 = order;
+			this.groupOrder1 = order;
 		else if (inputNum == 1)
-			this.secondaryOrder2 = order;
+			this.groupOrder2 = order;
 		else
 			throw new IndexOutOfBoundsException();
 	}
@@ -432,8 +432,8 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	 * 
 	 * @param order The order for the elements in a group.
 	 */
-	public void setSecondaryOrderForInputOne(Ordering order) {
-		setSecondaryOrder(0, order);
+	public void setGroupOrderForInputOne(Ordering order) {
+		setGroupOrder(0, order);
 	}
 	
 	/**
@@ -441,43 +441,43 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	 * 
 	 * @param order The order for the elements in a group.
 	 */
-	public void setSecondaryOrderForInputTwo(Ordering order) {
-		setSecondaryOrder(1, order);
+	public void setGroupOrderForInputTwo(Ordering order) {
+		setGroupOrder(1, order);
 	}
 	
 	/**
-	 * Gets the secondary order for an input, i.e. the order of elements within a group.
+	 * Gets the value order for an input, i.e. the order of elements within a group.
 	 * If no such order has been set, this method returns null.
 	 * 
 	 * @param inputNum The number of the input (here either <i>0</i> or <i>1</i>).
-	 * @return The secondary order.
+	 * @return The group order.
 	 */
-	public Ordering getSecondaryOrder(int inputNum) {
+	public Ordering getGroupOrder(int inputNum) {
 		if (inputNum == 0)
-			return this.secondaryOrder1;
+			return this.groupOrder1;
 		else if (inputNum == 1)
-			return this.secondaryOrder2;
+			return this.groupOrder2;
 		else
 			throw new IndexOutOfBoundsException();
 	}
 	
 	/**
-	 * Gets the secondary order for the first input, i.e. the order of elements within a group.
+	 * Gets the order of elements within a group for the first input.
 	 * If no such order has been set, this method returns null.
 	 * 
-	 * @return The secondary order for the first input.
+	 * @return The group order for the first input.
 	 */
-	public Ordering getSecondaryOrderForInputOne() {
-		return getSecondaryOrder(0);
+	public Ordering getGroupOrderForInputOne() {
+		return getGroupOrder(0);
 	}
 	
 	/**
-	 * Gets the secondary order for the second input, i.e. the order of elements within a group.
+	 * Gets the order of elements within a group for the second input.
 	 * If no such order has been set, this method returns null.
 	 * 
-	 * @return The secondary order for the second input.
+	 * @return The group order for the second input.
 	 */
-	public Ordering getSecondaryOrderForInputTwo() {
-		return getSecondaryOrder(1);
+	public Ordering getGroupOrderForInputTwo() {
+		return getGroupOrder(1);
 	}
 }
