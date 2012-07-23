@@ -362,7 +362,7 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn The position of the key.
 		 */
-		public Builder additionalKeyField(Class<? extends Key> keyClass, int keyColumn) {
+		public Builder keyField(Class<? extends Key> keyClass, int keyColumn) {
 			keyClasses.add(keyClass);
 			keyColumns.add(keyColumn);
 			return this;

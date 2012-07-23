@@ -522,6 +522,20 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
 		 * 
 		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 */
+		public Builder(Class<? extends CoGroupStub> udf) {
+			this.udf = udf;
+			this.keyClasses = new LinkedList<Class<? extends Key>>();
+			this.keyColumns1 = new LinkedList<Integer>();
+			this.keyColumns2 = new LinkedList<Integer>();
+			this.inputs1 = new LinkedList<Contract>();
+			this.inputs2 = new LinkedList<Contract>();
+		}
+		
+		/**
+		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+		 * 
+		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
@@ -567,7 +581,7 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		public Builder additionalKeyField(Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		public Builder keyField(Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
 			keyClasses.add(keyClass);
 			keyColumns1.add(keyColumn1);
 			keyColumns2.add(keyColumn2);
@@ -652,6 +666,9 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 		 * @return The created contract
 		 */
 		public CoGroupContract build() {
+			if (keyClasses.size() <= 0) {
+				throw new IllegalStateException("At least one key attribute has to be set.");
+			}
 			return new CoGroupContract(this);
 		}
 	}
