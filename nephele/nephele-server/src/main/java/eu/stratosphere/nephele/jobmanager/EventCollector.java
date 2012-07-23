@@ -180,6 +180,11 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		private final boolean isProfilingAvailable;
 
 		/**
+		 * The time stamp of the job submission
+		 */
+		private final long submissionTimestamp;
+
+		/**
 		 * Constructs a new job status listener wrapper.
 		 * 
 		 * @param eventCollector
@@ -188,12 +193,16 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 *        the name of the job
 		 * @param isProfilingAvailable
 		 *        <code>true</code> if profiling events are collected for the job, <code>false</code> otherwise
+		 * @param submissionTimestamp
+		 *        the submission time stamp of the job
 		 */
 		public JobStatusListenerWrapper(final EventCollector eventCollector, final String jobName,
-				final boolean isProfilingAvailable) {
+				final boolean isProfilingAvailable, final long submissionTimestamp) {
+
 			this.eventCollector = eventCollector;
 			this.jobName = jobName;
 			this.isProfilingAvailable = isProfilingAvailable;
+			this.submissionTimestamp = submissionTimestamp;
 		}
 
 		/**
@@ -214,7 +223,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			// Update recent job event
 			final JobStatus jobStatus = InternalJobStatus.toJobStatus(newJobStatus);
 			if (jobStatus != null) {
-				this.eventCollector.updateRecentJobEvent(jobID, this.jobName, this.isProfilingAvailable, jobStatus);
+				this.eventCollector.updateRecentJobEvent(jobID, this.jobName, this.isProfilingAvailable,
+					this.submissionTimestamp, jobStatus);
 
 				this.eventCollector.addEvent(jobID,
 					new JobEvent(System.currentTimeMillis(), jobStatus, optionalMessage));
@@ -423,17 +433,20 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 *        the name of the new job
 	 * @param isProfilingEnabled
 	 *        <code>true</code> if profiling events are collected for the job, <code>false</code> otherwise
-	 * @param initialJobStatus
-	 *        the initial status of the job
+	 * @param submissionTimestamp
+	 *        the submission time stamp of the job
+	 * @param jobStatus
+	 *        the status of the job
 	 */
 	private void updateRecentJobEvent(final JobID jobID, final String jobName, final boolean isProfilingEnabled,
-			final JobStatus jobStatus) {
+			final long submissionTimestamp, final JobStatus jobStatus) {
 
 		final long currentTime = System.currentTimeMillis();
 		final RecentJobEvent recentJobEvent = new RecentJobEvent(jobID, jobName, jobStatus, isProfilingEnabled,
-			currentTime);
+			submissionTimestamp, currentTime);
 
 		synchronized (this.recentJobs) {
+
 			this.recentJobs.put(jobID, recentJobEvent);
 		}
 	}
@@ -449,8 +462,11 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 *        the execution graph representing the job
 	 * @param profilingAvailable
 	 *        indicates if profiling data is available for this job
+	 * @param submissionTimestamp
+	 *        the submission time stamp of the job
 	 */
-	public void registerJob(final ExecutionGraph executionGraph, final boolean profilingAvailable) {
+	public void registerJob(final ExecutionGraph executionGraph, final boolean profilingAvailable,
+			final long submissionTimestamp) {
 
 		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
 
@@ -470,7 +486,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 		// Register one job status listener wrapper for the entire job
 		executionGraph.registerJobStatusListener(new JobStatusListenerWrapper(this, executionGraph.getJobName(),
-			profilingAvailable));
+			profilingAvailable, submissionTimestamp));
 
 	}
 

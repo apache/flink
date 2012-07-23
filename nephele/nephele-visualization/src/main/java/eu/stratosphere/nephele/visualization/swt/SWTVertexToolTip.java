@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -64,6 +65,9 @@ public class SWTVertexToolTip extends SWTToolTip {
 
 		int height;
 
+		final Color backgroundColor = getShell().getBackground();
+		final Color foregroundColor = getShell().getForeground();
+
 		// Set the title
 		final String taskName = managementVertex.getName() + " (" + (managementVertex.getIndexInGroup() + 1) + " of "
 			+ managementVertex.getNumberOfVerticesInGroup() + ")";
@@ -71,7 +75,7 @@ public class SWTVertexToolTip extends SWTToolTip {
 
 		// Only create chart if profiling is enabled
 		if (vertexVisualizationData.isProfilingEnabledForJob()) {
-			this.threadChart = createThreadChart(vertexVisualizationData);
+			this.threadChart = createThreadChart(vertexVisualizationData, backgroundColor);
 			this.threadChart.setLayoutData(new GridData(GridData.FILL_BOTH));
 			height = 240; // should be 265 when cancel button is enabled
 		} else {
@@ -81,6 +85,8 @@ public class SWTVertexToolTip extends SWTToolTip {
 
 		final Composite tableComposite = new Composite(getShell(), SWT.NONE);
 		tableComposite.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+		tableComposite.setBackground(backgroundColor);
+		tableComposite.setForeground(foregroundColor);
 		final GridLayout tableGridLayout = new GridLayout(3, false);
 		tableGridLayout.marginHeight = 0;
 		tableGridLayout.marginLeft = 0;
@@ -95,14 +101,26 @@ public class SWTVertexToolTip extends SWTToolTip {
 		gridData2.grabExcessHorizontalSpace = true;
 
 		// Instance type
-		new Label(tableComposite, SWT.NONE).setText("Instance type:");
+		final Label instanceTypeTextLabel = new Label(tableComposite, SWT.NONE);
+		instanceTypeTextLabel.setBackground(backgroundColor);
+		instanceTypeTextLabel.setForeground(foregroundColor);
+		instanceTypeTextLabel.setText("Instance type:");
+
 		this.instanceTypeLabel = new Label(tableComposite, SWT.NONE);
+		this.instanceTypeLabel.setBackground(backgroundColor);
+		this.instanceTypeLabel.setForeground(foregroundColor);
 		this.instanceTypeLabel.setText(this.managementVertex.getInstanceType());
 		this.instanceTypeLabel.setLayoutData(gridData1);
 
 		// Instance ID
-		new Label(tableComposite, SWT.NONE).setText("Instance ID:");
+		final Label instanceIDTextLabel = new Label(tableComposite, SWT.NONE);
+		instanceIDTextLabel.setBackground(backgroundColor);
+		instanceIDTextLabel.setForeground(foregroundColor);
+		instanceIDTextLabel.setText("Instance ID:");
+
 		this.instanceIDLabel = new Label(tableComposite, SWT.NONE);
+		this.instanceIDLabel.setBackground(backgroundColor);
+		this.instanceIDLabel.setForeground(foregroundColor);
 		this.instanceIDLabel.setText(this.managementVertex.getInstanceName());
 		this.instanceIDLabel.setLayoutData(gridData2);
 
@@ -122,14 +140,26 @@ public class SWTVertexToolTip extends SWTToolTip {
 		 */
 
 		// Execution state
-		new Label(tableComposite, SWT.NONE).setText("Execution state:");
+		final Label executionStateTextLabel = new Label(tableComposite, SWT.NONE);
+		executionStateTextLabel.setBackground(backgroundColor);
+		executionStateTextLabel.setForeground(foregroundColor);
+		executionStateTextLabel.setText("Execution state:");
+
 		this.executionStateLabel = new Label(tableComposite, SWT.NONE);
+		this.executionStateLabel.setBackground(backgroundColor);
+		this.executionStateLabel.setForeground(foregroundColor);
 		this.executionStateLabel.setText(this.managementVertex.getExecutionState().toString());
 		this.executionStateLabel.setLayoutData(gridData1);
 
 		// Checkpoint state
-		new Label(tableComposite, SWT.NONE).setText("Checkpoint state:");
+		final Label checkpointStateTextLabel = new Label(tableComposite, SWT.NONE);
+		checkpointStateTextLabel.setBackground(backgroundColor);
+		checkpointStateTextLabel.setForeground(foregroundColor);
+		checkpointStateTextLabel.setText("Checkpoint state:");
+
 		this.checkpointStateLabel = new Label(tableComposite, SWT.NONE);
+		this.checkpointStateLabel.setBackground(backgroundColor);
+		this.checkpointStateLabel.setForeground(foregroundColor);
 		this.checkpointStateLabel.setText(this.managementVertex.getCheckpointState().toString());
 		this.checkpointStateLabel.setLayoutData(gridData1);
 
@@ -146,6 +176,8 @@ public class SWTVertexToolTip extends SWTToolTip {
 		// Available task actions
 		final Composite taskActionComposite = new Composite(getShell(), SWT.NONE);
 		taskActionComposite.setLayout(new RowLayout(SWT.HORIZONTAL));
+		taskActionComposite.setBackground(backgroundColor);
+		taskActionComposite.setForeground(foregroundColor);
 
 		/*
 		 * final Button cancelTaskButton = new Button(taskActionComposite, SWT.PUSH);
@@ -162,13 +194,16 @@ public class SWTVertexToolTip extends SWTToolTip {
 
 		getShell().setSize(WIDTH, height);
 
-		finishInstantiation(x, y, WIDTH);
+		finishInstantiation(x, y, WIDTH, false);
 	}
 
-	private ChartComposite createThreadChart(VertexVisualizationData visualizationData) {
+	private ChartComposite createThreadChart(VertexVisualizationData visualizationData, Color backgroundColor) {
 
 		final JFreeChart chart = ChartFactory.createStackedXYAreaChart(null, "Time [sec.]", "Thread Utilization [%]",
 			visualizationData.getThreadDataSet(), PlotOrientation.VERTICAL, true, true, false);
+
+		chart.setBackgroundPaint(new java.awt.Color(backgroundColor.getRed(), backgroundColor.getGreen(),
+			backgroundColor.getBlue()));
 
 		// Set axis properly
 		final XYPlot xyPlot = chart.getXYPlot();
