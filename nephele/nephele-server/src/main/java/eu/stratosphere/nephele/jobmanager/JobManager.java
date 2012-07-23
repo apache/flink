@@ -537,7 +537,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Register job with the progress collector
 		if (this.eventCollector != null) {
-			this.eventCollector.registerJob(eg, jobRunsWithProfiling);
+			this.eventCollector.registerJob(eg, jobRunsWithProfiling, System.currentTimeMillis());
 		}
 
 		// Check if profiling should be enabled for this job

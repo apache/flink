@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
@@ -49,6 +50,9 @@ public class SWTInstanceToolTip extends SWTToolTip {
 
 		this.networkNode = networkNode;
 
+		final Color backgroundColor = getShell().getBackground();
+		final Color foregroundColor = getShell().getForeground();
+
 		boolean isProfilingEnabled = false;
 		final InstanceVisualizationData instanceVisualizationData = (InstanceVisualizationData) networkNode
 			.getAttachment();
@@ -63,11 +67,11 @@ public class SWTInstanceToolTip extends SWTToolTip {
 
 		// Only create chart if profiling is enabled
 		if (isProfilingEnabled) {
-			this.cpuChart = createCPUChart(instanceVisualizationData);
+			this.cpuChart = createCPUChart(instanceVisualizationData, backgroundColor);
 			this.cpuChart.setLayoutData(new GridData(GridData.FILL_BOTH));
-			this.memoryChart = createMemoryChart(instanceVisualizationData);
+			this.memoryChart = createMemoryChart(instanceVisualizationData, backgroundColor);
 			this.memoryChart.setLayoutData(new GridData(GridData.FILL_BOTH));
-			this.networkChart = createNetworkChart(instanceVisualizationData);
+			this.networkChart = createNetworkChart(instanceVisualizationData, backgroundColor);
 			this.networkChart.setLayoutData(new GridData(GridData.FILL_BOTH));
 			height = 460;
 		} else {
@@ -80,6 +84,8 @@ public class SWTInstanceToolTip extends SWTToolTip {
 		// Available instance actions
 		final Composite instanceActionComposite = new Composite(getShell(), SWT.NONE);
 		instanceActionComposite.setLayout(new RowLayout(SWT.HORIZONTAL));
+		instanceActionComposite.setBackground(backgroundColor);
+		instanceActionComposite.setForeground(foregroundColor);
 
 		final Button killInstanceButton = new Button(instanceActionComposite, SWT.PUSH);
 		final String instanceName = this.networkNode.getName();
@@ -96,13 +102,16 @@ public class SWTInstanceToolTip extends SWTToolTip {
 
 		getShell().setSize(WIDTH, height);
 
-		finishInstantiation(x, y, WIDTH);
+		finishInstantiation(x, y, WIDTH, false);
 	}
 
-	private ChartComposite createCPUChart(InstanceVisualizationData instanceVisualizationData) {
+	private ChartComposite createCPUChart(InstanceVisualizationData instanceVisualizationData, Color backgroundColor) {
 
 		final JFreeChart chart = ChartFactory.createStackedXYAreaChart(null, "Time [sec.]", "CPU",
 			instanceVisualizationData.getCpuDataSet(), PlotOrientation.VERTICAL, true, true, false);
+
+		chart.setBackgroundPaint(new java.awt.Color(backgroundColor.getRed(), backgroundColor.getGreen(),
+			backgroundColor.getBlue()));
 
 		// Set axis properly
 		final XYPlot xyPlot = chart.getXYPlot();
@@ -115,10 +124,13 @@ public class SWTInstanceToolTip extends SWTToolTip {
 		return new ChartComposite(getShell(), SWT.NONE, chart, true);
 	}
 
-	private ChartComposite createMemoryChart(InstanceVisualizationData instanceVisualizationData) {
+	private ChartComposite createMemoryChart(InstanceVisualizationData instanceVisualizationData, Color backgroundColor) {
 
 		final JFreeChart chart = ChartFactory.createStackedXYAreaChart(null, "Time [sec.]", "Memory",
 			instanceVisualizationData.getMemoryDataSet(), PlotOrientation.VERTICAL, true, true, false);
+
+		chart.setBackgroundPaint(new java.awt.Color(backgroundColor.getRed(), backgroundColor.getGreen(),
+			backgroundColor.getBlue()));
 
 		// Set axis properly
 		final XYPlot xyPlot = chart.getXYPlot();
@@ -131,10 +143,13 @@ public class SWTInstanceToolTip extends SWTToolTip {
 		return new ChartComposite(getShell(), SWT.NONE, chart, true);
 	}
 
-	private ChartComposite createNetworkChart(InstanceVisualizationData instanceVisualizationData) {
+	private ChartComposite createNetworkChart(InstanceVisualizationData instanceVisualizationData, Color backgroundColor) {
 
 		final JFreeChart chart = ChartFactory.createStackedXYAreaChart(null, "Time [sec.]", "Network",
 			instanceVisualizationData.getNetworkDataSet(), PlotOrientation.VERTICAL, true, true, false);
+
+		chart.setBackgroundPaint(new java.awt.Color(backgroundColor.getRed(), backgroundColor.getGreen(),
+			backgroundColor.getBlue()));
 
 		// Set axis properly
 		final XYPlot xyPlot = chart.getXYPlot();

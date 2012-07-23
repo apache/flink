@@ -35,8 +35,8 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	/**
 	 * Static variable that points to the current global sequence number
 	 */
-	private static final AtomicLong globalSequenceNumber = new AtomicLong(0);
-	
+	private static final AtomicLong GLOBAL_SEQUENCE_NUMBER = new AtomicLong(0);
+
 	/**
 	 * Auxiliary object which helps to convert a {@link Date} object to the given string representation.
 	 */
@@ -51,7 +51,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 * The sequence number of the event.
 	 */
 	private long sequenceNumber = -1;
-	
+
 	/**
 	 * Constructs a new abstract event object.
 	 * 
@@ -60,10 +60,10 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 */
 	public AbstractEvent(final long timestamp) {
 		this.timestamp = timestamp;
-		this.sequenceNumber = globalSequenceNumber.incrementAndGet();
+		this.sequenceNumber = GLOBAL_SEQUENCE_NUMBER.incrementAndGet();
 	}
-	
-	public long getSequenceNumber(){
+
+	public long getSequenceNumber() {
 		return this.sequenceNumber;
 	}
 

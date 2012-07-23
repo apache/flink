@@ -29,7 +29,7 @@ public class FontScheme {
 
 	private FontScheme(Device device) {
 
-		this.TOOLTIPTITLEFONT = new Font(device, "Arial", 12, SWT.BOLD);
+		this.TOOLTIPTITLEFONT = new Font(device, "Arial", 10, SWT.BOLD);
 		this.GROUPVERTEXFONT = new Font(device, "Arial", 12, SWT.BOLD);
 	}
 
