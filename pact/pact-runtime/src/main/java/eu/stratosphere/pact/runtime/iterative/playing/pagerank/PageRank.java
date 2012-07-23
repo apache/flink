@@ -105,7 +105,7 @@ public class PageRank {
     JobOutputVertex fakeSyncOutput = JobGraphUtils.createSingletonFakeOutput(jobGraph, "FakeSyncOutput");
 
     JobGraphUtils.connectLocal(pageWithRankInput, head);
-    JobGraphUtils.connectNetwork(head, intermediate, DistributionPattern.BIPARTITE, ShipStrategy.BROADCAST);
+    JobGraphUtils.connectLocal(head, intermediate, DistributionPattern.BIPARTITE, ShipStrategy.BROADCAST);
     JobGraphUtils.connectLocal(transitionMatrixInput, intermediate, DistributionPattern.BIPARTITE,
         ShipStrategy.PARTITION_HASH);
     intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
