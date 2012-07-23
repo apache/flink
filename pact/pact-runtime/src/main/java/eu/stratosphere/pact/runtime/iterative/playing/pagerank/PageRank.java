@@ -62,7 +62,7 @@ public class PageRank {
     headConfig.setStubClass(IdentityMap.class);
     headConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
-    headConfig.setNumberOfIterations(1);
+    headConfig.setNumberOfIterations(15);
 
     JobTaskVertex intermediate = JobGraphUtils.createTask(BulkIterationIntermediatePactTask.class,
         "BulkIterationIntermediate", jobGraph, degreeOfParallelism);

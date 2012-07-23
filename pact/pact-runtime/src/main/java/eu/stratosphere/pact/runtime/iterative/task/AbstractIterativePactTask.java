@@ -98,6 +98,16 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   public <X> MutableObjectIterator<X> getInput(int inputGateIndex) {
 
     if (wrappedInputs[inputGateIndex] != null) {
+
+      if (getTaskConfig().isCachedInputGate(inputGateIndex)) {
+        CachingMutableObjectIterator<X> cachingInput = (CachingMutableObjectIterator<X>) wrappedInputs[inputGateIndex];
+        try {
+          cachingInput.enableReading();
+        } catch (IOException e) {
+          throw new IllegalStateException("Unable to enable reading on cached input [" + inputGateIndex + "]");
+        }
+      }
+
       return (MutableObjectIterator<X>) wrappedInputs[inputGateIndex];
     }
 
@@ -145,6 +155,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     return super.getInput(inputGateIndex);
   }
 
+  // TODO check whether flush could be removed
   protected void flushAndPublishEvent(AbstractRecordWriter<?> writer, AbstractTaskEvent event)
       throws IOException, InterruptedException {
     writer.flush();

@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
+import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
@@ -22,6 +23,7 @@ import eu.stratosphere.pact.runtime.io.SpillingBuffer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.io.EOFException;
 import java.io.IOException;
 
 public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T> {
@@ -61,27 +63,31 @@ public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T>
       typeSerializer.serialize(record, spillingBuffer);
     } else {
       log.info("CachingIterator of " + name + " releases input");
-      // input is completely read, flip the buffer
-      //if (!isCached()) {
-        cache = spillingBuffer.flip();
-      //}
     }
     return recordFound;
   }
 
-  /* private boolean readFromCache(T record) throws IOException {
-    return false;
+  public void enableReading() throws IOException {
+    log.info("CachingIterator of " + name + " enables cache reading");
+    cache = Preconditions.checkNotNull(spillingBuffer.flip());
+  }
+
+  private boolean readFromCache(T record) throws IOException {
+
+    log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +") in cache mode");
     try {
+      recordsRead++;
       typeSerializer.deserialize(record, cache);
+
+      log.info("CachingIterator of " + name + " read record("+ (recordsRead) +") in cache mode");
       return true;
-    } catch (EOFException eofex) {
-      //TODO reset cache
+    } catch (EOFException e) {
       return false;
     }
-  }*/
+  }
 
   @Override
   public boolean next(T record) throws IOException {
-    return readFromDelegateAndCache(record);
+    return isCached() ? readFromCache(record) : readFromDelegateAndCache(record);
   }
 }
