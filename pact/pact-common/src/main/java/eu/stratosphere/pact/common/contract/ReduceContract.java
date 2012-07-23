@@ -319,6 +319,18 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
 		 * 
 		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 */
+		public Builder(Class<? extends ReduceStub> udf) {
+			this.udf = udf;
+			this.keyClasses = new LinkedList<Class<? extends Key>>();
+			this.keyColumns = new LinkedList<Integer>();
+			this.inputs = new LinkedList<Contract>();
+		}
+		
+		/**
+		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+		 * 
+		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn The position of the key.
 		 */
