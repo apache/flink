@@ -27,6 +27,9 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.CompressionLoader;
+import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
@@ -40,6 +43,8 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 	private final RuntimeTaskContext taskContext;
 
 	private final OutputGate<? extends Record> outputGate;
+
+	private Compressor compressor = null;
 
 	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final OutputGate<? extends Record> outputGate) {
 
@@ -170,9 +175,12 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 			// Construction for in-memory and network channels
 			final RuntimeDispatcher runtimeDispatcher = new RuntimeDispatcher(
 				this.taskContext.getTransferEnvelopeDispatcher());
-			final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
-				runtimeDispatcher);
-			final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, spillingBarrier);
+			/*
+			 * final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
+			 * runtimeDispatcher);
+			 * final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, spillingBarrier);
+			 */
+			final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, runtimeDispatcher);
 			final EphemeralCheckpoint checkpoint = this.taskContext.getEphemeralCheckpoint();
 			if (checkpoint != null) {
 				final EphemeralCheckpointForwarder checkpointForwarder = new EphemeralCheckpointForwarder(checkpoint,
@@ -199,5 +207,25 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 	public boolean registerBufferAvailabilityListener(final BufferAvailabilityListener bufferAvailabilityListener) {
 
 		return this.taskContext.registerBufferAvailabilityListener(bufferAvailabilityListener);
+	}
+
+	/**
+	 * Returns (and if necessary previously creates) the compressor to be used by the attached output channels.
+	 * 
+	 * @return the compressor to be used by the attached output channels or <code>null</code> if no compression shall be
+	 *         applied
+	 * @throws CompressionException
+	 *         thrown if an error occurs while creating the compressor
+	 */
+	Compressor getCompressor() throws CompressionException {
+
+		if (this.compressor == null) {
+			this.compressor = CompressionLoader.getCompressorByCompressionLevel(this.outputGate.getCompressionLevel(),
+				this.taskContext.getCompressionBufferProvider());
+		} else {
+			this.compressor.increaseChannelCounter();
+		}
+
+		return this.compressor;
 	}
 }

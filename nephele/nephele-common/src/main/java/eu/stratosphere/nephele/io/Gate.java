@@ -20,6 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
 
@@ -87,6 +88,13 @@ public interface Gate<T extends Record> {
 	ChannelType getChannelType();
 
 	/**
+	 * Returns the compression level that is applied by the input/output channels attached to this gate.
+	 * 
+	 * @return the compression level that is applied by the input/output channels attached to this gate
+	 */
+	CompressionLevel getCompressionLevel();
+
+	/**
 	 * Returns the ID of the gate.
 	 * 
 	 * @return the ID of the gate
@@ -124,4 +132,12 @@ public interface Gate<T extends Record> {
 	 *        the type of input/output channels which are connected to this gate
 	 */
 	void setChannelType(ChannelType channelType);
+
+	/**
+	 * Sets the compression level to be applied by the input/output channels connected to this gate.
+	 * 
+	 * @param compressionLevel
+	 *        the compression level to be applied by the input/output channels connected to this gate
+	 */
+	void setCompressionLevel(CompressionLevel compressionLevel);
 }

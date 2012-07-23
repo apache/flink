@@ -15,14 +15,16 @@
 
 package eu.stratosphere.nephele.io.compression.library.dynamic;
 
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 
-public class StubCompressionLibrary extends AbstractCompressionLibrary {
+public class StubCompressionLibrary implements CompressionLibrary {
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public int getUncompressedBufferSize(int compressedBufferSize) {
 
@@ -30,22 +32,30 @@ public class StubCompressionLibrary extends AbstractCompressionLibrary {
 		return compressedBufferSize;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String getLibraryName() {
-		
+
 		return "STUB";
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Compressor initNewCompressor(final AbstractByteBufferedOutputChannel<?> outputChannel) {
+	public Compressor createNewCompressor(final CompressionBufferProvider bufferProvider) {
 
-		return new StubCompressor(this);
+		return new StubCompressor();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Decompressor initNewDecompressor(final AbstractByteBufferedInputChannel<?> inputChannel) {
+	public Decompressor createNewDecompressor(final CompressionBufferProvider bufferProvider) {
 
-		return new StubDecompressor(this);
+		return new StubDecompressor();
 	}
-
 }

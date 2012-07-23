@@ -18,12 +18,15 @@ package eu.stratosphere.nephele.io.channels.bytebuffered;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.Decompressor;
 
 public interface ByteBufferedInputChannelBroker {
 
-	public void releaseConsumedReadBuffer();
+	public void releaseConsumedReadBuffer(Buffer buffer);
 
-	public BufferPairResponse getReadBufferToConsume();
+	public Buffer getReadBufferToConsume();
 
 	/**
 	 * Forwards the given event to the connected network output channel on a best effort basis.
@@ -36,4 +39,13 @@ public interface ByteBufferedInputChannelBroker {
 	 *         thrown if an I/O error occurs while transfering the event
 	 */
 	void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException;
+
+	/**
+	 * Returns (and if necessary previously creates) the decompressor associated with the requesting input channel.
+	 * 
+	 * @return the decompressor associated with the requesting input channel
+	 * @throws CompressionException
+	 *         thrown if an error occurs while creating the decompressor
+	 */
+	Decompressor getDecompressor() throws CompressionException;
 }

@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
+import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
@@ -389,6 +390,27 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 
 		while (it.hasNext()) {
 			it.next().releaseAllResources();
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initializeCompressors() throws CompressionException {
+
+		// In-memory channels to not use compression, so there is nothing to initialize
+		if (getChannelType() == ChannelType.INMEMORY) {
+			return;
+		}
+
+		// Check if this channel is configured to use compression
+		if (getCompressionLevel() == CompressionLevel.NO_COMPRESSION) {
+			return;
+		}
+
+		for (int i = 0; i < this.outputChannels.size(); ++i) {
+			this.outputChannels.get(i).initializeCompressor();
 		}
 	}
 }

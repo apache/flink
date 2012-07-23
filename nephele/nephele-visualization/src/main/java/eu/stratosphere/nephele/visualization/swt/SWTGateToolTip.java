@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -59,10 +60,13 @@ public class SWTGateToolTip extends SWTToolTip {
 			setTitle("Output Gate " + managementGate.getIndex());
 		}
 
-		GateVisualizationData gateVisualizationData = (GateVisualizationData) managementGate.getAttachment();
+		final Color backgroundColor = getShell().getBackground();
+		final Color foregroundColor = getShell().getForeground();
+
+		final GateVisualizationData gateVisualizationData = (GateVisualizationData) managementGate.getAttachment();
 
 		if (gateVisualizationData.isProfilingEnabled()) {
-			this.chart = createChart(gateVisualizationData);
+			this.chart = createChart(gateVisualizationData, backgroundColor);
 			this.chart.setLayoutData(new GridData(GridData.FILL_BOTH));
 			height = 200;
 		} else {
@@ -71,6 +75,9 @@ public class SWTGateToolTip extends SWTToolTip {
 		}
 
 		final Composite tableComposite = new Composite(getShell(), SWT.NONE);
+		tableComposite.setBackground(backgroundColor);
+		tableComposite.setForeground(foregroundColor);
+
 		final GridLayout tableGridLayout = new GridLayout(2, false);
 		tableGridLayout.marginHeight = 0;
 		tableGridLayout.marginLeft = 0;
@@ -85,10 +92,17 @@ public class SWTGateToolTip extends SWTToolTip {
 			channelType = managementGate.getVertex().getGroupVertex().getForwardEdge(managementGate.getIndex())
 				.getChannelType();
 		}
-		new Label(tableComposite, SWT.NONE).setText("Channel type:");
+
+		final Label channelTypeTextLabel = new Label(tableComposite, SWT.NONE);
+		channelTypeTextLabel.setBackground(backgroundColor);
+		channelTypeTextLabel.setForeground(foregroundColor);
+		channelTypeTextLabel.setText("Channel type:");
+
 		this.channelTypeLabel = new Label(tableComposite, SWT.NONE);
+		this.channelTypeLabel.setBackground(backgroundColor);
+		this.channelTypeLabel.setForeground(foregroundColor);
 		this.channelTypeLabel.setText(channelType.toString());
-		
+
 		if (!this.managementGate.isInputGate()) {
 			final ManagementGroupEdge groupEdge = this.managementGate.getVertex().getGroupVertex().getForwardEdge(
 				this.managementGate.getIndex());
@@ -107,16 +121,19 @@ public class SWTGateToolTip extends SWTToolTip {
 
 		getShell().setSize(WIDTH, height);
 
-		finishInstantiation(x, y, WIDTH);
+		finishInstantiation(x, y, WIDTH, false);
 	}
 
-	private ChartComposite createChart(GateVisualizationData visualizationData) {
+	private ChartComposite createChart(GateVisualizationData visualizationData, Color backgroundColor) {
 
 		final String yAxisLabel = this.managementGate.isInputGate() ? "No data available/sec."
 			: "Capacity limit reached/sec.";
 
 		final JFreeChart chart = ChartFactory.createXYLineChart(null, "Time [sec.]", yAxisLabel, visualizationData
 			.getChartCollection(), PlotOrientation.VERTICAL, false, false, false);
+
+		chart.setBackgroundPaint(new java.awt.Color(backgroundColor.getRed(), backgroundColor.getGreen(),
+			backgroundColor.getBlue()));
 
 		// Set axis properly
 		final XYPlot xyPlot = chart.getXYPlot();

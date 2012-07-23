@@ -15,24 +15,22 @@
 
 package eu.stratosphere.nephele.io.compression.library.zlib;
 
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.CompressionLibrary;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.util.NativeCodeLoader;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class ZlibLibrary extends AbstractCompressionLibrary {
+public class ZlibLibrary implements CompressionLibrary {
 
 	/**
 	 * The file name of the native zlib library.
 	 */
 	private static final String NATIVELIBRARYFILENAME = "libzlibcompression.so.1.0";
 
-	public ZlibLibrary(String nativeLibraryDir)
-												throws CompressionException {
+	public ZlibLibrary(final String nativeLibraryDir) throws CompressionException {
 
 		if (!NativeCodeLoader.isLibraryLoaded(NATIVELIBRARYFILENAME)) {
 			try {
@@ -46,30 +44,41 @@ public class ZlibLibrary extends AbstractCompressionLibrary {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int getUncompressedBufferSize(int compressedBufferSize) {
+	public int getUncompressedBufferSize(final int compressedBufferSize) {
 
 		return ((compressedBufferSize - 6) / 2501) * 2500;
 	}
 
 	native static void initIDs();
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public String getLibraryName() {
 		return "ZLIB";
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Compressor initNewCompressor(AbstractByteBufferedOutputChannel<?> outputChannel)
-			throws CompressionException {
+	public Compressor createNewCompressor(final CompressionBufferProvider bufferProvider) throws CompressionException {
 
-		return new ZlibCompressor(this);
+		return new ZlibCompressor(bufferProvider);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected Decompressor initNewDecompressor(AbstractByteBufferedInputChannel<?> inputChannel)
+	public Decompressor createNewDecompressor(final CompressionBufferProvider bufferProvider)
 			throws CompressionException {
 
-		return new ZlibDecompressor(this);
+		return new ZlibDecompressor(bufferProvider);
 	}
 }

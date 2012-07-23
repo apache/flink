@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.compiler.util;
 
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 
@@ -31,5 +32,10 @@ public final class DummyInputFormat extends DelimitedInputFormat
 		target.setField(0, this.integer);
 		target.setField(1, this.integer);
 		return true;
+	}
+
+	@Override
+	public FileBaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+		return new FileBaseStatistics(123456l, 10000l, 100);
 	}
 }

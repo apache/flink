@@ -18,31 +18,36 @@ package eu.stratosphere.nephele.io.channels.bytebuffered;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.Compressor;
 
 public interface ByteBufferedOutputChannelBroker {
 
 	/**
-	 * Requests empty write buffers from the broker. This method will block
-	 * until the requested write buffers are available.
+	 * Requests an empty write buffer from the broker. This method will block
+	 * until the requested write buffer is available.
 	 * 
-	 * @return one or possibly two byte buffers to write in, depending on whether compression is enabled or not
+	 * @return the byte buffers to write in
 	 * @throws InterruptedException
-	 *         thrown if the connected task is interrupted while waiting for the buffers
+	 *         thrown if the connected task is interrupted while waiting for the buffer
 	 * @throws IOException
-	 *         thrown if an error occurs while requesting the empty write buffers.
+	 *         thrown if an error occurs while requesting the empty write buffer.
 	 */
-	BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException, IOException;
+	Buffer requestEmptyWriteBuffer() throws InterruptedException, IOException;
 
 	/**
-	 * Returns a filled write buffers to the broker. The broker will take care
-	 * of the buffers and transfer the one with the user data to the connected input channel on a best effort basis.
+	 * Returns a filled write buffer to the broker. The broker will take care
+	 * of the buffers and transfer the user data to the connected input channel on a best effort basis.
 	 * 
+	 * @param buffer
+	 *        the buffer to be returned to the broker
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the buffers to be released
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while releasing the buffers
 	 */
-	void releaseWriteBuffers() throws IOException, InterruptedException;
+	void releaseWriteBuffer(Buffer buffer) throws IOException, InterruptedException;
 
 	/**
 	 * Checks if there is still data created by this output channel that must be transfered to the corresponding input
@@ -67,4 +72,13 @@ public interface ByteBufferedOutputChannelBroker {
 	 *         thrown if an I/O error occurs while transfering the event
 	 */
 	void transferEventToInputChannel(AbstractEvent event) throws IOException, InterruptedException;
+
+	/**
+	 * Returns (and if necessary previously creates) the compressor associated with the requesting output channel.
+	 * 
+	 * @return the compressor associated with the requesting output channel
+	 * @throws CompressionException
+	 *         thrown if an error occurs while creating the compressor
+	 */
+	Compressor getCompressor() throws CompressionException;
 }

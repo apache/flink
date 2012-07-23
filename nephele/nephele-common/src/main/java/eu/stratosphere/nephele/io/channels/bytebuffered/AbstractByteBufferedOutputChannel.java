@@ -28,8 +28,8 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
+import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.types.Record;
 
@@ -41,9 +41,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	private final SerializationBuffer<T> serializationBuffer = new SerializationBuffer<T>();
 
 	/**
-	 * Buffer for the compressed output data.
+	 * Buffer for the serialized output data.
 	 */
-	private Buffer compressedDataBuffer = null;
+	private Buffer dataBuffer = null;
 
 	/**
 	 * Stores whether the channel is requested to be closed.
@@ -59,11 +59,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	 * The compressor used to compress the outgoing data.
 	 */
 	private Compressor compressor = null;
-
-	/**
-	 * Buffer for the uncompressed data.
-	 */
-	private Buffer uncompressedDataBuffer = null;
 
 	/**
 	 * Stores the number of bytes transmitted through this output channel since its instantiation.
@@ -89,8 +84,6 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	protected AbstractByteBufferedOutputChannel(final OutputGate<T> outputGate, final int channelIndex,
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
-
-		this.compressor = CompressionLoader.getCompressorByCompressionLevel(compressionLevel, this);
 	}
 
 	/**
@@ -99,7 +92,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	@Override
 	public boolean isClosed() throws IOException, InterruptedException {
 
-		if (this.closeRequested && this.uncompressedDataBuffer == null
+		if (this.closeRequested && this.dataBuffer == null
 			&& !this.serializationBuffer.dataLeftFromPreviousSerialization()) {
 
 			if (!this.outputChannelBroker.hasDataLeftToTransmit()) {
@@ -131,38 +124,27 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	}
 
 	/**
-	 * Requests new write buffers from the framework. If compression is
-	 * used the call will result an a request for two buffers, otherwise one
-	 * buffer.
-	 * This method blocks until the requested number of buffers is available.
+	 * Requests a new write buffer from the framework. This method blocks until the requested buffer is available.
 	 * 
 	 * @throws InterruptedException
-	 *         thrown if the thread is interrupted while waiting for the buffers
+	 *         thrown if the thread is interrupted while waiting for the buffer
 	 * @throws IOException
-	 *         thrown if an I/O error occurs while waiting for the buffers
+	 *         thrown if an I/O error occurs while waiting for the buffer
 	 */
-	private void requestWriteBuffersFromBroker() throws InterruptedException, IOException {
+	private void requestWriteBufferFromBroker() throws InterruptedException, IOException {
 
-		final BufferPairResponse bufferPair = this.outputChannelBroker.requestEmptyWriteBuffers();
-		this.compressedDataBuffer = bufferPair.getCompressedDataBuffer();
-		this.uncompressedDataBuffer = bufferPair.getUncompressedDataBuffer();
-		if (this.compressor != null) {
-
-			this.compressor.setCompressedDataBuffer(this.compressedDataBuffer);
-			this.compressor.setUncompressedDataBuffer(this.uncompressedDataBuffer);
-		}
+		this.dataBuffer = this.outputChannelBroker.requestEmptyWriteBuffer();
 	}
 
 	/**
-	 * Returns the filled buffers to the framework and triggers
-	 * further processing.
+	 * Returns the filled buffer to the framework and triggers further processing.
 	 * 
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while releasing the buffers
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while releasing the buffers
 	 */
-	private void releaseWriteBuffers() throws IOException, InterruptedException {
+	private void releaseWriteBuffer() throws IOException, InterruptedException {
 
 		if (getCompressionLevel() == CompressionLevel.DYNAMIC_COMPRESSION) {
 			this.outputChannelBroker.transferEventToInputChannel(new CompressionEvent(this.compressor
@@ -170,11 +152,10 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		}
 
 		// Keep track of number of bytes transmitted through this channel
-		this.amountOfDataTransmitted += this.uncompressedDataBuffer.size();
+		this.amountOfDataTransmitted += this.dataBuffer.size();
 
-		this.outputChannelBroker.releaseWriteBuffers();
-		this.compressedDataBuffer = null;
-		this.uncompressedDataBuffer = null;
+		this.outputChannelBroker.releaseWriteBuffer(this.dataBuffer);
+		this.dataBuffer = null;
 	}
 
 	/**
@@ -184,9 +165,8 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	public void writeRecord(T record) throws IOException, InterruptedException {
 
 		// Get a write buffer from the broker
-		if (this.uncompressedDataBuffer == null) {
-
-			requestWriteBuffersFromBroker();
+		if (this.dataBuffer == null) {
+			requestWriteBufferFromBroker();
 		}
 
 		if (this.closeRequested) {
@@ -198,22 +178,22 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		if (this.compressor != null) {
 			while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
 
-				this.serializationBuffer.read(this.uncompressedDataBuffer);
-				if (this.uncompressedDataBuffer.remaining() == 0) {
+				this.serializationBuffer.read(this.dataBuffer);
+				if (this.dataBuffer.remaining() == 0) {
 
-					this.compressor.compress();
+					this.dataBuffer = this.compressor.compress(this.dataBuffer);
 					// this.leasedWriteBuffer.flip();
-					releaseWriteBuffers();
-					requestWriteBuffersFromBroker();
+					releaseWriteBuffer();
+					requestWriteBufferFromBroker();
 				}
 			}
 		} else {
 			while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
 
-				this.serializationBuffer.read(this.uncompressedDataBuffer);
-				if (this.uncompressedDataBuffer.remaining() == 0) {
-					releaseWriteBuffers();
-					requestWriteBuffersFromBroker();
+				this.serializationBuffer.read(this.dataBuffer);
+				if (this.dataBuffer.remaining() == 0) {
+					releaseWriteBuffer();
+					requestWriteBufferFromBroker();
 				}
 			}
 		}
@@ -225,17 +205,17 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		this.serializationBuffer.serialize(record);
 
 		if (this.compressor != null) {
-			this.serializationBuffer.read(this.uncompressedDataBuffer);
+			this.serializationBuffer.read(this.dataBuffer);
 
-			if (this.uncompressedDataBuffer.remaining() == 0) {
-				this.compressor.compress();
+			if (this.dataBuffer.remaining() == 0) {
+				this.dataBuffer = this.compressor.compress(this.dataBuffer);
 				// this.leasedWriteBuffer.flip();
-				releaseWriteBuffers();
+				releaseWriteBuffer();
 			}
 		} else {
-			this.serializationBuffer.read(this.uncompressedDataBuffer);
-			if (this.uncompressedDataBuffer.remaining() == 0) {
-				releaseWriteBuffers();
+			this.serializationBuffer.read(this.dataBuffer);
+			if (this.dataBuffer.remaining() == 0) {
+				releaseWriteBuffer();
 			}
 		}
 	}
@@ -249,6 +229,23 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	public void setByteBufferedOutputChannelBroker(ByteBufferedOutputChannelBroker byteBufferedOutputChannelBroker) {
 
 		this.outputChannelBroker = byteBufferedOutputChannelBroker;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initializeCompressor() throws CompressionException {
+
+		if (this.compressor != null) {
+			throw new IllegalStateException("Decompressor has already been initialized for channel " + getID());
+		}
+
+		if (this.outputChannelBroker == null) {
+			throw new IllegalStateException("Input channel broker has not been set");
+		}
+
+		this.compressor = this.outputChannelBroker.getCompressor();
 	}
 
 	/**
@@ -283,40 +280,40 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		// Get rid of remaining data in the serialization buffer
 		while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
 
-			if (this.uncompressedDataBuffer == null) {
+			if (this.dataBuffer == null) {
 
 				try {
-					requestWriteBuffersFromBroker();
+					requestWriteBufferFromBroker();
 				} catch (InterruptedException e) {
 					LOG.error(e);
 				}
 			}
 			if (this.compressor != null) {
-				this.serializationBuffer.read(this.uncompressedDataBuffer);
-				if (this.uncompressedDataBuffer.remaining() == 0) {
-					this.compressor.compress();
+				this.serializationBuffer.read(this.dataBuffer);
+				if (this.dataBuffer.remaining() == 0) {
+					this.dataBuffer = this.compressor.compress(this.dataBuffer);
 					// this.leasedWriteBuffer.flip();
-					releaseWriteBuffers();
+					releaseWriteBuffer();
 				}
 			} else {
-				this.serializationBuffer.read(this.uncompressedDataBuffer);
-				if (this.uncompressedDataBuffer.remaining() == 0) {
-					releaseWriteBuffers();
+				this.serializationBuffer.read(this.dataBuffer);
+				if (this.dataBuffer.remaining() == 0) {
+					releaseWriteBuffer();
 				}
 			}
 		}
 
 		// Get rid of the leased write buffer
 		if (this.compressor != null) {
-			if (this.uncompressedDataBuffer != null) {
-				this.compressor.compress();
+			if (this.dataBuffer != null) {
+				this.dataBuffer = this.compressor.compress(this.dataBuffer);
 
 				// this.leasedWriteBuffer.flip();
-				releaseWriteBuffers();
+				releaseWriteBuffer();
 			}
 		} else {
-			if (this.uncompressedDataBuffer != null) {
-				releaseWriteBuffers();
+			if (this.dataBuffer != null) {
+				releaseWriteBuffer();
 			}
 		}
 	}
@@ -332,18 +329,13 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		this.serializationBuffer.clear();
 
-		if (this.compressedDataBuffer != null) {
-			this.compressedDataBuffer.recycleBuffer();
-			this.compressedDataBuffer = null;
-		}
-
-		if (this.uncompressedDataBuffer != null) {
-			this.uncompressedDataBuffer.recycleBuffer();
-			this.uncompressedDataBuffer = null;
+		if (this.dataBuffer != null) {
+			this.dataBuffer.recycleBuffer();
+			this.dataBuffer = null;
 		}
 
 		if (this.compressor != null) {
-			this.compressor.shutdown(getID());
+			this.compressor.shutdown();
 		}
 	}
 
