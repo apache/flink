@@ -17,18 +17,15 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
+import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
@@ -38,11 +35,6 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 		ByteBufferedOutputChannelBroker {
 
 	/**
-	 * The static object used for logging.
-	 */
-	private static final Log LOG = LogFactory.getLog(RuntimeOutputChannelBroker.class);
-
-	/**
 	 * The byte buffered output channel this context belongs to.
 	 */
 	private final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel;
@@ -50,7 +42,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	/**
 	 * The buffer provider this channel broker to obtain buffers from.
 	 */
-	private final BufferProvider bufferProvider;
+	private final RuntimeOutputGateContext outputGateContext;
 
 	/**
 	 * The forwarding chain along which the created transfer envelopes will be pushed.
@@ -78,7 +70,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	 */
 	private int sequenceNumber = 0;
 
-	RuntimeOutputChannelBroker(final BufferProvider bufferProvider,
+	RuntimeOutputChannelBroker(final RuntimeOutputGateContext outputGateContext,
 			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel,
 			final AbstractOutputChannelForwarder next) {
 
@@ -88,7 +80,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 			throw new IllegalArgumentException("Argument next must not be null");
 		}
 
-		this.bufferProvider = bufferProvider;
+		this.outputGateContext = outputGateContext;
 		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
 		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
 	}
@@ -136,29 +128,19 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 		getNext().processEvent(event);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public BufferPairResponse requestEmptyWriteBuffers() throws InterruptedException, IOException {
+	public Buffer requestEmptyWriteBuffer() throws InterruptedException, IOException {
 
 		if (this.outgoingTransferEnvelope == null) {
 			this.outgoingTransferEnvelope = createNewOutgoingTransferEnvelope();
-		} else {
-			if (this.outgoingTransferEnvelope.getBuffer() != null) {
-				LOG.error("Channel " + this.byteBufferedOutputChannel.getID()
-					+ "'s transfer envelope already has a buffer attached");
-				return null;
-			}
 		}
 
 		final int uncompressedBufferSize = calculateBufferSize();
 
-		// TODO: This implementation breaks compression, we have to fix it later
-		final Buffer buffer = this.bufferProvider.requestEmptyBufferBlocking(uncompressedBufferSize);
-		final BufferPairResponse bufferResponse = new BufferPairResponse(null, buffer);
-
-		// Put the buffer into the transfer envelope
-		this.outgoingTransferEnvelope.setBuffer(bufferResponse.getUncompressedDataBuffer());
-
-		return bufferResponse;
+		return this.outputGateContext.requestEmptyBufferBlocking(uncompressedBufferSize);
 	}
 
 	/**
@@ -186,32 +168,32 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	private int calculateBufferSize() {
 
 		// TODO: Include latency considerations
-		return this.bufferProvider.getMaximumBufferSize();
+		return this.outputGateContext.getMaximumBufferSize();
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void releaseWriteBuffers() throws IOException, InterruptedException {
+	public void releaseWriteBuffer(final Buffer buffer) throws IOException, InterruptedException {
 
 		// Check for events
 		this.forwardingChain.processQueuedEvents();
 
 		if (this.outgoingTransferEnvelope == null) {
-			LOG.error("Cannot find transfer envelope for channel with ID " + this.byteBufferedOutputChannel.getID());
-			return;
+			throw new IllegalStateException("Cannot find transfer envelope for channel with ID "
+				+ this.byteBufferedOutputChannel.getID());
 		}
 
 		// Consistency check
-		if (this.outgoingTransferEnvelope.getBuffer() == null) {
-			LOG.error("Channel " + this.byteBufferedOutputChannel.getID() + " has no buffer attached");
-			return;
+		if (this.outgoingTransferEnvelope.getBuffer() != null) {
+			throw new IllegalStateException("Channel " + this.byteBufferedOutputChannel.getID()
+				+ " has already a buffer attached");
 		}
 
 		// Finish the write phase of the buffer
-		final Buffer buffer = this.outgoingTransferEnvelope.getBuffer();
 		buffer.finishWritePhase();
+		this.outgoingTransferEnvelope.setBuffer(buffer);
 
 		this.forwardingChain.pushEnvelope(this.outgoingTransferEnvelope);
 		this.outgoingTransferEnvelope = null;
@@ -244,5 +226,15 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 
 			this.forwardingChain.pushEnvelope(ephemeralTransferEnvelope);
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Compressor getCompressor() throws CompressionException {
+
+		// Delegate call to the gate context
+		return this.outputGateContext.getCompressor();
 	}
 }

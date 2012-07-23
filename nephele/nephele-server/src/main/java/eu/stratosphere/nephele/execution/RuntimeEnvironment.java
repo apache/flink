@@ -41,6 +41,7 @@ import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -243,6 +244,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			final ChannelType channelType = gdd.getChannelType();
 			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
 			og.setChannelType(channelType);
+			og.setCompressionLevel(compressionLevel);
 
 			final int nocdd = gdd.getNumberOfChannelDescriptors();
 			for (int j = 0; j < nocdd; ++j) {
@@ -273,6 +275,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			final ChannelType channelType = gdd.getChannelType();
 			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
 			ig.setChannelType(channelType);
+			ig.setCompressionLevel(compressionLevel);
 
 			final int nicdd = gdd.getNumberOfChannelDescriptors();
 			for (int j = 0; j < nicdd; ++j) {
@@ -351,6 +354,9 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		}
 
 		try {
+
+			// Initialize the compression components
+			initializeCompressionComponents();
 
 			// Activate input channels
 			activateInputChannels();
@@ -439,12 +445,28 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	}
 
 	/**
+	 * Initializes the compression components of the input and output channels.
+	 * 
+	 * @throws CompressionException
+	 *         thrown if an error occurs while initializing the compression components
+	 */
+	private void initializeCompressionComponents() throws CompressionException {
+
+		for (int i = 0; i < this.outputGates.size(); ++i) {
+			this.outputGates.get(i).initializeCompressors();
+		}
+
+		for (int i = 0; i < this.inputGates.size(); ++i) {
+			this.inputGates.get(i).initializeDecompressors();
+		}
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID, Class<T> outputClass,
-			final ChannelSelector<T> selector, final boolean isBroadcast)
-	{
+			final ChannelSelector<T> selector, final boolean isBroadcast) {
 		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gateID, outputClass,
 															getNumberOfOutputGates(), selector, isBroadcast);
 		return rog;
@@ -455,9 +477,9 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 */
 	@Override
 	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
-										final RecordDeserializerFactory<T> deserializerFactory)
-	{
-		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory, getNumberOfInputGates());
+										final RecordDeserializerFactory<T> deserializerFactory) {
+		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory,
+			getNumberOfInputGates());
 		return rig;
 	}
 

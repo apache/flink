@@ -15,8 +15,8 @@
 
 package eu.stratosphere.nephele.io.compression.library.bzip2;
 
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
 import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 
 /**
  * This class provides an interface for decompressing byte-buffers with the native bzip2 library
@@ -27,18 +27,15 @@ import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
 
 public class Bzip2Decompressor extends AbstractDecompressor {
 
-	public Bzip2Decompressor(AbstractCompressionLibrary compressionLibrary) {
-		super(compressionLibrary);
-		// TODO Auto-generated constructor stub
+	Bzip2Decompressor(final CompressionBufferProvider bufferProvider) {
+		super(bufferProvider);
 	}
 
 	native static void initIDs();
 
-	protected native int decompressBytesDirect(int offset);
-
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	protected void freeInternalResources() {
-		// TODO Auto-generated method stub
-
-	}
+	protected native int decompressBytesDirect(int offset);
 }

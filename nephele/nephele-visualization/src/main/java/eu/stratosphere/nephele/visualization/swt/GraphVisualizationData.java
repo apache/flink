@@ -38,12 +38,15 @@ public class GraphVisualizationData {
 
 	private final boolean profilingEnabledForJob;
 
+	private final long submissionTimestamp;
+
 	public GraphVisualizationData(JobID jobID, String jobName, boolean profilingEnabledForJob,
-			ManagementGraph managementGraph, NetworkTopology networkTopology) {
+			long submissionTimestamp, ManagementGraph managementGraph, NetworkTopology networkTopology) {
 
 		this.jobID = jobID;
 		this.jobName = jobName;
 		this.profilingEnabledForJob = profilingEnabledForJob;
+		this.submissionTimestamp = submissionTimestamp;
 		this.managementGraph = managementGraph;
 		this.networkTopology = networkTopology;
 	}
@@ -67,6 +70,10 @@ public class GraphVisualizationData {
 
 	public boolean isProfilingAvailableForJob() {
 		return this.profilingEnabledForJob;
+	}
+
+	public long getSubmissionTimestamp() {
+		return this.submissionTimestamp;
 	}
 
 	public void detectBottlenecks() {

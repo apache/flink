@@ -109,7 +109,8 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 	 */
 	@Override
 	public void unregisterGroupVertex(final ExecutionGroupVertex groupVertex) {
-		vertexMap.remove(groupVertex);
+		
+		this.vertexMap.remove(groupVertex);
 	}
 
 	/**

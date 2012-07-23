@@ -31,9 +31,11 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
+import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
@@ -50,8 +52,7 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        the type of record that can be transported through this gate
  */
-public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implements InputGate<T>
-{
+public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implements InputGate<T> {
 	/**
 	 * The log object used for debugging.
 	 */
@@ -106,8 +107,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 *        the index assigned to this input gate at the {@link Environment} object
 	 */
 	public RuntimeInputGate(final JobID jobID, final GateID gateID,
-						final RecordDeserializerFactory<T> deserializerFactory, final int index)
-	{
+						final RecordDeserializerFactory<T> deserializerFactory, final int index) {
 		super(jobID, gateID, index);
 		this.deserializerFactory = deserializerFactory;
 	}
@@ -370,8 +370,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * 
 	 * @return The {@link RecordDeserializerFactory} used by this input gate.
 	 */
-	public RecordDeserializerFactory<T> getRecordDeserializerFactory()
-	{
+	public RecordDeserializerFactory<T> getRecordDeserializerFactory() {
 		return this.deserializerFactory;
 	}
 
@@ -425,5 +424,26 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	public void notifyDataUnitConsumed(final int channelIndex) {
 
 		this.channelToReadFrom = -1;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void initializeDecompressors() throws CompressionException {
+
+		// In-memory channels to not use compression, so there is nothing to initialize
+		if (getChannelType() == ChannelType.INMEMORY) {
+			return;
+		}
+
+		// Check if this channel is configured to use compression
+		if (getCompressionLevel() == CompressionLevel.NO_COMPRESSION) {
+			return;
+		}
+
+		for (int i = 0; i < this.inputChannels.size(); ++i) {
+			this.inputChannels.get(i).initializeDecompressor();
+		}
 	}
 }

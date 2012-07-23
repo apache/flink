@@ -23,8 +23,9 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.BufferPairResponse;
 import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
+import eu.stratosphere.nephele.io.compression.CompressionException;
+import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
@@ -55,7 +56,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	 * @see eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker#releaseConsumedReadBuffer()
 	 */
 	@Override
-	public void releaseConsumedReadBuffer() {
+	public void releaseConsumedReadBuffer(final Buffer buffer) {
 		TransferEnvelope transferEnvelope = null;
 		synchronized (this.queuedEnvelopes) {
 
@@ -70,7 +71,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 			return;
 
 		// Recycle consumed read buffer
-		consumedBuffer.recycleBuffer();
+		buffer.recycleBuffer();
 	}
 
 	/*
@@ -78,7 +79,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	 * @see eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker#getReadBufferToConsume()
 	 */
 	@Override
-	public BufferPairResponse getReadBufferToConsume() {
+	public Buffer getReadBufferToConsume() {
 		TransferEnvelope transferEnvelope = null;
 
 		synchronized (this.queuedEnvelopes) {
@@ -108,9 +109,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 			return null;
 		}
 
-		// TODO: Fix implementation breaks compression, fix it later on
-		final BufferPairResponse response = new BufferPairResponse(null, transferEnvelope.getBuffer()); // No need to
-																										// copy anything
+		final Buffer buffer = transferEnvelope.getBuffer(); // No need to copy anything
 
 		// Process events
 		final EventList eventList = transferEnvelope.getEventList();
@@ -121,7 +120,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 					this.bbic.processEvent(it.next());
 			}
 
-		return response;
+		return buffer;
 	}
 
 	/*
@@ -161,5 +160,15 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	@Override
 	public AbstractByteBufferedInputChannel<?> getChannel() {
 		return this.bbic;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker#getDecompressor()
+	 */
+	@Override
+	public Decompressor getDecompressor() throws CompressionException {
+
+		return null;
 	}
 }
