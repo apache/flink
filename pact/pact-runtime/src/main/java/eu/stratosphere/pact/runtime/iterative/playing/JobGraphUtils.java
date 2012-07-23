@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
-import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankInputFormat;
+import eu.stratosphere.pact.runtime.iterative.task.BulkIterationSynchronizationSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
@@ -82,18 +82,13 @@ public class JobGraphUtils {
     return taskVertex;
   }
 
-  public static JobTaskVertex createSingletonTask(Class<? extends RegularPactTask> task, String name, JobGraph graph) {
-    JobTaskVertex taskVertex = new JobTaskVertex(name, graph);
-    taskVertex.setTaskClass(task);
-    taskVertex.setNumberOfSubtasks(1);
-    return taskVertex;
-  }
-
-  public static JobOutputVertex createSingletonFakeOutput(JobGraph jobGraph, String name) {
-    JobOutputVertex outputVertex = new JobOutputVertex(name, jobGraph);
-    outputVertex.setOutputClass(FakeOutputTask.class);
-    outputVertex.setNumberOfSubtasks(1);
-    return outputVertex;
+  public static JobOutputVertex createSync(JobGraph jobGraph, int degreeOfParallelism) {
+    JobOutputVertex sync = new JobOutputVertex("BulkIterationSync", jobGraph);
+    sync.setOutputClass(BulkIterationSynchronizationSinkTask.class);
+    sync.setNumberOfSubtasks(1);
+    TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
+    syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+    return sync;
   }
 
   public static JobOutputVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism) {

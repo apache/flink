@@ -25,11 +25,10 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
+import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationIntermediatePactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationSynchronizationPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.EmptyMapStub;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -45,11 +44,11 @@ public class PageRank {
     JobGraph jobGraph = new JobGraph("PageRank");
 
     JobInputVertex pageWithRankInput = JobGraphUtils.createInput(PageWithRankInputFormat.class,
-        "file:///home/ssc/Desktop/stratosphere/test-inputs/pagerank/pageWithRank", "PageWithRankInput", jobGraph,
+        "file://" + PlayConstants.PLAY_DIR + "test-inputs/pagerank/pageWithRank", "PageWithRankInput", jobGraph,
         degreeOfParallelism);
 
     JobInputVertex transitionMatrixInput = JobGraphUtils.createInput(TransitionMatrixInputFormat.class,
-        "file:///home/ssc/Desktop/stratosphere/test-inputs/pagerank/transitionMatrix", "TransitionMatrixInput",
+        "file://" + PlayConstants.PLAY_DIR + "test-inputs/pagerank/transitionMatrix", "TransitionMatrixInput",
         jobGraph, degreeOfParallelism);
     TaskConfig transitionMatrixInputConfig = new TaskConfig(transitionMatrixInput.getConfiguration());
     transitionMatrixInputConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
@@ -90,11 +89,7 @@ public class PageRank {
     tailConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     tailConfig.setNumFilehandles(2);
 
-    JobTaskVertex sync = JobGraphUtils.createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSync",
-        jobGraph);
-    TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-    syncConfig.setDriver(MapDriver.class);
-    syncConfig.setStubClass(EmptyMapStub.class);
+    JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
@@ -102,7 +97,6 @@ public class PageRank {
     outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, "file:///tmp/stratosphere/iterations");
 
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
-    JobOutputVertex fakeSyncOutput = JobGraphUtils.createSingletonFakeOutput(jobGraph, "FakeSyncOutput");
 
     JobGraphUtils.connectLocal(pageWithRankInput, head);
     JobGraphUtils.connectLocal(head, intermediate, DistributionPattern.BIPARTITE, ShipStrategy.BROADCAST);
@@ -115,16 +109,19 @@ public class PageRank {
 
     //TODO implicit order should be documented/configured somehow
     JobGraphUtils.connectLocal(head, sync);
-    syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
     JobGraphUtils.connectLocal(head, output);
 
     JobGraphUtils.connectLocal(tail, fakeTailOutput);
-    JobGraphUtils.connectLocal(sync, fakeSyncOutput);
 
-    head.setVertexToShareInstancesWith(tail);
+    fakeTailOutput.setVertexToShareInstancesWith(tail);
+    tail.setVertexToShareInstancesWith(head);
+    pageWithRankInput.setVertexToShareInstancesWith(head);
+    transitionMatrixInput.setVertexToShareInstancesWith(head);
+    intermediate.setVertexToShareInstancesWith(head);
+    output.setVertexToShareInstancesWith(head);
+    sync.setVertexToShareInstancesWith(head);
 
-
-    GlobalConfiguration.loadConfiguration("/home/ssc/Desktop/stratosphere/local-conf");
+    GlobalConfiguration.loadConfiguration(PlayConstants.PLAY_DIR + "local-conf");
     Configuration conf = GlobalConfiguration.getConfiguration();
 
     JobGraphUtils.submit(jobGraph, conf);

@@ -25,10 +25,9 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
+import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationSynchronizationPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.EmptyMapStub;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -43,7 +42,7 @@ public class IterativeMapReduce {
     JobGraph jobGraph = new JobGraph("Iterative MapReduce");
 
     JobInputVertex input = JobGraphUtils.createInput(TokenTokenInputFormat.class,
-        "file:///home/ssc/Desktop/stratosphere/test-inputs/iterative-mapreduce/", "FileInput", jobGraph,
+        "file://" + PlayConstants.PLAY_DIR + "test-inputs/iterative-mapreduce/", "FileInput", jobGraph,
         degreeOfParallelism);
 
     JobTaskVertex head = JobGraphUtils.createTask(BulkIterationHeadPactTask.class, "BulkIterationHead", jobGraph,
@@ -70,12 +69,7 @@ public class IterativeMapReduce {
     tailConfig.setNumFilehandles(2);
     tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
-    JobTaskVertex sync = JobGraphUtils.createSingletonTask(BulkIterationSynchronizationPactTask.class, "BulkIterationSync",
-        jobGraph);
-    TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-    syncConfig.setDriver(MapDriver.class);
-    syncConfig.setStubClass(EmptyMapStub.class);
-    syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+    JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
@@ -83,7 +77,6 @@ public class IterativeMapReduce {
     outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, "file:///tmp/stratosphere/iterations");
 
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
-    JobOutputVertex fakeSyncOutput = JobGraphUtils.createSingletonFakeOutput(jobGraph, "FakeSyncOutput");
 
     JobGraphUtils.connectLocal(input, head);
     //TODO implicit order should be documented/configured somehow
@@ -91,11 +84,10 @@ public class IterativeMapReduce {
     JobGraphUtils.connectLocal(head, sync);
     JobGraphUtils.connectLocal(head, output);
     JobGraphUtils.connectLocal(tail, fakeTailOutput);
-    JobGraphUtils.connectLocal(sync, fakeSyncOutput);
 
     head.setVertexToShareInstancesWith(tail);
 
-    GlobalConfiguration.loadConfiguration("/home/ssc/Desktop/stratosphere/local-conf");
+    GlobalConfiguration.loadConfiguration(PlayConstants.PLAY_DIR + "local-conf");
     Configuration conf = GlobalConfiguration.getConfiguration();
 
     JobGraphUtils.submit(jobGraph, conf);

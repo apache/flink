@@ -3,8 +3,9 @@ package eu.stratosphere.pact.runtime.iterative.task;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
+import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
@@ -16,11 +17,11 @@ import org.apache.commons.logging.LogFactory;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class BulkIterationSynchronizationSink extends AbstractOutputTask implements Terminable {
+public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask implements Terminable {
 
   private TaskConfig taskConfig;
 
-  private MutableObjectIterator<PactRecord> recordIterator;
+  private InterruptingMutableObjectIterator<PactRecord> recordIterator;
   private MutableRecordReader<PactRecord> reader;
 
   private int numIterations;
@@ -30,18 +31,29 @@ public class BulkIterationSynchronizationSink extends AbstractOutputTask impleme
   // this task will never see any records, just events
   private static final PactRecord DUMMY = new PactRecord();
 
-  private static final Log log = LogFactory.getLog(BulkIterationSynchronizationSink.class);
+  private static final Log log = LogFactory.getLog(BulkIterationSynchronizationSinkTask.class);
 
+  //TODO this duplicates code from AbstractIterativePactTask
   @Override
   public void registerInputOutput() {
+
+    taskConfig = new TaskConfig(getTaskConfiguration());
 
     String name = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
         getEnvironment().getCurrentNumberOfSubtasks() + ")";
     int numberOfEventsUntilInterrupt = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
 
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("wrapping input [0] with an interrupting iterator that waits " +
+          "for [" + numberOfEventsUntilInterrupt + "] event(s)"));
+    }
+
     reader = new MutableRecordReader<PactRecord>(this);
     recordIterator = new InterruptingMutableObjectIterator<PactRecord>(new PactRecordNepheleReaderIterator(reader,
         ReaderInterruptionBehaviors.FALSE_ON_INTERRUPT), numberOfEventsUntilInterrupt, name, this);
+
+    reader.subscribeToEvent(recordIterator, EndOfSuperstepEvent.class);
+    reader.subscribeToEvent(recordIterator, TerminationEvent.class);
   }
 
   @Override
@@ -82,14 +94,13 @@ public class BulkIterationSynchronizationSink extends AbstractOutputTask impleme
 
       numIterations++;
     }
-
   }
 
   private void readInput() throws IOException {
     boolean recordFound;
     while (recordFound = recordIterator.next(DUMMY)) {
       if (recordFound) {
-        throw new IllegalStateException("Synchronization task shall never see any records!");
+        throw new IllegalStateException("Synchronization task must not see any records!");
       }
     }
   }
