@@ -50,7 +50,7 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 	
 	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize, int limitInLastSegment)
 	{
-		super(segments.get(0), segmentSize, 0);
+		super(segments.get(0), segments.size() > 1 ? segmentSize : limitInLastSegment, 0);
 		this.segments = segments;
 		this.currentSegmentIndex = 0;
 		this.segmentSize = segmentSize;
@@ -69,7 +69,7 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 		final int offset = (int) (position & this.segmentSizeMask);
 		
 		this.currentSegmentIndex = bufferNum;
-		seekInput(this.segments.get(bufferNum), offset, this.segmentSize);
+		seekInput(this.segments.get(bufferNum), offset, bufferNum < this.segments.size() - 1 ? this.segmentSize : this.limitInLastSegment);
 	}
 
 	/* (non-Javadoc)

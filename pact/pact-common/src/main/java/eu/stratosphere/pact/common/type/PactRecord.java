@@ -1074,7 +1074,7 @@ public final class PactRecord implements Value
 				int shift = 7;
 				int curr;
 				numFields = numFields & 0x7f;
-				while ((curr = data[pos--]) >= MAX_BIT) {
+				while ((curr = data[pos--] & 0xff) >= MAX_BIT) {
 					numFields |= (curr & 0x7f) << shift;
 					shift += 7;
 				}

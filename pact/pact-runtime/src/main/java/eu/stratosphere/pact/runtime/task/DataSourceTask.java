@@ -121,6 +121,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 			
 			// get input splits to read
 			final Iterator<InputSplit> splitIterator = getInputSplits();
+			final OT record = this.serializer.createInstance();
 	
 			// for each assigned input split
 			while (!this.taskCanceled && splitIterator.hasNext())
@@ -138,8 +139,6 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	
 				if (LOG.isDebugEnabled())
 					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
-	
-				final OT record = this.serializer.createInstance();
 				
 				// ======= special-case the PactRecord, to help the JIT and avoid some casts ======
 				if (record.getClass() == PactRecord.class) {
@@ -153,6 +152,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 						final PactRecordOutputCollector output = (PactRecordOutputCollector) this.output;
 						while (!this.taskCanceled && !inFormat.reachedEnd()) {
 							// build next pair and ship pair if it is valid
+							pactRecord.clear();
 							if (inFormat.nextRecord(pactRecord)) {
 								output.collect(pactRecord);
 							}
@@ -165,6 +165,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 						// as long as there is data to read
 						while (!this.taskCanceled && !inFormat.reachedEnd()) {
 							// build next pair and ship pair if it is valid
+							pactRecord.clear();
 							if (inFormat.nextRecord(pactRecord)) {
 								output.collect(pactRecord);
 							}
@@ -176,6 +177,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 						// as long as there is data to read
 						while (!this.taskCanceled && !inFormat.reachedEnd()) {
 							// build next pair and ship pair if it is valid
+							pactRecord.clear();
 							if (inFormat.nextRecord(pactRecord)) {
 								output.collect(pactRecord);
 							}
