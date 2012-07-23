@@ -83,7 +83,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   @Override
   public void terminate() {
     if (log.isInfoEnabled()) {
-      log.info(formatLogString("terminating."));
+      log.info(formatLogString("marked as terminated."));
     }
     terminated.set(true);
   }
@@ -101,6 +101,9 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
       return (MutableObjectIterator<X>) wrappedInputs[inputGateIndex];
     }
 
+    String name = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
+        getEnvironment().getCurrentNumberOfSubtasks() + ")";
+
     if (getTaskConfig().isCachedInputGate(inputGateIndex)) {
 
       if (log.isInfoEnabled()) {
@@ -110,7 +113,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
       SpillingBuffer spillingBuffer = reserveMemoryForCaching(getTaskConfig().getInputGateCacheMemoryFraction());
       //TODO type safety
       MutableObjectIterator<X> cachedInput = new CachingMutableObjectIterator<X>((MutableObjectIterator<X>)
-          super.getInput(inputGateIndex), spillingBuffer, (TypeSerializer<X>) getInputSerializer(inputGateIndex));
+          super.getInput(inputGateIndex), spillingBuffer, (TypeSerializer<X>) getInputSerializer(inputGateIndex), name);
 
       wrappedInputs[inputGateIndex] = cachedInput;
 
@@ -121,11 +124,9 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
       int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex);
 
-      String owner = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
-          getEnvironment().getCurrentNumberOfSubtasks() + ")";
       //TODO type safety
       InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
-          (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, owner, this);
+          (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, name, this);
 
       MutableReader<Record> inputReader = getReader(inputGateIndex);
       inputReader.subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);

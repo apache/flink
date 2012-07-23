@@ -41,7 +41,7 @@ public class PageRank {
 
   public static void main(String[] args) throws Exception {
 
-    int degreeOfParallelism = 1;
+    int degreeOfParallelism = 2;
     JobGraph jobGraph = new JobGraph("PageRank");
 
     JobInputVertex pageWithRankInput = JobGraphUtils.createInput(PageWithRankInputFormat.class,
@@ -116,12 +116,13 @@ public class PageRank {
     //TODO implicit order should be documented/configured somehow
     JobGraphUtils.connectLocal(head, sync);
     syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
-
     JobGraphUtils.connectLocal(head, output);
+
     JobGraphUtils.connectLocal(tail, fakeTailOutput);
     JobGraphUtils.connectLocal(sync, fakeSyncOutput);
 
     head.setVertexToShareInstancesWith(tail);
+
 
     GlobalConfiguration.loadConfiguration("/home/ssc/Desktop/stratosphere/local-conf");
     Configuration conf = GlobalConfiguration.getConfiguration();

@@ -24,6 +24,7 @@ import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 
+//TODO make this an output
 public class BulkIterationSynchronizationPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
   private int numIterations = 0;
