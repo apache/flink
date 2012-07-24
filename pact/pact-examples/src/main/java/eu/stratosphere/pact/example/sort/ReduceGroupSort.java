@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.groupsort;
+package eu.stratosphere.pact.example.sort;
 
 import java.util.Iterator;
 
