@@ -21,23 +21,20 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBrok
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
-import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
-import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 //TODO could this be an output???
+/**
+ * The tail of an iteration, which is able to run a {@link eu.stratosphere.pact.runtime.task.PactDriver} inside. It will send back its output to
+ * the iteration's head via a {@link BlockingBackChannel}. Therefore this task must be scheduled on the same instance as the head.
+ */
 public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 
   private int numIterations = 0;
 
   private static final Log log = LogFactory.getLog(BulkIterationTailPactTask.class);
-
-  @Override
-  protected ReaderInterruptionBehavior readerInterruptionBehavior() {
-    return ReaderInterruptionBehaviors.FALSE_ON_INTERRUPT;
-  }
 
   private BlockingBackChannel retrieveBackChannel() throws Exception {
     // blocking call to retrieve the backchannel from the iteration head

@@ -21,6 +21,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+/** Marks the end of a superstep of one particular iteration head */
 public class EndOfSuperstepEvent extends AbstractTaskEvent {
 
   @Override

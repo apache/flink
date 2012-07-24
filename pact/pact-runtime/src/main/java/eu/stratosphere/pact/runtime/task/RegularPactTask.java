@@ -358,7 +358,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					// have a special case for the PactRecord serialization
 					final MutableRecordReader<PactRecord> reader = new MutableRecordReader<PactRecord>(this);
 					inputReaders[i] = reader;
-					inputs[i] = new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior());
+					inputs[i] = new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior(i));
 				} else {
 					// generic data type serialization
 					final MutableRecordReader<DeserializationDelegate<?>> reader =
@@ -366,7 +366,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					inputReaders[i] = reader;
 					@SuppressWarnings({ "unchecked", "rawtypes" })
 					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i],
-						readerInterruptionBehavior());
+						readerInterruptionBehavior(i));
 					inputs[i] = iter;
 				}
 			} else {
@@ -380,7 +380,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					}
 					final MutableUnionRecordReader<PactRecord> reader = new MutableUnionRecordReader<PactRecord>(readers);
 					inputReaders[i] = reader;
-					inputs[i] = new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior());
+					inputs[i] = new PactRecordNepheleReaderIterator(reader, readerInterruptionBehavior(i));
 				} else {
 					@SuppressWarnings("unchecked")
 					MutableRecordReader<DeserializationDelegate<?>>[] readers = new MutableRecordReader[groupSize];
@@ -392,7 +392,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					
 					@SuppressWarnings({ "unchecked", "rawtypes" })
 					final MutableObjectIterator<?> iter = new NepheleReaderIterator(reader, inputSerializers[i],
-						readerInterruptionBehavior());
+						readerInterruptionBehavior(i));
 					inputs[i] = iter;
 				}
 			}
@@ -432,10 +432,12 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 
 	/**
 	 * Gets the default behavior that readers should use on interrupts.
-	 * 
-	 * @return The default behavior that readers should use on interrupts.
+	 *
+   * @param inputGateIndex
+   *
+   * @return The default behavior that readers should use on interrupts.
 	 */
-	protected ReaderInterruptionBehavior readerInterruptionBehavior() {
+	protected ReaderInterruptionBehavior readerInterruptionBehavior(int inputGateIndex) {
 		return ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
 	}
 	/**

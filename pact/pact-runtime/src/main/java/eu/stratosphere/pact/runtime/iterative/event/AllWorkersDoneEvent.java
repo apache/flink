@@ -21,6 +21,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+/** signals that all iteration heads are done with one particular superstep */
 public class AllWorkersDoneEvent extends AbstractTaskEvent {
 
   @Override

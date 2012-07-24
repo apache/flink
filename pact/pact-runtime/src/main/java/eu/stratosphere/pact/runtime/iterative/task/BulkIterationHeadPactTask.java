@@ -45,6 +45,20 @@ import org.apache.commons.logging.LogFactory;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * The head is responsible for coordinating an iteration and can run a {@link eu.stratosphere.pact.runtime.task.PactDriver} inside. It will read
+ * the initial input and establish a {@link BlockingBackChannel} to the iteration's tail. After successfully processing the input, it will send
+ * {@link EndOfSuperstepEvent} events to its outputs. It must also be connected to a synchronization task and after each superstep, it will wait
+ * until it receives an {@link AllWorkersDoneEvent} from the sync, which signals that all other heads have also finished their iteration. Starting with
+ * the second iteration, the input for the head is the output of the tail, transmitted through the backchannel. Once the iteration is done, the head
+ * will send a {@link TerminationEvent} to all it's connected tasks, signalling them to shutdown.
+ *
+ * Contracts for this class:
+ *
+ * The final output of the iteration must be connected as last task, the sync right before that.
+ *
+ * The input for the iteration must arrive in the first gate. *
+ */
 public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 

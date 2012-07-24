@@ -35,6 +35,8 @@ import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterat
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
+import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
+import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -92,6 +94,12 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   protected void initInputs() throws Exception {
     super.initInputs();
     wrappedInputs = new MutableObjectIterator<?>[getEnvironment().getNumberOfInputGates()];
+  }
+
+  @Override
+  protected ReaderInterruptionBehavior readerInterruptionBehavior(int inputGateIndex) {
+    return getTaskConfig().isIterativeInputGate(inputGateIndex) ?
+        ReaderInterruptionBehaviors.FALSE_ON_INTERRUPT : ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
   }
 
   @Override

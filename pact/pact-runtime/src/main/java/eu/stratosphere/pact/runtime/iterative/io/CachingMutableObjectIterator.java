@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
-import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
@@ -26,13 +25,27 @@ import org.apache.commons.logging.LogFactory;
 import java.io.EOFException;
 import java.io.IOException;
 
+/**
+ * A {@link MutableObjectIterator} that reads its input into a {@link SpillingBuffer}, so that it can be read again later.
+ *
+ * The contract for this class is as following
+ *
+ * After the initial input is consumed (when next() returned false for the first time), the caller has to invoke enableReading() prior to
+ * reading the cached data and must read the cached data fully afterwards
+ *
+ */
 public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T> {
 
+  /** the original input */
   private final MutableObjectIterator<T> delegate;
+  /** the buffer to cache the input in, will spill to disk in case of overflow */
   private final SpillingBuffer spillingBuffer;
+  /** serializer for the input data */
   private final TypeSerializer<T> typeSerializer;
+  /** name of the owning task for logging purposes */
   private final String name;
 
+  /** a {@link java.io.DataInput} to read the cached data from */
   private DataInputView cache;
 
   private static final Log log = LogFactory.getLog(CachingMutableObjectIterator.class);
@@ -52,6 +65,7 @@ public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T>
   //TODO remove counting once code is stable
   private int recordsRead = 0;
 
+  /** read records from original input and write them to the cache */
   private boolean readFromDelegateAndCache(T record) throws IOException {
 
     log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +")");
@@ -67,11 +81,15 @@ public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T>
     return recordFound;
   }
 
+  /** must be called prior to reading cached data */
   public void enableReading() throws IOException {
-    log.info("CachingIterator of " + name + " enables cache reading");
-    cache = Preconditions.checkNotNull(spillingBuffer.flip());
+    if (log.isInfoEnabled()) {
+      log.info("CachingIterator of " + name + " enables cache reading");
+    }
+    cache = spillingBuffer.flip();
   }
 
+  /** reread input from the cache */
   private boolean readFromCache(T record) throws IOException {
 
     log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +") in cache mode");

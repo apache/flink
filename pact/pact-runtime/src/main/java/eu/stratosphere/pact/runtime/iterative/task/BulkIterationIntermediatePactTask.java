@@ -20,23 +20,20 @@ import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
-import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehavior;
-import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 
+/**
+ * A task which participates in an iteration and runs a {@link eu.stratosphere.pact.runtime.task.PactDriver} inside. It will propagate
+ * {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to it's connected tasks.
+ */
 public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
   private int numIterations = 0;
 
   private static final Log log = LogFactory.getLog(BulkIterationIntermediatePactTask.class);
-
-  @Override
-  protected ReaderInterruptionBehavior readerInterruptionBehavior() {
-    return ReaderInterruptionBehaviors.FALSE_ON_INTERRUPT;
-  }
 
   @Override
   public void invoke() throws Exception {
