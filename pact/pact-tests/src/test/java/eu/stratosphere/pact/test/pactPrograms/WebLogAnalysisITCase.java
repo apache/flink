@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.PactCompiler;
+import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.example.relational.WebLogAnalysis;
@@ -165,7 +166,7 @@ public class WebLogAnalysisITCase extends TestBase {
 		"183.57.175.105|url_27|2007-8-13|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + "230.212.34.87|url_10|2010-12-21|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + 
 		"133.150.217.96|url_24|2012-7-27|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n" + "62.254.96.239|url_24|2011-5-15|0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|";
 
-	String expected = "87|url_24|39|\n" + "59|url_28|41|\n";
+	String expected = "87|url_24|39\n" + "59|url_28|41\n";
 
 	public WebLogAnalysisITCase(Configuration config) {
 		super(config);
