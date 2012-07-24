@@ -12,6 +12,8 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents a long value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

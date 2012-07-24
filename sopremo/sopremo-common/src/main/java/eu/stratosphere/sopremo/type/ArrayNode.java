@@ -8,6 +8,9 @@ import java.util.List;
 import eu.stratosphere.util.CollectionUtil;
 
 /**
+ * This node represents an array and can store all types of {@link IJsonNode}s. In addition, the size of the array
+ * increases when needed.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

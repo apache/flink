@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.io.Serializable;
 
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.NormalizableKey;
 import eu.stratosphere.pact.common.type.Value;
 
 /**

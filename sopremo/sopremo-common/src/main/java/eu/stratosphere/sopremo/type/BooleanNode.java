@@ -7,6 +7,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
+ * This node represents a boolean value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

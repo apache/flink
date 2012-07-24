@@ -7,6 +7,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 /**
+ * This node represents a missing value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

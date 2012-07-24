@@ -12,6 +12,8 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents an integer value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

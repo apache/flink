@@ -10,6 +10,8 @@ import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents a string value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

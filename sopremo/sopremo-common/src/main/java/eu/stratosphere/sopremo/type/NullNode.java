@@ -9,6 +9,8 @@ import java.io.ObjectOutputStream;
 import eu.stratosphere.pact.common.type.base.PactNull;
 
 /**
+ * This node represents the value 'null'.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

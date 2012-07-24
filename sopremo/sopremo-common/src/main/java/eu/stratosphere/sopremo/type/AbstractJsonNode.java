@@ -10,6 +10,8 @@ import java.util.Arrays;
 import eu.stratosphere.pact.common.type.Key;
 
 /**
+ * Abstract class to provide basic implementations for all node types.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

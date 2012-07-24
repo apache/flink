@@ -12,6 +12,8 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents a double value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -23,7 +25,7 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 	private static final long serialVersionUID = -192178456171338173L;
 
 	private transient PactDouble value;
-	
+
 	public final static DoubleNode NaN = DoubleNode.valueOf(Double.NaN);
 
 	/**

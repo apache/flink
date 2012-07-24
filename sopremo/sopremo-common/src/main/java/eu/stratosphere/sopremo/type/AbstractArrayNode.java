@@ -23,6 +23,8 @@ import java.util.Collection;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * Abstract class to provide basic implementations for array type nodes.
+ * 
  * @author Arvid Heise
  */
 public abstract class AbstractArrayNode extends AbstractJsonNode implements IArrayNode {

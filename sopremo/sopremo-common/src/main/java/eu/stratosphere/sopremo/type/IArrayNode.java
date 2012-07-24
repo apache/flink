@@ -17,6 +17,8 @@ package eu.stratosphere.sopremo.type;
 import java.util.Collection;
 
 /**
+ * Interface for all array type nodes.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

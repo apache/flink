@@ -9,6 +9,8 @@ import java.math.BigInteger;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents a {@link BigInteger}.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

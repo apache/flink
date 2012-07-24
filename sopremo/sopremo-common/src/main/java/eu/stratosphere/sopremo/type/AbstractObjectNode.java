@@ -22,6 +22,8 @@ import java.util.Map.Entry;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * Abstract class to provide basic implementations for object type nodes.
+ * 
  * @author Arvid Heise
  */
 public abstract class AbstractObjectNode extends AbstractJsonNode implements IObjectNode {
