@@ -780,7 +780,7 @@ public class MatchNode extends TwoInputNode {
 				if (scrambledKeyOrder1 != null) {
 					FieldList scrambledKeys2 = new FieldList();
 					for (int i = 0; i < scrambledKeyOrder1.length; i++) {
-						scrambledKeys2.set(i, this.keySet2.get(scrambledKeyOrder1[i]));
+						scrambledKeys2.add(this.keySet2.get(scrambledKeyOrder1[i]));
 					}
 					
 					gp2.setPartitioning(gp2.getPartitioning(), scrambledKeys2);
@@ -795,7 +795,7 @@ public class MatchNode extends TwoInputNode {
 				if (scrambledKeyOrder2 != null) {
 					FieldList scrambledKeys1 = new FieldList();
 					for (int i = 0; i < scrambledKeyOrder2.length; i++) {
-						scrambledKeys1.set(i, this.keySet1.get(scrambledKeyOrder2[i]));
+						scrambledKeys1.add(this.keySet1.get(scrambledKeyOrder2[i]));
 					}
 					
 					gp1.setPartitioning(gp1.getPartitioning(), scrambledKeys1);
