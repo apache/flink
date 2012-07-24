@@ -5,6 +5,9 @@ import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Super class that can be used to specify new aggregation functions.
+ */
 public abstract class AggregationFunction implements ISerializableSopremoType, Cloneable {
 	/**
 	 * 

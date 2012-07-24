@@ -1,11 +1,8 @@
 package eu.stratosphere.sopremo.pact;
 
-import static eu.stratosphere.sopremo.pact.IOConstants.COLUMN_NAMES;
 import static eu.stratosphere.sopremo.pact.IOConstants.ENCODING;
 import static eu.stratosphere.sopremo.pact.IOConstants.FIELD_DELIMITER;
-import static eu.stratosphere.sopremo.pact.IOConstants.SCHEMA;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URI;

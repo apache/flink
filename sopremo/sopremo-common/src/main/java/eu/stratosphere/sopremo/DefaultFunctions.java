@@ -1,7 +1,5 @@
 package eu.stratosphere.sopremo;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,7 +36,6 @@ import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.ConcatenatingIterator;
-import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * Base built-in functions.

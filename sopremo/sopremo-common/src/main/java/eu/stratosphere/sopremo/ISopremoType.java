@@ -15,6 +15,8 @@
 package eu.stratosphere.sopremo;
 
 /**
+ * Interface for all types.
+ * 
  * @author Arvid Heise
  */
 public interface ISopremoType {
