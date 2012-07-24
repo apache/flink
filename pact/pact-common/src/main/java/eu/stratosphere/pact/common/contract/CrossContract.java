@@ -201,24 +201,28 @@ public class CrossContract extends DualInputContract<CrossStub>
 		}
 		
 		/**
-		 * Sets the first input.
+		 * Sets one or several inputs (union) for input 1.
 		 * 
 		 * @param input
 		 */
-		public Builder input1(Contract input) {
+		public Builder input1(Contract ...inputs) {
 			this.inputs1.clear();
-			this.inputs1.add(input);
+			for (Contract c : inputs) {
+				this.inputs1.add(c);
+			}
 			return this;
 		}
 		
 		/**
-		 * Sets the first input.
+		 * Sets one or several inputs (union) for input 2.
 		 * 
 		 * @param input
 		 */
-		public Builder input2(Contract input) {
+		public Builder input2(Contract ...inputs) {
 			this.inputs2.clear();
-			this.inputs2.add(input);
+			for (Contract c : inputs) {
+				this.inputs2.add(c);
+			}
 			return this;
 		}
 		

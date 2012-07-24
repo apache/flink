@@ -143,13 +143,15 @@ public class MapContract extends SingleInputContract<MapStub>
 		}
 		
 		/**
-		 * Sets the input.
+		 * Sets one or several inputs (union).
 		 * 
 		 * @param input
 		 */
-		public Builder input(Contract input) {
+		public Builder input(Contract ...inputs) {
 			this.inputs.clear();
-			this.inputs.add(input);
+			for (Contract c : inputs) {
+				this.inputs.add(c);
+			}
 			return this;
 		}
 		
