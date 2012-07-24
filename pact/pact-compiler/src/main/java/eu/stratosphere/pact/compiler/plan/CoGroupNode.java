@@ -361,7 +361,7 @@ public class CoGroupNode extends TwoInputNode {
 						}
 					} else {
 						
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss2);							
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);							
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is forward. if it is partitioned, adapt to the partitioning
@@ -403,7 +403,7 @@ public class CoGroupNode extends TwoInputNode {
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
 
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
 					gp2 = subPlan2.getGlobalProperties();
 					
 					// 1) input 1 is forward. if it is partitioned, adapt to the partitioning
@@ -443,8 +443,8 @@ public class CoGroupNode extends TwoInputNode {
 					// both are fixed
 					// check, if they produce a valid plan. for that, we need to have an equal partitioning
 
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
-					gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
+					gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 					
 					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning() &&
 							partitioningIsOnSameSubkey(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
@@ -485,10 +485,10 @@ public class CoGroupNode extends TwoInputNode {
 		GlobalProperties gp1, gp2;
 		LocalProperties lp1, lp2;
 		
-		gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
+		gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
 		lp1 = PactConnection.getLocalPropertiesAfterConnection(subPlan1, this, ss1);
 		
-		gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+		gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 		lp2 = PactConnection.getLocalPropertiesAfterConnection(subPlan2, this, ss2);
 		
 		int[] scrambledKeyOrder1 = null;

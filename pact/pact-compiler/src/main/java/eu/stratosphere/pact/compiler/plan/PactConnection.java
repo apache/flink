@@ -302,9 +302,9 @@ public class PactConnection {
 	 * 
 	 * @return The global data properties of the output data.
 	 */
-	public GlobalProperties getGlobalProperties() {
-		return PactConnection.getGlobalPropertiesAfterConnection(this.sourcePact, this.targetPact, this.shipStrategy);
-	}
+//	public GlobalProperties getGlobalProperties() {
+//		return PactConnection.getGlobalPropertiesAfterConnection(this.sourcePact, this.targetPact, this.shipStrategy);
+//	}
 
 	/**
 	 * Gets the local properties of the data after this connection.
@@ -359,24 +359,19 @@ public class PactConnection {
 	 * 
 	 * @return The properties of the data after this channel.
 	 */
-	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
+	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, int targetInputNum, ShipStrategy shipMode) {
 		GlobalProperties gp = source.getGlobalProperties().createCopy();
 		
 		FieldList keyFields = null;
-		int inputNum = 0;
-		// search for connection and obtain key set
-		for (PactConnection conn : target.getIncomingConnections()) {
-			if (conn.getSourcePact().getId() == source.getId()) {
-				if (conn.getScramblePartitionedFields() != null) {
-					// TODO get scrambled fields right!
-					throw new CompilerException("Scrambled Fields are not supported yet!");
-					//keyFields = conn.getScramblePartitionedFields();
-				} else if (target.getPactContract() instanceof AbstractPact<?>) {
-					keyFields = new FieldList(((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(inputNum));
-				}
-				break;
-			}
-			inputNum++;
+		
+		// obtain key set
+		PactConnection conn = target.getIncomingConnections().get(targetInputNum);
+		if (conn.getScramblePartitionedFields() != null) {
+			// TODO get scrambled fields right!
+			throw new CompilerException("Scrambled Fields are not supported yet!");
+			//keyFields = conn.getScramblePartitionedFields();
+		} else if (target.getPactContract() instanceof AbstractPact<?>) {
+			keyFields = new FieldList(((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(targetInputNum));
 		}
 		
 		switch (shipMode) {

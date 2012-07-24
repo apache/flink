@@ -251,12 +251,12 @@ public class ReduceNode extends SingleInputNode {
 					ss = ShipStrategy.PARTITION_HASH;
 				}
 
-				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, ss);
+				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, 0, ss);
 				lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
 				
 			} else {
 				// fixed strategy
-				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, ss);
+				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, 0, ss);
 				lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
 
 				if (!((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned())
