@@ -16,35 +16,16 @@ package eu.stratosphere.sopremo.function;
 
 import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 
 /**
  * @author Arvid Heise
  */
-public abstract class Callable<Result, InputType> extends AbstractSopremoType implements SerializableSopremoType {
+public abstract class Callable<Result, InputType> extends AbstractSopremoType implements ISerializableSopremoType {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 7623937906556576557L;
 
-	private final String name;
-
-	public Callable(final String name) {
-		this.name = name;
-	}
-
-	public String getName() {
-		return this.name;
-	}
-
 	public abstract Result call(InputType params, Result target, EvaluationContext context);
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
-	 */
-	@Override
-	public void toString(final StringBuilder builder) {
-		builder.append(this.name).append("()");
-	}
 }

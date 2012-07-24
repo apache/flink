@@ -28,8 +28,7 @@ public class ReplacingMacro extends MacroBase {
 
 	private final EvaluationExpression replacement;
 
-	public ReplacingMacro(final String name, final EvaluationExpression replacement) {
-		super(name);
+	public ReplacingMacro(final EvaluationExpression replacement) {
 		this.replacement = replacement;
 	}
 
@@ -41,5 +40,15 @@ public class ReplacingMacro extends MacroBase {
 	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationExpression target,
 			final EvaluationContext context) {
 		return this.replacement;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.ISopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append("Replace macro ");
+		this.replacement.toString(builder);
 	}
 }

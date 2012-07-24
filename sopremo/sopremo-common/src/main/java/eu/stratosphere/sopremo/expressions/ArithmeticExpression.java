@@ -7,17 +7,17 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.NumberCoercer;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.AbstractJsonNode;
-import eu.stratosphere.sopremo.type.AbstractJsonNode.Type;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode.Type;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NumberCoercer;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for

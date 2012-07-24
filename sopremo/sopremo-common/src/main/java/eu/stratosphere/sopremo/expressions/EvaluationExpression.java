@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.ExpressionTag;
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
+import eu.stratosphere.sopremo.operator.JsonStream;
+import eu.stratosphere.sopremo.operator.Operator;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.IdentityList;
 import eu.stratosphere.util.IdentitySet;
@@ -23,7 +23,7 @@ import eu.stratosphere.util.Reference;
 /**
  * Represents all evaluable expressions.
  */
-public abstract class EvaluationExpression implements SerializableSopremoType, Cloneable {
+public abstract class EvaluationExpression implements ISerializableSopremoType, Cloneable {
 	/**
 	 * 
 	 */

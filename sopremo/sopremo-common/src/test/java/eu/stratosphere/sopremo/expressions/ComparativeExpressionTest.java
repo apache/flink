@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
 
 import org.junit.Ignore;
 import org.junit.Test;

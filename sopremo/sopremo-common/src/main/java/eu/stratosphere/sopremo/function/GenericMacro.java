@@ -35,8 +35,7 @@ public class GenericMacro extends MacroBase {
 	 * @param name
 	 * @param macroParams
 	 */
-	public GenericMacro(final String name, final Class<? extends EvaluationExpression> expressionClass) {
-		super(name);
+	public GenericMacro(final Class<? extends EvaluationExpression> expressionClass) {
 		this.expressionClass = expressionClass;
 	}
 
@@ -48,5 +47,14 @@ public class GenericMacro extends MacroBase {
 	public EvaluationExpression call(final EvaluationExpression[] params, final EvaluationExpression target,
 			final EvaluationContext context) {
 		return ReflectUtil.newInstance(this.expressionClass, (Object[]) params);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.ISopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append("Macro generating ").append(this.expressionClass.getSimpleName());
 	}
 }

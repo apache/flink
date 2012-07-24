@@ -35,13 +35,12 @@ import org.junit.internal.ArrayComparisonFailure;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.testing.TestRecords;
-import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.io.Sink;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.operator.ElementaryOperator;
+import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -52,6 +51,7 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
@@ -97,7 +97,6 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 * @throws IOException
 	 */
 	@Test
-	@Ignore
 	public void completeTestPasses() throws IOException {
 		final Source source = new Source(getResourcePath("SopremoTestPlan/test.json"));
 
@@ -163,11 +162,11 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			// new SopremoTestPlan.ActualOutput(0).addValue(0),
 			// new SopremoTestPlan.ActualOutput(1).addValue(1)).
 			withPrefabValues(SopremoTestPlan.ExpectedOutput.class,
-				new SopremoTestPlan.ExpectedOutput(0).addValue(0),
-				new SopremoTestPlan.ExpectedOutput(1).addValue(1)).
+				new SopremoTestPlan.ExpectedOutput(null, 0).addValue(0),
+				new SopremoTestPlan.ExpectedOutput(null, 1).addValue(1)).
 			withPrefabValues(SopremoTestPlan.Input.class,
-				new SopremoTestPlan.Input(0).addValue(0),
-				new SopremoTestPlan.Input(1).addValue(1));
+				new SopremoTestPlan.Input(null, 0).addValue(0),
+				new SopremoTestPlan.Input(null, 1).addValue(1));
 	}
 
 	/**

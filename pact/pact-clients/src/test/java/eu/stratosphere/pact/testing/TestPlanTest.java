@@ -110,6 +110,7 @@ public class TestPlanTest {
 		 * @see eu.stratosphere.pact.common.stubs.CoGroupStub#coGroup(java.util.Iterator, java.util.Iterator,
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
+		@SuppressWarnings("null")
 		@Override
 		public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out) {
 			StringList values = new StringList();
@@ -173,6 +174,7 @@ public class TestPlanTest {
 			PactRecord lastRecord = null;
 			while (records.hasNext())
 				result.add(new PactString((lastRecord = records.next()).getField(1, PactString.class)));
+			@SuppressWarnings("null")
 			PactInteger id = lastRecord.getField(0, PactInteger.class);
 			out.collect(new PactRecord(id, result));
 		}

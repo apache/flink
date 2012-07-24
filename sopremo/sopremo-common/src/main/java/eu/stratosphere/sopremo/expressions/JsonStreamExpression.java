@@ -1,8 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
-import eu.stratosphere.sopremo.ExpressionTag;
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.operator.JsonStream;
+import eu.stratosphere.sopremo.operator.Operator;
 
 public class JsonStreamExpression extends UnevaluableExpression {
 	/**

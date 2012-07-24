@@ -24,7 +24,7 @@ public interface IOConstants {
 	/**
 	 * Constant to define which encoding is used
 	 */
-	public static final String ENCODING = "Encoding";
+	public static final String ENCODING = "io.encoding";
 
 	/**
 	 * Constant to define which {@link Schema} is used

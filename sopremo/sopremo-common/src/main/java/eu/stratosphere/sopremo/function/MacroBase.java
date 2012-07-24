@@ -8,20 +8,4 @@ public abstract class MacroBase extends Callable<EvaluationExpression, Evaluatio
 	 */
 	private static final long serialVersionUID = 93515191173062050L;
 
-	/**
-	 * Initializes Macro.
-	 * 
-	 * @param name
-	 * @param definition
-	 */
-	public MacroBase(final String name) {
-		super(name);
-	}
-
-	/**
-	 * Initializes MacroBase.
-	 */
-	public MacroBase() {
-		this("");
-	}
 }

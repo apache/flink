@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
-import eu.stratosphere.sopremo.Operator;
+import eu.stratosphere.sopremo.operator.Operator;
 
 /**
  * This expression represents all {@link Operator}s.

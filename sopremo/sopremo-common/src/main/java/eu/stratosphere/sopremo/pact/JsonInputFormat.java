@@ -15,7 +15,6 @@
 package eu.stratosphere.sopremo.pact;
 
 import static eu.stratosphere.sopremo.pact.IOConstants.ENCODING;
-import static eu.stratosphere.sopremo.pact.IOConstants.SCHEMA;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -26,7 +25,7 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.io.JsonParseException;
 import eu.stratosphere.sopremo.io.JsonParser;
 import eu.stratosphere.sopremo.serialization.Schema;
@@ -47,6 +46,8 @@ public class JsonInputFormat extends FileInputFormat {
 
 	private Charset encoding;
 
+	private EvaluationContext context;
+
 	private Schema schema;
 
 	private void checkEnd() {
@@ -65,7 +66,8 @@ public class JsonInputFormat extends FileInputFormat {
 	public void configure(final Configuration parameters) {
 		super.configure(parameters);
 
-		this.schema = SopremoUtil.deserialize(parameters, SCHEMA, Schema.class);
+		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
+		this.schema = this.context.getOutputSchema(0);
 		if (this.schema == null)
 			throw new IllegalStateException("Could not deserialize output schema");
 		this.encoding = Charset.forName(parameters.getString(ENCODING, "utf-8"));
@@ -78,7 +80,7 @@ public class JsonInputFormat extends FileInputFormat {
 	@Override
 	public boolean nextRecord(final PactRecord record) throws IOException {
 		if (!this.end) {
-			final PactRecord result = this.schema.jsonToRecord(this.parser.readValueAsTree(), record, null);
+			PactRecord result = this.schema.jsonToRecord(this.parser.readValueAsTree(), record, this.context);
 			if (result != record)
 				result.copyTo(record);
 			this.checkEnd();

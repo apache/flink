@@ -54,8 +54,10 @@ public class DirectSchema extends AbstractSchema {
 	 */
 	@Override
 	public PactRecord jsonToRecord(final IJsonNode value, PactRecord target, final EvaluationContext context) {
-		if (target == null || target.getNumFields() != 1)
+		if (target == null)
 			target = new PactRecord(new JsonNodeWrapper());
+		else if (target.getNumFields() != 1)
+			target.setField(0, new JsonNodeWrapper());
 
 		final JsonNodeWrapper wrapper = target.getField(0, JsonNodeWrapper.class);
 		wrapper.setValue(value);

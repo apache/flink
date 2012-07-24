@@ -21,7 +21,11 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.OptimizerHints;
 import eu.stratosphere.sopremo.expressions.Scope;
-import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.packages.BuiltinProvider;
+import eu.stratosphere.sopremo.packages.ConstantRegistryCallback;
+import eu.stratosphere.sopremo.packages.FunctionRegistryCallback;
+import eu.stratosphere.sopremo.packages.IConstantRegistry;
+import eu.stratosphere.sopremo.packages.IMethodRegistry;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -30,6 +34,7 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.ConcatenatingIterator;
@@ -41,10 +46,10 @@ import eu.stratosphere.util.reflect.ReflectUtil;
  * @author Arvid Heise
  */
 public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallback, ConstantRegistryCallback {
-	private static final AbstractNumericNode ZERO = new IntNode(0), ONE = new IntNode(1),
-			NaN = DoubleNode.valueOf(Double.NaN);
+private static final AbstractNumericNode ZERO = new IntNode(0), ONE = new IntNode(1),
+			NaN = DoubleNode.valueOf(Double.NaN);	
 
-	public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", ZERO) {
+public static final AggregationFunction SUM = new TransitiveAggregationFunction("sum", IntNode.ZERO) {
 		/**
 		 * 
 		 */
@@ -388,21 +393,24 @@ public class DefaultFunctions implements BuiltinProvider, FunctionRegistryCallba
 	}
 
 	@Override
-	public void registerFunctions(final MethodRegistry registry) {
-		final List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
-		for (final Method method : methods)
-			try {
-				if (method.getDeclaringClass() == String.class)
-					registry.register(method);
-			} catch (final Exception e) {
-				// System.out.println("Could not register " + method);
-			}
+	public void registerFunctions(final IMethodRegistry registry) {
+//		final List<Method> methods = ReflectUtil.getMethods(String.class, null, Modifier.PUBLIC, ~Modifier.STATIC);
+//		for (final Method method : methods)
+//			try {
+//				if (method.getDeclaringClass() == String.class)
+//					registry.register(method);
+//			} catch (final Exception e) {
+//				// System.out.println("Could not register " + method);
+//			}
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.packages.ConstantRegistryCallback#registerConstants(eu.stratosphere.sopremo.packages.ConstantRegistry)
+	 */
 	@Override
-	public void registerConstants(final EvaluationContext context) {
-		context.getBindings().set("pi", new ConstantExpression(Math.PI));
-		context.getBindings().set("e", new ConstantExpression(Math.E));
+	public void registerConstants(IConstantRegistry constantRegistry) {
+		constantRegistry.put("pi", new ConstantExpression(Math.PI));
+		constantRegistry.put("e", new ConstantExpression(Math.E));
 	}
 
 	//

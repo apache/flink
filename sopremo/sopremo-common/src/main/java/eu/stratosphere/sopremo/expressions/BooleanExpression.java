@@ -3,12 +3,12 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 
 /**
  * Represents all expressions with a boolean semantic.
  */
-public abstract class BooleanExpression extends EvaluationExpression implements SerializableSopremoType {
+public abstract class BooleanExpression extends EvaluationExpression implements ISerializableSopremoType {
 
 	/**
 	 * 

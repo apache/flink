@@ -41,7 +41,7 @@ public class UnionTest extends SopremoTest<Union> {
 	@Test
 	public void shouldSupportComplexObject() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(DefaultFunctions.class);
 
 		final Union union = new Union();
 		union.setInputs(sopremoPlan.getInputOperators(0, 2));

@@ -32,7 +32,6 @@ import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.type.AbstractJsonNode.Type;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
@@ -151,11 +150,11 @@ public class SopremoUtil {
 		IJsonNode value = null;
 		try {
 			final int readInt = in.readInt();
-			if (readInt == Type.CustomNode.ordinal()) {
+			if (readInt == IJsonNode.Type.CustomNode.ordinal()) {
 				final String className = in.readUTF();
 				value = (IJsonNode) ReflectUtil.newInstance(Class.forName(className));
 			} else
-				value = ReflectUtil.newInstance(Type.values()[readInt].getClazz());
+				value = ReflectUtil.newInstance(IJsonNode.Type.values()[readInt].getClazz());
 			value.read(in);
 		} catch (final ClassNotFoundException e) {
 			throw new IllegalStateException("Cannot instantiate value because class is not in class path", e);
@@ -302,7 +301,7 @@ public class SopremoUtil {
 		try {
 			out.writeInt(iJsonNode.getType().ordinal());
 
-			if (iJsonNode.getType() == Type.CustomNode)
+			if (iJsonNode.getType() == IJsonNode.Type.CustomNode)
 				out.writeUTF(iJsonNode.getClass().getName());
 			iJsonNode.write(out);
 		} catch (final IOException e) {

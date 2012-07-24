@@ -1,10 +1,10 @@
 package eu.stratosphere.sopremo.base;
 
-import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.operator.ElementaryOperator;
+import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.type.IJsonNode;

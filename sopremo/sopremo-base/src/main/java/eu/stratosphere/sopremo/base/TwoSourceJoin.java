@@ -5,7 +5,6 @@ import java.util.List;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.base.join.AntiJoin;
 import eu.stratosphere.sopremo.base.join.OuterJoin;
 import eu.stratosphere.sopremo.base.join.SemiJoin;
@@ -15,6 +14,7 @@ import eu.stratosphere.sopremo.expressions.BinaryBooleanExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.ExpressionTag;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 

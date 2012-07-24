@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,14 +13,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.function.MethodRegistry;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 
 public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
-
-	private MethodRegistry registry;
 
 	@Override
 	protected MethodCall createDefaultInstance(final int index) {
@@ -41,8 +38,7 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 	@Before
 	public void setup() {
 		this.context = new EvaluationContext();
-		this.registry = this.context.getFunctionRegistry();
-		this.registry.register(this.getClass());
+		this.context.getFunctionRegistry().put(this.getClass());
 	}
 
 	@Test

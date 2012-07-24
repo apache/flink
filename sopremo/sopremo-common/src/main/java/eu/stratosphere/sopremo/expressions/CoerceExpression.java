@@ -1,8 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.TypeCoercer;
 
 /**
  * Converts the result of an evaluation to a various number of node types.

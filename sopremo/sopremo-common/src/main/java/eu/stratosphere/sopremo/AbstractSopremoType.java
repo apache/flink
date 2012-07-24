@@ -19,7 +19,7 @@ package eu.stratosphere.sopremo;
  * 
  * @author Arvid Heise
  */
-public abstract class AbstractSopremoType implements SopremoType {
+public abstract class AbstractSopremoType implements ISopremoType {
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
@@ -36,7 +36,7 @@ public abstract class AbstractSopremoType implements SopremoType {
 	 *        the SopremoType that should be used
 	 * @return the string representation
 	 */
-	public static String toString(final SopremoType type) {
+	public static String toString(final ISopremoType type) {
 		final StringBuilder builder = new StringBuilder();
 		type.toString(builder);
 		return builder.toString();

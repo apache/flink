@@ -24,6 +24,8 @@ public class IntNode extends AbstractNumericNode implements INumericNode {
 
 	private transient PactInteger value;
 
+	public static final IntNode ZERO = new IntNode(0), ONE = new IntNode(1);
+
 	/**
 	 * Initializes an IntNode which represents 0
 	 */

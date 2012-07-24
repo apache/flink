@@ -24,8 +24,8 @@ import junit.framework.AssertionFailedError;
 
 import org.junit.Ignore;
 
-import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.operator.Operator;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
 import eu.stratosphere.sopremo.query.QueryParserException;
 
 /**
