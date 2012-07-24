@@ -59,7 +59,7 @@ public class PactConnection {
 	
 	private int replicationFactor; // the factor by which the data that is shipped over this connection is replicated
 	
-	private int[] scramblePartitionedFields; // The fields which are used for partitioning, this is only used if the partitioned fields
+	private int[] scramblePartitionedFields = null; // The fields which are used for partitioning, this is only used if the partitioned fields
 									 // are not the key fields
 
 
@@ -148,6 +148,9 @@ public class PactConnection {
 		this.tempMode = template.tempMode;
 
 		this.interestingProps = template.interestingProps;
+		if (template.scramblePartitionedFields != null) {
+			this.scramblePartitionedFields = template.scramblePartitionedFields.clone();	
+		}
 	}
 
 	/**
@@ -360,7 +363,7 @@ public class PactConnection {
 	 * @return The properties of the data after this channel.
 	 */
 	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
-		GlobalProperties gp = source.getGlobalProperties().createCopy();
+		GlobalProperties gp = source.getGlobalPropertiesForParent(target);
 		
 		FieldList keyFields = null;
 		int inputNum = 0;
@@ -385,6 +388,7 @@ public class PactConnection {
 			break;
 		case PARTITION_RANGE:
 			gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, keyFields);
+			gp.setOrdering(null);
 			break;
 		case PARTITION_HASH:
 			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, keyFields);
@@ -394,6 +398,19 @@ public class PactConnection {
 			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
 				gp.setOrdering(null);
 			}
+			
+			if (gp.getPartitioning() == PartitionProperty.NONE) {
+				if (source.getUniqueFields().size() > 0) {
+					FieldList partitionedFields = new FieldList();
+					//TODO maintain a list of partitioned fields in global properties
+					//Up to now: only add first unique fieldset
+					for (Integer field : source.getUniqueFields().iterator().next()) {
+						partitionedFields.add(field);
+					}
+					gp.setPartitioning(PartitionProperty.ANY, partitionedFields);
+				}
+			}
+			
 			// nothing else changes
 			break;
 		case NONE:
@@ -414,7 +431,7 @@ public class PactConnection {
 	 * @return The properties of the data after a channel using the given strategy.
 	 */
 	public static LocalProperties getLocalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
-		LocalProperties lp = source.getLocalProperties().createCopy();
+		LocalProperties lp = source.getLocalPropertiesForParent(target);
 
 		if (shipMode == null || shipMode == ShipStrategy.NONE) {
 			throw new CompilerException("Cannot determine properties if shipping strategy is not defined.");
@@ -428,6 +445,13 @@ public class PactConnection {
 		}
 		else {
 			lp.reset();
+		}
+		
+		if (lp.isGrouped() == false && shipMode != ShipStrategy.BROADCAST && shipMode != ShipStrategy.SFR) {
+			if (source.getUniqueFields().size() > 0) {
+				//TODO allow list of grouped fields, up to now only add the first one
+				lp.setGrouped(true, source.getUniqueFields().iterator().next());
+			}
 		}
 
 		return lp;

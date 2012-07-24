@@ -15,23 +15,22 @@
 
 package eu.stratosphere.pact.compiler.util;
 
-import java.util.Iterator;
-
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
+import eu.stratosphere.pact.common.stubs.MatchStub;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-@ConstantFieldsExcept(fields={})
-public final class IdentityReduce extends ReduceStub 
-{
+@ConstantFieldsFirstExcept(fields={})
+public class DummyMatchStub extends MatchStub {
+
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.ReduceStub#reduce(java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)
+	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-		while (records.hasNext()) {
-			out.collect(records.next());
-		}
+	public void match(PactRecord value1, PactRecord value2,
+			Collector<PactRecord> out) throws Exception {
+		out.collect(value1);
+		
 	}
+
 }

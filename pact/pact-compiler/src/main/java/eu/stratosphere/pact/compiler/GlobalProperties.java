@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.UnionNode;
 
 /**
  * This class represents global properties of the data. Global properties are properties that
@@ -151,31 +152,42 @@ public final class GlobalProperties implements Cloneable
 		ArrayList<Integer> newPartitionedFields = null;
 		PartitionProperty newPartitioning = PartitionProperty.NONE;
 		Ordering newOrdering = null;
-		if (partitionedFields != null) {
-			for (Integer index : partitionedFields) {
-				if (node.isFieldKept(input, index) == true) {
-					if (newPartitionedFields == null) {
-						newPartitioning = this.partitioning;
-						newPartitionedFields = new ArrayList<Integer>();
-					}
-					newPartitionedFields.add(index);
-				}
+		
+		if (node instanceof UnionNode) {
+			//only HashPartitioning is interesting for union nodes
+			if (partitioning == PartitionProperty.HASH_PARTITIONED) {
+				// fields are kept as there is no user code involved
+				newPartitioning = PartitionProperty.HASH_PARTITIONED;
+				newPartitionedFields = partitionedFields;
 			}
 		}
-
-		// check, whether the global order is preserved
-		if (ordering != null) {
-			boolean orderingPreserved = true;
-			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
-			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (node.isFieldKept(input, i) == false) {
-					orderingPreserved = false;
-					break;
+		else {
+			if (partitionedFields != null) {
+				for (Integer index : partitionedFields) {
+					if (node.isFieldKept(input, index) == true) {
+						if (newPartitionedFields == null) {
+							newPartitioning = this.partitioning;
+							newPartitionedFields = new ArrayList<Integer>();
+						}
+						newPartitionedFields.add(index);
+					}
 				}
 			}
-
-			if (orderingPreserved) {
-				newOrdering = ordering.clone();
+	
+			// check, whether the global order is preserved
+			if (ordering != null) {
+				boolean orderingPreserved = true;
+				ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+				for (int i = 0; i < involvedIndexes.size(); i++) {
+					if (node.isFieldKept(input, i) == false) {
+						orderingPreserved = false;
+						break;
+					}
+				}
+	
+				if (orderingPreserved) {
+					newOrdering = ordering.clone();
+				}
 			}
 		}
 
@@ -183,7 +195,7 @@ public final class GlobalProperties implements Cloneable
 			return null;
 		} else {
 			FieldList partitionFields = new FieldList();
-			partitionedFields.addAll(newPartitionedFields);
+			partitionFields.addAll(newPartitionedFields);
 			return new GlobalProperties(newPartitioning, newOrdering, partitionFields);
 		}
 

@@ -17,21 +17,24 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.util.Iterator;
 
+import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.ReduceStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-@ConstantFieldsExcept(fields={})
-public final class IdentityReduce extends ReduceStub 
-{
+public class DummyCoGroupStub extends CoGroupStub {
+
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stubs.ReduceStub#reduce(java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)
+	 * @see eu.stratosphere.pact.common.stubs.CrossStub#cross(eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.type.PactRecord, eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
-		while (records.hasNext()) {
-			out.collect(records.next());
+	public void coGroup(Iterator<PactRecord> records1,
+			Iterator<PactRecord> records2, Collector<PactRecord> out) {
+		while (records1.hasNext()) {
+			out.collect(records1.next());
+		}
+		while (records2.hasNext()) {
+			out.collect(records2.next());
 		}
 	}
+
 }

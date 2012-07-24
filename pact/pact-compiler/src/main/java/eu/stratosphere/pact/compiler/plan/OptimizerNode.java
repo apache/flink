@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,6 +44,7 @@ import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -70,7 +72,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		DataSink(GenericDataSink.class),
 		Map(MapContract.class),
 		Match(MatchContract.class),
-		Reduce(ReduceContract.class);
+		Reduce(ReduceContract.class),
+		Union(Contract.class);
 
 		private Class<? extends Contract> clazz; // The class describing the contract
 
@@ -127,6 +130,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	protected List<UnclosedBranchDescriptor> openBranches; // stack of branches in the sub-graph that are not joined
 	
+	protected Set<OptimizerNode> closedBranchingNodes; // stack of branching nodes which have already been closed
+	
 	protected Map<OptimizerNode, OptimizerNode> branchPlan; // the actual plan alternative chosen at a branch point
 
 	protected OptimizerNode lastJoinedBranchNode; // the node with latest branch (node with multiple outputs)
@@ -152,11 +157,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
 
-	private int instancesPerMachine = -1; // the number of parallel instance that will run on the same machine
+	protected int instancesPerMachine = -1; // the number of parallel instance that will run on the same machine
 
 	private int memoryPerTask; // the amount of memory dedicated to each task, in MiBytes
 
-	private int id = -1; // the id for this node.
+	protected int id = -1; // the id for this node.
 
 	protected boolean pFlag = false; // flag for the internal pruning algorithm
 
@@ -532,6 +537,39 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 */
 	public GlobalProperties getGlobalProperties() {
 		return this.globalProps;
+	}
+	
+
+	/**
+	 * Gets a copy of local properties from this OptimizedNode for the parent node.
+	 * If the parent node has a different DoP all local properties are lost.
+	 * 
+	 * @return The local properties.
+	 */
+	public LocalProperties getLocalPropertiesForParent(OptimizerNode parent) {
+		LocalProperties localPropsForParent = this.localProps.createCopy();
+		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
+			localPropsForParent.reset();
+		}
+		return localPropsForParent;
+	}
+
+	/**
+	 * Gets a copy of global properties from this OptimizedNode for the parent node.
+	 * If the parent node has a different DoP ordering is lost and partitioning is at 
+	 * most PartitionProperty.ANY
+	 * 
+	 * @return The global properties.
+	 */
+	public GlobalProperties getGlobalPropertiesForParent(OptimizerNode parent) {
+		GlobalProperties globalPropsForParent = this.globalProps.createCopy();
+		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
+			globalPropsForParent.setOrdering(null);
+			if (globalPropsForParent.getPartitioning() != PartitionProperty.NONE) {
+				globalPropsForParent.setPartitioning(PartitionProperty.ANY, globalPropsForParent.getPartitionedFields());
+			}
+		}
+		return globalPropsForParent;
 	}
 
 	/**
@@ -1048,7 +1086,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	{
 		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
-			return this.openBranches;
+			if (this.openBranches == null) return null;
+			return new ArrayList<UnclosedBranchDescriptor>(this.openBranches);
 		}
 		else if (this.outgoingConnections.size() > 1) {
 			// we branch add a branch info to the stack
@@ -1108,11 +1147,42 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			return true;
 	}
 
+	
+	protected void removeClosedBranches(List<UnclosedBranchDescriptor> openList) {
+		if (openList == null || openList.isEmpty() || closedBranchingNodes == null || closedBranchingNodes.isEmpty()) return;
+		
+		Iterator<UnclosedBranchDescriptor> it = openList.iterator();
+		while (it.hasNext()) {
+			if (closedBranchingNodes.contains(it.next().getBranchingNode())) {
+				//this branch was already closed --> remove it from the list
+				it.remove();
+			}
+		}
+	}
+	
+	protected void addClosedBranches(Set<OptimizerNode> alreadyClosed) {
+		if (alreadyClosed == null || alreadyClosed.isEmpty()) return;
+		if (this.closedBranchingNodes == null) 
+			this.closedBranchingNodes = new HashSet<OptimizerNode>(alreadyClosed);
+		else 
+			this.closedBranchingNodes.addAll(alreadyClosed);
+	}
+	
+	protected void addClosedBranch(OptimizerNode alreadyClosed) {
+		if (this.closedBranchingNodes == null) 
+			this.closedBranchingNodes = new HashSet<OptimizerNode>();
+		this.closedBranchingNodes.add(alreadyClosed);
+	}
 	/*
 	 * node IDs are assigned in graph-traversal order (pre-order)
 	 * hence, each list is sorted by ID in ascending order and all consecutive lists start with IDs in ascending order
 	 */
 	protected List<UnclosedBranchDescriptor> mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open) {
+
+		//remove branches which have already been closed
+		removeClosedBranches(child1open);
+		removeClosedBranches(child2open);
+		
 		// check how many open branches we have. the cases:
 		// 1) if both are null or empty, the result is null
 		// 2) if one side is null (or empty), the result is the other side.
@@ -1166,6 +1236,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 				if (joinedInputs == allInputs) {
 					// closed - we can remove it from the stack
+					addClosedBranch(currBanchingNode);
 				} else {
 					// not quite closed
 					result.add(new UnclosedBranchDescriptor(currBanchingNode, joinedInputs));
@@ -1190,7 +1261,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	/**
 	 * Reads all stub annotations
 	 */
-	private void readStubAnnotations() {
+	protected void readStubAnnotations() {
 		this.readConstantAnnotation();
 		this.readOutputCardBoundAnnotation();
 		this.readUniqueFieldsAnnotation();
@@ -1252,17 +1323,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public int getStubOutCardUpperBound() {
 		return this.stubOutCardUB;
 	}
-	
-	/**
-	 * Gives the constant set of the node. 
-	 * The constant set is used to decide about reordering of nodes.
-	 * 
-	 * @param id of input for which the constant set should be returned. 
-	 *        -1 if the unioned constant set over all inputs is requested. 
-	 *  
-	 * @return the constant set for the requested input(s)
-	 */
-	public abstract FieldSet getConstantSet(int input);
 	
 	protected static final class UnclosedBranchDescriptor
 	{
