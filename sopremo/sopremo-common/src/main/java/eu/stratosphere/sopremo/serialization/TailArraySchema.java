@@ -28,6 +28,8 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.CollectionUtil;
 
 /**
+ * A {@link Schema} that handles {@link PactRecord}s with the structure: { [other nodes], &#60tail nodes&#62 }.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
