@@ -447,7 +447,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// we have currently only one strategy for combiners
 		combineConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
 		
-		final Ordering secondaryOrder = combineNode.getPactContract().getSecondaryOrder();
+		final Ordering secondaryOrder = combineNode.getPactContract().getGroupOrder();
 		if (secondaryOrder == null) {
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(),
 				combineConfig.getPrefixForInputParameters(0),
@@ -488,7 +488,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		reduceConfig.setStubClass(reduceNode.getPactContract().getUserCodeClass());
 		
 		// set contract's key information
-		final Ordering secondaryOrder = reduceNode.getPactContract().getSecondaryOrder();
+		final Ordering secondaryOrder = reduceNode.getPactContract().getGroupOrder();
 		if (secondaryOrder == null) {
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(reduceConfig.getConfiguration(),
 				reduceConfig.getPrefixForInputParameters(0),
@@ -675,7 +675,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		coGroupConfig.setStubClass(coGroupNode.getPactContract().getUserCodeClass());
 		
 		// set contract's key information
-		final Ordering secondaryOrder1 = coGroupContract.getSecondaryOrder(0);
+		final Ordering secondaryOrder1 = coGroupContract.getGroupOrder(0);
 		if (secondaryOrder1 == null) {
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
 				coGroupConfig.getPrefixForInputParameters(0),
@@ -688,7 +688,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		}
 		
 		// set contract's key information
-		final Ordering secondaryOrder2 = coGroupContract.getSecondaryOrder(1);
+		final Ordering secondaryOrder2 = coGroupContract.getGroupOrder(1);
 		if (secondaryOrder2 == null) {
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
 				coGroupConfig.getPrefixForInputParameters(1),

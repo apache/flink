@@ -129,10 +129,10 @@ public class CoGroupNode extends TwoInputNode {
 	public int getMemoryConsumerCount() {
 		switch(this.localStrategy) {
 			case SORT_BOTH_MERGE:   return 2;
-			case SORT_FIRST_MERGE:  return 1 + (getPactContract().getSecondaryOrderForInputTwo() == null ? 0 : 1);
-			case SORT_SECOND_MERGE: return 1 + (getPactContract().getSecondaryOrderForInputOne() == null ? 0 : 1);
-			case MERGE:             return 0 + (getPactContract().getSecondaryOrderForInputOne() == null ? 0 : 1)
-			                                 + (getPactContract().getSecondaryOrderForInputTwo() == null ? 0 : 1);
+			case SORT_FIRST_MERGE:  return 1 + (getPactContract().getGroupOrderForInputTwo() == null ? 0 : 1);
+			case SORT_SECOND_MERGE: return 1 + (getPactContract().getGroupOrderForInputOne() == null ? 0 : 1);
+			case MERGE:             return 0 + (getPactContract().getGroupOrderForInputOne() == null ? 0 : 1)
+			                                 + (getPactContract().getGroupOrderForInputTwo() == null ? 0 : 1);
 			default:	            return 0;
 		}
 	}

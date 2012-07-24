@@ -158,7 +158,7 @@ public class ReduceNode extends SingleInputNode {
 		switch(this.localStrategy) {
 			case SORT:          return 1;
 			case COMBININGSORT: return 1;
-			case NONE:          return getPactContract().getSecondaryOrder() == null ? 0 : 1;
+			case NONE:          return getPactContract().getGroupOrder() == null ? 0 : 1;
 			default:	        return 0;
 		}
 	}
