@@ -34,7 +34,7 @@ import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -68,7 +68,7 @@ public class UnionNode extends OptimizerNode {
 			PactConnection conn = new PactConnection(pred, this);
 			this.inConns.add(conn);
 			pred.addOutConn(conn);
-			conn.setShipStrategy(ShipStrategy.FORWARD);
+			conn.setShipStrategy(new ForwardSS());
 		}
 		
 		setLocalStrategy(LocalStrategy.NONE);

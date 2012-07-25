@@ -80,7 +80,7 @@ import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 
 /**
  * The primary resource to test one or more implemented PACT stubs. It is
@@ -662,10 +662,10 @@ public class TestPlan implements Closeable {
 		// declaredField.setAccessible(true);
 		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
 			for (final PactConnection pactConnection : node.getIncomingConnections())
-				pactConnection.setShipStrategy(ShipStrategy.FORWARD);
+				pactConnection.setShipStrategy(new ForwardSS());
 			for (final PactConnection pactConnection : node.getOutConns())
 				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
-				pactConnection.setShipStrategy(ShipStrategy.FORWARD);
+				pactConnection.setShipStrategy(new ForwardSS());
 		}
 	}
 

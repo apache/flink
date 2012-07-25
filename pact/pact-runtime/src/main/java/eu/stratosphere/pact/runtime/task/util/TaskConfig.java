@@ -32,7 +32,7 @@ import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 
@@ -330,7 +330,7 @@ public class TaskConfig
 	//                          Parameters for the output shipping
 	// --------------------------------------------------------------------------------------------
 
-	public void addOutputShipStrategy(ShipStrategy strategy)
+	public void addOutputShipStrategy(ShipStrategyType strategy)
 	{
 		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, 0);
 		this.config.setInteger(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt, strategy.ordinal());
@@ -342,7 +342,7 @@ public class TaskConfig
 		return this.config.getInteger(NUM_OUTPUTS, -1);
 	}
 
-	public ShipStrategy getOutputShipStrategy(int outputId)
+	public ShipStrategyType getOutputShipStrategy(int outputId)
 	{
 		// check how many outputs are encoded in the config
 		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, -1);
@@ -359,11 +359,11 @@ public class TaskConfig
 		if (strategy == -1) {
 			throw new CorruptConfigurationException("No output shipping strategy in configuration for output "
 																			+ outputId);
-		} else if (strategy < 0 || strategy >= ShipStrategy.values().length) {
+		} else if (strategy < 0 || strategy >= ShipStrategyType.values().length) {
 			throw new CorruptConfigurationException("Illegal output shipping strategy in configuration for output "
 																			+ outputId + ": " + strategy);
 		} else {
-			return ShipStrategy.values()[strategy];
+			return ShipStrategyType.values()[strategy];
 		}
 	}
 	

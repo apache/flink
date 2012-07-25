@@ -20,6 +20,7 @@ import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 /**
  * @author Erik Nijkamp
@@ -34,7 +35,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 
 	private static final byte[] DEFAULT_SALT = new byte[] { 17, 31, 47, 51, 83, 1 };
 	
-	private final ShipStrategy strategy;			// the shipping strategy used by this output emitter
+	private final ShipStrategyType strategy;			// the shipping strategy used by this output emitter
 	
 	private final PactRecordComparator comparator;	// the comparator for hashing / sorting
 	
@@ -55,7 +56,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	 * 
 	 * @param strategy The distribution strategy to be used.
 	 */
-	public PactRecordOutputEmitter(ShipStrategy strategy)
+	public PactRecordOutputEmitter(ShipStrategyType strategy)
 	{
 		this(strategy, null);
 	}	
@@ -67,7 +68,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	 * @param strategy The distribution strategy to be used.
 	 * @param comparator The comparator used to hash / compare the records.
 	 */
-	public PactRecordOutputEmitter(ShipStrategy strategy, PactRecordComparator comparator)
+	public PactRecordOutputEmitter(ShipStrategyType strategy, PactRecordComparator comparator)
 	{
 		this(strategy, comparator, null);
 	}
@@ -80,7 +81,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 	 * @param comparator The comparator used to hash / compare the records.
 	 * @param distr The distribution pattern used in the case of a range partitioning.
 	 */
-	public PactRecordOutputEmitter(ShipStrategy strategy, PactRecordComparator comparator, DataDistribution distr)
+	public PactRecordOutputEmitter(ShipStrategyType strategy, PactRecordComparator comparator, DataDistribution distr)
 	{
 		if (strategy == null) { 
 			throw new NullPointerException();
@@ -103,7 +104,7 @@ public class PactRecordOutputEmitter implements ChannelSelector<PactRecord>
 			throw new IllegalArgumentException("Invalid shipping strategy for OutputEmitter: " + strategy.name());
 		}
 		
-		if ((strategy == ShipStrategy.PARTITION_LOCAL_RANGE || strategy == ShipStrategy.PARTITION_RANGE) && distr == null)
+		if ((strategy == ShipStrategyType.PARTITION_LOCAL_RANGE || strategy == ShipStrategyType.PARTITION_RANGE) && distr == null)
 			throw new NullPointerException("Data distribution must not be null when the ship strategy is range partitioning.");
 	}
 

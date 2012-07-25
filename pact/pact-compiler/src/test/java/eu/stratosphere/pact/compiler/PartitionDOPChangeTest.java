@@ -46,7 +46,7 @@ import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 /**
  */
@@ -130,7 +130,7 @@ public class PartitionDOPChangeTest {
 				if (visitable instanceof MatchNode) {
 					int forwardedConnections = 0;
 					for (PactConnection inConn : visitable.getIncomingConnections()) {
-						if (inConn.getShipStrategy() == ShipStrategy.FORWARD) {
+						if (inConn.getShipStrategy().type() == ShipStrategyType.FORWARD) {
 							forwardedConnections++;
 						}
 					}

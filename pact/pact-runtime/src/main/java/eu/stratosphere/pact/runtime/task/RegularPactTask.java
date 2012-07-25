@@ -18,8 +18,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.google.common.base.Preconditions;
 
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.BroadcastRecordWriter;
 import eu.stratosphere.nephele.io.ChannelSelector;
@@ -27,16 +32,6 @@ import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.pact.runtime.shipping.OutputCollector;
-import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
-import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
-import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
@@ -58,6 +53,11 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.pact.runtime.shipping.OutputCollector;
+import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
@@ -704,7 +704,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			for (int i = 0; i < numOutputs; i++)
 			{
 				// create the OutputEmitter from output ship strategy
-				final ShipStrategy strategy = config.getOutputShipStrategy(i);
+				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
 				final Class<? extends TypeComparatorFactory<PactRecord>> comparatorFactoryClass;
 				try {
 					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
@@ -729,7 +729,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 
 				}
 
-				if (strategy == ShipStrategy.BROADCAST) {
+				if (strategy == ShipStrategyType.BROADCAST) {
 					if (task instanceof AbstractTask) {
 						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
 					} else if (task instanceof AbstractInputTask<?>) {
@@ -761,7 +761,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			for (int i = 0; i < numOutputs; i++)
 			{
 				// create the OutputEmitter from output ship strategy
-				final ShipStrategy strategy = config.getOutputShipStrategy(i);
+				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
 				final Class<? extends TypeComparatorFactory<T>> comparatorFactoryClass;
 				try {
 					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
@@ -786,7 +786,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					}
 				}
 
-				if (strategy == ShipStrategy.BROADCAST) {
+				if (strategy == ShipStrategyType.BROADCAST) {
 					if (task instanceof AbstractTask) {
 						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
 					} else if (task instanceof AbstractInputTask<?>) {
@@ -823,7 +823,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		if (numChained > 0)
 		{
 			// got chained stubs. that means that this one may only have a single forward connection
-			if (numOutputs != 1 || config.getOutputShipStrategy(0) != ShipStrategy.FORWARD) {
+			if (numOutputs != 1 || config.getOutputShipStrategy(0) != ShipStrategyType.FORWARD) {
 				throw new RuntimeException("Plan Generation Bug: Found a chained stub that is not connected via an only forward connection.");
 			}
 
