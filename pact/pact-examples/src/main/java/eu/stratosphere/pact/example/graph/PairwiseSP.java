@@ -81,6 +81,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private final PactString fromNode = new PactString();
 		private final PactString toNode = new PactString();
 		private final PactInteger pathLength = new PactInteger(1);
+		private final PactInteger hopCnt = new PactInteger(0);
 		private final PactString hopList = new PactString(" ");
 		
 		@Override
@@ -111,7 +112,8 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			target.setField(0, fromNode);
 			target.setField(1, toNode);
 			target.setField(2, pathLength);
-			target.setField(3, hopList);
+			target.setField(3, hopCnt);
+			target.setField(4, hopList);
 
 			return true;
 			
@@ -136,6 +138,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private final PactString fromNode = new PactString();
 		private final PactString toNode = new PactString();
 		private final PactInteger length = new PactInteger();
+		private final PactInteger hopCnt = new PactInteger();
 		private final PactString hopList = new PactString();
 
 		@Override
@@ -144,18 +147,20 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			String lineStr = new String(bytes, offset, numBytes);
 			StringTokenizer st = new StringTokenizer(lineStr, "|");
 			
-			// path must have exactly 4 tokens (fromNode, toNode, length, hopList)
-			if (st.countTokens() != 4) return false;
+			// path must have exactly 5 tokens (fromNode, toNode, length, hopCnt, hopList)
+			if (st.countTokens() != 5) return false;
 			
 			this.fromNode.setValue(st.nextToken());
 			this.toNode.setValue(st.nextToken());
 			this.length.setValue(Integer.parseInt(st.nextToken()));
+			this.hopCnt.setValue(Integer.parseInt(st.nextToken()));
 			this.hopList.setValue(st.nextToken());
 
 			target.setField(0, fromNode);
 			target.setField(1, toNode);
 			target.setField(2, length);
-			target.setField(3, hopList);
+			target.setField(3, hopCnt);
+			target.setField(4, hopList);
 			
 			return true;
 		}
@@ -184,10 +189,12 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			// append length
 			line.append(record.getField(2, PactInteger.class).toString());
 			line.append("|");
-			// append hopList
-			line.append(record.getField(3, PactString.class).toString());
+			// append hopCnt
+			line.append(record.getField(3, PactInteger.class).toString());
 			line.append("|");
-			
+			// append hopList
+			line.append(record.getField(4, PactString.class).toString());
+			line.append("|");
 			line.append("\n");
 			
 			stream.write(line.toString().getBytes());
@@ -213,6 +220,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private final PactRecord outputRecord = new PactRecord();
 		
 		private final PactInteger length = new PactInteger();
+		private final PactInteger hopCnt = new PactInteger();
 		private final PactString hopList = new PactString();
 		
 		@Override
@@ -232,20 +240,29 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			// Create new path
 			outputRecord.setField(0, fromNode);
 			outputRecord.setField(1, toNode);
+			
 			// Compute length of new path
 			length.setValue(rec1.getField(2, PactInteger.class).getValue() + rec2.getField(2, PactInteger.class).getValue());
 			outputRecord.setField(2, length);
+			
+			// compute hop count
+			int hops = rec1.getField(3, PactInteger.class).getValue() + 1 + rec2.getField(3, PactInteger.class).getValue();
+			hopCnt.setValue(hops);
+			outputRecord.setField(3, hopCnt);
+			
 			// Concatenate hops lists and insert matching node
 			StringBuilder sb = new StringBuilder();
 			// first path
-			sb.append(rec2.getField(3, PactString.class).getValue());
+			sb.append(rec2.getField(4, PactString.class).getValue());
+			sb.append(" ");
 			// common node
 			sb.append(rec1.getField(0, PactString.class).getValue());
 			// second path
-			sb.append(rec1.getField(3, PactString.class).getValue());
+			sb.append(" ");
+			sb.append(rec1.getField(4, PactString.class).getValue());
 						
-			hopList.setValue(sb.toString());
-			outputRecord.setField(3, hopList);
+			hopList.setValue(sb.toString().trim());
+			outputRecord.setField(4, hopList);
 						
 			out.collect(outputRecord);
 		}
@@ -266,6 +283,7 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		private final PactRecord outputRecord = new PactRecord();
 		
 		private final List<PactString> shortestPaths = new ArrayList<PactString>();
+		private final List<PactInteger> hopCnts = new ArrayList<PactInteger>();
 		private final PactInteger minLength = new PactInteger();
 		
 		@Override
@@ -287,7 +305,8 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			// get length of path
 			minLength.setValue(pathRec.getField(2, PactInteger.class).getValue());
 			// store path
-			shortestPaths.add(new PactString(pathRec.getField(3, PactString.class)));
+			hopCnts.add(new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
+			shortestPaths.add(new PactString(pathRec.getField(4, PactString.class)));
 			
 			// find shortest path of all input paths
 			while (inputRecords.hasNext()) {
@@ -296,13 +315,16 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 				
 				if (length.getValue() == minLength.getValue()) {
 					// path has also minimum length add to list
-					shortestPaths.add(new PactString(pathRec.getField(3, PactString.class)));
+					hopCnts.add(new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
+					shortestPaths.add(new PactString(pathRec.getField(4, PactString.class)));
 				} else if (length.getValue() < minLength.getValue()) {
 					// path has minimum length
 					minLength.setValue(length.getValue());
-					// clear list and add
+					// clear lists and add
+					hopCnts.clear();
+					hopCnts.add(new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
 					shortestPaths.clear();
-					shortestPaths.add(new PactString(pathRec.getField(3, PactString.class)));
+					shortestPaths.add(new PactString(pathRec.getField(4, PactString.class)));
 				}
 			}
 
@@ -311,15 +333,18 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 				pathRec = concatRecords.next();
 				PactInteger length = pathRec.getField(2, PactInteger.class);
 				
-				if (length == minLength) {
+				if (length.getValue() == minLength.getValue()) {
 					// path has also minimum length add to list
-					shortestPaths.add(new PactString(pathRec.getField(3, PactString.class)));
+					hopCnts.add(new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
+					shortestPaths.add(new PactString(pathRec.getField(4, PactString.class)));
 				} else if (length.getValue() < minLength.getValue()) {
 					// path has minimum length
 					minLength.setValue(length.getValue());
 					// clear list and add
+					hopCnts.clear();
+					hopCnts.add(new PactInteger(pathRec.getField(3, PactInteger.class).getValue()));
 					shortestPaths.clear();
-					shortestPaths.add(new PactString(pathRec.getField(3, PactString.class)));
+					shortestPaths.add(new PactString(pathRec.getField(4, PactString.class)));
 				}
 			}
 			
@@ -328,10 +353,15 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 			outputRecord.setField(2, minLength);
 			
 			// emit all shortest paths
-			for(PactString shortestPath : shortestPaths) {
-				outputRecord.setField(3, shortestPath);
+			for(int i=0; i<hopCnts.size(); i++) {
+				outputRecord.setField(3, hopCnts.get(i));
+				outputRecord.setField(4, shortestPaths.get(i));
 				out.collect(outputRecord);
 			}
+						
+			hopCnts.clear();
+			shortestPaths.clear();
+			
 		}
 	}
 

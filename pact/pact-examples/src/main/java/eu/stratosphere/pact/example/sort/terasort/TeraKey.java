@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.terasort;
+package eu.stratosphere.pact.example.sort.terasort;
 
 import java.io.DataInput;
 import java.io.DataOutput;

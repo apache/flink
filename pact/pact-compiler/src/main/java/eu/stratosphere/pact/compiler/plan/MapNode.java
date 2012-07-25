@@ -148,7 +148,7 @@ public class MapNode extends SingleInputNode {
 		
 		for(OptimizerNode subPlan : altSubPlans) {
 		
-			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, ss);
+			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, 0, ss);
 			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
 			
 			MapNode nMap = new MapNode(this, subPlan, this.inConn, gp, lp);

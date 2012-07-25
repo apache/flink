@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.terasort;
+package eu.stratosphere.pact.example.sort;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
@@ -22,6 +22,10 @@ import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
+import eu.stratosphere.pact.example.sort.terasort.TeraDistribution;
+import eu.stratosphere.pact.example.sort.terasort.TeraInputFormat;
+import eu.stratosphere.pact.example.sort.terasort.TeraKey;
+import eu.stratosphere.pact.example.sort.terasort.TeraOutputFormat;
 
 /**
  * This is an example implementation of the well-known TeraSort benchmark using the Stratosphere system. The benchmark
