@@ -48,15 +48,13 @@ public class StreamIndexExpression extends UnevaluableExpression {
 	public EvaluationExpression getIndexExpression() {
 		return this.indexExpression;
 	}
-	
-	
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result +  indexExpression.hashCode();
-		result = prime * result +  stream.hashCode();
+		result = prime * result + this.indexExpression.hashCode();
+		result = prime * result + this.stream.hashCode();
 		return result;
 	}
 
@@ -66,20 +64,20 @@ public class StreamIndexExpression extends UnevaluableExpression {
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		StreamIndexExpression other = (StreamIndexExpression) obj;
-		return indexExpression.equals(other.indexExpression) ; // && stream.equals(other.stream)
+		return this.indexExpression.equals(other.indexExpression); // && stream.equals(other.stream)
 	}
 
-	
 	@Override
 	public void toString(StringBuilder builder) {
 		this.appendTags(builder);
-		builder.append(stream).append("[");
-		indexExpression.toString(builder);
+		builder.append(this.stream).append("[");
+		this.indexExpression.toString(builder);
 		builder.append("]");
 	}
+
 	/**
 	 * Returns the stream.
 	 * 

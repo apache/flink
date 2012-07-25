@@ -1,19 +1,15 @@
-// $ANTLR 3.3 Nov 30, 2010 12:46:29 /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g 2012-07-19 22:21:02
+// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g 2012-07-25 14:35:53
  
 package eu.stratosphere.meteor; 
 
-import eu.stratosphere.sopremo.*;
+import eu.stratosphere.sopremo.operator.*;
+import eu.stratosphere.sopremo.io.*;
 import eu.stratosphere.sopremo.query.*;
 import eu.stratosphere.sopremo.pact.*;
-import eu.stratosphere.sopremo.type.*;
 import eu.stratosphere.sopremo.expressions.*;
-import eu.stratosphere.sopremo.aggregation.*;
 import eu.stratosphere.sopremo.function.*;
-import it.unimi.dsi.fastutil.ints.*;
-import it.unimi.dsi.fastutil.objects.*;
 import java.math.*;
 import java.util.IdentityHashMap;
-import java.util.Arrays;
 
 
 import org.antlr.runtime.*;
@@ -25,9 +21,9 @@ import java.util.HashMap;
 
 import org.antlr.runtime.tree.*;
 
-public class MeteorParser extends AbstractQueryParser {
+public class MeteorParser extends MeteorParserBase {
     public static final String[] tokenNames = new String[] {
-        "<invalid>", "<EOR>", "<DOWN>", "<UP>", "EXPRESSION", "OPERATOR", "ID", "VAR", "STRING", "STAR", "DECIMAL", "INTEGER", "UINT", "LOWER_LETTER", "UPPER_LETTER", "DIGIT", "SIGN", "COMMENT", "APOSTROPHE", "QUOTATION", "WS", "UNICODE_ESC", "OCTAL_ESC", "ESC_SEQ", "HEX_DIGIT", "EXPONENT", "';'", "'using'", "'='", "'fn'", "'('", "','", "')'", "'javaudf'", "'?'", "':'", "'if'", "'or'", "'||'", "'and'", "'&&'", "'not'", "'in'", "'<='", "'>='", "'<'", "'>'", "'=='", "'!='", "'+'", "'-'", "'/'", "'++'", "'--'", "'!'", "'~'", "'as'", "'.'", "'{'", "'}'", "'true'", "'false'", "'null'", "'['", "']'", "'read'", "'from'", "'write'", "'to'", "'preserve'"
+        "<invalid>", "<EOR>", "<DOWN>", "<UP>", "EXPRESSION", "OPERATOR", "ID", "VAR", "STRING", "STAR", "DECIMAL", "INTEGER", "UINT", "LOWER_LETTER", "UPPER_LETTER", "DIGIT", "SIGN", "COMMENT", "APOSTROPHE", "QUOTATION", "WS", "UNICODE_ESC", "OCTAL_ESC", "ESC_SEQ", "HEX_DIGIT", "EXPONENT", "';'", "'using'", "','", "'='", "'fn'", "'('", "')'", "'javaudf'", "'?'", "':'", "'if'", "'or'", "'||'", "'and'", "'&&'", "'not'", "'in'", "'<='", "'>='", "'<'", "'>'", "'=='", "'!='", "'+'", "'-'", "'/'", "'++'", "'--'", "'!'", "'~'", "'as'", "'.'", "'{'", "'}'", "'true'", "'false'", "'null'", "'['", "']'", "'read'", "'from'", "'write'", "'to'", "'preserve'"
     };
     public static final int EOF=-1;
     public static final int T__26=26;
@@ -106,7 +102,7 @@ public class MeteorParser extends AbstractQueryParser {
         }
         public MeteorParser(TokenStream input, RecognizerSharedState state) {
             super(input, state);
-            this.state.ruleMemo = new HashMap[117+1];
+            this.state.ruleMemo = new HashMap[121+1];
              
              
         }
@@ -121,53 +117,29 @@ public class MeteorParser extends AbstractQueryParser {
     }
 
     public String[] getTokenNames() { return MeteorParser.tokenNames; }
-    public String getGrammarFileName() { return "/Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g"; }
+    public String getGrammarFileName() { return "/home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g"; }
 
 
-    {
-      addTypeAlias("int", IntNode.class);
-      addTypeAlias("decimal", DecimalNode.class);
-      addTypeAlias("string", TextNode.class);
-      addTypeAlias("double", DoubleNode.class);
-      addTypeAlias("boolean", BooleanNode.class);
-      addTypeAlias("bool", BooleanNode.class);
-      
-      addParserFlag(ParserFlag.FUNCTION_OBJECTS);
-    }
+      private boolean setInnerOutput(Token VAR, Operator<?> op) {
+    	  JsonStreamExpression output = new JsonStreamExpression(((operator_scope)operator_stack.peek()).result.getOutput(((objectCreation_scope)objectCreation_stack.peek()).mappings.size()));
+    	  ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.TagMapping(output, new JsonStreamExpression(op)));
+    	  getVariableRegistry().getRegistry(1).put(VAR.getText(), output);
+    	  return true;
+    	}
 
-    public void parseSinks() throws RecognitionException {  
+      public void parseSinks() throws RecognitionException {
         script();
-    }
-
-    private boolean setInnerOutput(Token VAR, Operator<?> op) {
-      JsonStreamExpression output = new JsonStreamExpression(((operator_scope)operator_stack.peek()).result.getOutput(((objectCreation_scope)objectCreation_stack.peek()).mappings.size()));
-      ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.TagMapping(output, new JsonStreamExpression(op)));
-      setBinding(VAR, output, 1);
-      return true;
-    }
-
-    private String getAssignmentName(EvaluationExpression expression) {
-      if(expression instanceof PathExpression)
-        return getAssignmentName(((PathExpression) expression).getLastFragment());
-      if(expression instanceof ObjectAccess)
-        return ((ObjectAccess) expression).getField();
-      return expression.toString();
-    }
-
-    private EvaluationExpression makePath(Token inputVar, String... path) {
-      Object input = getRawBinding(inputVar, Object.class);
-      if(input instanceof Operator<?>) {
-        int inputIndex = ((operator_scope)operator_stack.peek()).result.getInputs().indexOf(((Operator<?>)input).getSource());
-        input = new InputSelection(inputIndex);
-      } else if(input instanceof JsonStreamExpression)
-        input = ((JsonStreamExpression)input).toInputSelection(((operator_scope)operator_stack.peek()).result);
+      }
       
-      List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
-      accesses.add((EvaluationExpression) input);
-      for (String fragment : path)
-        accesses.add(new ObjectAccess(fragment));
-      return PathExpression.wrapIfNecessary(accesses);
-    }
+      private EvaluationExpression makePath(Token inputVar, String... path) {
+          EvaluationExpression selection = getVariable(inputVar).toInputSelection(((operator_scope)operator_stack.peek()).result);
+          
+          List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
+          accesses.add((EvaluationExpression) selection);
+          for (String fragment : path)
+            accesses.add(new ObjectAccess(fragment));
+          return PathExpression.wrapIfNecessary(accesses);
+        }
 
 
     public static class script_return extends ParserRuleReturnScope {
@@ -176,7 +148,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "script"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:87:1: script : ( statement ';' )+ ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:59:1: script : ( statement ';' )+ ->;
     public final MeteorParser.script_return script() throws RecognitionException {
         MeteorParser.script_return retval = new MeteorParser.script_return();
         retval.start = input.LT(1);
@@ -192,10 +164,10 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_statement=new RewriteRuleSubtreeStream(adaptor,"rule statement");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 1) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:88:2: ( ( statement ';' )+ ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:88:5: ( statement ';' )+
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:60:2: ( ( statement ';' )+ ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:60:5: ( statement ';' )+
             {
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:88:5: ( statement ';' )+
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:60:5: ( statement ';' )+
             int cnt1=0;
             loop1:
             do {
@@ -209,7 +181,7 @@ public class MeteorParser extends AbstractQueryParser {
 
                 switch (alt1) {
             	case 1 :
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:88:6: statement ';'
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:60:6: statement ';'
             	    {
             	    pushFollow(FOLLOW_statement_in_script125);
             	    statement1=statement();
@@ -248,7 +220,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 88:22: ->
+            // 60:22: ->
             {
                 root_0 = null;
             }
@@ -277,7 +249,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "statement"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:90:1: statement : ( assignment | operator | packageImport | functionDefinition | javaudf ) ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:62:1: statement : ( assignment | operator | packageImport | functionDefinition | javaudf ) ->;
     public final MeteorParser.statement_return statement() throws RecognitionException {
         MeteorParser.statement_return retval = new MeteorParser.statement_return();
         retval.start = input.LT(1);
@@ -302,10 +274,10 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_packageImport=new RewriteRuleSubtreeStream(adaptor,"rule packageImport");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 2) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:91:2: ( ( assignment | operator | packageImport | functionDefinition | javaudf ) ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:91:4: ( assignment | operator | packageImport | functionDefinition | javaudf )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:63:2: ( ( assignment | operator | packageImport | functionDefinition | javaudf ) ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:63:4: ( assignment | operator | packageImport | functionDefinition | javaudf )
             {
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:91:4: ( assignment | operator | packageImport | functionDefinition | javaudf )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:63:4: ( assignment | operator | packageImport | functionDefinition | javaudf )
             int alt2=5;
             switch ( input.LA(1) ) {
             case VAR:
@@ -323,10 +295,13 @@ public class MeteorParser extends AbstractQueryParser {
                 {
                 int LA2_3 = input.LA(2);
 
-                if ( (LA2_3==28) ) {
+                if ( ((LA2_3>=ID && LA2_3<=VAR)||LA2_3==35||LA2_3==63||LA2_3==69) ) {
+                    alt2=2;
+                }
+                else if ( (LA2_3==29) ) {
                     int LA2_5 = input.LA(3);
 
-                    if ( (LA2_5==29) ) {
+                    if ( (LA2_5==30) ) {
                         alt2=4;
                     }
                     else if ( (LA2_5==33) ) {
@@ -339,9 +314,6 @@ public class MeteorParser extends AbstractQueryParser {
 
                         throw nvae;
                     }
-                }
-                else if ( ((LA2_3>=ID && LA2_3<=VAR)||LA2_3==63||LA2_3==69) ) {
-                    alt2=2;
                 }
                 else {
                     if (state.backtracking>0) {state.failed=true; return retval;}
@@ -367,7 +339,7 @@ public class MeteorParser extends AbstractQueryParser {
 
             switch (alt2) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:91:5: assignment
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:63:5: assignment
                     {
                     pushFollow(FOLLOW_assignment_in_statement141);
                     assignment3=assignment();
@@ -379,7 +351,7 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:91:18: operator
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:63:18: operator
                     {
                     pushFollow(FOLLOW_operator_in_statement145);
                     operator4=operator();
@@ -391,7 +363,7 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 3 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:91:29: packageImport
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:63:29: packageImport
                     {
                     pushFollow(FOLLOW_packageImport_in_statement149);
                     packageImport5=packageImport();
@@ -403,7 +375,7 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 4 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:91:45: functionDefinition
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:63:45: functionDefinition
                     {
                     pushFollow(FOLLOW_functionDefinition_in_statement153);
                     functionDefinition6=functionDefinition();
@@ -415,7 +387,7 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 5 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:91:66: javaudf
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:63:66: javaudf
                     {
                     pushFollow(FOLLOW_javaudf_in_statement157);
                     javaudf7=javaudf();
@@ -443,7 +415,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 91:75: ->
+            // 63:75: ->
             {
                 root_0 = null;
             }
@@ -472,7 +444,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "packageImport"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:93:1: packageImport : 'using' packageName= ID ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:65:1: packageImport : 'using' packageName= ID ',' (additionalPackage= ID )* ->;
     public final MeteorParser.packageImport_return packageImport() throws RecognitionException {
         MeteorParser.packageImport_return retval = new MeteorParser.packageImport_return();
         retval.start = input.LT(1);
@@ -480,17 +452,22 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression root_0 = null;
 
         Token packageName=null;
+        Token additionalPackage=null;
         Token string_literal8=null;
+        Token char_literal9=null;
 
         EvaluationExpression packageName_tree=null;
+        EvaluationExpression additionalPackage_tree=null;
         EvaluationExpression string_literal8_tree=null;
+        EvaluationExpression char_literal9_tree=null;
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
         RewriteRuleTokenStream stream_27=new RewriteRuleTokenStream(adaptor,"token 27");
+        RewriteRuleTokenStream stream_28=new RewriteRuleTokenStream(adaptor,"token 28");
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 3) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:94:3: ( 'using' packageName= ID ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:94:6: 'using' packageName= ID
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:66:3: ( 'using' packageName= ID ',' (additionalPackage= ID )* ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:66:6: 'using' packageName= ID ',' (additionalPackage= ID )*
             {
             string_literal8=(Token)match(input,27,FOLLOW_27_in_packageImport172); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_27.add(string_literal8);
@@ -499,8 +476,41 @@ public class MeteorParser extends AbstractQueryParser {
             if ( state.backtracking==0 ) stream_ID.add(packageName);
 
             if ( state.backtracking==0 ) {
-               importPackage((packageName!=null?packageName.getText():null)); 
+               getPackageManager().importPackage((packageName!=null?packageName.getText():null)); 
             }
+            char_literal9=(Token)match(input,28,FOLLOW_28_in_packageImport180); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_28.add(char_literal9);
+
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:67:6: (additionalPackage= ID )*
+            loop3:
+            do {
+                int alt3=2;
+                int LA3_0 = input.LA(1);
+
+                if ( (LA3_0==ID) ) {
+                    alt3=1;
+                }
+
+
+                switch (alt3) {
+            	case 1 :
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:67:7: additionalPackage= ID
+            	    {
+            	    additionalPackage=(Token)match(input,ID,FOLLOW_ID_in_packageImport191); if (state.failed) return retval; 
+            	    if ( state.backtracking==0 ) stream_ID.add(additionalPackage);
+
+            	    if ( state.backtracking==0 ) {
+            	       getPackageManager().importPackage((additionalPackage!=null?additionalPackage.getText():null)); 
+            	    }
+
+            	    }
+            	    break;
+
+            	default :
+            	    break loop3;
+                }
+            } while (true);
+
 
 
             // AST REWRITE
@@ -515,7 +525,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 94:66: ->
+            // 67:94: ->
             {
                 root_0 = null;
             }
@@ -544,7 +554,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "assignment"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:96:1: assignment : target= VAR '=' source= operator ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:69:1: assignment : target= VAR '=' source= operator ->;
     public final MeteorParser.assignment_return assignment() throws RecognitionException {
         MeteorParser.assignment_return retval = new MeteorParser.assignment_return();
         retval.start = input.LT(1);
@@ -552,34 +562,34 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression root_0 = null;
 
         Token target=null;
-        Token char_literal9=null;
+        Token char_literal10=null;
         MeteorParser.operator_return source = null;
 
 
         EvaluationExpression target_tree=null;
-        EvaluationExpression char_literal9_tree=null;
+        EvaluationExpression char_literal10_tree=null;
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
-        RewriteRuleTokenStream stream_28=new RewriteRuleTokenStream(adaptor,"token 28");
+        RewriteRuleTokenStream stream_29=new RewriteRuleTokenStream(adaptor,"token 29");
         RewriteRuleSubtreeStream stream_operator=new RewriteRuleSubtreeStream(adaptor,"rule operator");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 4) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:97:2: (target= VAR '=' source= operator ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:97:4: target= VAR '=' source= operator
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:70:2: (target= VAR '=' source= operator ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:70:4: target= VAR '=' source= operator
             {
-            target=(Token)match(input,VAR,FOLLOW_VAR_in_assignment191); if (state.failed) return retval; 
+            target=(Token)match(input,VAR,FOLLOW_VAR_in_assignment209); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(target);
 
-            char_literal9=(Token)match(input,28,FOLLOW_28_in_assignment193); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_28.add(char_literal9);
+            char_literal10=(Token)match(input,29,FOLLOW_29_in_assignment211); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_29.add(char_literal10);
 
-            pushFollow(FOLLOW_operator_in_assignment197);
+            pushFollow(FOLLOW_operator_in_assignment215);
             source=operator();
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_operator.add(source.getTree());
             if ( state.backtracking==0 ) {
-               setBinding(target, new JsonStreamExpression((source!=null?source.op:null))); 
+               putVariable(target, new JsonStreamExpression((source!=null?source.op:null))); 
             }
 
 
@@ -595,7 +605,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 97:98: ->
+            // 70:99: ->
             {
                 root_0 = null;
             }
@@ -624,7 +634,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "functionDefinition"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:99:1: functionDefinition : name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null] ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:72:1: functionDefinition : name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null] ->;
     public final MeteorParser.functionDefinition_return functionDefinition() throws RecognitionException {
         MeteorParser.functionDefinition_return retval = new MeteorParser.functionDefinition_return();
         retval.start = input.LT(1);
@@ -633,21 +643,21 @@ public class MeteorParser extends AbstractQueryParser {
 
         Token name=null;
         Token param=null;
-        Token char_literal10=null;
-        Token string_literal11=null;
-        Token char_literal12=null;
+        Token char_literal11=null;
+        Token string_literal12=null;
         Token char_literal13=null;
         Token char_literal14=null;
+        Token char_literal15=null;
         MeteorParser.contextAwareExpression_return def = null;
 
 
         EvaluationExpression name_tree=null;
         EvaluationExpression param_tree=null;
-        EvaluationExpression char_literal10_tree=null;
-        EvaluationExpression string_literal11_tree=null;
-        EvaluationExpression char_literal12_tree=null;
+        EvaluationExpression char_literal11_tree=null;
+        EvaluationExpression string_literal12_tree=null;
         EvaluationExpression char_literal13_tree=null;
         EvaluationExpression char_literal14_tree=null;
+        EvaluationExpression char_literal15_tree=null;
         RewriteRuleTokenStream stream_30=new RewriteRuleTokenStream(adaptor,"token 30");
         RewriteRuleTokenStream stream_32=new RewriteRuleTokenStream(adaptor,"token 32");
         RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
@@ -658,57 +668,57 @@ public class MeteorParser extends AbstractQueryParser {
          List<Token> params = new ArrayList(); 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 5) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:101:3: (name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null] ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:101:5: name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null]
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:74:3: (name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null] ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:74:5: name= ID '=' 'fn' '(' (param= ID ( ',' param= ID )* )? ')' def= contextAwareExpression[null]
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_functionDefinition219); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_functionDefinition237); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
-            char_literal10=(Token)match(input,28,FOLLOW_28_in_functionDefinition221); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_28.add(char_literal10);
+            char_literal11=(Token)match(input,29,FOLLOW_29_in_functionDefinition239); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_29.add(char_literal11);
 
-            string_literal11=(Token)match(input,29,FOLLOW_29_in_functionDefinition223); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_29.add(string_literal11);
+            string_literal12=(Token)match(input,30,FOLLOW_30_in_functionDefinition241); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_30.add(string_literal12);
 
-            char_literal12=(Token)match(input,30,FOLLOW_30_in_functionDefinition225); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_30.add(char_literal12);
+            char_literal13=(Token)match(input,31,FOLLOW_31_in_functionDefinition243); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_31.add(char_literal13);
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:102:3: (param= ID ( ',' param= ID )* )?
-            int alt4=2;
-            int LA4_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:75:3: (param= ID ( ',' param= ID )* )?
+            int alt5=2;
+            int LA5_0 = input.LA(1);
 
-            if ( (LA4_0==ID) ) {
-                alt4=1;
+            if ( (LA5_0==ID) ) {
+                alt5=1;
             }
-            switch (alt4) {
+            switch (alt5) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:102:4: param= ID ( ',' param= ID )*
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:75:4: param= ID ( ',' param= ID )*
                     {
-                    param=(Token)match(input,ID,FOLLOW_ID_in_functionDefinition234); if (state.failed) return retval; 
+                    param=(Token)match(input,ID,FOLLOW_ID_in_functionDefinition252); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(param);
 
                     if ( state.backtracking==0 ) {
                        params.add(param); 
                     }
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:3: ( ',' param= ID )*
-                    loop3:
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:76:3: ( ',' param= ID )*
+                    loop4:
                     do {
-                        int alt3=2;
-                        int LA3_0 = input.LA(1);
+                        int alt4=2;
+                        int LA4_0 = input.LA(1);
 
-                        if ( (LA3_0==31) ) {
-                            alt3=1;
+                        if ( (LA4_0==28) ) {
+                            alt4=1;
                         }
 
 
-                        switch (alt3) {
+                        switch (alt4) {
                     	case 1 :
-                    	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:4: ',' param= ID
+                    	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:76:4: ',' param= ID
                     	    {
-                    	    char_literal13=(Token)match(input,31,FOLLOW_31_in_functionDefinition241); if (state.failed) return retval; 
-                    	    if ( state.backtracking==0 ) stream_31.add(char_literal13);
+                    	    char_literal14=(Token)match(input,28,FOLLOW_28_in_functionDefinition259); if (state.failed) return retval; 
+                    	    if ( state.backtracking==0 ) stream_28.add(char_literal14);
 
-                    	    param=(Token)match(input,ID,FOLLOW_ID_in_functionDefinition245); if (state.failed) return retval; 
+                    	    param=(Token)match(input,ID,FOLLOW_ID_in_functionDefinition263); if (state.failed) return retval; 
                     	    if ( state.backtracking==0 ) stream_ID.add(param);
 
                     	    if ( state.backtracking==0 ) {
@@ -719,7 +729,7 @@ public class MeteorParser extends AbstractQueryParser {
                     	    break;
 
                     	default :
-                    	    break loop3;
+                    	    break loop4;
                         }
                     } while (true);
 
@@ -729,20 +739,27 @@ public class MeteorParser extends AbstractQueryParser {
 
             }
 
-            char_literal14=(Token)match(input,32,FOLLOW_32_in_functionDefinition256); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_32.add(char_literal14);
+            char_literal15=(Token)match(input,32,FOLLOW_32_in_functionDefinition274); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_32.add(char_literal15);
 
             if ( state.backtracking==0 ) {
-               for(int index = 0; index < params.size(); index++) setBinding(params.get(index), new InputSelection(0)); 
+               
+                  addScope();
+                  for(int index = 0; index < params.size(); index++) 
+                    putVariable(params.get(index), new JsonStreamExpression(null, index)); 
+                
             }
-            pushFollow(FOLLOW_contextAwareExpression_in_functionDefinition268);
+            pushFollow(FOLLOW_contextAwareExpression_in_functionDefinition286);
             def=contextAwareExpression(null);
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_contextAwareExpression.add(def.getTree());
             if ( state.backtracking==0 ) {
-               addFunction(new SopremoFunction(name.getText(), def.tree)); 
+               
+                  addFunction(name.getText(), new ExpressionFunction(params.size(), def.tree));
+                  removeScope(); 
+                
             }
 
 
@@ -758,7 +775,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 106:100: ->
+            // 87:5: ->
             {
                 root_0 = null;
             }
@@ -787,7 +804,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "javaudf"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:108:1: javaudf : name= ID '=' 'javaudf' '(' path= STRING ')' ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:89:1: javaudf : name= ID '=' 'javaudf' '(' path= STRING ')' ->;
     public final MeteorParser.javaudf_return javaudf() throws RecognitionException {
         MeteorParser.javaudf_return retval = new MeteorParser.javaudf_return();
         retval.start = input.LT(1);
@@ -796,46 +813,46 @@ public class MeteorParser extends AbstractQueryParser {
 
         Token name=null;
         Token path=null;
-        Token char_literal15=null;
-        Token string_literal16=null;
-        Token char_literal17=null;
+        Token char_literal16=null;
+        Token string_literal17=null;
         Token char_literal18=null;
+        Token char_literal19=null;
 
         EvaluationExpression name_tree=null;
         EvaluationExpression path_tree=null;
-        EvaluationExpression char_literal15_tree=null;
-        EvaluationExpression string_literal16_tree=null;
-        EvaluationExpression char_literal17_tree=null;
+        EvaluationExpression char_literal16_tree=null;
+        EvaluationExpression string_literal17_tree=null;
         EvaluationExpression char_literal18_tree=null;
-        RewriteRuleTokenStream stream_30=new RewriteRuleTokenStream(adaptor,"token 30");
+        EvaluationExpression char_literal19_tree=null;
         RewriteRuleTokenStream stream_32=new RewriteRuleTokenStream(adaptor,"token 32");
+        RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
         RewriteRuleTokenStream stream_33=new RewriteRuleTokenStream(adaptor,"token 33");
         RewriteRuleTokenStream stream_STRING=new RewriteRuleTokenStream(adaptor,"token STRING");
-        RewriteRuleTokenStream stream_28=new RewriteRuleTokenStream(adaptor,"token 28");
+        RewriteRuleTokenStream stream_29=new RewriteRuleTokenStream(adaptor,"token 29");
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 6) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:109:3: (name= ID '=' 'javaudf' '(' path= STRING ')' ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:109:5: name= ID '=' 'javaudf' '(' path= STRING ')'
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:90:3: (name= ID '=' 'javaudf' '(' path= STRING ')' ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:90:5: name= ID '=' 'javaudf' '(' path= STRING ')'
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_javaudf286); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_javaudf307); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
-            char_literal15=(Token)match(input,28,FOLLOW_28_in_javaudf288); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_28.add(char_literal15);
+            char_literal16=(Token)match(input,29,FOLLOW_29_in_javaudf309); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_29.add(char_literal16);
 
-            string_literal16=(Token)match(input,33,FOLLOW_33_in_javaudf290); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_33.add(string_literal16);
+            string_literal17=(Token)match(input,33,FOLLOW_33_in_javaudf311); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_33.add(string_literal17);
 
-            char_literal17=(Token)match(input,30,FOLLOW_30_in_javaudf292); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_30.add(char_literal17);
+            char_literal18=(Token)match(input,31,FOLLOW_31_in_javaudf313); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_31.add(char_literal18);
 
-            path=(Token)match(input,STRING,FOLLOW_STRING_in_javaudf296); if (state.failed) return retval; 
+            path=(Token)match(input,STRING,FOLLOW_STRING_in_javaudf317); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_STRING.add(path);
 
-            char_literal18=(Token)match(input,32,FOLLOW_32_in_javaudf298); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_32.add(char_literal18);
+            char_literal19=(Token)match(input,32,FOLLOW_32_in_javaudf319); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_32.add(char_literal19);
 
             if ( state.backtracking==0 ) {
                addFunction(name.getText(), path.getText()); 
@@ -854,7 +871,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 110:53: ->
+            // 91:53: ->
             {
                 root_0 = null;
             }
@@ -888,7 +905,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "contextAwareExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:112:1: contextAwareExpression[EvaluationExpression contextExpression] : expression ;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:93:1: contextAwareExpression[EvaluationExpression contextExpression] : expression ;
     public final MeteorParser.contextAwareExpression_return contextAwareExpression(EvaluationExpression contextExpression) throws RecognitionException {
         contextAwareExpression_stack.push(new contextAwareExpression_scope());
         MeteorParser.contextAwareExpression_return retval = new MeteorParser.contextAwareExpression_return();
@@ -896,24 +913,24 @@ public class MeteorParser extends AbstractQueryParser {
         int contextAwareExpression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        MeteorParser.expression_return expression19 = null;
+        MeteorParser.expression_return expression20 = null;
 
 
 
          ((contextAwareExpression_scope)contextAwareExpression_stack.peek()).context = contextExpression; 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 7) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:115:3: ( expression )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:115:5: expression
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:96:3: ( expression )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:96:5: expression
             {
             root_0 = (EvaluationExpression)adaptor.nil();
 
-            pushFollow(FOLLOW_expression_in_contextAwareExpression326);
-            expression19=expression();
+            pushFollow(FOLLOW_expression_in_contextAwareExpression347);
+            expression20=expression();
 
             state._fsp--;
             if (state.failed) return retval;
-            if ( state.backtracking==0 ) adaptor.addChild(root_0, expression19.getTree());
+            if ( state.backtracking==0 ) adaptor.addChild(root_0, expression20.getTree());
 
             }
 
@@ -939,50 +956,50 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "expression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:117:1: expression : ( ternaryExpression | operatorExpression );
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:98:1: expression : ( ternaryExpression | operatorExpression );
     public final MeteorParser.expression_return expression() throws RecognitionException {
         MeteorParser.expression_return retval = new MeteorParser.expression_return();
         retval.start = input.LT(1);
         int expression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        MeteorParser.ternaryExpression_return ternaryExpression20 = null;
+        MeteorParser.ternaryExpression_return ternaryExpression21 = null;
 
-        MeteorParser.operatorExpression_return operatorExpression21 = null;
+        MeteorParser.operatorExpression_return operatorExpression22 = null;
 
 
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 8) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:118:3: ( ternaryExpression | operatorExpression )
-            int alt5=2;
-            alt5 = dfa5.predict(input);
-            switch (alt5) {
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:99:3: ( ternaryExpression | operatorExpression )
+            int alt6=2;
+            alt6 = dfa6.predict(input);
+            switch (alt6) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:118:5: ternaryExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:99:5: ternaryExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_ternaryExpression_in_expression336);
-                    ternaryExpression20=ternaryExpression();
+                    pushFollow(FOLLOW_ternaryExpression_in_expression357);
+                    ternaryExpression21=ternaryExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, ternaryExpression20.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, ternaryExpression21.getTree());
 
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:119:5: operatorExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:100:5: operatorExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_operatorExpression_in_expression342);
-                    operatorExpression21=operatorExpression();
+                    pushFollow(FOLLOW_operatorExpression_in_expression363);
+                    operatorExpression22=operatorExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, operatorExpression21.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, operatorExpression22.getTree());
 
                     }
                     break;
@@ -1009,16 +1026,16 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "ternaryExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:121:1: ternaryExpression : (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression );
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:102:1: ternaryExpression : (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression );
     public final MeteorParser.ternaryExpression_return ternaryExpression() throws RecognitionException {
         MeteorParser.ternaryExpression_return retval = new MeteorParser.ternaryExpression_return();
         retval.start = input.LT(1);
         int ternaryExpression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token char_literal22=null;
         Token char_literal23=null;
-        Token string_literal24=null;
+        Token char_literal24=null;
+        Token string_literal25=null;
         MeteorParser.orExpression_return ifClause = null;
 
         MeteorParser.expression_return ifExpr = null;
@@ -1029,12 +1046,12 @@ public class MeteorParser extends AbstractQueryParser {
 
         MeteorParser.expression_return ifClause2 = null;
 
-        MeteorParser.orExpression_return orExpression25 = null;
+        MeteorParser.orExpression_return orExpression26 = null;
 
 
-        EvaluationExpression char_literal22_tree=null;
         EvaluationExpression char_literal23_tree=null;
-        EvaluationExpression string_literal24_tree=null;
+        EvaluationExpression char_literal24_tree=null;
+        EvaluationExpression string_literal25_tree=null;
         RewriteRuleTokenStream stream_35=new RewriteRuleTokenStream(adaptor,"token 35");
         RewriteRuleTokenStream stream_36=new RewriteRuleTokenStream(adaptor,"token 36");
         RewriteRuleTokenStream stream_34=new RewriteRuleTokenStream(adaptor,"token 34");
@@ -1042,37 +1059,37 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_orExpression=new RewriteRuleSubtreeStream(adaptor,"rule orExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 9) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:2: (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression )
-            int alt7=3;
-            alt7 = dfa7.predict(input);
-            switch (alt7) {
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:2: (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression )
+            int alt8=3;
+            alt8 = dfa8.predict(input);
+            switch (alt8) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:4: ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression )
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:4: ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression )
                     {
-                    pushFollow(FOLLOW_orExpression_in_ternaryExpression353);
+                    pushFollow(FOLLOW_orExpression_in_ternaryExpression374);
                     ifClause=orExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
                     if ( state.backtracking==0 ) stream_orExpression.add(ifClause.getTree());
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:26: ( '?' (ifExpr= expression )? ':' elseExpr= expression )
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:27: '?' (ifExpr= expression )? ':' elseExpr= expression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:26: ( '?' (ifExpr= expression )? ':' elseExpr= expression )
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:27: '?' (ifExpr= expression )? ':' elseExpr= expression
                     {
-                    char_literal22=(Token)match(input,34,FOLLOW_34_in_ternaryExpression356); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_34.add(char_literal22);
+                    char_literal23=(Token)match(input,34,FOLLOW_34_in_ternaryExpression377); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_34.add(char_literal23);
 
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:37: (ifExpr= expression )?
-                    int alt6=2;
-                    int LA6_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:37: (ifExpr= expression )?
+                    int alt7=2;
+                    int LA7_0 = input.LA(1);
 
-                    if ( ((LA6_0>=ID && LA6_0<=STRING)||(LA6_0>=DECIMAL && LA6_0<=INTEGER)||LA6_0==30||(LA6_0>=52 && LA6_0<=55)||LA6_0==58||(LA6_0>=60 && LA6_0<=63)||LA6_0==65||LA6_0==67) ) {
-                        alt6=1;
+                    if ( ((LA7_0>=ID && LA7_0<=STRING)||(LA7_0>=DECIMAL && LA7_0<=INTEGER)||LA7_0==31||(LA7_0>=52 && LA7_0<=55)||LA7_0==58||(LA7_0>=60 && LA7_0<=63)||LA7_0==65||LA7_0==67) ) {
+                        alt7=1;
                     }
-                    switch (alt6) {
+                    switch (alt7) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ifExpr= expression
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ifExpr= expression
                             {
-                            pushFollow(FOLLOW_expression_in_ternaryExpression360);
+                            pushFollow(FOLLOW_expression_in_ternaryExpression381);
                             ifExpr=expression();
 
                             state._fsp--;
@@ -1084,10 +1101,10 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    char_literal23=(Token)match(input,35,FOLLOW_35_in_ternaryExpression363); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_35.add(char_literal23);
+                    char_literal24=(Token)match(input,35,FOLLOW_35_in_ternaryExpression384); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_35.add(char_literal24);
 
-                    pushFollow(FOLLOW_expression_in_ternaryExpression367);
+                    pushFollow(FOLLOW_expression_in_ternaryExpression388);
                     elseExpr=expression();
 
                     state._fsp--;
@@ -1111,9 +1128,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_ifClause=new RewriteRuleSubtreeStream(adaptor,"rule ifClause",ifClause!=null?ifClause.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 123:2: -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause)
+                    // 104:2: -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause)
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:123:5: ^( EXPRESSION[\"TernaryExpression\"] $ifClause)
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:104:5: ^( EXPRESSION[\"TernaryExpression\"] $ifClause)
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "TernaryExpression"), root_1);
@@ -1131,18 +1148,18 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:124:4: ifExpr2= orExpression 'if' ifClause2= expression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:105:4: ifExpr2= orExpression 'if' ifClause2= expression
                     {
-                    pushFollow(FOLLOW_orExpression_in_ternaryExpression390);
+                    pushFollow(FOLLOW_orExpression_in_ternaryExpression411);
                     ifExpr2=orExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
                     if ( state.backtracking==0 ) stream_orExpression.add(ifExpr2.getTree());
-                    string_literal24=(Token)match(input,36,FOLLOW_36_in_ternaryExpression392); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_36.add(string_literal24);
+                    string_literal25=(Token)match(input,36,FOLLOW_36_in_ternaryExpression413); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_36.add(string_literal25);
 
-                    pushFollow(FOLLOW_expression_in_ternaryExpression396);
+                    pushFollow(FOLLOW_expression_in_ternaryExpression417);
                     ifClause2=expression();
 
                     state._fsp--;
@@ -1164,9 +1181,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_ifClause2=new RewriteRuleSubtreeStream(adaptor,"rule ifClause2",ifClause2!=null?ifClause2.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 125:2: -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2)
+                    // 106:2: -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2)
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:125:5: ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2)
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:106:5: ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2)
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "TernaryExpression"), root_1);
@@ -1184,16 +1201,16 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 3 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:5: orExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:107:5: orExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_orExpression_in_ternaryExpression418);
-                    orExpression25=orExpression();
+                    pushFollow(FOLLOW_orExpression_in_ternaryExpression439);
+                    orExpression26=orExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, orExpression25.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, orExpression26.getTree());
 
                     }
                     break;
@@ -1220,28 +1237,28 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "orExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:128:1: orExpression : exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )* -> { $exprs.size() == 1 }? ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:109:1: orExpression : exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )* -> { $exprs.size() == 1 }? ->;
     public final MeteorParser.orExpression_return orExpression() throws RecognitionException {
         MeteorParser.orExpression_return retval = new MeteorParser.orExpression_return();
         retval.start = input.LT(1);
         int orExpression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token string_literal26=null;
         Token string_literal27=null;
+        Token string_literal28=null;
         List list_exprs=null;
         RuleReturnScope exprs = null;
-        EvaluationExpression string_literal26_tree=null;
         EvaluationExpression string_literal27_tree=null;
+        EvaluationExpression string_literal28_tree=null;
         RewriteRuleTokenStream stream_37=new RewriteRuleTokenStream(adaptor,"token 37");
         RewriteRuleTokenStream stream_38=new RewriteRuleTokenStream(adaptor,"token 38");
         RewriteRuleSubtreeStream stream_andExpression=new RewriteRuleSubtreeStream(adaptor,"rule andExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 10) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:129:3: (exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )* -> { $exprs.size() == 1 }? ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:129:5: exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )*
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:110:3: (exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )* -> { $exprs.size() == 1 }? ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:110:5: exprs+= andExpression ( ( 'or' | '||' ) exprs+= andExpression )*
             {
-            pushFollow(FOLLOW_andExpression_in_orExpression431);
+            pushFollow(FOLLOW_andExpression_in_orExpression452);
             exprs=andExpression();
 
             state._fsp--;
@@ -1250,53 +1267,53 @@ public class MeteorParser extends AbstractQueryParser {
             if (list_exprs==null) list_exprs=new ArrayList();
             list_exprs.add(exprs.getTree());
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:129:26: ( ( 'or' | '||' ) exprs+= andExpression )*
-            loop9:
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:110:26: ( ( 'or' | '||' ) exprs+= andExpression )*
+            loop10:
             do {
-                int alt9=2;
-                int LA9_0 = input.LA(1);
+                int alt10=2;
+                int LA10_0 = input.LA(1);
 
-                if ( ((LA9_0>=37 && LA9_0<=38)) ) {
-                    alt9=1;
+                if ( ((LA10_0>=37 && LA10_0<=38)) ) {
+                    alt10=1;
                 }
 
 
-                switch (alt9) {
+                switch (alt10) {
             	case 1 :
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:129:27: ( 'or' | '||' ) exprs+= andExpression
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:110:27: ( 'or' | '||' ) exprs+= andExpression
             	    {
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:129:27: ( 'or' | '||' )
-            	    int alt8=2;
-            	    int LA8_0 = input.LA(1);
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:110:27: ( 'or' | '||' )
+            	    int alt9=2;
+            	    int LA9_0 = input.LA(1);
 
-            	    if ( (LA8_0==37) ) {
-            	        alt8=1;
+            	    if ( (LA9_0==37) ) {
+            	        alt9=1;
             	    }
-            	    else if ( (LA8_0==38) ) {
-            	        alt8=2;
+            	    else if ( (LA9_0==38) ) {
+            	        alt9=2;
             	    }
             	    else {
             	        if (state.backtracking>0) {state.failed=true; return retval;}
             	        NoViableAltException nvae =
-            	            new NoViableAltException("", 8, 0, input);
+            	            new NoViableAltException("", 9, 0, input);
 
             	        throw nvae;
             	    }
-            	    switch (alt8) {
+            	    switch (alt9) {
             	        case 1 :
-            	            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:129:28: 'or'
+            	            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:110:28: 'or'
             	            {
-            	            string_literal26=(Token)match(input,37,FOLLOW_37_in_orExpression435); if (state.failed) return retval; 
-            	            if ( state.backtracking==0 ) stream_37.add(string_literal26);
+            	            string_literal27=(Token)match(input,37,FOLLOW_37_in_orExpression456); if (state.failed) return retval; 
+            	            if ( state.backtracking==0 ) stream_37.add(string_literal27);
 
 
             	            }
             	            break;
             	        case 2 :
-            	            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:129:35: '||'
+            	            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:110:35: '||'
             	            {
-            	            string_literal27=(Token)match(input,38,FOLLOW_38_in_orExpression439); if (state.failed) return retval; 
-            	            if ( state.backtracking==0 ) stream_38.add(string_literal27);
+            	            string_literal28=(Token)match(input,38,FOLLOW_38_in_orExpression460); if (state.failed) return retval; 
+            	            if ( state.backtracking==0 ) stream_38.add(string_literal28);
 
 
             	            }
@@ -1304,7 +1321,7 @@ public class MeteorParser extends AbstractQueryParser {
 
             	    }
 
-            	    pushFollow(FOLLOW_andExpression_in_orExpression444);
+            	    pushFollow(FOLLOW_andExpression_in_orExpression465);
             	    exprs=andExpression();
 
             	    state._fsp--;
@@ -1318,7 +1335,7 @@ public class MeteorParser extends AbstractQueryParser {
             	    break;
 
             	default :
-            	    break loop9;
+            	    break loop10;
                 }
             } while (true);
 
@@ -1336,12 +1353,12 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 130:3: -> { $exprs.size() == 1 }?
+            // 111:3: -> { $exprs.size() == 1 }?
             if ( list_exprs.size() == 1 ) {
                 adaptor.addChild(root_0,  list_exprs.get(0) );
 
             }
-            else // 131:3: ->
+            else // 112:3: ->
             {
                 adaptor.addChild(root_0,  OrExpression.valueOf(list_exprs) );
 
@@ -1371,28 +1388,28 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "andExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:133:1: andExpression : exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )* -> { $exprs.size() == 1 }? ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:114:1: andExpression : exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )* -> { $exprs.size() == 1 }? ->;
     public final MeteorParser.andExpression_return andExpression() throws RecognitionException {
         MeteorParser.andExpression_return retval = new MeteorParser.andExpression_return();
         retval.start = input.LT(1);
         int andExpression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token string_literal28=null;
         Token string_literal29=null;
+        Token string_literal30=null;
         List list_exprs=null;
         RuleReturnScope exprs = null;
-        EvaluationExpression string_literal28_tree=null;
         EvaluationExpression string_literal29_tree=null;
+        EvaluationExpression string_literal30_tree=null;
         RewriteRuleTokenStream stream_40=new RewriteRuleTokenStream(adaptor,"token 40");
         RewriteRuleTokenStream stream_39=new RewriteRuleTokenStream(adaptor,"token 39");
         RewriteRuleSubtreeStream stream_elementExpression=new RewriteRuleSubtreeStream(adaptor,"rule elementExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 11) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:134:3: (exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )* -> { $exprs.size() == 1 }? ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:134:5: exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )*
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:115:3: (exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )* -> { $exprs.size() == 1 }? ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:115:5: exprs+= elementExpression ( ( 'and' | '&&' ) exprs+= elementExpression )*
             {
-            pushFollow(FOLLOW_elementExpression_in_andExpression473);
+            pushFollow(FOLLOW_elementExpression_in_andExpression494);
             exprs=elementExpression();
 
             state._fsp--;
@@ -1401,53 +1418,53 @@ public class MeteorParser extends AbstractQueryParser {
             if (list_exprs==null) list_exprs=new ArrayList();
             list_exprs.add(exprs.getTree());
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:134:30: ( ( 'and' | '&&' ) exprs+= elementExpression )*
-            loop11:
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:115:30: ( ( 'and' | '&&' ) exprs+= elementExpression )*
+            loop12:
             do {
-                int alt11=2;
-                int LA11_0 = input.LA(1);
+                int alt12=2;
+                int LA12_0 = input.LA(1);
 
-                if ( ((LA11_0>=39 && LA11_0<=40)) ) {
-                    alt11=1;
+                if ( ((LA12_0>=39 && LA12_0<=40)) ) {
+                    alt12=1;
                 }
 
 
-                switch (alt11) {
+                switch (alt12) {
             	case 1 :
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:134:31: ( 'and' | '&&' ) exprs+= elementExpression
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:115:31: ( 'and' | '&&' ) exprs+= elementExpression
             	    {
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:134:31: ( 'and' | '&&' )
-            	    int alt10=2;
-            	    int LA10_0 = input.LA(1);
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:115:31: ( 'and' | '&&' )
+            	    int alt11=2;
+            	    int LA11_0 = input.LA(1);
 
-            	    if ( (LA10_0==39) ) {
-            	        alt10=1;
+            	    if ( (LA11_0==39) ) {
+            	        alt11=1;
             	    }
-            	    else if ( (LA10_0==40) ) {
-            	        alt10=2;
+            	    else if ( (LA11_0==40) ) {
+            	        alt11=2;
             	    }
             	    else {
             	        if (state.backtracking>0) {state.failed=true; return retval;}
             	        NoViableAltException nvae =
-            	            new NoViableAltException("", 10, 0, input);
+            	            new NoViableAltException("", 11, 0, input);
 
             	        throw nvae;
             	    }
-            	    switch (alt10) {
+            	    switch (alt11) {
             	        case 1 :
-            	            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:134:32: 'and'
+            	            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:115:32: 'and'
             	            {
-            	            string_literal28=(Token)match(input,39,FOLLOW_39_in_andExpression477); if (state.failed) return retval; 
-            	            if ( state.backtracking==0 ) stream_39.add(string_literal28);
+            	            string_literal29=(Token)match(input,39,FOLLOW_39_in_andExpression498); if (state.failed) return retval; 
+            	            if ( state.backtracking==0 ) stream_39.add(string_literal29);
 
 
             	            }
             	            break;
             	        case 2 :
-            	            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:134:40: '&&'
+            	            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:115:40: '&&'
             	            {
-            	            string_literal29=(Token)match(input,40,FOLLOW_40_in_andExpression481); if (state.failed) return retval; 
-            	            if ( state.backtracking==0 ) stream_40.add(string_literal29);
+            	            string_literal30=(Token)match(input,40,FOLLOW_40_in_andExpression502); if (state.failed) return retval; 
+            	            if ( state.backtracking==0 ) stream_40.add(string_literal30);
 
 
             	            }
@@ -1455,7 +1472,7 @@ public class MeteorParser extends AbstractQueryParser {
 
             	    }
 
-            	    pushFollow(FOLLOW_elementExpression_in_andExpression486);
+            	    pushFollow(FOLLOW_elementExpression_in_andExpression507);
             	    exprs=elementExpression();
 
             	    state._fsp--;
@@ -1469,7 +1486,7 @@ public class MeteorParser extends AbstractQueryParser {
             	    break;
 
             	default :
-            	    break loop11;
+            	    break loop12;
                 }
             } while (true);
 
@@ -1487,12 +1504,12 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 135:3: -> { $exprs.size() == 1 }?
+            // 116:3: -> { $exprs.size() == 1 }?
             if ( list_exprs.size() == 1 ) {
                 adaptor.addChild(root_0,  list_exprs.get(0) );
 
             }
-            else // 136:3: ->
+            else // 117:3: ->
             {
                 adaptor.addChild(root_0,  AndExpression.valueOf(list_exprs) );
 
@@ -1522,7 +1539,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "elementExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:138:1: elementExpression : elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )? -> { set == null }? $elem -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set) ;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:119:1: elementExpression : elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )? -> { set == null }? $elem -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set) ;
     public final MeteorParser.elementExpression_return elementExpression() throws RecognitionException {
         MeteorParser.elementExpression_return retval = new MeteorParser.elementExpression_return();
         retval.start = input.LT(1);
@@ -1530,51 +1547,51 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression root_0 = null;
 
         Token not=null;
-        Token string_literal30=null;
+        Token string_literal31=null;
         MeteorParser.comparisonExpression_return elem = null;
 
         MeteorParser.comparisonExpression_return set = null;
 
 
         EvaluationExpression not_tree=null;
-        EvaluationExpression string_literal30_tree=null;
+        EvaluationExpression string_literal31_tree=null;
         RewriteRuleTokenStream stream_42=new RewriteRuleTokenStream(adaptor,"token 42");
         RewriteRuleTokenStream stream_41=new RewriteRuleTokenStream(adaptor,"token 41");
         RewriteRuleSubtreeStream stream_comparisonExpression=new RewriteRuleSubtreeStream(adaptor,"rule comparisonExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 12) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:2: (elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )? -> { set == null }? $elem -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set) )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:4: elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )?
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:120:2: (elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )? -> { set == null }? $elem -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set) )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:120:4: elem= comparisonExpression ( (not= 'not' )? 'in' set= comparisonExpression )?
             {
-            pushFollow(FOLLOW_comparisonExpression_in_elementExpression515);
+            pushFollow(FOLLOW_comparisonExpression_in_elementExpression536);
             elem=comparisonExpression();
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_comparisonExpression.add(elem.getTree());
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:30: ( (not= 'not' )? 'in' set= comparisonExpression )?
-            int alt13=2;
-            int LA13_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:120:30: ( (not= 'not' )? 'in' set= comparisonExpression )?
+            int alt14=2;
+            int LA14_0 = input.LA(1);
 
-            if ( ((LA13_0>=41 && LA13_0<=42)) ) {
-                alt13=1;
+            if ( ((LA14_0>=41 && LA14_0<=42)) ) {
+                alt14=1;
             }
-            switch (alt13) {
+            switch (alt14) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:31: (not= 'not' )? 'in' set= comparisonExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:120:31: (not= 'not' )? 'in' set= comparisonExpression
                     {
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:34: (not= 'not' )?
-                    int alt12=2;
-                    int LA12_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:120:34: (not= 'not' )?
+                    int alt13=2;
+                    int LA13_0 = input.LA(1);
 
-                    if ( (LA12_0==41) ) {
-                        alt12=1;
+                    if ( (LA13_0==41) ) {
+                        alt13=1;
                     }
-                    switch (alt12) {
+                    switch (alt13) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: not= 'not'
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: not= 'not'
                             {
-                            not=(Token)match(input,41,FOLLOW_41_in_elementExpression520); if (state.failed) return retval; 
+                            not=(Token)match(input,41,FOLLOW_41_in_elementExpression541); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_41.add(not);
 
 
@@ -1583,10 +1600,10 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    string_literal30=(Token)match(input,42,FOLLOW_42_in_elementExpression523); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_42.add(string_literal30);
+                    string_literal31=(Token)match(input,42,FOLLOW_42_in_elementExpression544); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_42.add(string_literal31);
 
-                    pushFollow(FOLLOW_comparisonExpression_in_elementExpression527);
+                    pushFollow(FOLLOW_comparisonExpression_in_elementExpression548);
                     set=comparisonExpression();
 
                     state._fsp--;
@@ -1601,7 +1618,7 @@ public class MeteorParser extends AbstractQueryParser {
 
 
             // AST REWRITE
-            // elements: elem, elem, set
+            // elements: elem, set, elem
             // token labels: 
             // rule labels: elem, retval, set
             // token list labels: 
@@ -1614,14 +1631,14 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_set=new RewriteRuleSubtreeStream(adaptor,"rule set",set!=null?set.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 140:2: -> { set == null }? $elem
+            // 121:2: -> { set == null }? $elem
             if ( set == null ) {
                 adaptor.addChild(root_0, stream_elem.nextTree());
 
             }
-            else // 141:2: -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set)
+            else // 122:2: -> ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set)
             {
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:141:5: ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set)
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:5: ^( EXPRESSION[\"ElementInSetExpression\"] $elem $set)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ElementInSetExpression"), root_1);
@@ -1659,7 +1676,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "comparisonExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:144:1: comparisonExpression : e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )? -> { $s == null }? $e1 -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) ;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:125:1: comparisonExpression : e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )? -> { $s == null }? $e1 -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) ;
     public final MeteorParser.comparisonExpression_return comparisonExpression() throws RecognitionException {
         MeteorParser.comparisonExpression_return retval = new MeteorParser.comparisonExpression_return();
         retval.start = input.LT(1);
@@ -1682,117 +1699,117 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_arithmeticExpression=new RewriteRuleSubtreeStream(adaptor,"rule arithmeticExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 13) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:2: (e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )? -> { $s == null }? $e1 -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:4: e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )?
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:2: (e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )? -> { $s == null }? $e1 -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2) )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:4: e1= arithmeticExpression ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )?
             {
-            pushFollow(FOLLOW_arithmeticExpression_in_comparisonExpression568);
+            pushFollow(FOLLOW_arithmeticExpression_in_comparisonExpression589);
             e1=arithmeticExpression();
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_arithmeticExpression.add(e1.getTree());
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:28: ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )?
-            int alt15=2;
-            int LA15_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:28: ( (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression )?
+            int alt16=2;
+            int LA16_0 = input.LA(1);
 
-            if ( ((LA15_0>=43 && LA15_0<=48)) ) {
-                alt15=1;
+            if ( ((LA16_0>=43 && LA16_0<=48)) ) {
+                alt16=1;
             }
-            switch (alt15) {
+            switch (alt16) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:29: (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:29: (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' ) e2= arithmeticExpression
                     {
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:29: (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' )
-                    int alt14=6;
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:29: (s= '<=' | s= '>=' | s= '<' | s= '>' | s= '==' | s= '!=' )
+                    int alt15=6;
                     switch ( input.LA(1) ) {
                     case 43:
                         {
-                        alt14=1;
+                        alt15=1;
                         }
                         break;
                     case 44:
                         {
-                        alt14=2;
+                        alt15=2;
                         }
                         break;
                     case 45:
                         {
-                        alt14=3;
+                        alt15=3;
                         }
                         break;
                     case 46:
                         {
-                        alt14=4;
+                        alt15=4;
                         }
                         break;
                     case 47:
                         {
-                        alt14=5;
+                        alt15=5;
                         }
                         break;
                     case 48:
                         {
-                        alt14=6;
+                        alt15=6;
                         }
                         break;
                     default:
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         NoViableAltException nvae =
-                            new NoViableAltException("", 14, 0, input);
+                            new NoViableAltException("", 15, 0, input);
 
                         throw nvae;
                     }
 
-                    switch (alt14) {
+                    switch (alt15) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:30: s= '<='
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:30: s= '<='
                             {
-                            s=(Token)match(input,43,FOLLOW_43_in_comparisonExpression574); if (state.failed) return retval; 
+                            s=(Token)match(input,43,FOLLOW_43_in_comparisonExpression595); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_43.add(s);
 
 
                             }
                             break;
                         case 2 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:39: s= '>='
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:39: s= '>='
                             {
-                            s=(Token)match(input,44,FOLLOW_44_in_comparisonExpression580); if (state.failed) return retval; 
+                            s=(Token)match(input,44,FOLLOW_44_in_comparisonExpression601); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_44.add(s);
 
 
                             }
                             break;
                         case 3 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:48: s= '<'
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:48: s= '<'
                             {
-                            s=(Token)match(input,45,FOLLOW_45_in_comparisonExpression586); if (state.failed) return retval; 
+                            s=(Token)match(input,45,FOLLOW_45_in_comparisonExpression607); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_45.add(s);
 
 
                             }
                             break;
                         case 4 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:56: s= '>'
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:56: s= '>'
                             {
-                            s=(Token)match(input,46,FOLLOW_46_in_comparisonExpression592); if (state.failed) return retval; 
+                            s=(Token)match(input,46,FOLLOW_46_in_comparisonExpression613); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_46.add(s);
 
 
                             }
                             break;
                         case 5 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:64: s= '=='
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:64: s= '=='
                             {
-                            s=(Token)match(input,47,FOLLOW_47_in_comparisonExpression598); if (state.failed) return retval; 
+                            s=(Token)match(input,47,FOLLOW_47_in_comparisonExpression619); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_47.add(s);
 
 
                             }
                             break;
                         case 6 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:73: s= '!='
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:126:73: s= '!='
                             {
-                            s=(Token)match(input,48,FOLLOW_48_in_comparisonExpression604); if (state.failed) return retval; 
+                            s=(Token)match(input,48,FOLLOW_48_in_comparisonExpression625); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_48.add(s);
 
 
@@ -1801,7 +1818,7 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    pushFollow(FOLLOW_arithmeticExpression_in_comparisonExpression609);
+                    pushFollow(FOLLOW_arithmeticExpression_in_comparisonExpression630);
                     e2=arithmeticExpression();
 
                     state._fsp--;
@@ -1816,7 +1833,7 @@ public class MeteorParser extends AbstractQueryParser {
 
 
             // AST REWRITE
-            // elements: e2, e2, e1, e2, e1, e1, e1
+            // elements: e1, e1, e1, e2, e1, e2, e2
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -1829,14 +1846,14 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_e2=new RewriteRuleSubtreeStream(adaptor,"rule e2",e2!=null?e2.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 146:2: -> { $s == null }? $e1
+            // 127:2: -> { $s == null }? $e1
             if ( s == null ) {
                 adaptor.addChild(root_0, stream_e1.nextTree());
 
             }
-            else // 147:3: -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+            else // 128:3: -> { $s.getText().equals(\"!=\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
             if ( s.getText().equals("!=") ) {
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:147:38: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:128:38: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ComparativeExpression"), root_1);
@@ -1849,9 +1866,9 @@ public class MeteorParser extends AbstractQueryParser {
                 }
 
             }
-            else // 148:3: -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+            else // 129:3: -> { $s.getText().equals(\"==\") }? ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
             if ( s.getText().equals("==") ) {
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:148:38: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:129:38: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ComparativeExpression"), root_1);
@@ -1864,9 +1881,9 @@ public class MeteorParser extends AbstractQueryParser {
                 }
 
             }
-            else // 149:2: -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+            else // 130:2: -> ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
             {
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:149:6: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:130:6: ^( EXPRESSION[\"ComparativeExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ComparativeExpression"), root_1);
@@ -1904,7 +1921,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "arithmeticExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:151:1: arithmeticExpression : e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:132:1: arithmeticExpression : e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1;
     public final MeteorParser.arithmeticExpression_return arithmeticExpression() throws RecognitionException {
         MeteorParser.arithmeticExpression_return retval = new MeteorParser.arithmeticExpression_return();
         retval.start = input.LT(1);
@@ -1923,57 +1940,57 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_multiplicationExpression=new RewriteRuleSubtreeStream(adaptor,"rule multiplicationExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 14) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:152:2: (e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:152:4: e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )?
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:133:2: (e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:133:4: e1= multiplicationExpression ( (s= '+' | s= '-' ) e2= multiplicationExpression )?
             {
-            pushFollow(FOLLOW_multiplicationExpression_in_arithmeticExpression689);
+            pushFollow(FOLLOW_multiplicationExpression_in_arithmeticExpression710);
             e1=multiplicationExpression();
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_multiplicationExpression.add(e1.getTree());
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:152:32: ( (s= '+' | s= '-' ) e2= multiplicationExpression )?
-            int alt17=2;
-            int LA17_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:133:32: ( (s= '+' | s= '-' ) e2= multiplicationExpression )?
+            int alt18=2;
+            int LA18_0 = input.LA(1);
 
-            if ( ((LA17_0>=49 && LA17_0<=50)) ) {
-                alt17=1;
+            if ( ((LA18_0>=49 && LA18_0<=50)) ) {
+                alt18=1;
             }
-            switch (alt17) {
+            switch (alt18) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:152:33: (s= '+' | s= '-' ) e2= multiplicationExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:133:33: (s= '+' | s= '-' ) e2= multiplicationExpression
                     {
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:152:33: (s= '+' | s= '-' )
-                    int alt16=2;
-                    int LA16_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:133:33: (s= '+' | s= '-' )
+                    int alt17=2;
+                    int LA17_0 = input.LA(1);
 
-                    if ( (LA16_0==49) ) {
-                        alt16=1;
+                    if ( (LA17_0==49) ) {
+                        alt17=1;
                     }
-                    else if ( (LA16_0==50) ) {
-                        alt16=2;
+                    else if ( (LA17_0==50) ) {
+                        alt17=2;
                     }
                     else {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         NoViableAltException nvae =
-                            new NoViableAltException("", 16, 0, input);
+                            new NoViableAltException("", 17, 0, input);
 
                         throw nvae;
                     }
-                    switch (alt16) {
+                    switch (alt17) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:152:34: s= '+'
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:133:34: s= '+'
                             {
-                            s=(Token)match(input,49,FOLLOW_49_in_arithmeticExpression695); if (state.failed) return retval; 
+                            s=(Token)match(input,49,FOLLOW_49_in_arithmeticExpression716); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_49.add(s);
 
 
                             }
                             break;
                         case 2 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:152:42: s= '-'
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:133:42: s= '-'
                             {
-                            s=(Token)match(input,50,FOLLOW_50_in_arithmeticExpression701); if (state.failed) return retval; 
+                            s=(Token)match(input,50,FOLLOW_50_in_arithmeticExpression722); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_50.add(s);
 
 
@@ -1982,7 +1999,7 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    pushFollow(FOLLOW_multiplicationExpression_in_arithmeticExpression706);
+                    pushFollow(FOLLOW_multiplicationExpression_in_arithmeticExpression727);
                     e2=multiplicationExpression();
 
                     state._fsp--;
@@ -2010,9 +2027,9 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_e2=new RewriteRuleSubtreeStream(adaptor,"rule e2",e2!=null?e2.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 153:2: -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
+            // 134:2: -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
             if ( s != null ) {
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:153:21: ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:134:21: ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArithmeticExpression"), root_1);
@@ -2025,7 +2042,7 @@ public class MeteorParser extends AbstractQueryParser {
                 }
 
             }
-            else // 155:2: -> $e1
+            else // 136:2: -> $e1
             {
                 adaptor.addChild(root_0, stream_e1.nextTree());
 
@@ -2055,7 +2072,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "multiplicationExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:157:1: multiplicationExpression : e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:138:1: multiplicationExpression : e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1;
     public final MeteorParser.multiplicationExpression_return multiplicationExpression() throws RecognitionException {
         MeteorParser.multiplicationExpression_return retval = new MeteorParser.multiplicationExpression_return();
         retval.start = input.LT(1);
@@ -2074,57 +2091,57 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_preincrementExpression=new RewriteRuleSubtreeStream(adaptor,"rule preincrementExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 15) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:158:2: (e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:158:4: e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )?
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:2: (e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )? -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2) -> $e1)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:4: e1= preincrementExpression ( (s= '*' | s= '/' ) e2= preincrementExpression )?
             {
-            pushFollow(FOLLOW_preincrementExpression_in_multiplicationExpression749);
+            pushFollow(FOLLOW_preincrementExpression_in_multiplicationExpression770);
             e1=preincrementExpression();
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_preincrementExpression.add(e1.getTree());
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:158:30: ( (s= '*' | s= '/' ) e2= preincrementExpression )?
-            int alt19=2;
-            int LA19_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:30: ( (s= '*' | s= '/' ) e2= preincrementExpression )?
+            int alt20=2;
+            int LA20_0 = input.LA(1);
 
-            if ( (LA19_0==STAR||LA19_0==51) ) {
-                alt19=1;
+            if ( (LA20_0==STAR||LA20_0==51) ) {
+                alt20=1;
             }
-            switch (alt19) {
+            switch (alt20) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:158:31: (s= '*' | s= '/' ) e2= preincrementExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:31: (s= '*' | s= '/' ) e2= preincrementExpression
                     {
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:158:31: (s= '*' | s= '/' )
-                    int alt18=2;
-                    int LA18_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:31: (s= '*' | s= '/' )
+                    int alt19=2;
+                    int LA19_0 = input.LA(1);
 
-                    if ( (LA18_0==STAR) ) {
-                        alt18=1;
+                    if ( (LA19_0==STAR) ) {
+                        alt19=1;
                     }
-                    else if ( (LA18_0==51) ) {
-                        alt18=2;
+                    else if ( (LA19_0==51) ) {
+                        alt19=2;
                     }
                     else {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         NoViableAltException nvae =
-                            new NoViableAltException("", 18, 0, input);
+                            new NoViableAltException("", 19, 0, input);
 
                         throw nvae;
                     }
-                    switch (alt18) {
+                    switch (alt19) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:158:32: s= '*'
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:32: s= '*'
                             {
-                            s=(Token)match(input,STAR,FOLLOW_STAR_in_multiplicationExpression755); if (state.failed) return retval; 
+                            s=(Token)match(input,STAR,FOLLOW_STAR_in_multiplicationExpression776); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_STAR.add(s);
 
 
                             }
                             break;
                         case 2 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:158:40: s= '/'
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:139:40: s= '/'
                             {
-                            s=(Token)match(input,51,FOLLOW_51_in_multiplicationExpression761); if (state.failed) return retval; 
+                            s=(Token)match(input,51,FOLLOW_51_in_multiplicationExpression782); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_51.add(s);
 
 
@@ -2133,7 +2150,7 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    pushFollow(FOLLOW_preincrementExpression_in_multiplicationExpression766);
+                    pushFollow(FOLLOW_preincrementExpression_in_multiplicationExpression787);
                     e2=preincrementExpression();
 
                     state._fsp--;
@@ -2148,7 +2165,7 @@ public class MeteorParser extends AbstractQueryParser {
 
 
             // AST REWRITE
-            // elements: e2, e1, e1
+            // elements: e1, e1, e2
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -2161,9 +2178,9 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_e2=new RewriteRuleSubtreeStream(adaptor,"rule e2",e2!=null?e2.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 159:2: -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
+            // 140:2: -> { s != null }? ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
             if ( s != null ) {
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:159:21: ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:140:21: ^( EXPRESSION[\"ArithmeticExpression\"] $e1 $e2)
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArithmeticExpression"), root_1);
@@ -2176,7 +2193,7 @@ public class MeteorParser extends AbstractQueryParser {
                 }
 
             }
-            else // 161:2: -> $e1
+            else // 142:2: -> $e1
             {
                 adaptor.addChild(root_0, stream_e1.nextTree());
 
@@ -2206,38 +2223,38 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "preincrementExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:163:1: preincrementExpression : ( '++' preincrementExpression | '--' preincrementExpression | unaryExpression );
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:144:1: preincrementExpression : ( '++' preincrementExpression | '--' preincrementExpression | unaryExpression );
     public final MeteorParser.preincrementExpression_return preincrementExpression() throws RecognitionException {
         MeteorParser.preincrementExpression_return retval = new MeteorParser.preincrementExpression_return();
         retval.start = input.LT(1);
         int preincrementExpression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token string_literal31=null;
-        Token string_literal33=null;
-        MeteorParser.preincrementExpression_return preincrementExpression32 = null;
+        Token string_literal32=null;
+        Token string_literal34=null;
+        MeteorParser.preincrementExpression_return preincrementExpression33 = null;
 
-        MeteorParser.preincrementExpression_return preincrementExpression34 = null;
+        MeteorParser.preincrementExpression_return preincrementExpression35 = null;
 
-        MeteorParser.unaryExpression_return unaryExpression35 = null;
+        MeteorParser.unaryExpression_return unaryExpression36 = null;
 
 
-        EvaluationExpression string_literal31_tree=null;
-        EvaluationExpression string_literal33_tree=null;
+        EvaluationExpression string_literal32_tree=null;
+        EvaluationExpression string_literal34_tree=null;
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 16) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:164:2: ( '++' preincrementExpression | '--' preincrementExpression | unaryExpression )
-            int alt20=3;
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:2: ( '++' preincrementExpression | '--' preincrementExpression | unaryExpression )
+            int alt21=3;
             switch ( input.LA(1) ) {
             case 52:
                 {
-                alt20=1;
+                alt21=1;
                 }
                 break;
             case 53:
                 {
-                alt20=2;
+                alt21=2;
                 }
                 break;
             case ID:
@@ -2245,7 +2262,7 @@ public class MeteorParser extends AbstractQueryParser {
             case STRING:
             case DECIMAL:
             case INTEGER:
-            case 30:
+            case 31:
             case 54:
             case 55:
             case 58:
@@ -2254,67 +2271,67 @@ public class MeteorParser extends AbstractQueryParser {
             case 62:
             case 63:
                 {
-                alt20=3;
+                alt21=3;
                 }
                 break;
             default:
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 NoViableAltException nvae =
-                    new NoViableAltException("", 20, 0, input);
+                    new NoViableAltException("", 21, 0, input);
 
                 throw nvae;
             }
 
-            switch (alt20) {
+            switch (alt21) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:164:4: '++' preincrementExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:145:4: '++' preincrementExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    string_literal31=(Token)match(input,52,FOLLOW_52_in_preincrementExpression807); if (state.failed) return retval;
+                    string_literal32=(Token)match(input,52,FOLLOW_52_in_preincrementExpression828); if (state.failed) return retval;
                     if ( state.backtracking==0 ) {
-                    string_literal31_tree = (EvaluationExpression)adaptor.create(string_literal31);
-                    adaptor.addChild(root_0, string_literal31_tree);
+                    string_literal32_tree = (EvaluationExpression)adaptor.create(string_literal32);
+                    adaptor.addChild(root_0, string_literal32_tree);
                     }
-                    pushFollow(FOLLOW_preincrementExpression_in_preincrementExpression809);
-                    preincrementExpression32=preincrementExpression();
+                    pushFollow(FOLLOW_preincrementExpression_in_preincrementExpression830);
+                    preincrementExpression33=preincrementExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, preincrementExpression32.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, preincrementExpression33.getTree());
 
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:165:4: '--' preincrementExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:146:4: '--' preincrementExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    string_literal33=(Token)match(input,53,FOLLOW_53_in_preincrementExpression814); if (state.failed) return retval;
+                    string_literal34=(Token)match(input,53,FOLLOW_53_in_preincrementExpression835); if (state.failed) return retval;
                     if ( state.backtracking==0 ) {
-                    string_literal33_tree = (EvaluationExpression)adaptor.create(string_literal33);
-                    adaptor.addChild(root_0, string_literal33_tree);
+                    string_literal34_tree = (EvaluationExpression)adaptor.create(string_literal34);
+                    adaptor.addChild(root_0, string_literal34_tree);
                     }
-                    pushFollow(FOLLOW_preincrementExpression_in_preincrementExpression816);
-                    preincrementExpression34=preincrementExpression();
+                    pushFollow(FOLLOW_preincrementExpression_in_preincrementExpression837);
+                    preincrementExpression35=preincrementExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, preincrementExpression34.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, preincrementExpression35.getTree());
 
                     }
                     break;
                 case 3 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:166:4: unaryExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:147:4: unaryExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_unaryExpression_in_preincrementExpression821);
-                    unaryExpression35=unaryExpression();
+                    pushFollow(FOLLOW_unaryExpression_in_preincrementExpression842);
+                    unaryExpression36=unaryExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, unaryExpression35.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, unaryExpression36.getTree());
 
                     }
                     break;
@@ -2341,41 +2358,41 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "unaryExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:168:1: unaryExpression : ( '!' | '~' )? castExpression ;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:149:1: unaryExpression : ( '!' | '~' )? castExpression ;
     public final MeteorParser.unaryExpression_return unaryExpression() throws RecognitionException {
         MeteorParser.unaryExpression_return retval = new MeteorParser.unaryExpression_return();
         retval.start = input.LT(1);
         int unaryExpression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token set36=null;
-        MeteorParser.castExpression_return castExpression37 = null;
+        Token set37=null;
+        MeteorParser.castExpression_return castExpression38 = null;
 
 
-        EvaluationExpression set36_tree=null;
+        EvaluationExpression set37_tree=null;
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 17) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:169:2: ( ( '!' | '~' )? castExpression )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:169:4: ( '!' | '~' )? castExpression
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:150:2: ( ( '!' | '~' )? castExpression )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:150:4: ( '!' | '~' )? castExpression
             {
             root_0 = (EvaluationExpression)adaptor.nil();
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:169:4: ( '!' | '~' )?
-            int alt21=2;
-            int LA21_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:150:4: ( '!' | '~' )?
+            int alt22=2;
+            int LA22_0 = input.LA(1);
 
-            if ( ((LA21_0>=54 && LA21_0<=55)) ) {
-                alt21=1;
+            if ( ((LA22_0>=54 && LA22_0<=55)) ) {
+                alt22=1;
             }
-            switch (alt21) {
+            switch (alt22) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:
                     {
-                    set36=(Token)input.LT(1);
+                    set37=(Token)input.LT(1);
                     if ( (input.LA(1)>=54 && input.LA(1)<=55) ) {
                         input.consume();
-                        if ( state.backtracking==0 ) adaptor.addChild(root_0, (EvaluationExpression)adaptor.create(set36));
+                        if ( state.backtracking==0 ) adaptor.addChild(root_0, (EvaluationExpression)adaptor.create(set37));
                         state.errorRecovery=false;state.failed=false;
                     }
                     else {
@@ -2390,12 +2407,12 @@ public class MeteorParser extends AbstractQueryParser {
 
             }
 
-            pushFollow(FOLLOW_castExpression_in_unaryExpression840);
-            castExpression37=castExpression();
+            pushFollow(FOLLOW_castExpression_in_unaryExpression861);
+            castExpression38=castExpression();
 
             state._fsp--;
             if (state.failed) return retval;
-            if ( state.backtracking==0 ) adaptor.addChild(root_0, castExpression37.getTree());
+            if ( state.backtracking==0 ) adaptor.addChild(root_0, castExpression38.getTree());
 
             }
 
@@ -2420,7 +2437,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "castExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:171:1: castExpression : ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression ) -> { type != null }? -> $expr;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:152:1: castExpression : ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression ) -> { type != null }? -> $expr;
     public final MeteorParser.castExpression_return castExpression() throws RecognitionException {
         MeteorParser.castExpression_return retval = new MeteorParser.castExpression_return();
         retval.start = input.LT(1);
@@ -2428,43 +2445,43 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression root_0 = null;
 
         Token type=null;
-        Token char_literal38=null;
         Token char_literal39=null;
-        Token string_literal40=null;
+        Token char_literal40=null;
+        Token string_literal41=null;
         MeteorParser.generalPathExpression_return expr = null;
 
 
         EvaluationExpression type_tree=null;
-        EvaluationExpression char_literal38_tree=null;
         EvaluationExpression char_literal39_tree=null;
-        EvaluationExpression string_literal40_tree=null;
-        RewriteRuleTokenStream stream_30=new RewriteRuleTokenStream(adaptor,"token 30");
+        EvaluationExpression char_literal40_tree=null;
+        EvaluationExpression string_literal41_tree=null;
         RewriteRuleTokenStream stream_56=new RewriteRuleTokenStream(adaptor,"token 56");
         RewriteRuleTokenStream stream_32=new RewriteRuleTokenStream(adaptor,"token 32");
+        RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
         RewriteRuleSubtreeStream stream_generalPathExpression=new RewriteRuleSubtreeStream(adaptor,"rule generalPathExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 18) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:172:2: ( ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression ) -> { type != null }? -> $expr)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:172:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:153:2: ( ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression ) -> { type != null }? -> $expr)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:153:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )
             {
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:172:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )
-            int alt22=3;
-            alt22 = dfa22.predict(input);
-            switch (alt22) {
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:153:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )
+            int alt23=3;
+            alt23 = dfa23.predict(input);
+            switch (alt23) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:172:5: '(' type= ID ')' expr= generalPathExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:153:5: '(' type= ID ')' expr= generalPathExpression
                     {
-                    char_literal38=(Token)match(input,30,FOLLOW_30_in_castExpression850); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_30.add(char_literal38);
+                    char_literal39=(Token)match(input,31,FOLLOW_31_in_castExpression871); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_31.add(char_literal39);
 
-                    type=(Token)match(input,ID,FOLLOW_ID_in_castExpression854); if (state.failed) return retval; 
+                    type=(Token)match(input,ID,FOLLOW_ID_in_castExpression875); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(type);
 
-                    char_literal39=(Token)match(input,32,FOLLOW_32_in_castExpression856); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_32.add(char_literal39);
+                    char_literal40=(Token)match(input,32,FOLLOW_32_in_castExpression877); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_32.add(char_literal40);
 
-                    pushFollow(FOLLOW_generalPathExpression_in_castExpression860);
+                    pushFollow(FOLLOW_generalPathExpression_in_castExpression881);
                     expr=generalPathExpression();
 
                     state._fsp--;
@@ -2474,27 +2491,27 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:173:4: expr= generalPathExpression 'as' type= ID
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:154:4: expr= generalPathExpression 'as' type= ID
                     {
-                    pushFollow(FOLLOW_generalPathExpression_in_castExpression867);
+                    pushFollow(FOLLOW_generalPathExpression_in_castExpression888);
                     expr=generalPathExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
                     if ( state.backtracking==0 ) stream_generalPathExpression.add(expr.getTree());
-                    string_literal40=(Token)match(input,56,FOLLOW_56_in_castExpression869); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_56.add(string_literal40);
+                    string_literal41=(Token)match(input,56,FOLLOW_56_in_castExpression890); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_56.add(string_literal41);
 
-                    type=(Token)match(input,ID,FOLLOW_ID_in_castExpression873); if (state.failed) return retval; 
+                    type=(Token)match(input,ID,FOLLOW_ID_in_castExpression894); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(type);
 
 
                     }
                     break;
                 case 3 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:174:4: expr= generalPathExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:155:4: expr= generalPathExpression
                     {
-                    pushFollow(FOLLOW_generalPathExpression_in_castExpression880);
+                    pushFollow(FOLLOW_generalPathExpression_in_castExpression901);
                     expr=generalPathExpression();
 
                     state._fsp--;
@@ -2521,12 +2538,12 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_expr=new RewriteRuleSubtreeStream(adaptor,"rule expr",expr!=null?expr.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 175:2: -> { type != null }?
+            // 156:2: -> { type != null }?
             if ( type != null ) {
                 adaptor.addChild(root_0,  coerce((type!=null?type.getText():null), (expr!=null?((EvaluationExpression)expr.tree):null)) );
 
             }
-            else // 176:2: -> $expr
+            else // 157:2: -> $expr
             {
                 adaptor.addChild(root_0, stream_expr.nextTree());
 
@@ -2556,7 +2573,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "generalPathExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:178:1: generalPathExpression : (value= valueExpression path= pathExpression -> | valueExpression );
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:159:1: generalPathExpression : (value= valueExpression path= pathExpression -> | valueExpression );
     public final MeteorParser.generalPathExpression_return generalPathExpression() throws RecognitionException {
         MeteorParser.generalPathExpression_return retval = new MeteorParser.generalPathExpression_return();
         retval.start = input.LT(1);
@@ -2567,27 +2584,27 @@ public class MeteorParser extends AbstractQueryParser {
 
         MeteorParser.pathExpression_return path = null;
 
-        MeteorParser.valueExpression_return valueExpression41 = null;
+        MeteorParser.valueExpression_return valueExpression42 = null;
 
 
         RewriteRuleSubtreeStream stream_valueExpression=new RewriteRuleSubtreeStream(adaptor,"rule valueExpression");
         RewriteRuleSubtreeStream stream_pathExpression=new RewriteRuleSubtreeStream(adaptor,"rule pathExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 19) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:2: (value= valueExpression path= pathExpression -> | valueExpression )
-            int alt23=2;
-            alt23 = dfa23.predict(input);
-            switch (alt23) {
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:160:2: (value= valueExpression path= pathExpression -> | valueExpression )
+            int alt24=2;
+            alt24 = dfa24.predict(input);
+            switch (alt24) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:4: value= valueExpression path= pathExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:160:4: value= valueExpression path= pathExpression
                     {
-                    pushFollow(FOLLOW_valueExpression_in_generalPathExpression907);
+                    pushFollow(FOLLOW_valueExpression_in_generalPathExpression928);
                     value=valueExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
                     if ( state.backtracking==0 ) stream_valueExpression.add(value.getTree());
-                    pushFollow(FOLLOW_pathExpression_in_generalPathExpression911);
+                    pushFollow(FOLLOW_pathExpression_in_generalPathExpression932);
                     path=pathExpression();
 
                     state._fsp--;
@@ -2607,7 +2624,7 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 179:46: ->
+                    // 160:46: ->
                     {
                         adaptor.addChild(root_0,  PathExpression.wrapIfNecessary((value!=null?((EvaluationExpression)value.tree):null), (path!=null?((EvaluationExpression)path.tree):null)) );
 
@@ -2617,16 +2634,16 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:180:4: valueExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:161:4: valueExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_valueExpression_in_generalPathExpression921);
-                    valueExpression41=valueExpression();
+                    pushFollow(FOLLOW_valueExpression_in_generalPathExpression942);
+                    valueExpression42=valueExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, valueExpression41.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, valueExpression42.getTree());
 
                     }
                     break;
@@ -2653,7 +2670,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "contextAwarePathExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:182:1: contextAwarePathExpression[EvaluationExpression context] : path= pathExpression ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:163:1: contextAwarePathExpression[EvaluationExpression context] : path= pathExpression ->;
     public final MeteorParser.contextAwarePathExpression_return contextAwarePathExpression(EvaluationExpression context) throws RecognitionException {
         MeteorParser.contextAwarePathExpression_return retval = new MeteorParser.contextAwarePathExpression_return();
         retval.start = input.LT(1);
@@ -2666,10 +2683,10 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_pathExpression=new RewriteRuleSubtreeStream(adaptor,"rule pathExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 20) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:183:3: (path= pathExpression ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:183:5: path= pathExpression
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:164:3: (path= pathExpression ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:164:5: path= pathExpression
             {
-            pushFollow(FOLLOW_pathExpression_in_contextAwarePathExpression934);
+            pushFollow(FOLLOW_pathExpression_in_contextAwarePathExpression955);
             path=pathExpression();
 
             state._fsp--;
@@ -2689,7 +2706,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 183:25: ->
+            // 164:25: ->
             {
                 adaptor.addChild(root_0,  PathExpression.wrapIfNecessary(context, (path!=null?((EvaluationExpression)path.tree):null)) );
 
@@ -2724,7 +2741,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "pathExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:185:1: pathExpression : ( ( '.' (field= ID ) ) | arrayAccess )+ ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:166:1: pathExpression : ( ( '.' (field= ID ) ) | arrayAccess )+ ->;
     public final MeteorParser.pathExpression_return pathExpression() throws RecognitionException {
         pathExpression_stack.push(new pathExpression_scope());
         MeteorParser.pathExpression_return retval = new MeteorParser.pathExpression_return();
@@ -2733,62 +2750,62 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression root_0 = null;
 
         Token field=null;
-        Token char_literal42=null;
-        MeteorParser.arrayAccess_return arrayAccess43 = null;
+        Token char_literal43=null;
+        MeteorParser.arrayAccess_return arrayAccess44 = null;
 
 
         EvaluationExpression field_tree=null;
-        EvaluationExpression char_literal42_tree=null;
+        EvaluationExpression char_literal43_tree=null;
         RewriteRuleTokenStream stream_57=new RewriteRuleTokenStream(adaptor,"token 57");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
         RewriteRuleSubtreeStream stream_arrayAccess=new RewriteRuleSubtreeStream(adaptor,"rule arrayAccess");
          ((pathExpression_scope)pathExpression_stack.peek()).fragments = new ArrayList<EvaluationExpression>(); 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 21) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:188:3: ( ( ( '.' (field= ID ) ) | arrayAccess )+ ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:5: ( ( '.' (field= ID ) ) | arrayAccess )+
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:169:3: ( ( ( '.' (field= ID ) ) | arrayAccess )+ ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:5: ( ( '.' (field= ID ) ) | arrayAccess )+
             {
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:5: ( ( '.' (field= ID ) ) | arrayAccess )+
-            int cnt24=0;
-            loop24:
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:5: ( ( '.' (field= ID ) ) | arrayAccess )+
+            int cnt25=0;
+            loop25:
             do {
-                int alt24=3;
-                int LA24_0 = input.LA(1);
+                int alt25=3;
+                int LA25_0 = input.LA(1);
 
-                if ( (LA24_0==57) ) {
-                    int LA24_2 = input.LA(2);
-
-                    if ( (synpred35_Meteor()) ) {
-                        alt24=1;
-                    }
-
-
-                }
-                else if ( (LA24_0==63) ) {
-                    int LA24_3 = input.LA(2);
+                if ( (LA25_0==57) ) {
+                    int LA25_2 = input.LA(2);
 
                     if ( (synpred36_Meteor()) ) {
-                        alt24=2;
+                        alt25=1;
+                    }
+
+
+                }
+                else if ( (LA25_0==63) ) {
+                    int LA25_3 = input.LA(2);
+
+                    if ( (synpred37_Meteor()) ) {
+                        alt25=2;
                     }
 
 
                 }
 
 
-                switch (alt24) {
+                switch (alt25) {
             	case 1 :
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:7: ( '.' (field= ID ) )
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:7: ( '.' (field= ID ) )
             	    {
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:7: ( '.' (field= ID ) )
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:8: '.' (field= ID )
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:7: ( '.' (field= ID ) )
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:8: '.' (field= ID )
             	    {
-            	    char_literal42=(Token)match(input,57,FOLLOW_57_in_pathExpression967); if (state.failed) return retval; 
-            	    if ( state.backtracking==0 ) stream_57.add(char_literal42);
+            	    char_literal43=(Token)match(input,57,FOLLOW_57_in_pathExpression988); if (state.failed) return retval; 
+            	    if ( state.backtracking==0 ) stream_57.add(char_literal43);
 
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:12: (field= ID )
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:13: field= ID
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:12: (field= ID )
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:13: field= ID
             	    {
-            	    field=(Token)match(input,ID,FOLLOW_ID_in_pathExpression972); if (state.failed) return retval; 
+            	    field=(Token)match(input,ID,FOLLOW_ID_in_pathExpression993); if (state.failed) return retval; 
             	    if ( state.backtracking==0 ) stream_ID.add(field);
 
             	    if ( state.backtracking==0 ) {
@@ -2804,29 +2821,29 @@ public class MeteorParser extends AbstractQueryParser {
             	    }
             	    break;
             	case 2 :
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:190:11: arrayAccess
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:171:11: arrayAccess
             	    {
-            	    pushFollow(FOLLOW_arrayAccess_in_pathExpression990);
-            	    arrayAccess43=arrayAccess();
+            	    pushFollow(FOLLOW_arrayAccess_in_pathExpression1011);
+            	    arrayAccess44=arrayAccess();
 
             	    state._fsp--;
             	    if (state.failed) return retval;
-            	    if ( state.backtracking==0 ) stream_arrayAccess.add(arrayAccess43.getTree());
+            	    if ( state.backtracking==0 ) stream_arrayAccess.add(arrayAccess44.getTree());
             	    if ( state.backtracking==0 ) {
-            	       ((pathExpression_scope)pathExpression_stack.peek()).fragments.add((arrayAccess43!=null?((EvaluationExpression)arrayAccess43.tree):null)); 
+            	       ((pathExpression_scope)pathExpression_stack.peek()).fragments.add((arrayAccess44!=null?((EvaluationExpression)arrayAccess44.tree):null)); 
             	    }
 
             	    }
             	    break;
 
             	default :
-            	    if ( cnt24 >= 1 ) break loop24;
+            	    if ( cnt25 >= 1 ) break loop25;
             	    if (state.backtracking>0) {state.failed=true; return retval;}
                         EarlyExitException eee =
-                            new EarlyExitException(24, input);
+                            new EarlyExitException(25, input);
                         throw eee;
                 }
-                cnt24++;
+                cnt25++;
             } while (true);
 
 
@@ -2843,7 +2860,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 191:3: ->
+            // 172:3: ->
             {
                 adaptor.addChild(root_0,  PathExpression.wrapIfNecessary(((pathExpression_scope)pathExpression_stack.peek()).fragments) );
 
@@ -2874,86 +2891,91 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "valueExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:193:1: valueExpression : ( methodCall[null] | parenthesesExpression | literal | VAR -> | ID {...}? => -> | streamIndexAccess | arrayCreation | objectCreation );
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:174:1: valueExpression : ( methodCall[null] | parenthesesExpression | literal | VAR -> | (packageName= ID ':' )? constant= ID {...}? => -> | streamIndexAccess | arrayCreation | objectCreation );
     public final MeteorParser.valueExpression_return valueExpression() throws RecognitionException {
         MeteorParser.valueExpression_return retval = new MeteorParser.valueExpression_return();
         retval.start = input.LT(1);
         int valueExpression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token VAR47=null;
-        Token ID48=null;
-        MeteorParser.methodCall_return methodCall44 = null;
+        Token packageName=null;
+        Token constant=null;
+        Token VAR48=null;
+        Token char_literal49=null;
+        MeteorParser.methodCall_return methodCall45 = null;
 
-        MeteorParser.parenthesesExpression_return parenthesesExpression45 = null;
+        MeteorParser.parenthesesExpression_return parenthesesExpression46 = null;
 
-        MeteorParser.literal_return literal46 = null;
+        MeteorParser.literal_return literal47 = null;
 
-        MeteorParser.streamIndexAccess_return streamIndexAccess49 = null;
+        MeteorParser.streamIndexAccess_return streamIndexAccess50 = null;
 
-        MeteorParser.arrayCreation_return arrayCreation50 = null;
+        MeteorParser.arrayCreation_return arrayCreation51 = null;
 
-        MeteorParser.objectCreation_return objectCreation51 = null;
+        MeteorParser.objectCreation_return objectCreation52 = null;
 
 
-        EvaluationExpression VAR47_tree=null;
-        EvaluationExpression ID48_tree=null;
+        EvaluationExpression packageName_tree=null;
+        EvaluationExpression constant_tree=null;
+        EvaluationExpression VAR48_tree=null;
+        EvaluationExpression char_literal49_tree=null;
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
+        RewriteRuleTokenStream stream_35=new RewriteRuleTokenStream(adaptor,"token 35");
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 22) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:194:2: ( methodCall[null] | parenthesesExpression | literal | VAR -> | ID {...}? => -> | streamIndexAccess | arrayCreation | objectCreation )
-            int alt25=8;
-            alt25 = dfa25.predict(input);
-            switch (alt25) {
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:175:2: ( methodCall[null] | parenthesesExpression | literal | VAR -> | (packageName= ID ':' )? constant= ID {...}? => -> | streamIndexAccess | arrayCreation | objectCreation )
+            int alt27=8;
+            alt27 = dfa27.predict(input);
+            switch (alt27) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:194:4: methodCall[null]
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:175:4: methodCall[null]
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_methodCall_in_valueExpression1011);
-                    methodCall44=methodCall(null);
+                    pushFollow(FOLLOW_methodCall_in_valueExpression1032);
+                    methodCall45=methodCall(null);
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, methodCall44.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, methodCall45.getTree());
 
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:195:4: parenthesesExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:176:4: parenthesesExpression
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_parenthesesExpression_in_valueExpression1017);
-                    parenthesesExpression45=parenthesesExpression();
+                    pushFollow(FOLLOW_parenthesesExpression_in_valueExpression1038);
+                    parenthesesExpression46=parenthesesExpression();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, parenthesesExpression45.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, parenthesesExpression46.getTree());
 
                     }
                     break;
                 case 3 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:196:4: literal
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:177:4: literal
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_literal_in_valueExpression1023);
-                    literal46=literal();
+                    pushFollow(FOLLOW_literal_in_valueExpression1044);
+                    literal47=literal();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, literal46.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, literal47.getTree());
 
                     }
                     break;
                 case 4 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:197:4: VAR
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:178:4: VAR
                     {
-                    VAR47=(Token)match(input,VAR,FOLLOW_VAR_in_valueExpression1029); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_VAR.add(VAR47);
+                    VAR48=(Token)match(input,VAR,FOLLOW_VAR_in_valueExpression1050); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_VAR.add(VAR48);
 
 
 
@@ -2969,9 +2991,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 197:8: ->
+                    // 178:8: ->
                     {
-                        adaptor.addChild(root_0,  makePath(VAR47) );
+                        adaptor.addChild(root_0,  makePath(VAR48) );
 
                     }
 
@@ -2979,14 +3001,45 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 5 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:198:5: ID {...}? =>
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:5: (packageName= ID ':' )? constant= ID {...}? =>
                     {
-                    ID48=(Token)match(input,ID,FOLLOW_ID_in_valueExpression1039); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_ID.add(ID48);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:5: (packageName= ID ':' )?
+                    int alt26=2;
+                    int LA26_0 = input.LA(1);
 
-                    if ( !(( hasBinding(ID48, EvaluationExpression.class) )) ) {
+                    if ( (LA26_0==ID) ) {
+                        int LA26_1 = input.LA(2);
+
+                        if ( (LA26_1==35) ) {
+                            int LA26_2 = input.LA(3);
+
+                            if ( (synpred42_Meteor()) ) {
+                                alt26=1;
+                            }
+                        }
+                    }
+                    switch (alt26) {
+                        case 1 :
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:6: packageName= ID ':'
+                            {
+                            packageName=(Token)match(input,ID,FOLLOW_ID_in_valueExpression1063); if (state.failed) return retval; 
+                            if ( state.backtracking==0 ) stream_ID.add(packageName);
+
+                            char_literal49=(Token)match(input,35,FOLLOW_35_in_valueExpression1065); if (state.failed) return retval; 
+                            if ( state.backtracking==0 ) stream_35.add(char_literal49);
+
+
+                            }
+                            break;
+
+                    }
+
+                    constant=(Token)match(input,ID,FOLLOW_ID_in_valueExpression1071); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_ID.add(constant);
+
+                    if ( !(( getScope((packageName!=null?packageName.getText():null)).getConstantRegistry().get((constant!=null?constant.getText():null)) != null )) ) {
                         if (state.backtracking>0) {state.failed=true; return retval;}
-                        throw new FailedPredicateException(input, "valueExpression", " hasBinding($ID, EvaluationExpression.class) ");
+                        throw new FailedPredicateException(input, "valueExpression", " getScope($packageName.text).getConstantRegistry().get($constant.text) != null ");
                     }
 
 
@@ -3002,9 +3055,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 198:59: ->
+                    // 180:5: ->
                     {
-                        adaptor.addChild(root_0,  getBinding(ID48, EvaluationExpression.class) );
+                        adaptor.addChild(root_0,  getScope((packageName!=null?packageName.getText():null)).getConstantRegistry().get((constant!=null?constant.getText():null)) );
 
                     }
 
@@ -3012,44 +3065,44 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 6 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:199:5: streamIndexAccess
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:181:5: streamIndexAccess
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_streamIndexAccess_in_valueExpression1052);
-                    streamIndexAccess49=streamIndexAccess();
+                    pushFollow(FOLLOW_streamIndexAccess_in_valueExpression1089);
+                    streamIndexAccess50=streamIndexAccess();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, streamIndexAccess49.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, streamIndexAccess50.getTree());
 
                     }
                     break;
                 case 7 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:200:4: arrayCreation
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:182:4: arrayCreation
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_arrayCreation_in_valueExpression1057);
-                    arrayCreation50=arrayCreation();
+                    pushFollow(FOLLOW_arrayCreation_in_valueExpression1094);
+                    arrayCreation51=arrayCreation();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, arrayCreation50.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, arrayCreation51.getTree());
 
                     }
                     break;
                 case 8 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:201:4: objectCreation
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:183:4: objectCreation
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_objectCreation_in_valueExpression1063);
-                    objectCreation51=objectCreation();
+                    pushFollow(FOLLOW_objectCreation_in_valueExpression1100);
+                    objectCreation52=objectCreation();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, objectCreation51.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, objectCreation52.getTree());
 
                     }
                     break;
@@ -3076,7 +3129,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "operatorExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:203:1: operatorExpression : op= operator -> ^( EXPRESSION[\"NestedOperatorExpression\"] ) ;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:185:1: operatorExpression : op= operator -> ^( EXPRESSION[\"NestedOperatorExpression\"] ) ;
     public final MeteorParser.operatorExpression_return operatorExpression() throws RecognitionException {
         MeteorParser.operatorExpression_return retval = new MeteorParser.operatorExpression_return();
         retval.start = input.LT(1);
@@ -3089,10 +3142,10 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_operator=new RewriteRuleSubtreeStream(adaptor,"rule operator");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 23) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:204:2: (op= operator -> ^( EXPRESSION[\"NestedOperatorExpression\"] ) )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:204:4: op= operator
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:186:2: (op= operator -> ^( EXPRESSION[\"NestedOperatorExpression\"] ) )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:186:4: op= operator
             {
-            pushFollow(FOLLOW_operator_in_operatorExpression1076);
+            pushFollow(FOLLOW_operator_in_operatorExpression1113);
             op=operator();
 
             state._fsp--;
@@ -3112,9 +3165,9 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 204:16: -> ^( EXPRESSION[\"NestedOperatorExpression\"] )
+            // 186:16: -> ^( EXPRESSION[\"NestedOperatorExpression\"] )
             {
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:204:19: ^( EXPRESSION[\"NestedOperatorExpression\"] )
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:186:19: ^( EXPRESSION[\"NestedOperatorExpression\"] )
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "NestedOperatorExpression"), root_1);
@@ -3150,42 +3203,42 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "parenthesesExpression"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:206:1: parenthesesExpression : ( '(' expression ')' ) -> expression ;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:188:1: parenthesesExpression : ( '(' expression ')' ) -> expression ;
     public final MeteorParser.parenthesesExpression_return parenthesesExpression() throws RecognitionException {
         MeteorParser.parenthesesExpression_return retval = new MeteorParser.parenthesesExpression_return();
         retval.start = input.LT(1);
         int parenthesesExpression_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token char_literal52=null;
-        Token char_literal54=null;
-        MeteorParser.expression_return expression53 = null;
+        Token char_literal53=null;
+        Token char_literal55=null;
+        MeteorParser.expression_return expression54 = null;
 
 
-        EvaluationExpression char_literal52_tree=null;
-        EvaluationExpression char_literal54_tree=null;
-        RewriteRuleTokenStream stream_30=new RewriteRuleTokenStream(adaptor,"token 30");
+        EvaluationExpression char_literal53_tree=null;
+        EvaluationExpression char_literal55_tree=null;
         RewriteRuleTokenStream stream_32=new RewriteRuleTokenStream(adaptor,"token 32");
+        RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
         RewriteRuleSubtreeStream stream_expression=new RewriteRuleSubtreeStream(adaptor,"rule expression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 24) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:207:2: ( ( '(' expression ')' ) -> expression )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:207:4: ( '(' expression ')' )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:2: ( ( '(' expression ')' ) -> expression )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:4: ( '(' expression ')' )
             {
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:207:4: ( '(' expression ')' )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:207:5: '(' expression ')'
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:4: ( '(' expression ')' )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:5: '(' expression ')'
             {
-            char_literal52=(Token)match(input,30,FOLLOW_30_in_parenthesesExpression1097); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_30.add(char_literal52);
+            char_literal53=(Token)match(input,31,FOLLOW_31_in_parenthesesExpression1134); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_31.add(char_literal53);
 
-            pushFollow(FOLLOW_expression_in_parenthesesExpression1099);
-            expression53=expression();
+            pushFollow(FOLLOW_expression_in_parenthesesExpression1136);
+            expression54=expression();
 
             state._fsp--;
             if (state.failed) return retval;
-            if ( state.backtracking==0 ) stream_expression.add(expression53.getTree());
-            char_literal54=(Token)match(input,32,FOLLOW_32_in_parenthesesExpression1101); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_32.add(char_literal54);
+            if ( state.backtracking==0 ) stream_expression.add(expression54.getTree());
+            char_literal55=(Token)match(input,32,FOLLOW_32_in_parenthesesExpression1138); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_32.add(char_literal55);
 
 
             }
@@ -3204,7 +3257,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 207:25: -> expression
+            // 189:25: -> expression
             {
                 adaptor.addChild(root_0, stream_expression.nextTree());
 
@@ -3234,53 +3287,85 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "methodCall"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:209:1: methodCall[EvaluationExpression targetExpr] : name= ID '(' (param= expression ( ',' param= expression )* )? ')' ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:191:1: methodCall[EvaluationExpression targetExpr] : (packageName= ID ':' )? name= ID '(' (param= expression ( ',' param= expression )* )? ')' ->;
     public final MeteorParser.methodCall_return methodCall(EvaluationExpression targetExpr) throws RecognitionException {
         MeteorParser.methodCall_return retval = new MeteorParser.methodCall_return();
         retval.start = input.LT(1);
         int methodCall_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
+        Token packageName=null;
         Token name=null;
-        Token char_literal55=null;
         Token char_literal56=null;
         Token char_literal57=null;
+        Token char_literal58=null;
+        Token char_literal59=null;
         MeteorParser.expression_return param = null;
 
 
+        EvaluationExpression packageName_tree=null;
         EvaluationExpression name_tree=null;
-        EvaluationExpression char_literal55_tree=null;
         EvaluationExpression char_literal56_tree=null;
         EvaluationExpression char_literal57_tree=null;
-        RewriteRuleTokenStream stream_30=new RewriteRuleTokenStream(adaptor,"token 30");
+        EvaluationExpression char_literal58_tree=null;
+        EvaluationExpression char_literal59_tree=null;
         RewriteRuleTokenStream stream_32=new RewriteRuleTokenStream(adaptor,"token 32");
         RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
+        RewriteRuleTokenStream stream_35=new RewriteRuleTokenStream(adaptor,"token 35");
+        RewriteRuleTokenStream stream_28=new RewriteRuleTokenStream(adaptor,"token 28");
         RewriteRuleSubtreeStream stream_expression=new RewriteRuleSubtreeStream(adaptor,"rule expression");
          List<EvaluationExpression> params = new ArrayList(); 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 25) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:211:2: (name= ID '(' (param= expression ( ',' param= expression )* )? ')' ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:211:4: name= ID '(' (param= expression ( ',' param= expression )* )? ')'
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:193:2: ( (packageName= ID ':' )? name= ID '(' (param= expression ( ',' param= expression )* )? ')' ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:193:4: (packageName= ID ':' )? name= ID '(' (param= expression ( ',' param= expression )* )? ')'
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_methodCall1124); if (state.failed) return retval; 
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:193:4: (packageName= ID ':' )?
+            int alt28=2;
+            int LA28_0 = input.LA(1);
+
+            if ( (LA28_0==ID) ) {
+                int LA28_1 = input.LA(2);
+
+                if ( (LA28_1==35) ) {
+                    alt28=1;
+                }
+            }
+            switch (alt28) {
+                case 1 :
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:193:5: packageName= ID ':'
+                    {
+                    packageName=(Token)match(input,ID,FOLLOW_ID_in_methodCall1162); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_ID.add(packageName);
+
+                    char_literal56=(Token)match(input,35,FOLLOW_35_in_methodCall1164); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_35.add(char_literal56);
+
+
+                    }
+                    break;
+
+            }
+
+            name=(Token)match(input,ID,FOLLOW_ID_in_methodCall1170); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
-            char_literal55=(Token)match(input,30,FOLLOW_30_in_methodCall1126); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_30.add(char_literal55);
+            char_literal57=(Token)match(input,31,FOLLOW_31_in_methodCall1172); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_31.add(char_literal57);
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:212:2: (param= expression ( ',' param= expression )* )?
-            int alt27=2;
-            int LA27_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:194:2: (param= expression ( ',' param= expression )* )?
+            int alt30=2;
+            int LA30_0 = input.LA(1);
 
-            if ( ((LA27_0>=ID && LA27_0<=STRING)||(LA27_0>=DECIMAL && LA27_0<=INTEGER)||LA27_0==30||(LA27_0>=52 && LA27_0<=55)||LA27_0==58||(LA27_0>=60 && LA27_0<=63)||LA27_0==65||LA27_0==67) ) {
-                alt27=1;
+            if ( ((LA30_0>=ID && LA30_0<=STRING)||(LA30_0>=DECIMAL && LA30_0<=INTEGER)||LA30_0==31||(LA30_0>=52 && LA30_0<=55)||LA30_0==58||(LA30_0>=60 && LA30_0<=63)||LA30_0==65||LA30_0==67) ) {
+                alt30=1;
             }
-            switch (alt27) {
+            switch (alt30) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:212:3: param= expression ( ',' param= expression )*
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:194:3: param= expression ( ',' param= expression )*
                     {
-                    pushFollow(FOLLOW_expression_in_methodCall1133);
+                    pushFollow(FOLLOW_expression_in_methodCall1179);
                     param=expression();
 
                     state._fsp--;
@@ -3289,25 +3374,25 @@ public class MeteorParser extends AbstractQueryParser {
                     if ( state.backtracking==0 ) {
                        params.add((param!=null?((EvaluationExpression)param.tree):null)); 
                     }
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:2: ( ',' param= expression )*
-                    loop26:
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:195:2: ( ',' param= expression )*
+                    loop29:
                     do {
-                        int alt26=2;
-                        int LA26_0 = input.LA(1);
+                        int alt29=2;
+                        int LA29_0 = input.LA(1);
 
-                        if ( (LA26_0==31) ) {
-                            alt26=1;
+                        if ( (LA29_0==28) ) {
+                            alt29=1;
                         }
 
 
-                        switch (alt26) {
+                        switch (alt29) {
                     	case 1 :
-                    	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:3: ',' param= expression
+                    	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:195:3: ',' param= expression
                     	    {
-                    	    char_literal56=(Token)match(input,31,FOLLOW_31_in_methodCall1139); if (state.failed) return retval; 
-                    	    if ( state.backtracking==0 ) stream_31.add(char_literal56);
+                    	    char_literal58=(Token)match(input,28,FOLLOW_28_in_methodCall1185); if (state.failed) return retval; 
+                    	    if ( state.backtracking==0 ) stream_28.add(char_literal58);
 
-                    	    pushFollow(FOLLOW_expression_in_methodCall1143);
+                    	    pushFollow(FOLLOW_expression_in_methodCall1189);
                     	    param=expression();
 
                     	    state._fsp--;
@@ -3321,7 +3406,7 @@ public class MeteorParser extends AbstractQueryParser {
                     	    break;
 
                     	default :
-                    	    break loop26;
+                    	    break loop29;
                         }
                     } while (true);
 
@@ -3331,8 +3416,8 @@ public class MeteorParser extends AbstractQueryParser {
 
             }
 
-            char_literal57=(Token)match(input,32,FOLLOW_32_in_methodCall1153); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_32.add(char_literal57);
+            char_literal59=(Token)match(input,32,FOLLOW_32_in_methodCall1199); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_32.add(char_literal59);
 
 
 
@@ -3348,9 +3433,9 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 214:6: ->
+            // 196:6: ->
             {
-                adaptor.addChild(root_0,  createCheckedMethodCall(name, targetExpr, params.toArray(new EvaluationExpression[params.size()])) );
+                adaptor.addChild(root_0,  createCheckedMethodCall((packageName!=null?packageName.getText():null), name, targetExpr, params.toArray(new EvaluationExpression[params.size()])) );
 
             }
 
@@ -3378,82 +3463,82 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "fieldAssignment"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:216:1: fieldAssignment : ( ID ':' expression -> | VAR ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) ) );
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:198:1: fieldAssignment : ( ID ':' expression -> | VAR ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getVariable($VAR).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) ) );
     public final MeteorParser.fieldAssignment_return fieldAssignment() throws RecognitionException {
         MeteorParser.fieldAssignment_return retval = new MeteorParser.fieldAssignment_return();
         retval.start = input.LT(1);
         int fieldAssignment_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token ID58=null;
-        Token char_literal59=null;
-        Token VAR61=null;
-        Token char_literal62=null;
-        Token STAR63=null;
+        Token ID60=null;
+        Token char_literal61=null;
+        Token VAR63=null;
         Token char_literal64=null;
-        Token char_literal65=null;
+        Token STAR65=null;
+        Token char_literal66=null;
+        Token char_literal67=null;
         MeteorParser.operator_return op = null;
 
         MeteorParser.contextAwarePathExpression_return p = null;
 
         MeteorParser.expression_return e2 = null;
 
-        MeteorParser.expression_return expression60 = null;
+        MeteorParser.expression_return expression62 = null;
 
 
-        EvaluationExpression ID58_tree=null;
-        EvaluationExpression char_literal59_tree=null;
-        EvaluationExpression VAR61_tree=null;
-        EvaluationExpression char_literal62_tree=null;
-        EvaluationExpression STAR63_tree=null;
+        EvaluationExpression ID60_tree=null;
+        EvaluationExpression char_literal61_tree=null;
+        EvaluationExpression VAR63_tree=null;
         EvaluationExpression char_literal64_tree=null;
-        EvaluationExpression char_literal65_tree=null;
+        EvaluationExpression STAR65_tree=null;
+        EvaluationExpression char_literal66_tree=null;
+        EvaluationExpression char_literal67_tree=null;
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_STAR=new RewriteRuleTokenStream(adaptor,"token STAR");
         RewriteRuleTokenStream stream_57=new RewriteRuleTokenStream(adaptor,"token 57");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
         RewriteRuleTokenStream stream_35=new RewriteRuleTokenStream(adaptor,"token 35");
-        RewriteRuleTokenStream stream_28=new RewriteRuleTokenStream(adaptor,"token 28");
+        RewriteRuleTokenStream stream_29=new RewriteRuleTokenStream(adaptor,"token 29");
         RewriteRuleSubtreeStream stream_expression=new RewriteRuleSubtreeStream(adaptor,"rule expression");
         RewriteRuleSubtreeStream stream_contextAwarePathExpression=new RewriteRuleSubtreeStream(adaptor,"rule contextAwarePathExpression");
         RewriteRuleSubtreeStream stream_operator=new RewriteRuleSubtreeStream(adaptor,"rule operator");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 26) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:217:2: ( ID ':' expression -> | VAR ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) ) )
-            int alt30=2;
-            int LA30_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:199:2: ( ID ':' expression -> | VAR ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getVariable($VAR).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) ) )
+            int alt33=2;
+            int LA33_0 = input.LA(1);
 
-            if ( (LA30_0==ID) ) {
-                alt30=1;
+            if ( (LA33_0==ID) ) {
+                alt33=1;
             }
-            else if ( (LA30_0==VAR) ) {
-                alt30=2;
+            else if ( (LA33_0==VAR) ) {
+                alt33=2;
             }
             else {
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 NoViableAltException nvae =
-                    new NoViableAltException("", 30, 0, input);
+                    new NoViableAltException("", 33, 0, input);
 
                 throw nvae;
             }
-            switch (alt30) {
+            switch (alt33) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:217:4: ID ':' expression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:199:4: ID ':' expression
                     {
-                    ID58=(Token)match(input,ID,FOLLOW_ID_in_fieldAssignment1167); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_ID.add(ID58);
+                    ID60=(Token)match(input,ID,FOLLOW_ID_in_fieldAssignment1213); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_ID.add(ID60);
 
-                    char_literal59=(Token)match(input,35,FOLLOW_35_in_fieldAssignment1169); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_35.add(char_literal59);
+                    char_literal61=(Token)match(input,35,FOLLOW_35_in_fieldAssignment1215); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_35.add(char_literal61);
 
-                    pushFollow(FOLLOW_expression_in_fieldAssignment1171);
-                    expression60=expression();
+                    pushFollow(FOLLOW_expression_in_fieldAssignment1217);
+                    expression62=expression();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) stream_expression.add(expression60.getTree());
+                    if ( state.backtracking==0 ) stream_expression.add(expression62.getTree());
                     if ( state.backtracking==0 ) {
-                       ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.FieldAssignment((ID58!=null?ID58.getText():null), (expression60!=null?((EvaluationExpression)expression60.tree):null))); 
+                       ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.FieldAssignment((ID60!=null?ID60.getText():null), (expression62!=null?((EvaluationExpression)expression62.tree):null))); 
                     }
 
 
@@ -3469,7 +3554,7 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 218:104: ->
+                    // 200:104: ->
                     {
                         root_0 = null;
                     }
@@ -3478,63 +3563,63 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:219:5: VAR ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) )
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:201:5: VAR ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getVariable($VAR).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) )
                     {
-                    VAR61=(Token)match(input,VAR,FOLLOW_VAR_in_fieldAssignment1186); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_VAR.add(VAR61);
+                    VAR63=(Token)match(input,VAR,FOLLOW_VAR_in_fieldAssignment1232); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_VAR.add(VAR63);
 
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:220:5: ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) )
-                    int alt29=3;
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:202:5: ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getVariable($VAR).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) )
+                    int alt32=3;
                     switch ( input.LA(1) ) {
                     case 57:
                         {
-                        int LA29_1 = input.LA(2);
+                        int LA32_1 = input.LA(2);
 
-                        if ( (LA29_1==STAR) ) {
-                            alt29=1;
+                        if ( (LA32_1==STAR) ) {
+                            alt32=1;
                         }
-                        else if ( (LA29_1==ID) ) {
-                            alt29=3;
+                        else if ( (LA32_1==ID) ) {
+                            alt32=3;
                         }
                         else {
                             if (state.backtracking>0) {state.failed=true; return retval;}
                             NoViableAltException nvae =
-                                new NoViableAltException("", 29, 1, input);
+                                new NoViableAltException("", 32, 1, input);
 
                             throw nvae;
                         }
                         }
                         break;
-                    case 28:
+                    case 29:
                         {
-                        alt29=2;
+                        alt32=2;
                         }
                         break;
                     case 63:
                         {
-                        alt29=3;
+                        alt32=3;
                         }
                         break;
                     default:
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         NoViableAltException nvae =
-                            new NoViableAltException("", 29, 0, input);
+                            new NoViableAltException("", 32, 0, input);
 
                         throw nvae;
                     }
 
-                    switch (alt29) {
+                    switch (alt32) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:220:7: '.' STAR
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:202:7: '.' STAR
                             {
-                            char_literal62=(Token)match(input,57,FOLLOW_57_in_fieldAssignment1195); if (state.failed) return retval; 
-                            if ( state.backtracking==0 ) stream_57.add(char_literal62);
+                            char_literal64=(Token)match(input,57,FOLLOW_57_in_fieldAssignment1241); if (state.failed) return retval; 
+                            if ( state.backtracking==0 ) stream_57.add(char_literal64);
 
-                            STAR63=(Token)match(input,STAR,FOLLOW_STAR_in_fieldAssignment1197); if (state.failed) return retval; 
-                            if ( state.backtracking==0 ) stream_STAR.add(STAR63);
+                            STAR65=(Token)match(input,STAR,FOLLOW_STAR_in_fieldAssignment1243); if (state.failed) return retval; 
+                            if ( state.backtracking==0 ) stream_STAR.add(STAR65);
 
                             if ( state.backtracking==0 ) {
-                               ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.CopyFields(makePath(VAR61))); 
+                               ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.CopyFields(makePath(VAR63))); 
                             }
 
 
@@ -3550,7 +3635,7 @@ public class MeteorParser extends AbstractQueryParser {
                             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                             root_0 = (EvaluationExpression)adaptor.nil();
-                            // 220:98: ->
+                            // 202:98: ->
                             {
                                 root_0 = null;
                             }
@@ -3559,18 +3644,18 @@ public class MeteorParser extends AbstractQueryParser {
                             }
                             break;
                         case 2 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:221:9: '=' op= operator {...}? =>
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:203:9: '=' op= operator {...}? =>
                             {
-                            char_literal64=(Token)match(input,28,FOLLOW_28_in_fieldAssignment1211); if (state.failed) return retval; 
-                            if ( state.backtracking==0 ) stream_28.add(char_literal64);
+                            char_literal66=(Token)match(input,29,FOLLOW_29_in_fieldAssignment1257); if (state.failed) return retval; 
+                            if ( state.backtracking==0 ) stream_29.add(char_literal66);
 
-                            pushFollow(FOLLOW_operator_in_fieldAssignment1215);
+                            pushFollow(FOLLOW_operator_in_fieldAssignment1261);
                             op=operator();
 
                             state._fsp--;
                             if (state.failed) return retval;
                             if ( state.backtracking==0 ) stream_operator.add(op.getTree());
-                            if ( !(( setInnerOutput(VAR61, (op!=null?op.op:null)) )) ) {
+                            if ( !(( setInnerOutput(VAR63, (op!=null?op.op:null)) )) ) {
                                 if (state.backtracking>0) {state.failed=true; return retval;}
                                 throw new FailedPredicateException(input, "fieldAssignment", " setInnerOutput($VAR, $op.op) ");
                             }
@@ -3578,39 +3663,39 @@ public class MeteorParser extends AbstractQueryParser {
                             }
                             break;
                         case 3 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:222:9: p= contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class).toInputSelection($operator::result)] ( ':' e2= expression -> | ->)
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:204:9: p= contextAwarePathExpression[getVariable($VAR).toInputSelection($operator::result)] ( ':' e2= expression -> | ->)
                             {
-                            pushFollow(FOLLOW_contextAwarePathExpression_in_fieldAssignment1230);
-                            p=contextAwarePathExpression(getBinding(VAR61, JsonStreamExpression.class).toInputSelection(((operator_scope)operator_stack.peek()).result));
+                            pushFollow(FOLLOW_contextAwarePathExpression_in_fieldAssignment1276);
+                            p=contextAwarePathExpression(getVariable(VAR63).toInputSelection(((operator_scope)operator_stack.peek()).result));
 
                             state._fsp--;
                             if (state.failed) return retval;
                             if ( state.backtracking==0 ) stream_contextAwarePathExpression.add(p.getTree());
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:223:7: ( ':' e2= expression -> | ->)
-                            int alt28=2;
-                            int LA28_0 = input.LA(1);
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:205:7: ( ':' e2= expression -> | ->)
+                            int alt31=2;
+                            int LA31_0 = input.LA(1);
 
-                            if ( (LA28_0==35) ) {
-                                alt28=1;
+                            if ( (LA31_0==35) ) {
+                                alt31=1;
                             }
-                            else if ( (LA28_0==EOF||LA28_0==31||LA28_0==59) ) {
-                                alt28=2;
+                            else if ( (LA31_0==EOF||LA31_0==28||LA31_0==59) ) {
+                                alt31=2;
                             }
                             else {
                                 if (state.backtracking>0) {state.failed=true; return retval;}
                                 NoViableAltException nvae =
-                                    new NoViableAltException("", 28, 0, input);
+                                    new NoViableAltException("", 31, 0, input);
 
                                 throw nvae;
                             }
-                            switch (alt28) {
+                            switch (alt31) {
                                 case 1 :
-                                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:223:9: ':' e2= expression
+                                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:205:9: ':' e2= expression
                                     {
-                                    char_literal65=(Token)match(input,35,FOLLOW_35_in_fieldAssignment1241); if (state.failed) return retval; 
-                                    if ( state.backtracking==0 ) stream_35.add(char_literal65);
+                                    char_literal67=(Token)match(input,35,FOLLOW_35_in_fieldAssignment1287); if (state.failed) return retval; 
+                                    if ( state.backtracking==0 ) stream_35.add(char_literal67);
 
-                                    pushFollow(FOLLOW_expression_in_fieldAssignment1245);
+                                    pushFollow(FOLLOW_expression_in_fieldAssignment1291);
                                     e2=expression();
 
                                     state._fsp--;
@@ -3633,7 +3718,7 @@ public class MeteorParser extends AbstractQueryParser {
                                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                                     root_0 = (EvaluationExpression)adaptor.nil();
-                                    // 223:112: ->
+                                    // 205:112: ->
                                     {
                                         root_0 = null;
                                     }
@@ -3642,7 +3727,7 @@ public class MeteorParser extends AbstractQueryParser {
                                     }
                                     break;
                                 case 2 :
-                                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:224:23: 
+                                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:206:23: 
                                     {
                                     if ( state.backtracking==0 ) {
                                        ((objectCreation_scope)objectCreation_stack.peek()).mappings.add(new ObjectCreation.FieldAssignment(getAssignmentName((p!=null?((EvaluationExpression)p.tree):null)), (p!=null?((EvaluationExpression)p.tree):null))); 
@@ -3661,7 +3746,7 @@ public class MeteorParser extends AbstractQueryParser {
                                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                                     root_0 = (EvaluationExpression)adaptor.nil();
-                                    // 224:131: ->
+                                    // 206:131: ->
                                     {
                                         root_0 = null;
                                     }
@@ -3709,7 +3794,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "objectCreation"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:1: objectCreation : '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}' -> ^( EXPRESSION[\"ObjectCreation\"] ) ;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:210:1: objectCreation : '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}' -> ^( EXPRESSION[\"ObjectCreation\"] ) ;
     public final MeteorParser.objectCreation_return objectCreation() throws RecognitionException {
         objectCreation_stack.push(new objectCreation_scope());
         MeteorParser.objectCreation_return retval = new MeteorParser.objectCreation_return();
@@ -3717,101 +3802,101 @@ public class MeteorParser extends AbstractQueryParser {
         int objectCreation_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token char_literal66=null;
         Token char_literal68=null;
         Token char_literal70=null;
-        Token char_literal71=null;
-        MeteorParser.fieldAssignment_return fieldAssignment67 = null;
-
+        Token char_literal72=null;
+        Token char_literal73=null;
         MeteorParser.fieldAssignment_return fieldAssignment69 = null;
 
+        MeteorParser.fieldAssignment_return fieldAssignment71 = null;
 
-        EvaluationExpression char_literal66_tree=null;
+
         EvaluationExpression char_literal68_tree=null;
         EvaluationExpression char_literal70_tree=null;
-        EvaluationExpression char_literal71_tree=null;
+        EvaluationExpression char_literal72_tree=null;
+        EvaluationExpression char_literal73_tree=null;
         RewriteRuleTokenStream stream_59=new RewriteRuleTokenStream(adaptor,"token 59");
         RewriteRuleTokenStream stream_58=new RewriteRuleTokenStream(adaptor,"token 58");
-        RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
+        RewriteRuleTokenStream stream_28=new RewriteRuleTokenStream(adaptor,"token 28");
         RewriteRuleSubtreeStream stream_fieldAssignment=new RewriteRuleSubtreeStream(adaptor,"rule fieldAssignment");
          ((objectCreation_scope)objectCreation_stack.peek()).mappings = new ArrayList<ObjectCreation.Mapping>(); 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 27) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:231:2: ( '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}' -> ^( EXPRESSION[\"ObjectCreation\"] ) )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:231:4: '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}'
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:2: ( '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}' -> ^( EXPRESSION[\"ObjectCreation\"] ) )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:4: '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}'
             {
-            char_literal66=(Token)match(input,58,FOLLOW_58_in_objectCreation1297); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_58.add(char_literal66);
+            char_literal68=(Token)match(input,58,FOLLOW_58_in_objectCreation1343); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_58.add(char_literal68);
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:231:8: ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )?
-            int alt33=2;
-            int LA33_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:8: ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )?
+            int alt36=2;
+            int LA36_0 = input.LA(1);
 
-            if ( ((LA33_0>=ID && LA33_0<=VAR)) ) {
-                alt33=1;
+            if ( ((LA36_0>=ID && LA36_0<=VAR)) ) {
+                alt36=1;
             }
-            switch (alt33) {
+            switch (alt36) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:231:9: fieldAssignment ( ',' fieldAssignment )* ( ',' )?
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:9: fieldAssignment ( ',' fieldAssignment )* ( ',' )?
                     {
-                    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1300);
-                    fieldAssignment67=fieldAssignment();
+                    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1346);
+                    fieldAssignment69=fieldAssignment();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) stream_fieldAssignment.add(fieldAssignment67.getTree());
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:231:25: ( ',' fieldAssignment )*
-                    loop31:
+                    if ( state.backtracking==0 ) stream_fieldAssignment.add(fieldAssignment69.getTree());
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:25: ( ',' fieldAssignment )*
+                    loop34:
                     do {
-                        int alt31=2;
-                        int LA31_0 = input.LA(1);
+                        int alt34=2;
+                        int LA34_0 = input.LA(1);
 
-                        if ( (LA31_0==31) ) {
-                            int LA31_1 = input.LA(2);
+                        if ( (LA34_0==28) ) {
+                            int LA34_1 = input.LA(2);
 
-                            if ( ((LA31_1>=ID && LA31_1<=VAR)) ) {
-                                alt31=1;
+                            if ( ((LA34_1>=ID && LA34_1<=VAR)) ) {
+                                alt34=1;
                             }
 
 
                         }
 
 
-                        switch (alt31) {
+                        switch (alt34) {
                     	case 1 :
-                    	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:231:26: ',' fieldAssignment
+                    	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:26: ',' fieldAssignment
                     	    {
-                    	    char_literal68=(Token)match(input,31,FOLLOW_31_in_objectCreation1303); if (state.failed) return retval; 
-                    	    if ( state.backtracking==0 ) stream_31.add(char_literal68);
+                    	    char_literal70=(Token)match(input,28,FOLLOW_28_in_objectCreation1349); if (state.failed) return retval; 
+                    	    if ( state.backtracking==0 ) stream_28.add(char_literal70);
 
-                    	    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1305);
-                    	    fieldAssignment69=fieldAssignment();
+                    	    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1351);
+                    	    fieldAssignment71=fieldAssignment();
 
                     	    state._fsp--;
                     	    if (state.failed) return retval;
-                    	    if ( state.backtracking==0 ) stream_fieldAssignment.add(fieldAssignment69.getTree());
+                    	    if ( state.backtracking==0 ) stream_fieldAssignment.add(fieldAssignment71.getTree());
 
                     	    }
                     	    break;
 
                     	default :
-                    	    break loop31;
+                    	    break loop34;
                         }
                     } while (true);
 
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:231:48: ( ',' )?
-                    int alt32=2;
-                    int LA32_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:48: ( ',' )?
+                    int alt35=2;
+                    int LA35_0 = input.LA(1);
 
-                    if ( (LA32_0==31) ) {
-                        alt32=1;
+                    if ( (LA35_0==28) ) {
+                        alt35=1;
                     }
-                    switch (alt32) {
+                    switch (alt35) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ','
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ','
                             {
-                            char_literal70=(Token)match(input,31,FOLLOW_31_in_objectCreation1309); if (state.failed) return retval; 
-                            if ( state.backtracking==0 ) stream_31.add(char_literal70);
+                            char_literal72=(Token)match(input,28,FOLLOW_28_in_objectCreation1355); if (state.failed) return retval; 
+                            if ( state.backtracking==0 ) stream_28.add(char_literal72);
 
 
                             }
@@ -3825,8 +3910,8 @@ public class MeteorParser extends AbstractQueryParser {
 
             }
 
-            char_literal71=(Token)match(input,59,FOLLOW_59_in_objectCreation1314); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_59.add(char_literal71);
+            char_literal73=(Token)match(input,59,FOLLOW_59_in_objectCreation1360); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_59.add(char_literal73);
 
 
 
@@ -3842,9 +3927,9 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 231:59: -> ^( EXPRESSION[\"ObjectCreation\"] )
+            // 213:59: -> ^( EXPRESSION[\"ObjectCreation\"] )
             {
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:231:62: ^( EXPRESSION[\"ObjectCreation\"] )
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:62: ^( EXPRESSION[\"ObjectCreation\"] )
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ObjectCreation"), root_1);
@@ -3881,7 +3966,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "literal"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:233:1: literal : (val= 'true' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= 'false' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= DECIMAL -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= STRING -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= INTEGER -> ^( EXPRESSION[\"ConstantExpression\"] ) | 'null' ->);
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:215:1: literal : (val= 'true' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= 'false' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= DECIMAL -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= STRING -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= INTEGER -> ^( EXPRESSION[\"ConstantExpression\"] ) | 'null' ->);
     public final MeteorParser.literal_return literal() throws RecognitionException {
         MeteorParser.literal_return retval = new MeteorParser.literal_return();
         retval.start = input.LT(1);
@@ -3889,10 +3974,10 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression root_0 = null;
 
         Token val=null;
-        Token string_literal72=null;
+        Token string_literal74=null;
 
         EvaluationExpression val_tree=null;
-        EvaluationExpression string_literal72_tree=null;
+        EvaluationExpression string_literal74_tree=null;
         RewriteRuleTokenStream stream_INTEGER=new RewriteRuleTokenStream(adaptor,"token INTEGER");
         RewriteRuleTokenStream stream_DECIMAL=new RewriteRuleTokenStream(adaptor,"token DECIMAL");
         RewriteRuleTokenStream stream_62=new RewriteRuleTokenStream(adaptor,"token 62");
@@ -3902,52 +3987,52 @@ public class MeteorParser extends AbstractQueryParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 28) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:234:2: (val= 'true' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= 'false' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= DECIMAL -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= STRING -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= INTEGER -> ^( EXPRESSION[\"ConstantExpression\"] ) | 'null' ->)
-            int alt34=6;
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:216:2: (val= 'true' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= 'false' -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= DECIMAL -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= STRING -> ^( EXPRESSION[\"ConstantExpression\"] ) | val= INTEGER -> ^( EXPRESSION[\"ConstantExpression\"] ) | 'null' ->)
+            int alt37=6;
             switch ( input.LA(1) ) {
             case 60:
                 {
-                alt34=1;
+                alt37=1;
                 }
                 break;
             case 61:
                 {
-                alt34=2;
+                alt37=2;
                 }
                 break;
             case DECIMAL:
                 {
-                alt34=3;
+                alt37=3;
                 }
                 break;
             case STRING:
                 {
-                alt34=4;
+                alt37=4;
                 }
                 break;
             case INTEGER:
                 {
-                alt34=5;
+                alt37=5;
                 }
                 break;
             case 62:
                 {
-                alt34=6;
+                alt37=6;
                 }
                 break;
             default:
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 NoViableAltException nvae =
-                    new NoViableAltException("", 34, 0, input);
+                    new NoViableAltException("", 37, 0, input);
 
                 throw nvae;
             }
 
-            switch (alt34) {
+            switch (alt37) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:234:4: val= 'true'
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:216:4: val= 'true'
                     {
-                    val=(Token)match(input,60,FOLLOW_60_in_literal1334); if (state.failed) return retval; 
+                    val=(Token)match(input,60,FOLLOW_60_in_literal1380); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_60.add(val);
 
 
@@ -3964,9 +4049,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 234:15: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 216:15: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:234:18: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:216:18: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -3982,9 +4067,9 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:235:4: val= 'false'
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:217:4: val= 'false'
                     {
-                    val=(Token)match(input,61,FOLLOW_61_in_literal1350); if (state.failed) return retval; 
+                    val=(Token)match(input,61,FOLLOW_61_in_literal1396); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_61.add(val);
 
 
@@ -4001,9 +4086,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 235:16: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 217:16: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:235:19: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:217:19: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4019,9 +4104,9 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 3 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:236:4: val= DECIMAL
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:218:4: val= DECIMAL
                     {
-                    val=(Token)match(input,DECIMAL,FOLLOW_DECIMAL_in_literal1366); if (state.failed) return retval; 
+                    val=(Token)match(input,DECIMAL,FOLLOW_DECIMAL_in_literal1412); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_DECIMAL.add(val);
 
 
@@ -4038,9 +4123,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 236:16: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 218:16: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:236:19: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:218:19: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4056,9 +4141,9 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 4 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:4: val= STRING
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:219:4: val= STRING
                     {
-                    val=(Token)match(input,STRING,FOLLOW_STRING_in_literal1382); if (state.failed) return retval; 
+                    val=(Token)match(input,STRING,FOLLOW_STRING_in_literal1428); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(val);
 
 
@@ -4075,9 +4160,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 237:15: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 219:15: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:18: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:219:18: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4093,9 +4178,9 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 5 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:238:5: val= INTEGER
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:220:5: val= INTEGER
                     {
-                    val=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_literal1399); if (state.failed) return retval; 
+                    val=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_literal1445); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_INTEGER.add(val);
 
 
@@ -4112,9 +4197,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 238:17: -> ^( EXPRESSION[\"ConstantExpression\"] )
+                    // 220:17: -> ^( EXPRESSION[\"ConstantExpression\"] )
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:238:20: ^( EXPRESSION[\"ConstantExpression\"] )
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:220:20: ^( EXPRESSION[\"ConstantExpression\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ConstantExpression"), root_1);
@@ -4130,10 +4215,10 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 6 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:239:5: 'null'
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:221:5: 'null'
                     {
-                    string_literal72=(Token)match(input,62,FOLLOW_62_in_literal1414); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_62.add(string_literal72);
+                    string_literal74=(Token)match(input,62,FOLLOW_62_in_literal1460); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_62.add(string_literal74);
 
 
 
@@ -4149,7 +4234,7 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 239:12: ->
+                    // 221:12: ->
                     {
                         adaptor.addChild(root_0,  ConstantExpression.NULL );
 
@@ -4181,7 +4266,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "arrayAccess"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:241:1: arrayAccess : ( '[' STAR ']' path= pathExpression -> ^( EXPRESSION[\"ArrayProjection\"] $path) | '[' (pos= INTEGER | pos= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) | '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) );
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:223:1: arrayAccess : ( '[' STAR ']' path= pathExpression -> ^( EXPRESSION[\"ArrayProjection\"] $path) | '[' (pos= INTEGER | pos= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) | '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) );
     public final MeteorParser.arrayAccess_return arrayAccess() throws RecognitionException {
         MeteorParser.arrayAccess_return retval = new MeteorParser.arrayAccess_return();
         retval.start = input.LT(1);
@@ -4191,28 +4276,28 @@ public class MeteorParser extends AbstractQueryParser {
         Token pos=null;
         Token start=null;
         Token end=null;
-        Token char_literal73=null;
-        Token STAR74=null;
         Token char_literal75=null;
-        Token char_literal76=null;
+        Token STAR76=null;
         Token char_literal77=null;
         Token char_literal78=null;
         Token char_literal79=null;
         Token char_literal80=null;
+        Token char_literal81=null;
+        Token char_literal82=null;
         MeteorParser.pathExpression_return path = null;
 
 
         EvaluationExpression pos_tree=null;
         EvaluationExpression start_tree=null;
         EvaluationExpression end_tree=null;
-        EvaluationExpression char_literal73_tree=null;
-        EvaluationExpression STAR74_tree=null;
         EvaluationExpression char_literal75_tree=null;
-        EvaluationExpression char_literal76_tree=null;
+        EvaluationExpression STAR76_tree=null;
         EvaluationExpression char_literal77_tree=null;
         EvaluationExpression char_literal78_tree=null;
         EvaluationExpression char_literal79_tree=null;
         EvaluationExpression char_literal80_tree=null;
+        EvaluationExpression char_literal81_tree=null;
+        EvaluationExpression char_literal82_tree=null;
         RewriteRuleTokenStream stream_INTEGER=new RewriteRuleTokenStream(adaptor,"token INTEGER");
         RewriteRuleTokenStream stream_STAR=new RewriteRuleTokenStream(adaptor,"token STAR");
         RewriteRuleTokenStream stream_35=new RewriteRuleTokenStream(adaptor,"token 35");
@@ -4222,31 +4307,31 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_pathExpression=new RewriteRuleSubtreeStream(adaptor,"rule pathExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 29) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:242:3: ( '[' STAR ']' path= pathExpression -> ^( EXPRESSION[\"ArrayProjection\"] $path) | '[' (pos= INTEGER | pos= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) | '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) )
-            int alt38=3;
-            int LA38_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:224:3: ( '[' STAR ']' path= pathExpression -> ^( EXPRESSION[\"ArrayProjection\"] $path) | '[' (pos= INTEGER | pos= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) | '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']' -> ^( EXPRESSION[\"ArrayAccess\"] ) )
+            int alt41=3;
+            int LA41_0 = input.LA(1);
 
-            if ( (LA38_0==63) ) {
+            if ( (LA41_0==63) ) {
                 switch ( input.LA(2) ) {
                 case STAR:
                     {
-                    alt38=1;
+                    alt41=1;
                     }
                     break;
                 case INTEGER:
                     {
-                    int LA38_3 = input.LA(3);
+                    int LA41_3 = input.LA(3);
 
-                    if ( (LA38_3==64) ) {
-                        alt38=2;
+                    if ( (LA41_3==64) ) {
+                        alt41=2;
                     }
-                    else if ( (LA38_3==35) ) {
-                        alt38=3;
+                    else if ( (LA41_3==35) ) {
+                        alt41=3;
                     }
                     else {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         NoViableAltException nvae =
-                            new NoViableAltException("", 38, 3, input);
+                            new NoViableAltException("", 41, 3, input);
 
                         throw nvae;
                     }
@@ -4254,18 +4339,18 @@ public class MeteorParser extends AbstractQueryParser {
                     break;
                 case UINT:
                     {
-                    int LA38_4 = input.LA(3);
+                    int LA41_4 = input.LA(3);
 
-                    if ( (LA38_4==64) ) {
-                        alt38=2;
+                    if ( (LA41_4==64) ) {
+                        alt41=2;
                     }
-                    else if ( (LA38_4==35) ) {
-                        alt38=3;
+                    else if ( (LA41_4==35) ) {
+                        alt41=3;
                     }
                     else {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         NoViableAltException nvae =
-                            new NoViableAltException("", 38, 4, input);
+                            new NoViableAltException("", 41, 4, input);
 
                         throw nvae;
                     }
@@ -4274,7 +4359,7 @@ public class MeteorParser extends AbstractQueryParser {
                 default:
                     if (state.backtracking>0) {state.failed=true; return retval;}
                     NoViableAltException nvae =
-                        new NoViableAltException("", 38, 1, input);
+                        new NoViableAltException("", 41, 1, input);
 
                     throw nvae;
                 }
@@ -4283,24 +4368,24 @@ public class MeteorParser extends AbstractQueryParser {
             else {
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 NoViableAltException nvae =
-                    new NoViableAltException("", 38, 0, input);
+                    new NoViableAltException("", 41, 0, input);
 
                 throw nvae;
             }
-            switch (alt38) {
+            switch (alt41) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:242:5: '[' STAR ']' path= pathExpression
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:224:5: '[' STAR ']' path= pathExpression
                     {
-                    char_literal73=(Token)match(input,63,FOLLOW_63_in_arrayAccess1428); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_63.add(char_literal73);
+                    char_literal75=(Token)match(input,63,FOLLOW_63_in_arrayAccess1474); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_63.add(char_literal75);
 
-                    STAR74=(Token)match(input,STAR,FOLLOW_STAR_in_arrayAccess1430); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_STAR.add(STAR74);
+                    STAR76=(Token)match(input,STAR,FOLLOW_STAR_in_arrayAccess1476); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_STAR.add(STAR76);
 
-                    char_literal75=(Token)match(input,64,FOLLOW_64_in_arrayAccess1432); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_64.add(char_literal75);
+                    char_literal77=(Token)match(input,64,FOLLOW_64_in_arrayAccess1478); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_64.add(char_literal77);
 
-                    pushFollow(FOLLOW_pathExpression_in_arrayAccess1436);
+                    pushFollow(FOLLOW_pathExpression_in_arrayAccess1482);
                     path=pathExpression();
 
                     state._fsp--;
@@ -4321,9 +4406,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_path=new RewriteRuleSubtreeStream(adaptor,"rule path",path!=null?path.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 243:3: -> ^( EXPRESSION[\"ArrayProjection\"] $path)
+                    // 225:3: -> ^( EXPRESSION[\"ArrayProjection\"] $path)
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:243:6: ^( EXPRESSION[\"ArrayProjection\"] $path)
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:225:6: ^( EXPRESSION[\"ArrayProjection\"] $path)
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArrayProjection"), root_1);
@@ -4339,42 +4424,42 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:244:5: '[' (pos= INTEGER | pos= UINT ) ']'
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:226:5: '[' (pos= INTEGER | pos= UINT ) ']'
                     {
-                    char_literal76=(Token)match(input,63,FOLLOW_63_in_arrayAccess1456); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_63.add(char_literal76);
+                    char_literal78=(Token)match(input,63,FOLLOW_63_in_arrayAccess1502); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_63.add(char_literal78);
 
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:244:9: (pos= INTEGER | pos= UINT )
-                    int alt35=2;
-                    int LA35_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:226:9: (pos= INTEGER | pos= UINT )
+                    int alt38=2;
+                    int LA38_0 = input.LA(1);
 
-                    if ( (LA35_0==INTEGER) ) {
-                        alt35=1;
+                    if ( (LA38_0==INTEGER) ) {
+                        alt38=1;
                     }
-                    else if ( (LA35_0==UINT) ) {
-                        alt35=2;
+                    else if ( (LA38_0==UINT) ) {
+                        alt38=2;
                     }
                     else {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         NoViableAltException nvae =
-                            new NoViableAltException("", 35, 0, input);
+                            new NoViableAltException("", 38, 0, input);
 
                         throw nvae;
                     }
-                    switch (alt35) {
+                    switch (alt38) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:244:10: pos= INTEGER
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:226:10: pos= INTEGER
                             {
-                            pos=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1461); if (state.failed) return retval; 
+                            pos=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1507); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_INTEGER.add(pos);
 
 
                             }
                             break;
                         case 2 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:244:24: pos= UINT
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:226:24: pos= UINT
                             {
-                            pos=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1467); if (state.failed) return retval; 
+                            pos=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1513); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_UINT.add(pos);
 
 
@@ -4383,8 +4468,8 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    char_literal77=(Token)match(input,64,FOLLOW_64_in_arrayAccess1470); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_64.add(char_literal77);
+                    char_literal79=(Token)match(input,64,FOLLOW_64_in_arrayAccess1516); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_64.add(char_literal79);
 
 
 
@@ -4400,9 +4485,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 245:3: -> ^( EXPRESSION[\"ArrayAccess\"] )
+                    // 227:3: -> ^( EXPRESSION[\"ArrayAccess\"] )
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:245:6: ^( EXPRESSION[\"ArrayAccess\"] )
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:227:6: ^( EXPRESSION[\"ArrayAccess\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArrayAccess"), root_1);
@@ -4418,42 +4503,42 @@ public class MeteorParser extends AbstractQueryParser {
                     }
                     break;
                 case 3 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:246:5: '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']'
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:5: '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']'
                     {
-                    char_literal78=(Token)match(input,63,FOLLOW_63_in_arrayAccess1488); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_63.add(char_literal78);
+                    char_literal80=(Token)match(input,63,FOLLOW_63_in_arrayAccess1534); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_63.add(char_literal80);
 
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:246:9: (start= INTEGER | start= UINT )
-                    int alt36=2;
-                    int LA36_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:9: (start= INTEGER | start= UINT )
+                    int alt39=2;
+                    int LA39_0 = input.LA(1);
 
-                    if ( (LA36_0==INTEGER) ) {
-                        alt36=1;
+                    if ( (LA39_0==INTEGER) ) {
+                        alt39=1;
                     }
-                    else if ( (LA36_0==UINT) ) {
-                        alt36=2;
+                    else if ( (LA39_0==UINT) ) {
+                        alt39=2;
                     }
                     else {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         NoViableAltException nvae =
-                            new NoViableAltException("", 36, 0, input);
+                            new NoViableAltException("", 39, 0, input);
 
                         throw nvae;
                     }
-                    switch (alt36) {
+                    switch (alt39) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:246:10: start= INTEGER
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:10: start= INTEGER
                             {
-                            start=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1493); if (state.failed) return retval; 
+                            start=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1539); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_INTEGER.add(start);
 
 
                             }
                             break;
                         case 2 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:246:26: start= UINT
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:26: start= UINT
                             {
-                            start=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1499); if (state.failed) return retval; 
+                            start=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1545); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_UINT.add(start);
 
 
@@ -4462,40 +4547,40 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    char_literal79=(Token)match(input,35,FOLLOW_35_in_arrayAccess1502); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_35.add(char_literal79);
+                    char_literal81=(Token)match(input,35,FOLLOW_35_in_arrayAccess1548); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_35.add(char_literal81);
 
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:246:42: (end= INTEGER | end= UINT )
-                    int alt37=2;
-                    int LA37_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:42: (end= INTEGER | end= UINT )
+                    int alt40=2;
+                    int LA40_0 = input.LA(1);
 
-                    if ( (LA37_0==INTEGER) ) {
-                        alt37=1;
+                    if ( (LA40_0==INTEGER) ) {
+                        alt40=1;
                     }
-                    else if ( (LA37_0==UINT) ) {
-                        alt37=2;
+                    else if ( (LA40_0==UINT) ) {
+                        alt40=2;
                     }
                     else {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         NoViableAltException nvae =
-                            new NoViableAltException("", 37, 0, input);
+                            new NoViableAltException("", 40, 0, input);
 
                         throw nvae;
                     }
-                    switch (alt37) {
+                    switch (alt40) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:246:43: end= INTEGER
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:43: end= INTEGER
                             {
-                            end=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1507); if (state.failed) return retval; 
+                            end=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1553); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_INTEGER.add(end);
 
 
                             }
                             break;
                         case 2 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:246:57: end= UINT
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:57: end= UINT
                             {
-                            end=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1513); if (state.failed) return retval; 
+                            end=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1559); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_UINT.add(end);
 
 
@@ -4504,8 +4589,8 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    char_literal80=(Token)match(input,64,FOLLOW_64_in_arrayAccess1516); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_64.add(char_literal80);
+                    char_literal82=(Token)match(input,64,FOLLOW_64_in_arrayAccess1562); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_64.add(char_literal82);
 
 
 
@@ -4521,9 +4606,9 @@ public class MeteorParser extends AbstractQueryParser {
                     RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
                     root_0 = (EvaluationExpression)adaptor.nil();
-                    // 247:3: -> ^( EXPRESSION[\"ArrayAccess\"] )
+                    // 229:3: -> ^( EXPRESSION[\"ArrayAccess\"] )
                     {
-                        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:247:6: ^( EXPRESSION[\"ArrayAccess\"] )
+                        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:229:6: ^( EXPRESSION[\"ArrayAccess\"] )
                         {
                         EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                         root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArrayAccess"), root_1);
@@ -4562,7 +4647,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "streamIndexAccess"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:249:1: streamIndexAccess : op= VAR {...}? => '[' path= generalPathExpression ']' {...}? ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:231:1: streamIndexAccess : op= VAR {...}? => '[' path= generalPathExpression ']' {...}? ->;
     public final MeteorParser.streamIndexAccess_return streamIndexAccess() throws RecognitionException {
         MeteorParser.streamIndexAccess_return retval = new MeteorParser.streamIndexAccess_return();
         retval.start = input.LT(1);
@@ -4570,41 +4655,41 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression root_0 = null;
 
         Token op=null;
-        Token char_literal81=null;
-        Token char_literal82=null;
+        Token char_literal83=null;
+        Token char_literal84=null;
         MeteorParser.generalPathExpression_return path = null;
 
 
         EvaluationExpression op_tree=null;
-        EvaluationExpression char_literal81_tree=null;
-        EvaluationExpression char_literal82_tree=null;
+        EvaluationExpression char_literal83_tree=null;
+        EvaluationExpression char_literal84_tree=null;
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_64=new RewriteRuleTokenStream(adaptor,"token 64");
         RewriteRuleTokenStream stream_63=new RewriteRuleTokenStream(adaptor,"token 63");
         RewriteRuleSubtreeStream stream_generalPathExpression=new RewriteRuleSubtreeStream(adaptor,"rule generalPathExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 30) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:250:3: (op= VAR {...}? => '[' path= generalPathExpression ']' {...}? ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:250:5: op= VAR {...}? => '[' path= generalPathExpression ']' {...}?
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:232:3: (op= VAR {...}? => '[' path= generalPathExpression ']' {...}? ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:232:5: op= VAR {...}? => '[' path= generalPathExpression ']' {...}?
             {
-            op=(Token)match(input,VAR,FOLLOW_VAR_in_streamIndexAccess1544); if (state.failed) return retval; 
+            op=(Token)match(input,VAR,FOLLOW_VAR_in_streamIndexAccess1590); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(op);
 
-            if ( !(( getRawBinding(op, JsonStreamExpression.class) != null )) ) {
+            if ( !(( getVariable(op) != null )) ) {
                 if (state.backtracking>0) {state.failed=true; return retval;}
-                throw new FailedPredicateException(input, "streamIndexAccess", " getRawBinding($op, JsonStreamExpression.class) != null ");
+                throw new FailedPredicateException(input, "streamIndexAccess", " getVariable($op) != null ");
             }
-            char_literal81=(Token)match(input,63,FOLLOW_63_in_streamIndexAccess1553); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_63.add(char_literal81);
+            char_literal83=(Token)match(input,63,FOLLOW_63_in_streamIndexAccess1599); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_63.add(char_literal83);
 
-            pushFollow(FOLLOW_generalPathExpression_in_streamIndexAccess1557);
+            pushFollow(FOLLOW_generalPathExpression_in_streamIndexAccess1603);
             path=generalPathExpression();
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_generalPathExpression.add(path.getTree());
-            char_literal82=(Token)match(input,64,FOLLOW_64_in_streamIndexAccess1559); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_64.add(char_literal82);
+            char_literal84=(Token)match(input,64,FOLLOW_64_in_streamIndexAccess1605); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_64.add(char_literal84);
 
             if ( !(( !((path!=null?((EvaluationExpression)path.tree):null) instanceof ConstantExpression) )) ) {
                 if (state.backtracking>0) {state.failed=true; return retval;}
@@ -4624,9 +4709,9 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 252:3: ->
+            // 234:3: ->
             {
-                adaptor.addChild(root_0,  new StreamIndexExpression(getBinding(op, JsonStreamExpression.class).getStream(), (path!=null?((EvaluationExpression)path.tree):null)) );
+                adaptor.addChild(root_0,  new StreamIndexExpression(getVariable(op).getStream(), (path!=null?((EvaluationExpression)path.tree):null)) );
 
             }
 
@@ -4654,36 +4739,36 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "arrayCreation"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:254:1: arrayCreation : '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']' -> ^( EXPRESSION[\"ArrayCreation\"] ) ;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:236:1: arrayCreation : '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']' -> ^( EXPRESSION[\"ArrayCreation\"] ) ;
     public final MeteorParser.arrayCreation_return arrayCreation() throws RecognitionException {
         MeteorParser.arrayCreation_return retval = new MeteorParser.arrayCreation_return();
         retval.start = input.LT(1);
         int arrayCreation_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
-        Token char_literal83=null;
-        Token char_literal84=null;
         Token char_literal85=null;
         Token char_literal86=null;
+        Token char_literal87=null;
+        Token char_literal88=null;
         List list_elems=null;
         RuleReturnScope elems = null;
-        EvaluationExpression char_literal83_tree=null;
-        EvaluationExpression char_literal84_tree=null;
         EvaluationExpression char_literal85_tree=null;
         EvaluationExpression char_literal86_tree=null;
-        RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
+        EvaluationExpression char_literal87_tree=null;
+        EvaluationExpression char_literal88_tree=null;
         RewriteRuleTokenStream stream_64=new RewriteRuleTokenStream(adaptor,"token 64");
         RewriteRuleTokenStream stream_63=new RewriteRuleTokenStream(adaptor,"token 63");
+        RewriteRuleTokenStream stream_28=new RewriteRuleTokenStream(adaptor,"token 28");
         RewriteRuleSubtreeStream stream_expression=new RewriteRuleSubtreeStream(adaptor,"rule expression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 31) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:255:2: ( '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']' -> ^( EXPRESSION[\"ArrayCreation\"] ) )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:255:5: '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']'
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:2: ( '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']' -> ^( EXPRESSION[\"ArrayCreation\"] ) )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:5: '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']'
             {
-            char_literal83=(Token)match(input,63,FOLLOW_63_in_arrayCreation1578); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_63.add(char_literal83);
+            char_literal85=(Token)match(input,63,FOLLOW_63_in_arrayCreation1624); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_63.add(char_literal85);
 
-            pushFollow(FOLLOW_expression_in_arrayCreation1582);
+            pushFollow(FOLLOW_expression_in_arrayCreation1628);
             elems=expression();
 
             state._fsp--;
@@ -4692,31 +4777,31 @@ public class MeteorParser extends AbstractQueryParser {
             if (list_elems==null) list_elems=new ArrayList();
             list_elems.add(elems.getTree());
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:255:27: ( ',' elems+= expression )*
-            loop39:
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:27: ( ',' elems+= expression )*
+            loop42:
             do {
-                int alt39=2;
-                int LA39_0 = input.LA(1);
+                int alt42=2;
+                int LA42_0 = input.LA(1);
 
-                if ( (LA39_0==31) ) {
-                    int LA39_1 = input.LA(2);
+                if ( (LA42_0==28) ) {
+                    int LA42_1 = input.LA(2);
 
-                    if ( ((LA39_1>=ID && LA39_1<=STRING)||(LA39_1>=DECIMAL && LA39_1<=INTEGER)||LA39_1==30||(LA39_1>=52 && LA39_1<=55)||LA39_1==58||(LA39_1>=60 && LA39_1<=63)||LA39_1==65||LA39_1==67) ) {
-                        alt39=1;
+                    if ( ((LA42_1>=ID && LA42_1<=STRING)||(LA42_1>=DECIMAL && LA42_1<=INTEGER)||LA42_1==31||(LA42_1>=52 && LA42_1<=55)||LA42_1==58||(LA42_1>=60 && LA42_1<=63)||LA42_1==65||LA42_1==67) ) {
+                        alt42=1;
                     }
 
 
                 }
 
 
-                switch (alt39) {
+                switch (alt42) {
             	case 1 :
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:255:28: ',' elems+= expression
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:28: ',' elems+= expression
             	    {
-            	    char_literal84=(Token)match(input,31,FOLLOW_31_in_arrayCreation1585); if (state.failed) return retval; 
-            	    if ( state.backtracking==0 ) stream_31.add(char_literal84);
+            	    char_literal86=(Token)match(input,28,FOLLOW_28_in_arrayCreation1631); if (state.failed) return retval; 
+            	    if ( state.backtracking==0 ) stream_28.add(char_literal86);
 
-            	    pushFollow(FOLLOW_expression_in_arrayCreation1589);
+            	    pushFollow(FOLLOW_expression_in_arrayCreation1635);
             	    elems=expression();
 
             	    state._fsp--;
@@ -4730,23 +4815,23 @@ public class MeteorParser extends AbstractQueryParser {
             	    break;
 
             	default :
-            	    break loop39;
+            	    break loop42;
                 }
             } while (true);
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:255:52: ( ',' )?
-            int alt40=2;
-            int LA40_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:52: ( ',' )?
+            int alt43=2;
+            int LA43_0 = input.LA(1);
 
-            if ( (LA40_0==31) ) {
-                alt40=1;
+            if ( (LA43_0==28) ) {
+                alt43=1;
             }
-            switch (alt40) {
+            switch (alt43) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ','
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ','
                     {
-                    char_literal85=(Token)match(input,31,FOLLOW_31_in_arrayCreation1593); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_31.add(char_literal85);
+                    char_literal87=(Token)match(input,28,FOLLOW_28_in_arrayCreation1639); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_28.add(char_literal87);
 
 
                     }
@@ -4754,8 +4839,8 @@ public class MeteorParser extends AbstractQueryParser {
 
             }
 
-            char_literal86=(Token)match(input,64,FOLLOW_64_in_arrayCreation1596); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_64.add(char_literal86);
+            char_literal88=(Token)match(input,64,FOLLOW_64_in_arrayCreation1642); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_64.add(char_literal88);
 
 
 
@@ -4771,9 +4856,9 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 255:61: -> ^( EXPRESSION[\"ArrayCreation\"] )
+            // 237:61: -> ^( EXPRESSION[\"ArrayCreation\"] )
             {
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:255:64: ^( EXPRESSION[\"ArrayCreation\"] )
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:64: ^( EXPRESSION[\"ArrayCreation\"] )
                 {
                 EvaluationExpression root_1 = (EvaluationExpression)adaptor.nil();
                 root_1 = (EvaluationExpression)adaptor.becomeRoot((EvaluationExpression)adaptor.create(EXPRESSION, "ArrayCreation"), root_1);
@@ -4817,7 +4902,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "operator"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:257:1: operator returns [Operator<?> op=null] : opRule= ( readOperator | writeOperator | genericOperator ) ;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:239:1: operator returns [Operator<?> op=null] : opRule= ( readOperator | writeOperator | genericOperator ) ;
     public final MeteorParser.operator_return operator() throws RecognitionException {
         operator_stack.push(new operator_scope());
         MeteorParser.operator_return retval = new MeteorParser.operator_return();
@@ -4826,87 +4911,87 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression root_0 = null;
 
         Token opRule=null;
-        MeteorParser.readOperator_return readOperator87 = null;
+        MeteorParser.readOperator_return readOperator89 = null;
 
-        MeteorParser.writeOperator_return writeOperator88 = null;
+        MeteorParser.writeOperator_return writeOperator90 = null;
 
-        MeteorParser.genericOperator_return genericOperator89 = null;
+        MeteorParser.genericOperator_return genericOperator91 = null;
 
 
         EvaluationExpression opRule_tree=null;
 
 
           if(state.backtracking == 0) 
-        	  getContext().getBindings().addScope();
+        	  addScope();
         	((operator_scope)operator_stack.peek()).inputTags = new IdentityHashMap<JsonStream, List<ExpressionTag>>();
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 32) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:270:2: (opRule= ( readOperator | writeOperator | genericOperator ) )
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:270:4: opRule= ( readOperator | writeOperator | genericOperator )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:252:2: (opRule= ( readOperator | writeOperator | genericOperator ) )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:252:4: opRule= ( readOperator | writeOperator | genericOperator )
             {
             root_0 = (EvaluationExpression)adaptor.nil();
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:270:11: ( readOperator | writeOperator | genericOperator )
-            int alt41=3;
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:252:11: ( readOperator | writeOperator | genericOperator )
+            int alt44=3;
             switch ( input.LA(1) ) {
             case 65:
                 {
-                alt41=1;
+                alt44=1;
                 }
                 break;
             case 67:
                 {
-                alt41=2;
+                alt44=2;
                 }
                 break;
             case ID:
                 {
-                alt41=3;
+                alt44=3;
                 }
                 break;
             default:
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 NoViableAltException nvae =
-                    new NoViableAltException("", 41, 0, input);
+                    new NoViableAltException("", 44, 0, input);
 
                 throw nvae;
             }
 
-            switch (alt41) {
+            switch (alt44) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:270:12: readOperator
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:252:12: readOperator
                     {
-                    pushFollow(FOLLOW_readOperator_in_operator1633);
-                    readOperator87=readOperator();
+                    pushFollow(FOLLOW_readOperator_in_operator1679);
+                    readOperator89=readOperator();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, readOperator87.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, readOperator89.getTree());
 
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:270:27: writeOperator
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:252:27: writeOperator
                     {
-                    pushFollow(FOLLOW_writeOperator_in_operator1637);
-                    writeOperator88=writeOperator();
+                    pushFollow(FOLLOW_writeOperator_in_operator1683);
+                    writeOperator90=writeOperator();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, writeOperator88.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, writeOperator90.getTree());
 
                     }
                     break;
                 case 3 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:270:43: genericOperator
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:252:43: genericOperator
                     {
-                    pushFollow(FOLLOW_genericOperator_in_operator1641);
-                    genericOperator89=genericOperator();
+                    pushFollow(FOLLOW_genericOperator_in_operator1687);
+                    genericOperator91=genericOperator();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) adaptor.addChild(root_0, genericOperator89.getTree());
+                    if ( state.backtracking==0 ) adaptor.addChild(root_0, genericOperator91.getTree());
 
                     }
                     break;
@@ -4930,7 +5015,7 @@ public class MeteorParser extends AbstractQueryParser {
             }
             if ( state.backtracking==0 ) {
 
-                getContext().getBindings().removeScope();
+                removeScope();
 
             }
         }
@@ -4948,7 +5033,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "readOperator"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:1: readOperator : 'read' 'from' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:257:1: readOperator : 'read' 'from' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->;
     public final MeteorParser.readOperator_return readOperator() throws RecognitionException {
         MeteorParser.readOperator_return retval = new MeteorParser.readOperator_return();
         retval.start = input.LT(1);
@@ -4957,82 +5042,82 @@ public class MeteorParser extends AbstractQueryParser {
 
         Token loc=null;
         Token file=null;
-        Token string_literal90=null;
-        Token string_literal91=null;
-        Token char_literal92=null;
-        Token char_literal93=null;
+        Token string_literal92=null;
+        Token string_literal93=null;
+        Token char_literal94=null;
+        Token char_literal95=null;
 
         EvaluationExpression loc_tree=null;
         EvaluationExpression file_tree=null;
-        EvaluationExpression string_literal90_tree=null;
-        EvaluationExpression string_literal91_tree=null;
-        EvaluationExpression char_literal92_tree=null;
-        EvaluationExpression char_literal93_tree=null;
+        EvaluationExpression string_literal92_tree=null;
+        EvaluationExpression string_literal93_tree=null;
+        EvaluationExpression char_literal94_tree=null;
+        EvaluationExpression char_literal95_tree=null;
         RewriteRuleTokenStream stream_66=new RewriteRuleTokenStream(adaptor,"token 66");
-        RewriteRuleTokenStream stream_30=new RewriteRuleTokenStream(adaptor,"token 30");
         RewriteRuleTokenStream stream_32=new RewriteRuleTokenStream(adaptor,"token 32");
+        RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
         RewriteRuleTokenStream stream_65=new RewriteRuleTokenStream(adaptor,"token 65");
         RewriteRuleTokenStream stream_STRING=new RewriteRuleTokenStream(adaptor,"token STRING");
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 33) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:2: ( 'read' 'from' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:4: 'read' 'from' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:2: ( 'read' 'from' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:4: 'read' 'from' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
             {
-            string_literal90=(Token)match(input,65,FOLLOW_65_in_readOperator1655); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_65.add(string_literal90);
+            string_literal92=(Token)match(input,65,FOLLOW_65_in_readOperator1701); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_65.add(string_literal92);
 
-            string_literal91=(Token)match(input,66,FOLLOW_66_in_readOperator1657); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_66.add(string_literal91);
+            string_literal93=(Token)match(input,66,FOLLOW_66_in_readOperator1703); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_66.add(string_literal93);
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:18: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
-            int alt43=2;
-            int LA43_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:18: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
+            int alt46=2;
+            int LA46_0 = input.LA(1);
 
-            if ( (LA43_0==ID) ) {
-                int LA43_1 = input.LA(2);
+            if ( (LA46_0==ID) ) {
+                int LA46_1 = input.LA(2);
 
-                if ( (LA43_1==30) ) {
-                    alt43=2;
+                if ( (LA46_1==31) ) {
+                    alt46=2;
                 }
-                else if ( (LA43_1==STRING) ) {
-                    alt43=1;
+                else if ( (LA46_1==STRING) ) {
+                    alt46=1;
                 }
                 else {
                     if (state.backtracking>0) {state.failed=true; return retval;}
                     NoViableAltException nvae =
-                        new NoViableAltException("", 43, 1, input);
+                        new NoViableAltException("", 46, 1, input);
 
                     throw nvae;
                 }
             }
-            else if ( (LA43_0==STRING) ) {
-                alt43=1;
+            else if ( (LA46_0==STRING) ) {
+                alt46=1;
             }
             else {
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 NoViableAltException nvae =
-                    new NoViableAltException("", 43, 0, input);
+                    new NoViableAltException("", 46, 0, input);
 
                 throw nvae;
             }
-            switch (alt43) {
+            switch (alt46) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:19: (loc= ID )? file= STRING
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:19: (loc= ID )? file= STRING
                     {
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:22: (loc= ID )?
-                    int alt42=2;
-                    int LA42_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:22: (loc= ID )?
+                    int alt45=2;
+                    int LA45_0 = input.LA(1);
 
-                    if ( (LA42_0==ID) ) {
-                        alt42=1;
+                    if ( (LA45_0==ID) ) {
+                        alt45=1;
                     }
-                    switch (alt42) {
+                    switch (alt45) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: loc= ID
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: loc= ID
                             {
-                            loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1662); if (state.failed) return retval; 
+                            loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1708); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_ID.add(loc);
 
 
@@ -5041,26 +5126,26 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1667); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1713); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
 
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:41: loc= ID '(' file= STRING ')'
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:41: loc= ID '(' file= STRING ')'
                     {
-                    loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1673); if (state.failed) return retval; 
+                    loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1719); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(loc);
 
-                    char_literal92=(Token)match(input,30,FOLLOW_30_in_readOperator1675); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_30.add(char_literal92);
+                    char_literal94=(Token)match(input,31,FOLLOW_31_in_readOperator1721); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_31.add(char_literal94);
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1679); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1725); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
-                    char_literal93=(Token)match(input,32,FOLLOW_32_in_readOperator1681); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_32.add(char_literal93);
+                    char_literal95=(Token)match(input,32,FOLLOW_32_in_readOperator1727); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_32.add(char_literal95);
 
 
                     }
@@ -5085,7 +5170,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 276:140: ->
+            // 258:140: ->
             {
                 root_0 = null;
             }
@@ -5114,7 +5199,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "writeOperator"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:278:1: writeOperator : 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:260:1: writeOperator : 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->;
     public final MeteorParser.writeOperator_return writeOperator() throws RecognitionException {
         MeteorParser.writeOperator_return retval = new MeteorParser.writeOperator_return();
         retval.start = input.LT(1);
@@ -5124,87 +5209,87 @@ public class MeteorParser extends AbstractQueryParser {
         Token from=null;
         Token loc=null;
         Token file=null;
-        Token string_literal94=null;
-        Token string_literal95=null;
-        Token char_literal96=null;
-        Token char_literal97=null;
+        Token string_literal96=null;
+        Token string_literal97=null;
+        Token char_literal98=null;
+        Token char_literal99=null;
 
         EvaluationExpression from_tree=null;
         EvaluationExpression loc_tree=null;
         EvaluationExpression file_tree=null;
-        EvaluationExpression string_literal94_tree=null;
-        EvaluationExpression string_literal95_tree=null;
-        EvaluationExpression char_literal96_tree=null;
-        EvaluationExpression char_literal97_tree=null;
+        EvaluationExpression string_literal96_tree=null;
+        EvaluationExpression string_literal97_tree=null;
+        EvaluationExpression char_literal98_tree=null;
+        EvaluationExpression char_literal99_tree=null;
         RewriteRuleTokenStream stream_67=new RewriteRuleTokenStream(adaptor,"token 67");
         RewriteRuleTokenStream stream_68=new RewriteRuleTokenStream(adaptor,"token 68");
-        RewriteRuleTokenStream stream_30=new RewriteRuleTokenStream(adaptor,"token 30");
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_32=new RewriteRuleTokenStream(adaptor,"token 32");
+        RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
         RewriteRuleTokenStream stream_STRING=new RewriteRuleTokenStream(adaptor,"token STRING");
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 34) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:279:2: ( 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:279:4: 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:2: ( 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:4: 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
             {
-            string_literal94=(Token)match(input,67,FOLLOW_67_in_writeOperator1695); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_67.add(string_literal94);
+            string_literal96=(Token)match(input,67,FOLLOW_67_in_writeOperator1741); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_67.add(string_literal96);
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_writeOperator1699); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_writeOperator1745); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
-            string_literal95=(Token)match(input,68,FOLLOW_68_in_writeOperator1701); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_68.add(string_literal95);
+            string_literal97=(Token)match(input,68,FOLLOW_68_in_writeOperator1747); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_68.add(string_literal97);
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:279:26: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
-            int alt45=2;
-            int LA45_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:26: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
+            int alt48=2;
+            int LA48_0 = input.LA(1);
 
-            if ( (LA45_0==ID) ) {
-                int LA45_1 = input.LA(2);
+            if ( (LA48_0==ID) ) {
+                int LA48_1 = input.LA(2);
 
-                if ( (LA45_1==30) ) {
-                    alt45=2;
+                if ( (LA48_1==31) ) {
+                    alt48=2;
                 }
-                else if ( (LA45_1==STRING) ) {
-                    alt45=1;
+                else if ( (LA48_1==STRING) ) {
+                    alt48=1;
                 }
                 else {
                     if (state.backtracking>0) {state.failed=true; return retval;}
                     NoViableAltException nvae =
-                        new NoViableAltException("", 45, 1, input);
+                        new NoViableAltException("", 48, 1, input);
 
                     throw nvae;
                 }
             }
-            else if ( (LA45_0==STRING) ) {
-                alt45=1;
+            else if ( (LA48_0==STRING) ) {
+                alt48=1;
             }
             else {
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 NoViableAltException nvae =
-                    new NoViableAltException("", 45, 0, input);
+                    new NoViableAltException("", 48, 0, input);
 
                 throw nvae;
             }
-            switch (alt45) {
+            switch (alt48) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:279:27: (loc= ID )? file= STRING
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:27: (loc= ID )? file= STRING
                     {
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:279:30: (loc= ID )?
-                    int alt44=2;
-                    int LA44_0 = input.LA(1);
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:30: (loc= ID )?
+                    int alt47=2;
+                    int LA47_0 = input.LA(1);
 
-                    if ( (LA44_0==ID) ) {
-                        alt44=1;
+                    if ( (LA47_0==ID) ) {
+                        alt47=1;
                     }
-                    switch (alt44) {
+                    switch (alt47) {
                         case 1 :
-                            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: loc= ID
+                            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: loc= ID
                             {
-                            loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1706); if (state.failed) return retval; 
+                            loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1752); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_ID.add(loc);
 
 
@@ -5213,26 +5298,26 @@ public class MeteorParser extends AbstractQueryParser {
 
                     }
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1711); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1757); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
 
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:279:49: loc= ID '(' file= STRING ')'
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:49: loc= ID '(' file= STRING ')'
                     {
-                    loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1717); if (state.failed) return retval; 
+                    loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1763); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(loc);
 
-                    char_literal96=(Token)match(input,30,FOLLOW_30_in_writeOperator1719); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_30.add(char_literal96);
+                    char_literal98=(Token)match(input,31,FOLLOW_31_in_writeOperator1765); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_31.add(char_literal98);
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1723); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1769); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
-                    char_literal97=(Token)match(input,32,FOLLOW_32_in_writeOperator1725); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_32.add(char_literal97);
+                    char_literal99=(Token)match(input,32,FOLLOW_32_in_writeOperator1771); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_32.add(char_literal99);
 
 
                     }
@@ -5244,7 +5329,7 @@ public class MeteorParser extends AbstractQueryParser {
                
               	Sink sink = new Sink(JsonOutputFormat.class, (file!=null?file.getText():null));
                 ((operator_scope)operator_stack.peek()).result = sink;
-                sink.setInputs(getBinding(from, JsonStreamExpression.class).getStream());
+                sink.setInputs(getVariable(from).getStream());
                 this.sinks.add(sink);
 
             }
@@ -5262,7 +5347,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 285:3: ->
+            // 267:3: ->
             {
                 root_0 = null;
             }
@@ -5296,7 +5381,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "genericOperator"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:287:1: genericOperator : name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )* ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:269:1: genericOperator : (packageName= ID ':' )? name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )* ->;
     public final MeteorParser.genericOperator_return genericOperator() throws RecognitionException {
         genericOperator_stack.push(new genericOperator_scope());
         MeteorParser.genericOperator_return retval = new MeteorParser.genericOperator_return();
@@ -5304,147 +5389,179 @@ public class MeteorParser extends AbstractQueryParser {
         int genericOperator_StartIndex = input.index();
         EvaluationExpression root_0 = null;
 
+        Token packageName=null;
         Token name=null;
-        Token char_literal101=null;
-        MeteorParser.operatorFlag_return operatorFlag98 = null;
+        Token char_literal100=null;
+        Token char_literal104=null;
+        MeteorParser.operatorFlag_return operatorFlag101 = null;
 
-        MeteorParser.arrayInput_return arrayInput99 = null;
+        MeteorParser.arrayInput_return arrayInput102 = null;
 
-        MeteorParser.input_return input100 = null;
+        MeteorParser.input_return input103 = null;
 
-        MeteorParser.input_return input102 = null;
+        MeteorParser.input_return input105 = null;
 
-        MeteorParser.operatorOption_return operatorOption103 = null;
+        MeteorParser.operatorOption_return operatorOption106 = null;
 
 
+        EvaluationExpression packageName_tree=null;
         EvaluationExpression name_tree=null;
-        EvaluationExpression char_literal101_tree=null;
-        RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
+        EvaluationExpression char_literal100_tree=null;
+        EvaluationExpression char_literal104_tree=null;
         RewriteRuleTokenStream stream_ID=new RewriteRuleTokenStream(adaptor,"token ID");
+        RewriteRuleTokenStream stream_35=new RewriteRuleTokenStream(adaptor,"token 35");
+        RewriteRuleTokenStream stream_28=new RewriteRuleTokenStream(adaptor,"token 28");
         RewriteRuleSubtreeStream stream_operatorOption=new RewriteRuleSubtreeStream(adaptor,"rule operatorOption");
         RewriteRuleSubtreeStream stream_input=new RewriteRuleSubtreeStream(adaptor,"rule input");
         RewriteRuleSubtreeStream stream_operatorFlag=new RewriteRuleSubtreeStream(adaptor,"rule operatorFlag");
         RewriteRuleSubtreeStream stream_arrayInput=new RewriteRuleSubtreeStream(adaptor,"rule arrayInput");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 35) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:290:3: (name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )* ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:290:5: name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )*
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:272:3: ( (packageName= ID ':' )? name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )* ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:272:5: (packageName= ID ':' )? name= ID {...}? => ( operatorFlag )* ( arrayInput | input ( ',' input )* ) ( operatorOption )*
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1745); if (state.failed) return retval; 
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:272:5: (packageName= ID ':' )?
+            int alt49=2;
+            int LA49_0 = input.LA(1);
+
+            if ( (LA49_0==ID) ) {
+                int LA49_1 = input.LA(2);
+
+                if ( (LA49_1==35) ) {
+                    alt49=1;
+                }
+            }
+            switch (alt49) {
+                case 1 :
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:272:6: packageName= ID ':'
+                    {
+                    packageName=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1792); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_ID.add(packageName);
+
+                    char_literal100=(Token)match(input,35,FOLLOW_35_in_genericOperator1794); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_35.add(char_literal100);
+
+
+                    }
+                    break;
+
+            }
+
+            name=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1800); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
-            if ( !(( (((genericOperator_scope)genericOperator_stack.peek()).operatorInfo = findOperatorGreedily(name)) != null )) ) {
+            if ( !(( (((genericOperator_scope)genericOperator_stack.peek()).operatorInfo = findOperatorGreedily((packageName!=null?packageName.getText():null), name)) != null )) ) {
                 if (state.backtracking>0) {state.failed=true; return retval;}
-                throw new FailedPredicateException(input, "genericOperator", " ($genericOperator::operatorInfo = findOperatorGreedily($name)) != null ");
+                throw new FailedPredicateException(input, "genericOperator", " ($genericOperator::operatorInfo = findOperatorGreedily($packageName.text, $name)) != null ");
             }
             if ( state.backtracking==0 ) {
                ((operator_scope)operator_stack.peek()).result = ((genericOperator_scope)genericOperator_stack.peek()).operatorInfo.newInstance(); 
             }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:292:1: ( operatorFlag )*
-            loop46:
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:274:1: ( operatorFlag )*
+            loop50:
             do {
-                int alt46=2;
-                int LA46_0 = input.LA(1);
+                int alt50=2;
+                int LA50_0 = input.LA(1);
 
-                if ( (LA46_0==ID) ) {
-                    alt46=1;
+                if ( (LA50_0==ID) ) {
+                    alt50=1;
                 }
 
 
-                switch (alt46) {
+                switch (alt50) {
             	case 1 :
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: operatorFlag
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: operatorFlag
             	    {
-            	    pushFollow(FOLLOW_operatorFlag_in_genericOperator1753);
-            	    operatorFlag98=operatorFlag();
+            	    pushFollow(FOLLOW_operatorFlag_in_genericOperator1808);
+            	    operatorFlag101=operatorFlag();
 
             	    state._fsp--;
             	    if (state.failed) return retval;
-            	    if ( state.backtracking==0 ) stream_operatorFlag.add(operatorFlag98.getTree());
+            	    if ( state.backtracking==0 ) stream_operatorFlag.add(operatorFlag101.getTree());
 
             	    }
             	    break;
 
             	default :
-            	    break loop46;
+            	    break loop50;
                 }
             } while (true);
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:293:1: ( arrayInput | input ( ',' input )* )
-            int alt48=2;
-            int LA48_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:1: ( arrayInput | input ( ',' input )* )
+            int alt52=2;
+            int LA52_0 = input.LA(1);
 
-            if ( (LA48_0==63) ) {
-                alt48=1;
+            if ( (LA52_0==63) ) {
+                alt52=1;
             }
-            else if ( (LA48_0==VAR||LA48_0==69) ) {
-                alt48=2;
+            else if ( (LA52_0==VAR||LA52_0==69) ) {
+                alt52=2;
             }
             else {
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 NoViableAltException nvae =
-                    new NoViableAltException("", 48, 0, input);
+                    new NoViableAltException("", 52, 0, input);
 
                 throw nvae;
             }
-            switch (alt48) {
+            switch (alt52) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:293:2: arrayInput
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:2: arrayInput
                     {
-                    pushFollow(FOLLOW_arrayInput_in_genericOperator1757);
-                    arrayInput99=arrayInput();
+                    pushFollow(FOLLOW_arrayInput_in_genericOperator1812);
+                    arrayInput102=arrayInput();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) stream_arrayInput.add(arrayInput99.getTree());
+                    if ( state.backtracking==0 ) stream_arrayInput.add(arrayInput102.getTree());
 
                     }
                     break;
                 case 2 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:293:15: input ( ',' input )*
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:15: input ( ',' input )*
                     {
-                    pushFollow(FOLLOW_input_in_genericOperator1761);
-                    input100=input();
+                    pushFollow(FOLLOW_input_in_genericOperator1816);
+                    input103=input();
 
                     state._fsp--;
                     if (state.failed) return retval;
-                    if ( state.backtracking==0 ) stream_input.add(input100.getTree());
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:293:21: ( ',' input )*
-                    loop47:
+                    if ( state.backtracking==0 ) stream_input.add(input103.getTree());
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:21: ( ',' input )*
+                    loop51:
                     do {
-                        int alt47=2;
-                        int LA47_0 = input.LA(1);
+                        int alt51=2;
+                        int LA51_0 = input.LA(1);
 
-                        if ( (LA47_0==31) ) {
-                            int LA47_2 = input.LA(2);
+                        if ( (LA51_0==28) ) {
+                            int LA51_2 = input.LA(2);
 
-                            if ( (synpred73_Meteor()) ) {
-                                alt47=1;
+                            if ( (synpred77_Meteor()) ) {
+                                alt51=1;
                             }
 
 
                         }
 
 
-                        switch (alt47) {
+                        switch (alt51) {
                     	case 1 :
-                    	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:293:22: ',' input
+                    	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:22: ',' input
                     	    {
-                    	    char_literal101=(Token)match(input,31,FOLLOW_31_in_genericOperator1764); if (state.failed) return retval; 
-                    	    if ( state.backtracking==0 ) stream_31.add(char_literal101);
+                    	    char_literal104=(Token)match(input,28,FOLLOW_28_in_genericOperator1819); if (state.failed) return retval; 
+                    	    if ( state.backtracking==0 ) stream_28.add(char_literal104);
 
-                    	    pushFollow(FOLLOW_input_in_genericOperator1766);
-                    	    input102=input();
+                    	    pushFollow(FOLLOW_input_in_genericOperator1821);
+                    	    input105=input();
 
                     	    state._fsp--;
                     	    if (state.failed) return retval;
-                    	    if ( state.backtracking==0 ) stream_input.add(input102.getTree());
+                    	    if ( state.backtracking==0 ) stream_input.add(input105.getTree());
 
                     	    }
                     	    break;
 
                     	default :
-                    	    break loop47;
+                    	    break loop51;
                         }
                     } while (true);
 
@@ -5454,39 +5571,39 @@ public class MeteorParser extends AbstractQueryParser {
 
             }
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:294:1: ( operatorOption )*
-            loop49:
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:1: ( operatorOption )*
+            loop53:
             do {
-                int alt49=2;
-                int LA49_0 = input.LA(1);
+                int alt53=2;
+                int LA53_0 = input.LA(1);
 
-                if ( (LA49_0==ID) ) {
-                    int LA49_2 = input.LA(2);
+                if ( (LA53_0==ID) ) {
+                    int LA53_2 = input.LA(2);
 
-                    if ( (synpred74_Meteor()) ) {
-                        alt49=1;
+                    if ( (synpred78_Meteor()) ) {
+                        alt53=1;
                     }
 
 
                 }
 
 
-                switch (alt49) {
+                switch (alt53) {
             	case 1 :
-            	    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: operatorOption
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: operatorOption
             	    {
-            	    pushFollow(FOLLOW_operatorOption_in_genericOperator1772);
-            	    operatorOption103=operatorOption();
+            	    pushFollow(FOLLOW_operatorOption_in_genericOperator1827);
+            	    operatorOption106=operatorOption();
 
             	    state._fsp--;
             	    if (state.failed) return retval;
-            	    if ( state.backtracking==0 ) stream_operatorOption.add(operatorOption103.getTree());
+            	    if ( state.backtracking==0 ) stream_operatorOption.add(operatorOption106.getTree());
 
             	    }
             	    break;
 
             	default :
-            	    break loop49;
+            	    break loop53;
                 }
             } while (true);
 
@@ -5504,7 +5621,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 294:17: ->
+            // 276:17: ->
             {
                 root_0 = null;
             }
@@ -5539,7 +5656,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "operatorOption"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:296:1: operatorOption : name= ID {...}?expr= contextAwareExpression[null] ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:278:1: operatorOption : name= ID {...}?expr= contextAwareExpression[null] ->;
     public final MeteorParser.operatorOption_return operatorOption() throws RecognitionException {
         operatorOption_stack.push(new operatorOption_scope());
         MeteorParser.operatorOption_return retval = new MeteorParser.operatorOption_return();
@@ -5556,17 +5673,17 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_contextAwareExpression=new RewriteRuleSubtreeStream(adaptor,"rule contextAwareExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 36) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:300:2: (name= ID {...}?expr= contextAwareExpression[null] ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:300:4: name= ID {...}?expr= contextAwareExpression[null]
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:282:2: (name= ID {...}?expr= contextAwareExpression[null] ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:282:4: name= ID {...}?expr= contextAwareExpression[null]
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1792); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1847); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
             if ( !(( (((operatorOption_scope)operatorOption_stack.peek()).property = findOperatorPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, name)) != null )) ) {
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 throw new FailedPredicateException(input, "operatorOption", " ($operatorOption::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, $name)) != null ");
             }
-            pushFollow(FOLLOW_contextAwareExpression_in_operatorOption1798);
+            pushFollow(FOLLOW_contextAwareExpression_in_operatorOption1853);
             expr=contextAwareExpression(null);
 
             state._fsp--;
@@ -5589,7 +5706,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 301:106: ->
+            // 283:106: ->
             {
                 root_0 = null;
             }
@@ -5624,7 +5741,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "operatorFlag"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:303:1: operatorFlag : name= ID {...}? ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:285:1: operatorFlag : name= ID {...}? ->;
     public final MeteorParser.operatorFlag_return operatorFlag() throws RecognitionException {
         operatorFlag_stack.push(new operatorFlag_scope());
         MeteorParser.operatorFlag_return retval = new MeteorParser.operatorFlag_return();
@@ -5639,10 +5756,10 @@ public class MeteorParser extends AbstractQueryParser {
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 37) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:307:3: (name= ID {...}? ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:307:5: name= ID {...}?
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:289:3: (name= ID {...}? ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:289:5: name= ID {...}?
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1819); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1874); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
             if ( !(( (((operatorFlag_scope)operatorFlag_stack.peek()).property = findOperatorPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, name)) != null )) ) {
@@ -5668,7 +5785,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 310:64: ->
+            // 292:64: ->
             {
                 root_0 = null;
             }
@@ -5703,7 +5820,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "input"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:312:1: input : (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )? ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:294:1: input : (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )? ->;
     public final MeteorParser.input_return input() throws RecognitionException {
         input_stack.push(new input_scope());
         MeteorParser.input_return retval = new MeteorParser.input_return();
@@ -5715,7 +5832,7 @@ public class MeteorParser extends AbstractQueryParser {
         Token name=null;
         Token from=null;
         Token inputOption=null;
-        Token string_literal104=null;
+        Token string_literal107=null;
         MeteorParser.contextAwareExpression_return expr = null;
 
 
@@ -5723,7 +5840,7 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression name_tree=null;
         EvaluationExpression from_tree=null;
         EvaluationExpression inputOption_tree=null;
-        EvaluationExpression string_literal104_tree=null;
+        EvaluationExpression string_literal107_tree=null;
         RewriteRuleTokenStream stream_69=new RewriteRuleTokenStream(adaptor,"token 69");
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_42=new RewriteRuleTokenStream(adaptor,"token 42");
@@ -5731,21 +5848,21 @@ public class MeteorParser extends AbstractQueryParser {
         RewriteRuleSubtreeStream stream_contextAwareExpression=new RewriteRuleSubtreeStream(adaptor,"rule contextAwareExpression");
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 38) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:315:3: ( (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )? ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:315:5: (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:297:3: ( (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )? ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:297:5: (preserveFlag= 'preserve' )? (name= VAR 'in' )? from= VAR (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?
             {
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:315:17: (preserveFlag= 'preserve' )?
-            int alt50=2;
-            int LA50_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:297:17: (preserveFlag= 'preserve' )?
+            int alt54=2;
+            int LA54_0 = input.LA(1);
 
-            if ( (LA50_0==69) ) {
-                alt50=1;
+            if ( (LA54_0==69) ) {
+                alt54=1;
             }
-            switch (alt50) {
+            switch (alt54) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: preserveFlag= 'preserve'
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: preserveFlag= 'preserve'
                     {
-                    preserveFlag=(Token)match(input,69,FOLLOW_69_in_input1841); if (state.failed) return retval; 
+                    preserveFlag=(Token)match(input,69,FOLLOW_69_in_input1896); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_69.add(preserveFlag);
 
 
@@ -5756,26 +5873,26 @@ public class MeteorParser extends AbstractQueryParser {
 
             if ( state.backtracking==0 ) {
             }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:315:33: (name= VAR 'in' )?
-            int alt51=2;
-            int LA51_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:297:33: (name= VAR 'in' )?
+            int alt55=2;
+            int LA55_0 = input.LA(1);
 
-            if ( (LA51_0==VAR) ) {
-                int LA51_1 = input.LA(2);
+            if ( (LA55_0==VAR) ) {
+                int LA55_1 = input.LA(2);
 
-                if ( (LA51_1==42) ) {
-                    alt51=1;
+                if ( (LA55_1==42) ) {
+                    alt55=1;
                 }
             }
-            switch (alt51) {
+            switch (alt55) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:315:34: name= VAR 'in'
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:297:34: name= VAR 'in'
                     {
-                    name=(Token)match(input,VAR,FOLLOW_VAR_in_input1849); if (state.failed) return retval; 
+                    name=(Token)match(input,VAR,FOLLOW_VAR_in_input1904); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_VAR.add(name);
 
-                    string_literal104=(Token)match(input,42,FOLLOW_42_in_input1851); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_42.add(string_literal104);
+                    string_literal107=(Token)match(input,42,FOLLOW_42_in_input1906); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_42.add(string_literal107);
 
 
                     }
@@ -5783,18 +5900,19 @@ public class MeteorParser extends AbstractQueryParser {
 
             }
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_input1857); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_input1912); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
             if ( state.backtracking==0 ) {
                
                 int inputIndex = ((operator_scope)operator_stack.peek()).numInputs++;
-                JsonStreamExpression input = getBinding(from, JsonStreamExpression.class);
+                JsonStreamExpression input = getVariable(from);
                 ((operator_scope)operator_stack.peek()).result.setInput(inputIndex, input.getStream());
                 
+                JsonStreamExpression inputExpression = new JsonStreamExpression(input.getStream(), inputIndex);
                 if(preserveFlag != null)
-                  setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream(), inputIndex).withTag(ExpressionTag.RETAIN));
-                else setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream(), inputIndex));
+                  inputExpression.addTag(ExpressionTag.RETAIN);
+                putVariable(name != null ? name : from, inputExpression);
 
             }
             if ( state.backtracking==0 ) {
@@ -5803,21 +5921,21 @@ public class MeteorParser extends AbstractQueryParser {
                 }
 
             }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:329:1: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?
-            int alt52=2;
-            alt52 = dfa52.predict(input);
-            switch (alt52) {
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:312:1: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?
+            int alt56=2;
+            alt56 = dfa56.predict(input);
+            switch (alt56) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:329:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:312:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
                     {
-                    inputOption=(Token)match(input,ID,FOLLOW_ID_in_input1867); if (state.failed) return retval; 
+                    inputOption=(Token)match(input,ID,FOLLOW_ID_in_input1922); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(inputOption);
 
                     if ( !(( (((input_scope)input_stack.peek()).inputProperty = findInputPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, inputOption)) != null )) ) {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         throw new FailedPredicateException(input, "input", " ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null ");
                     }
-                    pushFollow(FOLLOW_contextAwareExpression_in_input1875);
+                    pushFollow(FOLLOW_contextAwareExpression_in_input1930);
                     expr=contextAwareExpression(new InputSelection(((operator_scope)operator_stack.peek()).numInputs - 1));
 
                     state._fsp--;
@@ -5851,7 +5969,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 334:1: ->
+            // 317:1: ->
             {
                 root_0 = null;
             }
@@ -5881,7 +5999,7 @@ public class MeteorParser extends AbstractQueryParser {
     };
 
     // $ANTLR start "arrayInput"
-    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:336:1: arrayInput : '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:319:1: arrayInput : '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR ->;
     public final MeteorParser.arrayInput_return arrayInput() throws RecognitionException {
         MeteorParser.arrayInput_return retval = new MeteorParser.arrayInput_return();
         retval.start = input.LT(1);
@@ -5889,54 +6007,54 @@ public class MeteorParser extends AbstractQueryParser {
         EvaluationExpression root_0 = null;
 
         Token from=null;
-        Token char_literal105=null;
-        Token char_literal106=null;
-        Token char_literal107=null;
-        Token string_literal108=null;
+        Token char_literal108=null;
+        Token char_literal109=null;
+        Token char_literal110=null;
+        Token string_literal111=null;
         Token names=null;
         List list_names=null;
 
         EvaluationExpression from_tree=null;
-        EvaluationExpression char_literal105_tree=null;
-        EvaluationExpression char_literal106_tree=null;
-        EvaluationExpression char_literal107_tree=null;
-        EvaluationExpression string_literal108_tree=null;
+        EvaluationExpression char_literal108_tree=null;
+        EvaluationExpression char_literal109_tree=null;
+        EvaluationExpression char_literal110_tree=null;
+        EvaluationExpression string_literal111_tree=null;
         EvaluationExpression names_tree=null;
         RewriteRuleTokenStream stream_VAR=new RewriteRuleTokenStream(adaptor,"token VAR");
         RewriteRuleTokenStream stream_42=new RewriteRuleTokenStream(adaptor,"token 42");
-        RewriteRuleTokenStream stream_31=new RewriteRuleTokenStream(adaptor,"token 31");
         RewriteRuleTokenStream stream_64=new RewriteRuleTokenStream(adaptor,"token 64");
         RewriteRuleTokenStream stream_63=new RewriteRuleTokenStream(adaptor,"token 63");
+        RewriteRuleTokenStream stream_28=new RewriteRuleTokenStream(adaptor,"token 28");
 
         try {
             if ( state.backtracking>0 && alreadyParsedRule(input, 39) ) { return retval; }
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:337:3: ( '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR ->)
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:337:5: '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:320:3: ( '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:320:5: '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR
             {
-            char_literal105=(Token)match(input,63,FOLLOW_63_in_arrayInput1897); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_63.add(char_literal105);
+            char_literal108=(Token)match(input,63,FOLLOW_63_in_arrayInput1952); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_63.add(char_literal108);
 
-            names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1901); if (state.failed) return retval; 
+            names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1956); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(names);
 
             if (list_names==null) list_names=new ArrayList();
             list_names.add(names);
 
-            // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:337:20: ( ',' names+= VAR )?
-            int alt53=2;
-            int LA53_0 = input.LA(1);
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:320:20: ( ',' names+= VAR )?
+            int alt57=2;
+            int LA57_0 = input.LA(1);
 
-            if ( (LA53_0==31) ) {
-                alt53=1;
+            if ( (LA57_0==28) ) {
+                alt57=1;
             }
-            switch (alt53) {
+            switch (alt57) {
                 case 1 :
-                    // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:337:21: ',' names+= VAR
+                    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:320:21: ',' names+= VAR
                     {
-                    char_literal106=(Token)match(input,31,FOLLOW_31_in_arrayInput1904); if (state.failed) return retval; 
-                    if ( state.backtracking==0 ) stream_31.add(char_literal106);
+                    char_literal109=(Token)match(input,28,FOLLOW_28_in_arrayInput1959); if (state.failed) return retval; 
+                    if ( state.backtracking==0 ) stream_28.add(char_literal109);
 
-                    names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1908); if (state.failed) return retval; 
+                    names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1963); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_VAR.add(names);
 
                     if (list_names==null) list_names=new ArrayList();
@@ -5948,20 +6066,20 @@ public class MeteorParser extends AbstractQueryParser {
 
             }
 
-            char_literal107=(Token)match(input,64,FOLLOW_64_in_arrayInput1912); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_64.add(char_literal107);
+            char_literal110=(Token)match(input,64,FOLLOW_64_in_arrayInput1967); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_64.add(char_literal110);
 
-            string_literal108=(Token)match(input,42,FOLLOW_42_in_arrayInput1914); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_42.add(string_literal108);
+            string_literal111=(Token)match(input,42,FOLLOW_42_in_arrayInput1969); if (state.failed) return retval; 
+            if ( state.backtracking==0 ) stream_42.add(string_literal111);
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1918); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1973); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
             if ( state.backtracking==0 ) {
                
-                ((operator_scope)operator_stack.peek()).result.setInput(0, getBinding(from, JsonStreamExpression.class).getStream());
+                ((operator_scope)operator_stack.peek()).result.setInput(0, getVariable(from).getStream());
                 for(int index = 0; index < list_names.size(); index++) {
-              	  setBinding((Token) list_names.get(index), new InputSelection(index)); 
+              	  putVariable((Token) list_names.get(index), new JsonStreamExpression(null, index)); 
                 }
 
             }
@@ -5979,7 +6097,7 @@ public class MeteorParser extends AbstractQueryParser {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 343:3: ->
+            // 326:3: ->
             {
                 root_0 = null;
             }
@@ -6002,12 +6120,12 @@ public class MeteorParser extends AbstractQueryParser {
     }
     // $ANTLR end "arrayInput"
 
-    // $ANTLR start synpred8_Meteor
-    public final void synpred8_Meteor_fragment() throws RecognitionException {   
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:118:5: ( ternaryExpression )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:118:5: ternaryExpression
+    // $ANTLR start synpred9_Meteor
+    public final void synpred9_Meteor_fragment() throws RecognitionException {   
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:99:5: ( ternaryExpression )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:99:5: ternaryExpression
         {
-        pushFollow(FOLLOW_ternaryExpression_in_synpred8_Meteor336);
+        pushFollow(FOLLOW_ternaryExpression_in_synpred9_Meteor357);
         ternaryExpression();
 
         state._fsp--;
@@ -6015,10 +6133,10 @@ public class MeteorParser extends AbstractQueryParser {
 
         }
     }
-    // $ANTLR end synpred8_Meteor
+    // $ANTLR end synpred9_Meteor
 
-    // $ANTLR start synpred10_Meteor
-    public final void synpred10_Meteor_fragment() throws RecognitionException {   
+    // $ANTLR start synpred11_Meteor
+    public final void synpred11_Meteor_fragment() throws RecognitionException {   
         MeteorParser.orExpression_return ifClause = null;
 
         MeteorParser.expression_return ifExpr = null;
@@ -6026,30 +6144,30 @@ public class MeteorParser extends AbstractQueryParser {
         MeteorParser.expression_return elseExpr = null;
 
 
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:4: (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:4: ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:4: (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:4: ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression )
         {
-        pushFollow(FOLLOW_orExpression_in_synpred10_Meteor353);
+        pushFollow(FOLLOW_orExpression_in_synpred11_Meteor374);
         ifClause=orExpression();
 
         state._fsp--;
         if (state.failed) return ;
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:26: ( '?' (ifExpr= expression )? ':' elseExpr= expression )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:27: '?' (ifExpr= expression )? ':' elseExpr= expression
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:26: ( '?' (ifExpr= expression )? ':' elseExpr= expression )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:27: '?' (ifExpr= expression )? ':' elseExpr= expression
         {
-        match(input,34,FOLLOW_34_in_synpred10_Meteor356); if (state.failed) return ;
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:122:37: (ifExpr= expression )?
-        int alt55=2;
-        int LA55_0 = input.LA(1);
+        match(input,34,FOLLOW_34_in_synpred11_Meteor377); if (state.failed) return ;
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:103:37: (ifExpr= expression )?
+        int alt59=2;
+        int LA59_0 = input.LA(1);
 
-        if ( ((LA55_0>=ID && LA55_0<=STRING)||(LA55_0>=DECIMAL && LA55_0<=INTEGER)||LA55_0==30||(LA55_0>=52 && LA55_0<=55)||LA55_0==58||(LA55_0>=60 && LA55_0<=63)||LA55_0==65||LA55_0==67) ) {
-            alt55=1;
+        if ( ((LA59_0>=ID && LA59_0<=STRING)||(LA59_0>=DECIMAL && LA59_0<=INTEGER)||LA59_0==31||(LA59_0>=52 && LA59_0<=55)||LA59_0==58||(LA59_0>=60 && LA59_0<=63)||LA59_0==65||LA59_0==67) ) {
+            alt59=1;
         }
-        switch (alt55) {
+        switch (alt59) {
             case 1 :
-                // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ifExpr= expression
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ifExpr= expression
                 {
-                pushFollow(FOLLOW_expression_in_synpred10_Meteor360);
+                pushFollow(FOLLOW_expression_in_synpred11_Meteor381);
                 ifExpr=expression();
 
                 state._fsp--;
@@ -6060,8 +6178,8 @@ public class MeteorParser extends AbstractQueryParser {
 
         }
 
-        match(input,35,FOLLOW_35_in_synpred10_Meteor363); if (state.failed) return ;
-        pushFollow(FOLLOW_expression_in_synpred10_Meteor367);
+        match(input,35,FOLLOW_35_in_synpred11_Meteor384); if (state.failed) return ;
+        pushFollow(FOLLOW_expression_in_synpred11_Meteor388);
         elseExpr=expression();
 
         state._fsp--;
@@ -6072,25 +6190,25 @@ public class MeteorParser extends AbstractQueryParser {
 
         }
     }
-    // $ANTLR end synpred10_Meteor
+    // $ANTLR end synpred11_Meteor
 
-    // $ANTLR start synpred11_Meteor
-    public final void synpred11_Meteor_fragment() throws RecognitionException {   
+    // $ANTLR start synpred12_Meteor
+    public final void synpred12_Meteor_fragment() throws RecognitionException {   
         MeteorParser.orExpression_return ifExpr2 = null;
 
         MeteorParser.expression_return ifClause2 = null;
 
 
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:124:4: (ifExpr2= orExpression 'if' ifClause2= expression )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:124:4: ifExpr2= orExpression 'if' ifClause2= expression
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:105:4: (ifExpr2= orExpression 'if' ifClause2= expression )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:105:4: ifExpr2= orExpression 'if' ifClause2= expression
         {
-        pushFollow(FOLLOW_orExpression_in_synpred11_Meteor390);
+        pushFollow(FOLLOW_orExpression_in_synpred12_Meteor411);
         ifExpr2=orExpression();
 
         state._fsp--;
         if (state.failed) return ;
-        match(input,36,FOLLOW_36_in_synpred11_Meteor392); if (state.failed) return ;
-        pushFollow(FOLLOW_expression_in_synpred11_Meteor396);
+        match(input,36,FOLLOW_36_in_synpred12_Meteor413); if (state.failed) return ;
+        pushFollow(FOLLOW_expression_in_synpred12_Meteor417);
         ifClause2=expression();
 
         state._fsp--;
@@ -6098,29 +6216,7 @@ public class MeteorParser extends AbstractQueryParser {
 
         }
     }
-    // $ANTLR end synpred11_Meteor
-
-    // $ANTLR start synpred32_Meteor
-    public final void synpred32_Meteor_fragment() throws RecognitionException {   
-        Token type=null;
-        MeteorParser.generalPathExpression_return expr = null;
-
-
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:172:5: ( '(' type= ID ')' expr= generalPathExpression )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:172:5: '(' type= ID ')' expr= generalPathExpression
-        {
-        match(input,30,FOLLOW_30_in_synpred32_Meteor850); if (state.failed) return ;
-        type=(Token)match(input,ID,FOLLOW_ID_in_synpred32_Meteor854); if (state.failed) return ;
-        match(input,32,FOLLOW_32_in_synpred32_Meteor856); if (state.failed) return ;
-        pushFollow(FOLLOW_generalPathExpression_in_synpred32_Meteor860);
-        expr=generalPathExpression();
-
-        state._fsp--;
-        if (state.failed) return ;
-
-        }
-    }
-    // $ANTLR end synpred32_Meteor
+    // $ANTLR end synpred12_Meteor
 
     // $ANTLR start synpred33_Meteor
     public final void synpred33_Meteor_fragment() throws RecognitionException {   
@@ -6128,16 +6224,17 @@ public class MeteorParser extends AbstractQueryParser {
         MeteorParser.generalPathExpression_return expr = null;
 
 
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:173:4: (expr= generalPathExpression 'as' type= ID )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:173:4: expr= generalPathExpression 'as' type= ID
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:153:5: ( '(' type= ID ')' expr= generalPathExpression )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:153:5: '(' type= ID ')' expr= generalPathExpression
         {
-        pushFollow(FOLLOW_generalPathExpression_in_synpred33_Meteor867);
+        match(input,31,FOLLOW_31_in_synpred33_Meteor871); if (state.failed) return ;
+        type=(Token)match(input,ID,FOLLOW_ID_in_synpred33_Meteor875); if (state.failed) return ;
+        match(input,32,FOLLOW_32_in_synpred33_Meteor877); if (state.failed) return ;
+        pushFollow(FOLLOW_generalPathExpression_in_synpred33_Meteor881);
         expr=generalPathExpression();
 
         state._fsp--;
         if (state.failed) return ;
-        match(input,56,FOLLOW_56_in_synpred33_Meteor869); if (state.failed) return ;
-        type=(Token)match(input,ID,FOLLOW_ID_in_synpred33_Meteor873); if (state.failed) return ;
 
         }
     }
@@ -6145,24 +6242,20 @@ public class MeteorParser extends AbstractQueryParser {
 
     // $ANTLR start synpred34_Meteor
     public final void synpred34_Meteor_fragment() throws RecognitionException {   
-        MeteorParser.valueExpression_return value = null;
+        Token type=null;
+        MeteorParser.generalPathExpression_return expr = null;
 
-        MeteorParser.pathExpression_return path = null;
 
-
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:4: (value= valueExpression path= pathExpression )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:4: value= valueExpression path= pathExpression
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:154:4: (expr= generalPathExpression 'as' type= ID )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:154:4: expr= generalPathExpression 'as' type= ID
         {
-        pushFollow(FOLLOW_valueExpression_in_synpred34_Meteor907);
-        value=valueExpression();
+        pushFollow(FOLLOW_generalPathExpression_in_synpred34_Meteor888);
+        expr=generalPathExpression();
 
         state._fsp--;
         if (state.failed) return ;
-        pushFollow(FOLLOW_pathExpression_in_synpred34_Meteor911);
-        path=pathExpression();
-
-        state._fsp--;
-        if (state.failed) return ;
+        match(input,56,FOLLOW_56_in_synpred34_Meteor890); if (state.failed) return ;
+        type=(Token)match(input,ID,FOLLOW_ID_in_synpred34_Meteor894); if (state.failed) return ;
 
         }
     }
@@ -6170,25 +6263,24 @@ public class MeteorParser extends AbstractQueryParser {
 
     // $ANTLR start synpred35_Meteor
     public final void synpred35_Meteor_fragment() throws RecognitionException {   
-        Token field=null;
+        MeteorParser.valueExpression_return value = null;
 
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:7: ( ( '.' (field= ID ) ) )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:7: ( '.' (field= ID ) )
+        MeteorParser.pathExpression_return path = null;
+
+
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:160:4: (value= valueExpression path= pathExpression )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:160:4: value= valueExpression path= pathExpression
         {
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:7: ( '.' (field= ID ) )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:8: '.' (field= ID )
-        {
-        match(input,57,FOLLOW_57_in_synpred35_Meteor967); if (state.failed) return ;
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:12: (field= ID )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:13: field= ID
-        {
-        field=(Token)match(input,ID,FOLLOW_ID_in_synpred35_Meteor972); if (state.failed) return ;
+        pushFollow(FOLLOW_valueExpression_in_synpred35_Meteor928);
+        value=valueExpression();
 
-        }
+        state._fsp--;
+        if (state.failed) return ;
+        pushFollow(FOLLOW_pathExpression_in_synpred35_Meteor932);
+        path=pathExpression();
 
-
-        }
-
+        state._fsp--;
+        if (state.failed) return ;
 
         }
     }
@@ -6196,10 +6288,36 @@ public class MeteorParser extends AbstractQueryParser {
 
     // $ANTLR start synpred36_Meteor
     public final void synpred36_Meteor_fragment() throws RecognitionException {   
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:190:11: ( arrayAccess )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:190:11: arrayAccess
+        Token field=null;
+
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:7: ( ( '.' (field= ID ) ) )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:7: ( '.' (field= ID ) )
         {
-        pushFollow(FOLLOW_arrayAccess_in_synpred36_Meteor990);
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:7: ( '.' (field= ID ) )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:8: '.' (field= ID )
+        {
+        match(input,57,FOLLOW_57_in_synpred36_Meteor988); if (state.failed) return ;
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:12: (field= ID )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:170:13: field= ID
+        {
+        field=(Token)match(input,ID,FOLLOW_ID_in_synpred36_Meteor993); if (state.failed) return ;
+
+        }
+
+
+        }
+
+
+        }
+    }
+    // $ANTLR end synpred36_Meteor
+
+    // $ANTLR start synpred37_Meteor
+    public final void synpred37_Meteor_fragment() throws RecognitionException {   
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:171:11: ( arrayAccess )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:171:11: arrayAccess
+        {
+        pushFollow(FOLLOW_arrayAccess_in_synpred37_Meteor1011);
         arrayAccess();
 
         state._fsp--;
@@ -6207,25 +6325,95 @@ public class MeteorParser extends AbstractQueryParser {
 
         }
     }
-    // $ANTLR end synpred36_Meteor
+    // $ANTLR end synpred37_Meteor
 
-    // $ANTLR start synpred40_Meteor
-    public final void synpred40_Meteor_fragment() throws RecognitionException {   
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:197:4: ( VAR )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:197:4: VAR
+    // $ANTLR start synpred38_Meteor
+    public final void synpred38_Meteor_fragment() throws RecognitionException {   
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:175:4: ( methodCall[null] )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:175:4: methodCall[null]
         {
-        match(input,VAR,FOLLOW_VAR_in_synpred40_Meteor1029); if (state.failed) return ;
+        pushFollow(FOLLOW_methodCall_in_synpred38_Meteor1032);
+        methodCall(null);
+
+        state._fsp--;
+        if (state.failed) return ;
 
         }
     }
-    // $ANTLR end synpred40_Meteor
+    // $ANTLR end synpred38_Meteor
+
+    // $ANTLR start synpred41_Meteor
+    public final void synpred41_Meteor_fragment() throws RecognitionException {   
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:178:4: ( VAR )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:178:4: VAR
+        {
+        match(input,VAR,FOLLOW_VAR_in_synpred41_Meteor1050); if (state.failed) return ;
+
+        }
+    }
+    // $ANTLR end synpred41_Meteor
 
     // $ANTLR start synpred42_Meteor
     public final void synpred42_Meteor_fragment() throws RecognitionException {   
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:199:5: ( streamIndexAccess )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:199:5: streamIndexAccess
+        Token packageName=null;
+
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:6: (packageName= ID ':' )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:6: packageName= ID ':'
         {
-        pushFollow(FOLLOW_streamIndexAccess_in_synpred42_Meteor1052);
+        packageName=(Token)match(input,ID,FOLLOW_ID_in_synpred42_Meteor1063); if (state.failed) return ;
+        match(input,35,FOLLOW_35_in_synpred42_Meteor1065); if (state.failed) return ;
+
+        }
+    }
+    // $ANTLR end synpred42_Meteor
+
+    // $ANTLR start synpred43_Meteor
+    public final void synpred43_Meteor_fragment() throws RecognitionException {   
+        Token packageName=null;
+        Token constant=null;
+
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:5: ( (packageName= ID ':' )? constant= ID {...}? =>)
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:5: (packageName= ID ':' )? constant= ID {...}? =>
+        {
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:5: (packageName= ID ':' )?
+        int alt64=2;
+        int LA64_0 = input.LA(1);
+
+        if ( (LA64_0==ID) ) {
+            int LA64_1 = input.LA(2);
+
+            if ( (LA64_1==35) ) {
+                alt64=1;
+            }
+        }
+        switch (alt64) {
+            case 1 :
+                // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:179:6: packageName= ID ':'
+                {
+                packageName=(Token)match(input,ID,FOLLOW_ID_in_synpred43_Meteor1063); if (state.failed) return ;
+                match(input,35,FOLLOW_35_in_synpred43_Meteor1065); if (state.failed) return ;
+
+                }
+                break;
+
+        }
+
+        constant=(Token)match(input,ID,FOLLOW_ID_in_synpred43_Meteor1071); if (state.failed) return ;
+        if ( !(( getScope((packageName!=null?packageName.getText():null)).getConstantRegistry().get((constant!=null?constant.getText():null)) != null )) ) {
+            if (state.backtracking>0) {state.failed=true; return ;}
+            throw new FailedPredicateException(input, "synpred43_Meteor", " getScope($packageName.text).getConstantRegistry().get($constant.text) != null ");
+        }
+
+        }
+    }
+    // $ANTLR end synpred43_Meteor
+
+    // $ANTLR start synpred44_Meteor
+    public final void synpred44_Meteor_fragment() throws RecognitionException {   
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:181:5: ( streamIndexAccess )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:181:5: streamIndexAccess
+        {
+        pushFollow(FOLLOW_streamIndexAccess_in_synpred44_Meteor1089);
         streamIndexAccess();
 
         state._fsp--;
@@ -6233,55 +6421,16 @@ public class MeteorParser extends AbstractQueryParser {
 
         }
     }
-    // $ANTLR end synpred42_Meteor
-
-    // $ANTLR start synpred73_Meteor
-    public final void synpred73_Meteor_fragment() throws RecognitionException {   
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:293:22: ( ',' input )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:293:22: ',' input
-        {
-        match(input,31,FOLLOW_31_in_synpred73_Meteor1764); if (state.failed) return ;
-        pushFollow(FOLLOW_input_in_synpred73_Meteor1766);
-        input();
-
-        state._fsp--;
-        if (state.failed) return ;
-
-        }
-    }
-    // $ANTLR end synpred73_Meteor
-
-    // $ANTLR start synpred74_Meteor
-    public final void synpred74_Meteor_fragment() throws RecognitionException {   
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:294:1: ( operatorOption )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:294:1: operatorOption
-        {
-        pushFollow(FOLLOW_operatorOption_in_synpred74_Meteor1772);
-        operatorOption();
-
-        state._fsp--;
-        if (state.failed) return ;
-
-        }
-    }
-    // $ANTLR end synpred74_Meteor
+    // $ANTLR end synpred44_Meteor
 
     // $ANTLR start synpred77_Meteor
     public final void synpred77_Meteor_fragment() throws RecognitionException {   
-        Token inputOption=null;
-        MeteorParser.contextAwareExpression_return expr = null;
-
-
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:329:2: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )
-        // /Users/arv/Proggn/Uni/PhD/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:329:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:22: ( ',' input )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:22: ',' input
         {
-        inputOption=(Token)match(input,ID,FOLLOW_ID_in_synpred77_Meteor1867); if (state.failed) return ;
-        if ( !(( (((input_scope)input_stack.peek()).inputProperty = findInputPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, inputOption)) != null )) ) {
-            if (state.backtracking>0) {state.failed=true; return ;}
-            throw new FailedPredicateException(input, "synpred77_Meteor", " ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null ");
-        }
-        pushFollow(FOLLOW_contextAwareExpression_in_synpred77_Meteor1875);
-        expr=contextAwareExpression(new InputSelection(((operator_scope)operator_stack.peek()).numInputs - 1));
+        match(input,28,FOLLOW_28_in_synpred77_Meteor1819); if (state.failed) return ;
+        pushFollow(FOLLOW_input_in_synpred77_Meteor1821);
+        input();
 
         state._fsp--;
         if (state.failed) return ;
@@ -6290,13 +6439,52 @@ public class MeteorParser extends AbstractQueryParser {
     }
     // $ANTLR end synpred77_Meteor
 
+    // $ANTLR start synpred78_Meteor
+    public final void synpred78_Meteor_fragment() throws RecognitionException {   
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:1: ( operatorOption )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:1: operatorOption
+        {
+        pushFollow(FOLLOW_operatorOption_in_synpred78_Meteor1827);
+        operatorOption();
+
+        state._fsp--;
+        if (state.failed) return ;
+
+        }
+    }
+    // $ANTLR end synpred78_Meteor
+
+    // $ANTLR start synpred81_Meteor
+    public final void synpred81_Meteor_fragment() throws RecognitionException {   
+        Token inputOption=null;
+        MeteorParser.contextAwareExpression_return expr = null;
+
+
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:312:2: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )
+        // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:312:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
+        {
+        inputOption=(Token)match(input,ID,FOLLOW_ID_in_synpred81_Meteor1922); if (state.failed) return ;
+        if ( !(( (((input_scope)input_stack.peek()).inputProperty = findInputPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, inputOption)) != null )) ) {
+            if (state.backtracking>0) {state.failed=true; return ;}
+            throw new FailedPredicateException(input, "synpred81_Meteor", " ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null ");
+        }
+        pushFollow(FOLLOW_contextAwareExpression_in_synpred81_Meteor1930);
+        expr=contextAwareExpression(new InputSelection(((operator_scope)operator_stack.peek()).numInputs - 1));
+
+        state._fsp--;
+        if (state.failed) return ;
+
+        }
+    }
+    // $ANTLR end synpred81_Meteor
+
     // Delegated rules
 
-    public final boolean synpred32_Meteor() {
+    public final boolean synpred37_Meteor() {
         state.backtracking++;
         int start = input.mark();
         try {
-            synpred32_Meteor_fragment(); // can never throw exception
+            synpred37_Meteor_fragment(); // can never throw exception
         } catch (RecognitionException re) {
             System.err.println("impossible: "+re);
         }
@@ -6320,6 +6508,20 @@ public class MeteorParser extends AbstractQueryParser {
         state.failed=false;
         return success;
     }
+    public final boolean synpred78_Meteor() {
+        state.backtracking++;
+        int start = input.mark();
+        try {
+            synpred78_Meteor_fragment(); // can never throw exception
+        } catch (RecognitionException re) {
+            System.err.println("impossible: "+re);
+        }
+        boolean success = !state.failed;
+        input.rewind(start);
+        state.backtracking--;
+        state.failed=false;
+        return success;
+    }
     public final boolean synpred42_Meteor() {
         state.backtracking++;
         int start = input.mark();
@@ -6334,11 +6536,11 @@ public class MeteorParser extends AbstractQueryParser {
         state.failed=false;
         return success;
     }
-    public final boolean synpred8_Meteor() {
+    public final boolean synpred43_Meteor() {
         state.backtracking++;
         int start = input.mark();
         try {
-            synpred8_Meteor_fragment(); // can never throw exception
+            synpred43_Meteor_fragment(); // can never throw exception
         } catch (RecognitionException re) {
             System.err.println("impossible: "+re);
         }
@@ -6362,11 +6564,11 @@ public class MeteorParser extends AbstractQueryParser {
         state.failed=false;
         return success;
     }
-    public final boolean synpred74_Meteor() {
+    public final boolean synpred38_Meteor() {
         state.backtracking++;
         int start = input.mark();
         try {
-            synpred74_Meteor_fragment(); // can never throw exception
+            synpred38_Meteor_fragment(); // can never throw exception
         } catch (RecognitionException re) {
             System.err.println("impossible: "+re);
         }
@@ -6376,11 +6578,11 @@ public class MeteorParser extends AbstractQueryParser {
         state.failed=false;
         return success;
     }
-    public final boolean synpred10_Meteor() {
+    public final boolean synpred12_Meteor() {
         state.backtracking++;
         int start = input.mark();
         try {
-            synpred10_Meteor_fragment(); // can never throw exception
+            synpred12_Meteor_fragment(); // can never throw exception
         } catch (RecognitionException re) {
             System.err.println("impossible: "+re);
         }
@@ -6404,11 +6606,11 @@ public class MeteorParser extends AbstractQueryParser {
         state.failed=false;
         return success;
     }
-    public final boolean synpred40_Meteor() {
+    public final boolean synpred9_Meteor() {
         state.backtracking++;
         int start = input.mark();
         try {
-            synpred40_Meteor_fragment(); // can never throw exception
+            synpred9_Meteor_fragment(); // can never throw exception
         } catch (RecognitionException re) {
             System.err.println("impossible: "+re);
         }
@@ -6418,11 +6620,25 @@ public class MeteorParser extends AbstractQueryParser {
         state.failed=false;
         return success;
     }
-    public final boolean synpred73_Meteor() {
+    public final boolean synpred41_Meteor() {
         state.backtracking++;
         int start = input.mark();
         try {
-            synpred73_Meteor_fragment(); // can never throw exception
+            synpred41_Meteor_fragment(); // can never throw exception
+        } catch (RecognitionException re) {
+            System.err.println("impossible: "+re);
+        }
+        boolean success = !state.failed;
+        input.rewind(start);
+        state.backtracking--;
+        state.failed=false;
+        return success;
+    }
+    public final boolean synpred44_Meteor() {
+        state.backtracking++;
+        int start = input.mark();
+        try {
+            synpred44_Meteor_fragment(); // can never throw exception
         } catch (RecognitionException re) {
             System.err.println("impossible: "+re);
         }
@@ -6446,11 +6662,11 @@ public class MeteorParser extends AbstractQueryParser {
         state.failed=false;
         return success;
     }
-    public final boolean synpred33_Meteor() {
+    public final boolean synpred81_Meteor() {
         state.backtracking++;
         int start = input.mark();
         try {
-            synpred33_Meteor_fragment(); // can never throw exception
+            synpred81_Meteor_fragment(); // can never throw exception
         } catch (RecognitionException re) {
             System.err.println("impossible: "+re);
         }
@@ -6474,158 +6690,190 @@ public class MeteorParser extends AbstractQueryParser {
         state.failed=false;
         return success;
     }
+    public final boolean synpred33_Meteor() {
+        state.backtracking++;
+        int start = input.mark();
+        try {
+            synpred33_Meteor_fragment(); // can never throw exception
+        } catch (RecognitionException re) {
+            System.err.println("impossible: "+re);
+        }
+        boolean success = !state.failed;
+        input.rewind(start);
+        state.backtracking--;
+        state.failed=false;
+        return success;
+    }
 
 
-    protected DFA5 dfa5 = new DFA5(this);
-    protected DFA7 dfa7 = new DFA7(this);
-    protected DFA22 dfa22 = new DFA22(this);
+    protected DFA6 dfa6 = new DFA6(this);
+    protected DFA8 dfa8 = new DFA8(this);
     protected DFA23 dfa23 = new DFA23(this);
-    protected DFA25 dfa25 = new DFA25(this);
-    protected DFA52 dfa52 = new DFA52(this);
-    static final String DFA5_eotS =
-        "\17\uffff";
-    static final String DFA5_eofS =
-        "\2\uffff\1\1\10\uffff\1\1\3\uffff";
-    static final String DFA5_minS =
-        "\1\6\1\uffff\1\6\1\uffff\1\7\1\6\2\0\1\6\1\11\2\6\1\11\1\6\1\0";
-    static final String DFA5_maxS =
-        "\1\103\1\uffff\1\105\1\uffff\1\14\1\105\2\0\1\103\1\100\1\103\2"+
-        "\100\1\77\1\0";
-    static final String DFA5_acceptS =
-        "\1\uffff\1\1\1\uffff\1\2\13\uffff";
-    static final String DFA5_specialS =
-        "\6\uffff\1\0\1\2\6\uffff\1\1}>";
-    static final String[] DFA5_transitionS = {
-            "\1\2\2\1\1\uffff\2\1\22\uffff\1\1\25\uffff\4\1\2\uffff\1\1\1"+
+    protected DFA24 dfa24 = new DFA24(this);
+    protected DFA27 dfa27 = new DFA27(this);
+    protected DFA56 dfa56 = new DFA56(this);
+    static final String DFA6_eotS =
+        "\20\uffff";
+    static final String DFA6_eofS =
+        "\2\uffff\1\1\11\uffff\1\1\3\uffff";
+    static final String DFA6_minS =
+        "\1\6\1\uffff\1\6\1\uffff\1\0\1\7\1\6\2\0\1\6\1\11\2\6\1\11\1\6\1"+
+        "\0";
+    static final String DFA6_maxS =
+        "\1\103\1\uffff\1\105\1\uffff\1\0\1\14\1\105\2\0\1\103\1\100\1\103"+
+        "\2\100\1\77\1\0";
+    static final String DFA6_acceptS =
+        "\1\uffff\1\1\1\uffff\1\2\14\uffff";
+    static final String DFA6_specialS =
+        "\4\uffff\1\0\2\uffff\1\1\1\2\6\uffff\1\3}>";
+    static final String[] DFA6_transitionS = {
+            "\1\2\2\1\1\uffff\2\1\23\uffff\1\1\24\uffff\4\1\2\uffff\1\1\1"+
             "\uffff\4\1\1\uffff\1\3\1\uffff\1\3",
             "",
-            "\1\5\1\3\1\uffff\1\1\20\uffff\1\1\3\uffff\3\1\1\uffff\22\1"+
-            "\4\uffff\2\1\1\uffff\1\1\3\uffff\1\4\1\1\4\uffff\1\3",
+            "\1\6\1\3\1\uffff\1\1\20\uffff\1\1\1\uffff\1\1\2\uffff\2\1\1"+
+            "\uffff\1\1\1\4\20\1\4\uffff\2\1\1\uffff\1\1\3\uffff\1\5\1\1"+
+            "\4\uffff\1\3",
             "",
+            "\1\uffff",
             "\1\3\1\uffff\1\1\1\uffff\2\1",
-            "\1\6\1\7\1\1\1\uffff\2\1\22\uffff\1\1\25\uffff\4\1\2\uffff"+
-            "\1\1\1\uffff\3\1\1\10\1\uffff\1\1\1\uffff\1\1\1\uffff\1\3",
+            "\1\7\1\10\1\1\1\uffff\2\1\23\uffff\1\1\24\uffff\4\1\2\uffff"+
+            "\1\1\1\uffff\3\1\1\11\1\uffff\1\1\1\uffff\1\1\1\uffff\1\3",
             "\1\uffff",
             "\1\uffff",
-            "\1\1\1\11\1\1\1\uffff\2\1\22\uffff\1\1\25\uffff\4\1\2\uffff"+
+            "\1\1\1\12\1\1\1\uffff\2\1\23\uffff\1\1\24\uffff\4\1\2\uffff"+
             "\1\1\1\uffff\4\1\1\uffff\1\1\1\uffff\1\1",
-            "\1\1\25\uffff\1\12\2\uffff\1\1\1\uffff\20\1\4\uffff\2\1\5\uffff"+
-            "\1\1\1\13",
-            "\1\1\1\14\1\1\1\uffff\2\1\22\uffff\1\1\25\uffff\4\1\2\uffff"+
+            "\1\1\22\uffff\1\13\5\uffff\1\1\1\uffff\20\1\4\uffff\2\1\5\uffff"+
+            "\1\1\1\14",
+            "\1\1\1\15\1\1\1\uffff\2\1\23\uffff\1\1\24\uffff\4\1\2\uffff"+
             "\1\1\1\uffff\6\1\1\uffff\1\1",
-            "\1\1\2\uffff\1\1\20\uffff\1\1\4\uffff\2\1\1\uffff\10\1\1\15"+
-            "\11\1\4\uffff\2\1\1\uffff\1\1\3\uffff\2\1",
-            "\1\1\25\uffff\1\1\2\uffff\1\1\1\uffff\20\1\4\uffff\2\1\5\uffff"+
-            "\1\1\1\13",
-            "\1\1\1\16\1\1\1\uffff\2\1\22\uffff\1\1\25\uffff\4\1\2\uffff"+
+            "\1\1\2\uffff\1\1\20\uffff\1\1\1\uffff\1\1\3\uffff\1\1\1\uffff"+
+            "\10\1\1\16\11\1\4\uffff\2\1\1\uffff\1\1\3\uffff\2\1",
+            "\1\1\22\uffff\1\1\5\uffff\1\1\1\uffff\20\1\4\uffff\2\1\5\uffff"+
+            "\1\1\1\14",
+            "\1\1\1\17\1\1\1\uffff\2\1\23\uffff\1\1\24\uffff\4\1\2\uffff"+
             "\1\1\1\uffff\4\1",
             "\1\uffff"
     };
 
-    static final short[] DFA5_eot = DFA.unpackEncodedString(DFA5_eotS);
-    static final short[] DFA5_eof = DFA.unpackEncodedString(DFA5_eofS);
-    static final char[] DFA5_min = DFA.unpackEncodedStringToUnsignedChars(DFA5_minS);
-    static final char[] DFA5_max = DFA.unpackEncodedStringToUnsignedChars(DFA5_maxS);
-    static final short[] DFA5_accept = DFA.unpackEncodedString(DFA5_acceptS);
-    static final short[] DFA5_special = DFA.unpackEncodedString(DFA5_specialS);
-    static final short[][] DFA5_transition;
+    static final short[] DFA6_eot = DFA.unpackEncodedString(DFA6_eotS);
+    static final short[] DFA6_eof = DFA.unpackEncodedString(DFA6_eofS);
+    static final char[] DFA6_min = DFA.unpackEncodedStringToUnsignedChars(DFA6_minS);
+    static final char[] DFA6_max = DFA.unpackEncodedStringToUnsignedChars(DFA6_maxS);
+    static final short[] DFA6_accept = DFA.unpackEncodedString(DFA6_acceptS);
+    static final short[] DFA6_special = DFA.unpackEncodedString(DFA6_specialS);
+    static final short[][] DFA6_transition;
 
     static {
-        int numStates = DFA5_transitionS.length;
-        DFA5_transition = new short[numStates][];
+        int numStates = DFA6_transitionS.length;
+        DFA6_transition = new short[numStates][];
         for (int i=0; i<numStates; i++) {
-            DFA5_transition[i] = DFA.unpackEncodedString(DFA5_transitionS[i]);
+            DFA6_transition[i] = DFA.unpackEncodedString(DFA6_transitionS[i]);
         }
     }
 
-    class DFA5 extends DFA {
+    class DFA6 extends DFA {
 
-        public DFA5(BaseRecognizer recognizer) {
+        public DFA6(BaseRecognizer recognizer) {
             this.recognizer = recognizer;
-            this.decisionNumber = 5;
-            this.eot = DFA5_eot;
-            this.eof = DFA5_eof;
-            this.min = DFA5_min;
-            this.max = DFA5_max;
-            this.accept = DFA5_accept;
-            this.special = DFA5_special;
-            this.transition = DFA5_transition;
+            this.decisionNumber = 6;
+            this.eot = DFA6_eot;
+            this.eof = DFA6_eof;
+            this.min = DFA6_min;
+            this.max = DFA6_max;
+            this.accept = DFA6_accept;
+            this.special = DFA6_special;
+            this.transition = DFA6_transition;
         }
         public String getDescription() {
-            return "117:1: expression : ( ternaryExpression | operatorExpression );";
+            return "98:1: expression : ( ternaryExpression | operatorExpression );";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
         	int _s = s;
             switch ( s ) {
                     case 0 : 
-                        int LA5_6 = input.LA(1);
+                        int LA6_4 = input.LA(1);
 
                          
-                        int index5_6 = input.index();
+                        int index6_4 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred8_Meteor()) ) {s = 1;}
+                        if ( (synpred9_Meteor()) ) {s = 1;}
 
                         else if ( (true) ) {s = 3;}
 
                          
-                        input.seek(index5_6);
+                        input.seek(index6_4);
                         if ( s>=0 ) return s;
                         break;
                     case 1 : 
-                        int LA5_14 = input.LA(1);
+                        int LA6_7 = input.LA(1);
 
                          
-                        int index5_14 = input.index();
+                        int index6_7 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred8_Meteor()) ) {s = 1;}
+                        if ( (synpred9_Meteor()) ) {s = 1;}
 
                         else if ( (true) ) {s = 3;}
 
                          
-                        input.seek(index5_14);
+                        input.seek(index6_7);
                         if ( s>=0 ) return s;
                         break;
                     case 2 : 
-                        int LA5_7 = input.LA(1);
+                        int LA6_8 = input.LA(1);
 
                          
-                        int index5_7 = input.index();
+                        int index6_8 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred8_Meteor()) ) {s = 1;}
+                        if ( (synpred9_Meteor()) ) {s = 1;}
 
                         else if ( (true) ) {s = 3;}
 
                          
-                        input.seek(index5_7);
+                        input.seek(index6_8);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 3 : 
+                        int LA6_15 = input.LA(1);
+
+                         
+                        int index6_15 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred9_Meteor()) ) {s = 1;}
+
+                        else if ( (true) ) {s = 3;}
+
+                         
+                        input.seek(index6_15);
                         if ( s>=0 ) return s;
                         break;
             }
             if (state.backtracking>0) {state.failed=true; return -1;}
             NoViableAltException nvae =
-                new NoViableAltException(getDescription(), 5, _s, input);
+                new NoViableAltException(getDescription(), 6, _s, input);
             error(nvae);
             throw nvae;
         }
     }
-    static final String DFA7_eotS =
+    static final String DFA8_eotS =
         "\22\uffff";
-    static final String DFA7_eofS =
+    static final String DFA8_eofS =
         "\22\uffff";
-    static final String DFA7_minS =
+    static final String DFA8_minS =
         "\1\6\16\0\3\uffff";
-    static final String DFA7_maxS =
+    static final String DFA8_maxS =
         "\1\77\16\0\3\uffff";
-    static final String DFA7_acceptS =
+    static final String DFA8_acceptS =
         "\17\uffff\1\1\1\2\1\3";
-    static final String DFA7_specialS =
+    static final String DFA8_specialS =
         "\1\uffff\1\0\1\1\1\2\1\3\1\4\1\5\1\6\1\7\1\10\1\11\1\12\1\13\1\14"+
         "\1\15\3\uffff}>";
-    static final String[] DFA7_transitionS = {
-            "\1\5\1\14\1\11\1\uffff\1\10\1\12\22\uffff\1\4\25\uffff\1\1\1"+
+    static final String[] DFA8_transitionS = {
+            "\1\5\1\14\1\11\1\uffff\1\10\1\12\23\uffff\1\4\24\uffff\1\1\1"+
             "\2\2\3\2\uffff\1\16\1\uffff\1\6\1\7\1\13\1\15",
             "\1\uffff",
             "\1\uffff",
@@ -6646,544 +6894,302 @@ public class MeteorParser extends AbstractQueryParser {
             ""
     };
 
-    static final short[] DFA7_eot = DFA.unpackEncodedString(DFA7_eotS);
-    static final short[] DFA7_eof = DFA.unpackEncodedString(DFA7_eofS);
-    static final char[] DFA7_min = DFA.unpackEncodedStringToUnsignedChars(DFA7_minS);
-    static final char[] DFA7_max = DFA.unpackEncodedStringToUnsignedChars(DFA7_maxS);
-    static final short[] DFA7_accept = DFA.unpackEncodedString(DFA7_acceptS);
-    static final short[] DFA7_special = DFA.unpackEncodedString(DFA7_specialS);
-    static final short[][] DFA7_transition;
+    static final short[] DFA8_eot = DFA.unpackEncodedString(DFA8_eotS);
+    static final short[] DFA8_eof = DFA.unpackEncodedString(DFA8_eofS);
+    static final char[] DFA8_min = DFA.unpackEncodedStringToUnsignedChars(DFA8_minS);
+    static final char[] DFA8_max = DFA.unpackEncodedStringToUnsignedChars(DFA8_maxS);
+    static final short[] DFA8_accept = DFA.unpackEncodedString(DFA8_acceptS);
+    static final short[] DFA8_special = DFA.unpackEncodedString(DFA8_specialS);
+    static final short[][] DFA8_transition;
 
     static {
-        int numStates = DFA7_transitionS.length;
-        DFA7_transition = new short[numStates][];
+        int numStates = DFA8_transitionS.length;
+        DFA8_transition = new short[numStates][];
         for (int i=0; i<numStates; i++) {
-            DFA7_transition[i] = DFA.unpackEncodedString(DFA7_transitionS[i]);
+            DFA8_transition[i] = DFA.unpackEncodedString(DFA8_transitionS[i]);
         }
     }
 
-    class DFA7 extends DFA {
+    class DFA8 extends DFA {
 
-        public DFA7(BaseRecognizer recognizer) {
+        public DFA8(BaseRecognizer recognizer) {
             this.recognizer = recognizer;
-            this.decisionNumber = 7;
-            this.eot = DFA7_eot;
-            this.eof = DFA7_eof;
-            this.min = DFA7_min;
-            this.max = DFA7_max;
-            this.accept = DFA7_accept;
-            this.special = DFA7_special;
-            this.transition = DFA7_transition;
+            this.decisionNumber = 8;
+            this.eot = DFA8_eot;
+            this.eof = DFA8_eof;
+            this.min = DFA8_min;
+            this.max = DFA8_max;
+            this.accept = DFA8_accept;
+            this.special = DFA8_special;
+            this.transition = DFA8_transition;
         }
         public String getDescription() {
-            return "121:1: ternaryExpression : (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression );";
+            return "102:1: ternaryExpression : (ifClause= orExpression ( '?' (ifExpr= expression )? ':' elseExpr= expression ) -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause) | ifExpr2= orExpression 'if' ifClause2= expression -> ^( EXPRESSION[\"TernaryExpression\"] $ifClause2 $ifExpr2) | orExpression );";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
         	int _s = s;
             switch ( s ) {
                     case 0 : 
-                        int LA7_1 = input.LA(1);
+                        int LA8_1 = input.LA(1);
 
                          
-                        int index7_1 = input.index();
+                        int index8_1 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_1);
+                        input.seek(index8_1);
                         if ( s>=0 ) return s;
                         break;
                     case 1 : 
-                        int LA7_2 = input.LA(1);
+                        int LA8_2 = input.LA(1);
 
                          
-                        int index7_2 = input.index();
+                        int index8_2 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_2);
+                        input.seek(index8_2);
                         if ( s>=0 ) return s;
                         break;
                     case 2 : 
-                        int LA7_3 = input.LA(1);
+                        int LA8_3 = input.LA(1);
 
                          
-                        int index7_3 = input.index();
+                        int index8_3 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_3);
+                        input.seek(index8_3);
                         if ( s>=0 ) return s;
                         break;
                     case 3 : 
-                        int LA7_4 = input.LA(1);
+                        int LA8_4 = input.LA(1);
 
                          
-                        int index7_4 = input.index();
+                        int index8_4 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_4);
+                        input.seek(index8_4);
                         if ( s>=0 ) return s;
                         break;
                     case 4 : 
-                        int LA7_5 = input.LA(1);
+                        int LA8_5 = input.LA(1);
 
                          
-                        int index7_5 = input.index();
+                        int index8_5 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_5);
+                        input.seek(index8_5);
                         if ( s>=0 ) return s;
                         break;
                     case 5 : 
-                        int LA7_6 = input.LA(1);
+                        int LA8_6 = input.LA(1);
 
                          
-                        int index7_6 = input.index();
+                        int index8_6 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_6);
+                        input.seek(index8_6);
                         if ( s>=0 ) return s;
                         break;
                     case 6 : 
-                        int LA7_7 = input.LA(1);
+                        int LA8_7 = input.LA(1);
 
                          
-                        int index7_7 = input.index();
+                        int index8_7 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_7);
+                        input.seek(index8_7);
                         if ( s>=0 ) return s;
                         break;
                     case 7 : 
-                        int LA7_8 = input.LA(1);
+                        int LA8_8 = input.LA(1);
 
                          
-                        int index7_8 = input.index();
+                        int index8_8 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_8);
+                        input.seek(index8_8);
                         if ( s>=0 ) return s;
                         break;
                     case 8 : 
-                        int LA7_9 = input.LA(1);
+                        int LA8_9 = input.LA(1);
 
                          
-                        int index7_9 = input.index();
+                        int index8_9 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_9);
+                        input.seek(index8_9);
                         if ( s>=0 ) return s;
                         break;
                     case 9 : 
-                        int LA7_10 = input.LA(1);
+                        int LA8_10 = input.LA(1);
 
                          
-                        int index7_10 = input.index();
+                        int index8_10 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_10);
+                        input.seek(index8_10);
                         if ( s>=0 ) return s;
                         break;
                     case 10 : 
-                        int LA7_11 = input.LA(1);
+                        int LA8_11 = input.LA(1);
 
                          
-                        int index7_11 = input.index();
+                        int index8_11 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_11);
+                        input.seek(index8_11);
                         if ( s>=0 ) return s;
                         break;
                     case 11 : 
-                        int LA7_12 = input.LA(1);
+                        int LA8_12 = input.LA(1);
 
                          
-                        int index7_12 = input.index();
+                        int index8_12 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_12);
+                        input.seek(index8_12);
                         if ( s>=0 ) return s;
                         break;
                     case 12 : 
-                        int LA7_13 = input.LA(1);
+                        int LA8_13 = input.LA(1);
 
                          
-                        int index7_13 = input.index();
+                        int index8_13 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_13);
+                        input.seek(index8_13);
                         if ( s>=0 ) return s;
                         break;
                     case 13 : 
-                        int LA7_14 = input.LA(1);
+                        int LA8_14 = input.LA(1);
 
                          
-                        int index7_14 = input.index();
+                        int index8_14 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred10_Meteor()) ) {s = 15;}
+                        if ( (synpred11_Meteor()) ) {s = 15;}
 
-                        else if ( (synpred11_Meteor()) ) {s = 16;}
+                        else if ( (synpred12_Meteor()) ) {s = 16;}
 
                         else if ( (true) ) {s = 17;}
 
                          
-                        input.seek(index7_14);
+                        input.seek(index8_14);
                         if ( s>=0 ) return s;
                         break;
             }
             if (state.backtracking>0) {state.failed=true; return -1;}
             NoViableAltException nvae =
-                new NoViableAltException(getDescription(), 7, _s, input);
-            error(nvae);
-            throw nvae;
-        }
-    }
-    static final String DFA22_eotS =
-        "\17\uffff";
-    static final String DFA22_eofS =
-        "\17\uffff";
-    static final String DFA22_minS =
-        "\1\6\13\0\3\uffff";
-    static final String DFA22_maxS =
-        "\1\77\13\0\3\uffff";
-    static final String DFA22_acceptS =
-        "\14\uffff\1\1\1\2\1\3";
-    static final String DFA22_specialS =
-        "\1\uffff\1\0\1\1\1\2\1\3\1\4\1\5\1\6\1\7\1\10\1\11\1\12\3\uffff}>";
-    static final String[] DFA22_transitionS = {
-            "\1\2\1\11\1\6\1\uffff\1\5\1\7\22\uffff\1\1\33\uffff\1\13\1\uffff"+
-            "\1\3\1\4\1\10\1\12",
-            "\1\uffff",
-            "\1\uffff",
-            "\1\uffff",
-            "\1\uffff",
-            "\1\uffff",
-            "\1\uffff",
-            "\1\uffff",
-            "\1\uffff",
-            "\1\uffff",
-            "\1\uffff",
-            "\1\uffff",
-            "",
-            "",
-            ""
-    };
-
-    static final short[] DFA22_eot = DFA.unpackEncodedString(DFA22_eotS);
-    static final short[] DFA22_eof = DFA.unpackEncodedString(DFA22_eofS);
-    static final char[] DFA22_min = DFA.unpackEncodedStringToUnsignedChars(DFA22_minS);
-    static final char[] DFA22_max = DFA.unpackEncodedStringToUnsignedChars(DFA22_maxS);
-    static final short[] DFA22_accept = DFA.unpackEncodedString(DFA22_acceptS);
-    static final short[] DFA22_special = DFA.unpackEncodedString(DFA22_specialS);
-    static final short[][] DFA22_transition;
-
-    static {
-        int numStates = DFA22_transitionS.length;
-        DFA22_transition = new short[numStates][];
-        for (int i=0; i<numStates; i++) {
-            DFA22_transition[i] = DFA.unpackEncodedString(DFA22_transitionS[i]);
-        }
-    }
-
-    class DFA22 extends DFA {
-
-        public DFA22(BaseRecognizer recognizer) {
-            this.recognizer = recognizer;
-            this.decisionNumber = 22;
-            this.eot = DFA22_eot;
-            this.eof = DFA22_eof;
-            this.min = DFA22_min;
-            this.max = DFA22_max;
-            this.accept = DFA22_accept;
-            this.special = DFA22_special;
-            this.transition = DFA22_transition;
-        }
-        public String getDescription() {
-            return "172:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )";
-        }
-        public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
-            TokenStream input = (TokenStream)_input;
-        	int _s = s;
-            switch ( s ) {
-                    case 0 : 
-                        int LA22_1 = input.LA(1);
-
-                         
-                        int index22_1 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred32_Meteor()) ) {s = 12;}
-
-                        else if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_1);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 1 : 
-                        int LA22_2 = input.LA(1);
-
-                         
-                        int index22_2 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_2);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 2 : 
-                        int LA22_3 = input.LA(1);
-
-                         
-                        int index22_3 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_3);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 3 : 
-                        int LA22_4 = input.LA(1);
-
-                         
-                        int index22_4 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_4);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 4 : 
-                        int LA22_5 = input.LA(1);
-
-                         
-                        int index22_5 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_5);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 5 : 
-                        int LA22_6 = input.LA(1);
-
-                         
-                        int index22_6 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_6);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 6 : 
-                        int LA22_7 = input.LA(1);
-
-                         
-                        int index22_7 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_7);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 7 : 
-                        int LA22_8 = input.LA(1);
-
-                         
-                        int index22_8 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_8);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 8 : 
-                        int LA22_9 = input.LA(1);
-
-                         
-                        int index22_9 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_9);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 9 : 
-                        int LA22_10 = input.LA(1);
-
-                         
-                        int index22_10 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_10);
-                        if ( s>=0 ) return s;
-                        break;
-                    case 10 : 
-                        int LA22_11 = input.LA(1);
-
-                         
-                        int index22_11 = input.index();
-                        input.rewind();
-                        s = -1;
-                        if ( (synpred33_Meteor()) ) {s = 13;}
-
-                        else if ( (true) ) {s = 14;}
-
-                         
-                        input.seek(index22_11);
-                        if ( s>=0 ) return s;
-                        break;
-            }
-            if (state.backtracking>0) {state.failed=true; return -1;}
-            NoViableAltException nvae =
-                new NoViableAltException(getDescription(), 22, _s, input);
+                new NoViableAltException(getDescription(), 8, _s, input);
             error(nvae);
             throw nvae;
         }
     }
     static final String DFA23_eotS =
-        "\16\uffff";
+        "\17\uffff";
     static final String DFA23_eofS =
-        "\16\uffff";
+        "\17\uffff";
     static final String DFA23_minS =
-        "\1\6\13\0\2\uffff";
+        "\1\6\13\0\3\uffff";
     static final String DFA23_maxS =
-        "\1\77\13\0\2\uffff";
+        "\1\77\13\0\3\uffff";
     static final String DFA23_acceptS =
-        "\14\uffff\1\1\1\2";
+        "\14\uffff\1\1\1\2\1\3";
     static final String DFA23_specialS =
-        "\1\uffff\1\0\1\1\1\2\1\3\1\4\1\5\1\6\1\7\1\10\1\11\1\12\2\uffff}>";
+        "\1\uffff\1\0\1\1\1\2\1\3\1\4\1\5\1\6\1\7\1\10\1\11\1\12\3\uffff}>";
     static final String[] DFA23_transitionS = {
-            "\1\1\1\11\1\6\1\uffff\1\5\1\7\22\uffff\1\2\33\uffff\1\13\1\uffff"+
+            "\1\2\1\11\1\6\1\uffff\1\5\1\7\23\uffff\1\1\32\uffff\1\13\1\uffff"+
             "\1\3\1\4\1\10\1\12",
             "\1\uffff",
             "\1\uffff",
@@ -7196,6 +7202,7 @@ public class MeteorParser extends AbstractQueryParser {
             "\1\uffff",
             "\1\uffff",
             "\1\uffff",
+            "",
             "",
             ""
     };
@@ -7230,7 +7237,7 @@ public class MeteorParser extends AbstractQueryParser {
             this.transition = DFA23_transition;
         }
         public String getDescription() {
-            return "178:1: generalPathExpression : (value= valueExpression path= pathExpression -> | valueExpression );";
+            return "153:4: ( '(' type= ID ')' expr= generalPathExpression | expr= generalPathExpression 'as' type= ID | expr= generalPathExpression )";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
@@ -7243,9 +7250,11 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_1 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred33_Meteor()) ) {s = 12;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (synpred34_Meteor()) ) {s = 13;}
+
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_1);
@@ -7258,9 +7267,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_2 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_2);
@@ -7273,9 +7282,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_3 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_3);
@@ -7288,9 +7297,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_4 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_4);
@@ -7303,9 +7312,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_5 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_5);
@@ -7318,9 +7327,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_6 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_6);
@@ -7333,9 +7342,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_7 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_7);
@@ -7348,9 +7357,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_8 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_8);
@@ -7363,9 +7372,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_9 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_9);
@@ -7378,9 +7387,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_10 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_10);
@@ -7393,9 +7402,9 @@ public class MeteorParser extends AbstractQueryParser {
                         int index23_11 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred34_Meteor()) ) {s = 12;}
+                        if ( (synpred34_Meteor()) ) {s = 13;}
 
-                        else if ( (true) ) {s = 13;}
+                        else if ( (true) ) {s = 14;}
 
                          
                         input.seek(index23_11);
@@ -7409,113 +7418,371 @@ public class MeteorParser extends AbstractQueryParser {
             throw nvae;
         }
     }
-    static final String DFA25_eotS =
+    static final String DFA24_eotS =
         "\16\uffff";
-    static final String DFA25_eofS =
-        "\1\uffff\1\10\2\uffff\1\11\11\uffff";
-    static final String DFA25_minS =
-        "\2\6\2\uffff\1\6\5\uffff\1\6\1\43\1\uffff\1\0";
-    static final String DFA25_maxS =
-        "\1\77\1\100\2\uffff\1\100\5\uffff\1\77\1\100\1\uffff\1\0";
-    static final String DFA25_acceptS =
-        "\2\uffff\1\2\1\3\1\uffff\1\7\1\10\1\1\1\5\1\4\2\uffff\1\6\1\uffff";
-    static final String DFA25_specialS =
-        "\15\uffff\1\0}>";
-    static final String[] DFA25_transitionS = {
-            "\1\1\1\4\1\3\1\uffff\2\3\22\uffff\1\2\33\uffff\1\6\1\uffff\3"+
-            "\3\1\5",
-            "\1\10\2\uffff\1\10\20\uffff\1\10\3\uffff\1\7\2\10\1\uffff\22"+
-            "\10\4\uffff\2\10\1\uffff\1\10\3\uffff\2\10",
+    static final String DFA24_eofS =
+        "\16\uffff";
+    static final String DFA24_minS =
+        "\1\6\13\0\2\uffff";
+    static final String DFA24_maxS =
+        "\1\77\13\0\2\uffff";
+    static final String DFA24_acceptS =
+        "\14\uffff\1\1\1\2";
+    static final String DFA24_specialS =
+        "\1\uffff\1\0\1\1\1\2\1\3\1\4\1\5\1\6\1\7\1\10\1\11\1\12\2\uffff}>";
+    static final String[] DFA24_transitionS = {
+            "\1\1\1\11\1\6\1\uffff\1\5\1\7\23\uffff\1\2\32\uffff\1\13\1\uffff"+
+            "\1\3\1\4\1\10\1\12",
+            "\1\uffff",
+            "\1\uffff",
+            "\1\uffff",
+            "\1\uffff",
+            "\1\uffff",
+            "\1\uffff",
+            "\1\uffff",
+            "\1\uffff",
+            "\1\uffff",
+            "\1\uffff",
+            "\1\uffff",
             "",
-            "",
-            "\1\11\2\uffff\1\11\20\uffff\1\11\4\uffff\2\11\1\uffff\22\11"+
-            "\4\uffff\2\11\1\uffff\1\11\3\uffff\1\12\1\11",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "\3\14\1\11\1\14\1\13\1\11\21\uffff\1\14\33\uffff\1\14\1\uffff"+
-            "\4\14",
-            "\1\11\25\uffff\1\14\5\uffff\1\14\1\15",
-            "",
-            "\1\uffff"
+            ""
     };
 
-    static final short[] DFA25_eot = DFA.unpackEncodedString(DFA25_eotS);
-    static final short[] DFA25_eof = DFA.unpackEncodedString(DFA25_eofS);
-    static final char[] DFA25_min = DFA.unpackEncodedStringToUnsignedChars(DFA25_minS);
-    static final char[] DFA25_max = DFA.unpackEncodedStringToUnsignedChars(DFA25_maxS);
-    static final short[] DFA25_accept = DFA.unpackEncodedString(DFA25_acceptS);
-    static final short[] DFA25_special = DFA.unpackEncodedString(DFA25_specialS);
-    static final short[][] DFA25_transition;
+    static final short[] DFA24_eot = DFA.unpackEncodedString(DFA24_eotS);
+    static final short[] DFA24_eof = DFA.unpackEncodedString(DFA24_eofS);
+    static final char[] DFA24_min = DFA.unpackEncodedStringToUnsignedChars(DFA24_minS);
+    static final char[] DFA24_max = DFA.unpackEncodedStringToUnsignedChars(DFA24_maxS);
+    static final short[] DFA24_accept = DFA.unpackEncodedString(DFA24_acceptS);
+    static final short[] DFA24_special = DFA.unpackEncodedString(DFA24_specialS);
+    static final short[][] DFA24_transition;
 
     static {
-        int numStates = DFA25_transitionS.length;
-        DFA25_transition = new short[numStates][];
+        int numStates = DFA24_transitionS.length;
+        DFA24_transition = new short[numStates][];
         for (int i=0; i<numStates; i++) {
-            DFA25_transition[i] = DFA.unpackEncodedString(DFA25_transitionS[i]);
+            DFA24_transition[i] = DFA.unpackEncodedString(DFA24_transitionS[i]);
         }
     }
 
-    class DFA25 extends DFA {
+    class DFA24 extends DFA {
 
-        public DFA25(BaseRecognizer recognizer) {
+        public DFA24(BaseRecognizer recognizer) {
             this.recognizer = recognizer;
-            this.decisionNumber = 25;
-            this.eot = DFA25_eot;
-            this.eof = DFA25_eof;
-            this.min = DFA25_min;
-            this.max = DFA25_max;
-            this.accept = DFA25_accept;
-            this.special = DFA25_special;
-            this.transition = DFA25_transition;
+            this.decisionNumber = 24;
+            this.eot = DFA24_eot;
+            this.eof = DFA24_eof;
+            this.min = DFA24_min;
+            this.max = DFA24_max;
+            this.accept = DFA24_accept;
+            this.special = DFA24_special;
+            this.transition = DFA24_transition;
         }
         public String getDescription() {
-            return "193:1: valueExpression : ( methodCall[null] | parenthesesExpression | literal | VAR -> | ID {...}? => -> | streamIndexAccess | arrayCreation | objectCreation );";
+            return "159:1: generalPathExpression : (value= valueExpression path= pathExpression -> | valueExpression );";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
         	int _s = s;
             switch ( s ) {
                     case 0 : 
-                        int LA25_13 = input.LA(1);
+                        int LA24_1 = input.LA(1);
 
                          
-                        int index25_13 = input.index();
+                        int index24_1 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred40_Meteor()) ) {s = 9;}
+                        if ( (synpred35_Meteor()) ) {s = 12;}
 
-                        else if ( (synpred42_Meteor()) ) {s = 12;}
+                        else if ( (true) ) {s = 13;}
 
                          
-                        input.seek(index25_13);
+                        input.seek(index24_1);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 1 : 
+                        int LA24_2 = input.LA(1);
+
+                         
+                        int index24_2 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_2);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 2 : 
+                        int LA24_3 = input.LA(1);
+
+                         
+                        int index24_3 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_3);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 3 : 
+                        int LA24_4 = input.LA(1);
+
+                         
+                        int index24_4 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_4);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 4 : 
+                        int LA24_5 = input.LA(1);
+
+                         
+                        int index24_5 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_5);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 5 : 
+                        int LA24_6 = input.LA(1);
+
+                         
+                        int index24_6 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_6);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 6 : 
+                        int LA24_7 = input.LA(1);
+
+                         
+                        int index24_7 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_7);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 7 : 
+                        int LA24_8 = input.LA(1);
+
+                         
+                        int index24_8 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_8);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 8 : 
+                        int LA24_9 = input.LA(1);
+
+                         
+                        int index24_9 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_9);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 9 : 
+                        int LA24_10 = input.LA(1);
+
+                         
+                        int index24_10 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_10);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 10 : 
+                        int LA24_11 = input.LA(1);
+
+                         
+                        int index24_11 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred35_Meteor()) ) {s = 12;}
+
+                        else if ( (true) ) {s = 13;}
+
+                         
+                        input.seek(index24_11);
                         if ( s>=0 ) return s;
                         break;
             }
             if (state.backtracking>0) {state.failed=true; return -1;}
             NoViableAltException nvae =
-                new NoViableAltException(getDescription(), 25, _s, input);
+                new NoViableAltException(getDescription(), 24, _s, input);
             error(nvae);
             throw nvae;
         }
     }
-    static final String DFA52_eotS =
+    static final String DFA27_eotS =
+        "\17\uffff";
+    static final String DFA27_eofS =
+        "\1\uffff\1\11\2\uffff\1\12\12\uffff";
+    static final String DFA27_minS =
+        "\2\6\2\uffff\1\6\2\uffff\1\0\3\uffff\1\6\1\43\1\uffff\1\0";
+    static final String DFA27_maxS =
+        "\1\77\1\100\2\uffff\1\100\2\uffff\1\0\3\uffff\1\77\1\100\1\uffff"+
+        "\1\0";
+    static final String DFA27_acceptS =
+        "\2\uffff\1\2\1\3\1\uffff\1\7\1\10\1\uffff\1\1\1\5\1\4\2\uffff\1"+
+        "\6\1\uffff";
+    static final String DFA27_specialS =
+        "\7\uffff\1\1\6\uffff\1\0}>";
+    static final String[] DFA27_transitionS = {
+            "\1\1\1\4\1\3\1\uffff\2\3\23\uffff\1\2\32\uffff\1\6\1\uffff\3"+
+            "\3\1\5",
+            "\1\11\2\uffff\1\11\20\uffff\1\11\1\uffff\1\11\2\uffff\1\10"+
+            "\1\11\1\uffff\1\11\1\7\20\11\4\uffff\2\11\1\uffff\1\11\3\uffff"+
+            "\2\11",
+            "",
+            "",
+            "\1\12\2\uffff\1\12\20\uffff\1\12\1\uffff\1\12\3\uffff\1\12"+
+            "\1\uffff\22\12\4\uffff\2\12\1\uffff\1\12\3\uffff\1\13\1\12",
+            "",
+            "",
+            "\1\uffff",
+            "",
+            "",
+            "",
+            "\3\15\1\12\1\15\1\14\1\12\22\uffff\1\15\32\uffff\1\15\1\uffff"+
+            "\4\15",
+            "\1\12\25\uffff\1\15\5\uffff\1\15\1\16",
+            "",
+            "\1\uffff"
+    };
+
+    static final short[] DFA27_eot = DFA.unpackEncodedString(DFA27_eotS);
+    static final short[] DFA27_eof = DFA.unpackEncodedString(DFA27_eofS);
+    static final char[] DFA27_min = DFA.unpackEncodedStringToUnsignedChars(DFA27_minS);
+    static final char[] DFA27_max = DFA.unpackEncodedStringToUnsignedChars(DFA27_maxS);
+    static final short[] DFA27_accept = DFA.unpackEncodedString(DFA27_acceptS);
+    static final short[] DFA27_special = DFA.unpackEncodedString(DFA27_specialS);
+    static final short[][] DFA27_transition;
+
+    static {
+        int numStates = DFA27_transitionS.length;
+        DFA27_transition = new short[numStates][];
+        for (int i=0; i<numStates; i++) {
+            DFA27_transition[i] = DFA.unpackEncodedString(DFA27_transitionS[i]);
+        }
+    }
+
+    class DFA27 extends DFA {
+
+        public DFA27(BaseRecognizer recognizer) {
+            this.recognizer = recognizer;
+            this.decisionNumber = 27;
+            this.eot = DFA27_eot;
+            this.eof = DFA27_eof;
+            this.min = DFA27_min;
+            this.max = DFA27_max;
+            this.accept = DFA27_accept;
+            this.special = DFA27_special;
+            this.transition = DFA27_transition;
+        }
+        public String getDescription() {
+            return "174:1: valueExpression : ( methodCall[null] | parenthesesExpression | literal | VAR -> | (packageName= ID ':' )? constant= ID {...}? => -> | streamIndexAccess | arrayCreation | objectCreation );";
+        }
+        public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
+            TokenStream input = (TokenStream)_input;
+        	int _s = s;
+            switch ( s ) {
+                    case 0 : 
+                        int LA27_14 = input.LA(1);
+
+                         
+                        int index27_14 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred41_Meteor()) ) {s = 10;}
+
+                        else if ( (synpred44_Meteor()) ) {s = 13;}
+
+                         
+                        input.seek(index27_14);
+                        if ( s>=0 ) return s;
+                        break;
+                    case 1 : 
+                        int LA27_7 = input.LA(1);
+
+                         
+                        int index27_7 = input.index();
+                        input.rewind();
+                        s = -1;
+                        if ( (synpred38_Meteor()) ) {s = 8;}
+
+                        else if ( (synpred43_Meteor()) ) {s = 9;}
+
+                         
+                        input.seek(index27_7);
+                        if ( s>=0 ) return s;
+                        break;
+            }
+            if (state.backtracking>0) {state.failed=true; return -1;}
+            NoViableAltException nvae =
+                new NoViableAltException(getDescription(), 27, _s, input);
+            error(nvae);
+            throw nvae;
+        }
+    }
+    static final String DFA56_eotS =
         "\12\uffff";
-    static final String DFA52_eofS =
+    static final String DFA56_eofS =
         "\1\2\11\uffff";
-    static final String DFA52_minS =
+    static final String DFA56_minS =
         "\1\6\1\0\10\uffff";
-    static final String DFA52_maxS =
+    static final String DFA56_maxS =
         "\1\100\1\0\10\uffff";
-    static final String DFA52_acceptS =
+    static final String DFA56_acceptS =
         "\2\uffff\1\2\6\uffff\1\1";
-    static final String DFA52_specialS =
+    static final String DFA56_specialS =
         "\1\uffff\1\0\10\uffff}>";
-    static final String[] DFA52_transitionS = {
-            "\1\1\23\uffff\1\2\4\uffff\2\2\2\uffff\1\2\27\uffff\1\2\4\uffff"+
-            "\1\2",
+    static final String[] DFA56_transitionS = {
+            "\1\1\23\uffff\1\2\1\uffff\1\2\3\uffff\1\2\2\uffff\1\2\27\uffff"+
+            "\1\2\4\uffff\1\2",
             "\1\uffff",
             "",
             "",
@@ -7527,61 +7794,61 @@ public class MeteorParser extends AbstractQueryParser {
             ""
     };
 
-    static final short[] DFA52_eot = DFA.unpackEncodedString(DFA52_eotS);
-    static final short[] DFA52_eof = DFA.unpackEncodedString(DFA52_eofS);
-    static final char[] DFA52_min = DFA.unpackEncodedStringToUnsignedChars(DFA52_minS);
-    static final char[] DFA52_max = DFA.unpackEncodedStringToUnsignedChars(DFA52_maxS);
-    static final short[] DFA52_accept = DFA.unpackEncodedString(DFA52_acceptS);
-    static final short[] DFA52_special = DFA.unpackEncodedString(DFA52_specialS);
-    static final short[][] DFA52_transition;
+    static final short[] DFA56_eot = DFA.unpackEncodedString(DFA56_eotS);
+    static final short[] DFA56_eof = DFA.unpackEncodedString(DFA56_eofS);
+    static final char[] DFA56_min = DFA.unpackEncodedStringToUnsignedChars(DFA56_minS);
+    static final char[] DFA56_max = DFA.unpackEncodedStringToUnsignedChars(DFA56_maxS);
+    static final short[] DFA56_accept = DFA.unpackEncodedString(DFA56_acceptS);
+    static final short[] DFA56_special = DFA.unpackEncodedString(DFA56_specialS);
+    static final short[][] DFA56_transition;
 
     static {
-        int numStates = DFA52_transitionS.length;
-        DFA52_transition = new short[numStates][];
+        int numStates = DFA56_transitionS.length;
+        DFA56_transition = new short[numStates][];
         for (int i=0; i<numStates; i++) {
-            DFA52_transition[i] = DFA.unpackEncodedString(DFA52_transitionS[i]);
+            DFA56_transition[i] = DFA.unpackEncodedString(DFA56_transitionS[i]);
         }
     }
 
-    class DFA52 extends DFA {
+    class DFA56 extends DFA {
 
-        public DFA52(BaseRecognizer recognizer) {
+        public DFA56(BaseRecognizer recognizer) {
             this.recognizer = recognizer;
-            this.decisionNumber = 52;
-            this.eot = DFA52_eot;
-            this.eof = DFA52_eof;
-            this.min = DFA52_min;
-            this.max = DFA52_max;
-            this.accept = DFA52_accept;
-            this.special = DFA52_special;
-            this.transition = DFA52_transition;
+            this.decisionNumber = 56;
+            this.eot = DFA56_eot;
+            this.eof = DFA56_eof;
+            this.min = DFA56_min;
+            this.max = DFA56_max;
+            this.accept = DFA56_accept;
+            this.special = DFA56_special;
+            this.transition = DFA56_transition;
         }
         public String getDescription() {
-            return "329:1: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?";
+            return "312:1: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )?";
         }
         public int specialStateTransition(int s, IntStream _input) throws NoViableAltException {
             TokenStream input = (TokenStream)_input;
         	int _s = s;
             switch ( s ) {
                     case 0 : 
-                        int LA52_1 = input.LA(1);
+                        int LA56_1 = input.LA(1);
 
                          
-                        int index52_1 = input.index();
+                        int index56_1 = input.index();
                         input.rewind();
                         s = -1;
-                        if ( (synpred77_Meteor()) ) {s = 9;}
+                        if ( (synpred81_Meteor()) ) {s = 9;}
 
                         else if ( (true) ) {s = 2;}
 
                          
-                        input.seek(index52_1);
+                        input.seek(index56_1);
                         if ( s>=0 ) return s;
                         break;
             }
             if (state.backtracking>0) {state.failed=true; return -1;}
             NoViableAltException nvae =
-                new NoViableAltException(getDescription(), 52, _s, input);
+                new NoViableAltException(getDescription(), 56, _s, input);
             error(nvae);
             throw nvae;
         }
@@ -7596,223 +7863,237 @@ public class MeteorParser extends AbstractQueryParser {
     public static final BitSet FOLLOW_functionDefinition_in_statement153 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_javaudf_in_statement157 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_27_in_packageImport172 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_packageImport176 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_assignment191 = new BitSet(new long[]{0x0000000010000000L});
-    public static final BitSet FOLLOW_28_in_assignment193 = new BitSet(new long[]{0x0000000000000040L,0x000000000000000AL});
-    public static final BitSet FOLLOW_operator_in_assignment197 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_functionDefinition219 = new BitSet(new long[]{0x0000000010000000L});
-    public static final BitSet FOLLOW_28_in_functionDefinition221 = new BitSet(new long[]{0x0000000020000000L});
-    public static final BitSet FOLLOW_29_in_functionDefinition223 = new BitSet(new long[]{0x0000000040000000L});
-    public static final BitSet FOLLOW_30_in_functionDefinition225 = new BitSet(new long[]{0x0000000100000040L});
-    public static final BitSet FOLLOW_ID_in_functionDefinition234 = new BitSet(new long[]{0x0000000180000000L});
-    public static final BitSet FOLLOW_31_in_functionDefinition241 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_functionDefinition245 = new BitSet(new long[]{0x0000000180000000L});
-    public static final BitSet FOLLOW_32_in_functionDefinition256 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_contextAwareExpression_in_functionDefinition268 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_javaudf286 = new BitSet(new long[]{0x0000000010000000L});
-    public static final BitSet FOLLOW_28_in_javaudf288 = new BitSet(new long[]{0x0000000200000000L});
-    public static final BitSet FOLLOW_33_in_javaudf290 = new BitSet(new long[]{0x0000000040000000L});
-    public static final BitSet FOLLOW_30_in_javaudf292 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_javaudf296 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_javaudf298 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_expression_in_contextAwareExpression326 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ternaryExpression_in_expression336 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_operatorExpression_in_expression342 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_orExpression_in_ternaryExpression353 = new BitSet(new long[]{0x0000000400000000L});
-    public static final BitSet FOLLOW_34_in_ternaryExpression356 = new BitSet(new long[]{0xF4F0000840000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_ternaryExpression360 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_35_in_ternaryExpression363 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_ternaryExpression367 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_orExpression_in_ternaryExpression390 = new BitSet(new long[]{0x0000001000000000L});
-    public static final BitSet FOLLOW_36_in_ternaryExpression392 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_ternaryExpression396 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_orExpression_in_ternaryExpression418 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_andExpression_in_orExpression431 = new BitSet(new long[]{0x0000006000000002L});
-    public static final BitSet FOLLOW_37_in_orExpression435 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_38_in_orExpression439 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_andExpression_in_orExpression444 = new BitSet(new long[]{0x0000006000000002L});
-    public static final BitSet FOLLOW_elementExpression_in_andExpression473 = new BitSet(new long[]{0x0000018000000002L});
-    public static final BitSet FOLLOW_39_in_andExpression477 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_40_in_andExpression481 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_elementExpression_in_andExpression486 = new BitSet(new long[]{0x0000018000000002L});
-    public static final BitSet FOLLOW_comparisonExpression_in_elementExpression515 = new BitSet(new long[]{0x0000060000000002L});
-    public static final BitSet FOLLOW_41_in_elementExpression520 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_elementExpression523 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_comparisonExpression_in_elementExpression527 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_arithmeticExpression_in_comparisonExpression568 = new BitSet(new long[]{0x0001F80000000002L});
-    public static final BitSet FOLLOW_43_in_comparisonExpression574 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_44_in_comparisonExpression580 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_45_in_comparisonExpression586 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_46_in_comparisonExpression592 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_47_in_comparisonExpression598 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_48_in_comparisonExpression604 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_arithmeticExpression_in_comparisonExpression609 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_multiplicationExpression_in_arithmeticExpression689 = new BitSet(new long[]{0x0006000000000002L});
-    public static final BitSet FOLLOW_49_in_arithmeticExpression695 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_50_in_arithmeticExpression701 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_multiplicationExpression_in_arithmeticExpression706 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_preincrementExpression_in_multiplicationExpression749 = new BitSet(new long[]{0x0008000000000202L});
-    public static final BitSet FOLLOW_STAR_in_multiplicationExpression755 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_51_in_multiplicationExpression761 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_preincrementExpression_in_multiplicationExpression766 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_52_in_preincrementExpression807 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_preincrementExpression_in_preincrementExpression809 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_53_in_preincrementExpression814 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_preincrementExpression_in_preincrementExpression816 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_unaryExpression_in_preincrementExpression821 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_set_in_unaryExpression831 = new BitSet(new long[]{0xF4F0000040000DC0L});
-    public static final BitSet FOLLOW_castExpression_in_unaryExpression840 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_30_in_castExpression850 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_castExpression854 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_castExpression856 = new BitSet(new long[]{0xF400000040000DC0L});
-    public static final BitSet FOLLOW_generalPathExpression_in_castExpression860 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_generalPathExpression_in_castExpression867 = new BitSet(new long[]{0x0100000000000000L});
-    public static final BitSet FOLLOW_56_in_castExpression869 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_castExpression873 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_generalPathExpression_in_castExpression880 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_valueExpression_in_generalPathExpression907 = new BitSet(new long[]{0x8200000000000000L});
-    public static final BitSet FOLLOW_pathExpression_in_generalPathExpression911 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_valueExpression_in_generalPathExpression921 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_pathExpression_in_contextAwarePathExpression934 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_57_in_pathExpression967 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_pathExpression972 = new BitSet(new long[]{0x8200000000000002L});
-    public static final BitSet FOLLOW_arrayAccess_in_pathExpression990 = new BitSet(new long[]{0x8200000000000002L});
-    public static final BitSet FOLLOW_methodCall_in_valueExpression1011 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_parenthesesExpression_in_valueExpression1017 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_literal_in_valueExpression1023 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_valueExpression1029 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_valueExpression1039 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_streamIndexAccess_in_valueExpression1052 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_arrayCreation_in_valueExpression1057 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_objectCreation_in_valueExpression1063 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_operator_in_operatorExpression1076 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_30_in_parenthesesExpression1097 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_parenthesesExpression1099 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_parenthesesExpression1101 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_methodCall1124 = new BitSet(new long[]{0x0000000040000000L});
-    public static final BitSet FOLLOW_30_in_methodCall1126 = new BitSet(new long[]{0xF4F0000140000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_methodCall1133 = new BitSet(new long[]{0x0000000180000000L});
-    public static final BitSet FOLLOW_31_in_methodCall1139 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_methodCall1143 = new BitSet(new long[]{0x0000000180000000L});
-    public static final BitSet FOLLOW_32_in_methodCall1153 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_fieldAssignment1167 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_35_in_fieldAssignment1169 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_fieldAssignment1171 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_fieldAssignment1186 = new BitSet(new long[]{0x8200000010000000L});
-    public static final BitSet FOLLOW_57_in_fieldAssignment1195 = new BitSet(new long[]{0x0000000000000200L});
-    public static final BitSet FOLLOW_STAR_in_fieldAssignment1197 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_28_in_fieldAssignment1211 = new BitSet(new long[]{0x0000000000000040L,0x000000000000000AL});
-    public static final BitSet FOLLOW_operator_in_fieldAssignment1215 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_contextAwarePathExpression_in_fieldAssignment1230 = new BitSet(new long[]{0x0000000800000002L});
-    public static final BitSet FOLLOW_35_in_fieldAssignment1241 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_fieldAssignment1245 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_58_in_objectCreation1297 = new BitSet(new long[]{0x08000000000000C0L});
-    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1300 = new BitSet(new long[]{0x0800000080000000L});
-    public static final BitSet FOLLOW_31_in_objectCreation1303 = new BitSet(new long[]{0x00000000000000C0L});
-    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1305 = new BitSet(new long[]{0x0800000080000000L});
-    public static final BitSet FOLLOW_31_in_objectCreation1309 = new BitSet(new long[]{0x0800000000000000L});
-    public static final BitSet FOLLOW_59_in_objectCreation1314 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_60_in_literal1334 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_61_in_literal1350 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_DECIMAL_in_literal1366 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_STRING_in_literal1382 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_INTEGER_in_literal1399 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_62_in_literal1414 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayAccess1428 = new BitSet(new long[]{0x0000000000000200L});
-    public static final BitSet FOLLOW_STAR_in_arrayAccess1430 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayAccess1432 = new BitSet(new long[]{0x8200000000000000L});
-    public static final BitSet FOLLOW_pathExpression_in_arrayAccess1436 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayAccess1456 = new BitSet(new long[]{0x0000000000001800L});
-    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1461 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_UINT_in_arrayAccess1467 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayAccess1470 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayAccess1488 = new BitSet(new long[]{0x0000000000001800L});
-    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1493 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_UINT_in_arrayAccess1499 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_35_in_arrayAccess1502 = new BitSet(new long[]{0x0000000000001800L});
+    public static final BitSet FOLLOW_ID_in_packageImport176 = new BitSet(new long[]{0x0000000010000000L});
+    public static final BitSet FOLLOW_28_in_packageImport180 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_packageImport191 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_VAR_in_assignment209 = new BitSet(new long[]{0x0000000020000000L});
+    public static final BitSet FOLLOW_29_in_assignment211 = new BitSet(new long[]{0x0000000000000040L,0x000000000000000AL});
+    public static final BitSet FOLLOW_operator_in_assignment215 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_functionDefinition237 = new BitSet(new long[]{0x0000000020000000L});
+    public static final BitSet FOLLOW_29_in_functionDefinition239 = new BitSet(new long[]{0x0000000040000000L});
+    public static final BitSet FOLLOW_30_in_functionDefinition241 = new BitSet(new long[]{0x0000000080000000L});
+    public static final BitSet FOLLOW_31_in_functionDefinition243 = new BitSet(new long[]{0x0000000100000040L});
+    public static final BitSet FOLLOW_ID_in_functionDefinition252 = new BitSet(new long[]{0x0000000110000000L});
+    public static final BitSet FOLLOW_28_in_functionDefinition259 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_functionDefinition263 = new BitSet(new long[]{0x0000000110000000L});
+    public static final BitSet FOLLOW_32_in_functionDefinition274 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_contextAwareExpression_in_functionDefinition286 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_javaudf307 = new BitSet(new long[]{0x0000000020000000L});
+    public static final BitSet FOLLOW_29_in_javaudf309 = new BitSet(new long[]{0x0000000200000000L});
+    public static final BitSet FOLLOW_33_in_javaudf311 = new BitSet(new long[]{0x0000000080000000L});
+    public static final BitSet FOLLOW_31_in_javaudf313 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_javaudf317 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_javaudf319 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_expression_in_contextAwareExpression347 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ternaryExpression_in_expression357 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_operatorExpression_in_expression363 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_orExpression_in_ternaryExpression374 = new BitSet(new long[]{0x0000000400000000L});
+    public static final BitSet FOLLOW_34_in_ternaryExpression377 = new BitSet(new long[]{0xF4F0000880000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_ternaryExpression381 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_ternaryExpression384 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_ternaryExpression388 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_orExpression_in_ternaryExpression411 = new BitSet(new long[]{0x0000001000000000L});
+    public static final BitSet FOLLOW_36_in_ternaryExpression413 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_ternaryExpression417 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_orExpression_in_ternaryExpression439 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_andExpression_in_orExpression452 = new BitSet(new long[]{0x0000006000000002L});
+    public static final BitSet FOLLOW_37_in_orExpression456 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_38_in_orExpression460 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_andExpression_in_orExpression465 = new BitSet(new long[]{0x0000006000000002L});
+    public static final BitSet FOLLOW_elementExpression_in_andExpression494 = new BitSet(new long[]{0x0000018000000002L});
+    public static final BitSet FOLLOW_39_in_andExpression498 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_40_in_andExpression502 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_elementExpression_in_andExpression507 = new BitSet(new long[]{0x0000018000000002L});
+    public static final BitSet FOLLOW_comparisonExpression_in_elementExpression536 = new BitSet(new long[]{0x0000060000000002L});
+    public static final BitSet FOLLOW_41_in_elementExpression541 = new BitSet(new long[]{0x0000040000000000L});
+    public static final BitSet FOLLOW_42_in_elementExpression544 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_comparisonExpression_in_elementExpression548 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_arithmeticExpression_in_comparisonExpression589 = new BitSet(new long[]{0x0001F80000000002L});
+    public static final BitSet FOLLOW_43_in_comparisonExpression595 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_44_in_comparisonExpression601 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_45_in_comparisonExpression607 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_46_in_comparisonExpression613 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_47_in_comparisonExpression619 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_48_in_comparisonExpression625 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_arithmeticExpression_in_comparisonExpression630 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_multiplicationExpression_in_arithmeticExpression710 = new BitSet(new long[]{0x0006000000000002L});
+    public static final BitSet FOLLOW_49_in_arithmeticExpression716 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_50_in_arithmeticExpression722 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_multiplicationExpression_in_arithmeticExpression727 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_preincrementExpression_in_multiplicationExpression770 = new BitSet(new long[]{0x0008000000000202L});
+    public static final BitSet FOLLOW_STAR_in_multiplicationExpression776 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_51_in_multiplicationExpression782 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_preincrementExpression_in_multiplicationExpression787 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_52_in_preincrementExpression828 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_preincrementExpression_in_preincrementExpression830 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_53_in_preincrementExpression835 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_preincrementExpression_in_preincrementExpression837 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_unaryExpression_in_preincrementExpression842 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_set_in_unaryExpression852 = new BitSet(new long[]{0xF4F0000080000DC0L});
+    public static final BitSet FOLLOW_castExpression_in_unaryExpression861 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_31_in_castExpression871 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_castExpression875 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_castExpression877 = new BitSet(new long[]{0xF400000080000DC0L});
+    public static final BitSet FOLLOW_generalPathExpression_in_castExpression881 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_generalPathExpression_in_castExpression888 = new BitSet(new long[]{0x0100000000000000L});
+    public static final BitSet FOLLOW_56_in_castExpression890 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_castExpression894 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_generalPathExpression_in_castExpression901 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_valueExpression_in_generalPathExpression928 = new BitSet(new long[]{0x8200000000000000L});
+    public static final BitSet FOLLOW_pathExpression_in_generalPathExpression932 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_valueExpression_in_generalPathExpression942 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_pathExpression_in_contextAwarePathExpression955 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_57_in_pathExpression988 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_pathExpression993 = new BitSet(new long[]{0x8200000000000002L});
+    public static final BitSet FOLLOW_arrayAccess_in_pathExpression1011 = new BitSet(new long[]{0x8200000000000002L});
+    public static final BitSet FOLLOW_methodCall_in_valueExpression1032 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_parenthesesExpression_in_valueExpression1038 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_literal_in_valueExpression1044 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_valueExpression1050 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_valueExpression1063 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_valueExpression1065 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_valueExpression1071 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_streamIndexAccess_in_valueExpression1089 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_arrayCreation_in_valueExpression1094 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_objectCreation_in_valueExpression1100 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_operator_in_operatorExpression1113 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_31_in_parenthesesExpression1134 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_parenthesesExpression1136 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_parenthesesExpression1138 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_methodCall1162 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_methodCall1164 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_methodCall1170 = new BitSet(new long[]{0x0000000080000000L});
+    public static final BitSet FOLLOW_31_in_methodCall1172 = new BitSet(new long[]{0xF4F0000180000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_methodCall1179 = new BitSet(new long[]{0x0000000110000000L});
+    public static final BitSet FOLLOW_28_in_methodCall1185 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_methodCall1189 = new BitSet(new long[]{0x0000000110000000L});
+    public static final BitSet FOLLOW_32_in_methodCall1199 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_fieldAssignment1213 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_fieldAssignment1215 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_fieldAssignment1217 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_fieldAssignment1232 = new BitSet(new long[]{0x8200000020000000L});
+    public static final BitSet FOLLOW_57_in_fieldAssignment1241 = new BitSet(new long[]{0x0000000000000200L});
+    public static final BitSet FOLLOW_STAR_in_fieldAssignment1243 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_29_in_fieldAssignment1257 = new BitSet(new long[]{0x0000000000000040L,0x000000000000000AL});
+    public static final BitSet FOLLOW_operator_in_fieldAssignment1261 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_contextAwarePathExpression_in_fieldAssignment1276 = new BitSet(new long[]{0x0000000800000002L});
+    public static final BitSet FOLLOW_35_in_fieldAssignment1287 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_fieldAssignment1291 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_58_in_objectCreation1343 = new BitSet(new long[]{0x08000000000000C0L});
+    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1346 = new BitSet(new long[]{0x0800000010000000L});
+    public static final BitSet FOLLOW_28_in_objectCreation1349 = new BitSet(new long[]{0x00000000000000C0L});
+    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1351 = new BitSet(new long[]{0x0800000010000000L});
+    public static final BitSet FOLLOW_28_in_objectCreation1355 = new BitSet(new long[]{0x0800000000000000L});
+    public static final BitSet FOLLOW_59_in_objectCreation1360 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_60_in_literal1380 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_61_in_literal1396 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_DECIMAL_in_literal1412 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_STRING_in_literal1428 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_INTEGER_in_literal1445 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_62_in_literal1460 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayAccess1474 = new BitSet(new long[]{0x0000000000000200L});
+    public static final BitSet FOLLOW_STAR_in_arrayAccess1476 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayAccess1478 = new BitSet(new long[]{0x8200000000000000L});
+    public static final BitSet FOLLOW_pathExpression_in_arrayAccess1482 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayAccess1502 = new BitSet(new long[]{0x0000000000001800L});
     public static final BitSet FOLLOW_INTEGER_in_arrayAccess1507 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
     public static final BitSet FOLLOW_UINT_in_arrayAccess1513 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
     public static final BitSet FOLLOW_64_in_arrayAccess1516 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_streamIndexAccess1544 = new BitSet(new long[]{0x8000000000000000L});
-    public static final BitSet FOLLOW_63_in_streamIndexAccess1553 = new BitSet(new long[]{0xF400000040000DC0L});
-    public static final BitSet FOLLOW_generalPathExpression_in_streamIndexAccess1557 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_streamIndexAccess1559 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayCreation1578 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_arrayCreation1582 = new BitSet(new long[]{0x0000000080000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_31_in_arrayCreation1585 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_arrayCreation1589 = new BitSet(new long[]{0x0000000080000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_31_in_arrayCreation1593 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayCreation1596 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_readOperator_in_operator1633 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_writeOperator_in_operator1637 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_genericOperator_in_operator1641 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_65_in_readOperator1655 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000004L});
-    public static final BitSet FOLLOW_66_in_readOperator1657 = new BitSet(new long[]{0x0000000000000140L});
-    public static final BitSet FOLLOW_ID_in_readOperator1662 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_readOperator1667 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_readOperator1673 = new BitSet(new long[]{0x0000000040000000L});
-    public static final BitSet FOLLOW_30_in_readOperator1675 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_readOperator1679 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_readOperator1681 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_67_in_writeOperator1695 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_writeOperator1699 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000010L});
-    public static final BitSet FOLLOW_68_in_writeOperator1701 = new BitSet(new long[]{0x0000000000000140L});
-    public static final BitSet FOLLOW_ID_in_writeOperator1706 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_writeOperator1711 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_writeOperator1717 = new BitSet(new long[]{0x0000000040000000L});
-    public static final BitSet FOLLOW_30_in_writeOperator1719 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_writeOperator1723 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_writeOperator1725 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_genericOperator1745 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
-    public static final BitSet FOLLOW_operatorFlag_in_genericOperator1753 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
-    public static final BitSet FOLLOW_arrayInput_in_genericOperator1757 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_input_in_genericOperator1761 = new BitSet(new long[]{0x0000000080000042L});
-    public static final BitSet FOLLOW_31_in_genericOperator1764 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
-    public static final BitSet FOLLOW_input_in_genericOperator1766 = new BitSet(new long[]{0x0000000080000042L});
-    public static final BitSet FOLLOW_operatorOption_in_genericOperator1772 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_operatorOption1792 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_contextAwareExpression_in_operatorOption1798 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_operatorFlag1819 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_69_in_input1841 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_input1849 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_input1851 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_input1857 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_input1867 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_contextAwareExpression_in_input1875 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayInput1897 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_arrayInput1901 = new BitSet(new long[]{0x0000000080000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_31_in_arrayInput1904 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_arrayInput1908 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayInput1912 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_arrayInput1914 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_arrayInput1918 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ternaryExpression_in_synpred8_Meteor336 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_orExpression_in_synpred10_Meteor353 = new BitSet(new long[]{0x0000000400000000L});
-    public static final BitSet FOLLOW_34_in_synpred10_Meteor356 = new BitSet(new long[]{0xF4F0000840000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_synpred10_Meteor360 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_35_in_synpred10_Meteor363 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_synpred10_Meteor367 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_orExpression_in_synpred11_Meteor390 = new BitSet(new long[]{0x0000001000000000L});
-    public static final BitSet FOLLOW_36_in_synpred11_Meteor392 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_synpred11_Meteor396 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_30_in_synpred32_Meteor850 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_synpred32_Meteor854 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_synpred32_Meteor856 = new BitSet(new long[]{0xF400000040000DC0L});
-    public static final BitSet FOLLOW_generalPathExpression_in_synpred32_Meteor860 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_generalPathExpression_in_synpred33_Meteor867 = new BitSet(new long[]{0x0100000000000000L});
-    public static final BitSet FOLLOW_56_in_synpred33_Meteor869 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_synpred33_Meteor873 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_valueExpression_in_synpred34_Meteor907 = new BitSet(new long[]{0x8200000000000000L});
-    public static final BitSet FOLLOW_pathExpression_in_synpred34_Meteor911 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_57_in_synpred35_Meteor967 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_synpred35_Meteor972 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_arrayAccess_in_synpred36_Meteor990 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_synpred40_Meteor1029 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_streamIndexAccess_in_synpred42_Meteor1052 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_31_in_synpred73_Meteor1764 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
-    public static final BitSet FOLLOW_input_in_synpred73_Meteor1766 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_operatorOption_in_synpred74_Meteor1772 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_synpred77_Meteor1867 = new BitSet(new long[]{0xF4F0000040000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_contextAwareExpression_in_synpred77_Meteor1875 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayAccess1534 = new BitSet(new long[]{0x0000000000001800L});
+    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1539 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_UINT_in_arrayAccess1545 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_arrayAccess1548 = new BitSet(new long[]{0x0000000000001800L});
+    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1553 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_UINT_in_arrayAccess1559 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayAccess1562 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_streamIndexAccess1590 = new BitSet(new long[]{0x8000000000000000L});
+    public static final BitSet FOLLOW_63_in_streamIndexAccess1599 = new BitSet(new long[]{0xF400000080000DC0L});
+    public static final BitSet FOLLOW_generalPathExpression_in_streamIndexAccess1603 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_streamIndexAccess1605 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayCreation1624 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_arrayCreation1628 = new BitSet(new long[]{0x0000000010000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_28_in_arrayCreation1631 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_arrayCreation1635 = new BitSet(new long[]{0x0000000010000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_28_in_arrayCreation1639 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayCreation1642 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_readOperator_in_operator1679 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_writeOperator_in_operator1683 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_genericOperator_in_operator1687 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_65_in_readOperator1701 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000004L});
+    public static final BitSet FOLLOW_66_in_readOperator1703 = new BitSet(new long[]{0x0000000000000140L});
+    public static final BitSet FOLLOW_ID_in_readOperator1708 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_readOperator1713 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_readOperator1719 = new BitSet(new long[]{0x0000000080000000L});
+    public static final BitSet FOLLOW_31_in_readOperator1721 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_readOperator1725 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_readOperator1727 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_67_in_writeOperator1741 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_writeOperator1745 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000010L});
+    public static final BitSet FOLLOW_68_in_writeOperator1747 = new BitSet(new long[]{0x0000000000000140L});
+    public static final BitSet FOLLOW_ID_in_writeOperator1752 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_writeOperator1757 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_writeOperator1763 = new BitSet(new long[]{0x0000000080000000L});
+    public static final BitSet FOLLOW_31_in_writeOperator1765 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_writeOperator1769 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_writeOperator1771 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_genericOperator1792 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_genericOperator1794 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_genericOperator1800 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
+    public static final BitSet FOLLOW_operatorFlag_in_genericOperator1808 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
+    public static final BitSet FOLLOW_arrayInput_in_genericOperator1812 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_input_in_genericOperator1816 = new BitSet(new long[]{0x0000000010000042L});
+    public static final BitSet FOLLOW_28_in_genericOperator1819 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
+    public static final BitSet FOLLOW_input_in_genericOperator1821 = new BitSet(new long[]{0x0000000010000042L});
+    public static final BitSet FOLLOW_operatorOption_in_genericOperator1827 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_operatorOption1847 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_contextAwareExpression_in_operatorOption1853 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_operatorFlag1874 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_69_in_input1896 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_input1904 = new BitSet(new long[]{0x0000040000000000L});
+    public static final BitSet FOLLOW_42_in_input1906 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_input1912 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_input1922 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_contextAwareExpression_in_input1930 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayInput1952 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_arrayInput1956 = new BitSet(new long[]{0x0000000010000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_28_in_arrayInput1959 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_arrayInput1963 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayInput1967 = new BitSet(new long[]{0x0000040000000000L});
+    public static final BitSet FOLLOW_42_in_arrayInput1969 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_arrayInput1973 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ternaryExpression_in_synpred9_Meteor357 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_orExpression_in_synpred11_Meteor374 = new BitSet(new long[]{0x0000000400000000L});
+    public static final BitSet FOLLOW_34_in_synpred11_Meteor377 = new BitSet(new long[]{0xF4F0000880000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_synpred11_Meteor381 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_synpred11_Meteor384 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_synpred11_Meteor388 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_orExpression_in_synpred12_Meteor411 = new BitSet(new long[]{0x0000001000000000L});
+    public static final BitSet FOLLOW_36_in_synpred12_Meteor413 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_synpred12_Meteor417 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_31_in_synpred33_Meteor871 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_synpred33_Meteor875 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_synpred33_Meteor877 = new BitSet(new long[]{0xF400000080000DC0L});
+    public static final BitSet FOLLOW_generalPathExpression_in_synpred33_Meteor881 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_generalPathExpression_in_synpred34_Meteor888 = new BitSet(new long[]{0x0100000000000000L});
+    public static final BitSet FOLLOW_56_in_synpred34_Meteor890 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_synpred34_Meteor894 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_valueExpression_in_synpred35_Meteor928 = new BitSet(new long[]{0x8200000000000000L});
+    public static final BitSet FOLLOW_pathExpression_in_synpred35_Meteor932 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_57_in_synpred36_Meteor988 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_synpred36_Meteor993 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_arrayAccess_in_synpred37_Meteor1011 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_methodCall_in_synpred38_Meteor1032 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_synpred41_Meteor1050 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_synpred42_Meteor1063 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_synpred42_Meteor1065 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_synpred43_Meteor1063 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_synpred43_Meteor1065 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_synpred43_Meteor1071 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_streamIndexAccess_in_synpred44_Meteor1089 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_28_in_synpred77_Meteor1819 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
+    public static final BitSet FOLLOW_input_in_synpred77_Meteor1821 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_operatorOption_in_synpred78_Meteor1827 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_synpred81_Meteor1922 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_contextAwareExpression_in_synpred81_Meteor1930 = new BitSet(new long[]{0x0000000000000002L});
 
 }

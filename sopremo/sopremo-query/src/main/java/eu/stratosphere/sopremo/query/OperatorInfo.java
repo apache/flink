@@ -18,10 +18,12 @@ import java.beans.IndexedPropertyDescriptor;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
-import java.util.HashMap;
-import java.util.Map;
 
 import eu.stratosphere.sopremo.operator.Operator;
+import eu.stratosphere.sopremo.packages.DefaultRegistry;
+import eu.stratosphere.sopremo.packages.IRegistry;
+import eu.stratosphere.sopremo.packages.NameChooser;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
 public class OperatorInfo<Op extends Operator<Op>> extends InfoBase<Op> {
 
@@ -139,17 +141,18 @@ public class OperatorInfo<Op extends Operator<Op>> extends InfoBase<Op> {
 		}
 	}
 
-	Class<? extends Op> operatorClass;
+	private Class<Op> operatorClass;
 
 	private final String name;
 
 	private final NameChooser propertyNameChooser;
 
-	private final Map<String, OperatorPropertyInfo> operatorProperties = new HashMap<String, OperatorPropertyInfo>();
+	private final IRegistry<OperatorPropertyInfo> operatorPropertyRegistry =
+		new DefaultRegistry<OperatorPropertyInfo>();
 
-	private final Map<String, InputPropertyInfo> inputProperties = new HashMap<String, InputPropertyInfo>();
+	private final IRegistry<InputPropertyInfo> inputPropertyRegistry = new DefaultRegistry<InputPropertyInfo>();
 
-	public OperatorInfo(final Class<? extends Op> operatorClass, final String opName,
+	public OperatorInfo(final Class<Op> operatorClass, final String opName,
 			final NameChooser propertyNameChooser) {
 		this.operatorClass = operatorClass;
 		this.name = opName;
@@ -158,13 +161,13 @@ public class OperatorInfo<Op extends Operator<Op>> extends InfoBase<Op> {
 
 	private void initProperties() {
 		try {
-			final PropertyDescriptor[] propertyDescriptors = Introspector.getBeanInfo(operatorClass)
+			final PropertyDescriptor[] propertyDescriptors = Introspector.getBeanInfo(this.operatorClass)
 				.getPropertyDescriptors();
 			for (final PropertyDescriptor propertyDescriptor : propertyDescriptors)
 				if (propertyDescriptor.getWriteMethod() != null
 					|| propertyDescriptor instanceof IndexedPropertyDescriptor &&
 					((IndexedPropertyDescriptor) propertyDescriptor).getIndexedWriteMethod() != null) {
-					String name = propertyNameChooser.choose(
+					String name = this.propertyNameChooser.choose(
 						(String[]) propertyDescriptor.getValue(Operator.Info.NAME_NOUNS),
 						(String[]) propertyDescriptor.getValue(Operator.Info.NAME_VERB),
 						(String[]) propertyDescriptor.getValue(Operator.Info.NAME_ADJECTIVE),
@@ -173,49 +176,34 @@ public class OperatorInfo<Op extends Operator<Op>> extends InfoBase<Op> {
 						name = propertyDescriptor.getName();
 
 					if (propertyDescriptor.getValue(Operator.Info.INPUT) == Boolean.TRUE)
-						this.inputProperties.put(name, new InputPropertyInfo(name,
+						this.inputPropertyRegistry.put(name, new InputPropertyInfo(name,
 							(IndexedPropertyDescriptor) propertyDescriptor));
 					else
-						this.operatorProperties.put(name, new OperatorPropertyInfo(name, propertyDescriptor));
+						this.operatorPropertyRegistry.put(name, new OperatorPropertyInfo(name, propertyDescriptor));
 				}
 		} catch (final IntrospectionException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public Map<String, InputPropertyInfo> getInputProperties() {
-		if (needsInitialization())
-			initProperties();
-		return this.inputProperties;
-	}
-
-	public InputPropertyInfo getInputPropertyInfo(final String name) {
-		return getInputProperties().get(name);
+	public IRegistry<InputPropertyInfo> getInputPropertyRegistry() {
+		if (this.needsInitialization())
+			this.initProperties();
+		return this.inputPropertyRegistry;
 	}
 
 	public String getName() {
 		return this.name;
 	}
 
-	public Map<String, OperatorPropertyInfo> getOperatorProperties() {
-		if (needsInitialization())
-			initProperties();
-		return this.operatorProperties;
-	}
-
-	public OperatorPropertyInfo getOperatorProperty(final String name) {
-		return getOperatorProperties().get(name);
+	public IRegistry<OperatorPropertyInfo> getOperatorPropertyRegistry() {
+		if (this.needsInitialization())
+			this.initProperties();
+		return this.operatorPropertyRegistry;
 	}
 
 	public Operator<Op> newInstance() {
-		try {
-			return this.operatorClass.newInstance();
-		} catch (final InstantiationException e) {
-			e.printStackTrace();
-		} catch (final IllegalAccessException e) {
-			e.printStackTrace();
-		}
-		return null;
+		return ReflectUtil.newInstance(this.operatorClass);
 	}
 
 	@Override

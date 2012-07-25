@@ -14,16 +14,41 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.query;
 
-import eu.stratosphere.sopremo.operator.Operator;
+import org.antlr.runtime.RecognizerSharedState;
+import org.antlr.runtime.TokenStream;
+
+import eu.stratosphere.sopremo.packages.DefaultRegistry;
 import eu.stratosphere.sopremo.packages.IRegistry;
 
 /**
- * Registry that manages {@link Operator}s.
- * 
  * @author Arvid Heise
  */
-public interface IOperatorRegistry extends IRegistry<OperatorInfo<?>> {
-	void put(Class<? extends Operator<?>> clazz);
+public abstract class QueryWithVariablesParser<VarType> extends AbstractQueryParser {
+	private StackedRegistry<VarType, IRegistry<VarType>> variableRegistry =
+		new StackedRegistry<VarType, IRegistry<VarType>>(new DefaultRegistry<VarType>());
 
-	String getName(final Class<? extends Operator<?>> operatorClass);
+	public QueryWithVariablesParser(TokenStream input, RecognizerSharedState state) {
+		super(input, state);
+	}
+
+	public QueryWithVariablesParser(TokenStream input) {
+		super(input);
+	}
+
+	public void addScope() {
+		this.variableRegistry.push(new DefaultRegistry<VarType>());
+	}
+
+	public void removeScope() {
+		this.variableRegistry.pop();
+	}
+
+	/**
+	 * Returns the variableRegistry.
+	 * 
+	 * @return the variableRegistry
+	 */
+	public StackedRegistry<VarType, IRegistry<VarType>> getVariableRegistry() {
+		return this.variableRegistry;
+	}
 }

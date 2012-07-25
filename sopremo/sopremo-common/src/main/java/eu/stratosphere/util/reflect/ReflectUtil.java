@@ -1,6 +1,7 @@
 package eu.stratosphere.util.reflect;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -78,6 +79,8 @@ public class ReflectUtil {
 	 * @return the minimum distance or -1 if <code>subclass</code> is not a subclass of <code>superclass</code>
 	 */
 	public static int getDistance(final Class<?> superClass, final Class<?> subclass) {
+		if (subclass == null)
+			return 0;
 		if (isSameTypeOrPrimitive(superClass, subclass))
 			return 0;
 		if (!superClass.isAssignableFrom(subclass))
@@ -213,13 +216,28 @@ public class ReflectUtil {
 	public static synchronized List<Method> getMethods(final Class<?> clazz, final String name,
 			final int... modifierBitsets) {
 		final ArrayList<Method> methods = new ArrayList<Method>();
-		for (final Method method : clazz.getMethods())
+		int modifiers = 0;
+		for (final int modifier : modifierBitsets)
+			modifiers |= modifier;
+		for (final Method method : clazz.getDeclaredMethods())
 			if (name == null || method.getName().equals(name)) {
-				for (final int modifiers : modifierBitsets)
-					if ((method.getModifiers() & modifiers) != modifiers)
-						continue;
+				if ((method.getModifiers() & modifiers) != modifiers)
+					continue;
 				methods.add(method);
 			}
 		return methods;
+	}
+
+	public static synchronized List<Field> getFields(final Class<?> clazz, final String name,
+			final int... modifierBitsets) {
+		final ArrayList<Field> fields = new ArrayList<Field>();
+		for (final Field field : clazz.getDeclaredFields())
+			if (name == null || field.getName().equals(name)) {
+				for (final int modifiers : modifierBitsets)
+					if ((field.getModifiers() & modifiers) != modifiers)
+						continue;
+				fields.add(field);
+			}
+		return fields;
 	}
 }

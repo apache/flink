@@ -107,10 +107,26 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 	@Override
 	public IJsonNode[] toArray() {
 		IJsonNode[] result = new IJsonNode[this.size()];
+		fillArray(result);
+		return result;
+	}
+
+	protected void fillArray(IJsonNode[] result) {
 		int i = 0;
 		for (IJsonNode node : this)
 			result[i++] = node;
+	}
 
-		return result;
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IArrayNode#toArray(eu.stratosphere.sopremo.type.IJsonNode[])
+	 */
+	@Override
+	public IJsonNode[] toArray(IJsonNode[] array) {
+		final int size = this.size();
+		if (array.length != size)
+			array = new IJsonNode[size];
+		fillArray(array);
+		return array;
 	}
 }

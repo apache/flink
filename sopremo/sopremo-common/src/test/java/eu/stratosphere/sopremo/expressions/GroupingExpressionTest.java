@@ -6,7 +6,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.DefaultFunctions;
+import eu.stratosphere.sopremo.CoreFunctions;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
@@ -19,7 +19,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 
 	@Test
 	public void testAggregation() {
-		this.context.getFunctionRegistry().put(DefaultFunctions.class);
+		this.context.getFunctionRegistry().put(CoreFunctions.class);
 
 		final ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));
@@ -28,8 +28,9 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 		input.add(createObjectNode("key", 2, "value", 25));
 		input.add(createObjectNode("key", 1, "value", 12));
 
-		final GroupingExpression aggExpression = new GroupingExpression(new ObjectAccess("key"), new MethodCall("sum",
-			new ArrayProjection(new ObjectAccess("value"))));
+		final GroupingExpression aggExpression =
+			new GroupingExpression(new ObjectAccess("key"), new FunctionCall("sum", 
+				this.context, new ArrayProjection(new ObjectAccess("value"))));
 
 		final IJsonNode result = aggExpression.evaluate(input, null, this.context);
 
@@ -44,7 +45,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 	@Test
 	public void shouldReuseTarget() {
 		IJsonNode target = new ArrayNode();
-		this.context.getFunctionRegistry().put(DefaultFunctions.class);
+		this.context.getFunctionRegistry().put(CoreFunctions.class);
 
 		final ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));
@@ -53,8 +54,9 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 		input.add(createObjectNode("key", 2, "value", 25));
 		input.add(createObjectNode("key", 1, "value", 12));
 
-		final GroupingExpression aggExpression = new GroupingExpression(new ObjectAccess("key"), new MethodCall("sum",
-			new ArrayProjection(new ObjectAccess("value"))));
+		final GroupingExpression aggExpression =
+			new GroupingExpression(new ObjectAccess("key"), new FunctionCall("sum",
+				this.context, new ArrayProjection(new ObjectAccess("value"))));
 
 		final IJsonNode result = aggExpression.evaluate(input, target, this.context);
 
@@ -70,7 +72,7 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 	@Test
 	public void shouldNotReuseTargetIfWrongType() {
 		IJsonNode target = new ObjectNode();
-		this.context.getFunctionRegistry().put(DefaultFunctions.class);
+		this.context.getFunctionRegistry().put(CoreFunctions.class);
 
 		final ArrayNode input = new ArrayNode();
 		input.add(createObjectNode("key", 1, "value", 11));
@@ -79,8 +81,9 @@ public class GroupingExpressionTest extends EvaluableExpressionTest<GroupingExpr
 		input.add(createObjectNode("key", 2, "value", 25));
 		input.add(createObjectNode("key", 1, "value", 12));
 
-		final GroupingExpression aggExpression = new GroupingExpression(new ObjectAccess("key"), new MethodCall("sum",
-			new ArrayProjection(new ObjectAccess("value"))));
+		final GroupingExpression aggExpression =
+			new GroupingExpression(new ObjectAccess("key"), new FunctionCall("sum",
+				this.context, new ArrayProjection(new ObjectAccess("value"))));
 
 		final IJsonNode result = aggExpression.evaluate(input, target, this.context);
 

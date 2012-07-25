@@ -6,7 +6,7 @@ import nl.jqno.equalsverifier.Warning;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.type.AbstractJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 
 public class ConstantExpressionTest extends EvaluableExpressionTest<ConstantExpression> {
@@ -19,7 +19,7 @@ public class ConstantExpressionTest extends EvaluableExpressionTest<ConstantExpr
 	@Override
 	protected void initVerifier(final EqualsVerifier<ConstantExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
-		equalVerifier.withPrefabValues(AbstractJsonNode.class, IntNode.valueOf(23), IntNode.valueOf(42));
+		equalVerifier.withPrefabValues(IJsonNode.class, IntNode.valueOf(23), IntNode.valueOf(42));
 		equalVerifier.suppress(Warning.TRANSIENT_FIELDS);
 	}
 

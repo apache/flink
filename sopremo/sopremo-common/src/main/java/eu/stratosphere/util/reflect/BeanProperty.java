@@ -16,6 +16,7 @@ package eu.stratosphere.util.reflect;
 
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 
 /**
  * @author Arvid Heise
@@ -40,6 +41,14 @@ public class BeanProperty<Type> extends DynamicProperty<Type> {
 		} catch (final InvocationTargetException e) {
 			throw new RuntimeException(e);
 		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.util.reflect.DynamicProperty#getModifiers()
+	 */
+	@Override
+	public int getModifiers() {
+		return Modifier.PUBLIC;
 	}
 
 	/*

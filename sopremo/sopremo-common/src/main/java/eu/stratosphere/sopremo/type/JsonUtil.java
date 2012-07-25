@@ -44,7 +44,7 @@ public class JsonUtil {
 	 *        the nodes to wrap
 	 * @return an efficient wrapper
 	 */
-	public static ArrayNode asArray(final IJsonNode... nodes) {
+	public static IArrayNode asArray(final IJsonNode... nodes) {
 		return new ArrayNode(nodes);
 	}
 
@@ -137,7 +137,7 @@ public class JsonUtil {
 	}
 
 	public static IArrayNode createCompactArray(final Object... constants) {
-		final AbstractJsonNode[] nodes = new AbstractJsonNode[constants.length];
+		final IJsonNode[] nodes = new IJsonNode[constants.length];
 		for (int index = 0; index < nodes.length; index++)
 			nodes[index] = createValueNode(constants[index]);
 		return JsonUtil.asArray(nodes);
@@ -152,7 +152,7 @@ public class JsonUtil {
 		return objectNode;
 	}
 
-	public static AbstractJsonNode createValueNode(final Object value) {
+	public static IJsonNode createValueNode(final Object value) {
 		return JsonUtil.OBJECT_MAPPER.valueToTree(value);
 	}
 

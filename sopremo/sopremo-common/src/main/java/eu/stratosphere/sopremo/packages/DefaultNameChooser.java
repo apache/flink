@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.query;
+package eu.stratosphere.sopremo.packages;
 
 public class DefaultNameChooser implements NameChooser {
 	private final int[] preferredOrder;

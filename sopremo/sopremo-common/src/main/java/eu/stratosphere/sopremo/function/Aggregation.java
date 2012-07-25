@@ -1,11 +1,11 @@
-package eu.stratosphere.sopremo.aggregation;
+package eu.stratosphere.sopremo.function;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-public abstract class AggregationFunction implements ISerializableSopremoType, Cloneable {
+public abstract class Aggregation<ElementType extends IJsonNode, AggregatorType extends IJsonNode> implements ISerializableSopremoType, Cloneable {
 	/**
 	 * 
 	 */
@@ -13,11 +13,11 @@ public abstract class AggregationFunction implements ISerializableSopremoType, C
 
 	private final String name;
 
-	public AggregationFunction(final String name) {
+	public Aggregation(final String name) {
 		this.name = name;
 	}
 
-	public abstract IJsonNode aggregate(IJsonNode node, IJsonNode aggregator, EvaluationContext context);
+	public abstract AggregatorType aggregate(ElementType node, AggregatorType aggregator, EvaluationContext context);
 
 	public AggregationExpression asExpression() {
 		return new AggregationExpression(this);
@@ -27,10 +27,20 @@ public abstract class AggregationFunction implements ISerializableSopremoType, C
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + (this.name == null ? 0 : this.name.hashCode());
+		result = prime * result +  this.name.hashCode();
 		return result;
 	}
+	
+	/**
+	 * Returns the name.
+	 * 
+	 * @return the name
+	 */
+	public String getName() {
+		return this.name;
+	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public boolean equals(final Object obj) {
 		if (this == obj)
@@ -39,27 +49,23 @@ public abstract class AggregationFunction implements ISerializableSopremoType, C
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final AggregationFunction other = (AggregationFunction) obj;
-		if (this.name == null) {
-			if (other.name != null)
-				return false;
-		} else if (!this.name.equals(other.name))
-			return false;
-		return true;
+		final Aggregation<ElementType, AggregatorType> other = (Aggregation<ElementType, AggregatorType>) obj;
+		return this.name.equals(other.name);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public AggregationFunction clone() {
+	public Aggregation<ElementType, AggregatorType> clone() {
 		try {
-			return (AggregationFunction) super.clone();
+			return (Aggregation<ElementType, AggregatorType>) super.clone();
 		} catch (final CloneNotSupportedException e) {
 			throw new IllegalStateException("should not happen", e);
 		}
 	}
 
-	public abstract IJsonNode getFinalAggregate(IJsonNode aggregator, IJsonNode target);
+	public abstract IJsonNode getFinalAggregate(AggregatorType aggregator, IJsonNode target);
 
-	public IJsonNode initialize(IJsonNode aggregator) {
+	public AggregatorType initialize(AggregatorType aggregator) {
 		return aggregator;
 	}
 

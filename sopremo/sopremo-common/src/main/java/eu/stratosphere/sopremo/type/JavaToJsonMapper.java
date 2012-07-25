@@ -59,7 +59,7 @@ public class JavaToJsonMapper {
 		return this.typeDict.get(ReflectUtil.getClassForPrimtive(javaClass)).getDeclaringClass();
 	}
 
-	public AbstractJsonNode valueToTree(final Object value) {
+	public IJsonNode valueToTree(final Object value) {
 		if (value == null)
 			return NullNode.getInstance();
 

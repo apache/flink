@@ -5,7 +5,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-public class ExpressionFunction extends SopremoMethod implements Inlineable {
+public class ExpressionFunction extends SopremoFunction implements Inlineable {
 	/**
 	 * 
 	 */
@@ -13,8 +13,11 @@ public class ExpressionFunction extends SopremoMethod implements Inlineable {
 
 	private final EvaluationExpression definition;
 
-	public ExpressionFunction(final EvaluationExpression definition) {
+	private final int numParams;
+
+	public ExpressionFunction(final int numParams, final EvaluationExpression definition) {
 		this.definition = definition;
+		this.numParams = numParams;
 	}
 
 	/*
@@ -34,6 +37,7 @@ public class ExpressionFunction extends SopremoMethod implements Inlineable {
 	 */
 	@Override
 	public IJsonNode call(final IArrayNode params, final IJsonNode target, final EvaluationContext context) {
+		checkParameters(params, this.numParams);
 		return this.definition.evaluate(params, target, context);
 	}
 

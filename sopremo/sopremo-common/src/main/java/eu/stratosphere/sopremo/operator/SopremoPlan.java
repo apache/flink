@@ -9,7 +9,7 @@ import java.util.List;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.plan.Plan;
-import eu.stratosphere.sopremo.DefaultFunctions;
+import eu.stratosphere.sopremo.CoreFunctions;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.serialization.NaiveSchemaFactory;
@@ -32,7 +32,7 @@ public class SopremoPlan {
 
 	public SopremoPlan() {
 		this.module = new SopremoModule("plan", 0, 0);
-		this.context.getFunctionRegistry().put(DefaultFunctions.class);
+		this.context.getFunctionRegistry().put(CoreFunctions.class);
 	}
 
 	/**
@@ -97,7 +97,7 @@ public class SopremoPlan {
 	 * 
 	 * @return the evaluation context
 	 */
-	public EvaluationContext getContext() {
+	public EvaluationContext getEvaluationContext() {
 		return this.context;
 	}
 

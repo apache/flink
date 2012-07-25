@@ -12,19 +12,15 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.util.reflect;
-
-import java.lang.reflect.Modifier;
+package eu.stratosphere.sopremo.packages;
 
 /**
  * @author Arvid Heise
  */
-public abstract class DynamicProperty<Type> {
-	public abstract void set(Object instance, Type value);
+public interface EvaluationScope {
 
-	public abstract Type get(Object instance);
+	public abstract IConstantRegistry getConstantRegistry();
 
-	public abstract int getModifiers();
+	public abstract IFunctionRegistry getFunctionRegistry();
 
-	public abstract Class<Type> getType();
 }

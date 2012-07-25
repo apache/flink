@@ -1,25 +1,43 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
 package eu.stratosphere.sopremo.function;
 
 import java.lang.reflect.Method;
 import java.util.Collection;
 
-import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.reflect.DynamicMethod;
-import eu.stratosphere.util.reflect.ExtensionMethod;
 import eu.stratosphere.util.reflect.Signature;
 
-public class JavaMethod extends SopremoMethod {
+/**
+ * @author Arvid Heise
+ */
+public abstract class JavaMethod extends SopremoFunction {
+
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = -789826280721581321L;
+	private static final long serialVersionUID = 2195013413330805401L;
 
-	private final DynamicMethod<IJsonNode> method;
+	protected final DynamicMethod<IJsonNode> method;
 
+	/**
+	 * Initializes JavaMethod.
+	 */
 	public JavaMethod(final String name) {
-		this.method = new ExtensionMethod<IJsonNode>(name);
+		this.method = new DynamicMethod<IJsonNode>(name);
 	}
 
 	public void addSignature(final Method method) {
@@ -30,21 +48,9 @@ public class JavaMethod extends SopremoMethod {
 		return this.method.getSignatures();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
-	 */
-	@Override
-	public IJsonNode call(final IArrayNode params, final IJsonNode target, final EvaluationContext context) {
-		return this.method.invoke(null, (Object[]) params.toArray());
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.ISopremoType#toString(java.lang.StringBuilder)
-	 */
 	@Override
 	public void toString(StringBuilder builder) {
 		builder.append("Java method ").append(this.method);
 	}
+
 }

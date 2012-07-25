@@ -9,7 +9,7 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.DefaultFunctions;
+import eu.stratosphere.sopremo.CoreFunctions;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -23,13 +23,13 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 	protected BatchAggregationExpression createDefaultInstance(final int index) {
 		switch (index) {
 		case 0:
-			return new BatchAggregationExpression(DefaultFunctions.AVERAGE);
+			return new BatchAggregationExpression(CoreFunctions.AVERAGE);
 		case 1:
-			return new BatchAggregationExpression(DefaultFunctions.COUNT);
+			return new BatchAggregationExpression(CoreFunctions.COUNT);
 		case 2:
-			return new BatchAggregationExpression(DefaultFunctions.FIRST);
+			return new BatchAggregationExpression(CoreFunctions.FIRST);
 		default:
-			return new BatchAggregationExpression(DefaultFunctions.ALL);
+			return new BatchAggregationExpression(CoreFunctions.ALL);
 		}
 
 	}
@@ -43,9 +43,9 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 
 	@Test
 	public void shouldPerformBatch() {
-		final BatchAggregationExpression batch = new BatchAggregationExpression(DefaultFunctions.SUM);
-		batch.add(DefaultFunctions.AVERAGE);
-		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
+		final BatchAggregationExpression batch = new BatchAggregationExpression(CoreFunctions.SUM);
+		batch.add(CoreFunctions.AVERAGE);
+		batch.add(CoreFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), null, this.context);
 		
@@ -66,9 +66,9 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 	@Test
 	public void shouldReuseTarget() {
 		ArrayNode target = new ArrayNode();
-		final BatchAggregationExpression batch = new BatchAggregationExpression(DefaultFunctions.SUM);
-		batch.add(DefaultFunctions.AVERAGE);
-		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
+		final BatchAggregationExpression batch = new BatchAggregationExpression(CoreFunctions.SUM);
+		batch.add(CoreFunctions.AVERAGE);
+		batch.add(CoreFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), target, this.context);
 
@@ -78,9 +78,9 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 	@Test
 	public void shouldNotReuseTargetWithWrongType() {
 		ObjectNode target = new ObjectNode();
-		final BatchAggregationExpression batch = new BatchAggregationExpression(DefaultFunctions.SUM);
-		batch.add(DefaultFunctions.AVERAGE);
-		batch.add(DefaultFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
+		final BatchAggregationExpression batch = new BatchAggregationExpression(CoreFunctions.SUM);
+		batch.add(CoreFunctions.AVERAGE);
+		batch.add(CoreFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), target, this.context);
 

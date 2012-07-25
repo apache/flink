@@ -200,14 +200,13 @@ public class ArrayNode extends AbstractArrayNode {
 		return array;
 	}
 
-	/**
-	 * Creates a standard java array which contains all {@link IJsonNode}s saved in this ArrayNode.
-	 * 
-	 * @return the created IJsonNode[]
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.AbstractArrayNode#fillArray(eu.stratosphere.sopremo.type.IJsonNode[])
 	 */
 	@Override
-	public IJsonNode[] toArray() {
-		return this.children.toArray(new IJsonNode[this.children.size()]);
+	protected void fillArray(IJsonNode[] result) {
+		this.children.toArray(new IJsonNode[this.children.size()]);
 	}
 
 	@Override

@@ -15,7 +15,7 @@
 package eu.stratosphere.sopremo.base;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction;
+import eu.stratosphere.sopremo.function.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;

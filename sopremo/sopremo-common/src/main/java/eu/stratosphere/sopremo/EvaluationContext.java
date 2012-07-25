@@ -7,9 +7,10 @@ import java.util.LinkedList;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.operator.Operator;
 import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
-import eu.stratosphere.sopremo.packages.DefaultMethodRegistry;
+import eu.stratosphere.sopremo.packages.DefaultFunctionRegistry;
+import eu.stratosphere.sopremo.packages.EvaluationScope;
 import eu.stratosphere.sopremo.packages.IConstantRegistry;
-import eu.stratosphere.sopremo.packages.IMethodRegistry;
+import eu.stratosphere.sopremo.packages.IFunctionRegistry;
 import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
 
@@ -18,10 +19,10 @@ import eu.stratosphere.sopremo.serialization.Schema;
  * 
  * @author Arvid Heise
  */
-public class EvaluationContext extends AbstractSopremoType implements ISerializableSopremoType {
+public class EvaluationContext extends AbstractSopremoType implements ISerializableSopremoType, EvaluationScope {
 	private static final long serialVersionUID = 7701485388451926506L;
 
-	private final IMethodRegistry methodRegistry;
+	private final IFunctionRegistry methodRegistry;
 
 	private final IConstantRegistry constantRegistry;
 
@@ -73,7 +74,7 @@ public class EvaluationContext extends AbstractSopremoType implements ISerializa
 	/**
 	 * Initializes EvaluationContext.
 	 */
-	public EvaluationContext(final int numInputs, final int numOutputs, IMethodRegistry methodRegistry,
+	public EvaluationContext(final int numInputs, final int numOutputs, IFunctionRegistry methodRegistry,
 			IConstantRegistry constantRegistry) {
 		this.methodRegistry = methodRegistry;
 		this.constantRegistry = constantRegistry;
@@ -95,13 +96,12 @@ public class EvaluationContext extends AbstractSopremoType implements ISerializa
 		this.outputSchemas = context.outputSchemas.clone();
 		this.schema = context.schema;
 	}
-	
+
 	/**
 	 * Initializes EvaluationContext.
-	 *
 	 */
 	public EvaluationContext() {
-		this(0, 0, new DefaultMethodRegistry(), new DefaultConstantRegistry());
+		this(0, 0, new DefaultFunctionRegistry(), new DefaultConstantRegistry());
 	}
 
 	/**
@@ -109,8 +109,18 @@ public class EvaluationContext extends AbstractSopremoType implements ISerializa
 	 * 
 	 * @return the FunctionRegistry
 	 */
-	public IMethodRegistry getFunctionRegistry() {
+	@Override
+	public IFunctionRegistry getFunctionRegistry() {
 		return this.methodRegistry;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.packages.RegistryScope#getConstantRegistry()
+	 */
+	@Override
+	public IConstantRegistry getConstantRegistry() {
+		return this.constantRegistry;
 	}
 
 	public int getInputCounter() {

@@ -19,8 +19,7 @@ public class ComparativeExpressionTest extends EvaluableExpressionTest<Comparati
 			BinaryOperator.NOT_EQUAL, new UnaryExpression(new ConstantExpression(IntNode.valueOf(index + 1))));
 	}
 
-	@Ignore
-	public IJsonNode evaluate(final AbstractJsonNode expr1, final BinaryOperator op, final IJsonNode expr2) {
+	public IJsonNode evaluate(final IJsonNode expr1, final BinaryOperator op, final IJsonNode expr2) {
 		return new ComparativeExpression(new InputSelection(0), op, new InputSelection(1)).evaluate(
 			createArrayNode(expr1, expr2), null, this.context);
 
