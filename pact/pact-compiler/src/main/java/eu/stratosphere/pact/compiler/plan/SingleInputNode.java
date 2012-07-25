@@ -158,26 +158,33 @@ public abstract class SingleInputNode extends OptimizerNode {
 		// get the predecessor node
 		List<Contract> children = ((SingleInputContract<?>) getPactContract()).getInputs();
 		
-		for(Contract child : children) {
-			OptimizerNode predNode = contractToNode.get(child);
-	
-			// create a connection
-			PactConnection conn = new PactConnection(predNode, this);
-			this.setInConn(conn);
-			predNode.addOutConn(conn);
-	
-			// see if an internal hint dictates the strategy to use
-			Configuration conf = getPactContract().getParameters();
-			String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
-			if (shipStrategy != null) {
-				if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-					conn.setShipStrategy(ShipStrategy.FORWARD);
-				} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-					conn.setShipStrategy(ShipStrategy.PARTITION_HASH);
-				} else {
-					throw new CompilerException("Invalid hint for the shipping strategy of a single input connection: "
-						+ shipStrategy);
-				}
+		OptimizerNode pred;
+		if (children.size() == 1) {
+			pred = contractToNode.get(children.get(0));
+		} else {
+			pred = new UnionNode(getPactContract(), children, contractToNode);
+			pred.setDegreeOfParallelism(this.getDegreeOfParallelism());
+			//push id down to newly created union node
+			pred.SetId(this.id);
+			pred.setInstancesPerMachine(instancesPerMachine);
+			this.id++;
+		}
+		// create the connection and add it
+		PactConnection conn = new PactConnection(pred, this);
+		this.setInConn(conn);
+		pred.addOutConn(conn);
+		
+		// see if an internal hint dictates the strategy to use
+		Configuration conf = getPactContract().getParameters();
+		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
+		if (shipStrategy != null) {
+			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
+				conn.setShipStrategy(ShipStrategy.FORWARD);
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
+				conn.setShipStrategy(ShipStrategy.PARTITION_HASH);
+			} else {
+				throw new CompilerException("Invalid hint for the shipping strategy of a single input connection: "
+					+ shipStrategy);
 			}
 		}
 	}
@@ -235,6 +242,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 			return;
 		}
 
+		addClosedBranches(this.getPredNode().closedBranchingNodes);
+		
 		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
 		// TODO: check if merge of lists is really necessary
 		result = mergeLists(result, this.getPredNode().getBranchesForParent(this)); 
@@ -375,19 +384,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 		if (this.notConstantSet != null && this.constantSet != null) {
 			throw new CompilerException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.");
 		}
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
-	 */
-	@Override
-	public FieldSet getConstantSet(int input) {
-		
-		if(input < -1 || input > 0)
-			throw new IndexOutOfBoundsException();
-		
-		return this.constantSet;
 	}
 
 	

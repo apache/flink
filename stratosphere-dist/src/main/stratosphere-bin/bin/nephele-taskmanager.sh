@@ -75,6 +75,8 @@ constructTaskManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'aws-java-sdk' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'guava' ]]; then
+			add=1
 		fi
 
 		if [[ "$add" = "1" ]]; then

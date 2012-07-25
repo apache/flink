@@ -317,12 +317,12 @@ public class MatchNode extends TwoInputNode {
 				if (ss1 == ShipStrategy.NONE) {
 					// the first connection is free to choose for the compiler
 
-					gp1 = subPlan1.getGlobalProperties();
+					gp1 = subPlan1.getGlobalPropertiesForParent(this);
 
 					if (ss2 == ShipStrategy.NONE) {
 						// case: both are free to choose
 					
-						gp2 = subPlan2.getGlobalProperties();
+						gp2 = subPlan2.getGlobalPropertiesForParent(this);
 
 						// test, if one side is pre-partitioned
 						// if that is the case, partitioning the other side accordingly is
@@ -492,7 +492,7 @@ public class MatchNode extends TwoInputNode {
 					// second connection free to choose, but first one is fixed
 
 					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
-					gp2 = subPlan2.getGlobalProperties();
+					gp2 = subPlan2.getGlobalPropertiesForParent(this);
 
 					// 1) input 1 is broadcast -> other side must be forward
 					// 2) input 1 is forward -> other side must be broadcast, if forwarded side is not partitioned

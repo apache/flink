@@ -239,21 +239,37 @@ public abstract class TwoInputNode extends OptimizerNode
 		List<Contract> leftPreds = contr.getFirstInputs();
 		List<Contract> rightPreds = contr.getSecondInputs();
 		
-		for(Contract cl : leftPreds) {
-			OptimizerNode pred1 = contractToNode.get(cl);
-			// create the connections and add them
-			PactConnection conn1 = new PactConnection(pred1, this);
-			this.input1 = conn1;
-			pred1.addOutConn(conn1);
+		OptimizerNode pred1;
+		if (leftPreds.size() == 1) {
+			pred1 = contractToNode.get(leftPreds.get(0));
+		} else {
+			pred1 = new UnionNode(getPactContract(), leftPreds, contractToNode);
+			pred1.setDegreeOfParallelism(this.getDegreeOfParallelism());
+			//push id down to newly created union node
+			pred1.SetId(this.id);
+			pred1.setInstancesPerMachine(instancesPerMachine);
+			this.id++;
 		}
-
-		for(Contract cr : rightPreds) {
-			OptimizerNode pred2 = contractToNode.get(cr);
-			// create the connections and add them
-			PactConnection conn2 = new PactConnection(pred2, this);
-			this.input2 = conn2;
-			pred2.addOutConn(conn2);
+		// create the connection and add it
+		PactConnection conn1 = new PactConnection(pred1, this);
+		this.input1 = conn1;
+		pred1.addOutConn(conn1);
+		
+		OptimizerNode pred2;
+		if (rightPreds.size() == 1) {
+			pred2 = contractToNode.get(rightPreds.get(0));
+		} else {
+			pred2 = new UnionNode(getPactContract(), rightPreds, contractToNode);
+			pred2.setDegreeOfParallelism(this.getDegreeOfParallelism());
+			//push id down to newly created union node
+			pred2.SetId(this.id);
+			pred2.setInstancesPerMachine(instancesPerMachine);
+			this.id++;
 		}
+		// create the connection and add it
+		PactConnection conn2 = new PactConnection(pred2, this);
+		this.input2 = conn2;
+		pred2.addOutConn(conn2);
 
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
 		Configuration conf = getPactContract().getParameters();
@@ -370,6 +386,9 @@ public abstract class TwoInputNode extends OptimizerNode
 			return;
 		}
 
+		addClosedBranches(this.getFirstPredNode().closedBranchingNodes);
+		addClosedBranches(this.getSecondPredNode().closedBranchingNodes);
+		
 		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
 		// TODO: check if merge is really necessary
 		result1 = mergeLists(result1, this.getFirstPredNode().getBranchesForParent(this));
@@ -483,27 +502,6 @@ public abstract class TwoInputNode extends OptimizerNode
 			throw new CompilerException("Either ConstantFieldsSecond or ConstantFieldsSecondExcept can be specified, not both.");
 		}
 	}
-	
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
-	 */
-	@Override
-	public FieldSet getConstantSet(int input) {
-
-		switch(input) {
-		case 0:
-			return this.constant1;
-		case 1:
-			return this.constant2;
-		case -1:
-			return new FieldSet(this.constant1, this.constant2);
-		default:
-			throw new IndexOutOfBoundsException();
-		}
-	}
-	
 	
 	/**
 	 * Computes the width of output records

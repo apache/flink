@@ -167,13 +167,21 @@ public class DataSinkNode extends OptimizerNode {
 	public void setInputs(Map<Contract, OptimizerNode> contractToNode) {
 		List<Contract> children = getPactContract().getInputs();
 
-		for(Contract child : children) {
-			OptimizerNode pred = contractToNode.get(child);
-	
-			PactConnection conn = new PactConnection(pred, this);
-			setInputConnection(conn);
-			pred.addOutConn(conn);
+		OptimizerNode pred;
+		if (children.size() == 1) {
+			pred = contractToNode.get(children.get(0));
+		} else {
+			pred = new UnionNode(getPactContract(), children, contractToNode);
+			pred.setDegreeOfParallelism(this.getDegreeOfParallelism());
+			//push id down to newly created union node
+			pred.SetId(this.id);
+			pred.setInstancesPerMachine(instancesPerMachine);
+			this.id++;
 		}
+		// create the connection and add it
+		PactConnection conn = new PactConnection(pred, this);
+		this.setInputConnection(conn);
+		pred.addOutConn(conn);
 	}
 
 	/**
@@ -253,6 +261,8 @@ public class DataSinkNode extends OptimizerNode {
 			return;
 		}
 
+		addClosedBranches(this.getPredNode().closedBranchingNodes);
+		
 		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
 		// TODO: check if merge is necessary
 		result = mergeLists(result, this.getPredNode().getBranchesForParent(this));
@@ -289,8 +299,8 @@ public class DataSinkNode extends OptimizerNode {
 		// build all possible alternative plans for this node
 		for(OptimizerNode subPlan : subPlans) {
 
-			final GlobalProperties gp = subPlan.getGlobalProperties().createCopy();
-			final LocalProperties lp = subPlan.getLocalProperties().createCopy();
+			final GlobalProperties gp = subPlan.getGlobalPropertiesForParent(this).createCopy();
+			final LocalProperties lp = subPlan.getLocalPropertiesForParent(this).createCopy();
 
 			final ShipStrategy ss;
 			final LocalStrategy ls;
@@ -382,15 +392,5 @@ public class DataSinkNode extends OptimizerNode {
 	@Override
 	protected void readConstantAnnotation() {
 		// DO NOTHING
-	}
-	
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getReadSet(int)
-	 */
-	@Override
-	public FieldSet getConstantSet(int input) {
-		return null;
 	}
 }
