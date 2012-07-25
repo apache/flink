@@ -22,4 +22,9 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
  * @author Arvid Heise
  */
 public interface IConstantRegistry extends IRegistry<EvaluationExpression> {
+
+	/**
+	 * @param javaConstants
+	 */
+	void put(Class<?> javaConstants);
 }

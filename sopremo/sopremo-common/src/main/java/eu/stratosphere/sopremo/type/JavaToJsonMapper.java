@@ -66,14 +66,7 @@ public class JavaToJsonMapper {
 		return this.typeDict.get(ReflectUtil.getClassForPrimtive(javaClass)).getDeclaringClass();
 	}
 
-	/**
-	 * Wrapps the given value with a matching {@link IJsonNode}
-	 * 
-	 * @param value
-	 *        the value that should be wrapped
-	 * @return the {@link IJsonNode} which wrapps the value
-	 */
-	public AbstractJsonNode valueToTree(final Object value) {
+	public IJsonNode valueToTree(final Object value) {
 		if (value == null)
 			return NullNode.getInstance();
 

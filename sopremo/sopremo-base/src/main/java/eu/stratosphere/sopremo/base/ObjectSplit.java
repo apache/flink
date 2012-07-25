@@ -11,6 +11,7 @@ import eu.stratosphere.sopremo.operator.ElementaryOperator;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.JsonUtil;
@@ -84,7 +85,7 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 			final Iterator<String> fieldNames = object.getFieldNames();
 			final EvaluationContext context = this.getContext();
 			final TextNode fieldNode = TextNode.valueOf("");
-			ArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), fieldNode, object, value);
+			IArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), fieldNode, object, value);
 			while (fieldNames.hasNext()) {
 				String field = fieldNames.next();
 				fieldNode.setValue(field);

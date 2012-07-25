@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.aggregation;
+package eu.stratosphere.sopremo.function;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -6,11 +6,7 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-/**
- * This AggregationFunction aggregates the given nodes by simply creating an {@link IArrayNode} that contains all of
- * them.
- */
-public class MaterializingAggregationFunction extends AggregationFunction {
+public class MaterializingAggregationFunction extends Aggregation<IJsonNode, ArrayNode> {
 
 	/**
 	 * 
@@ -41,8 +37,8 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 	 *      eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public IJsonNode aggregate(final IJsonNode node, final IJsonNode aggregationValue, final EvaluationContext context) {
-		((IArrayNode) aggregationValue).add(node);
+	public ArrayNode aggregate(IJsonNode node, ArrayNode aggregationValue, EvaluationContext context) {
+		aggregationValue.add(node);
 		return aggregationValue;
 	}
 
@@ -51,7 +47,7 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 	 * @see eu.stratosphere.sopremo.aggregation.AggregationFunction#initialize(eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode initialize(final IJsonNode aggregationValue) {
+	public ArrayNode initialize(ArrayNode aggregationValue) {
 		return SopremoUtil.reinitializeTarget(aggregationValue, ArrayNode.class);
 	}
 
@@ -62,8 +58,8 @@ public class MaterializingAggregationFunction extends AggregationFunction {
 	 * eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode getFinalAggregate(final IJsonNode aggregator, final IJsonNode target) {
-		return this.processNodes((IArrayNode) aggregator, target);
+	public IJsonNode getFinalAggregate(ArrayNode aggregator, IJsonNode target) {
+		return this.processNodes(aggregator, target);
 	}
 
 	protected IJsonNode processNodes(final IArrayNode nodeArray, @SuppressWarnings("unused") final IJsonNode target) {

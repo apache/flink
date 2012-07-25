@@ -28,15 +28,16 @@ import eu.stratosphere.sopremo.operator.Operator;
 import eu.stratosphere.sopremo.packages.BuiltinProvider;
 import eu.stratosphere.sopremo.packages.ConstantRegistryCallback;
 import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
-import eu.stratosphere.sopremo.packages.DefaultMethodRegistry;
+import eu.stratosphere.sopremo.packages.DefaultFunctionRegistry;
 import eu.stratosphere.sopremo.packages.IConstantRegistry;
-import eu.stratosphere.sopremo.packages.IMethodRegistry;
+import eu.stratosphere.sopremo.packages.IFunctionRegistry;
+import eu.stratosphere.sopremo.packages.EvaluationScope;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * @author Arvid Heise
  */
-public class PackageInfo implements ISerializableSopremoType {
+public class PackageInfo implements ISerializableSopremoType, ParsingScope {
 	/**
 	 * 
 	 */
@@ -56,7 +57,7 @@ public class PackageInfo implements ISerializableSopremoType {
 
 	private IConstantRegistry constantRegistry = new DefaultConstantRegistry();
 
-	private IMethodRegistry methodRegistry = new DefaultMethodRegistry();
+	private IFunctionRegistry functionRegistry = new DefaultFunctionRegistry();
 
 	private String packageName;
 
@@ -77,17 +78,17 @@ public class PackageInfo implements ISerializableSopremoType {
 			clazz = Class.forName(className);
 			if (Operator.class.isAssignableFrom(clazz) && (clazz.getModifiers() & Modifier.ABSTRACT) == 0) {
 				QueryUtil.LOG.trace("adding operator " + clazz);
-				getOperatorRegistry().put((Class<? extends Operator<?>>) clazz);
+				this.getOperatorRegistry().put((Class<? extends Operator<?>>) clazz);
 			} else if (BuiltinProvider.class.isAssignableFrom(clazz))
 				this.addFunctionsAndConstants(clazz);
 		} catch (ClassNotFoundException e) {
 			QueryUtil.LOG.warn("could not load operator " + className);
 		}
 	}
-	
+
 	public void importFromProject(File packagePath) {
 		this.packagePath = packagePath;
-		
+
 		Queue<File> directories = new LinkedList<File>();
 		directories.add(packagePath);
 		while (!directories.isEmpty())
@@ -95,19 +96,19 @@ public class PackageInfo implements ISerializableSopremoType {
 				if (file.isDirectory())
 					directories.add(file);
 				else if (file.getName().endsWith(".class") && !file.getName().contains("$"))
-					this.importFromFile(file);
+					this.importFromFile(file, packagePath);
 	}
 
-	private void importFromFile(File file) {
-		String classFileName = file.getName();
+	private void importFromFile(File file, File packagePath) {
+		String classFileName = file.getAbsolutePath().substring(packagePath.getAbsolutePath().length() + 1);
 		String className = classFileName.replaceAll(".class$", "").replaceAll("/|\\\\", ".").replaceAll("^\\.", "");
-		importClass(className);
+		this.importClass(className);
 	}
 
 	private void addFunctionsAndConstants(Class<?> clazz) {
-		getMethodRegistry().put(clazz);
+		this.getFunctionRegistry().put(clazz);
 		if (ConstantRegistryCallback.class.isAssignableFrom(clazz))
-			((ConstantRegistryCallback) ReflectUtil.newInstance(clazz)).registerConstants(getConstantRegistry());
+			((ConstantRegistryCallback) ReflectUtil.newInstance(clazz)).registerConstants(this.getConstantRegistry());
 	}
 
 	public void importFromJar(File jar) throws IOException {
@@ -118,32 +119,35 @@ public class PackageInfo implements ISerializableSopremoType {
 			if (jarEntry.getName().endsWith(".class")) {
 				String className =
 					jarEntry.getName().replaceAll(".class$", "").replaceAll("/|\\\\", ".").replaceAll("^\\.", "");
-				importClass(className);
+				this.importClass(className);
 			}
 		}
 	}
 
 	@Override
 	public void toString(StringBuilder builder) {
-		builder.append("Package ").append(packageName);
+		builder.append("Package ").append(this.packageName);
 		builder.append("\n  ");
-		operatorRegistry.toString(builder);
+		this.operatorRegistry.toString(builder);
 		builder.append("\n  ");
-		methodRegistry.toString(builder);
+		this.functionRegistry.toString(builder);
 		builder.append("\n  ");
-		constantRegistry.toString(builder);
+		this.constantRegistry.toString(builder);
 	}
 
+	@Override
 	public IOperatorRegistry getOperatorRegistry() {
 		return this.operatorRegistry;
 	}
 
+	@Override
 	public IConstantRegistry getConstantRegistry() {
 		return this.constantRegistry;
 	}
 
-	public IMethodRegistry getMethodRegistry() {
-		return this.methodRegistry;
+	@Override
+	public IFunctionRegistry getFunctionRegistry() {
+		return this.functionRegistry;
 	}
 
 }

@@ -107,7 +107,7 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 			int index = 0;
 			final EvaluationContext context = this.getContext();
 			IntNode indexNode = IntNode.valueOf(0);
-			ArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), indexNode, array, value);
+			IArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), indexNode, array, value);
 			for (IJsonNode element : array) {
 				contextNode.set(0, element);
 				indexNode.setValue(index);

@@ -179,7 +179,7 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 	protected Class<?>[] getActualParameterTypes(final Object[] params) {
 		final Class<?>[] paramTypes = new Class<?>[params.length];
 		for (int index = 0; index < paramTypes.length; index++)
-			paramTypes[index] = params[index].getClass();
+			paramTypes[index] = params[index] == null ? null : params[index].getClass();
 		return paramTypes;
 	}
 

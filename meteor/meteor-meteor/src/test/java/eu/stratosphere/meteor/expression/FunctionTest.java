@@ -22,9 +22,10 @@ import eu.stratosphere.meteor.MeteorTest;
 import eu.stratosphere.sopremo.base.Projection;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.MethodCall;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.function.VarReturnJavaMethod;
 import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.io.Source;
 import eu.stratosphere.sopremo.operator.SopremoPlan;
@@ -57,19 +58,23 @@ public class FunctionTest extends MeteorTest {
 	}
 
 	@Test
-	public void testFunctionImport() {
+	public void testFunctionImport() throws SecurityException, NoSuchMethodException {
 		final SopremoPlan actualPlan = this
-			.parseScript("testudf = javaudf('" + getClass().getName() +".udfTest');\n" +
+			.parseScript("testudf = javaudf('" + getClass().getName() + ".udfTest');\n" +
 				"$input = read from 'input.json';\n" +
 				"$result = transform $input into { squared: testudf($input) };\n" +
 				"write $result to 'output.json'; ");
 
 		final SopremoPlan expectedPlan = new SopremoPlan();
 		final Source input = new Source("input.json");
-		final Projection projection = new Projection().
-			withInputs(input).
-			withResultProjection(new ObjectCreation(
-				new ObjectCreation.FieldAssignment("squared", new MethodCall("testudf", new InputSelection(0)))));
+		final VarReturnJavaMethod javaMethod = new VarReturnJavaMethod("udfTest");
+		javaMethod.addSignature(getClass().getMethod("udfTest", IJsonNode[].class));
+		final Projection projection =
+			new Projection().
+				withInputs(input).
+				withResultProjection(new ObjectCreation(
+					new ObjectCreation.FieldAssignment("squared", new FunctionCall("testudf", javaMethod,
+						new InputSelection(0)))));
 		final Sink sink = new Sink("output.json").withInputs(projection);
 		expectedPlan.setSinks(sink);
 

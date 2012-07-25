@@ -16,15 +16,17 @@ package eu.stratosphere.sopremo.packages;
 
 import java.lang.reflect.Method;
 
-import eu.stratosphere.sopremo.function.SopremoMethod;
+import eu.stratosphere.sopremo.function.Callable;
 
 /**
- * Registry that manages {@link MeteorMethod}s.
+ * Registry that manages {@link SopremoFunction}s.
  * 
  * @author Arvid Heise
  */
-public interface IMethodRegistry extends IRegistry<SopremoMethod> {
+public interface IFunctionRegistry extends IRegistry<Callable<?, ?>> {
 	public void put(final Method method);
 
 	public void put(final Class<?> javaFunctions);
+
+	public void put(String registeredName, final Class<?> clazz, final String staticMethodName);
 }

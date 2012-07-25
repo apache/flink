@@ -13,15 +13,17 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.function.VarReturnJavaMethod;
+import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 
-public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
+public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 
 	@Override
-	protected MethodCall createDefaultInstance(final int index) {
-		return new MethodCall(String.valueOf(index));
+	protected FunctionCall createDefaultInstance(final int index) {
+		return new FunctionCall(String.valueOf(index), new VarReturnJavaMethod("test"));
 	}
 
 	/*
@@ -29,7 +31,7 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 	 * @see eu.stratosphere.sopremo.expressions.OrExpressionTest#initVerifier(nl.jqno.equalsverifier.EqualsVerifier)
 	 */
 	@Override
-	protected void initVerifier(final EqualsVerifier<MethodCall> equalVerifier) {
+	protected void initVerifier(EqualsVerifier<FunctionCall> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier.withPrefabValues(List.class, new ArrayList<Object>(), new ArrayList<EvaluationExpression>(
 			Collections.singleton(EvaluationExpression.VALUE)));
@@ -43,8 +45,9 @@ public class MethodCallTest extends EvaluableExpressionTest<MethodCall> {
 
 	@Test
 	public void shouldCallFunction() {
-		final IJsonNode result = new MethodCall("sum", new ArrayAccess(0), new ArrayAccess(1)).evaluate(
-			createArrayNode(1, 2), null, this.context);
+		final IJsonNode result =
+			new FunctionCall("sum", this.context,
+				new ArrayAccess(0), new ArrayAccess(1)).evaluate(createArrayNode(1, 2), null, this.context);
 		Assert.assertEquals(new DoubleNode(3), result);
 	}
 

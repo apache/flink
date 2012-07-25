@@ -49,7 +49,7 @@ public class ConstantExpression extends EvaluationExpression {
 	 * @param constant
 	 *        the node that should be represented by this ConstantExpression
 	 */
-	public ConstantExpression(final AbstractJsonNode constant) {
+	public ConstantExpression(final IJsonNode constant) {
 		this.constant = constant;
 	}
 

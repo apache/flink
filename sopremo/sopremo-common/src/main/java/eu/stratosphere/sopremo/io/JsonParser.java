@@ -23,6 +23,7 @@ import java.util.NoSuchElementException;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.type.AbstractJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
@@ -44,7 +45,7 @@ public class JsonParser {
 
 	private final BufferedReader reader;
 
-	private final Stack<AbstractJsonNode> state = new ObjectArrayList<AbstractJsonNode>();
+	private final Stack<IJsonNode> state = new ObjectArrayList<IJsonNode>();
 
 	ContainerNode root = new ContainerNode();
 
@@ -104,13 +105,7 @@ public class JsonParser {
 		this(new BufferedReader(new StringReader(value)));
 	}
 
-	/**
-	 * Parses the provided data and creates a JsonNode-representation from it.
-	 * 
-	 * @return the JsonNode-representation of the provided data
-	 * @throws IOException
-	 */
-	public AbstractJsonNode readValueAsTree() throws IOException {
+	public IJsonNode readValueAsTree() throws IOException {
 
 		this.state.push(this.root);
 
@@ -171,14 +166,7 @@ public class JsonParser {
 		this.reader.close();
 	}
 
-	/**
-	 * Creates a {@link eu.stratosphere.sopremo.type.IPrimitiveNode} from the given data.
-	 * 
-	 * @param value
-	 *        the string that should be parsed
-	 * @return the created node
-	 */
-	private static AbstractJsonNode parsePrimitive(final String value) {
+	private static IJsonNode parsePrimitive(final String value) {
 		if (value.equals("null"))
 			return NullNode.getInstance();
 		if (value.equals("true"))
@@ -367,7 +355,7 @@ public class JsonParser {
 
 		private final List<String> keys = new ArrayList<String>();
 
-		private final List<AbstractJsonNode> values = new ArrayList<AbstractJsonNode>();
+		private final List<IJsonNode> values = new ArrayList<IJsonNode>();
 
 		/**
 		 * Adds the data contained in the given {@link StringBuilder} as a key.
@@ -379,44 +367,23 @@ public class JsonParser {
 			this.keys.add(sb.toString());
 		}
 
-		/**
-		 * Adds the given {@link JsonNode} as a value.
-		 * 
-		 * @param node
-		 *        the node that should be added as a value
-		 */
-		public void addValue(final AbstractJsonNode node) {
+		public void addValue(final IJsonNode node) {
 			this.values.add(node);
 		}
 
-		/**
-		 * Removes the value at the specified index. This method only allows removal of values if this ContainerNode
-		 * represents an unfinished array.
-		 * 
-		 * @param index
-		 *        the index of the value that should be removed
-		 * @return the removed JsonNode
-		 * @throws JsonParseException
-		 */
-		public AbstractJsonNode remove(final int index) throws JsonParseException {
+		public IJsonNode remove(final int index) throws JsonParseException {
 			if (this.keys.isEmpty())
 				return this.values.remove(index);
 			throw new JsonParseException();
 		}
 
-		/**
-		 * Creates a JsonNode from the data stored in this ContainerNode.
-		 * 
-		 * @return the created JsonNode
-		 * @throws JsonParseException
-		 */
-		public AbstractJsonNode build() throws JsonParseException {
-			AbstractJsonNode node;
+		public IJsonNode build() throws JsonParseException {
+			IJsonNode node;
 
 			if (this.keys.size() == 0) {
 				// this ContainerNode represents an ArrayNode
 				node = new ArrayNode();
-				for (final AbstractJsonNode value : this.values)
+				for (final IJsonNode value : this.values)
 					((IArrayNode) node).add(value);
 
 			} else {

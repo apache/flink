@@ -37,6 +37,7 @@ public class DefaultRegistry<T> implements IRegistry<T> {
 		return this.elements.get(name);
 	}
 
+	@Override
 	public void put(String name, T element) {
 		this.elements.put(name, element);
 	}

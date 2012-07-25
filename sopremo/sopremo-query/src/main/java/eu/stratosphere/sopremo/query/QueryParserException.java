@@ -11,12 +11,11 @@ public class QueryParserException extends RuntimeException {
 	private static final long serialVersionUID = 5142011370807158960L;
 
 	private int line = -1, charIndex = -1;
-	
+
 	private Token invalidToken;
-	
+
 	/**
 	 * Initializes SimpleException.
-	 *
 	 */
 	public QueryParserException() {
 		super();
@@ -24,14 +23,14 @@ public class QueryParserException extends RuntimeException {
 
 	/**
 	 * Initializes SimpleException.
-	 *
+	 * 
 	 * @param message
 	 * @param cause
 	 */
 	public QueryParserException(String message, Throwable cause) {
 		super(message, cause);
-		
-		if(cause instanceof RecognitionException) {
+
+		if (cause instanceof RecognitionException) {
 			this.line = ((RecognitionException) cause).line;
 			this.invalidToken = ((RecognitionException) cause).token;
 			this.charIndex = ((RecognitionException) cause).charPositionInLine;
@@ -40,7 +39,7 @@ public class QueryParserException extends RuntimeException {
 
 	/**
 	 * Initializes SimpleException.
-	 *
+	 * 
 	 * @param message
 	 */
 	public QueryParserException(String message) {
@@ -49,12 +48,12 @@ public class QueryParserException extends RuntimeException {
 
 	/**
 	 * Initializes SimpleException.
-	 *
+	 * 
 	 * @param cause
 	 */
 	public QueryParserException(String message, Token invalidToken) {
 		super(message);
-		
+
 		this.invalidToken = invalidToken;
 		this.line = invalidToken.getLine();
 		this.charIndex = invalidToken.getCharPositionInLine();
@@ -83,14 +82,15 @@ public class QueryParserException extends RuntimeException {
 	public void setInvalidToken(Token token) {
 		if (token == null)
 			throw new NullPointerException("token must not be null");
-	
+
 		this.invalidToken = token;
 	}
-	
+
 	@Override
 	public String getMessage() {
-		if(getInvalidToken() == null)
+		if (this.getInvalidToken() == null)
 			return super.getMessage();
-		return String.format("%s: %s @ (%d, %d)",  super.getMessage(), getInvalidToken().getText(), getLine(), getCharIndex());
+		return String.format("%s: %s @ (%d, %d)", super.getMessage(), this.getInvalidToken().getText(), this.getLine(),
+			this.getCharIndex());
 	}
 }

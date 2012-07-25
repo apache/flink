@@ -73,4 +73,12 @@ public class DynamicMethod<ReturnType> extends DynamicInvokable<Method, Object, 
 				method.addSignature(m);
 		return method;
 	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return getName();
+	}
 }

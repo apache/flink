@@ -18,6 +18,7 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.LongNode;
 import eu.stratosphere.sopremo.type.NullNode;
@@ -29,11 +30,11 @@ public class JsonParserTest {
 
 	private final String value;
 
-	private final AbstractJsonNode expectedResult;
+	private final IJsonNode expectedResult;
 
 	private final int steps;
 
-	public JsonParserTest(final String value, final AbstractJsonNode expectedResult, final int steps) {
+	public JsonParserTest(final String value, final IJsonNode expectedResult, final int steps) {
 		this.value = value;
 		this.expectedResult = expectedResult;
 		this.steps = steps;
@@ -48,7 +49,7 @@ public class JsonParserTest {
 	@Test
 	public void shouldParseArrays() throws IOException {
 		final JsonParser parser = new JsonParser(this.value);
-		AbstractJsonNode result = null;
+		IJsonNode result = null;
 		for (int i = 0; i < this.steps; i++)
 			result = parser.readValueAsTree();
 		Assert.assertEquals(this.expectedResult, result);

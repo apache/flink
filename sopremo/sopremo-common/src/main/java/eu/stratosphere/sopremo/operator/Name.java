@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
  * Annotation to specify names for {@link ElementType#TYPE}s and {@link ElementType#METHOD}s
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.TYPE, ElementType.METHOD })
+@Target({ ElementType.TYPE, ElementType.METHOD, ElementType.FIELD })
 public @interface Name {
 	String[] noun() default {};
 

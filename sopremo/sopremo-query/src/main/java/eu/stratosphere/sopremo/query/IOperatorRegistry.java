@@ -24,4 +24,6 @@ import eu.stratosphere.sopremo.packages.IRegistry;
  */
 public interface IOperatorRegistry extends IRegistry<OperatorInfo<?>> {
 	void put(Class<? extends Operator<?>> clazz);
+
+	String getName(final Class<? extends Operator<?>> operatorClass);
 }

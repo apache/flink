@@ -11,6 +11,7 @@ import eu.stratosphere.sopremo.operator.ElementaryOperator;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
@@ -137,7 +138,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 
 		private LongNode counter;
 
-		private ArrayNode params;
+		private IArrayNode params;
 
 		@Override
 		public void open(Configuration parameters) {

@@ -7,9 +7,9 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.function.JavaMethod;
-import eu.stratosphere.sopremo.function.SopremoMethod;
-import eu.stratosphere.sopremo.type.AbstractJsonNode;
+import eu.stratosphere.sopremo.function.VarReturnJavaMethod;
+import eu.stratosphere.sopremo.function.SopremoFunction;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -20,22 +20,22 @@ import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
-public class MethodRegistryTest {
-	private IMethodRegistry registry;
+public class FunctionRegistryTest {
+	private IFunctionRegistry registry;
 
 	private EvaluationContext context;
 
-	private static final AbstractJsonNode GENERIC_VARARG_NODE = new TextNode("var");
+	private static final IJsonNode GENERIC_VARARG_NODE = new TextNode("var");
 
-	private static final AbstractJsonNode GENERIC_NODE = new TextNode("generic");
+	private static final IJsonNode GENERIC_NODE = new TextNode("generic");
 
-	private static final AbstractJsonNode ARRAY_NODE = new TextNode("array");
+	private static final IJsonNode ARRAY_NODE = new TextNode("array");
 
-	private static final AbstractJsonNode TWO_INT_NODE = new TextNode("2 int");
+	private static final IJsonNode TWO_INT_NODE = new TextNode("2 int");
 
-	private static final AbstractJsonNode ONE_INT_VARARG_NODE = new TextNode("1 int + var");
+	private static final IJsonNode ONE_INT_VARARG_NODE = new TextNode("1 int + var");
 
-	private static final AbstractJsonNode SUM_NODE = new TextNode("sum");
+	private static final IJsonNode SUM_NODE = new TextNode("sum");
 
 	@Before
 	public void setup() {
@@ -49,13 +49,13 @@ public class MethodRegistryTest {
 
 		Assert.assertEquals("should have been 2 functions", 2, this.registry.keySet().size());
 		for (final String name : this.registry.keySet())
-			Assert.assertEquals("should have been a java function", JavaMethod.class,
+			Assert.assertEquals("should have been a java function", VarReturnJavaMethod.class,
 				this.registry.get(name).getClass());
 
 		Assert.assertEquals("should have been 5 count signatures", 5,
-			((JavaMethod) this.registry.get("count")).getSignatures().size());
+			((VarReturnJavaMethod) this.registry.get("count")).getSignatures().size());
 		Assert.assertEquals("should have been 1 sum signatures", 1,
-			((JavaMethod) this.registry.get("sum")).getSignatures().size());
+			((VarReturnJavaMethod) this.registry.get("sum")).getSignatures().size());
 	}
 
 	@Test(expected = EvaluationException.class)
@@ -73,7 +73,7 @@ public class MethodRegistryTest {
 	}
 
 	private IJsonNode evaluate(String name, IJsonNode... parameters) {
-		final SopremoMethod method = this.registry.get(name);
+		final SopremoFunction method = (SopremoFunction) this.registry.get(name);
 		Assert.assertNotNull(method);
 		return method.call(JsonUtil.asArray(parameters), null, this.context);
 	}
@@ -118,27 +118,27 @@ public class MethodRegistryTest {
 	@SuppressWarnings("unused")
 	public static class JavaFunctions {
 
-		public static IJsonNode count(final IArrayNode node) {
+		public static IJsonNode count(final IJsonNode result, final IArrayNode node) {
 			return ARRAY_NODE;
 		}
 
-		public static IJsonNode count(final IPrimitiveNode node, final IPrimitiveNode node2) {
+		public static IJsonNode count(final IJsonNode result, final IPrimitiveNode node, final IPrimitiveNode node2) {
 			return TWO_INT_NODE;
 		}
 
-		public static IJsonNode count(final IPrimitiveNode node, final IPrimitiveNode... nodes) {
+		public static IJsonNode count(final IJsonNode result, final IPrimitiveNode node, final IPrimitiveNode... nodes) {
 			return ONE_INT_VARARG_NODE;
 		}
 
-		public static IJsonNode count(final IJsonNode node) {
+		public static IJsonNode count(final IJsonNode result, final IJsonNode node) {
 			return GENERIC_NODE;
 		}
 
-		public static IJsonNode count(final IJsonNode... node) {
+		public static IJsonNode count(final IJsonNode result, final IJsonNode... node) {
 			return GENERIC_VARARG_NODE;
 		}
 
-		public static IJsonNode sum(final INumericNode... nodes) {
+		public static IJsonNode sum(final IJsonNode result, final INumericNode... nodes) {
 			return SUM_NODE;
 		}
 	}

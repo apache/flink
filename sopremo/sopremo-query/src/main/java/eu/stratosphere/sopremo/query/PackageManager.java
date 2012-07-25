@@ -21,14 +21,14 @@ import java.util.Map;
 
 import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.io.Source;
-import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
 import eu.stratosphere.sopremo.packages.IConstantRegistry;
-import eu.stratosphere.sopremo.packages.IMethodRegistry;
+import eu.stratosphere.sopremo.packages.IFunctionRegistry;
+import eu.stratosphere.sopremo.packages.EvaluationScope;
 
 /**
  * @author Arvid Heise
  */
-public class PackageManager {
+public class PackageManager implements ParsingScope {
 	private Map<String, PackageInfo> packages = new HashMap<String, PackageInfo>();
 
 	private String defaultJarPath;
@@ -39,13 +39,15 @@ public class PackageManager {
 		IORegistry.put(Sink.class);
 		IORegistry.put(Source.class);
 	}
-	
+
 	public PackageManager() {
 		this.operatorRegistries.push(IORegistry);
 	}
-	
+
 	private StackedConstantRegistry constantRegistries = new StackedConstantRegistry();
-	private StackedMethodRegistry methodRegistries = new StackedMethodRegistry();
+
+	private StackedFunctionRegistry functionRegistries = new StackedFunctionRegistry();
+
 	private StackedOperatorRegistry operatorRegistries = new StackedOperatorRegistry();
 
 	/**
@@ -54,7 +56,7 @@ public class PackageManager {
 	 * @param packageName
 	 */
 	public PackageInfo getPackageInfo(String packageName) {
-		PackageInfo packageInfo = packages.get(packageName);
+		PackageInfo packageInfo = this.packages.get(packageName);
 		if (packageInfo == null) {
 			File packagePath = this.getPackagePath(packageName);
 			packageInfo = new PackageInfo(packageName);
@@ -65,11 +67,11 @@ public class PackageManager {
 					packageInfo.importFromJar(packagePath);
 				else
 					// should only happen while debugging
-					packageInfo.importFromProject(packagePath);
+					packageInfo.importFromProject(packagePath.getAbsoluteFile());
 			} catch (IOException e) {
 				throw new IllegalArgumentException(String.format("could not load package %s", packagePath));
 			}
-			packages.put(packageName, packageInfo);
+			this.packages.put(packageName, packageInfo);
 		}
 		return packageInfo;
 	}
@@ -79,37 +81,51 @@ public class PackageManager {
 	 * 
 	 * @return the operatorFactory
 	 */
+	@Override
 	public IOperatorRegistry getOperatorRegistry() {
 		return this.operatorRegistries;
 	}
-	
+
+	@Override
 	public IConstantRegistry getConstantRegistry() {
 		return this.constantRegistries;
 	}
-	
-	public IMethodRegistry getMethodRegistry() {
-		return this.methodRegistries;
+
+	@Override
+	public IFunctionRegistry getFunctionRegistry() {
+		return this.functionRegistries;
 	}
 
 	protected File getPackagePath(String packageName) {
 		String classpath = System.getProperty("java.class.path");
 		String sopremoPackage = "sopremo-" + packageName;
-		for (String path : classpath.split(File.pathSeparator))
-			if (path.startsWith(sopremoPackage))
-				return new File(path);
-		final File defaultJar = new File(defaultJarPath, sopremoPackage + ".jar");
+		for (String path : classpath.split(File.pathSeparator)) {
+			final int pathIndex = path.indexOf(sopremoPackage);
+			if (pathIndex == -1)
+				continue;
+			// preceding character must be a file separator
+			if (pathIndex > 0 && path.charAt(pathIndex - 1) != File.separatorChar)
+				continue;
+			int nextIndex = pathIndex + sopremoPackage.length();
+			// next character must be '.' or file separator
+			if (nextIndex < path.length() && path.charAt(nextIndex) != File.separatorChar
+				&& path.charAt(nextIndex) != '.')
+				continue;
+			return new File(path);
+		}
+		final File defaultJar = new File(this.defaultJarPath, sopremoPackage + ".jar");
 		if (defaultJar.exists())
 			return defaultJar;
-		throw new IllegalArgumentException(String.format("no package %s found", sopremoPackage));
+		throw new IllegalArgumentException(String.format("no package %s found", packageName));
 	}
 
 	public void importPackage(String packageName) {
-		importPackage(getPackageInfo(packageName));
+		this.importPackage(this.getPackageInfo(packageName));
 	}
 
 	public void importPackage(PackageInfo packageInfo) {
 		this.constantRegistries.push(packageInfo.getConstantRegistry());
-		this.methodRegistries.push(packageInfo.getMethodRegistry());
+		this.functionRegistries.push(packageInfo.getFunctionRegistry());
 		this.operatorRegistries.push(packageInfo.getOperatorRegistry());
 	}
 
