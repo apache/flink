@@ -209,7 +209,10 @@ public class ArrayNode extends AbstractArrayNode {
 	 */
 	@Override
 	protected void fillArray(IJsonNode[] result) {
-		this.children.toArray(new IJsonNode[this.children.size()]);
+		IJsonNode[] array = this.children.toArray(new IJsonNode[this.children.size()]);
+		for (int i = 0; i < this.children.size(); i++) {
+			result[i] = array[i];
+		}
 	}
 
 	@Override
