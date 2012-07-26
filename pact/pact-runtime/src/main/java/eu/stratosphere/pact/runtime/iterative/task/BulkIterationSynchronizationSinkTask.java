@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import com.google.common.base.Preconditions;
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -44,7 +46,7 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
   private InterruptingMutableObjectIterator<PactRecord> recordIterator;
   private MutableRecordReader<PactRecord> reader;
 
-  private int numIterations;
+  private int numIterations = 1;
 
   private final AtomicBoolean terminated = new AtomicBoolean(false);
 
@@ -77,12 +79,12 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
   }
 
   @Override
-  public boolean isTerminated() {
+  public boolean terminationRequested() {
     return terminated.get();
   }
 
   @Override
-  public void terminate() {
+  public void requestTermination() {
     if (log.isInfoEnabled()) {
       log.info(formatLogString("marked as terminated."));
     }
@@ -92,7 +94,7 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
   @Override
   public void invoke() throws Exception {
 
-    while (!isTerminated()) {
+    while (!terminationRequested()) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + numIterations + "]"));
@@ -104,16 +106,30 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
         log.info(formatLogString("finishing iteration [" + numIterations + "]"));
       }
 
-      if (!isTerminated()) {
+      if (checkTerminationCriterion(numIterations)) {
+
+        if (log.isInfoEnabled()) {
+          log.info(formatLogString("signaling that all workers are to terminate in iteration [" + numIterations + "]"));
+        }
+
+        requestTermination();
+        sendToAllWorkers(new TerminationEvent());
+      } else {
+
         if (log.isInfoEnabled()) {
           log.info(formatLogString("signaling that all workers are done in iteration [" + numIterations + "]"));
         }
 
-        signalAllWorkersDone();
+        sendToAllWorkers(new AllWorkersDoneEvent());
+        numIterations++;
       }
 
-      numIterations++;
     }
+  }
+
+  private boolean checkTerminationCriterion(int numIterations) {
+    Preconditions.checkState(taskConfig.getNumberOfIterations() > 0);
+    return taskConfig.getNumberOfIterations() == numIterations;
   }
 
   private void readInput() throws IOException {
@@ -125,8 +141,8 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
     }
   }
 
-  private void signalAllWorkersDone() throws IOException, InterruptedException {
-    reader.publishEvent(new AllWorkersDoneEvent());
+  private void sendToAllWorkers(AbstractTaskEvent event) throws IOException, InterruptedException {
+    reader.publishEvent(event);
   }
 
   //TODO remove duplicated code

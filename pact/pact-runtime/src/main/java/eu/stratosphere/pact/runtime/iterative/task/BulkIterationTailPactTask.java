@@ -32,8 +32,6 @@ import org.apache.commons.logging.LogFactory;
 public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 
-  private int numIterations = 0;
-
   private static final Log log = LogFactory.getLog(BulkIterationTailPactTask.class);
 
   private BlockingBackChannel retrieveBackChannel() throws Exception {
@@ -51,27 +49,26 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
     // redirect output to the backchannel
     output = new DataOutputCollector<OT>(backChannel.getWriteEnd(), createOutputTypeSerializer());
 
-    while (!isTerminated()) {
+    while (!terminationRequested() && currentIteration() < 7) {
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("starting iteration [" + numIterations + "]"));
+        log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
       }
 
-      if (numIterations > 0) {
+      if (!inFirstIteration()) {
         reinstantiateDriver();
       }
 
       super.invoke();
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
+        log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
       }
 
-      if (!isTerminated()) {
+      if (!terminationRequested()) {
         backChannel.notifyOfEndOfSuperstep();
+        incrementIterationCounter();
       }
-
-      numIterations++;
     }
   }
 

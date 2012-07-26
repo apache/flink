@@ -18,6 +18,8 @@ package eu.stratosphere.pact.runtime.iterative.playing.simple;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
@@ -29,6 +31,7 @@ import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -36,7 +39,7 @@ public class Simple {
 
   public static void main(String[] args) throws Exception {
 
-    int degreeOfParallelism = 2;
+    int degreeOfParallelism = 1;
     JobGraph jobGraph = new JobGraph("SimpleIteration");
 
     JobInputVertex input = JobGraphUtils.createInput(TextInputFormat.class,
@@ -49,7 +52,7 @@ public class Simple {
     headConfig.setStubClass(AppendMapper.AppendHeadMapper.class);
     headConfig.setMemorySize(10 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
-    headConfig.setNumberOfIterations(3);
+    //headConfig.setNumberOfIterations(3);
 
     JobTaskVertex intermediate = JobGraphUtils.createTask(BulkIterationIntermediatePactTask.class, "BulkIntermediate",
         jobGraph, degreeOfParallelism);
@@ -66,6 +69,8 @@ public class Simple {
     tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
     JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
+    TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
+    syncConfig.setNumberOfIterations(3);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());

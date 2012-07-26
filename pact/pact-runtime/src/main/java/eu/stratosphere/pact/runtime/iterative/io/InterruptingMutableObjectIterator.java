@@ -81,7 +81,7 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
     Preconditions.checkState(numberOfEventsSeen <= numberOfEventsUntilInterrupt);
 
     if (numberOfEventsSeen == numberOfEventsUntilInterrupt) {
-      owningIterativeTask.terminate();
+      owningIterativeTask.requestTermination();
     }
   }
 

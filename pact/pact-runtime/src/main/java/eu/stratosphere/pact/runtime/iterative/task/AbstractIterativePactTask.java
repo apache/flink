@@ -50,9 +50,23 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
   private MutableObjectIterator<?>[] wrappedInputs;
 
-  private AtomicBoolean terminated = new AtomicBoolean(false);
+  private AtomicBoolean terminationRequested = new AtomicBoolean(false);
+
+  private int numIterations = 1;
 
   private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
+
+  protected boolean inFirstIteration() {
+    return numIterations == 1;
+  }
+
+  protected int currentIteration() {
+    return numIterations;
+  }
+
+  protected void incrementIterationCounter() {
+    numIterations++;
+  }
 
   protected String identifier() {
     return getEnvironment().getJobID() + "#" + getEnvironment().getIndexInSubtaskGroup();
@@ -78,16 +92,16 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   }
 
   @Override
-  public boolean isTerminated() {
-    return terminated.get();
+  public boolean terminationRequested() {
+    return terminationRequested.get();
   }
 
   @Override
-  public void terminate() {
+  public void requestTermination() {
     if (log.isInfoEnabled()) {
-      log.info(formatLogString("marked as terminated."));
+      log.info(formatLogString("requesting termination."));
     }
-    terminated.set(true);
+    terminationRequested.set(true);
   }
 
   @Override

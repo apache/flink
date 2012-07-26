@@ -31,37 +31,34 @@ import java.io.IOException;
  */
 public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
-  private int numIterations = 0;
-
   private static final Log log = LogFactory.getLog(BulkIterationIntermediatePactTask.class);
 
   @Override
   public void invoke() throws Exception {
 
-    while (!isTerminated()) {
+    while (!terminationRequested() && currentIteration() < 7) {
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("starting iteration [" + numIterations + "]"));
+        log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
       }
 
-      if (numIterations > 0) {
+      if (!inFirstIteration()) {
         reinstantiateDriver();
       }
 
       super.invoke();
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
+        log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
       }
 
-      if (!isTerminated()) {
+      if (!terminationRequested()) {
         propagateEvent(new EndOfSuperstepEvent());
+        incrementIterationCounter();
+      } else {
+        propagateEvent(new TerminationEvent());
       }
-
-      numIterations++;
     }
-
-    propagateEvent(new TerminationEvent());
   }
 
   private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {

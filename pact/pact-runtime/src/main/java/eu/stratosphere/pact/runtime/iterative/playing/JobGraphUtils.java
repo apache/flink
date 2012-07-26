@@ -70,7 +70,12 @@ public class JobGraphUtils {
 
   public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target,
       DistributionPattern distributionPattern, ShipStrategy shipStrategy) throws JobGraphDefinitionException {
-    source.connectTo(target, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, distributionPattern);
+    connect(source, target, ChannelType.INMEMORY, distributionPattern, shipStrategy);
+  }
+
+  public static void connect(AbstractJobVertex source, AbstractJobVertex target, ChannelType channelType,
+      DistributionPattern distributionPattern, ShipStrategy shipStrategy) throws JobGraphDefinitionException {
+    source.connectTo(target, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
     new TaskConfig(source.getConfiguration()).addOutputShipStrategy(shipStrategy);
   }
 

@@ -13,11 +13,21 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.task;
+package eu.stratosphere.pact.runtime.iterative.playing.events;
 
-public interface Terminable {
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.event.task.EventListener;
 
-  boolean terminationRequested();
+public class SimpleListener implements EventListener {
 
-  void requestTermination();
+  private final String taskName;
+
+  public SimpleListener(String taskName) {
+    this.taskName = taskName;
+  }
+
+  @Override
+  public void eventOccurred(AbstractTaskEvent event) {
+    System.out.println(taskName + " sees " + event.getClass().getName());
+  }
 }

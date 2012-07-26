@@ -13,11 +13,19 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.task;
+package eu.stratosphere.pact.runtime.iterative.playing.events;
 
-public interface Terminable {
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 
-  boolean terminationRequested();
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-  void requestTermination();
+public class SenderEvent extends AbstractTaskEvent {
+
+  @Override
+  public void write(DataOutput out) throws IOException {}
+
+  @Override
+  public void read(DataInput in) throws IOException {}
 }

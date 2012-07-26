@@ -17,43 +17,40 @@ package eu.stratosphere.pact.runtime.iterative.concurrent;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 
-import java.util.concurrent.locks.AbstractQueuedSynchronizer;
+import java.util.concurrent.CountDownLatch;
 
 /** a resettable one-shot latch */
 public class SuperstepBarrier implements EventListener {
 
-  private Sync sync = new Sync();
+  private boolean terminationSignaled = false;
+
+  private CountDownLatch latch;
 
   /** setup the barrier, has to be called at the beginning of each superstep */
   public void setup() {
-    sync = new Sync();
+    latch = new CountDownLatch(1);
   }
 
   /** wait on the barrier */
   public void waitForOtherWorkers() throws InterruptedException {
-    sync.tryAcquireShared(0);
+    latch.await();
   }
 
   /** barrier will release the waiting thread if an event occurs*/
   @Override
   public void eventOccurred(AbstractTaskEvent event) {
-    sync.releaseShared(0);
-  }
 
-  private class Sync extends AbstractQueuedSynchronizer {
-
-    private static final int OPEN = 1;
-
-    @Override
-    protected int tryAcquireShared(int ignored) {
-      return getState() == OPEN ? 1 : -1;
+    if (event instanceof TerminationEvent) {
+      terminationSignaled = true;
     }
 
-    @Override
-    protected boolean tryReleaseShared(int ignored) {
-      setState(OPEN);
-      return true;
-    }
+    latch.countDown();
   }
+
+  public boolean terminationSignaled() {
+    return terminationSignaled;
+  }
+
 }

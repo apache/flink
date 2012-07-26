@@ -57,7 +57,7 @@ import java.util.List;
  *
  * The final output of the iteration must be connected as last task, the sync right before that.
  *
- * The input for the iteration must arrive in the first gate. *
+ * The input for the iteration must arrive in the first gate
  */
 public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
@@ -93,6 +93,15 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     return backChannel;
   }
 
+  private SuperstepBarrier initSuperstepBarrier() {
+    SuperstepBarrier barrier = new SuperstepBarrier();
+
+    getSyncOutput().subscribeToEvent(barrier, AllWorkersDoneEvent.class);
+    getSyncOutput().subscribeToEvent(barrier, TerminationEvent.class);
+
+    return barrier;
+  }
+
   //TODO should positions be configured?
 
   private AbstractRecordWriter<?> getSyncOutput() {
@@ -110,25 +119,22 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
   @Override
   public void invoke() throws Exception {
 
-    int numIterations = 0;
-
     /** used for receiving the current iteration result from iteration tail */
     BlockingBackChannel backChannel = initBackChannel();
 
-    final SuperstepBarrier barrier = new SuperstepBarrier();
-    getSyncOutput().subscribeToEvent(barrier, AllWorkersDoneEvent.class);
+    SuperstepBarrier barrier = initSuperstepBarrier();
 
     TypeSerializer serializer = getInputSerializer(getIterationInputIndex());
     //TODO type safety
     output = (Collector<OT>) iterationCollector();
 
-    while (numIterations < getTaskConfig().getNumberOfIterations()) {
+    while (!terminationRequested()) {
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("starting iteration [" + numIterations + "]"));
+        log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
       }
 
-      if (numIterations > 0) {
+      if (!inFirstIteration()) {
         reinstantiateDriver();
       }
 
@@ -144,29 +150,31 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
       // blocking call to wait for the result
       DataInputView superStepResult = backChannel.getReadEndAfterSuperstepEnded();
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
+        log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
       }
 
       sendEventToSync(endOfSuperstepEvent);
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("waiting for other workers in iteration [" + numIterations + "]"));
+        log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
       }
 
       barrier.waitForOtherWorkers();
 
-      feedBackSuperstepResult(superStepResult, serializer);
-
-      numIterations++;
+      if (barrier.terminationSignaled()) {
+        if (log.isInfoEnabled()) {
+          log.info(formatLogString("head received termination request in iteration [" + currentIteration() + "]"));
+        }
+        requestTermination();
+        sendEventToAllIterationOutputs(new TerminationEvent());
+      } else {
+        feedBackSuperstepResult(superStepResult, serializer);
+        incrementIterationCounter();
+      }
     }
 
-    // signal to connected tasks that the iteration terminated
-    TerminationEvent terminationEvent = new TerminationEvent();
-    sendEventToAllIterationOutputs(terminationEvent);
-    sendEventToSync(terminationEvent);
-
     if (log.isInfoEnabled()) {
-      log.info(formatLogString("streaming out final result after [" + numIterations + "] iterations"));
+      log.info(formatLogString("streaming out final result after [" + currentIteration() + "] iterations"));
     }
     streamOutFinalOutput();
   }
