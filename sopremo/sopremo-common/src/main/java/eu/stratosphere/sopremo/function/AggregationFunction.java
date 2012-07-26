@@ -36,6 +36,8 @@ public class AggregationFunction extends SopremoFunction {
 	 */
 	@SuppressWarnings("unchecked")
 	public AggregationFunction(Aggregation<?, ?> aggregation) {
+		if (aggregation == null)
+			throw new NullPointerException();
 		this.aggregation = (Aggregation<IJsonNode, IJsonNode>) aggregation;
 	}
 
@@ -54,6 +56,26 @@ public class AggregationFunction extends SopremoFunction {
 			aggregator = this.aggregation.aggregate(item, aggregator, context);
 
 		return target = this.aggregation.getFinalAggregate(aggregator, target);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.aggregation.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		AggregationFunction other = (AggregationFunction) obj;
+		return this.aggregation.equals(other.aggregation);
 	}
 
 	/*

@@ -67,8 +67,8 @@ public class FunctionTest extends MeteorTest {
 
 		final SopremoPlan expectedPlan = new SopremoPlan();
 		final Source input = new Source("input.json");
-		final VarReturnJavaMethod javaMethod = new VarReturnJavaMethod("udfTest");
-		javaMethod.addSignature(getClass().getMethod("udfTest", IJsonNode[].class));
+		final VarReturnJavaMethod javaMethod = new VarReturnJavaMethod("testudf");
+		javaMethod.addSignature(getClass().getMethod("udfTest", IJsonNode.class, IJsonNode[].class));
 		final Projection projection =
 			new Projection().
 				withInputs(input).

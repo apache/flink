@@ -2,7 +2,7 @@ package eu.stratosphere.sopremo.query;
 
 import eu.stratosphere.sopremo.operator.Operator;
 
-final class StackedOperatorRegistry extends StackedRegistry<OperatorInfo<?>, IOperatorRegistry> implements
+public class StackedOperatorRegistry extends StackedRegistry<OperatorInfo<?>, IOperatorRegistry> implements
 		IOperatorRegistry {
 
 	public StackedOperatorRegistry() {

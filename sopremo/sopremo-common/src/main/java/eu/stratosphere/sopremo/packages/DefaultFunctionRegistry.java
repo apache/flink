@@ -118,10 +118,12 @@ public class DefaultFunctionRegistry extends DefaultRegistry<Callable<?, ?>> imp
 		if (functions.isEmpty())
 			throw new IllegalArgumentException(
 				String.format("Method %s not found in class %s", staticMethodName, clazz));
-
-		JavaMethod function = createJavaMethod(registeredName, functions.get(0));
+		
+		Callable<?, ?> javaMethod = get(registeredName);
+		if (javaMethod == null || !(javaMethod instanceof JavaMethod))
+			this.put(registeredName, javaMethod = createJavaMethod(registeredName, functions.get(0)));
 		for (Method method : functions)
-			function.addSignature(method);
+			((JavaMethod) javaMethod).addSignature(method);
 	}
 
 	protected JavaMethod createJavaMethod(String registeredName, final Method method1) {

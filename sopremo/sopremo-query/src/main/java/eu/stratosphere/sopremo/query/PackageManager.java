@@ -128,4 +128,12 @@ public class PackageManager implements ParsingScope {
 		this.operatorRegistries.push(packageInfo.getOperatorRegistry());
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return String.format("Package manager with packages %s", packages);
+	}
 }

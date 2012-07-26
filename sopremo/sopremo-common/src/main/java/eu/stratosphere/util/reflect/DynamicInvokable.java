@@ -183,6 +183,27 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		return paramTypes;
 	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.name.hashCode();
+		result = prime * result + this.originalSignatures.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		DynamicInvokable<?, ?, ?> other = (DynamicInvokable<?, ?, ?>) obj;
+		return this.name.equals(other.name) && this.originalSignatures.equals(other.originalSignatures);
+	}
+
 	public Collection<Signature> getSignatures() {
 		return this.originalSignatures.keySet();
 	}

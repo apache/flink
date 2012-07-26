@@ -73,8 +73,29 @@ public class DynamicMethod<ReturnType> extends DynamicInvokable<Method, Object, 
 				method.addSignature(m);
 		return method;
 	}
-	
-	/* (non-Javadoc)
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + this.returnType.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		DynamicMethod<?> other = (DynamicMethod<?>) obj;
+		return this.returnType.equals(other.returnType);
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
 	@Override

@@ -1,4 +1,4 @@
-// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g 2012-07-26 14:24:40
+// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g 2012-07-26 16:07:47
  
 package eu.stratosphere.meteor; 
 
@@ -61,8 +61,8 @@ public class MeteorLexer extends Lexer {
     public static final int STRING=8;
     public static final int STAR=9;
     public static final int DECIMAL=10;
-    public static final int INTEGER=11;
-    public static final int UINT=12;
+    public static final int UINT=11;
+    public static final int INTEGER=12;
     public static final int LOWER_LETTER=13;
     public static final int UPPER_LETTER=14;
     public static final int DIGIT=15;

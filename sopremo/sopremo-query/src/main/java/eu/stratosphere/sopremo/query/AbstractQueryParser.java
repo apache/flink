@@ -22,6 +22,7 @@ import org.antlr.runtime.Token;
 import org.antlr.runtime.TokenStream;
 import org.antlr.runtime.UnwantedTokenException;
 
+import eu.stratosphere.sopremo.CoreFunctions;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -41,7 +42,7 @@ import eu.stratosphere.sopremo.query.OperatorInfo.InputPropertyInfo;
 import eu.stratosphere.sopremo.query.OperatorInfo.OperatorPropertyInfo;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-public abstract class AbstractQueryParser extends Parser {
+public abstract class AbstractQueryParser extends Parser implements ParsingScope {
 	private PackageManager packageManager = new PackageManager();
 
 	private InputSuggestion inputSuggestion = new InputSuggestion().withMaxSuggestions(3).withMinSimilarity(0.5);
@@ -65,16 +66,20 @@ public abstract class AbstractQueryParser extends Parser {
 	 */
 	private void init() {
 		this.currentPlan.setContext(new EvaluationContext(0, 0, this.getFunctionRegistry(), this.getConstantRegistry()));
+		this.packageManager.getFunctionRegistry().put(CoreFunctions.class);
 	}
 
+	@Override
 	public IOperatorRegistry getOperatorRegistry() {
 		return this.packageManager.getOperatorRegistry();
 	}
 
+	@Override
 	public IConstantRegistry getConstantRegistry() {
 		return this.packageManager.getConstantRegistry();
 	}
 
+	@Override
 	public IFunctionRegistry getFunctionRegistry() {
 		return this.packageManager.getFunctionRegistry();
 	}
@@ -235,7 +240,7 @@ public abstract class AbstractQueryParser extends Parser {
 
 	protected ParsingScope getScope(String packageName) {
 		if (packageName == null)
-			return this.packageManager;
+			return this;
 		ParsingScope scope = this.packageManager.getPackageInfo(packageName);
 		if (scope == null)
 			throw new QueryParserException("Unknown package " + packageName);
@@ -267,7 +272,7 @@ public abstract class AbstractQueryParser extends Parser {
 		return property;
 	}
 
-	public OperatorInfo.InputPropertyInfo findInputPropertyRelunctantly(OperatorInfo<?> info, Token firstWord) throws FailedPredicateException {
+	public OperatorInfo.InputPropertyInfo findInputPropertyRelunctantly(OperatorInfo<?> info, Token firstWord) {
 		String name = firstWord.getText();
 		OperatorInfo.InputPropertyInfo property;
 
@@ -281,9 +286,9 @@ public abstract class AbstractQueryParser extends Parser {
 
 		if (property == null)
 			return null;
-//			throw new FailedPredicateException();
-//			throw new QueryParserException(String.format("Unknown property %s; possible alternatives %s", name,
-//				this.inputSuggestion.suggest(name, inputPropertyRegistry)), firstWord);
+		// throw new FailedPredicateException();
+		// throw new QueryParserException(String.format("Unknown property %s; possible alternatives %s", name,
+		// this.inputSuggestion.suggest(name, inputPropertyRegistry)), firstWord);
 
 		// consume additional tokens
 		for (; lookAhead > 1; lookAhead--)

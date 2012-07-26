@@ -14,8 +14,8 @@ public class StackedRegistry<T, R extends IRegistry<T>> implements IRegistry<T> 
 
 	private LinkedList<R> registryStack = new LinkedList<R>();
 
-	public StackedRegistry(R topRegistry) {
-		this.registryStack.add(topRegistry);
+	public StackedRegistry(R defaultRegistry) {
+		this.registryStack.add(defaultRegistry);
 	}
 
 	@Override
@@ -69,5 +69,16 @@ public class StackedRegistry<T, R extends IRegistry<T>> implements IRegistry<T> 
 			builder.append("\n ");
 			registry.toString(builder);
 		}
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		this.toString(builder);
+		return builder.toString();
 	}
 }

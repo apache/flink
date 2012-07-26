@@ -76,14 +76,14 @@ functionDefinition
   (',' param=ID { params.add($param); })*)? 
   ')' 
   { 
-    addScope();
+    addConstantScope();
     for(int index = 0; index < params.size(); index++) 
-      putVariable(params.get(index), new JsonStreamExpression(null, index)); 
+      this.getConstantRegistry().put(params.get(index).getText(), new InputSelection(index)); 
   } 
   def=contextAwareExpression[null] 
   { 
     addFunction(name.getText(), new ExpressionFunction(params.size(), def.tree));
-    removeScope(); 
+    removeConstantScope(); 
   } ->; 
 
 javaudf
@@ -217,7 +217,7 @@ literal
 	| val='false' -> ^(EXPRESSION["ConstantExpression"] { Boolean.FALSE })
 	| val=DECIMAL -> ^(EXPRESSION["ConstantExpression"] { new BigDecimal($val.text) })
 	| val=STRING -> ^(EXPRESSION["ConstantExpression"] { $val.getText() })
-  | val=INTEGER -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
+  | (val=UINT | val=INTEGER) -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
   | 'null' -> { ConstantExpression.NULL };
 
 arrayAccess

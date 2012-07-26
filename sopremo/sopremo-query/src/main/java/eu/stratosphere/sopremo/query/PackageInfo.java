@@ -149,4 +149,11 @@ public class PackageInfo implements ISerializableSopremoType, ParsingScope {
 		return this.functionRegistry;
 	}
 
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return getPackageName();
+	}
 }

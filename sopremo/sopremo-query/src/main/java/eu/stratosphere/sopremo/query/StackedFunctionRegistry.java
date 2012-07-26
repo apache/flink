@@ -6,7 +6,7 @@ import eu.stratosphere.sopremo.function.Callable;
 import eu.stratosphere.sopremo.packages.DefaultFunctionRegistry;
 import eu.stratosphere.sopremo.packages.IFunctionRegistry;
 
-final class StackedFunctionRegistry extends StackedRegistry<Callable<?, ?>, IFunctionRegistry> implements
+public class StackedFunctionRegistry extends StackedRegistry<Callable<?, ?>, IFunctionRegistry> implements
 		IFunctionRegistry {
 
 	public StackedFunctionRegistry() {

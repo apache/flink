@@ -55,4 +55,14 @@ public class DefaultRegistry<T> implements IRegistry<T> {
 	public void toString(StringBuilder builder) {
 		builder.append("Registry").append(this.elements);
 	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		this.toString(builder);
+		return builder.toString();
+	}
 }

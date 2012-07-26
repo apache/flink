@@ -22,7 +22,12 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
+import eu.stratosphere.sopremo.packages.IConstantRegistry;
+import eu.stratosphere.sopremo.query.ParsingScope;
 import eu.stratosphere.sopremo.query.QueryWithVariablesParser;
+import eu.stratosphere.sopremo.query.StackedConstantRegistry;
+import eu.stratosphere.sopremo.query.StackedRegistry;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
@@ -33,7 +38,8 @@ import eu.stratosphere.sopremo.type.TextNode;
  * @author Arvid Heise
  */
 public abstract class MeteorParserBase extends QueryWithVariablesParser<JsonStreamExpression> {
-
+	private StackedConstantRegistry constantRegistry = new StackedConstantRegistry();
+	
 	public MeteorParserBase(TokenStream input, RecognizerSharedState state) {
 		super(input, state);
 		init();
@@ -53,8 +59,26 @@ public abstract class MeteorParserBase extends QueryWithVariablesParser<JsonStre
 		addTypeAlias("double", DoubleNode.class);
 		addTypeAlias("boolean", BooleanNode.class);
 		addTypeAlias("bool", BooleanNode.class);
+		
+		this.constantRegistry.push(super.getConstantRegistry());
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.query.AbstractQueryParser#getConstantRegistry()
+	 */
+	@Override
+	public IConstantRegistry getConstantRegistry() {
+		return this.constantRegistry;
+	}
+	
+	protected void addConstantScope() {
+		this.constantRegistry.push(new DefaultConstantRegistry());
+	}
+	
+	protected void removeConstantScope() {
+		this.constantRegistry.pop();
+	}
+	
 	protected JsonStreamExpression getVariable(Token name) {
 		return getVariableRegistry().get(name.getText());
 	}
@@ -70,5 +94,4 @@ public abstract class MeteorParserBase extends QueryWithVariablesParser<JsonStre
 			return ((ObjectAccess) expression).getField();
 		return expression.toString();
 	}
-
 }

@@ -36,7 +36,7 @@ public abstract class JavaMethod extends SopremoFunction {
 
 	protected final DynamicMethod<IJsonNode> method;
 
-	private List<Object[]> paramCache = new ArrayList<Object[]>();
+	private transient List<Object[]> paramCache = new ArrayList<Object[]>();
 
 	/**
 	 * Initializes JavaMethod.
@@ -62,6 +62,26 @@ public abstract class JavaMethod extends SopremoFunction {
 
 	public Collection<Signature> getSignatures() {
 		return this.method.getSignatures();
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.method.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		JavaMethod other = (JavaMethod) obj;
+		return this.method.equals(other.method);
 	}
 
 	@Override

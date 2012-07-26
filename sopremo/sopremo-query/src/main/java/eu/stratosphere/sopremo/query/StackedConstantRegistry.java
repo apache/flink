@@ -4,7 +4,7 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
 import eu.stratosphere.sopremo.packages.IConstantRegistry;
 
-final class StackedConstantRegistry extends StackedRegistry<EvaluationExpression, IConstantRegistry> implements
+public class StackedConstantRegistry extends StackedRegistry<EvaluationExpression, IConstantRegistry> implements
 		IConstantRegistry {
 	public StackedConstantRegistry() {
 		super(new DefaultConstantRegistry());
