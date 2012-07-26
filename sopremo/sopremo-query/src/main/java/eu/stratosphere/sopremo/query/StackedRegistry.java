@@ -29,11 +29,11 @@ public class StackedRegistry<T, R extends IRegistry<T>> implements IRegistry<T> 
 	}
 
 	public void push(R e) {
-		this.registryStack.add(1, e);
+		this.registryStack.push(e);
 	}
 
 	public R pop() {
-		return this.registryStack.remove(1);
+		return this.registryStack.pop();
 	}
 
 	/**

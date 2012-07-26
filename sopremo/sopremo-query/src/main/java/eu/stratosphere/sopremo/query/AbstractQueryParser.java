@@ -4,11 +4,8 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,70 +25,46 @@ import org.antlr.runtime.UnwantedTokenException;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.CoerceExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.ExpressionTagFactory;
 import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.function.Callable;
 import eu.stratosphere.sopremo.function.ExpressionFunction;
 import eu.stratosphere.sopremo.function.Inlineable;
-import eu.stratosphere.sopremo.function.VarReturnJavaMethod;
 import eu.stratosphere.sopremo.function.MacroBase;
 import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.operator.Operator;
 import eu.stratosphere.sopremo.operator.SopremoPlan;
-import eu.stratosphere.sopremo.packages.DefaultFunctionRegistry;
 import eu.stratosphere.sopremo.packages.IConstantRegistry;
 import eu.stratosphere.sopremo.packages.IFunctionRegistry;
 import eu.stratosphere.sopremo.packages.IRegistry;
 import eu.stratosphere.sopremo.query.OperatorInfo.InputPropertyInfo;
 import eu.stratosphere.sopremo.query.OperatorInfo.OperatorPropertyInfo;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.util.reflect.ReflectUtil;
 
 public abstract class AbstractQueryParser extends Parser {
 	private PackageManager packageManager = new PackageManager();
 
 	private InputSuggestion inputSuggestion = new InputSuggestion().withMaxSuggestions(3).withMinSimilarity(0.5);
 
-	private ExpressionTagFactory expressionTagFactory = new ExpressionTagFactory();
-
 	protected List<Sink> sinks = new ArrayList<Sink>();
 
 	private SopremoPlan currentPlan = new SopremoPlan();
 
-	protected static enum ParserFlag {
-		FUNCTION_OBJECTS;
-	}
-
-	private EnumSet<ParserFlag> flags = EnumSet.noneOf(ParserFlag.class);
-
-	protected void addParserFlag(ParserFlag e) {
-		this.flags.add(e);
-	}
-
-	protected void removeParserFlag(ParserFlag o) {
-		this.flags.remove(o);
-	}
-
-	protected boolean hasParserFlag(ParserFlag o) {
-		return this.flags.contains(o);
-	}
-
 	public AbstractQueryParser(TokenStream input, RecognizerSharedState state) {
 		super(input, state);
-		init();
+		this.init();
 	}
 
 	public AbstractQueryParser(TokenStream input) {
 		super(input);
-		init();
+		this.init();
 	}
 
 	/**
 	 * 
 	 */
 	private void init() {
-		this.currentPlan.setContext(new EvaluationContext(0, 0, getFunctionRegistry(), getConstantRegistry()));
+		this.currentPlan.setContext(new EvaluationContext(0, 0, this.getFunctionRegistry(), this.getConstantRegistry()));
 	}
 
 	public IOperatorRegistry getOperatorRegistry() {
@@ -163,14 +136,14 @@ public abstract class AbstractQueryParser extends Parser {
 
 	public EvaluationExpression createCheckedMethodCall(String packageName, Token name, EvaluationExpression object,
 			EvaluationExpression[] params) {
-		Callable<?, ?> callable = getScope(packageName).getFunctionRegistry().get(name.getText());
+		Callable<?, ?> callable = this.getScope(packageName).getFunctionRegistry().get(name.getText());
 		if (callable == null)
 			throw new QueryParserException(String.format("Unknown function %s", name));
 		if (callable instanceof MacroBase)
 			return ((MacroBase) callable).call(params, null, this.getContext());
 		if (callable instanceof Inlineable)
 			return ((Inlineable) callable).getDefinition();
-		if(!(callable instanceof SopremoFunction))
+		if (!(callable instanceof SopremoFunction))
 			throw new QueryParserException(String.format("Unknown callable %s", callable));
 		if (object != null) {
 			ObjectArrayList<EvaluationExpression> paramList = ObjectArrayList.wrap(params);
@@ -269,8 +242,7 @@ public abstract class AbstractQueryParser extends Parser {
 		return scope;
 	}
 
-	public OperatorInfo.OperatorPropertyInfo findOperatorPropertyRelunctantly(OperatorInfo<?> info, Token firstWord)
-			throws FailedPredicateException {
+	public OperatorInfo.OperatorPropertyInfo findOperatorPropertyRelunctantly(OperatorInfo<?> info, Token firstWord) {
 		String name = firstWord.getText();
 		OperatorInfo.OperatorPropertyInfo property;
 
@@ -295,8 +267,7 @@ public abstract class AbstractQueryParser extends Parser {
 		return property;
 	}
 
-	public OperatorInfo.InputPropertyInfo findInputPropertyRelunctantly(OperatorInfo<?> info, Token firstWord)
-			throws FailedPredicateException {
+	public OperatorInfo.InputPropertyInfo findInputPropertyRelunctantly(OperatorInfo<?> info, Token firstWord) throws FailedPredicateException {
 		String name = firstWord.getText();
 		OperatorInfo.InputPropertyInfo property;
 
@@ -310,9 +281,9 @@ public abstract class AbstractQueryParser extends Parser {
 
 		if (property == null)
 			return null;
-		// throw new FailedPredicateException();
-		// throw new SimpleException(String.format("Unknown property %s; possible alternatives %s", name,
-		// this.getOperatorPropertySuggestion(info).suggest(name)), firstWord);
+//			throw new FailedPredicateException();
+//			throw new QueryParserException(String.format("Unknown property %s; possible alternatives %s", name,
+//				this.inputSuggestion.suggest(name, inputPropertyRegistry)), firstWord);
 
 		// consume additional tokens
 		for (; lookAhead > 1; lookAhead--)

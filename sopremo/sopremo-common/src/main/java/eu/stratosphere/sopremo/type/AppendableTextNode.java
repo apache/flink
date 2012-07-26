@@ -20,10 +20,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import eu.stratosphere.pact.common.type.base.PactString;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.type.IJsonNode.Type;
-
 /**
  * Internal type that is used in string intensive aggregation operations.
  * 

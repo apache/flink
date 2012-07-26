@@ -71,17 +71,17 @@ public class LazyTailArrayNode extends AbstractArrayNode {
 		if (this.schema.getTailSize() > 0) {
 			this.record.setField(this.schema.getTailSize(), SopremoUtil.wrap(node));
 			// shift every node in tail and replace with oldNode
-			for (int i = this.schema.getTailSize() - 1; i > 0; i--)
+			for (int i = this.schema.getTailSize() - 1; i > 0; i--) {
 				if (this.record.isNull(i)) {
 					this.record.setField(i, SopremoUtil.wrap(oldNode));
 					// we found the beginning of the array, no need to go further
 					return this;
-				} else {
-					tmpNode = SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class));
-					if (oldNode != null)
-						this.record.setField(i, SopremoUtil.wrap(oldNode));
-					oldNode = tmpNode;
 				}
+				tmpNode = SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class));
+				if (oldNode != null)
+					this.record.setField(i, SopremoUtil.wrap(oldNode));
+				oldNode = tmpNode;
+			}
 			// put first element of the tail into "others"
 			if (oldNode != null)
 				this.getOtherField().add(oldNode);
@@ -110,16 +110,16 @@ public class LazyTailArrayNode extends AbstractArrayNode {
 			IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(recordPosition + 1, JsonNodeWrapper.class));
 			IJsonNode tmpNode;
 			this.record.setField(recordPosition + 1, SopremoUtil.wrap(element));
-			for (int i = recordPosition + 1; i > 0; i--)
+			for (int i = recordPosition + 1; i > 0; i--) {
 				if (this.record.isNull(i)) {
 					this.record.setField(i, SopremoUtil.wrap(oldNode));
 					return this;
-				} else {
-					tmpNode = SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class));
-					if (oldNode != null)
-						this.record.setField(i, SopremoUtil.wrap(oldNode));
-					oldNode = tmpNode;
 				}
+				tmpNode = SopremoUtil.unwrap(this.record.getField(i, JsonNodeWrapper.class));
+				if (oldNode != null)
+					this.record.setField(i, SopremoUtil.wrap(oldNode));
+				oldNode = tmpNode;
+			}
 
 			if (oldNode != null)
 				this.getOtherField().add(oldNode);
@@ -164,8 +164,7 @@ public class LazyTailArrayNode extends AbstractArrayNode {
 		if (recordPosition >= 0)
 			return SopremoUtil.unwrap(this.record.getField(recordPosition + 1,
 				JsonNodeWrapper.class));
-		else
-			return this.getOtherField().get(index);
+		return this.getOtherField().get(index);
 	}
 
 	@Override
@@ -192,6 +191,7 @@ public class LazyTailArrayNode extends AbstractArrayNode {
 		return this.schema.getTailSize() == 0 ? this.getOtherField().isEmpty() : this.record.isNull(0);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Iterator<IJsonNode> iterator() {
 		final Iterator<IJsonNode> othersIterator = this.getOtherField().iterator();
@@ -214,27 +214,25 @@ public class LazyTailArrayNode extends AbstractArrayNode {
 		final int recordPosition = this.schema.getTailSize() - size + index;
 		if (recordPosition < 0)
 			return this.getOtherField().remove(index);
-		else {
-			// save the element which gets removed to return it later
-			final IJsonNode oldNode = SopremoUtil.unwrap(this.record
-				.getField(recordPosition + 1, JsonNodeWrapper.class));
-			// shift every node before one time to the right
-			for (int i = recordPosition; i > 0; i--)
-				if (!this.record.isNull(i))
-					this.record.setField(i + 1, this.record.getField(i, JsonNodeWrapper.class));
-				else {
-					this.record.setNull(i + 1);
-					// we are in front of the first element, no need go further
-					return oldNode;
-				}
-			if (size > this.schema.getTailSize())
-				// remove last element from "others" and put it into first field of the tail
-				this.record.setField(1, this.getOtherField().remove(size - this.schema.getTailSize()));
-			else
-				// no elements in "others", set first field of the tail null
-				this.record.setNull(1);
-			return oldNode;
-		}
+		// save the element which gets removed to return it later
+		final IJsonNode oldNode = SopremoUtil.unwrap(this.record
+			.getField(recordPosition + 1, JsonNodeWrapper.class));
+		// shift every node before one time to the right
+		for (int i = recordPosition; i > 0; i--)
+			if (!this.record.isNull(i))
+				this.record.setField(i + 1, this.record.getField(i, JsonNodeWrapper.class));
+			else {
+				this.record.setNull(i + 1);
+				// we are in front of the first element, no need go further
+				return oldNode;
+			}
+		if (size > this.schema.getTailSize())
+			// remove last element from "others" and put it into first field of the tail
+			this.record.setField(1, this.getOtherField().remove(size - this.schema.getTailSize()));
+		else
+			// no elements in "others", set first field of the tail null
+			this.record.setNull(1);
+		return oldNode;
 	}
 
 	@Override
@@ -245,23 +243,22 @@ public class LazyTailArrayNode extends AbstractArrayNode {
 		if (node.isMissing())
 			return this.remove(index);
 
-		if (index < 0 || index >= this.size())
+		if (index < 0 || index >= this.size()) {
 			if (index == this.size()) {
 				this.add(node);
 				return MissingNode.getInstance();
-			} else
-				throw new IndexOutOfBoundsException();
+			}
+			throw new IndexOutOfBoundsException();
+		}
 		final int recordPosition = this.schema.getTailSize() - this.size() + index;
 		if (recordPosition < 0)
 			return this.getOtherField().set(index, node);
-		else {
-			// save node for return
-			final IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(recordPosition + 1,
-				JsonNodeWrapper.class));
-			// replace it
-			this.record.setField(recordPosition + 1, node);
-			return oldNode;
-		}
+		// save node for return
+		final IJsonNode oldNode = SopremoUtil.unwrap(this.record.getField(recordPosition + 1,
+			JsonNodeWrapper.class));
+		// replace it
+		this.record.setField(recordPosition + 1, node);
+		return oldNode;
 	}
 
 	@Override

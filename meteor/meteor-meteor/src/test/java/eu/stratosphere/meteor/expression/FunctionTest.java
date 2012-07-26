@@ -81,7 +81,8 @@ public class FunctionTest extends MeteorTest {
 		Assert.assertEquals("unexpectedPlan", expectedPlan, actualPlan);
 	}
 
-	public static IJsonNode udfTest(final IJsonNode... nodes) {
+	@SuppressWarnings("unused")
+	public static IJsonNode udfTest(final IJsonNode oldResult, final IJsonNode... nodes) {
 		return nodes[0];
 	}
 }

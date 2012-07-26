@@ -15,7 +15,7 @@ public class AggregationExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -1420818869290609780L;
 
-	private final Aggregation function;
+	private final Aggregation<IJsonNode, IJsonNode> function;
 
 	private CachingExpression<IJsonNode> preprocessing;
 
@@ -27,7 +27,7 @@ public class AggregationExpression extends EvaluationExpression {
 	 * @param function
 	 *        the function which will should be used for aggregation
 	 */
-	public AggregationExpression(final Aggregation function) {
+	public AggregationExpression(final Aggregation<?, ?> function) {
 		this(function, EvaluationExpression.VALUE);
 	}
 
@@ -40,8 +40,9 @@ public class AggregationExpression extends EvaluationExpression {
 	 *        an {@link EvaluationExpression} which evaluates each element of the input before they are used for
 	 *        aggregation.
 	 */
-	public AggregationExpression(final Aggregation function, final EvaluationExpression preprocessing) {
-		this.function = function.clone();
+	@SuppressWarnings("unchecked")
+	public AggregationExpression(final Aggregation<?, ?> function, final EvaluationExpression preprocessing) {
+		this.function = (Aggregation<IJsonNode, IJsonNode>) function.clone();
 		this.preprocessing = CachingExpression.ofSubclass(preprocessing, IJsonNode.class);
 	}
 
@@ -72,7 +73,7 @@ public class AggregationExpression extends EvaluationExpression {
 	 * 
 	 * @return the function
 	 */
-	public Aggregation getFunction() {
+	public Aggregation<IJsonNode, IJsonNode> getFunction() {
 		return this.function;
 	}
 

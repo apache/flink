@@ -20,8 +20,6 @@ import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
-import eu.stratosphere.sopremo.operator.ElementaryOperator;
-import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoReduce;

@@ -64,8 +64,12 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	@Override
 	public void toString(final StringBuilder builder) {
 		this.appendTags(builder);
-		builder.append(this.stream.getSource().getOperator().getName()).
-			append("@").append(this.stream.getSource().getIndex());
+		if(this.stream != null)
+			builder.append(this.stream.getSource().getOperator().getName()).append("@");
+		if(this.inputIndex != -1)
+			builder.append(this.inputIndex);
+		else if(this.stream != null)
+			builder.append(this.stream.getSource().getIndex());
 	}
 
 	/**

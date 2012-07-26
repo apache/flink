@@ -14,12 +14,6 @@ import org.junit.Test;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.operator.ElementaryOperator;
-import eu.stratosphere.sopremo.operator.ElementarySopremoModule;
-import eu.stratosphere.sopremo.operator.InputCardinality;
-import eu.stratosphere.sopremo.operator.JsonStream;
-import eu.stratosphere.sopremo.operator.Operator;
-import eu.stratosphere.sopremo.operator.OutputCardinality;
 
 /**
  * The class <code>OperatorTest</code> contains tests for the class <code>{@link Operator<?>}</code>.

@@ -18,7 +18,7 @@ public class AggregationExpressionTest extends EvaluableExpressionTest<Aggregati
 
 	@Test
 	public void testFunctionAndExpression() {
-		final Aggregation func = CoreFunctions.SUM;
+		final Aggregation<INumericNode, INumericNode> func = CoreFunctions.SUM;
 		final ConstantExpression expr = new ConstantExpression(1);
 		final AggregationExpression aggregation = new AggregationExpression(func, expr);
 		Assert.assertEquals(func, aggregation.getFunction());

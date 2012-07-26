@@ -77,8 +77,8 @@ public class JsonNodeWrapper extends AbstractJsonNode implements IJsonNode {
 	 *        the class that should be used to cast the wrapped node
 	 * @return the wrapped node after casting
 	 */
-	@SuppressWarnings("unchecked")
-	public <T extends IJsonNode> T getValue(final Class<T> klass) {
+	@SuppressWarnings({ "unchecked", "unused" })
+	public <T extends IJsonNode> T getValue( final Class<T> klass) {
 		return (T) this.value;
 	}
 

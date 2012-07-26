@@ -248,9 +248,9 @@ public class Source extends ElementaryOperator<Source> {
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + ((adhocExpression == null) ? 0 : adhocExpression.hashCode());
-		result = prime * result + ((inputFormat == null) ? 0 : inputFormat.hashCode());
-		result = prime * result + ((inputPath == null) ? 0 : inputPath.hashCode());
+		result = prime * result + ((this.adhocExpression == null) ? 0 : this.adhocExpression.hashCode());
+		result = prime * result + ((this.inputFormat == null) ? 0 : this.inputFormat.hashCode());
+		result = prime * result + ((this.inputPath == null) ? 0 : this.inputPath.hashCode());
 		return result;
 	}
 

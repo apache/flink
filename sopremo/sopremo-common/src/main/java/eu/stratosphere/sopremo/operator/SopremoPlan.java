@@ -43,6 +43,27 @@ public class SopremoPlan {
 	public Plan asPactPlan() {
 		return new Plan(this.checkForSinks(this.assemblePact()));
 	}
+	
+	/**
+	 * Returns the packageLocations.
+	 * 
+	 * @return the packageLocations
+	 */
+	public List<URI> getPackageLocations() {
+		return this.packageLocations;
+	}
+	
+	/**
+	 * Sets the packageLocations to the specified value.
+	 *
+	 * @param packageLocations the packageLocations to set
+	 */
+	public void setPackageLocations(List<URI> packageLocations) {
+		if (packageLocations == null)
+			throw new NullPointerException("packageLocations must not be null");
+
+		this.packageLocations = packageLocations;
+	}
 
 	/**
 	 * Checks if all contracts are {@link GenericDataSink}s.

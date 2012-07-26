@@ -1,4 +1,4 @@
-// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g 2012-07-25 14:35:53
+// $ANTLR 3.3 Nov 30, 2010 12:46:29 /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g 2012-07-26 14:24:39
  
 package eu.stratosphere.meteor; 
 
@@ -1168,7 +1168,7 @@ public class MeteorParser extends MeteorParserBase {
 
 
                     // AST REWRITE
-                    // elements: ifClause2, ifExpr2
+                    // elements: ifExpr2, ifClause2
                     // token labels: 
                     // rule labels: retval, ifExpr2, ifClause2
                     // token list labels: 
@@ -1618,7 +1618,7 @@ public class MeteorParser extends MeteorParserBase {
 
 
             // AST REWRITE
-            // elements: elem, set, elem
+            // elements: set, elem, elem
             // token labels: 
             // rule labels: elem, retval, set
             // token list labels: 
@@ -1833,7 +1833,7 @@ public class MeteorParser extends MeteorParserBase {
 
 
             // AST REWRITE
-            // elements: e1, e1, e1, e2, e1, e2, e2
+            // elements: e1, e2, e1, e2, e1, e2, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -2014,7 +2014,7 @@ public class MeteorParser extends MeteorParserBase {
 
 
             // AST REWRITE
-            // elements: e2, e1, e1
+            // elements: e1, e2, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -2165,7 +2165,7 @@ public class MeteorParser extends MeteorParserBase {
 
 
             // AST REWRITE
-            // elements: e1, e1, e2
+            // elements: e1, e2, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -3069,7 +3069,7 @@ public class MeteorParser extends MeteorParserBase {
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_streamIndexAccess_in_valueExpression1089);
+                    pushFollow(FOLLOW_streamIndexAccess_in_valueExpression1090);
                     streamIndexAccess50=streamIndexAccess();
 
                     state._fsp--;
@@ -3083,7 +3083,7 @@ public class MeteorParser extends MeteorParserBase {
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_arrayCreation_in_valueExpression1094);
+                    pushFollow(FOLLOW_arrayCreation_in_valueExpression1095);
                     arrayCreation51=arrayCreation();
 
                     state._fsp--;
@@ -3097,7 +3097,7 @@ public class MeteorParser extends MeteorParserBase {
                     {
                     root_0 = (EvaluationExpression)adaptor.nil();
 
-                    pushFollow(FOLLOW_objectCreation_in_valueExpression1100);
+                    pushFollow(FOLLOW_objectCreation_in_valueExpression1101);
                     objectCreation52=objectCreation();
 
                     state._fsp--;
@@ -3145,7 +3145,7 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:186:2: (op= operator -> ^( EXPRESSION[\"NestedOperatorExpression\"] ) )
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:186:4: op= operator
             {
-            pushFollow(FOLLOW_operator_in_operatorExpression1113);
+            pushFollow(FOLLOW_operator_in_operatorExpression1114);
             op=operator();
 
             state._fsp--;
@@ -3228,16 +3228,16 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:4: ( '(' expression ')' )
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:189:5: '(' expression ')'
             {
-            char_literal53=(Token)match(input,31,FOLLOW_31_in_parenthesesExpression1134); if (state.failed) return retval; 
+            char_literal53=(Token)match(input,31,FOLLOW_31_in_parenthesesExpression1135); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_31.add(char_literal53);
 
-            pushFollow(FOLLOW_expression_in_parenthesesExpression1136);
+            pushFollow(FOLLOW_expression_in_parenthesesExpression1137);
             expression54=expression();
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_expression.add(expression54.getTree());
-            char_literal55=(Token)match(input,32,FOLLOW_32_in_parenthesesExpression1138); if (state.failed) return retval; 
+            char_literal55=(Token)match(input,32,FOLLOW_32_in_parenthesesExpression1139); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_32.add(char_literal55);
 
 
@@ -3336,10 +3336,10 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:193:5: packageName= ID ':'
                     {
-                    packageName=(Token)match(input,ID,FOLLOW_ID_in_methodCall1162); if (state.failed) return retval; 
+                    packageName=(Token)match(input,ID,FOLLOW_ID_in_methodCall1163); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(packageName);
 
-                    char_literal56=(Token)match(input,35,FOLLOW_35_in_methodCall1164); if (state.failed) return retval; 
+                    char_literal56=(Token)match(input,35,FOLLOW_35_in_methodCall1165); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_35.add(char_literal56);
 
 
@@ -3348,10 +3348,10 @@ public class MeteorParser extends MeteorParserBase {
 
             }
 
-            name=(Token)match(input,ID,FOLLOW_ID_in_methodCall1170); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_methodCall1171); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
-            char_literal57=(Token)match(input,31,FOLLOW_31_in_methodCall1172); if (state.failed) return retval; 
+            char_literal57=(Token)match(input,31,FOLLOW_31_in_methodCall1173); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_31.add(char_literal57);
 
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:194:2: (param= expression ( ',' param= expression )* )?
@@ -3365,7 +3365,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:194:3: param= expression ( ',' param= expression )*
                     {
-                    pushFollow(FOLLOW_expression_in_methodCall1179);
+                    pushFollow(FOLLOW_expression_in_methodCall1180);
                     param=expression();
 
                     state._fsp--;
@@ -3389,10 +3389,10 @@ public class MeteorParser extends MeteorParserBase {
                     	case 1 :
                     	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:195:3: ',' param= expression
                     	    {
-                    	    char_literal58=(Token)match(input,28,FOLLOW_28_in_methodCall1185); if (state.failed) return retval; 
+                    	    char_literal58=(Token)match(input,28,FOLLOW_28_in_methodCall1186); if (state.failed) return retval; 
                     	    if ( state.backtracking==0 ) stream_28.add(char_literal58);
 
-                    	    pushFollow(FOLLOW_expression_in_methodCall1189);
+                    	    pushFollow(FOLLOW_expression_in_methodCall1190);
                     	    param=expression();
 
                     	    state._fsp--;
@@ -3416,7 +3416,7 @@ public class MeteorParser extends MeteorParserBase {
 
             }
 
-            char_literal59=(Token)match(input,32,FOLLOW_32_in_methodCall1199); if (state.failed) return retval; 
+            char_literal59=(Token)match(input,32,FOLLOW_32_in_methodCall1200); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_32.add(char_literal59);
 
 
@@ -3525,13 +3525,13 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:199:4: ID ':' expression
                     {
-                    ID60=(Token)match(input,ID,FOLLOW_ID_in_fieldAssignment1213); if (state.failed) return retval; 
+                    ID60=(Token)match(input,ID,FOLLOW_ID_in_fieldAssignment1214); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(ID60);
 
-                    char_literal61=(Token)match(input,35,FOLLOW_35_in_fieldAssignment1215); if (state.failed) return retval; 
+                    char_literal61=(Token)match(input,35,FOLLOW_35_in_fieldAssignment1216); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_35.add(char_literal61);
 
-                    pushFollow(FOLLOW_expression_in_fieldAssignment1217);
+                    pushFollow(FOLLOW_expression_in_fieldAssignment1218);
                     expression62=expression();
 
                     state._fsp--;
@@ -3565,7 +3565,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 2 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:201:5: VAR ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getVariable($VAR).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) )
                     {
-                    VAR63=(Token)match(input,VAR,FOLLOW_VAR_in_fieldAssignment1232); if (state.failed) return retval; 
+                    VAR63=(Token)match(input,VAR,FOLLOW_VAR_in_fieldAssignment1233); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_VAR.add(VAR63);
 
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:202:5: ( '.' STAR -> | '=' op= operator {...}? => | p= contextAwarePathExpression[getVariable($VAR).toInputSelection($operator::result)] ( ':' e2= expression -> | ->) )
@@ -3612,10 +3612,10 @@ public class MeteorParser extends MeteorParserBase {
                         case 1 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:202:7: '.' STAR
                             {
-                            char_literal64=(Token)match(input,57,FOLLOW_57_in_fieldAssignment1241); if (state.failed) return retval; 
+                            char_literal64=(Token)match(input,57,FOLLOW_57_in_fieldAssignment1242); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_57.add(char_literal64);
 
-                            STAR65=(Token)match(input,STAR,FOLLOW_STAR_in_fieldAssignment1243); if (state.failed) return retval; 
+                            STAR65=(Token)match(input,STAR,FOLLOW_STAR_in_fieldAssignment1244); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_STAR.add(STAR65);
 
                             if ( state.backtracking==0 ) {
@@ -3646,10 +3646,10 @@ public class MeteorParser extends MeteorParserBase {
                         case 2 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:203:9: '=' op= operator {...}? =>
                             {
-                            char_literal66=(Token)match(input,29,FOLLOW_29_in_fieldAssignment1257); if (state.failed) return retval; 
+                            char_literal66=(Token)match(input,29,FOLLOW_29_in_fieldAssignment1258); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_29.add(char_literal66);
 
-                            pushFollow(FOLLOW_operator_in_fieldAssignment1261);
+                            pushFollow(FOLLOW_operator_in_fieldAssignment1262);
                             op=operator();
 
                             state._fsp--;
@@ -3665,7 +3665,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 3 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:204:9: p= contextAwarePathExpression[getVariable($VAR).toInputSelection($operator::result)] ( ':' e2= expression -> | ->)
                             {
-                            pushFollow(FOLLOW_contextAwarePathExpression_in_fieldAssignment1276);
+                            pushFollow(FOLLOW_contextAwarePathExpression_in_fieldAssignment1277);
                             p=contextAwarePathExpression(getVariable(VAR63).toInputSelection(((operator_scope)operator_stack.peek()).result));
 
                             state._fsp--;
@@ -3692,10 +3692,10 @@ public class MeteorParser extends MeteorParserBase {
                                 case 1 :
                                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:205:9: ':' e2= expression
                                     {
-                                    char_literal67=(Token)match(input,35,FOLLOW_35_in_fieldAssignment1287); if (state.failed) return retval; 
+                                    char_literal67=(Token)match(input,35,FOLLOW_35_in_fieldAssignment1288); if (state.failed) return retval; 
                                     if ( state.backtracking==0 ) stream_35.add(char_literal67);
 
-                                    pushFollow(FOLLOW_expression_in_fieldAssignment1291);
+                                    pushFollow(FOLLOW_expression_in_fieldAssignment1292);
                                     e2=expression();
 
                                     state._fsp--;
@@ -3825,7 +3825,7 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:2: ( '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}' -> ^( EXPRESSION[\"ObjectCreation\"] ) )
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:4: '{' ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )? '}'
             {
-            char_literal68=(Token)match(input,58,FOLLOW_58_in_objectCreation1343); if (state.failed) return retval; 
+            char_literal68=(Token)match(input,58,FOLLOW_58_in_objectCreation1344); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_58.add(char_literal68);
 
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:8: ( fieldAssignment ( ',' fieldAssignment )* ( ',' )? )?
@@ -3839,7 +3839,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:9: fieldAssignment ( ',' fieldAssignment )* ( ',' )?
                     {
-                    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1346);
+                    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1347);
                     fieldAssignment69=fieldAssignment();
 
                     state._fsp--;
@@ -3866,10 +3866,10 @@ public class MeteorParser extends MeteorParserBase {
                     	case 1 :
                     	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:213:26: ',' fieldAssignment
                     	    {
-                    	    char_literal70=(Token)match(input,28,FOLLOW_28_in_objectCreation1349); if (state.failed) return retval; 
+                    	    char_literal70=(Token)match(input,28,FOLLOW_28_in_objectCreation1350); if (state.failed) return retval; 
                     	    if ( state.backtracking==0 ) stream_28.add(char_literal70);
 
-                    	    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1351);
+                    	    pushFollow(FOLLOW_fieldAssignment_in_objectCreation1352);
                     	    fieldAssignment71=fieldAssignment();
 
                     	    state._fsp--;
@@ -3895,7 +3895,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 1 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ','
                             {
-                            char_literal72=(Token)match(input,28,FOLLOW_28_in_objectCreation1355); if (state.failed) return retval; 
+                            char_literal72=(Token)match(input,28,FOLLOW_28_in_objectCreation1356); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_28.add(char_literal72);
 
 
@@ -3910,7 +3910,7 @@ public class MeteorParser extends MeteorParserBase {
 
             }
 
-            char_literal73=(Token)match(input,59,FOLLOW_59_in_objectCreation1360); if (state.failed) return retval; 
+            char_literal73=(Token)match(input,59,FOLLOW_59_in_objectCreation1361); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_59.add(char_literal73);
 
 
@@ -4032,7 +4032,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:216:4: val= 'true'
                     {
-                    val=(Token)match(input,60,FOLLOW_60_in_literal1380); if (state.failed) return retval; 
+                    val=(Token)match(input,60,FOLLOW_60_in_literal1381); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_60.add(val);
 
 
@@ -4069,7 +4069,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 2 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:217:4: val= 'false'
                     {
-                    val=(Token)match(input,61,FOLLOW_61_in_literal1396); if (state.failed) return retval; 
+                    val=(Token)match(input,61,FOLLOW_61_in_literal1397); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_61.add(val);
 
 
@@ -4106,7 +4106,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 3 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:218:4: val= DECIMAL
                     {
-                    val=(Token)match(input,DECIMAL,FOLLOW_DECIMAL_in_literal1412); if (state.failed) return retval; 
+                    val=(Token)match(input,DECIMAL,FOLLOW_DECIMAL_in_literal1413); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_DECIMAL.add(val);
 
 
@@ -4143,7 +4143,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 4 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:219:4: val= STRING
                     {
-                    val=(Token)match(input,STRING,FOLLOW_STRING_in_literal1428); if (state.failed) return retval; 
+                    val=(Token)match(input,STRING,FOLLOW_STRING_in_literal1429); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(val);
 
 
@@ -4180,7 +4180,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 5 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:220:5: val= INTEGER
                     {
-                    val=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_literal1445); if (state.failed) return retval; 
+                    val=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_literal1446); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_INTEGER.add(val);
 
 
@@ -4217,7 +4217,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 6 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:221:5: 'null'
                     {
-                    string_literal74=(Token)match(input,62,FOLLOW_62_in_literal1460); if (state.failed) return retval; 
+                    string_literal74=(Token)match(input,62,FOLLOW_62_in_literal1461); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_62.add(string_literal74);
 
 
@@ -4376,16 +4376,16 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:224:5: '[' STAR ']' path= pathExpression
                     {
-                    char_literal75=(Token)match(input,63,FOLLOW_63_in_arrayAccess1474); if (state.failed) return retval; 
+                    char_literal75=(Token)match(input,63,FOLLOW_63_in_arrayAccess1475); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_63.add(char_literal75);
 
-                    STAR76=(Token)match(input,STAR,FOLLOW_STAR_in_arrayAccess1476); if (state.failed) return retval; 
+                    STAR76=(Token)match(input,STAR,FOLLOW_STAR_in_arrayAccess1477); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STAR.add(STAR76);
 
-                    char_literal77=(Token)match(input,64,FOLLOW_64_in_arrayAccess1478); if (state.failed) return retval; 
+                    char_literal77=(Token)match(input,64,FOLLOW_64_in_arrayAccess1479); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_64.add(char_literal77);
 
-                    pushFollow(FOLLOW_pathExpression_in_arrayAccess1482);
+                    pushFollow(FOLLOW_pathExpression_in_arrayAccess1483);
                     path=pathExpression();
 
                     state._fsp--;
@@ -4426,7 +4426,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 2 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:226:5: '[' (pos= INTEGER | pos= UINT ) ']'
                     {
-                    char_literal78=(Token)match(input,63,FOLLOW_63_in_arrayAccess1502); if (state.failed) return retval; 
+                    char_literal78=(Token)match(input,63,FOLLOW_63_in_arrayAccess1503); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_63.add(char_literal78);
 
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:226:9: (pos= INTEGER | pos= UINT )
@@ -4450,7 +4450,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 1 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:226:10: pos= INTEGER
                             {
-                            pos=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1507); if (state.failed) return retval; 
+                            pos=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1508); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_INTEGER.add(pos);
 
 
@@ -4459,7 +4459,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 2 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:226:24: pos= UINT
                             {
-                            pos=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1513); if (state.failed) return retval; 
+                            pos=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1514); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_UINT.add(pos);
 
 
@@ -4468,7 +4468,7 @@ public class MeteorParser extends MeteorParserBase {
 
                     }
 
-                    char_literal79=(Token)match(input,64,FOLLOW_64_in_arrayAccess1516); if (state.failed) return retval; 
+                    char_literal79=(Token)match(input,64,FOLLOW_64_in_arrayAccess1517); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_64.add(char_literal79);
 
 
@@ -4505,7 +4505,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 3 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:5: '[' (start= INTEGER | start= UINT ) ':' (end= INTEGER | end= UINT ) ']'
                     {
-                    char_literal80=(Token)match(input,63,FOLLOW_63_in_arrayAccess1534); if (state.failed) return retval; 
+                    char_literal80=(Token)match(input,63,FOLLOW_63_in_arrayAccess1535); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_63.add(char_literal80);
 
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:9: (start= INTEGER | start= UINT )
@@ -4529,7 +4529,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 1 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:10: start= INTEGER
                             {
-                            start=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1539); if (state.failed) return retval; 
+                            start=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1540); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_INTEGER.add(start);
 
 
@@ -4538,7 +4538,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 2 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:26: start= UINT
                             {
-                            start=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1545); if (state.failed) return retval; 
+                            start=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1546); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_UINT.add(start);
 
 
@@ -4547,7 +4547,7 @@ public class MeteorParser extends MeteorParserBase {
 
                     }
 
-                    char_literal81=(Token)match(input,35,FOLLOW_35_in_arrayAccess1548); if (state.failed) return retval; 
+                    char_literal81=(Token)match(input,35,FOLLOW_35_in_arrayAccess1549); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_35.add(char_literal81);
 
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:42: (end= INTEGER | end= UINT )
@@ -4571,7 +4571,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 1 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:43: end= INTEGER
                             {
-                            end=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1553); if (state.failed) return retval; 
+                            end=(Token)match(input,INTEGER,FOLLOW_INTEGER_in_arrayAccess1554); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_INTEGER.add(end);
 
 
@@ -4580,7 +4580,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 2 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:228:57: end= UINT
                             {
-                            end=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1559); if (state.failed) return retval; 
+                            end=(Token)match(input,UINT,FOLLOW_UINT_in_arrayAccess1560); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_UINT.add(end);
 
 
@@ -4589,7 +4589,7 @@ public class MeteorParser extends MeteorParserBase {
 
                     }
 
-                    char_literal82=(Token)match(input,64,FOLLOW_64_in_arrayAccess1562); if (state.failed) return retval; 
+                    char_literal82=(Token)match(input,64,FOLLOW_64_in_arrayAccess1563); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_64.add(char_literal82);
 
 
@@ -4672,23 +4672,23 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:232:3: (op= VAR {...}? => '[' path= generalPathExpression ']' {...}? ->)
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:232:5: op= VAR {...}? => '[' path= generalPathExpression ']' {...}?
             {
-            op=(Token)match(input,VAR,FOLLOW_VAR_in_streamIndexAccess1590); if (state.failed) return retval; 
+            op=(Token)match(input,VAR,FOLLOW_VAR_in_streamIndexAccess1591); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(op);
 
             if ( !(( getVariable(op) != null )) ) {
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 throw new FailedPredicateException(input, "streamIndexAccess", " getVariable($op) != null ");
             }
-            char_literal83=(Token)match(input,63,FOLLOW_63_in_streamIndexAccess1599); if (state.failed) return retval; 
+            char_literal83=(Token)match(input,63,FOLLOW_63_in_streamIndexAccess1600); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_63.add(char_literal83);
 
-            pushFollow(FOLLOW_generalPathExpression_in_streamIndexAccess1603);
+            pushFollow(FOLLOW_generalPathExpression_in_streamIndexAccess1604);
             path=generalPathExpression();
 
             state._fsp--;
             if (state.failed) return retval;
             if ( state.backtracking==0 ) stream_generalPathExpression.add(path.getTree());
-            char_literal84=(Token)match(input,64,FOLLOW_64_in_streamIndexAccess1605); if (state.failed) return retval; 
+            char_literal84=(Token)match(input,64,FOLLOW_64_in_streamIndexAccess1606); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_64.add(char_literal84);
 
             if ( !(( !((path!=null?((EvaluationExpression)path.tree):null) instanceof ConstantExpression) )) ) {
@@ -4765,10 +4765,10 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:2: ( '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']' -> ^( EXPRESSION[\"ArrayCreation\"] ) )
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:5: '[' elems+= expression ( ',' elems+= expression )* ( ',' )? ']'
             {
-            char_literal85=(Token)match(input,63,FOLLOW_63_in_arrayCreation1624); if (state.failed) return retval; 
+            char_literal85=(Token)match(input,63,FOLLOW_63_in_arrayCreation1625); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_63.add(char_literal85);
 
-            pushFollow(FOLLOW_expression_in_arrayCreation1628);
+            pushFollow(FOLLOW_expression_in_arrayCreation1629);
             elems=expression();
 
             state._fsp--;
@@ -4798,10 +4798,10 @@ public class MeteorParser extends MeteorParserBase {
             	case 1 :
             	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:237:28: ',' elems+= expression
             	    {
-            	    char_literal86=(Token)match(input,28,FOLLOW_28_in_arrayCreation1631); if (state.failed) return retval; 
+            	    char_literal86=(Token)match(input,28,FOLLOW_28_in_arrayCreation1632); if (state.failed) return retval; 
             	    if ( state.backtracking==0 ) stream_28.add(char_literal86);
 
-            	    pushFollow(FOLLOW_expression_in_arrayCreation1635);
+            	    pushFollow(FOLLOW_expression_in_arrayCreation1636);
             	    elems=expression();
 
             	    state._fsp--;
@@ -4830,7 +4830,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: ','
                     {
-                    char_literal87=(Token)match(input,28,FOLLOW_28_in_arrayCreation1639); if (state.failed) return retval; 
+                    char_literal87=(Token)match(input,28,FOLLOW_28_in_arrayCreation1640); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_28.add(char_literal87);
 
 
@@ -4839,7 +4839,7 @@ public class MeteorParser extends MeteorParserBase {
 
             }
 
-            char_literal88=(Token)match(input,64,FOLLOW_64_in_arrayCreation1642); if (state.failed) return retval; 
+            char_literal88=(Token)match(input,64,FOLLOW_64_in_arrayCreation1643); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_64.add(char_literal88);
 
 
@@ -4962,7 +4962,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:252:12: readOperator
                     {
-                    pushFollow(FOLLOW_readOperator_in_operator1679);
+                    pushFollow(FOLLOW_readOperator_in_operator1680);
                     readOperator89=readOperator();
 
                     state._fsp--;
@@ -4974,7 +4974,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 2 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:252:27: writeOperator
                     {
-                    pushFollow(FOLLOW_writeOperator_in_operator1683);
+                    pushFollow(FOLLOW_writeOperator_in_operator1684);
                     writeOperator90=writeOperator();
 
                     state._fsp--;
@@ -4986,7 +4986,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 3 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:252:43: genericOperator
                     {
-                    pushFollow(FOLLOW_genericOperator_in_operator1687);
+                    pushFollow(FOLLOW_genericOperator_in_operator1688);
                     genericOperator91=genericOperator();
 
                     state._fsp--;
@@ -5065,10 +5065,10 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:2: ( 'read' 'from' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:4: 'read' 'from' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
             {
-            string_literal92=(Token)match(input,65,FOLLOW_65_in_readOperator1701); if (state.failed) return retval; 
+            string_literal92=(Token)match(input,65,FOLLOW_65_in_readOperator1702); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_65.add(string_literal92);
 
-            string_literal93=(Token)match(input,66,FOLLOW_66_in_readOperator1703); if (state.failed) return retval; 
+            string_literal93=(Token)match(input,66,FOLLOW_66_in_readOperator1704); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_66.add(string_literal93);
 
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:18: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
@@ -5117,7 +5117,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 1 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: loc= ID
                             {
-                            loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1708); if (state.failed) return retval; 
+                            loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1709); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_ID.add(loc);
 
 
@@ -5126,7 +5126,7 @@ public class MeteorParser extends MeteorParserBase {
 
                     }
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1713); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1714); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
 
@@ -5135,16 +5135,16 @@ public class MeteorParser extends MeteorParserBase {
                 case 2 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:258:41: loc= ID '(' file= STRING ')'
                     {
-                    loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1719); if (state.failed) return retval; 
+                    loc=(Token)match(input,ID,FOLLOW_ID_in_readOperator1720); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(loc);
 
-                    char_literal94=(Token)match(input,31,FOLLOW_31_in_readOperator1721); if (state.failed) return retval; 
+                    char_literal94=(Token)match(input,31,FOLLOW_31_in_readOperator1722); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_31.add(char_literal94);
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1725); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_readOperator1726); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
-                    char_literal95=(Token)match(input,32,FOLLOW_32_in_readOperator1727); if (state.failed) return retval; 
+                    char_literal95=(Token)match(input,32,FOLLOW_32_in_readOperator1728); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_32.add(char_literal95);
 
 
@@ -5234,13 +5234,13 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:2: ( 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' ) ->)
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:4: 'write' from= VAR 'to' ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
             {
-            string_literal96=(Token)match(input,67,FOLLOW_67_in_writeOperator1741); if (state.failed) return retval; 
+            string_literal96=(Token)match(input,67,FOLLOW_67_in_writeOperator1742); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_67.add(string_literal96);
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_writeOperator1745); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_writeOperator1746); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
-            string_literal97=(Token)match(input,68,FOLLOW_68_in_writeOperator1747); if (state.failed) return retval; 
+            string_literal97=(Token)match(input,68,FOLLOW_68_in_writeOperator1748); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_68.add(string_literal97);
 
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:26: ( (loc= ID )? file= STRING | loc= ID '(' file= STRING ')' )
@@ -5289,7 +5289,7 @@ public class MeteorParser extends MeteorParserBase {
                         case 1 :
                             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: loc= ID
                             {
-                            loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1752); if (state.failed) return retval; 
+                            loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1753); if (state.failed) return retval; 
                             if ( state.backtracking==0 ) stream_ID.add(loc);
 
 
@@ -5298,7 +5298,7 @@ public class MeteorParser extends MeteorParserBase {
 
                     }
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1757); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1758); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
 
@@ -5307,16 +5307,16 @@ public class MeteorParser extends MeteorParserBase {
                 case 2 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:261:49: loc= ID '(' file= STRING ')'
                     {
-                    loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1763); if (state.failed) return retval; 
+                    loc=(Token)match(input,ID,FOLLOW_ID_in_writeOperator1764); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(loc);
 
-                    char_literal98=(Token)match(input,31,FOLLOW_31_in_writeOperator1765); if (state.failed) return retval; 
+                    char_literal98=(Token)match(input,31,FOLLOW_31_in_writeOperator1766); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_31.add(char_literal98);
 
-                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1769); if (state.failed) return retval; 
+                    file=(Token)match(input,STRING,FOLLOW_STRING_in_writeOperator1770); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_STRING.add(file);
 
-                    char_literal99=(Token)match(input,32,FOLLOW_32_in_writeOperator1771); if (state.failed) return retval; 
+                    char_literal99=(Token)match(input,32,FOLLOW_32_in_writeOperator1772); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_32.add(char_literal99);
 
 
@@ -5435,10 +5435,10 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:272:6: packageName= ID ':'
                     {
-                    packageName=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1792); if (state.failed) return retval; 
+                    packageName=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1793); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(packageName);
 
-                    char_literal100=(Token)match(input,35,FOLLOW_35_in_genericOperator1794); if (state.failed) return retval; 
+                    char_literal100=(Token)match(input,35,FOLLOW_35_in_genericOperator1795); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_35.add(char_literal100);
 
 
@@ -5447,7 +5447,7 @@ public class MeteorParser extends MeteorParserBase {
 
             }
 
-            name=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1800); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_genericOperator1801); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
             if ( !(( (((genericOperator_scope)genericOperator_stack.peek()).operatorInfo = findOperatorGreedily((packageName!=null?packageName.getText():null), name)) != null )) ) {
@@ -5472,7 +5472,7 @@ public class MeteorParser extends MeteorParserBase {
             	case 1 :
             	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: operatorFlag
             	    {
-            	    pushFollow(FOLLOW_operatorFlag_in_genericOperator1808);
+            	    pushFollow(FOLLOW_operatorFlag_in_genericOperator1809);
             	    operatorFlag101=operatorFlag();
 
             	    state._fsp--;
@@ -5508,7 +5508,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:2: arrayInput
                     {
-                    pushFollow(FOLLOW_arrayInput_in_genericOperator1812);
+                    pushFollow(FOLLOW_arrayInput_in_genericOperator1813);
                     arrayInput102=arrayInput();
 
                     state._fsp--;
@@ -5520,7 +5520,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 2 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:15: input ( ',' input )*
                     {
-                    pushFollow(FOLLOW_input_in_genericOperator1816);
+                    pushFollow(FOLLOW_input_in_genericOperator1817);
                     input103=input();
 
                     state._fsp--;
@@ -5547,10 +5547,10 @@ public class MeteorParser extends MeteorParserBase {
                     	case 1 :
                     	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:22: ',' input
                     	    {
-                    	    char_literal104=(Token)match(input,28,FOLLOW_28_in_genericOperator1819); if (state.failed) return retval; 
+                    	    char_literal104=(Token)match(input,28,FOLLOW_28_in_genericOperator1820); if (state.failed) return retval; 
                     	    if ( state.backtracking==0 ) stream_28.add(char_literal104);
 
-                    	    pushFollow(FOLLOW_input_in_genericOperator1821);
+                    	    pushFollow(FOLLOW_input_in_genericOperator1822);
                     	    input105=input();
 
                     	    state._fsp--;
@@ -5592,7 +5592,7 @@ public class MeteorParser extends MeteorParserBase {
             	case 1 :
             	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: operatorOption
             	    {
-            	    pushFollow(FOLLOW_operatorOption_in_genericOperator1827);
+            	    pushFollow(FOLLOW_operatorOption_in_genericOperator1828);
             	    operatorOption106=operatorOption();
 
             	    state._fsp--;
@@ -5676,14 +5676,14 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:282:2: (name= ID {...}?expr= contextAwareExpression[null] ->)
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:282:4: name= ID {...}?expr= contextAwareExpression[null]
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1847); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_operatorOption1848); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
             if ( !(( (((operatorOption_scope)operatorOption_stack.peek()).property = findOperatorPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, name)) != null )) ) {
                 if (state.backtracking>0) {state.failed=true; return retval;}
                 throw new FailedPredicateException(input, "operatorOption", " ($operatorOption::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, $name)) != null ");
             }
-            pushFollow(FOLLOW_contextAwareExpression_in_operatorOption1853);
+            pushFollow(FOLLOW_contextAwareExpression_in_operatorOption1854);
             expr=contextAwareExpression(null);
 
             state._fsp--;
@@ -5759,7 +5759,7 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:289:3: (name= ID {...}? ->)
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:289:5: name= ID {...}?
             {
-            name=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1874); if (state.failed) return retval; 
+            name=(Token)match(input,ID,FOLLOW_ID_in_operatorFlag1875); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_ID.add(name);
 
             if ( !(( (((operatorFlag_scope)operatorFlag_stack.peek()).property = findOperatorPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, name)) != null )) ) {
@@ -5862,7 +5862,7 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:0:0: preserveFlag= 'preserve'
                     {
-                    preserveFlag=(Token)match(input,69,FOLLOW_69_in_input1896); if (state.failed) return retval; 
+                    preserveFlag=(Token)match(input,69,FOLLOW_69_in_input1897); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_69.add(preserveFlag);
 
 
@@ -5888,10 +5888,10 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:297:34: name= VAR 'in'
                     {
-                    name=(Token)match(input,VAR,FOLLOW_VAR_in_input1904); if (state.failed) return retval; 
+                    name=(Token)match(input,VAR,FOLLOW_VAR_in_input1905); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_VAR.add(name);
 
-                    string_literal107=(Token)match(input,42,FOLLOW_42_in_input1906); if (state.failed) return retval; 
+                    string_literal107=(Token)match(input,42,FOLLOW_42_in_input1907); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_42.add(string_literal107);
 
 
@@ -5900,7 +5900,7 @@ public class MeteorParser extends MeteorParserBase {
 
             }
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_input1912); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_input1913); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
             if ( state.backtracking==0 ) {
@@ -5928,14 +5928,14 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:312:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
                     {
-                    inputOption=(Token)match(input,ID,FOLLOW_ID_in_input1922); if (state.failed) return retval; 
+                    inputOption=(Token)match(input,ID,FOLLOW_ID_in_input1923); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_ID.add(inputOption);
 
                     if ( !(( (((input_scope)input_stack.peek()).inputProperty = findInputPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, inputOption)) != null )) ) {
                         if (state.backtracking>0) {state.failed=true; return retval;}
                         throw new FailedPredicateException(input, "input", " ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null ");
                     }
-                    pushFollow(FOLLOW_contextAwareExpression_in_input1930);
+                    pushFollow(FOLLOW_contextAwareExpression_in_input1931);
                     expr=contextAwareExpression(new InputSelection(((operator_scope)operator_stack.peek()).numInputs - 1));
 
                     state._fsp--;
@@ -6031,10 +6031,10 @@ public class MeteorParser extends MeteorParserBase {
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:320:3: ( '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR ->)
             // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:320:5: '[' names+= VAR ( ',' names+= VAR )? ']' 'in' from= VAR
             {
-            char_literal108=(Token)match(input,63,FOLLOW_63_in_arrayInput1952); if (state.failed) return retval; 
+            char_literal108=(Token)match(input,63,FOLLOW_63_in_arrayInput1953); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_63.add(char_literal108);
 
-            names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1956); if (state.failed) return retval; 
+            names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1957); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(names);
 
             if (list_names==null) list_names=new ArrayList();
@@ -6051,10 +6051,10 @@ public class MeteorParser extends MeteorParserBase {
                 case 1 :
                     // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:320:21: ',' names+= VAR
                     {
-                    char_literal109=(Token)match(input,28,FOLLOW_28_in_arrayInput1959); if (state.failed) return retval; 
+                    char_literal109=(Token)match(input,28,FOLLOW_28_in_arrayInput1960); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_28.add(char_literal109);
 
-                    names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1963); if (state.failed) return retval; 
+                    names=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1964); if (state.failed) return retval; 
                     if ( state.backtracking==0 ) stream_VAR.add(names);
 
                     if (list_names==null) list_names=new ArrayList();
@@ -6066,13 +6066,13 @@ public class MeteorParser extends MeteorParserBase {
 
             }
 
-            char_literal110=(Token)match(input,64,FOLLOW_64_in_arrayInput1967); if (state.failed) return retval; 
+            char_literal110=(Token)match(input,64,FOLLOW_64_in_arrayInput1968); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_64.add(char_literal110);
 
-            string_literal111=(Token)match(input,42,FOLLOW_42_in_arrayInput1969); if (state.failed) return retval; 
+            string_literal111=(Token)match(input,42,FOLLOW_42_in_arrayInput1970); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_42.add(string_literal111);
 
-            from=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1973); if (state.failed) return retval; 
+            from=(Token)match(input,VAR,FOLLOW_VAR_in_arrayInput1974); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_VAR.add(from);
 
             if ( state.backtracking==0 ) {
@@ -6413,7 +6413,7 @@ public class MeteorParser extends MeteorParserBase {
         // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:181:5: ( streamIndexAccess )
         // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:181:5: streamIndexAccess
         {
-        pushFollow(FOLLOW_streamIndexAccess_in_synpred44_Meteor1089);
+        pushFollow(FOLLOW_streamIndexAccess_in_synpred44_Meteor1090);
         streamIndexAccess();
 
         state._fsp--;
@@ -6428,8 +6428,8 @@ public class MeteorParser extends MeteorParserBase {
         // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:22: ( ',' input )
         // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:275:22: ',' input
         {
-        match(input,28,FOLLOW_28_in_synpred77_Meteor1819); if (state.failed) return ;
-        pushFollow(FOLLOW_input_in_synpred77_Meteor1821);
+        match(input,28,FOLLOW_28_in_synpred77_Meteor1820); if (state.failed) return ;
+        pushFollow(FOLLOW_input_in_synpred77_Meteor1822);
         input();
 
         state._fsp--;
@@ -6444,7 +6444,7 @@ public class MeteorParser extends MeteorParserBase {
         // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:1: ( operatorOption )
         // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:276:1: operatorOption
         {
-        pushFollow(FOLLOW_operatorOption_in_synpred78_Meteor1827);
+        pushFollow(FOLLOW_operatorOption_in_synpred78_Meteor1828);
         operatorOption();
 
         state._fsp--;
@@ -6463,12 +6463,12 @@ public class MeteorParser extends MeteorParserBase {
         // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:312:2: (inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)] )
         // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:312:2: inputOption= ID {...}?expr= contextAwareExpression[new InputSelection($operator::numInputs - 1)]
         {
-        inputOption=(Token)match(input,ID,FOLLOW_ID_in_synpred81_Meteor1922); if (state.failed) return ;
+        inputOption=(Token)match(input,ID,FOLLOW_ID_in_synpred81_Meteor1923); if (state.failed) return ;
         if ( !(( (((input_scope)input_stack.peek()).inputProperty = findInputPropertyRelunctantly(((genericOperator_scope)genericOperator_stack.peek()).operatorInfo, inputOption)) != null )) ) {
             if (state.backtracking>0) {state.failed=true; return ;}
             throw new FailedPredicateException(input, "synpred81_Meteor", " ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null ");
         }
-        pushFollow(FOLLOW_contextAwareExpression_in_synpred81_Meteor1930);
+        pushFollow(FOLLOW_contextAwareExpression_in_synpred81_Meteor1931);
         expr=contextAwareExpression(new InputSelection(((operator_scope)operator_stack.peek()).numInputs - 1));
 
         state._fsp--;
@@ -7953,114 +7953,114 @@ public class MeteorParser extends MeteorParserBase {
     public static final BitSet FOLLOW_ID_in_valueExpression1063 = new BitSet(new long[]{0x0000000800000000L});
     public static final BitSet FOLLOW_35_in_valueExpression1065 = new BitSet(new long[]{0x0000000000000040L});
     public static final BitSet FOLLOW_ID_in_valueExpression1071 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_streamIndexAccess_in_valueExpression1089 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_arrayCreation_in_valueExpression1094 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_objectCreation_in_valueExpression1100 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_operator_in_operatorExpression1113 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_31_in_parenthesesExpression1134 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_parenthesesExpression1136 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_parenthesesExpression1138 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_methodCall1162 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_35_in_methodCall1164 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_methodCall1170 = new BitSet(new long[]{0x0000000080000000L});
-    public static final BitSet FOLLOW_31_in_methodCall1172 = new BitSet(new long[]{0xF4F0000180000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_methodCall1179 = new BitSet(new long[]{0x0000000110000000L});
-    public static final BitSet FOLLOW_28_in_methodCall1185 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_methodCall1189 = new BitSet(new long[]{0x0000000110000000L});
-    public static final BitSet FOLLOW_32_in_methodCall1199 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_fieldAssignment1213 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_35_in_fieldAssignment1215 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_fieldAssignment1217 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_fieldAssignment1232 = new BitSet(new long[]{0x8200000020000000L});
-    public static final BitSet FOLLOW_57_in_fieldAssignment1241 = new BitSet(new long[]{0x0000000000000200L});
-    public static final BitSet FOLLOW_STAR_in_fieldAssignment1243 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_29_in_fieldAssignment1257 = new BitSet(new long[]{0x0000000000000040L,0x000000000000000AL});
-    public static final BitSet FOLLOW_operator_in_fieldAssignment1261 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_contextAwarePathExpression_in_fieldAssignment1276 = new BitSet(new long[]{0x0000000800000002L});
-    public static final BitSet FOLLOW_35_in_fieldAssignment1287 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_fieldAssignment1291 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_58_in_objectCreation1343 = new BitSet(new long[]{0x08000000000000C0L});
-    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1346 = new BitSet(new long[]{0x0800000010000000L});
-    public static final BitSet FOLLOW_28_in_objectCreation1349 = new BitSet(new long[]{0x00000000000000C0L});
-    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1351 = new BitSet(new long[]{0x0800000010000000L});
-    public static final BitSet FOLLOW_28_in_objectCreation1355 = new BitSet(new long[]{0x0800000000000000L});
-    public static final BitSet FOLLOW_59_in_objectCreation1360 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_60_in_literal1380 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_61_in_literal1396 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_DECIMAL_in_literal1412 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_STRING_in_literal1428 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_INTEGER_in_literal1445 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_62_in_literal1460 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayAccess1474 = new BitSet(new long[]{0x0000000000000200L});
-    public static final BitSet FOLLOW_STAR_in_arrayAccess1476 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayAccess1478 = new BitSet(new long[]{0x8200000000000000L});
-    public static final BitSet FOLLOW_pathExpression_in_arrayAccess1482 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayAccess1502 = new BitSet(new long[]{0x0000000000001800L});
-    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1507 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_UINT_in_arrayAccess1513 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayAccess1516 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayAccess1534 = new BitSet(new long[]{0x0000000000001800L});
-    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1539 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_UINT_in_arrayAccess1545 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_35_in_arrayAccess1548 = new BitSet(new long[]{0x0000000000001800L});
-    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1553 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_UINT_in_arrayAccess1559 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayAccess1562 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_VAR_in_streamIndexAccess1590 = new BitSet(new long[]{0x8000000000000000L});
-    public static final BitSet FOLLOW_63_in_streamIndexAccess1599 = new BitSet(new long[]{0xF400000080000DC0L});
-    public static final BitSet FOLLOW_generalPathExpression_in_streamIndexAccess1603 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_streamIndexAccess1605 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayCreation1624 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_arrayCreation1628 = new BitSet(new long[]{0x0000000010000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_28_in_arrayCreation1631 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_expression_in_arrayCreation1635 = new BitSet(new long[]{0x0000000010000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_28_in_arrayCreation1639 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayCreation1642 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_readOperator_in_operator1679 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_writeOperator_in_operator1683 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_genericOperator_in_operator1687 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_65_in_readOperator1701 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000004L});
-    public static final BitSet FOLLOW_66_in_readOperator1703 = new BitSet(new long[]{0x0000000000000140L});
-    public static final BitSet FOLLOW_ID_in_readOperator1708 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_readOperator1713 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_readOperator1719 = new BitSet(new long[]{0x0000000080000000L});
-    public static final BitSet FOLLOW_31_in_readOperator1721 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_readOperator1725 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_readOperator1727 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_67_in_writeOperator1741 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_writeOperator1745 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000010L});
-    public static final BitSet FOLLOW_68_in_writeOperator1747 = new BitSet(new long[]{0x0000000000000140L});
-    public static final BitSet FOLLOW_ID_in_writeOperator1752 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_writeOperator1757 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_writeOperator1763 = new BitSet(new long[]{0x0000000080000000L});
-    public static final BitSet FOLLOW_31_in_writeOperator1765 = new BitSet(new long[]{0x0000000000000100L});
-    public static final BitSet FOLLOW_STRING_in_writeOperator1769 = new BitSet(new long[]{0x0000000100000000L});
-    public static final BitSet FOLLOW_32_in_writeOperator1771 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_genericOperator1792 = new BitSet(new long[]{0x0000000800000000L});
-    public static final BitSet FOLLOW_35_in_genericOperator1794 = new BitSet(new long[]{0x0000000000000040L});
-    public static final BitSet FOLLOW_ID_in_genericOperator1800 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
-    public static final BitSet FOLLOW_operatorFlag_in_genericOperator1808 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
-    public static final BitSet FOLLOW_arrayInput_in_genericOperator1812 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_input_in_genericOperator1816 = new BitSet(new long[]{0x0000000010000042L});
-    public static final BitSet FOLLOW_28_in_genericOperator1819 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
-    public static final BitSet FOLLOW_input_in_genericOperator1821 = new BitSet(new long[]{0x0000000010000042L});
-    public static final BitSet FOLLOW_operatorOption_in_genericOperator1827 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_operatorOption1847 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_contextAwareExpression_in_operatorOption1853 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_operatorFlag1874 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_69_in_input1896 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_input1904 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_input1906 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_input1912 = new BitSet(new long[]{0x0000000000000042L});
-    public static final BitSet FOLLOW_ID_in_input1922 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_contextAwareExpression_in_input1930 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_63_in_arrayInput1952 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_arrayInput1956 = new BitSet(new long[]{0x0000000010000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_28_in_arrayInput1959 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_arrayInput1963 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
-    public static final BitSet FOLLOW_64_in_arrayInput1967 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_arrayInput1969 = new BitSet(new long[]{0x0000000000000080L});
-    public static final BitSet FOLLOW_VAR_in_arrayInput1973 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_streamIndexAccess_in_valueExpression1090 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_arrayCreation_in_valueExpression1095 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_objectCreation_in_valueExpression1101 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_operator_in_operatorExpression1114 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_31_in_parenthesesExpression1135 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_parenthesesExpression1137 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_parenthesesExpression1139 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_methodCall1163 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_methodCall1165 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_methodCall1171 = new BitSet(new long[]{0x0000000080000000L});
+    public static final BitSet FOLLOW_31_in_methodCall1173 = new BitSet(new long[]{0xF4F0000180000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_methodCall1180 = new BitSet(new long[]{0x0000000110000000L});
+    public static final BitSet FOLLOW_28_in_methodCall1186 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_methodCall1190 = new BitSet(new long[]{0x0000000110000000L});
+    public static final BitSet FOLLOW_32_in_methodCall1200 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_fieldAssignment1214 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_fieldAssignment1216 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_fieldAssignment1218 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_fieldAssignment1233 = new BitSet(new long[]{0x8200000020000000L});
+    public static final BitSet FOLLOW_57_in_fieldAssignment1242 = new BitSet(new long[]{0x0000000000000200L});
+    public static final BitSet FOLLOW_STAR_in_fieldAssignment1244 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_29_in_fieldAssignment1258 = new BitSet(new long[]{0x0000000000000040L,0x000000000000000AL});
+    public static final BitSet FOLLOW_operator_in_fieldAssignment1262 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_contextAwarePathExpression_in_fieldAssignment1277 = new BitSet(new long[]{0x0000000800000002L});
+    public static final BitSet FOLLOW_35_in_fieldAssignment1288 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_fieldAssignment1292 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_58_in_objectCreation1344 = new BitSet(new long[]{0x08000000000000C0L});
+    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1347 = new BitSet(new long[]{0x0800000010000000L});
+    public static final BitSet FOLLOW_28_in_objectCreation1350 = new BitSet(new long[]{0x00000000000000C0L});
+    public static final BitSet FOLLOW_fieldAssignment_in_objectCreation1352 = new BitSet(new long[]{0x0800000010000000L});
+    public static final BitSet FOLLOW_28_in_objectCreation1356 = new BitSet(new long[]{0x0800000000000000L});
+    public static final BitSet FOLLOW_59_in_objectCreation1361 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_60_in_literal1381 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_61_in_literal1397 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_DECIMAL_in_literal1413 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_STRING_in_literal1429 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_INTEGER_in_literal1446 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_62_in_literal1461 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayAccess1475 = new BitSet(new long[]{0x0000000000000200L});
+    public static final BitSet FOLLOW_STAR_in_arrayAccess1477 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayAccess1479 = new BitSet(new long[]{0x8200000000000000L});
+    public static final BitSet FOLLOW_pathExpression_in_arrayAccess1483 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayAccess1503 = new BitSet(new long[]{0x0000000000001800L});
+    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1508 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_UINT_in_arrayAccess1514 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayAccess1517 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayAccess1535 = new BitSet(new long[]{0x0000000000001800L});
+    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1540 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_UINT_in_arrayAccess1546 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_arrayAccess1549 = new BitSet(new long[]{0x0000000000001800L});
+    public static final BitSet FOLLOW_INTEGER_in_arrayAccess1554 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_UINT_in_arrayAccess1560 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayAccess1563 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_VAR_in_streamIndexAccess1591 = new BitSet(new long[]{0x8000000000000000L});
+    public static final BitSet FOLLOW_63_in_streamIndexAccess1600 = new BitSet(new long[]{0xF400000080000DC0L});
+    public static final BitSet FOLLOW_generalPathExpression_in_streamIndexAccess1604 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_streamIndexAccess1606 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayCreation1625 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_arrayCreation1629 = new BitSet(new long[]{0x0000000010000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_28_in_arrayCreation1632 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_expression_in_arrayCreation1636 = new BitSet(new long[]{0x0000000010000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_28_in_arrayCreation1640 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayCreation1643 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_readOperator_in_operator1680 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_writeOperator_in_operator1684 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_genericOperator_in_operator1688 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_65_in_readOperator1702 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000004L});
+    public static final BitSet FOLLOW_66_in_readOperator1704 = new BitSet(new long[]{0x0000000000000140L});
+    public static final BitSet FOLLOW_ID_in_readOperator1709 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_readOperator1714 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_readOperator1720 = new BitSet(new long[]{0x0000000080000000L});
+    public static final BitSet FOLLOW_31_in_readOperator1722 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_readOperator1726 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_readOperator1728 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_67_in_writeOperator1742 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_writeOperator1746 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000010L});
+    public static final BitSet FOLLOW_68_in_writeOperator1748 = new BitSet(new long[]{0x0000000000000140L});
+    public static final BitSet FOLLOW_ID_in_writeOperator1753 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_writeOperator1758 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_writeOperator1764 = new BitSet(new long[]{0x0000000080000000L});
+    public static final BitSet FOLLOW_31_in_writeOperator1766 = new BitSet(new long[]{0x0000000000000100L});
+    public static final BitSet FOLLOW_STRING_in_writeOperator1770 = new BitSet(new long[]{0x0000000100000000L});
+    public static final BitSet FOLLOW_32_in_writeOperator1772 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_genericOperator1793 = new BitSet(new long[]{0x0000000800000000L});
+    public static final BitSet FOLLOW_35_in_genericOperator1795 = new BitSet(new long[]{0x0000000000000040L});
+    public static final BitSet FOLLOW_ID_in_genericOperator1801 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
+    public static final BitSet FOLLOW_operatorFlag_in_genericOperator1809 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
+    public static final BitSet FOLLOW_arrayInput_in_genericOperator1813 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_input_in_genericOperator1817 = new BitSet(new long[]{0x0000000010000042L});
+    public static final BitSet FOLLOW_28_in_genericOperator1820 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
+    public static final BitSet FOLLOW_input_in_genericOperator1822 = new BitSet(new long[]{0x0000000010000042L});
+    public static final BitSet FOLLOW_operatorOption_in_genericOperator1828 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_operatorOption1848 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_contextAwareExpression_in_operatorOption1854 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_operatorFlag1875 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_69_in_input1897 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_input1905 = new BitSet(new long[]{0x0000040000000000L});
+    public static final BitSet FOLLOW_42_in_input1907 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_input1913 = new BitSet(new long[]{0x0000000000000042L});
+    public static final BitSet FOLLOW_ID_in_input1923 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_contextAwareExpression_in_input1931 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_63_in_arrayInput1953 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_arrayInput1957 = new BitSet(new long[]{0x0000000010000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_28_in_arrayInput1960 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_arrayInput1964 = new BitSet(new long[]{0x0000000000000000L,0x0000000000000001L});
+    public static final BitSet FOLLOW_64_in_arrayInput1968 = new BitSet(new long[]{0x0000040000000000L});
+    public static final BitSet FOLLOW_42_in_arrayInput1970 = new BitSet(new long[]{0x0000000000000080L});
+    public static final BitSet FOLLOW_VAR_in_arrayInput1974 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_ternaryExpression_in_synpred9_Meteor357 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_orExpression_in_synpred11_Meteor374 = new BitSet(new long[]{0x0000000400000000L});
     public static final BitSet FOLLOW_34_in_synpred11_Meteor377 = new BitSet(new long[]{0xF4F0000880000DC0L,0x000000000000000AL});
@@ -8089,11 +8089,11 @@ public class MeteorParser extends MeteorParserBase {
     public static final BitSet FOLLOW_ID_in_synpred43_Meteor1063 = new BitSet(new long[]{0x0000000800000000L});
     public static final BitSet FOLLOW_35_in_synpred43_Meteor1065 = new BitSet(new long[]{0x0000000000000040L});
     public static final BitSet FOLLOW_ID_in_synpred43_Meteor1071 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_streamIndexAccess_in_synpred44_Meteor1089 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_28_in_synpred77_Meteor1819 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
-    public static final BitSet FOLLOW_input_in_synpred77_Meteor1821 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_operatorOption_in_synpred78_Meteor1827 = new BitSet(new long[]{0x0000000000000002L});
-    public static final BitSet FOLLOW_ID_in_synpred81_Meteor1922 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
-    public static final BitSet FOLLOW_contextAwareExpression_in_synpred81_Meteor1930 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_streamIndexAccess_in_synpred44_Meteor1090 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_28_in_synpred77_Meteor1820 = new BitSet(new long[]{0x80000000000000C0L,0x0000000000000020L});
+    public static final BitSet FOLLOW_input_in_synpred77_Meteor1822 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_operatorOption_in_synpred78_Meteor1828 = new BitSet(new long[]{0x0000000000000002L});
+    public static final BitSet FOLLOW_ID_in_synpred81_Meteor1923 = new BitSet(new long[]{0xF4F0000080000DC0L,0x000000000000000AL});
+    public static final BitSet FOLLOW_contextAwareExpression_in_synpred81_Meteor1931 = new BitSet(new long[]{0x0000000000000002L});
 
 }

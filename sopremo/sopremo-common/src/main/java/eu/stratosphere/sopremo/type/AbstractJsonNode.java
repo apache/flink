@@ -196,4 +196,11 @@ public abstract class AbstractJsonNode implements IJsonNode {
 		final AbstractJsonNode other = (AbstractJsonNode) obj;
 		return this.compareTo(other) == 0;
 	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#hashCode()
+	 */
+	@Override
+	public abstract int hashCode();
 }

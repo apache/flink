@@ -77,7 +77,7 @@ public class CsvInputFormat extends FileInputFormat {
 		}
 
 		public void seek(long absolutePos) throws IOException {
-			this.relativePos = absolutePos - start;
+			this.relativePos = absolutePos - this.start;
 			this.stream.seek(absolutePos);
 			// mark as empty
 			this.charBuffer.limit(0);

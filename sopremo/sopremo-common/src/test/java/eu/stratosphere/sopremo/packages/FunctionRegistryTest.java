@@ -7,9 +7,8 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.function.VarReturnJavaMethod;
 import eu.stratosphere.sopremo.function.SopremoFunction;
-import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.function.VarReturnJavaMethod;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;

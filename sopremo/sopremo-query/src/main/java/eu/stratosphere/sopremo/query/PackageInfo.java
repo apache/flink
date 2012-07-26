@@ -31,7 +31,6 @@ import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
 import eu.stratosphere.sopremo.packages.DefaultFunctionRegistry;
 import eu.stratosphere.sopremo.packages.IConstantRegistry;
 import eu.stratosphere.sopremo.packages.IFunctionRegistry;
-import eu.stratosphere.sopremo.packages.EvaluationScope;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**

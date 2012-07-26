@@ -2,12 +2,10 @@ package eu.stratosphere.sopremo.expressions;
 
 import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
-import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.TextNode;

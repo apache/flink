@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.query;
 import java.lang.reflect.Method;
 
 import eu.stratosphere.sopremo.function.Callable;
-import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.packages.DefaultFunctionRegistry;
 import eu.stratosphere.sopremo.packages.IFunctionRegistry;
 
@@ -23,8 +22,9 @@ final class StackedFunctionRegistry extends StackedRegistry<Callable<?, ?>, IFun
 	public void put(Method method) {
 		this.getTopRegistry().put(method);
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.packages.IFunctionRegistry#put(java.lang.String, java.lang.Class, java.lang.String)
 	 */
 	@Override

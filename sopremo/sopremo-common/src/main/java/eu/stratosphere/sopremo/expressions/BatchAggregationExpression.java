@@ -40,7 +40,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	 * @param functions
 	 *        all functions that should be used
 	 */
-	public BatchAggregationExpression(final Aggregation... functions) {
+	public BatchAggregationExpression(final Aggregation<?, ?>... functions) {
 		this(Arrays.asList(functions));
 	}
 
@@ -50,9 +50,9 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	 * @param functions
 	 *        a set of all functions that should be used
 	 */
-	public BatchAggregationExpression(final List<Aggregation> functions) {
+	public BatchAggregationExpression(final List<Aggregation<?, ?>> functions) {
 		this.partials = new ArrayList<Partial>(functions.size());
-		for (final Aggregation function : functions)
+		for (final Aggregation<?, ?> function : functions)
 			this.partials.add(new Partial(function, EvaluationExpression.VALUE, this.partials.size()));
 		CollectionUtil.ensureSize(this.lastPreprocessingResults, this.partials.size());
 		CollectionUtil.ensureSize(this.lastAggregators, this.partials.size());
@@ -74,7 +74,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	 *        the function that should be added
 	 * @return the function which has been added as a {@link Partial}
 	 */
-	public EvaluationExpression add(final Aggregation function) {
+	public EvaluationExpression add(final Aggregation<?, ?> function) {
 		return this.add(function, EvaluationExpression.VALUE);
 	}
 
@@ -87,7 +87,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 	 *        the preprocessing that should be used for this function
 	 * @return the function which has been added as a {@link Partial}
 	 */
-	public EvaluationExpression add(final Aggregation function, final EvaluationExpression preprocessing) {
+	public EvaluationExpression add(final Aggregation<?, ?> function, final EvaluationExpression preprocessing) {
 		final Partial partial = new Partial(function, preprocessing, this.partials.size());
 		this.partials.add(partial);
 		this.lastPreprocessingResults.add(null);
@@ -154,7 +154,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		 * @param index
 		 *        the index of this Partial
 		 */
-		public Partial(final Aggregation function, final EvaluationExpression preprocessing, final int index) {
+		public Partial(final Aggregation<?, ?> function, final EvaluationExpression preprocessing, final int index) {
 			super(function, preprocessing);
 			this.index = index;
 		}

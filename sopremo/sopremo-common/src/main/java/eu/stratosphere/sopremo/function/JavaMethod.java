@@ -15,8 +15,11 @@
 package eu.stratosphere.sopremo.function;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.reflect.DynamicMethod;
 import eu.stratosphere.util.reflect.Signature;
@@ -33,11 +36,24 @@ public abstract class JavaMethod extends SopremoFunction {
 
 	protected final DynamicMethod<IJsonNode> method;
 
+	private List<Object[]> paramCache = new ArrayList<Object[]>();
+
 	/**
 	 * Initializes JavaMethod.
 	 */
 	public JavaMethod(final String name) {
 		this.method = new DynamicMethod<IJsonNode>(name);
+	}
+
+	protected Object[] addTargetToParameters(final IArrayNode params, final IJsonNode target) {
+		final int numParams = params.size();
+		for (int cacheSize = this.paramCache.size(); cacheSize <= numParams; cacheSize++)
+			this.paramCache.add(new Object[cacheSize + 1]);
+		final Object[] expandedParams = this.paramCache.get(numParams);
+		expandedParams[0] = target;
+		for (int index = 0; index < numParams; index++)
+			expandedParams[index + 1] = params.get(index);
+		return expandedParams;
 	}
 
 	public void addSignature(final Method method) {

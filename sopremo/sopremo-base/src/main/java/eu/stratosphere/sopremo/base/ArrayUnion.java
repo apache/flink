@@ -18,9 +18,8 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.function.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
 
-final class ArrayUnion extends TransitiveAggregationFunction {
+final class ArrayUnion extends TransitiveAggregationFunction<IArrayNode, ArrayNode> {
 	/**
 	 * 
 	 */
@@ -32,16 +31,14 @@ final class ArrayUnion extends TransitiveAggregationFunction {
 
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.aggregation.TransitiveAggregationFunction#aggregate(eu.stratosphere.sopremo.type.IJsonNode
-	 * , eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
+	 * @see eu.stratosphere.sopremo.function.Aggregation#aggregate(eu.stratosphere.sopremo.type.IJsonNode,
+	 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public IJsonNode aggregate(IJsonNode node, IJsonNode aggregationTarget, EvaluationContext context) {
-		IArrayNode array = (IArrayNode) node, unifiedArray = (IArrayNode) aggregationTarget;
-		for (int index = 0; index < array.size(); index++)
-			if (unifiedArray.get(index).isMissing() && !array.get(index).isMissing())
-				unifiedArray.set(index, array.get(index));
-		return unifiedArray;
+	public ArrayNode aggregate(IArrayNode node, ArrayNode aggregationTarget, EvaluationContext context) {
+		for (int index = 0; index < node.size(); index++)
+			if (aggregationTarget.get(index).isMissing() && !node.get(index).isMissing())
+				aggregationTarget.set(index, node.get(index));
+		return aggregationTarget;
 	}
 }

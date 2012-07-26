@@ -19,6 +19,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
@@ -117,6 +118,36 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 		int i = 0;
 		for (final IJsonNode node : this)
 			result[i++] = node;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.AbstractJsonNode#hashCode()
+	 */
+	@Override
+	public int hashCode() {
+		final int prime = 41;
+		int hashCode = prime;
+		for (IJsonNode node : this)
+			hashCode = (hashCode + node.hashCode()) * prime;
+		return prime;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+
+		final Iterator<IJsonNode> thisIter = iterator(), thatIter = ((Iterable<IJsonNode>) obj).iterator();
+		while (thisIter.hasNext() && thatIter.hasNext())
+			if (!thisIter.next().equals(thatIter.next()))
+				return false;
+		return thisIter.hasNext() == thatIter.hasNext();
 	}
 
 	/*

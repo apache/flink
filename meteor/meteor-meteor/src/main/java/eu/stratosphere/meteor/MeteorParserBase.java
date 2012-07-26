@@ -53,8 +53,6 @@ public abstract class MeteorParserBase extends QueryWithVariablesParser<JsonStre
 		addTypeAlias("double", DoubleNode.class);
 		addTypeAlias("boolean", BooleanNode.class);
 		addTypeAlias("bool", BooleanNode.class);
-
-		addParserFlag(ParserFlag.FUNCTION_OBJECTS);
 	}
 
 	protected JsonStreamExpression getVariable(Token name) {

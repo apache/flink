@@ -11,19 +11,8 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.IdentityMap;
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.FormatUtil;
-import eu.stratosphere.pact.common.io.SequentialOutputFormat;
-import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.testing.TestPlan;
-import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.io.Source;
 import eu.stratosphere.sopremo.serialization.DirectSchema;
@@ -73,29 +62,6 @@ public class JsonInputFormatTest {
 		final SopremoTestPlan testPlan = new SopremoTestPlan(read);
 		testPlan.getExpectedOutput(0).load(this.getResource("SopremoTestPlan/test.json"));
 		testPlan.run();
-	}
-
-	/**
-	 * Creates an output file in the temporary folder for arbitrary key/value pairs coming from the given input
-	 * contract.
-	 * 
-	 * @param input
-	 *        the input from which the values are read
-	 * @param outputFormatClass
-	 *        the output format
-	 * @return the {@link FileDataSink} for the temporary file
-	 */
-	private <K extends Key, V extends Value> FileDataSink createOutput(final Contract input,
-			final Class<? extends FileOutputFormat> outputFormatClass) {
-		try {
-			final FileDataSink out = new FileDataSink(outputFormatClass,
-				File.createTempFile("output", null).toURI().toString(), "Output");
-			out.setInput(input);
-			return out;
-		} catch (final IOException e) {
-			Assert.fail("cannot create temporary output file" + e);
-			return null;
-		}
 	}
 
 	private String getResource(final String name) throws IOException {

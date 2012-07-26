@@ -14,7 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.util.reflect;
 
-import java.lang.reflect.Modifier;
 
 /**
  * @author Arvid Heise

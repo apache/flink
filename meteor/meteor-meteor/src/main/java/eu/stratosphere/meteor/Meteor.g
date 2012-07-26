@@ -176,7 +176,7 @@ valueExpression
 	| parenthesesExpression 
 	| literal 
 	| VAR -> { makePath($VAR) }
-  | (packageName=ID ':')? constant=ID { getScope($packageName.text).getConstantRegistry().get($constant.text) != null }?=> 
+  | (packageName=ID ':')? constant=ID { getScope($packageName.text).getConstantRegistry().get($constant.text) != null }? => 
     -> { getScope($packageName.text).getConstantRegistry().get($constant.text) }
   | streamIndexAccess
 	| arrayCreation 

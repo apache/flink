@@ -14,7 +14,6 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.function.VarReturnJavaMethod;
-import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
@@ -51,12 +50,10 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 		Assert.assertEquals(new DoubleNode(3), result);
 	}
 
-	public static IJsonNode sum(final INumericNode... nodes) {
-
-		Double i = 0.0;
+	public static void sum(final DoubleNode result, final INumericNode... nodes) {
+		double sum = 0.0;
 		for (final INumericNode node : nodes)
-			i += node.getDoubleValue();
-		return new DoubleNode(i);
-
+			sum += node.getDoubleValue();
+				result.setValue(sum);
 	}
 }

@@ -459,7 +459,7 @@ public class SopremoTestPlan {
 		}
 
 		protected EvaluationContext getContext() {
-			return testPlan.getEvaluationContext();
+			return this.testPlan.getEvaluationContext();
 		}
 
 		@SuppressWarnings("unchecked")

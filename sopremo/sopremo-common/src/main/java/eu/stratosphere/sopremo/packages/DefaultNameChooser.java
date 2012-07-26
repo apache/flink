@@ -1,6 +1,11 @@
 package eu.stratosphere.sopremo.packages;
 
 public class DefaultNameChooser implements NameChooser {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -1208879313724454299L;
+
 	private final int[] preferredOrder;
 
 	public DefaultNameChooser() {

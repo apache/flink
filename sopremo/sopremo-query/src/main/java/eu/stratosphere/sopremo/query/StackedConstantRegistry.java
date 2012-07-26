@@ -21,6 +21,6 @@ final class StackedConstantRegistry extends StackedRegistry<EvaluationExpression
 	 */
 	@Override
 	public void put(Class<?> javaConstants) {
-		getTopRegistry().put(javaConstants);
+		this.getTopRegistry().put(javaConstants);
 	}
 }

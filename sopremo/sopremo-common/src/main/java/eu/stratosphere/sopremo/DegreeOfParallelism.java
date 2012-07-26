@@ -19,8 +19,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import eu.stratosphere.sopremo.pact.SopremoMap;
-
 /**
  * Tells Sopremo to run annotated operator implementations in
  * degree-of-parallelism of 1. <br>

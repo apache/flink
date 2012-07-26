@@ -28,11 +28,9 @@ import java.util.regex.Pattern;
 import junit.framework.AssertionFailedError;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
-import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.testing.TestRecords;
 import eu.stratosphere.sopremo.SopremoTest;
@@ -188,7 +186,6 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			addArray("test1", "test4").
 			addArray("test2", "test3").
 			addArray("test2", "test4");
-		testPlan.trace();
 		testPlan.run();
 	}
 

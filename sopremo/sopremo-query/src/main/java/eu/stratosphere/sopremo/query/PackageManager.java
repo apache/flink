@@ -23,7 +23,6 @@ import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.io.Source;
 import eu.stratosphere.sopremo.packages.IConstantRegistry;
 import eu.stratosphere.sopremo.packages.IFunctionRegistry;
-import eu.stratosphere.sopremo.packages.EvaluationScope;
 
 /**
  * @author Arvid Heise
