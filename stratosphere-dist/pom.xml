@@ -109,6 +109,7 @@
     	</dependency>-->
     	
     	<!--  SOURCES -->
+    	<!--
     	<dependency>
           <groupId>eu.stratosphere</groupId>
           <artifactId>pact</artifactId>
@@ -122,7 +123,7 @@
           <version>${version}</version>
 		  <classifier>sources</classifier>
         </dependency>
-        
+        -->
     </dependencies>
 
     <build>
