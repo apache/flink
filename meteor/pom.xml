@@ -89,7 +89,7 @@
 
     <modules>
         <module>meteor-meteor</module>
-        <module>meteor-server</module>
-        <module>meteor-client</module>
+<!--        <module>meteor-server</module>
+        <module>meteor-client</module>-->
     </modules>
 </project>
