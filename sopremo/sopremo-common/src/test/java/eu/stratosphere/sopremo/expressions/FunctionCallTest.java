@@ -13,7 +13,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.function.VarReturnJavaMethod;
+import eu.stratosphere.sopremo.function.ExpressionFunction;
+import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
@@ -22,7 +23,7 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 
 	@Override
 	protected FunctionCall createDefaultInstance(final int index) {
-		return new FunctionCall(String.valueOf(index), new VarReturnJavaMethod("test"));
+		return new FunctionCall(String.valueOf(index), new ExpressionFunction(0, new ConstantExpression(index)));
 	}
 
 	/*
@@ -34,6 +35,8 @@ public class FunctionCallTest extends EvaluableExpressionTest<FunctionCall> {
 		super.initVerifier(equalVerifier);
 		equalVerifier.withPrefabValues(List.class, new ArrayList<Object>(), new ArrayList<EvaluationExpression>(
 			Collections.singleton(EvaluationExpression.VALUE)));
+		equalVerifier.withPrefabValues(SopremoFunction.class, new ExpressionFunction(0, new ConstantExpression("red")),
+			new ExpressionFunction(0, new ConstantExpression("black")));
 	}
 
 	@Before
