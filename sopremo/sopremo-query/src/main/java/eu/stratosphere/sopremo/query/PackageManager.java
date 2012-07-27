@@ -134,6 +134,6 @@ public class PackageManager implements ParsingScope {
 	 */
 	@Override
 	public String toString() {
-		return String.format("Package manager with packages %s", packages);
+		return String.format("Package manager with packages %s", this.packages);
 	}
 }

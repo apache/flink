@@ -10,8 +10,6 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.function.ExpressionFunction;
-import eu.stratosphere.sopremo.function.SopremoFunction;
 
 @Ignore
 public abstract class EvaluableExpressionTest<T extends EvaluationExpression> extends SopremoTest<T> {

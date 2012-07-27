@@ -4,8 +4,8 @@ options {
     language=Java;
     output=AST;
     ASTLabelType=EvaluationExpression;
-    backtrack=true;
-    memoize=true;
+    //backtrack=true;
+    //memoize=true;
     superClass=MeteorParserBase;
 }
 
@@ -71,7 +71,7 @@ assignment
 
 functionDefinition
 @init { List<Token> params = new ArrayList(); }
-  : name=ID '=' 'fn' '('  
+  : name=ID '=' FN '('  
   (param=ID { params.add($param); }
   (',' param=ID { params.add($param); })*)? 
   ')' 
@@ -87,37 +87,37 @@ functionDefinition
   } ->; 
 
 javaudf
-  : name=ID '=' 'javaudf' '(' path=STRING ')' 
+  : name=ID '=' JAVAUDF '(' path=STRING ')' 
   { addFunction($name.getText(), path.getText()); } ->;
 
 contextAwareExpression [EvaluationExpression contextExpression]
 scope { EvaluationExpression context }
 @init { $contextAwareExpression::context = $contextExpression; }
-  : expression;
+  : ternaryExpression;
 
 expression
-  : ternaryExpression
-  | operatorExpression;
+  : (operatorExpression)=> operatorExpression
+  | ternaryExpression;
 
 ternaryExpression
-	:	ifClause=orExpression ('?' ifExpr=expression? ':' elseExpr=expression)
+	:	(orExpression '?')=> ifClause=orExpression '?' ifExpr=orExpression ':' elseExpr=orExpression
 	-> ^(EXPRESSION["TernaryExpression"] $ifClause { ifExpr == null ? EvaluationExpression.VALUE : $ifExpr.tree } { $elseExpr.tree })
-	| ifExpr2=orExpression 'if' ifClause2=expression
-	-> ^(EXPRESSION["TernaryExpression"] $ifClause2 $ifExpr2 { EvaluationExpression.VALUE })
+	| (orExpression IF)=> ifExpr2=orExpression IF ifClause2=orExpression
+  -> ^(EXPRESSION["TernaryExpression"] $ifClause2 $ifExpr2 { EvaluationExpression.VALUE })
   | orExpression;
 	
 orExpression
-  : exprs+=andExpression (('or' | '||') exprs+=andExpression)*
+  : exprs+=andExpression ((OR | '||') exprs+=andExpression)*
   -> { $exprs.size() == 1 }? { $exprs.get(0) }
   -> { OrExpression.valueOf($exprs) };
 	
 andExpression
-  : exprs+=elementExpression (('and' | '&&') exprs+=elementExpression)*
+  : exprs+=elementExpression ((AND | '&&') exprs+=elementExpression)*
   -> { $exprs.size() == 1 }? { $exprs.get(0) }
   -> { AndExpression.valueOf($exprs) };
   
 elementExpression
-	:	elem=comparisonExpression (not='not'? 'in' set=comparisonExpression)? 
+	:	elem=comparisonExpression (not=NOT? IN set=comparisonExpression)? 
 	-> { set == null }? $elem
 	-> ^(EXPRESSION["ElementInSetExpression"] $elem 
 	{ $not == null ? ElementInSetExpression.Quantor.EXISTS_IN : ElementInSetExpression.Quantor.EXISTS_NOT_IN} $set);
@@ -150,15 +150,16 @@ unaryExpression
 	:	('!' | '~')? castExpression;
 
 castExpression
-	:	('(' type=ID ')' expr=generalPathExpression
-	| expr=generalPathExpression 'as' type=ID
-	| expr=generalPathExpression) 
-	-> { type != null }? { coerce($type.text, $expr.tree) }
-	-> $expr;
+	:	('(' ID ')')=> '(' type=ID ')' expr=generalPathExpression
+  -> { coerce($type.text, $expr.tree) }
+	| (generalPathExpression AS)=> expr=generalPathExpression AS type=ID
+  -> { coerce($type.text, $expr.tree) }
+	| generalPathExpression;
 	
 generalPathExpression
-	: value=valueExpression path=pathExpression -> { PathExpression.wrapIfNecessary($value.tree, $path.tree) } 
-	| valueExpression;
+	: value=valueExpression 
+	  ((pathExpression)=> path=pathExpression -> { PathExpression.wrapIfNecessary($value.tree, $path.tree) } 
+	  | -> $value);
 
 contextAwarePathExpression[EvaluationExpression context]
   : path=pathExpression -> { PathExpression.wrapIfNecessary(context, $path.tree) };
@@ -167,18 +168,18 @@ pathExpression
 scope {  List<EvaluationExpression> fragments; }
 @init { $pathExpression::fragments = new ArrayList<EvaluationExpression>(); }
   : // add .field or [index] to path
-    ( ('.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
-        | arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ 
+    ( (('.')=> '.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
+        | ('[')=> arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ 
   -> { PathExpression.wrapIfNecessary($pathExpression::fragments) };
 
 valueExpression
-	:	methodCall[null]
+	:	(ID '(')=> methodCall[null]
 	| parenthesesExpression 
 	| literal 
+	| (VAR '[' VAR)=> streamIndexAccess
 	| VAR -> { makePath($VAR) }
-  | (packageName=ID ':')? constant=ID { getScope($packageName.text).getConstantRegistry().get($constant.text) != null }? => 
-    -> { getScope($packageName.text).getConstantRegistry().get($constant.text) }
-  | streamIndexAccess
+  | ((ID ':')=> packageName=ID ':')? constant=ID { getScope($packageName.text).getConstantRegistry().get($constant.text) != null }? => 
+    -> { getScope($packageName.text).getConstantRegistry().get($constant.text) }  
 	| arrayCreation 
 	| objectCreation ;
 	
@@ -272,15 +273,16 @@ scope {
 }	:	(packageName=ID ':')? name=ID { ($genericOperator::operatorInfo = findOperatorGreedily($packageName.text, $name)) != null }?=>
 { $operator::result = $genericOperator::operatorInfo.newInstance(); } 
 operatorFlag*
-(arrayInput | input (',' input)*)	
+(('[')=> arrayInput | (VAR)=> input ((',')=> ',' input)*)
 operatorOption* ->; 
 	
 operatorOption
 scope {
  OperatorInfo.OperatorPropertyInfo property;
-}
-	:	name=ID { ($operatorOption::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, $name)) != null }?
-expr=contextAwareExpression[null] { $operatorOption::property.setValue($operator::result, $expr.tree); } ->;
+} : //{ findOperatorPropertyRelunctantly($genericOperator::operatorInfo, input.LT(1)) != null }?	
+  name=ID
+	{ $operatorOption::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, name); }
+  expr=contextAwareExpression[null] { $operatorOption::property.setValue($operator::result, $expr.tree); } ->;
 
 operatorFlag
 scope {
@@ -294,26 +296,18 @@ scope {
 input	
 scope {
  OperatorInfo.InputPropertyInfo inputProperty;
-}	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
+}	:	(name=VAR IN)? from=VAR
 { 
   int inputIndex = $operator::numInputs++;
   JsonStreamExpression input = getVariable(from);
   $operator::result.setInput(inputIndex, input.getStream());
   
   JsonStreamExpression inputExpression = new JsonStreamExpression(input.getStream(), inputIndex);
-  if(preserveFlag != null)
-    inputExpression.addTag(ExpressionTag.RETAIN);
   putVariable(name != null ? name : from, inputExpression);
 } 
-{ if(state.backtracking == 0) {
-    addScope();
-  }
-}
-(inputOption=ID { ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null }?
+({ ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, input.LT(1))) != null }?=> 
+  { this.input.consume(); } // consume the initial token
   expr=contextAwareExpression[new InputSelection($operator::numInputs - 1)] { $input::inputProperty.setValue($operator::result, $operator::numInputs-1, $expr.tree); })?
-{ if(state.backtracking == 0) 
-    removeScope();
-}  
 -> ;
 
 arrayInput
@@ -338,6 +332,26 @@ fragment DIGIT
 	:	'0'..'9';
 
 fragment SIGN:	('+'|'-');
+
+// TYPE  : 'int' | 'decimal' | 'double' | 'string' | 'bool';
+
+JAVAUDF : 'javaudf';
+
+OR  : 'or';
+
+AND  : 'and';
+
+IF  : 'if';
+
+ELSE  : 'else';
+
+NOT : 'not';
+
+IN  : 'in';
+
+FN  : 'fn';
+
+AS  : 'as';
 
 ID	:	(LOWER_LETTER | UPPER_LETTER) (LOWER_LETTER | UPPER_LETTER | DIGIT | '_')*;
 
