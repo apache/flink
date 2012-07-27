@@ -43,7 +43,7 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	/**
 	 * The ordering for the order inside a reduce group.
 	 */
-	private Ordering secondaryOrder;
+	private Ordering groupOrder;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -216,7 +216,7 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	private ReduceContract(Builder builder) {
 		super(builder.udf, builder.getKeyClassesArray(), builder.getKeyColumnsArray(), builder.name);
 		setInputs(builder.inputs);
-		this.secondaryOrder = builder.secondaryOrder;
+		setGroupOrder(builder.secondaryOrder);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -226,18 +226,18 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * 
 	 * @param order The order for the elements in a reduce group.
 	 */
-	public void setSecondaryOrder(Ordering order) {
-		this.secondaryOrder = order;
+	public void setGroupOrder(Ordering order) {
+		this.groupOrder = order;
 	}
 	
 	/**
-	 * Gets the secondary order, i.e. the order of elements within a reduce group. If no such order has been
+	 * Gets the order of elements within a reduce group. If no such order has been
 	 * set, this method returns null.
 	 * 
 	 * @return The secondary order.
 	 */
-	public Ordering getSecondaryOrder() {
-		return this.secondaryOrder;
+	public Ordering getGroupOrder() {
+		return this.groupOrder;
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.terasort;
+package eu.stratosphere.pact.example.sort;
 
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
@@ -22,9 +22,13 @@ import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
+import eu.stratosphere.pact.example.sort.terasort.TeraDistribution;
+import eu.stratosphere.pact.example.sort.terasort.TeraInputFormat;
+import eu.stratosphere.pact.example.sort.terasort.TeraKey;
+import eu.stratosphere.pact.example.sort.terasort.TeraOutputFormat;
 
 /**
- * This is an example implementation of the famous TeraSort benchmark using the Stratosphere system. The benchmark
+ * This is an example implementation of the well-known TeraSort benchmark using the Stratosphere system. The benchmark
  * requires the input data to be generated according to the rules of Jim Gray's sort benchmark. A possible way to such
  * input data is the Hadoop TeraGen program. For more details see <a
  * href="http://hadoop.apache.org/common/docs/current/api/org/apache/hadoop/examples/terasort/TeraGen.html">

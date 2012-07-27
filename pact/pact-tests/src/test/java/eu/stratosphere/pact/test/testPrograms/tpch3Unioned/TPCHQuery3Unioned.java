@@ -1,4 +1,3 @@
-package eu.stratosphere.pact.test.testPrograms.tpch3Unioned;
 /***********************************************************************************************************************
  *
  * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
@@ -14,6 +13,7 @@ package eu.stratosphere.pact.test.testPrograms.tpch3Unioned;
  *
  **********************************************************************************************************************/
 
+package eu.stratosphere.pact.test.testPrograms.tpch3Unioned;
 
 import java.util.Iterator;
 

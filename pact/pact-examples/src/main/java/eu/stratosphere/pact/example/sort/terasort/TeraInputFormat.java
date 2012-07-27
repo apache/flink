@@ -13,38 +13,36 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.terasort;
+package eu.stratosphere.pact.example.sort.terasort;
 
-import java.io.IOException;
-
-import eu.stratosphere.pact.common.io.FileOutputFormat;
+import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-
 /**
- * The class is responsible for converting a key-value pair back into a line which is afterward written back to disk.
- * Each line ends with a newline character.
+ * This class is responsible for converting a line from the input file to a two field record. 
+ * Lines which do not match the expected length are skipped.
  * 
  * @author warneke
  */
-public final class TeraOutputFormat extends FileOutputFormat {
-
-	/**
-	 * A buffer to store the line which is about to be written back to disk.
-	 */
-	private final byte[] buffer = new byte[TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE + 1];
-
+public final class TeraInputFormat extends DelimitedInputFormat
+{
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void writeRecord(PactRecord record) throws IOException {
-		record.getField(0, TeraKey.class).copyToBuffer(this.buffer);
-		record.getField(1, TeraValue.class).copyToBuffer(this.buffer);
+	public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes)
+	{
+		if (numBytes != (TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE)) {
+			return false;
+		}
 
-		this.buffer[TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE] = '\n';
+		final TeraKey key = new TeraKey(record, offset);
+		final TeraValue value = new TeraValue(record, offset + TeraKey.KEY_SIZE);
+		
+		target.setField(0, key);
+		target.setField(1, value);
 
-		this.stream.write(buffer, 0, buffer.length);
+		return true;
 	}
 
 }
