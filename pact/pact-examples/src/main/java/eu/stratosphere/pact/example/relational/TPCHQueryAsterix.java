@@ -31,7 +31,8 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecond;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExcept;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
@@ -44,6 +45,7 @@ import eu.stratosphere.pact.common.util.FieldSet;
  * Its documentation and the data generator (DBGEN) can be found
  * on http://www.tpc.org/tpch/ .This implementation is tested with
  * the DB2 data format.  
+ * 
  * This PACT program implements a query on the TPC-H schema 
  * including one join and an aggregation.
  * This query is used as example in the Asterix project
@@ -62,20 +64,21 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Realizes the join between Customers and Order table.
 	 */
-	@ConstantFieldsSecond(fields={1})
+	@ConstantFieldsSecondExcept(fields={0})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinCO extends MatchStub {
 
-		private final PactInteger oneInteger = new PactInteger(1);
+		private final PactInteger one = new PactInteger(1);
 		
 		/**
 		 * Output Schema:
-		 *  Key: C_MKTSEGMENT
-		 *  Value: 0:PARTIAL_COUNT=1
+		 *  0: PARTIAL_COUNT=1
+		 *  1: C_MKTSEGMENT
 		 */
 		@Override
 		public void match(PactRecord order, PactRecord cust, Collector<PactRecord> out)
 				throws Exception {
-			cust.setField(0, oneInteger);
+			cust.setField(0, one);
 			out.collect(cust);
 		}
 	}
@@ -88,6 +91,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 */
 	@Combinable
 	@ConstantFields(fields={1})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggCO extends ReduceStub {
 
 		private final PactInteger integer = new PactInteger();
@@ -95,8 +99,8 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	
 		/**
 		 * Output Schema:
-		 *  Key: C_MKTSEGMENT
-		 *  Value: 0:COUNT
+		 * 0: COUNT
+		 * 1: C_MKTSEGMENT
 		 *
 		 */
 		@Override
@@ -137,6 +141,10 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		String customerPath  = (args.length > 2 ? args[2] : "");
 		String output        = (args.length > 3 ? args[3] : "");
 
+		/*
+		 * Output Schema:
+		 * 0: CUSTOMER_ID
+		 */
 		// create DataSourceContract for Orders input
 		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
 		orders.setDegreeOfParallelism(noSubtasks);
@@ -148,9 +156,13 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 1);
 		// compiler hints
 		orders.getCompilerHints().setAvgBytesPerRecord(5);
-//		orders.getCompilerHints().setAvgNumValuesPerKey(10);
 		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 10);
 		
+		/*
+		 * Output Schema:
+		 * 0: CUSTOMER_ID
+		 * 1: MKT_SEGMENT
+		 */
 		// create DataSourceContract for Customer input
 		FileDataSource customers = new FileDataSource(RecordInputFormat.class, customerPath, "Customers");
 		customers.setDegreeOfParallelism(noSubtasks);
@@ -164,7 +176,6 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		customers.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, VarLengthStringParser.class);
 		customers.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 6);
 		// compiler hints
-//		customers.getCompilerHints().setAvgNumValuesPerKey(1);
 		customers.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 		customers.getCompilerHints().setAvgBytesPerRecord(20);
 		

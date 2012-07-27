@@ -158,7 +158,7 @@ public class ReduceNode extends SingleInputNode {
 		switch(this.localStrategy) {
 			case SORT:          return 1;
 			case COMBININGSORT: return 1;
-			case NONE:          return 0;
+			case NONE:          return getPactContract().getGroupOrder() == null ? 0 : 1;
 			default:	        return 0;
 		}
 	}
@@ -241,8 +241,8 @@ public class ReduceNode extends SingleInputNode {
 
 			if (ss == ShipStrategy.NONE) {
 				
-				gp = subPlan.getGlobalProperties();
-				lp = subPlan.getLocalProperties();
+				gp = subPlan.getGlobalPropertiesForParent(this);
+				lp = subPlan.getLocalPropertiesForParent(this);
 
 				if ((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned()) 
 					 || isFieldSetUnique(keySet, 0)	){
@@ -251,12 +251,12 @@ public class ReduceNode extends SingleInputNode {
 					ss = ShipStrategy.PARTITION_HASH;
 				}
 
-				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, ss);
+				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, 0, ss);
 				lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
 				
 			} else {
 				// fixed strategy
-				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, ss);
+				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, 0, ss);
 				lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
 
 				if (!((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned())

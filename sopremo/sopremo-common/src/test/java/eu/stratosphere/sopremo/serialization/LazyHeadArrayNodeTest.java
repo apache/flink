@@ -10,6 +10,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.ArrayNodeBaseTest;
 import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 
 public class LazyHeadArrayNodeTest extends ArrayNodeBaseTest<LazyHeadArrayNode> {
@@ -33,6 +34,34 @@ public class LazyHeadArrayNodeTest extends ArrayNodeBaseTest<LazyHeadArrayNode> 
 		this.node.addAll(new ArrayNode(IntNode.valueOf(3), IntNode.valueOf(4), IntNode.valueOf(5)));
 
 		Assert.assertEquals(1, others.size());
+	}
+
+	@Override
+	public void testValue() {
+	}
+
+	@Override
+	protected IJsonNode lowerNode() {
+		final HeadArraySchema schema = new HeadArraySchema(5);
+		final PactRecord record = schema.jsonToRecord(
+			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(2)), null, null);
+
+		return new LazyHeadArrayNode(record, schema);
+	}
+
+	@Override
+	protected IJsonNode higherNode() {
+		final HeadArraySchema schema = new HeadArraySchema(5);
+		final PactRecord record = schema.jsonToRecord(
+			new ArrayNode(IntNode.valueOf(0), IntNode.valueOf(1), IntNode.valueOf(3)), null, null);
+
+		return new LazyHeadArrayNode(record, schema);
+	}
+
+	@Override
+	@Test(expected = UnsupportedOperationException.class)
+	public void shouldNormalizeKeys() {
+		super.shouldNormalizeKeys();
 	}
 
 }

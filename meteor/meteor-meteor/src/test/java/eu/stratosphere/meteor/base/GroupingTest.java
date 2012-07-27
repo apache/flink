@@ -17,14 +17,16 @@ package eu.stratosphere.meteor.base;
 import org.junit.Test;
 
 import eu.stratosphere.meteor.MeteorTest;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.Sink;
-import eu.stratosphere.sopremo.SopremoPlan;
-import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.CoreFunctions;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.base.Grouping;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.MethodCall;
+import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.io.Sink;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
+import eu.stratosphere.sopremo.type.JsonUtil;
 
 /**
  * @author Arvid Heise
@@ -38,9 +40,11 @@ public class GroupingTest extends MeteorTest {
 			"write $result to 'output.json'; ");
 
 		final SopremoPlan expectedPlan = new SopremoPlan();
+		final EvaluationContext context = expectedPlan.getEvaluationContext();
+		context.getFunctionRegistry().put(CoreFunctions.class);
 		final Source input = new Source("employees.json");
 		final Grouping selection = new Grouping().
-			withResultProjection(new MethodCall("count", new InputSelection(0))).
+			withResultProjection(new FunctionCall("count", context, new InputSelection(0))).
 			withInputs(input);
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
@@ -58,6 +62,9 @@ public class GroupingTest extends MeteorTest {
 			"write $result to 'output.json'; ");
 
 		final SopremoPlan expectedPlan = new SopremoPlan();
+		final EvaluationContext context = expectedPlan.getEvaluationContext();
+		context.getFunctionRegistry().put(CoreFunctions.class);
+
 		final Source input = new Source("employees.json");
 		final Grouping selection = new Grouping().
 			withInputs(input).
@@ -65,7 +72,7 @@ public class GroupingTest extends MeteorTest {
 			withResultProjection(new ObjectCreation(
 				new ObjectCreation.FieldAssignment("dept", JsonUtil.createPath("0", "[0]", "dept")),
 				new ObjectCreation.FieldAssignment("total",
-					new MethodCall("sum", JsonUtil.createPath("0", "[*]", "income")))));
+					new FunctionCall("sum", context, JsonUtil.createPath("0", "[*]", "income")))));
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
@@ -82,6 +89,9 @@ public class GroupingTest extends MeteorTest {
 			"write $result to 'output.json'; ");
 
 		final SopremoPlan expectedPlan = new SopremoPlan();
+		final EvaluationContext context = expectedPlan.getEvaluationContext();
+		context.getFunctionRegistry().put(CoreFunctions.class);
+
 		final Source input = new Source("employees.json");
 		final Grouping selection = new Grouping().
 			withInputs(input).
@@ -89,7 +99,7 @@ public class GroupingTest extends MeteorTest {
 			withResultProjection(new ObjectCreation(
 				new ObjectCreation.FieldAssignment("dept", JsonUtil.createPath("0", "[0]", "dept")),
 				new ObjectCreation.FieldAssignment("total",
-					new MethodCall("sum", JsonUtil.createPath("0", "[*]", "income")))));
+					new FunctionCall("sum", context, JsonUtil.createPath("0", "[*]", "income")))));
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
@@ -110,6 +120,9 @@ public class GroupingTest extends MeteorTest {
 			"write $result to 'output.json'; ");
 
 		final SopremoPlan expectedPlan = new SopremoPlan();
+		final EvaluationContext context = expectedPlan.getEvaluationContext();
+		context.getFunctionRegistry().put(CoreFunctions.class);
+
 		final Source employees = new Source("employees.json");
 		final Source depts = new Source("departments.json");
 		final Grouping selection = new Grouping().
@@ -121,7 +134,7 @@ public class GroupingTest extends MeteorTest {
 				new ObjectCreation.FieldAssignment("deptName", JsonUtil.createPath("1", "[0]", "name")),
 				new ObjectCreation.FieldAssignment("emps", JsonUtil.createPath("0", "[*]", "id")),
 				new ObjectCreation.FieldAssignment("numEmps",
-					new MethodCall("count", JsonUtil.createPath("0")))));
+					new FunctionCall("count", context, JsonUtil.createPath("0")))));
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
@@ -142,6 +155,9 @@ public class GroupingTest extends MeteorTest {
 			"write $result to 'output.json';");
 
 		final SopremoPlan expectedPlan = new SopremoPlan();
+		final EvaluationContext context = expectedPlan.getEvaluationContext();
+		context.getFunctionRegistry().put(CoreFunctions.class);
+
 		final Source employees = new Source("employees.json");
 		final Source depts = new Source("departments.json");
 		final Grouping selection = new Grouping().
@@ -153,7 +169,7 @@ public class GroupingTest extends MeteorTest {
 				new ObjectCreation.FieldAssignment("deptName", JsonUtil.createPath("1", "[0]", "name")),
 				new ObjectCreation.FieldAssignment("emps", JsonUtil.createPath("0", "[*]", "id")),
 				new ObjectCreation.FieldAssignment("numEmps",
-					new MethodCall("count", JsonUtil.createPath("0")))));
+					new FunctionCall("count", context, JsonUtil.createPath("0")))));
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 

@@ -4,9 +4,9 @@ options {
     language=Java;
     output=AST;
     ASTLabelType=EvaluationExpression;
-    backtrack=true;
-    memoize=true;
-    superClass=AbstractQueryParser;
+    //backtrack=true;
+    //memoize=true;
+    superClass=MeteorParserBase;
 }
 
 tokens {	
@@ -21,67 +21,39 @@ package eu.stratosphere.meteor;
 @parser::header { 
 package eu.stratosphere.meteor; 
 
-import eu.stratosphere.sopremo.*;
+import eu.stratosphere.sopremo.operator.*;
+import eu.stratosphere.sopremo.io.*;
 import eu.stratosphere.sopremo.query.*;
 import eu.stratosphere.sopremo.pact.*;
-import eu.stratosphere.sopremo.type.*;
 import eu.stratosphere.sopremo.expressions.*;
-import eu.stratosphere.sopremo.aggregation.*;
 import eu.stratosphere.sopremo.function.*;
-import it.unimi.dsi.fastutil.ints.*;
-import it.unimi.dsi.fastutil.objects.*;
 import java.math.*;
 import java.util.IdentityHashMap;
-import java.util.Arrays;
 }
 
 @rulecatch { }
 
 @parser::members {
-{
-  addTypeAlias("int", IntNode.class);
-  addTypeAlias("decimal", DecimalNode.class);
-  addTypeAlias("string", TextNode.class);
-  addTypeAlias("double", DoubleNode.class);
-  addTypeAlias("boolean", BooleanNode.class);
-  addTypeAlias("bool", BooleanNode.class);
-  
-  addParserFlag(ParserFlag.FUNCTION_OBJECTS);
-}
+  private boolean setInnerOutput(Token VAR, Operator<?> op) {
+	  JsonStreamExpression output = new JsonStreamExpression($operator::result.getOutput($objectCreation::mappings.size()));
+	  $objectCreation::mappings.add(new ObjectCreation.TagMapping(output, new JsonStreamExpression(op)));
+	  getVariableRegistry().getRegistry(1).put(VAR.getText(), output);
+	  return true;
+	}
 
-public void parseSinks() throws RecognitionException {  
+  public void parseSinks() throws RecognitionException {
     script();
-}
-
-private boolean setInnerOutput(Token VAR, Operator<?> op) {
-  JsonStreamExpression output = new JsonStreamExpression($operator::result.getOutput($objectCreation::mappings.size()));
-  $objectCreation::mappings.add(new ObjectCreation.TagMapping(output, new JsonStreamExpression(op)));
-  setBinding(VAR, output, 1);
-  return true;
-}
-
-private String getAssignmentName(EvaluationExpression expression) {
-  if(expression instanceof PathExpression)
-    return getAssignmentName(((PathExpression) expression).getLastFragment());
-  if(expression instanceof ObjectAccess)
-    return ((ObjectAccess) expression).getField();
-  return expression.toString();
-}
-
-private EvaluationExpression makePath(Token inputVar, String... path) {
-  Object input = getRawBinding(inputVar, Object.class);
-  if(input instanceof Operator<?>) {
-    int inputIndex = $operator::result.getInputs().indexOf(((Operator<?>)input).getSource());
-    input = new InputSelection(inputIndex);
-  } else if(input instanceof JsonStreamExpression)
-    input = ((JsonStreamExpression)input).toInputSelection($operator::result);
+  }
   
-  List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
-  accesses.add((EvaluationExpression) input);
-  for (String fragment : path)
-    accesses.add(new ObjectAccess(fragment));
-  return PathExpression.wrapIfNecessary(accesses);
-}
+  private EvaluationExpression makePath(Token inputVar, String... path) {
+      EvaluationExpression selection = getVariable(inputVar).toInputSelection($operator::result);
+      
+      List<EvaluationExpression> accesses = new ArrayList<EvaluationExpression>();
+      accesses.add((EvaluationExpression) selection);
+      for (String fragment : path)
+        accesses.add(new ObjectAccess(fragment));
+      return PathExpression.wrapIfNecessary(accesses);
+    }
 }
 
 script
@@ -91,52 +63,61 @@ statement
 	:	(assignment | operator | packageImport | functionDefinition | javaudf) ->;
 	
 packageImport
-  :  'using' packageName=ID { importPackage($packageName.text); }->;
+  :  'using' packageName=ID { getPackageManager().importPackage($packageName.text); } ',' 
+     (additionalPackage=ID { getPackageManager().importPackage($additionalPackage.text); })* ->;
 	
 assignment
-	:	target=VAR '=' source=operator { setBinding($target, new JsonStreamExpression($source.op)); } -> ;
+	:	target=VAR '=' source=operator { putVariable($target, new JsonStreamExpression($source.op)); } -> ;
 
 functionDefinition
 @init { List<Token> params = new ArrayList(); }
-  : name=ID '=' 'fn' '('  
+  : name=ID '=' FN '('  
   (param=ID { params.add($param); }
   (',' param=ID { params.add($param); })*)? 
   ')' 
-  { for(int index = 0; index < params.size(); index++) setBinding(params.get(index), new InputSelection(0)); } 
-  def=contextAwareExpression[null] { addFunction(new SopremoFunction(name.getText(), def.tree)); } ->; 
+  { 
+    addConstantScope();
+    for(int index = 0; index < params.size(); index++) 
+      this.getConstantRegistry().put(params.get(index).getText(), new InputSelection(index)); 
+  } 
+  def=contextAwareExpression[null] 
+  { 
+    addFunction(name.getText(), new ExpressionFunction(params.size(), def.tree));
+    removeConstantScope(); 
+  } ->; 
 
 javaudf
-  : name=ID '=' 'javaudf' '(' path=STRING ')' 
+  : name=ID '=' JAVAUDF '(' path=STRING ')' 
   { addFunction($name.getText(), path.getText()); } ->;
 
 contextAwareExpression [EvaluationExpression contextExpression]
 scope { EvaluationExpression context }
 @init { $contextAwareExpression::context = $contextExpression; }
-  : expression;
+  : ternaryExpression;
 
 expression
-  : ternaryExpression
-  | operatorExpression;
+  : (operatorExpression)=> operatorExpression
+  | ternaryExpression;
 
 ternaryExpression
-	:	ifClause=orExpression ('?' ifExpr=expression? ':' elseExpr=expression)
+	:	(orExpression '?')=> ifClause=orExpression '?' ifExpr=orExpression ':' elseExpr=orExpression
 	-> ^(EXPRESSION["TernaryExpression"] $ifClause { ifExpr == null ? EvaluationExpression.VALUE : $ifExpr.tree } { $elseExpr.tree })
-	| ifExpr2=orExpression 'if' ifClause2=expression
-	-> ^(EXPRESSION["TernaryExpression"] $ifClause2 $ifExpr2 { EvaluationExpression.VALUE })
+	| (orExpression IF)=> ifExpr2=orExpression IF ifClause2=orExpression
+  -> ^(EXPRESSION["TernaryExpression"] $ifClause2 $ifExpr2 { EvaluationExpression.VALUE })
   | orExpression;
 	
 orExpression
-  : exprs+=andExpression (('or' | '||') exprs+=andExpression)*
+  : exprs+=andExpression ((OR | '||') exprs+=andExpression)*
   -> { $exprs.size() == 1 }? { $exprs.get(0) }
   -> { OrExpression.valueOf($exprs) };
 	
 andExpression
-  : exprs+=elementExpression (('and' | '&&') exprs+=elementExpression)*
+  : exprs+=elementExpression ((AND | '&&') exprs+=elementExpression)*
   -> { $exprs.size() == 1 }? { $exprs.get(0) }
   -> { AndExpression.valueOf($exprs) };
   
 elementExpression
-	:	elem=comparisonExpression (not='not'? 'in' set=comparisonExpression)? 
+	:	elem=comparisonExpression (not=NOT? IN set=comparisonExpression)? 
 	-> { set == null }? $elem
 	-> ^(EXPRESSION["ElementInSetExpression"] $elem 
 	{ $not == null ? ElementInSetExpression.Quantor.EXISTS_IN : ElementInSetExpression.Quantor.EXISTS_NOT_IN} $set);
@@ -169,15 +150,16 @@ unaryExpression
 	:	('!' | '~')? castExpression;
 
 castExpression
-	:	('(' type=ID ')' expr=generalPathExpression
-	| expr=generalPathExpression 'as' type=ID
-	| expr=generalPathExpression) 
-	-> { type != null }? { coerce($type.text, $expr.tree) }
-	-> $expr;
+	:	('(' ID ')')=> '(' type=ID ')' expr=generalPathExpression
+  -> { coerce($type.text, $expr.tree) }
+	| (generalPathExpression AS)=> expr=generalPathExpression AS type=ID
+  -> { coerce($type.text, $expr.tree) }
+	| generalPathExpression;
 	
 generalPathExpression
-	: value=valueExpression path=pathExpression -> { PathExpression.wrapIfNecessary($value.tree, $path.tree) } 
-	| valueExpression;
+	: value=valueExpression 
+	  ((pathExpression)=> path=pathExpression -> { PathExpression.wrapIfNecessary($value.tree, $path.tree) } 
+	  | -> $value);
 
 contextAwarePathExpression[EvaluationExpression context]
   : path=pathExpression -> { PathExpression.wrapIfNecessary(context, $path.tree) };
@@ -186,17 +168,18 @@ pathExpression
 scope {  List<EvaluationExpression> fragments; }
 @init { $pathExpression::fragments = new ArrayList<EvaluationExpression>(); }
   : // add .field or [index] to path
-    ( ('.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
-        | arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ 
+    ( (('.')=> '.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
+        | ('[')=> arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ 
   -> { PathExpression.wrapIfNecessary($pathExpression::fragments) };
 
 valueExpression
-	:	methodCall[null]
+	:	(ID '(')=> methodCall[null]
 	| parenthesesExpression 
 	| literal 
+	| (VAR '[' VAR)=> streamIndexAccess
 	| VAR -> { makePath($VAR) }
-  | ID { hasBinding($ID, EvaluationExpression.class) }?=> -> { getBinding($ID, EvaluationExpression.class) }
-  | streamIndexAccess
+  | ((ID ':')=> packageName=ID ':')? constant=ID { getScope($packageName.text).getConstantRegistry().get($constant.text) != null }? => 
+    -> { getScope($packageName.text).getConstantRegistry().get($constant.text) }  
 	| arrayCreation 
 	| objectCreation ;
 	
@@ -208,10 +191,10 @@ parenthesesExpression
 
 methodCall [EvaluationExpression targetExpr]
 @init { List<EvaluationExpression> params = new ArrayList(); }
-	:	name=ID '('	
+	:	(packageName=ID ':')? name=ID '('	
 	(param=expression { params.add($param.tree); }
 	(',' param=expression { params.add($param.tree); })*)? 
-	')' -> { createCheckedMethodCall($name, $targetExpr, params.toArray(new EvaluationExpression[params.size()])) };
+	')' -> { createCheckedMethodCall($packageName.text, $name, $targetExpr, params.toArray(new EvaluationExpression[params.size()])) };
 	
 fieldAssignment
 	:	ID ':' expression 
@@ -219,7 +202,7 @@ fieldAssignment
   | VAR 
     ( '.' STAR { $objectCreation::mappings.add(new ObjectCreation.CopyFields(makePath($VAR))); } ->
       | '=' op=operator { setInnerOutput($VAR, $op.op) }?=>
-      | p=contextAwarePathExpression[getBinding($VAR, JsonStreamExpression.class).toInputSelection($operator::result)]
+      | p=contextAwarePathExpression[getVariable($VAR).toInputSelection($operator::result)]
       ( ':' e2=expression { $objectCreation::mappings.add(new ObjectCreation.TagMapping($p.tree, $e2.tree)); } ->
         | /* empty */ { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment(getAssignmentName($p.tree), $p.tree)); } ->
       )
@@ -235,7 +218,7 @@ literal
 	| val='false' -> ^(EXPRESSION["ConstantExpression"] { Boolean.FALSE })
 	| val=DECIMAL -> ^(EXPRESSION["ConstantExpression"] { new BigDecimal($val.text) })
 	| val=STRING -> ^(EXPRESSION["ConstantExpression"] { $val.getText() })
-  | val=INTEGER -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
+  | (val=UINT | val=INTEGER) -> ^(EXPRESSION["ConstantExpression"] { parseInt($val.text) })
   | 'null' -> { ConstantExpression.NULL };
 
 arrayAccess
@@ -247,9 +230,9 @@ arrayAccess
   -> ^(EXPRESSION["ArrayAccess"] { Integer.valueOf($start.text) } { Integer.valueOf($end.text) });
   
 streamIndexAccess
-  : op=VAR { getRawBinding($op, JsonStreamExpression.class) != null }?=>
+  : op=VAR { getVariable($op) != null }?=>
     '[' path=generalPathExpression ']' { !($path.tree instanceof ConstantExpression) }?
-  -> { new StreamIndexExpression(getBinding($op, JsonStreamExpression.class).getStream(), $path.tree) };
+  -> { new StreamIndexExpression(getVariable($op).getStream(), $path.tree) };
 	
 arrayCreation
 	:	 '[' elems+=expression (',' elems+=expression)* ','? ']' -> ^(EXPRESSION["ArrayCreation"] { $elems.toArray(new EvaluationExpression[$elems.size()]) });
@@ -262,11 +245,11 @@ scope {
 }
 @init {
   if(state.backtracking == 0) 
-	  getContext().getBindings().addScope();
+	  addScope();
 	$operator::inputTags = new IdentityHashMap<JsonStream, List<ExpressionTag>>();
 }
 @after {
-  getContext().getBindings().removeScope();
+  removeScope();
 }:	opRule=(readOperator | writeOperator | genericOperator) 
 { 
   $op = $operator::result;
@@ -280,25 +263,26 @@ writeOperator
 { 
 	Sink sink = new Sink(JsonOutputFormat.class, $file.text);
   $operator::result = sink;
-  sink.setInputs(getBinding(from, JsonStreamExpression.class).getStream());
+  sink.setInputs(getVariable(from).getStream());
   this.sinks.add(sink);
 } ->;
 
 genericOperator
 scope { 
   OperatorInfo<?> operatorInfo;
-}	:	name=ID { ($genericOperator::operatorInfo = findOperatorGreedily($name)) != null }?=>
+}	:	(packageName=ID ':')? name=ID { ($genericOperator::operatorInfo = findOperatorGreedily($packageName.text, $name)) != null }?=>
 { $operator::result = $genericOperator::operatorInfo.newInstance(); } 
 operatorFlag*
-(arrayInput | input (',' input)*)	
+(('[')=> arrayInput | (VAR)=> input ((',')=> ',' input)*)
 operatorOption* ->; 
 	
 operatorOption
 scope {
  OperatorInfo.OperatorPropertyInfo property;
-}
-	:	name=ID { ($operatorOption::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, $name)) != null }?
-expr=contextAwareExpression[null] { $operatorOption::property.setValue($operator::result, $expr.tree); } ->;
+} : //{ findOperatorPropertyRelunctantly($genericOperator::operatorInfo, input.LT(1)) != null }?	
+  name=ID
+	{ $operatorOption::property = findOperatorPropertyRelunctantly($genericOperator::operatorInfo, name); }
+  expr=contextAwareExpression[null] { $operatorOption::property.setValue($operator::result, $expr.tree); } ->;
 
 operatorFlag
 scope {
@@ -312,33 +296,26 @@ scope {
 input	
 scope {
  OperatorInfo.InputPropertyInfo inputProperty;
-}	:	preserveFlag='preserve'? {} (name=VAR 'in')? from=VAR
+}	:	(name=VAR IN)? from=VAR
 { 
   int inputIndex = $operator::numInputs++;
-  JsonStreamExpression input = getBinding(from, JsonStreamExpression.class);
+  JsonStreamExpression input = getVariable(from);
   $operator::result.setInput(inputIndex, input.getStream());
   
-  if(preserveFlag != null)
-    setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream(), inputIndex).withTag(ExpressionTag.RETAIN));
-  else setBinding(name != null ? name : from, new JsonStreamExpression(input.getStream(), inputIndex));
+  JsonStreamExpression inputExpression = new JsonStreamExpression(input.getStream(), inputIndex);
+  putVariable(name != null ? name : from, inputExpression);
 } 
-{ if(state.backtracking == 0) {
-    addScope();
-  }
-}
-(inputOption=ID { ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, $inputOption)) != null }?
+({ ($input::inputProperty = findInputPropertyRelunctantly($genericOperator::operatorInfo, input.LT(1))) != null }?=> 
+  { this.input.consume(); } // consume the initial token
   expr=contextAwareExpression[new InputSelection($operator::numInputs - 1)] { $input::inputProperty.setValue($operator::result, $operator::numInputs-1, $expr.tree); })?
-{ if(state.backtracking == 0) 
-    removeScope();
-}  
 -> ;
 
 arrayInput
   : '[' names+=VAR (',' names+=VAR)? ']' 'in' from=VAR
 { 
-  $operator::result.setInput(0, getBinding(from, JsonStreamExpression.class).getStream());
+  $operator::result.setInput(0, getVariable(from).getStream());
   for(int index = 0; index < $names.size(); index++) {
-	  setBinding((Token) $names.get(index), new InputSelection(index)); 
+	  putVariable((Token) $names.get(index), new JsonStreamExpression(null, index)); 
   }
 } -> ;
 
@@ -355,6 +332,26 @@ fragment DIGIT
 	:	'0'..'9';
 
 fragment SIGN:	('+'|'-');
+
+// TYPE  : 'int' | 'decimal' | 'double' | 'string' | 'bool';
+
+JAVAUDF : 'javaudf';
+
+OR  : 'or';
+
+AND  : 'and';
+
+IF  : 'if';
+
+ELSE  : 'else';
+
+NOT : 'not';
+
+IN  : 'in';
+
+FN  : 'fn';
+
+AS  : 'as';
 
 ID	:	(LOWER_LETTER | UPPER_LETTER) (LOWER_LETTER | UPPER_LETTER | DIGIT | '_')*;
 

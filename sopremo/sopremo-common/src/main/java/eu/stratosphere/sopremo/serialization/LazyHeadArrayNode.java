@@ -15,6 +15,10 @@ import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
+/**
+ * This {@link IArrayNode} supports {@link PactRecord}s more efficient by working directly with the record instead of
+ * transforming it to a JsonNode. The record is handled by a {@link HeadArraySchema}.
+ */
 public class LazyHeadArrayNode extends AbstractArrayNode {
 
 	/**
@@ -26,6 +30,14 @@ public class LazyHeadArrayNode extends AbstractArrayNode {
 
 	protected HeadArraySchema schema;
 
+	/**
+	 * Initializes a LazyHeadArrayNode with the given {@link PactRecord} and the given {@link HeadArraySchema}.
+	 * 
+	 * @param record
+	 *        the record that should be used
+	 * @param schema
+	 *        the schema that should be used for transformations
+	 */
 	public LazyHeadArrayNode(final PactRecord record, final HeadArraySchema schema) {
 		this.record = record;
 		this.schema = schema;
@@ -121,6 +133,12 @@ public class LazyHeadArrayNode extends AbstractArrayNode {
 		return this.record;
 	}
 
+	/**
+	 * Returns the last field of the record. This 'other' field stores all nodes after reaching the defined head size of
+	 * the schema.
+	 * 
+	 * @return the 'other' field of the record
+	 */
 	public IArrayNode getOtherField() {
 		return (IArrayNode) SopremoUtil.unwrap(this.record.getField(this.schema.getHeadSize(),
 			JsonNodeWrapper.class));
@@ -243,6 +261,16 @@ public class LazyHeadArrayNode extends AbstractArrayNode {
 
 	@Override
 	public void write(final DataOutput out) throws IOException {
+		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 0;
+	}
+
+	@Override
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
 		throw new UnsupportedOperationException("Use other ArrayNode Implementation instead");
 	}
 

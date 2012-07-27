@@ -118,6 +118,19 @@ public final class MemoryBuffer extends Buffer {
 	}
 
 	/**
+	 * Resets the memory buffer.
+	 * 
+	 * @param bufferSize
+	 *        the size of buffer in bytes after the reset
+	 */
+	public void reset(final int bufferSize) {
+
+		this.writeMode.set(true);
+		this.byteBuffer.position(0);
+		this.byteBuffer.limit(bufferSize);
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override

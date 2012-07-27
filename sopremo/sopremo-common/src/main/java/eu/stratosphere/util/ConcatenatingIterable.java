@@ -25,7 +25,7 @@ import java.util.Iterator;
  */
 public class ConcatenatingIterable<T> extends AbstractIterable<T> {
 
-	private Iterable<? extends Iterable<? extends T>> inputs;
+	private final Iterable<? extends Iterable<? extends T>> inputs;
 
 	public ConcatenatingIterable(final Iterable<? extends T>... iterables) {
 		this.inputs = Arrays.asList(iterables);
@@ -48,7 +48,7 @@ public class ConcatenatingIterable<T> extends AbstractIterable<T> {
 			 * @see eu.stratosphere.util.ConversionIterator#convert(java.lang.Object)
 			 */
 			@Override
-			protected Iterator<? extends T> convert(Iterable<? extends T> inputObject) {
+			protected Iterator<? extends T> convert(final Iterable<? extends T> inputObject) {
 				return inputObject.iterator();
 			}
 		});

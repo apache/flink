@@ -25,6 +25,9 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
+ * The schema-interface can be implemented to provide the functionality to convert between {@link PactRecord}s and
+ * {@link IJsonNode}s.
+ * 
  * @author Arvid Heise
  */
 public interface Schema extends Serializable {
@@ -40,13 +43,18 @@ public interface Schema extends Serializable {
 	public IntSet getKeyIndices();
 
 	/**
+	 * Specifies the expected classes of the fields of the {@link PactRecord}.
+	 * 
 	 * @return the classes of the {@link PactRecord}
 	 */
 	public Class<? extends Value>[] getPactSchema();
 
 	/**
+	 * Determines the index of the given expression within this schema.
+	 * 
 	 * @param expression
-	 * @return
+	 *        the expressionthat should be used
+	 * @return the index
 	 */
 	public IntSet indicesOf(EvaluationExpression expression);
 
@@ -121,6 +129,8 @@ public interface Schema extends Serializable {
 	// }
 
 	/**
+	 * Converts the given {@link IJsonNode} to a {@link PactRecord}. If possible the given target-record will be reused.
+	 * 
 	 * @param value
 	 *        the {@link IJsonNode}, which shall be transformed into a {@link PactRecord} using this Schema
 	 * @param target
@@ -132,6 +142,9 @@ public interface Schema extends Serializable {
 	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context);
 
 	/**
+	 * Converts the given {@link PactRecord} to an appropriate {@link IJsonNode}. If possible the given target-node will
+	 * be reused.
+	 * 
 	 * @param record
 	 *        which shall be transformed to a matching {@link IJsonNode} using this Schema
 	 * @param target

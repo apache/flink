@@ -338,7 +338,7 @@ public class CrossNode extends TwoInputNode {
 		GlobalProperties gp;
 		LocalProperties lp;
 		
-		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
+		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
 		lp = PactConnection.getLocalPropertiesAfterConnection(subPlan1, this, ss1);
 				
 		if (keepFirstOrder == false) {
@@ -362,7 +362,7 @@ public class CrossNode extends TwoInputNode {
 
 		target.add(n);
 
-		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 		lp = PactConnection.getLocalPropertiesAfterConnection(subPlan2, this, ss2);
 		
 		if (keepSecondOrder == false) {

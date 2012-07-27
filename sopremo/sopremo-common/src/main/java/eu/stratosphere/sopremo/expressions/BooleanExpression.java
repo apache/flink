@@ -3,12 +3,12 @@ package eu.stratosphere.sopremo.expressions;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 
 /**
  * Represents all expressions with a boolean semantic.
  */
-public abstract class BooleanExpression extends EvaluationExpression implements SerializableSopremoType {
+public abstract class BooleanExpression extends EvaluationExpression implements ISerializableSopremoType {
 
 	/**
 	 * 
@@ -27,7 +27,7 @@ public abstract class BooleanExpression extends EvaluationExpression implements 
 			return (BooleanExpression) expression;
 		return new UnaryExpression(expression);
 	}
-	
+
 	/**
 	 * Wraps the given list of {@link EvaluationExpression} as a list of {@link BooleanExpression}.
 	 * 
@@ -35,9 +35,10 @@ public abstract class BooleanExpression extends EvaluationExpression implements 
 	 *        the expression that should be wrapped
 	 * @return the wrapped expression
 	 */
-	public static List<BooleanExpression> ensureBooleanExpressions(final List<? extends EvaluationExpression> expressions) {
+	public static List<BooleanExpression> ensureBooleanExpressions(
+			final List<? extends EvaluationExpression> expressions) {
 		final ArrayList<BooleanExpression> booleans = new ArrayList<BooleanExpression>(expressions.size());
-		for (EvaluationExpression evaluationExpression : expressions) 
+		for (final EvaluationExpression evaluationExpression : expressions)
 			booleans.add(ensureBooleanExpression(evaluationExpression));
 		return booleans;
 	}

@@ -849,12 +849,15 @@ public class PactCompiler {
 				return;
 			}
 
-			n.SetId(this.id++);
+			n.SetId(this.id);
 
 			// first connect to the predecessors
 			if(!(c instanceof GenericDataSource))
 				n.setInputs(this.con2node);
 
+			//read id again as it might have been incremented for newly created union nodes
+			this.id = n.getId() + 1;
+			
 			// now compute the output estimates
 			if (this.computeEstimates) {
 				n.computeOutputEstimates(this.statistics);

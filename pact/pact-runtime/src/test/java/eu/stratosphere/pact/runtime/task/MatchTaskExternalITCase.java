@@ -23,22 +23,28 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
+import eu.stratosphere.pact.common.generic.GenericMatcher;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
-import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-public class MatchTaskExternalITCase extends TaskTestBase
+public class MatchTaskExternalITCase extends DriverTestBase<GenericMatcher<PactRecord, PactRecord, PactRecord>>
 {
 	private static final Log LOG = LogFactory.getLog(MatchTaskExternalITCase.class);
 	
 	private final ArrayList<PactRecord> outList = new ArrayList<PactRecord>();
 
+	
+	public MatchTaskExternalITCase() {
+		super(6*1024*1024);
+	}
+	
 	@Test
 	public void testExternalSort1MatchTask() {
 
@@ -48,30 +54,25 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		int keyCnt2 = 8192;
 		int valCnt2 = 4*2;
 		
-		super.initEnvironment(6*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addOutput(this.outList);
 		
-		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+		getTaskConfig().setMemorySize(6 * 1024 * 1024);
+		getTaskConfig().setNumFilehandles(4);
 
 		final int[] keyPos1 = new int[]{0};
 		final int[] keyPos2 = new int[]{0};
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
 		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
-		
-		super.registerTask(testTask, MockMatchStub.class);
+		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
+		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
@@ -97,12 +98,11 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
 		this.outList.ensureCapacity(expCnt);
 		
-		super.initEnvironment(4*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
-		super.addOutput(outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addOutput(outList);
 		
-		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setMemorySize(4*1024*1024);
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 
@@ -111,15 +111,11 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
 		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
-		
-		super.registerTask(testTask, MockMatchStub.class);
+		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
+		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			e.printStackTrace();
@@ -141,12 +137,11 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		int keyCnt2 = 65536;
 		int valCnt2 = 8;
 		
-		super.initEnvironment(4*1024*1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), 1);
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), 2);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
 		super.addOutput(outList);
 		
-		final MatchTask<PactRecord, PactRecord, PactRecord> testTask = new MatchTask<PactRecord, PactRecord, PactRecord>();
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		super.getTaskConfig().setMemorySize(4*1024*1024);
 		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 		
@@ -155,15 +150,11 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		@SuppressWarnings("unchecked")
 		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
 		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(0), keyPos1, keyClasses);
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(super.getTaskConfig().getConfiguration(), 
-			super.getTaskConfig().getPrefixForInputParameters(1), keyPos2, keyClasses);
-		
-		super.registerTask(testTask, MockMatchStub.class);
+		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
+		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 		}
@@ -182,7 +173,5 @@ public class MatchTaskExternalITCase extends TaskTestBase
 		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {
 			out.collect(value1);
 		}
-		
 	}
-	
 }

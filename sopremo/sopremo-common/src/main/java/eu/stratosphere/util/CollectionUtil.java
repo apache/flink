@@ -36,11 +36,11 @@ public class CollectionUtil {
 			 * @see eu.stratosphere.util.WrappingIterable#wrap(java.util.Iterator)
 			 */
 			@Override
-			protected Iterator<T> wrap(Iterator<? extends T> iterator) {
+			protected Iterator<T> wrap(final Iterator<? extends T> iterator) {
 				final Set<T> alreadySeen = new HashSet<T>();
 				return new FilteringIterator<T>(iterator, new Predicate<T>() {
 					@Override
-					public boolean isTrue(T param) {
+					public boolean isTrue(final T param) {
 						return alreadySeen.add(param);
 					};
 				});
@@ -58,7 +58,7 @@ public class CollectionUtil {
 	 * @param defaultValue
 	 *        the default value
 	 */
-	public static <T> void ensureSize(Collection<T> collection, int size, T defaultValue) {
+	public static <T> void ensureSize(final Collection<T> collection, final int size, final T defaultValue) {
 		while (collection.size() < size)
 			collection.add(defaultValue);
 	}

@@ -20,7 +20,7 @@ public abstract class AbstractSchema implements Schema {
 
 	private final Class<? extends Value>[] pactSchema;
 
-	private IntSet keyIndices;
+	private final IntSet keyIndices;
 
 	@SuppressWarnings("unchecked")
 	protected AbstractSchema(final int numFields, final IntSet keyIndices) {

@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.pact.runtime.task.chaining;
 
 import java.util.ArrayList;
@@ -11,14 +26,16 @@ import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.generic.GenericMapper;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.task.MapTask;
+import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.MapTaskTest.MockMapStub;
 import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
@@ -32,7 +49,7 @@ public class ChainTaskTest extends TaskTestBase
 
 	private static final Log LOG = LogFactory.getLog(ChainTaskTest.class);
 	
-	private List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 		
 	@SuppressWarnings("unchecked")
 	@Test
@@ -62,14 +79,15 @@ public class ChainTaskTest extends TaskTestBase
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(), 
 				combineConfig.getPrefixForInputParameters(0), new int[]{0}, new Class[]{ PactInteger.class });
 			
-			super.getTaskConfig().addChainedTask(ChainedCombineTask.class, combineConfig, "combine");
+			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}
 		
 		// chained map+combine
 		{
-			MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
+			final RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord> testTask = 
+										new RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord>();
 			
-			super.registerTask(testTask, MockMapStub.class);
+			super.registerTask(testTask, MapDriver.class, MockMapStub.class);
 			
 			try {
 				testTask.invoke();
@@ -117,14 +135,15 @@ public class ChainTaskTest extends TaskTestBase
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(), 
 				combineConfig.getPrefixForInputParameters(0), new int[]{0}, new Class[]{ PactInteger.class });
 			
-			super.getTaskConfig().addChainedTask(ChainedCombineTask.class, combineConfig, "combine");
+			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}
 		
 		// chained map+combine
 		{
-			MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
+			final RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord> testTask = 
+										new RegularPactTask<GenericMapper<PactRecord, PactRecord>, PactRecord>();
 			
-			super.registerTask(testTask, MockMapStub.class);
+			super.registerTask(testTask, MapDriver.class, MockMapStub.class);
 
 			boolean stubFailed = false;
 			
@@ -138,20 +157,18 @@ public class ChainTaskTest extends TaskTestBase
 		}		
 	}
 	
-	public static class MockFailingCombineStub extends ReduceStub {
-
-		int cnt = 0;
+	public static final class MockFailingCombineStub extends ReduceStub
+	{
+		private int cnt = 0;
 
 		@Override
-		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out)
-				throws Exception {
-			if(++this.cnt>=5) {
+		public void reduce(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception
+		{
+			if (++this.cnt >= 5) {
 				throw new RuntimeException("Expected Test Exception");
 			}
 			while(records.hasNext())
-				out.collect(records.next());			
+				out.collect(records.next());
 		}
-		
 	}
-	
 }

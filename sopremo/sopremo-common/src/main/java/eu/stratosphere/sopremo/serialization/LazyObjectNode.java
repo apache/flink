@@ -31,6 +31,9 @@ import eu.stratosphere.util.AbstractIterator;
 import eu.stratosphere.util.ConcatenatingIterator;
 
 /**
+ * This {@link IObjectNode} supports {@link PactRecord}s more efficient by working directly with the record instead of
+ * transforming it to a JsonNode. The record is handled by a {@link ObjectSchema}.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  * @author Arvid Heise
@@ -46,6 +49,14 @@ public class LazyObjectNode extends AbstractObjectNode {
 
 	protected ObjectSchema schema;
 
+	/**
+	 * Initializes a LazyObjectNode with the given {@link PactRecord} and the given {@link ObjectSchema}.
+	 * 
+	 * @param record
+	 *        the PactRecord that should be used
+	 * @param schema
+	 *        the ObjectSchema that should be used
+	 */
 	public LazyObjectNode(final PactRecord record, final ObjectSchema schema) {
 		this.record = record;
 		this.schema = schema;
@@ -85,10 +96,6 @@ public class LazyObjectNode extends AbstractObjectNode {
 		return 0;
 	}
 
-	/**
-	 * @param index
-	 * @return
-	 */
 	private boolean fieldInSchema(final int index) {
 		return index != -1;
 	}
@@ -133,9 +140,6 @@ public class LazyObjectNode extends AbstractObjectNode {
 		return this.record;
 	}
 
-	/**
-	 * @return
-	 */
 	private IObjectNode getOtherField() {
 		return (IObjectNode) SopremoUtil.unwrap(this.record.getField(this.schema.getMappingSize(),
 			JsonNodeWrapper.class));
@@ -261,5 +265,15 @@ public class LazyObjectNode extends AbstractObjectNode {
 
 		sb.append('}');
 		return sb;
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 0;
+	}
+
+	@Override
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+		throw new UnsupportedOperationException("Use other ObjectNode Implementation instead");
 	}
 }

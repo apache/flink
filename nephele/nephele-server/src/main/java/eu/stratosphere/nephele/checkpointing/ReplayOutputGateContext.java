@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.runtime.ForwardingBarrier;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeDispatcher;
-import eu.stratosphere.nephele.taskmanager.runtime.SpillingBarrier;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 final class ReplayOutputGateContext extends AbstractReplayGateContext implements OutputGateContext {
@@ -50,9 +49,12 @@ final class ReplayOutputGateContext extends AbstractReplayGateContext implements
 		// Construct new forwarding chain for the replay output channel context
 		final RuntimeDispatcher runtimeDispatcher = new RuntimeDispatcher(
 			this.taskContext.getTransferEnvelopeDispatcher());
-		final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
-			runtimeDispatcher);
-		final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, spillingBarrier);
+		/*
+		 * final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
+		 * runtimeDispatcher);
+		 * final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, spillingBarrier);
+		 */
+		final ForwardingBarrier forwardingBarrier = new ForwardingBarrier(channelID, runtimeDispatcher);
 		final ReplayOutputChannelBroker outputChannelBroker = new ReplayOutputChannelBroker(this.taskContext,
 			forwardingBarrier);
 

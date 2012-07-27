@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.List;
 
 import junit.framework.Assert;
-
 import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Test;
@@ -29,7 +28,7 @@ public class AndExpressionTest extends BooleanExpressionTest<AndExpression> {
 	 * eu.stratosphere.sopremo.expressions.EvaluableExpressionTest#initVerifier(nl.jqno.equalsverifier.EqualsVerifier)
 	 */
 	@Override
-	protected void initVerifier(EqualsVerifier<AndExpression> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<AndExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier.withPrefabValues(List.class, new ArrayList<Object>(), new ArrayList<EvaluationExpression>(
 			Collections.singleton(TRUE)));

@@ -1,5 +1,5 @@
 package eu.stratosphere.sopremo.base;
-import static eu.stratosphere.sopremo.JsonUtil.createPath;
+import static eu.stratosphere.sopremo.type.JsonUtil.createPath;
 
 import org.junit.Test;
 

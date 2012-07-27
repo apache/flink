@@ -3,14 +3,11 @@ package eu.stratosphere.sopremo;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import junit.framework.Assert;
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -19,6 +16,8 @@ import nl.jqno.equalsverifier.Warning;
 import org.junit.Before;
 import org.junit.Ignore;
 
+import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
@@ -70,9 +69,8 @@ public abstract class SopremoTest<T> {
 			.suppress(Warning.NULL_FIELDS)
 			.suppress(Warning.NONFINAL_FIELDS)
 			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet)
-			.withPrefabValues(Set.class, new HashSet<Object>(),
-				new HashSet<Object>(Arrays.asList(ExpressionTag.RETAIN)))
 			.withPrefabValues(List.class, redList, blackList)
+			.withPrefabValues(EvaluationExpression.class, new ConstantExpression("red"), new ConstantExpression("black"))
 			.withPrefabValues(Map.class, new HashMap<Object, Object>(), blackMap)
 			.usingGetClass();
 	}

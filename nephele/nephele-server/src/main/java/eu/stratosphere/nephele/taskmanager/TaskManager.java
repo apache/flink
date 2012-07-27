@@ -25,7 +25,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -282,7 +281,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Get the directory for storing temporary files
 		final String[] tmpDirPaths = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-										ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
+
 		checkTempDirs(tmpDirPaths);
 
 		// Initialize the byte buffered channel manager
@@ -330,8 +330,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		// Add shutdown hook for clean up tasks
 		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
-
-		LOG.info(CheckpointUtils.getSummary());
 	}
 
 	/**
@@ -695,21 +693,11 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 				}
 			}
 
-			// Check if there are still vertices running that belong to the same job
-			int numberOfVerticesBelongingToThisJob = 0;
-			final Iterator<Task> iterator = this.runningTasks.values().iterator();
-			while (iterator.hasNext()) {
-				final Task candidateTask = iterator.next();
-				if (task.getJobID().equals(candidateTask.getJobID())) {
-					numberOfVerticesBelongingToThisJob++;
-				}
-			}
-
-			// If there are no other vertices belonging to the same job, we can unregister the job's class loader
-			if (numberOfVerticesBelongingToThisJob == 0) {
-				try {
-					LibraryCacheManager.unregister(task.getJobID());
-				} catch (IOException e) {
+			// Unregister task from library cache manager
+			try {
+				LibraryCacheManager.unregister(task.getJobID());
+			} catch (IOException e) {
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Unregistering the job vertex ID " + id + " caused an IOException");
 				}
 			}
@@ -863,14 +851,13 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	private void checkTaskExecution() {
 
-		final Iterator<Entry<ExecutionVertexID, Task>> it = this.runningTasks.entrySet().iterator();
+		final Iterator<Map.Entry<ExecutionVertexID, Task>> it = this.runningTasks.entrySet().iterator();
 		while (it.hasNext()) {
-			final Entry<ExecutionVertexID, Task> entry = it.next();
+			final Map.Entry<ExecutionVertexID, Task> task = it.next();
 
-			if (entry.getValue().isTerminated()) {
-				// double check
-				if (this.runningTasks.containsKey(entry.getKey())) {
-					entry.getValue().markAsFailed();
+			if (task.getValue().isTerminated()) {
+				if (this.runningTasks.containsKey(task.getKey())) {
+					task.getValue().markAsFailed();
 				}
 			}
 		}
@@ -1010,31 +997,37 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		return tmp.requestData(data);
 	}
-	
+
 	/**
 	 * Checks, whether the given strings describe existing directories that are writable. If that is not
 	 * the case, an exception is raised.
 	 * 
-	 * @param tempDirs An array of strings which are checked to be paths to writable directories.
-	 * @throws Exception Thrown, if any of the mentioned checks fails.
+	 * @param tempDirs
+	 *        An array of strings which are checked to be paths to writable directories.
+	 * @throws Exception
+	 *         Thrown, if any of the mentioned checks fails.
 	 */
-	private static final void checkTempDirs(String[] tempDirs) throws Exception
-	{
-		for (int i = 0; i < tempDirs.length; i++) {
+	private static final void checkTempDirs(final String[] tempDirs) throws Exception {
+
+		for (int i = 0; i < tempDirs.length; ++i) {
+
 			final String dir = tempDirs[i];
 			if (dir == null) {
-				throw new Exception("Temporary file directory #" + (i+1) + " is null.");
+				throw new Exception("Temporary file directory #" + (i + 1) + " is null.");
 			}
-			
+
 			final File f = new File(dir);
+
 			if (!f.exists()) {
-				throw new Exception("Temporary file directory #" + (i+1) + " does not exist.");
+				throw new Exception("Temporary file directory #" + (i + 1) + " does not exist.");
 			}
+
 			if (!f.isDirectory()) {
-				throw new Exception("Temporary file directory #" + (i+1) + " is not a directory.");
+				throw new Exception("Temporary file directory #" + (i + 1) + " is not a directory.");
 			}
+
 			if (!f.canWrite()) {
-				throw new Exception("Temporary file directory #" + (i+1) + " is not writable.");
+				throw new Exception("Temporary file directory #" + (i + 1) + " is not writable.");
 			}
 		}
 	}

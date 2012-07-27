@@ -1,9 +1,9 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.TypeCoercer;
 
 /**
  * Represents a unary boolean expression.
@@ -53,11 +53,11 @@ public class UnaryExpression extends BooleanExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// no need to reuse target of coercion - no new boolean node is created anew
 		final BooleanNode result =
 			TypeCoercer.INSTANCE.coerce(this.expr.evaluate(node, target, context), null, BooleanNode.class);
-		
+
 		// we can ignore 'target' because no new Object is created
 		if (this.negate)
 			return result == BooleanNode.TRUE ? BooleanNode.FALSE : BooleanNode.TRUE;
@@ -87,10 +87,9 @@ public class UnaryExpression extends BooleanExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.expr = this.expr.transformRecursively(function);
 		return function.call(this);
 	}
-
 
 }

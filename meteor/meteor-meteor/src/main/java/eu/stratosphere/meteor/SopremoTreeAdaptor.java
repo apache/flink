@@ -7,7 +7,7 @@ import org.antlr.runtime.Token;
 import org.antlr.runtime.tree.BaseTreeAdaptor;
 import org.antlr.runtime.tree.TreeAdaptor;
 
-import eu.stratosphere.sopremo.ExpressionFactory;
+import eu.stratosphere.sopremo.expressions.ExpressionFactory;
 import eu.stratosphere.sopremo.expressions.UnevaluableExpression;
 import eu.stratosphere.util.reflect.ReflectUtil;
 

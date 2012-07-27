@@ -1,9 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.MissingNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
@@ -49,7 +48,7 @@ public class ConstantExpression extends EvaluationExpression {
 	 * @param constant
 	 *        the node that should be represented by this ConstantExpression
 	 */
-	public ConstantExpression(final AbstractJsonNode constant) {
+	public ConstantExpression(final IJsonNode constant) {
 		this.constant = constant;
 	}
 
@@ -82,7 +81,7 @@ public class ConstantExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// we can ignore 'target' because no new Object is created
 		return this.constant;
 	}

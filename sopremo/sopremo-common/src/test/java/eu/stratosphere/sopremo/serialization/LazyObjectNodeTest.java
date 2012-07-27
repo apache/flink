@@ -47,7 +47,6 @@ public class LazyObjectNodeTest extends ObjectNodeBaseTest<LazyObjectNode> {
 				.put("gender", TextNode.valueOf("male")), null, null);
 
 		return new LazyObjectNode(record, schema);
-
 	}
 
 	@Test
@@ -55,14 +54,41 @@ public class LazyObjectNodeTest extends ObjectNodeBaseTest<LazyObjectNode> {
 		this.node.put("lastName", TextNode.valueOf("Wurst"));
 		this.node.put("profession", TextNode.valueOf("Butcher"));
 		final PactRecord rec = this.node.getJavaValue();
-
 		// the lastname is the second element in the mapping
 		final IJsonNode lastName = SopremoUtil.unwrap(rec.getField(1, JsonNodeWrapper.class));
 		Assert.assertEquals(TextNode.valueOf("Wurst"), lastName);
-
 		// 3 elements in the mapping -> others is the 4th field
 		final IObjectNode others = (IObjectNode) SopremoUtil.unwrap(rec.getField(3, JsonNodeWrapper.class));
 		Assert.assertEquals(TextNode.valueOf("Butcher"), others.get("profession"));
 	}
 
+	@Override
+	public void testValue() {
+	}
+
+	@Override
+	protected IJsonNode lowerNode() {
+		final ObjectSchema schema = new ObjectSchema("firstName", "lastName", "age");
+		final PactRecord record = schema.jsonToRecord(
+			new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
+				.put("gender", TextNode.valueOf("female")), null, null);
+
+		return new LazyObjectNode(record, schema);
+	}
+
+	@Override
+	protected IJsonNode higherNode() {
+		final ObjectSchema schema = new ObjectSchema("firstName", "lastName", "age");
+		final PactRecord record = schema.jsonToRecord(
+			new ObjectNode().put("firstName", TextNode.valueOf("Hans")).put("age", IntNode.valueOf(25))
+				.put("gender", TextNode.valueOf("male")), null, null);
+
+		return new LazyObjectNode(record, schema);
+	}
+
+	@Override
+	@Test(expected = UnsupportedOperationException.class)
+	public void shouldNormalizeKeys() {
+		super.shouldNormalizeKeys();
+	}
 }

@@ -129,9 +129,10 @@ public class CoGroupNode extends TwoInputNode {
 	public int getMemoryConsumerCount() {
 		switch(this.localStrategy) {
 			case SORT_BOTH_MERGE:   return 2;
-			case SORT_FIRST_MERGE:  return 1;
-			case SORT_SECOND_MERGE: return 1;
-			case MERGE:             return 0;
+			case SORT_FIRST_MERGE:  return 1 + (getPactContract().getGroupOrderForInputTwo() == null ? 0 : 1);
+			case SORT_SECOND_MERGE: return 1 + (getPactContract().getGroupOrderForInputOne() == null ? 0 : 1);
+			case MERGE:             return 0 + (getPactContract().getGroupOrderForInputOne() == null ? 0 : 1)
+			                                 + (getPactContract().getGroupOrderForInputTwo() == null ? 0 : 1);
 			default:	            return 0;
 		}
 	}
@@ -245,11 +246,11 @@ public class CoGroupNode extends TwoInputNode {
 				// some may be fixed a priori by compiler hints
 				if (ss1 == ShipStrategy.NONE) {
 					// the first connection is free to choose for the compiler
-					gp1 = subPlan1.getGlobalProperties();
+					gp1 = subPlan1.getGlobalPropertiesForParent(this);
 
 					if (ss2 == ShipStrategy.NONE) {
 						// case: both are free to choose
-						gp2 = subPlan2.getGlobalProperties();
+						gp2 = subPlan2.getGlobalPropertiesForParent(this);
 
 						// test, if one side is pre-partitioned
 						// if that is the case, partitioning the other side accordingly is
@@ -360,7 +361,7 @@ public class CoGroupNode extends TwoInputNode {
 						}
 					} else {
 						
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss2);							
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);							
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is forward. if it is partitioned, adapt to the partitioning
@@ -402,8 +403,8 @@ public class CoGroupNode extends TwoInputNode {
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
 
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
-					gp2 = subPlan2.getGlobalProperties();
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
+					gp2 = subPlan2.getGlobalPropertiesForParent(this);
 					
 					// 1) input 1 is forward. if it is partitioned, adapt to the partitioning
 					// 2) input 1 is hash-partition -> other side must be re-partition by hash as well
@@ -442,8 +443,8 @@ public class CoGroupNode extends TwoInputNode {
 					// both are fixed
 					// check, if they produce a valid plan. for that, we need to have an equal partitioning
 
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
-					gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
+					gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 					
 					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning() &&
 							partitioningIsOnSameSubkey(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
@@ -484,10 +485,10 @@ public class CoGroupNode extends TwoInputNode {
 		GlobalProperties gp1, gp2;
 		LocalProperties lp1, lp2;
 		
-		gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
+		gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
 		lp1 = PactConnection.getLocalPropertiesAfterConnection(subPlan1, this, ss1);
 		
-		gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+		gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 		lp2 = PactConnection.getLocalPropertiesAfterConnection(subPlan2, this, ss2);
 		
 		int[] scrambledKeyOrder1 = null;
@@ -501,7 +502,7 @@ public class CoGroupNode extends TwoInputNode {
 			if (scrambledKeyOrder1 != null) {
 				FieldList scrambledKeys2 = new FieldList();
 				for (int i = 0; i < scrambledKeyOrder1.length; i++) {
-					scrambledKeys2.set(i, this.keySet2.get(scrambledKeyOrder1[i]));
+					scrambledKeys2.add(this.keySet2.get(scrambledKeyOrder1[i]));
 				}
 				
 				gp2.setPartitioning(gp2.getPartitioning(), scrambledKeys2);
@@ -517,7 +518,7 @@ public class CoGroupNode extends TwoInputNode {
 			if (scrambledKeyOrder2 != null) {
 				FieldList scrambledKeys1 = new FieldList();
 				for (int i = 0; i < scrambledKeyOrder2.length; i++) {
-					scrambledKeys1.set(i, this.keySet1.get(scrambledKeyOrder2[i]));
+					scrambledKeys1.add(this.keySet1.get(scrambledKeyOrder2[i]));
 				}
 				
 				gp1.setPartitioning(gp1.getPartitioning(), scrambledKeys1);

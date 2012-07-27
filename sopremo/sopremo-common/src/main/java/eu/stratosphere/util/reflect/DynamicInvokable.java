@@ -164,7 +164,8 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		try {
 			return this.invokeDirectly(this.getMember(signature), context, signature.adjustParameters(params));
 		} catch (final Exception e) {
-			throw new EvaluationException("Cannot invoke " + this.getMember(signature) + " with " + Arrays.toString(params), e);
+			throw new EvaluationException("Cannot invoke " + this.getMember(signature) + " with "
+				+ Arrays.toString(params), e);
 		}
 	}
 
@@ -178,8 +179,29 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 	protected Class<?>[] getActualParameterTypes(final Object[] params) {
 		final Class<?>[] paramTypes = new Class<?>[params.length];
 		for (int index = 0; index < paramTypes.length; index++)
-			paramTypes[index] = params[index].getClass();
+			paramTypes[index] = params[index] == null ? null : params[index].getClass();
 		return paramTypes;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.name.hashCode();
+		result = prime * result + this.originalSignatures.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		DynamicInvokable<?, ?, ?> other = (DynamicInvokable<?, ?, ?>) obj;
+		return this.name.equals(other.name) && this.originalSignatures.equals(other.originalSignatures);
 	}
 
 	public Collection<Signature> getSignatures() {

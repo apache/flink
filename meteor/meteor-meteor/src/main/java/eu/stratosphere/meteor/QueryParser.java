@@ -10,19 +10,20 @@ import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.antlr.runtime.ANTLRInputStream;
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CharStream;
 import org.antlr.runtime.CommonTokenStream;
 
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Operator;
-import eu.stratosphere.sopremo.OperatorInfo;
-import eu.stratosphere.sopremo.OperatorInfo.InputPropertyInfo;
-import eu.stratosphere.sopremo.OperatorInfo.OperatorPropertyInfo;
-import eu.stratosphere.sopremo.SopremoPlan;
+import eu.stratosphere.sopremo.operator.JsonStream;
+import eu.stratosphere.sopremo.operator.Operator;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
+import eu.stratosphere.sopremo.packages.IRegistry;
+import eu.stratosphere.sopremo.query.OperatorInfo;
+import eu.stratosphere.sopremo.query.OperatorInfo.InputPropertyInfo;
+import eu.stratosphere.sopremo.query.OperatorInfo.OperatorPropertyInfo;
+import eu.stratosphere.sopremo.query.IOperatorRegistry;
 import eu.stratosphere.sopremo.query.PlanCreator;
 import eu.stratosphere.sopremo.query.QueryParserException;
 import eu.stratosphere.util.StringUtil;
@@ -57,15 +58,19 @@ public class QueryParser extends PlanCreator {
 		return parser.parse();
 	}
 
-	public String toJavaString(final InputStream stream) throws IOException, QueryParserException {
-		return this.toJavaString(new ANTLRInputStream(stream));
+	public static String getPrefixedName(String prefix, String name) {
+		return String.format("%s:%s", prefix, name);
 	}
 
-	public String toJavaString(final String script) throws QueryParserException {
-		return this.toJavaString(new ANTLRStringStream(script));
+	public String toSopremoCode(final InputStream stream) throws IOException, QueryParserException {
+		return this.toSopremoCode(new ANTLRInputStream(stream));
 	}
 
-	protected String toJavaString(final CharStream input) {
+	public String toSopremoCode(final String script) throws QueryParserException {
+		return this.toSopremoCode(new ANTLRStringStream(script));
+	}
+
+	protected String toSopremoCode(final CharStream input) {
 		final MeteorLexer lexer = new MeteorLexer(input);
 		final CommonTokenStream tokens = new CommonTokenStream();
 		tokens.setTokenSource(lexer);
@@ -74,22 +79,24 @@ public class QueryParser extends PlanCreator {
 		parser.setTreeAdaptor(adaptor);
 		final SopremoPlan result = parser.parse();
 		final JavaRenderInfo info = new JavaRenderInfo(parser, adaptor);
-		this.toJavaString(result, info);
+		this.toSopremoCode(result, info);
 		return info.builder.toString();
 	}
 
-	protected String toJavaString(final SopremoPlan result, final JavaRenderInfo info) {
+	protected String toSopremoCode(final SopremoPlan result, final JavaRenderInfo info) {
 		for (final Operator<?> op : result.getContainedOperators())
 			this.appendJavaOperator(op, info);
 		return info.builder.toString();
 	}
 
+	@SuppressWarnings("unchecked")
 	protected <O extends Operator<O>> void appendJavaOperator(final Operator<O> op, final JavaRenderInfo renderInfo) {
 		final String className = op.getClass().getSimpleName();
 		renderInfo.builder.append(String.format("%s %s = new %1$s();\n", className, renderInfo.getVariableName(op)));
 
-		@SuppressWarnings("unchecked")
-		final OperatorInfo<O> info = renderInfo.parser.getOperatorFactory().getOperatorInfo((Class<O>) op.getClass());
+		final IOperatorRegistry operatorRegistry = renderInfo.parser.getOperatorRegistry();
+		final String name = operatorRegistry.getName((Class<O>) op.getClass());
+		final OperatorInfo<O> info = (OperatorInfo<O>) operatorRegistry.get(name);
 		final Operator<O> defaultInstance = info.newInstance();
 		this.appendInputs(op, renderInfo, defaultInstance);
 		defaultInstance.setInputs(op.getInputs());
@@ -112,9 +119,10 @@ public class QueryParser extends PlanCreator {
 
 	protected <O extends Operator<O>> void appendInputProperties(final Operator<O> op, final JavaRenderInfo renderInfo,
 			final OperatorInfo<O> info, final Operator<O> defaultInstance) {
-		for (final Entry<String, InputPropertyInfo> property : info.getInputProperties().entrySet())
+		final IRegistry<InputPropertyInfo> inputPropertyRegistry = info.getInputPropertyRegistry();
+		for (final String propertyName : inputPropertyRegistry.keySet())
 			for (int index = 0; index < op.getInputs().size(); index++) {
-				final InputPropertyInfo propertyInfo = property.getValue();
+				final InputPropertyInfo propertyInfo = inputPropertyRegistry.get(propertyName);
 				final Object actualValue = propertyInfo.getValue(op, index);
 				final Object defaultValue = propertyInfo.getValue(defaultInstance, index);
 				if (!actualValue.equals(defaultValue)) {
@@ -132,11 +140,11 @@ public class QueryParser extends PlanCreator {
 	}
 
 	protected <O extends Operator<O>> void appendOperatorProperties(final Operator<O> op,
-			final JavaRenderInfo renderInfo,
-			final OperatorInfo<O> info,
-			final Operator<O> defaultInstance) {
-		for (final Entry<String, OperatorPropertyInfo> property : info.getOperatorProperties().entrySet()) {
-			final OperatorPropertyInfo propertyInfo = property.getValue();
+			final JavaRenderInfo renderInfo, final OperatorInfo<O> info, final Operator<O> defaultInstance) {
+		
+		final IRegistry<OperatorPropertyInfo> operatorPropertyRegistry = info.getOperatorPropertyRegistry();
+		for (final String propertyName : operatorPropertyRegistry.keySet()) {
+			final OperatorPropertyInfo propertyInfo = operatorPropertyRegistry.get(propertyName);
 			final Object actualValue = propertyInfo.getValue(op);
 			final Object defaultValue = propertyInfo.getValue(defaultInstance);
 			if (!actualValue.equals(defaultValue)) {

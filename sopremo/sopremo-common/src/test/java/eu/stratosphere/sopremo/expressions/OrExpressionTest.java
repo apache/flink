@@ -22,11 +22,12 @@ public class OrExpressionTest extends BooleanExpressionTest<OrExpression> {
 		return new OrExpression(params);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.OrExpressionTest#initVerifier(nl.jqno.equalsverifier.EqualsVerifier)
 	 */
 	@Override
-	protected void initVerifier(EqualsVerifier<OrExpression> equalVerifier) {
+	protected void initVerifier(final EqualsVerifier<OrExpression> equalVerifier) {
 		super.initVerifier(equalVerifier);
 		equalVerifier.withPrefabValues(List.class, new ArrayList<Object>(), new ArrayList<EvaluationExpression>(
 			Collections.singleton(TRUE)));

@@ -1,61 +1,66 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
 package eu.stratosphere.sopremo.function;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
-import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.reflect.DynamicMethod;
-import eu.stratosphere.util.reflect.ExtensionMethod;
 import eu.stratosphere.util.reflect.Signature;
 
-public class JavaMethod extends JsonMethod {
-	// private final class AutoBoxingMethod extends ExtensionMethod<IJsonNode> {
-	// /**
-	// *
-	// */
-	// private static final long serialVersionUID = 9145091116604733007L;
-	//
-	// private AutoBoxingMethod(final String name) {
-	// super(name);
-	// }
-	//
-	// @Override
-	// protected Class<?>[] getSignatureTypes(final Method member) {
-	// final Class<?>[] parameterTypes = super.getParameterTypes(member);
-	// for (int index = 0; index < parameterTypes.length; index++)
-	// if (!parameterTypes[index].isArray())
-	// parameterTypes[index] = JavaToJsonMapper.INSTANCE.classToJsonType(parameterTypes[index]);
-	// return parameterTypes;
-	// }
-	//
-	// @Override
-	// protected IJsonNode invokeDirectly(final Method method, final Object context, final Object[] params)
-	// throws IllegalAccessException, InvocationTargetException {
-	// for (int index = 0; index < params.length; index++)
-	// params[index] = box(params[index]);
-	// return JavaToJsonMapper.INSTANCE.valueToTree(super.invokeDirectly(method, context, params));
-	// }
-	//
-	// private Object box(final Object value) {
-	// if (value.getClass().isArray())
-	// return value;
-	// return JavaToJsonMapper.INSTANCE.valueToTree(value);
-	// }
-	// }
+/**
+ * @author Arvid Heise
+ */
+public abstract class JavaMethod extends SopremoFunction {
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = -789826280721581321L;
+	private static final long serialVersionUID = 2195013413330805401L;
 
-	private final DynamicMethod<IJsonNode> method;
+	protected final DynamicMethod<IJsonNode> method;
 
+	private transient List<Object[]> paramCache = new ArrayList<Object[]>();
+
+	/**
+	 * Initializes JavaMethod.
+	 */
 	public JavaMethod(final String name) {
-		super(name);
+		this.method = new DynamicMethod<IJsonNode>(name);
+	}
 
-		this.method = new ExtensionMethod<IJsonNode>(name);
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		this.paramCache = new ArrayList<Object[]>();
+	}
+
+	protected Object[] addTargetToParameters(final IArrayNode params, final IJsonNode target) {
+		final int numParams = params.size();
+		for (int cacheSize = this.paramCache.size(); cacheSize <= numParams; cacheSize++)
+			this.paramCache.add(new Object[cacheSize + 1]);
+		final Object[] expandedParams = this.paramCache.get(numParams);
+		expandedParams[0] = target;
+		for (int index = 0; index < numParams; index++)
+			expandedParams[index + 1] = params.get(index);
+		return expandedParams;
 	}
 
 	public void addSignature(final Method method) {
@@ -66,12 +71,29 @@ public class JavaMethod extends JsonMethod {
 		return this.method.getSignatures();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.function.Callable#call(InputType[], eu.stratosphere.sopremo.EvaluationContext)
-	 */
 	@Override
-	public IJsonNode call(final IArrayNode params, final IJsonNode target, final EvaluationContext context) {
-		return this.method.invoke(null, (Object[]) params.toArray());
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + this.method.hashCode();
+		return result;
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		JavaMethod other = (JavaMethod) obj;
+		return this.method.equals(other.method);
+	}
+
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append("Java method ").append(this.method);
+	}
+
 }

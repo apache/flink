@@ -317,12 +317,12 @@ public class MatchNode extends TwoInputNode {
 				if (ss1 == ShipStrategy.NONE) {
 					// the first connection is free to choose for the compiler
 
-					gp1 = subPlan1.getGlobalProperties();
+					gp1 = subPlan1.getGlobalPropertiesForParent(this);
 
 					if (ss2 == ShipStrategy.NONE) {
 						// case: both are free to choose
 					
-						gp2 = subPlan2.getGlobalProperties();
+						gp2 = subPlan2.getGlobalPropertiesForParent(this);
 
 						// test, if one side is pre-partitioned
 						// if that is the case, partitioning the other side accordingly is
@@ -445,7 +445,7 @@ public class MatchNode extends TwoInputNode {
 							}
 						}
 					} else {
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 
 						// first connection free to choose, but second one is fixed
 						// 1) input 2 is broadcast -> other side must be forward
@@ -491,8 +491,8 @@ public class MatchNode extends TwoInputNode {
 				} else if (ss2 == ShipStrategy.NONE) {
 					// second connection free to choose, but first one is fixed
 
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
-					gp2 = subPlan2.getGlobalProperties();
+					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
+					gp2 = subPlan2.getGlobalPropertiesForParent(this);
 
 					// 1) input 1 is broadcast -> other side must be forward
 					// 2) input 1 is forward -> other side must be broadcast, if forwarded side is not partitioned
@@ -541,8 +541,8 @@ public class MatchNode extends TwoInputNode {
 					} else {
 						// they need to have an equal partitioning
 
-						gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+						gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
+						gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 						
 						if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning() &&
 								partitioningIsOnSameSubkey(gp1.getPartitionedFields(), gp2.getPartitionedFields())) {
@@ -766,8 +766,8 @@ public class MatchNode extends TwoInputNode {
 		if(ls != LocalStrategy.SELF_NESTEDLOOP && ls != LocalStrategy.SORT_SELF_NESTEDLOOP) {
 		
 			// compute the given properties of the incoming data
-			GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
-			GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+			GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
+			GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 					
 			int[] scrambledKeyOrder1 = null;
 			int[] scrambledKeyOrder2 = null;
@@ -780,7 +780,7 @@ public class MatchNode extends TwoInputNode {
 				if (scrambledKeyOrder1 != null) {
 					FieldList scrambledKeys2 = new FieldList();
 					for (int i = 0; i < scrambledKeyOrder1.length; i++) {
-						scrambledKeys2.set(i, this.keySet2.get(scrambledKeyOrder1[i]));
+						scrambledKeys2.add(this.keySet2.get(scrambledKeyOrder1[i]));
 					}
 					
 					gp2.setPartitioning(gp2.getPartitioning(), scrambledKeys2);
@@ -795,7 +795,7 @@ public class MatchNode extends TwoInputNode {
 				if (scrambledKeyOrder2 != null) {
 					FieldList scrambledKeys1 = new FieldList();
 					for (int i = 0; i < scrambledKeyOrder2.length; i++) {
-						scrambledKeys1.set(i, this.keySet1.get(scrambledKeyOrder2[i]));
+						scrambledKeys1.add(this.keySet1.get(scrambledKeyOrder2[i]));
 					}
 					
 					gp1.setPartitioning(gp1.getPartitioning(), scrambledKeys1);
@@ -884,7 +884,7 @@ public class MatchNode extends TwoInputNode {
 		} else {
 			// self match
 			
-			GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
+			GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
 			
 			// determine the properties of the data before it goes to the user code
 			GlobalProperties outGp = new GlobalProperties();

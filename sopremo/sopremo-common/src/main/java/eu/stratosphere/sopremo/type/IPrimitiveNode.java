@@ -15,6 +15,8 @@
 package eu.stratosphere.sopremo.type;
 
 /**
+ * Interface for all nodes that can't contain other nodes as value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

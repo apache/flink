@@ -3,10 +3,10 @@ package eu.stratosphere.meteor.base;
 import org.junit.Test;
 
 import eu.stratosphere.meteor.MeteorTest;
-import eu.stratosphere.sopremo.Sink;
-import eu.stratosphere.sopremo.SopremoPlan;
-import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.base.Intersection;
+import eu.stratosphere.sopremo.io.Sink;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
 
 public class IntersectionTest extends MeteorTest {
 

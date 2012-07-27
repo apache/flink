@@ -33,8 +33,8 @@ public abstract class ContainerExpression extends EvaluationExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
-		setChildren(transformChildExpressions(function, getChildren()));
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
+		this.setChildren(this.transformChildExpressions(function, this.getChildren()));
 		return function.call(this);
 	}
 }

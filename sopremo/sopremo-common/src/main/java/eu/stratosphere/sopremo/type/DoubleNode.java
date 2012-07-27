@@ -12,6 +12,8 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents a double value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -23,6 +25,8 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 	private static final long serialVersionUID = -192178456171338173L;
 
 	private transient PactDouble value;
+
+	public final static DoubleNode NaN = DoubleNode.valueOf(Double.NaN);
 
 	/**
 	 * Initializes a DoubleNode which represents 0.0
@@ -69,7 +73,7 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 		return new DoubleNode(v);
 	}
 
-	public void setValue(double value) {
+	public void setValue(final double value) {
 		this.value.setValue(value);
 	}
 
@@ -174,7 +178,7 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value = ((DoubleNode) otherNode).value;
 	}
@@ -183,5 +187,15 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 	public void clear() {
 		if (SopremoUtil.DEBUG)
 			this.value.setValue(0);
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return Integer.MAX_VALUE;
+	}
+
+	@Override
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+		this.fillWithZero(target, offset, offset + len);
 	}
 }

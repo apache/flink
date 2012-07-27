@@ -5,6 +5,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+/**
+ * This node represents a json object.
+ */
 public class ObjectNode extends AbstractObjectNode implements IObjectNode {
 
 	/**
@@ -111,7 +114,7 @@ public class ObjectNode extends AbstractObjectNode implements IObjectNode {
 
 		final ObjectNode other = (ObjectNode) obj;
 		// TODO: improve?
-		return this.compareTo(other) == 0 ? true : false;
+		return this.compareTo(other) == 0;
 	}
 
 	/*

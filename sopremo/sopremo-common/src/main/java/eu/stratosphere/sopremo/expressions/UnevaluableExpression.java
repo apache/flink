@@ -35,7 +35,7 @@ public class UnevaluableExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		throw new EvaluationException(this.message);
 	}
 
@@ -46,7 +46,7 @@ public class UnevaluableExpression extends EvaluationExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		return function.call(this);
 	}
 

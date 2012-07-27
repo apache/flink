@@ -1,11 +1,16 @@
 /***********************************************************************************************************************
+ *
  * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
+ *
  **********************************************************************************************************************/
 
 package eu.stratosphere.pact.compiler;
@@ -15,6 +20,7 @@ import java.util.ArrayList;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.UnionNode;
 
 /**
  * This class represents global properties of the data. Global properties are properties that
@@ -151,31 +157,42 @@ public final class GlobalProperties implements Cloneable
 		ArrayList<Integer> newPartitionedFields = null;
 		PartitionProperty newPartitioning = PartitionProperty.NONE;
 		Ordering newOrdering = null;
-		if (partitionedFields != null) {
-			for (Integer index : partitionedFields) {
-				if (node.isFieldKept(input, index) == true) {
-					if (newPartitionedFields == null) {
-						newPartitioning = this.partitioning;
-						newPartitionedFields = new ArrayList<Integer>();
-					}
-					newPartitionedFields.add(index);
-				}
+		
+		if (node instanceof UnionNode) {
+			//only HashPartitioning is interesting for union nodes
+			if (partitioning == PartitionProperty.HASH_PARTITIONED) {
+				// fields are kept as there is no user code involved
+				newPartitioning = PartitionProperty.HASH_PARTITIONED;
+				newPartitionedFields = partitionedFields;
 			}
 		}
-
-		// check, whether the global order is preserved
-		if (ordering != null) {
-			boolean orderingPreserved = true;
-			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
-			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (node.isFieldKept(input, i) == false) {
-					orderingPreserved = false;
-					break;
+		else {
+			if (partitionedFields != null) {
+				for (Integer index : partitionedFields) {
+					if (node.isFieldKept(input, index) == true) {
+						if (newPartitionedFields == null) {
+							newPartitioning = this.partitioning;
+							newPartitionedFields = new ArrayList<Integer>();
+						}
+						newPartitionedFields.add(index);
+					}
 				}
 			}
-
-			if (orderingPreserved) {
-				newOrdering = ordering.clone();
+	
+			// check, whether the global order is preserved
+			if (ordering != null) {
+				boolean orderingPreserved = true;
+				ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+				for (int i = 0; i < involvedIndexes.size(); i++) {
+					if (node.isFieldKept(input, i) == false) {
+						orderingPreserved = false;
+						break;
+					}
+				}
+	
+				if (orderingPreserved) {
+					newOrdering = ordering.clone();
+				}
 			}
 		}
 
@@ -183,7 +200,7 @@ public final class GlobalProperties implements Cloneable
 			return null;
 		} else {
 			FieldList partitionFields = new FieldList();
-			partitionedFields.addAll(newPartitionedFields);
+			partitionFields.addAll(newPartitionedFields);
 			return new GlobalProperties(newPartitioning, newOrdering, partitionFields);
 		}
 

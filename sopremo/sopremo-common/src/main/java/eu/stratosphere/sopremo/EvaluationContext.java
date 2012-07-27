@@ -5,7 +5,12 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.function.MethodRegistry;
+import eu.stratosphere.sopremo.operator.Operator;
+import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
+import eu.stratosphere.sopremo.packages.DefaultFunctionRegistry;
+import eu.stratosphere.sopremo.packages.EvaluationScope;
+import eu.stratosphere.sopremo.packages.IConstantRegistry;
+import eu.stratosphere.sopremo.packages.IFunctionRegistry;
 import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
 
@@ -14,12 +19,12 @@ import eu.stratosphere.sopremo.serialization.Schema;
  * 
  * @author Arvid Heise
  */
-public class EvaluationContext extends AbstractSopremoType implements SerializableSopremoType {
+public class EvaluationContext extends AbstractSopremoType implements ISerializableSopremoType, EvaluationScope {
 	private static final long serialVersionUID = 7701485388451926506L;
 
-	private final Bindings bindings = new Bindings();
+	private final IFunctionRegistry methodRegistry;
 
-	private final MethodRegistry functionRegistry;
+	private final IConstantRegistry constantRegistry;
 
 	private int inputCounter = 0;
 
@@ -39,23 +44,11 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 		return this.resultProjection;
 	}
 
-	public void setResultProjection(EvaluationExpression resultProjection) {
+	public void setResultProjection(final EvaluationExpression resultProjection) {
 		if (resultProjection == null)
 			throw new NullPointerException("resultProjection must not be null");
 
 		this.resultProjection = resultProjection;
-	}
-
-	public Bindings getBindings() {
-		return this.bindings;
-	}
-
-	public void addScope() {
-		this.bindings.addScope();
-	}
-
-	public void removeScope() {
-		this.bindings.removeScope();
 	}
 
 	public String operatorTrace() {
@@ -81,12 +74,10 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	/**
 	 * Initializes EvaluationContext.
 	 */
-	public EvaluationContext() {
-		this(0, 0);
-	}
-
-	public EvaluationContext(final int numInputs, final int numOutputs) {
-		this.functionRegistry = new MethodRegistry(this.bindings);
+	public EvaluationContext(final int numInputs, final int numOutputs, IFunctionRegistry methodRegistry,
+			IConstantRegistry constantRegistry) {
+		this.methodRegistry = methodRegistry;
+		this.constantRegistry = constantRegistry;
 		this.setInputsAndOutputs(numInputs, numOutputs);
 	}
 
@@ -98,8 +89,8 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	}
 
 	public EvaluationContext(final EvaluationContext context) {
-		this(context.inputSchemas.length, context.outputSchemas.length);
-		this.bindings.putAll(context.bindings);
+		this(context.inputSchemas.length, context.outputSchemas.length, context.methodRegistry,
+			context.constantRegistry);
 		this.inputCounter = context.inputCounter;
 		this.inputSchemas = context.inputSchemas.clone();
 		this.outputSchemas = context.outputSchemas.clone();
@@ -107,12 +98,29 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	}
 
 	/**
+	 * Initializes EvaluationContext.
+	 */
+	public EvaluationContext() {
+		this(0, 0, new DefaultFunctionRegistry(), new DefaultConstantRegistry());
+	}
+
+	/**
 	 * Returns the {@link FunctionRegistry} containing all registered function in the current evaluation context.
 	 * 
 	 * @return the FunctionRegistry
 	 */
-	public MethodRegistry getFunctionRegistry() {
-		return this.functionRegistry;
+	@Override
+	public IFunctionRegistry getFunctionRegistry() {
+		return this.methodRegistry;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.packages.RegistryScope#getConstantRegistry()
+	 */
+	@Override
+	public IConstantRegistry getConstantRegistry() {
+		return this.constantRegistry;
 	}
 
 	public int getInputCounter() {
@@ -160,8 +168,10 @@ public class EvaluationContext extends AbstractSopremoType implements Serializab
 	@Override
 	public void toString(final StringBuilder builder) {
 		builder.append("Context @ ").append(this.operatorStack).append("\n").
-			append("Bindings: ");
-		this.bindings.toString(builder);
+			append("Methods: ");
+		this.methodRegistry.toString(builder);
+		builder.append("\nConstants: ");
+		this.constantRegistry.toString(builder);
 	}
 
 	/**

@@ -49,7 +49,7 @@ public class AndExpression extends BooleanExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// we can ignore 'target' because no new Object is created
 		for (final EvaluationExpression booleanExpression : this.expressions)
 			if (booleanExpression.evaluate(node, null, context) == BooleanNode.FALSE)
@@ -89,7 +89,7 @@ public class AndExpression extends BooleanExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		final List<BooleanExpression> booleans =
 			BooleanExpression.ensureBooleanExpressions(this.transformChildExpressions(function, this.expressions));
 		this.expressions.clear();
@@ -118,7 +118,7 @@ public class AndExpression extends BooleanExpression {
 	 * @return the created AndExpression
 	 */
 	public static AndExpression valueOf(final List<? extends EvaluationExpression> childConditions) {
-		List<BooleanExpression> booleanExpressions = BooleanExpression.ensureBooleanExpressions(childConditions);
+		final List<BooleanExpression> booleanExpressions = BooleanExpression.ensureBooleanExpressions(childConditions);
 		if (booleanExpressions.size() == 1)
 			return valueOf(booleanExpressions.get(0));
 		return new AndExpression(booleanExpressions.toArray(new BooleanExpression[booleanExpressions.size()]));

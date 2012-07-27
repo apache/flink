@@ -19,6 +19,9 @@ import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.util.CollectionUtil;
 
 /**
+ * This {@link Schema} handles ObjectNodes and provides the functionality to save fields explicitly in the resulting
+ * PactRecords.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  * @author Arvid Heise

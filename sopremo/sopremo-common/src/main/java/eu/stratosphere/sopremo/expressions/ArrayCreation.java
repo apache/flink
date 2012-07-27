@@ -22,7 +22,7 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	private static final long serialVersionUID = 1681947333740209285L;
 
-	private List<EvaluationExpression> elements;
+	private final List<EvaluationExpression> elements;
 
 	/**
 	 * Initializes ArrayCreation to create an array of the given expressions.
@@ -57,8 +57,8 @@ public class ArrayCreation extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+		final IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 
 		for (int index = 0; index < this.elements.size(); index++)
 			targetArray.add(this.elements.get(index).evaluate(node, targetArray.get(index), context));
@@ -92,6 +92,6 @@ public class ArrayCreation extends ContainerExpression {
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		appendChildExpressions(builder, this.getChildren(), ", ");
+		this.appendChildExpressions(builder, this.getChildren(), ", ");
 	}
 }

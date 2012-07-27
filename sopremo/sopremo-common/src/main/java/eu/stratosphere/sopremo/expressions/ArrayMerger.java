@@ -20,10 +20,10 @@ public class ArrayMerger extends EvaluationExpression {
 	private static final long serialVersionUID = -6884623565349727369L;
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		ArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+		final ArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 
-		for(IJsonNode nextNode : (IArrayNode) node)
+		for (final IJsonNode nextNode : (IArrayNode) node)
 			if (nextNode != NullNode.getInstance()) {
 				final IArrayNode array = (IArrayNode) nextNode;
 				for (int index = 0; index < array.size(); index++)
@@ -32,7 +32,7 @@ public class ArrayMerger extends EvaluationExpression {
 					else if (this.isNull(targetArray.get(index)) && !this.isNull(array.get(index)))
 						targetArray.set(index, array.get(index));
 			}
-		
+
 		return targetArray;
 	}
 

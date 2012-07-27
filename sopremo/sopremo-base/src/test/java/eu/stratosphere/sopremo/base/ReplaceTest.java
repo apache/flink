@@ -5,15 +5,15 @@ import java.util.List;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.DefaultFunctions;
+import eu.stratosphere.sopremo.CoreFunctions;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.MethodCall;
+import eu.stratosphere.sopremo.expressions.FunctionCall;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
@@ -87,14 +87,15 @@ public class ReplaceTest extends SopremoTest<Replace> {
 
 	@Test
 	public void shouldLookupValuesWithDefaultValue() {
-		final Replace replace = new Replace().
-			withReplaceExpression(new ObjectAccess("fieldToReplace")).
-			withDefaultExpression(new MethodCall("format", new ConstantExpression("default %s"),
-				new ObjectAccess("fieldToReplace"))).
+		final Replace replace = new Replace();
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(replace);
+		final EvaluationContext context = sopremoPlan.getEvaluationContext();
+		context.getFunctionRegistry().put(CoreFunctions.class);
+		replace.withReplaceExpression(new ObjectAccess("fieldToReplace")).
+			withDefaultExpression(new FunctionCall("format", context,
+				new ConstantExpression("default %s"), new ObjectAccess("fieldToReplace"))).
 			withDictionaryKeyExtraction(new ArrayAccess(0)).
 			withDictionaryValueExtraction(new ArrayAccess(1));
-		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(replace);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
 		sopremoPlan.getInput(0).
 			addObject("field1", 1, "fieldToReplace", "key1", "field2", 2).
 			addObject("field1", 2, "fieldToReplace", "notInList", "field2", 2).
@@ -124,7 +125,7 @@ public class ReplaceTest extends SopremoTest<Replace> {
 			withDictionaryValueExtraction(new ArrayAccess(1)).
 			withArrayElementsReplacement(true);
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(replace);
-		
+
 		sopremoPlan.getInput(0).
 			addObject("field1", 1, "fieldToReplace", new int[] { 1, 2, 3 }, "field2", 2).
 			addObject("field1", 2, "fieldToReplace", new Object[] { 1, "notInList" }, "field2", 2).
@@ -152,7 +153,7 @@ public class ReplaceTest extends SopremoTest<Replace> {
 			withDictionaryValueExtraction(new ArrayAccess(1)).
 			withArrayElementsReplacement(true);
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(replace);
-		
+
 		sopremoPlan.getInput(0).
 			addObject("field1", 1, "fieldToReplace", new int[] { 1, 2, 3 }, "field2", 2).
 			addObject("field1", 2, "fieldToReplace", new Object[] { 1, "notInList" }, "field2", 2).
@@ -174,15 +175,16 @@ public class ReplaceTest extends SopremoTest<Replace> {
 
 	@Test
 	public void shouldLookupArrayValuesWithDefault() {
-		final Replace lookup = new Replace();
-		lookup.setReplaceExpression(new ObjectAccess("fieldToReplace"));
-		lookup.setDictionaryKeyExtraction(new ArrayAccess(0));
-		lookup.setDictionaryValueExtraction(new ArrayAccess(1));
-		lookup.setDefaultExpression(new MethodCall("format", new ConstantExpression("default %s"),
+		final Replace replace = new Replace();
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(replace);
+		final EvaluationContext context = sopremoPlan.getEvaluationContext();
+		sopremoPlan.getEvaluationContext().getFunctionRegistry().put(CoreFunctions.class);
+		replace.setReplaceExpression(new ObjectAccess("fieldToReplace"));
+		replace.setDictionaryKeyExtraction(new ArrayAccess(0));
+		replace.setDictionaryValueExtraction(new ArrayAccess(1));
+		replace.setDefaultExpression(new FunctionCall("format", context, new ConstantExpression("default %s"),
 			EvaluationExpression.VALUE));
-		lookup.setArrayElementsReplacement(true);
-		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(lookup);
-		sopremoPlan.getEvaluationContext().getFunctionRegistry().register(DefaultFunctions.class);
+		replace.setArrayElementsReplacement(true);
 
 		sopremoPlan.getInput(0).
 			addObject("field1", 1, "fieldToReplace", new int[] { 1, 2, 3 }, "field2", 2).

@@ -37,7 +37,7 @@ public class ArrayProjection extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// lazy spread
 		// TODO
 		// if (node instanceof StreamArrayNode)
@@ -50,11 +50,11 @@ public class ArrayProjection extends EvaluationExpression {
 		// spread
 		final IArrayNode array = (IArrayNode) node;
 
-		IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
+		final IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 
 		for (int index = 0, size = array.size(); index < size; index++)
 			targetArray.add(this.expression.evaluate(array.get(index), targetArray.get(index), context));
-		
+
 		return targetArray;
 	}
 
@@ -65,7 +65,7 @@ public class ArrayProjection extends EvaluationExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.expression = this.expression.transformRecursively(function);
 		return function.call(this);
 	}

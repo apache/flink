@@ -20,6 +20,8 @@ import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Set;
 
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.types.Record;
 
 public final class MutableUnionRecordReader<T extends Record> implements RecordAvailabilityListener<T>, MutableReader<T> {
@@ -109,6 +111,36 @@ public final class MutableUnionRecordReader<T extends Record> implements RecordA
 		synchronized (this.availableInputGates) {
 			this.availableInputGates.add(inputGate);
 			this.availableInputGates.notify();
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.MutableReader#subscribeToEvent(eu.stratosphere.nephele.event.task.EventListener, java.lang.Class)
+	 */
+	@Override
+	public void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
+		for (InputGate<T> gate : this.inputGates) {
+			gate.subscribeToEvent(eventListener, eventType);
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.MutableReader#unsubscribeFromEvent(eu.stratosphere.nephele.event.task.EventListener, java.lang.Class)
+	 */
+	@Override
+	public void unsubscribeFromEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
+		for (InputGate<T> gate : this.inputGates) {
+			gate.unsubscribeFromEvent(eventListener, eventType);
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.nephele.io.MutableReader#publishEvent(eu.stratosphere.nephele.event.task.AbstractTaskEvent)
+	 */
+	@Override
+	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
+		for (InputGate<T> gate : this.inputGates) {
+			gate.publishEvent(event);
 		}
 	}
 }

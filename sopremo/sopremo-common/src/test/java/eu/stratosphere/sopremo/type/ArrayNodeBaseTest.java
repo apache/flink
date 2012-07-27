@@ -14,9 +14,14 @@ import eu.stratosphere.pact.testing.AssertUtil;
 import eu.stratosphere.pact.testing.Equaler;
 
 @Ignore
-public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
+public abstract class ArrayNodeBaseTest<T extends IArrayNode> extends JsonNodeTest<T> {
 
-	protected T node;
+	// protected T node;
+
+	@Override
+	@Before
+	public void setUp() {
+	}
 
 	@Before
 	public abstract void initArrayNode();
@@ -26,18 +31,17 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 		this.node.add(TextNode.valueOf("firstname"));
 		this.node.add(TextNode.valueOf("lastname"));
 
-		Assert.assertEquals(TextNode.valueOf("firstname"), this.node.get(this.node.size()-2));
-		Assert.assertEquals(TextNode.valueOf("lastname"), this.node.get(this.node.size()-1));
+		Assert.assertEquals(TextNode.valueOf("firstname"), this.node.get(this.node.size() - 2));
+		Assert.assertEquals(TextNode.valueOf("lastname"), this.node.get(this.node.size() - 1));
 	}
 
 	@Test
 	public void shouldCalculateTheCorrectSize() {
-		int initialSize = this.node.size();
-		int numberOfNewNodes = 6;
+		final int initialSize = this.node.size();
+		final int numberOfNewNodes = 6;
 
-		for (int i = 0; i < numberOfNewNodes; i++) {
+		for (int i = 0; i < numberOfNewNodes; i++)
 			this.node.add(TextNode.valueOf("newNode: " + i));
-		}
 
 		Assert.assertEquals(initialSize + numberOfNewNodes, this.node.size());
 	}
@@ -48,7 +52,7 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 		this.node.add(0, TextNode.valueOf("firstname"));
 		this.node.add(1, TextNode.valueOf("lastname"));
 
-		int initialSize = this.node.size();
+		final int initialSize = this.node.size();
 
 		this.node.remove(0);
 		// index of following nodes should be decremented by 1 after removal of a node
@@ -59,8 +63,8 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 
 	@Test
 	public void shouldReturnCorrectNodesAfterRemoval() {
-		IJsonNode value1 = TextNode.valueOf("firstname");
-		IJsonNode value2 = TextNode.valueOf("lastname");
+		final IJsonNode value1 = TextNode.valueOf("firstname");
+		final IJsonNode value2 = TextNode.valueOf("lastname");
 
 		this.node.add(0, value1);
 		this.node.add(1, value2);
@@ -82,9 +86,12 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 
 	@Test
 	public void shouldReturnTheCorrectNode() {
+		this.node.add(0, TextNode.valueOf("lastname"));
 		this.node.add(0, TextNode.valueOf("firstname"));
 
 		Assert.assertEquals(TextNode.valueOf("firstname"), this.node.get(0));
+		Assert.assertEquals(TextNode.valueOf("lastname"), this.node.get(1));
+
 	}
 
 	@Test
@@ -107,16 +114,21 @@ public abstract class ArrayNodeBaseTest<T extends IArrayNode> {
 	@Test
 	public void shouldCreateIterator() {
 		this.node.clear();
-		List<IJsonNode> expected = new ArrayList<IJsonNode>();
+		final List<IJsonNode> expected = new ArrayList<IJsonNode>();
 
 		for (int i = 0; i < 10; i++) {
-			IJsonNode value = IntNode.valueOf(i);
+			final IJsonNode value = IntNode.valueOf(i);
 
 			expected.add(value);
 			this.node.add(value);
 		}
 
-		Iterator<IJsonNode> it = this.node.iterator();
+		final Iterator<IJsonNode> it = this.node.iterator();
 		AssertUtil.assertIteratorEquals(expected.iterator(), it, Equaler.JavaEquals);
+	}
+
+	@Test
+	public void shouldBeEqualWithAnotherArrayNode() {
+		Assert.assertEquals(this.higherNode(), this.higherNode());
 	}
 }

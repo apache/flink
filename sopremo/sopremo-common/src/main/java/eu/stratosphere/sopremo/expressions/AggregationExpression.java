@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.aggregation.AggregationFunction;
+import eu.stratosphere.sopremo.function.Aggregation;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
@@ -15,7 +15,7 @@ public class AggregationExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = -1420818869290609780L;
 
-	private final AggregationFunction function;
+	private final Aggregation<IJsonNode, IJsonNode> function;
 
 	private CachingExpression<IJsonNode> preprocessing;
 
@@ -27,7 +27,7 @@ public class AggregationExpression extends EvaluationExpression {
 	 * @param function
 	 *        the function which will should be used for aggregation
 	 */
-	public AggregationExpression(final AggregationFunction function) {
+	public AggregationExpression(final Aggregation<?, ?> function) {
 		this(function, EvaluationExpression.VALUE);
 	}
 
@@ -40,13 +40,14 @@ public class AggregationExpression extends EvaluationExpression {
 	 *        an {@link EvaluationExpression} which evaluates each element of the input before they are used for
 	 *        aggregation.
 	 */
-	public AggregationExpression(final AggregationFunction function, final EvaluationExpression preprocessing) {
-		this.function = function.clone();
+	@SuppressWarnings("unchecked")
+	public AggregationExpression(final Aggregation<?, ?> function, final EvaluationExpression preprocessing) {
+		this.function = (Aggregation<IJsonNode, IJsonNode>) function.clone();
 		this.preprocessing = CachingExpression.ofSubclass(preprocessing, IJsonNode.class);
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode nodes, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode nodes, final IJsonNode target, final EvaluationContext context) {
 		this.aggregator = this.function.initialize(this.aggregator);
 		for (final IJsonNode node : (IArrayNode) nodes)
 			this.aggregator =
@@ -62,7 +63,7 @@ public class AggregationExpression extends EvaluationExpression {
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.preprocessing = (CachingExpression<IJsonNode>) this.preprocessing.transformRecursively(function);
 		return function.call(this);
 	}
@@ -72,7 +73,7 @@ public class AggregationExpression extends EvaluationExpression {
 	 * 
 	 * @return the function
 	 */
-	public AggregationFunction getFunction() {
+	public Aggregation<IJsonNode, IJsonNode> getFunction() {
 		return this.function;
 	}
 

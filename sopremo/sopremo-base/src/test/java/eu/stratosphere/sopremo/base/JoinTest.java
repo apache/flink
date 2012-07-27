@@ -1,18 +1,19 @@
 package eu.stratosphere.sopremo.base;
 
-import static eu.stratosphere.sopremo.JsonUtil.createPath;
+import static eu.stratosphere.sopremo.type.JsonUtil.createPath;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.ExpressionTag;
 import eu.stratosphere.sopremo.SopremoTest;
 import eu.stratosphere.sopremo.expressions.AndExpression;
+import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
@@ -48,7 +49,7 @@ public class JoinTest extends SopremoTest<Join> {
 		sopremoPlan.getExpectedOutput(0).
 			addObject("Name", "Harry", "EmpId", 3415, "DeptName", "Finance").
 			addObject("Name", "George", "EmpId", 3401, "DeptName", "Finance");
-		
+
 		sopremoPlan.run();
 	}
 
@@ -111,7 +112,7 @@ public class JoinTest extends SopremoTest<Join> {
 			addObject("name", "Jon Doe", "url", "java.sun.com/javase/6/docs/api/", "company", "oracle").
 			addObject("name", "Jane Doe", "url", "www.oracle.com", "company", "oracle").
 			addObject("name", "Max Mustermann", "url", "www.oracle.com", "company", "oracle");
-		
+
 		sopremoPlan.run();
 	}
 
@@ -120,11 +121,12 @@ public class JoinTest extends SopremoTest<Join> {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		// here we set outer join flag
-		final EvaluationExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.RETAIN);
-		final EvaluationExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.RETAIN);
+		final EvaluationExpression leftJoinKey = createPath("0", "id");
+		final EvaluationExpression rightJoinKey = createPath("1", "userid");
 		final AndExpression condition = new AndExpression(new ComparativeExpression(leftJoinKey,
 			BinaryOperator.EQUAL, rightJoinKey));
-		final Join join = new Join().withJoinCondition(condition);
+		final Join join = new Join().withJoinCondition(condition).
+			withOuterJoinSources(new ArrayCreation(new JsonStreamExpression(0), new JsonStreamExpression(1)));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -152,10 +154,11 @@ public class JoinTest extends SopremoTest<Join> {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		// here we set outer join flag
-		final EvaluationExpression leftJoinKey = createPath("0", "id").withTag(ExpressionTag.RETAIN);
+		final EvaluationExpression leftJoinKey = createPath("0", "id");
 		final AndExpression condition = new AndExpression(new ComparativeExpression(leftJoinKey,
 			BinaryOperator.EQUAL, createPath("1", "userid")));
-		final Join join = new Join().withJoinCondition(condition);
+		final Join join = new Join().withJoinCondition(condition).
+			withOuterJoinSources(new JsonStreamExpression(0));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -181,10 +184,11 @@ public class JoinTest extends SopremoTest<Join> {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 
 		// here we set outer join flag
-		final EvaluationExpression rightJoinKey = createPath("1", "userid").withTag(ExpressionTag.RETAIN);
+		final EvaluationExpression rightJoinKey = createPath("1", "userid");
 		final AndExpression condition = new AndExpression(new ComparativeExpression(createPath("0", "id"),
 			BinaryOperator.EQUAL, rightJoinKey));
-		final Join join = new Join().withJoinCondition(condition);
+		final Join join = new Join().withJoinCondition(condition).
+			withOuterJoinSources(new JsonStreamExpression(1));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).

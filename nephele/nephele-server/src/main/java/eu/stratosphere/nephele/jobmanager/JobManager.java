@@ -231,12 +231,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Try to load the instance manager for the given execution mode
 		// Try to load the scheduler for the given execution mode
 		if ("local".equals(executionMode)) {
-			// TODO: Find a better solution for that
-			try {
-				LibraryCacheManager.setLocalMode();
-			} catch (IOException e) {
-				LOG.error(e);
-			}
 			try {
 				this.instanceManager = new LocalInstanceManager(configDir);
 			} catch (RuntimeException rte) {
@@ -543,7 +537,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Register job with the progress collector
 		if (this.eventCollector != null) {
-			this.eventCollector.registerJob(eg, jobRunsWithProfiling);
+			this.eventCollector.registerJob(eg, jobRunsWithProfiling, System.currentTimeMillis());
 		}
 
 		// Check if profiling should be enabled for this job
@@ -619,6 +613,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Remove all the checkpoints of the job
 		removeAllCheckpoints(executionGraph);
+
+		// Unregister job with library cache manager
+		try {
+			LibraryCacheManager.unregister(executionGraph.getJobID());
+		} catch (IOException ioe) {
+			if (LOG.isWarnEnabled()) {
+				LOG.warn(StringUtils.stringifyException(ioe));
+			}
+		}
 	}
 
 	/**
@@ -774,6 +777,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return ConnectionInfoLookupResponse.createReceiverNotFound();
 		}
 
+		final InternalJobStatus jobStatus = eg.getJobStatus();
+		if (jobStatus == InternalJobStatus.FAILING || jobStatus == InternalJobStatus.CANCELING) {
+			return ConnectionInfoLookupResponse.createJobIsAborting();
+		}
+
 		final ExecutionEdge edge = eg.getEdgeByID(sourceChannelID);
 		if (edge == null) {
 			LOG.error("Cannot find execution edge associated with ID " + sourceChannelID);
@@ -814,8 +822,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
 				final InetSocketAddress isa = new InetSocketAddress(ici.getAddress(), ici.getDataPort());
 
-				// TODO: Check if 0 is ok here
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, 0));
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge
+					.getConnectionID()));
 			}
 		}
 
@@ -1046,6 +1054,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			final AbstractInstance abstractInstance = entry.getKey();
 			if (abstractInstance == null) {
 				LOG.error("Cannot remove checkpoint: abstractInstance is null");
+				continue;
+			}
+
+			if (abstractInstance instanceof DummyInstance) {
 				continue;
 			}
 

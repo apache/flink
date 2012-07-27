@@ -18,6 +18,11 @@ import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.util.CollectionUtil;
 
 /**
+ * This {@link Schema} handles any kind of JsonNode and provides the functionality to save the result of the evaluation
+ * of given {@link EvaluationExpression}s explicitly in the resulting PactRecord. The structure of the records is as
+ * follows:<br>
+ * { &#60result of first expression&#62, &#60result of second expression&#62, ..., &#60source node&#62 }
+ * 
  * @author Tommy Neubert
  */
 public class GeneralSchema extends AbstractSchema {

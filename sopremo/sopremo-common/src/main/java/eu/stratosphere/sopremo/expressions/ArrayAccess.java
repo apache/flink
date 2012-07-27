@@ -204,7 +204,7 @@ public class ArrayAccess extends EvaluationExpression {
 			return new ArrayCreation(new ArrayAccess(indices[0]));
 		default:
 			boolean monoton = true;
-			int step = indices[1] - indices[0];
+			final int step = indices[1] - indices[0];
 			if (Math.abs(step) != 1)
 				monoton = false;
 
@@ -214,7 +214,7 @@ public class ArrayAccess extends EvaluationExpression {
 			if (monoton)
 				return new ArrayAccess(indices[0], indices[indices.length - 1]);
 
-			ArrayAccess[] accesses = new ArrayAccess[indices.length];
+			final ArrayAccess[] accesses = new ArrayAccess[indices.length];
 			for (int index = 0; index < indices.length; index++)
 				accesses[index] = new ArrayAccess(indices[index]);
 			return new ArrayCreation();

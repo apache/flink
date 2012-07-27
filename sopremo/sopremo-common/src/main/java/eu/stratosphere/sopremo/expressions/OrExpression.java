@@ -49,7 +49,7 @@ public class OrExpression extends BooleanExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// we can ignore 'target' because no new Object is created
 		for (final EvaluationExpression booleanExpression : this.expressions)
 			if (booleanExpression.evaluate(node, null, context) == BooleanNode.TRUE)
@@ -64,7 +64,7 @@ public class OrExpression extends BooleanExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		final List<BooleanExpression> booleans =
 			BooleanExpression.ensureBooleanExpressions(this.transformChildExpressions(function, this.expressions));
 		this.expressions.clear();
@@ -115,7 +115,7 @@ public class OrExpression extends BooleanExpression {
 	 * @return the created OrExpression
 	 */
 	public static OrExpression valueOf(final List<? extends EvaluationExpression> childConditions) {
-		List<BooleanExpression> booleans = BooleanExpression.ensureBooleanExpressions(childConditions);
+		final List<BooleanExpression> booleans = BooleanExpression.ensureBooleanExpressions(childConditions);
 		if (booleans.size() == 1)
 			return valueOf(booleans.get(0));
 		return new OrExpression(booleans.toArray(new BooleanExpression[booleans.size()]));

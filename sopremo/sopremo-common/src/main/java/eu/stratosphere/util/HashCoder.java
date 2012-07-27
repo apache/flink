@@ -22,14 +22,14 @@ public interface HashCoder<T> {
 
 	public static class JavaHashCoder implements HashCoder<Object> {
 		@Override
-		public int hashCodeFor(Object object) {
+		public int hashCodeFor(final Object object) {
 			return object.hashCode();
 		}
 	}
 
 	public static class SystemHashCoder implements HashCoder<Object> {
 		@Override
-		public int hashCodeFor(Object object) {
+		public int hashCodeFor(final Object object) {
 			return System.identityHashCode(object);
 		}
 	}

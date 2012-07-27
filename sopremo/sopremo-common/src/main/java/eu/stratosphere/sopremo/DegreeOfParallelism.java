@@ -19,20 +19,17 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import eu.stratosphere.sopremo.pact.SopremoMap;
-
 /**
- * Tells Sopremo to run annotated operator implementations in 
+ * Tells Sopremo to run annotated operator implementations in
  * degree-of-parallelism of 1. <br>
  * Only usable for {@link SopremoMap} currently.
  * 
  * @author skruse
- *
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface DegreeOfParallelism {
-	
+
 	int value();
 
 }

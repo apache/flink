@@ -14,9 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.base.replace;
 
-import eu.stratosphere.sopremo.InputCardinality;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMatch;
 import eu.stratosphere.sopremo.type.IJsonNode;
