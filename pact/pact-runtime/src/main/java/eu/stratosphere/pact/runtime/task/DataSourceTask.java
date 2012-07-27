@@ -34,8 +34,8 @@ import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -67,7 +67,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	private TaskConfig config;
 	
 	// tasks chained to this data source
-	private ArrayList<ChainedTask<?, ?>> chainedTasks;
+	private ArrayList<ChainedDriver<?, ?>> chainedTasks;
 	
 	private ClassLoader userCodeClassLoader;
 
@@ -117,10 +117,11 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		
 		try {
 			// start all chained tasks
-			AbstractPactTask.openChainedTasks(this.chainedTasks, this);
+			RegularPactTask.openChainedTasks(this.chainedTasks, this);
 			
 			// get input splits to read
 			final Iterator<InputSplit> splitIterator = getInputSplits();
+			final OT record = this.serializer.createInstance();
 	
 			// for each assigned input split
 			while (!this.taskCanceled && splitIterator.hasNext())
@@ -138,8 +139,6 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	
 				if (LOG.isDebugEnabled())
 					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
-	
-				final OT record = this.serializer.createInstance();
 				
 				// ======= special-case the PactRecord, to help the JIT and avoid some casts ======
 				if (record.getClass() == PactRecord.class) {
@@ -153,18 +152,20 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 						final PactRecordOutputCollector output = (PactRecordOutputCollector) this.output;
 						while (!this.taskCanceled && !inFormat.reachedEnd()) {
 							// build next pair and ship pair if it is valid
+							pactRecord.clear();
 							if (inFormat.nextRecord(pactRecord)) {
 								output.collect(pactRecord);
 							}
 						}
-					} else if (this.output instanceof ChainedMapTask) {
+					} else if (this.output instanceof ChainedMapDriver) {
 						// PactRecord going to a chained map task
 						@SuppressWarnings("unchecked")
-						final ChainedMapTask<PactRecord, ?> output = (ChainedMapTask<PactRecord, ?>) this.output;
+						final ChainedMapDriver<PactRecord, ?> output = (ChainedMapDriver<PactRecord, ?>) this.output;
 						
 						// as long as there is data to read
 						while (!this.taskCanceled && !inFormat.reachedEnd()) {
 							// build next pair and ship pair if it is valid
+							pactRecord.clear();
 							if (inFormat.nextRecord(pactRecord)) {
 								output.collect(pactRecord);
 							}
@@ -176,6 +177,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 						// as long as there is data to read
 						while (!this.taskCanceled && !inFormat.reachedEnd()) {
 							// build next pair and ship pair if it is valid
+							pactRecord.clear();
 							if (inFormat.nextRecord(pactRecord)) {
 								output.collect(pactRecord);
 							}
@@ -196,10 +198,10 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 							}
 						}
 					}
-					else if (this.output instanceof ChainedMapTask)
+					else if (this.output instanceof ChainedMapDriver)
 					{
 						@SuppressWarnings("unchecked")
-						final ChainedMapTask<OT, ?> output = (ChainedMapTask<OT, ?>) this.output;
+						final ChainedMapDriver<OT, ?> output = (ChainedMapDriver<OT, ?>) this.output;
 						
 						// as long as there is data to read
 						while (!this.taskCanceled && !format.reachedEnd()) {
@@ -235,7 +237,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 			this.output.close();
 			
 			// close all chained tasks letting them report failure
-			AbstractPactTask.closeChainedTasks(this.chainedTasks, this);
+			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -243,11 +245,11 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 				this.format.close();
 			} catch (Throwable t) {}
 			
-			AbstractPactTask.cancelChainedTasks(this.chainedTasks);
+			RegularPactTask.cancelChainedTasks(this.chainedTasks);
 			
 			// drop exception, if the task was canceled
 			if (!this.taskCanceled) {
-				AbstractPactTask.logAndThrowException(ex, this);
+				RegularPactTask.logAndThrowException(ex, this);
 			}
 		}
 
@@ -298,7 +300,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		// instantiate the stub
 		@SuppressWarnings("unchecked")
 		Class<InputFormat<OT, InputSplit>> superClass = (Class<InputFormat<OT, InputSplit>>) (Class<?>) InputFormat.class;
-		this.format = AbstractPactTask.instantiateUserCode(this.config, cl, superClass);
+		this.format = RegularPactTask.instantiateUserCode(this.config, cl, superClass);
 		
 		// get the factory for the type serializer
 		try {
@@ -333,8 +335,8 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 */
 	private void initOutputs(ClassLoader cl) throws Exception
 	{
-		this.chainedTasks = new ArrayList<ChainedTask<?, ?>>();
-		this.output = AbstractPactTask.initOutputs(this, cl, this.config, this.chainedTasks);
+		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
+		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, null);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -419,6 +421,6 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 */
 	private String getLogString(String message, String taskName)
 	{
-		return AbstractPactTask.constructLogString(message, taskName, this);
+		return RegularPactTask.constructLogString(message, taskName, this);
 	}
 }

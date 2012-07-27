@@ -17,11 +17,52 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.types.Record;
 
 /**
  * @author mjsax
  */
 public interface MutableReader<T extends Record> {
+	
+	/**
+	 * @param target
+	 * @return
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
 	boolean next(final T target) throws IOException, InterruptedException;
+	
+	/**
+	 * Subscribes the listener object to receive events of the given type.
+	 * 
+	 * @param eventListener
+	 *        the listener object to register
+	 * @param eventType
+	 *        the type of event to register the listener for
+	 */
+	void subscribeToEvent(final EventListener eventListener, final Class<? extends AbstractTaskEvent> eventType);
+	
+	/**
+	 * Removes the subscription for events of the given type for the listener object.
+	 * 
+	 * @param eventListener
+	 *        the listener object to cancel the subscription for
+	 * @param eventType
+	 *        the type of the event to cancel the subscription for
+	 */
+	void unsubscribeFromEvent(final EventListener eventListener, final Class<? extends AbstractTaskEvent> eventType);
+
+	/**
+	 * Publishes an event.
+	 * 
+	 * @param event
+	 *        the event to be published
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the event to be published
+	 */
+	void publishEvent(final AbstractTaskEvent event) throws IOException, InterruptedException;
 }

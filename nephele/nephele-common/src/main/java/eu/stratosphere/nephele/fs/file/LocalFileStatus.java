@@ -49,7 +49,7 @@ public class LocalFileStatus implements FileStatus {
 	 */
 	public LocalFileStatus(final File f, final FileSystem fs) {
 		this.file = f;
-		this.path = new Path(fs.getUri().getScheme() + ":" + f.getAbsolutePath());
+		this.path = new Path(fs.getUri().getScheme() + ":" + f.toURI().getPath());
 	}
 
 	/**

@@ -12,19 +12,22 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+
 /**
- * Annotation to force a checkpoint-decision.
+ * Annotation to force a checkpoint decision.
+ * 
  * @author marrus
- *
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface ForceCheckpoint {
+
 	boolean checkpoint();
 }

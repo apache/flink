@@ -162,10 +162,10 @@ public final class JobFileInputVertex extends AbstractJobInputVertex {
 
 		// Check if the path is valid
 		try {
-			final FileSystem fs = path.getFileSystem();
-			final FileStatus f = fs.getFileStatus(path);
+			final FileSystem fs = this.path.getFileSystem();
+			final FileStatus f = fs.getFileStatus(this.path);
 			if (f == null) {
-				throw new IOException(path.toString() + " led to a null object");
+				throw new IOException(this.path.toString() + " led to a null object");
 			}
 		} catch (IOException e) {
 			throw new IllegalConfigurationException("Cannot access file or directory: "

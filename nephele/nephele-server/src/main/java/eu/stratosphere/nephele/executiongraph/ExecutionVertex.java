@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -142,6 +143,11 @@ public final class ExecutionVertex {
 	 * The execution pipeline this vertex is part of.
 	 */
 	private final AtomicReference<ExecutionPipeline> executionPipeline = new AtomicReference<ExecutionPipeline>(null);
+
+	/**
+	 * Flag to indicate whether the vertex has been requested to cancel while in state STARTING
+	 */
+	private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
 
 	/**
 	 * Create a new execution vertex and instantiates its environment.
@@ -361,6 +367,9 @@ public final class ExecutionVertex {
 				optionalMessage);
 		}
 
+		// The vertex was requested to be canceled by another thread
+		checkCancelRequestedFlag();
+
 		return previousState;
 	}
 
@@ -384,7 +393,26 @@ public final class ExecutionVertex {
 				null);
 		}
 
+		// Check if the vertex was requested to be canceled by another thread
+		checkCancelRequestedFlag();
+
 		return true;
+	}
+
+	/**
+	 * Checks if another thread requested the vertex to cancel while it was in state STARTING. If so, the method clears
+	 * the respective flag and repeats the cancel request.
+	 */
+	private void checkCancelRequestedFlag() {
+
+		if (this.cancelRequested.compareAndSet(true, false)) {
+			final TaskCancelResult tsr = cancelTask();
+			if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS
+				&& tsr.getReturnCode() != AbstractTaskResult.ReturnCode.TASK_NOT_FOUND) {
+				LOG.error("Unable to cancel vertex " + this + ": " + tsr.getReturnCode().toString()
+					+ ((tsr.getDescription() != null) ? (" (" + tsr.getDescription() + ")") : ""));
+			}
+		}
 	}
 
 	public void updateCheckpointState(final CheckpointState newCheckpointState) {
@@ -743,57 +771,76 @@ public final class ExecutionVertex {
 	 */
 	public TaskCancelResult cancelTask() {
 
-		final ExecutionState previousState = this.executionState.get();
+		while (true) {
 
-		if (previousState == ExecutionState.CANCELED) {
-			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
-		}
+			final ExecutionState previousState = this.executionState.get();
 
-		if (previousState == ExecutionState.FAILED) {
-			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
-		}
-
-		if (previousState == ExecutionState.FINISHED) {
-			return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
-		}
-
-		if (updateExecutionState(ExecutionState.CANCELING) != ExecutionState.CANCELING) {
-
-			if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
-				// Set to canceled directly
-				updateExecutionState(ExecutionState.CANCELED, null);
+			if (previousState == ExecutionState.CANCELED) {
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
-			if (previousState == ExecutionState.FINISHED || previousState == ExecutionState.FAILED) {
-				// Ignore this call
+			if (previousState == ExecutionState.FAILED) {
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
-			if (previousState != ExecutionState.RUNNING && previousState != ExecutionState.STARTING
-				&& previousState != ExecutionState.FINISHING && previousState != ExecutionState.REPLAYING) {
-				// Set to canceled directly
-				updateExecutionState(ExecutionState.CANCELED, null);
+			if (previousState == ExecutionState.FINISHED) {
 				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 			}
 
-			if (this.allocatedResource == null) {
-				final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.NO_INSTANCE);
-				result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
-				return result;
+			// The vertex has already received a cancel request
+			if (previousState == ExecutionState.CANCELING) {
+				return new TaskCancelResult(getID(), ReturnCode.SUCCESS);
 			}
 
-			try {
-				return this.allocatedResource.getInstance().cancelTask(this.vertexID);
+			// Do not trigger the cancel request when vertex is in state STARTING, this might cause a race between RPC
+			// calls.
+			if (previousState == ExecutionState.STARTING) {
 
-			} catch (IOException e) {
-				final TaskCancelResult result = new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.IPC_ERROR);
-				result.setDescription(StringUtils.stringifyException(e));
-				return result;
+				this.cancelRequested.set(true);
+
+				// We had a race, so we unset the flag and take care of cancellation ourselves
+				if (this.executionState.get() != ExecutionState.STARTING) {
+					this.cancelRequested.set(false);
+					continue;
+				}
+
+				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+			}
+
+			// Check if we had a race. If state change is accepted, send cancel request
+			if (compareAndUpdateExecutionState(previousState, ExecutionState.CANCELING)) {
+
+				if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
+					// Set to canceled directly
+					updateExecutionState(ExecutionState.CANCELED, null);
+					return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+				}
+
+				if (previousState != ExecutionState.RUNNING && previousState != ExecutionState.FINISHING
+					&& previousState != ExecutionState.REPLAYING) {
+					// Set to canceled directly
+					updateExecutionState(ExecutionState.CANCELED, null);
+					return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+				}
+
+				if (this.allocatedResource == null) {
+					final TaskCancelResult result = new TaskCancelResult(getID(),
+						AbstractTaskResult.ReturnCode.NO_INSTANCE);
+					result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
+					return result;
+				}
+
+				try {
+					return this.allocatedResource.getInstance().cancelTask(this.vertexID);
+
+				} catch (IOException e) {
+					final TaskCancelResult result = new TaskCancelResult(getID(),
+						AbstractTaskResult.ReturnCode.IPC_ERROR);
+					result.setDescription(StringUtils.stringifyException(e));
+					return result;
+				}
 			}
 		}
-
-		return new TaskCancelResult(getID(), ReturnCode.SUCCESS);
 	}
 
 	/**
@@ -929,7 +976,7 @@ public final class ExecutionVertex {
 	 */
 	public void unregisterExecutionListener(final ExecutionListener executionListener) {
 
-		this.executionListeners.remove(executionListener);
+		this.executionListeners.remove(Integer.valueOf(executionListener.getPriority()));
 	}
 
 	/**

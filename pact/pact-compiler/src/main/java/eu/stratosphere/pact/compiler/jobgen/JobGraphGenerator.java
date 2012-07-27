@@ -16,7 +16,9 @@
 package eu.stratosphere.pact.compiler.jobgen;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -59,20 +61,22 @@ import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
+import eu.stratosphere.pact.compiler.plan.UnionNode;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import eu.stratosphere.pact.runtime.task.CoGroupTask;
-import eu.stratosphere.pact.runtime.task.CombineTask;
-import eu.stratosphere.pact.runtime.task.CrossTask;
+import eu.stratosphere.pact.runtime.task.CoGroupDriver;
+import eu.stratosphere.pact.runtime.task.CombineDriver;
+import eu.stratosphere.pact.runtime.task.CrossDriver;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
-import eu.stratosphere.pact.runtime.task.MapTask;
-import eu.stratosphere.pact.runtime.task.MatchTask;
-import eu.stratosphere.pact.runtime.task.ReduceTask;
-import eu.stratosphere.pact.runtime.task.TempTask;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineTask;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedMapTask;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedTask;
+import eu.stratosphere.pact.runtime.task.MapDriver;
+import eu.stratosphere.pact.runtime.task.MatchDriver;
+import eu.stratosphere.pact.runtime.task.ReduceDriver;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
+import eu.stratosphere.pact.runtime.task.TempDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -231,6 +235,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			case DataSink:
 				vertex = generateDataSinkVertex(node);
 				break;
+			case Union:
+				vertex = null;
+				break;
 			default:
 				throw new Exception("Unknown PACT type: " + node.getPactType());
 			}
@@ -277,6 +284,12 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	public void postVisit(OptimizerNode node)
 	{
 		try {
+			
+			//do nothing for union nodes
+			if (node instanceof UnionNode) {
+				return;
+			}
+			
 			// get pact vertex
 			AbstractJobVertex inputVertex = this.vertices.get(node);
 			List<PactConnection> inConns = node.getIncomingConnections();
@@ -322,50 +335,42 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			final TaskConfig inputVertexConfig = new TaskConfig(inputVertex.getConfiguration());
 
 			int inputIndex = 1;
-			for(PactConnection inConn : inConns) {
-//				boolean firstRun = true;
+			for(PactConnection input : inConns) {
 				
-				final OptimizerNode sourceNode = inConn.getSourcePact();
-				AbstractJobVertex outputVertex = this.vertices.get(sourceNode);
-				TaskConfig outputVertexConfig;
-
-				if (outputVertex == null) {
-					// this predecessor is chained to another task
-					final TaskInChain chainedTask = this.chainedTasks.get(sourceNode);
-					if (chainedTask.getContainingVertex() == null)
-						throw new IllegalStateException("Chained task predecessor has not been assigned its containing vertex.");
-					outputVertex = chainedTask.getContainingVertex();
-					outputVertexConfig = chainedTask.getTaskConfig();
-				} else {
-					outputVertexConfig = new TaskConfig(outputVertex.getConfiguration());
+				for (PactConnection inConn : getConnectionsOfInput(input)) {
+					final OptimizerNode sourceNode = inConn.getSourcePact();
+					AbstractJobVertex outputVertex = this.vertices.get(sourceNode);
+					TaskConfig outputVertexConfig;
+	
+					if (outputVertex == null) {
+						// this predecessor is chained to another task
+						final TaskInChain chainedTask = this.chainedTasks.get(sourceNode);
+						if (chainedTask.getContainingVertex() == null)
+							throw new IllegalStateException("Chained task predecessor has not been assigned its containing vertex.");
+						outputVertex = chainedTask.getContainingVertex();
+						outputVertexConfig = chainedTask.getTaskConfig();
+					} else {
+						outputVertexConfig = new TaskConfig(outputVertex.getConfiguration());
+					}
+	
+					switch (inConn.getShipStrategy()) {
+					case FORWARD:
+						connectWithForwardStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
+						break;
+					case PARTITION_LOCAL_HASH:
+					case PARTITION_HASH:
+					case PARTITION_RANGE:
+						connectWithPartitionStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
+						break;
+					case BROADCAST:
+						connectWithBroadcastStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
+						break;
+					case SFR:
+						connectWithSFRStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
+					default:
+						throw new Exception("Invalid ship strategy: " + inConn.getShipStrategy());
+					}
 				}
-
-				switch (inConn.getShipStrategy()) {
-				case FORWARD:
-					connectWithForwardStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-					break;
-				case PARTITION_LOCAL_HASH:
-				case PARTITION_HASH:
-				case PARTITION_RANGE:
-					connectWithPartitionStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-					break;
-				case BROADCAST:
-					connectWithBroadcastStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-					break;
-//				case PARTITION_RANGE:
-//					if (isDistributionGiven(inConn)) {
-//						connectWithGivenDistributionPartitionRangeStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-//					} else {
-//						connectWithSamplingPartitionRangeStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig, firstRun);
-//					}
-//					break;
-				case SFR:
-					connectWithSFRStrategy(inConn, inputIndex, outputVertex, outputVertexConfig, inputVertex, inputVertexConfig);
-				default:
-					throw new Exception("Invalid ship strategy: " + inConn.getShipStrategy());
-				}
-				
-//				firstRun = false;
 				
 				++inputIndex;
 			}
@@ -375,13 +380,27 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		}
 	}
 	
+	private List<PactConnection> getConnectionsOfInput(PactConnection connection) {
+		final OptimizerNode input = connection.getSourcePact();
+		List<PactConnection> inConnOfInput;
+		if (input instanceof UnionNode) {
+			//TODO see if there is a nicer solution
+			inConnOfInput = new LinkedList<PactConnection>();
+			//create new connections between union inputs and target with properties of 
+			//connection between target and union
+			for (PactConnection inConn : input.getIncomingConnections()) {
+				inConnOfInput.add(new PactConnection(connection, inConn.getSourcePact(), connection.getTargetPact()));
+			}
+		}
+		else {
+			inConnOfInput = Collections.singletonList(connection);
+		}
+		return inConnOfInput;
+	}
+	
 	// ------------------------------------------------------------------------
 	// Methods for creating individual vertices
 	// ------------------------------------------------------------------------
-
-//	private boolean isDistributionGiven(PactConnection connection) {
-//		return (connection.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass() != null);
-//	}
 	
 	/**
 	 * @param mapNode
@@ -398,15 +417,17 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			mapVertex = null;
 			mapConfig = new TaskConfig(new Configuration());
 			
-			this.chainedTasks.put(mapNode, new TaskInChain(ChainedMapTask.class, mapConfig, mc.getName()));
+			this.chainedTasks.put(mapNode, new TaskInChain(ChainedMapDriver.class, mapConfig, mc.getName()));
 		}
 		else {
 			// create task vertex
 			mapVertex = new JobTaskVertex(mapNode.getPactContract().getName(), this.jobGraph);
-			// set task class
-			mapVertex.setTaskClass(MapTask.class);
 			// get task configuration object
 			mapConfig = new TaskConfig(mapVertex.getConfiguration());
+			
+			// set task class and driver
+			mapVertex.setTaskClass(RegularPactTask.class);
+			mapConfig.setDriver(MapDriver.class);
 		}
 		
 		// set user code class
@@ -443,12 +464,14 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		if (isChainable(combineNode)) {
 			combineVertex = null;
 			combineConfig = new TaskConfig(new Configuration());
-			this.chainedTasks.put(combineNode, new TaskInChain(ChainedCombineTask.class,
+			this.chainedTasks.put(combineNode, new TaskInChain(ChainedCombineDriver.class,
 											combineConfig, "Combiner for " + rc.getName()));
 		} else {
 			combineVertex = new JobTaskVertex("Combiner for " + combineNode.getPactContract().getName(), this.jobGraph);
-			combineVertex.setTaskClass(CombineTask.class);
 			combineConfig = new TaskConfig(combineVertex.getConfiguration());
+			
+			combineVertex.setTaskClass(RegularPactTask.class);
+			combineConfig.setDriver(CombineDriver.class);
 		}
 		
 		combineConfig.setStubClass(combineNode.getPactContract().getUserCodeClass());
@@ -456,9 +479,17 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// we have currently only one strategy for combiners
 		combineConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
 		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(),
-			combineConfig.getPrefixForInputParameters(0),
-			combineNode.getPactContract().getKeyColumnNumbers(0), combineNode.getPactContract().getKeyClasses());
+		final Ordering secondaryOrder = combineNode.getPactContract().getGroupOrder();
+		if (secondaryOrder == null) {
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(),
+				combineConfig.getPrefixForInputParameters(0),
+				combineNode.getPactContract().getKeyColumnNumbers(0), combineNode.getPactContract().getKeyClasses());
+		} else {
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(),
+				combineConfig.getPrefixForInputParameters(0),
+				combineNode.getPactContract().getKeyColumnNumbers(0), combineNode.getPactContract().getKeyClasses(),
+				secondaryOrder.getFieldPositions(), secondaryOrder.getTypes());
+		}
 
 		// assign the memory
 		assignMemory(combineConfig, combineNode.getMemoryPerTask());
@@ -478,18 +509,28 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	{
 		// create task vertex
 		JobTaskVertex reduceVertex = new JobTaskVertex(reduceNode.getPactContract().getName(), this.jobGraph);
-		// set task class
-		reduceVertex.setTaskClass(ReduceTask.class);
-
 		// get task configuration object
 		TaskConfig reduceConfig = new TaskConfig(reduceVertex.getConfiguration());
+		
+		// set task class
+		reduceVertex.setTaskClass(RegularPactTask.class);
+		reduceConfig.setDriver(ReduceDriver.class);
+		
 		// set user code class
 		reduceConfig.setStubClass(reduceNode.getPactContract().getUserCodeClass());
 		
 		// set contract's key information
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(reduceConfig.getConfiguration(),
-			reduceConfig.getPrefixForInputParameters(0),
-			reduceNode.getPactContract().getKeyColumnNumbers(0), reduceNode.getPactContract().getKeyClasses());
+		final Ordering secondaryOrder = reduceNode.getPactContract().getGroupOrder();
+		if (secondaryOrder == null) {
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(reduceConfig.getConfiguration(),
+				reduceConfig.getPrefixForInputParameters(0),
+				reduceNode.getPactContract().getKeyColumnNumbers(0), reduceNode.getPactContract().getKeyClasses());
+		} else {
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(reduceConfig.getConfiguration(),
+				reduceConfig.getPrefixForInputParameters(0),
+				reduceNode.getPactContract().getKeyColumnNumbers(0), reduceNode.getPactContract().getKeyClasses(),
+				secondaryOrder.getFieldPositions(), secondaryOrder.getTypes());
+		}
 
 		// set local strategy
 		switch (reduceNode.getLocalStrategy()) {
@@ -523,14 +564,14 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 */
 	private JobTaskVertex generateMatchVertex(OptimizerNode matchNode) throws CompilerException
 	{
-		MatchContract matchContract = ((MatchNode) matchNode).getPactContract();
+		final MatchContract matchContract = ((MatchNode) matchNode).getPactContract();
 		
 		// create task vertex
-		JobTaskVertex matchVertex = new JobTaskVertex(matchNode.getPactContract().getName(), this.jobGraph);
-		
+		final JobTaskVertex matchVertex = new JobTaskVertex(matchNode.getPactContract().getName(), this.jobGraph);
 		// get task configuration object
-		TaskConfig matchConfig = new TaskConfig(matchVertex.getConfiguration());
+		final TaskConfig matchConfig = new TaskConfig(matchVertex.getConfiguration());
 		
+		matchVertex.setTaskClass(RegularPactTask.class);
 		matchConfig.setStubClass(matchNode.getPactContract().getUserCodeClass());
 		
 		// write key parameters
@@ -545,35 +586,35 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		switch (matchNode.getLocalStrategy())
 		{
 		case SORT_BOTH_MERGE:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
 			break;
 		case SORT_FIRST_MERGE:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
 			break;
 		case SORT_SECOND_MERGE:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
 			break;
 		case MERGE:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.MERGE);
 			break;
 		case HYBRIDHASH_FIRST:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 			break;
 		case HYBRIDHASH_SECOND:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 			break;
 		case MMHASH_FIRST:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_FIRST);
 			break;
 		case MMHASH_SECOND:
-			matchVertex.setTaskClass(MatchTask.class);
+			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_SECOND);
 			break;
 //		case SORT_SELF_NESTEDLOOP:
@@ -603,14 +644,17 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobTaskVertex generateCrossVertex(OptimizerNode crossNode) throws CompilerException {
+	private JobTaskVertex generateCrossVertex(OptimizerNode crossNode) throws CompilerException
+	{
 		// create task vertex
-		JobTaskVertex crossVertex = new JobTaskVertex(crossNode.getPactContract().getName(), this.jobGraph);
-		// set task class
-		crossVertex.setTaskClass(CrossTask.class);
-
+		final JobTaskVertex crossVertex = new JobTaskVertex(crossNode.getPactContract().getName(), this.jobGraph);
 		// get task configuration object
-		TaskConfig crossConfig = new TaskConfig(crossVertex.getConfiguration());
+		final TaskConfig crossConfig = new TaskConfig(crossVertex.getConfiguration());
+		
+		// set task class
+		crossVertex.setTaskClass(RegularPactTask.class);
+		crossConfig.setDriver(CrossDriver.class);
+		
 		// set user code class
 		crossConfig.setStubClass(crossNode.getPactContract().getUserCodeClass());
 
@@ -646,28 +690,47 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @return
 	 * @throws CompilerException
 	 */
-	private JobTaskVertex generateCoGroupVertex(OptimizerNode coGroupNode) throws CompilerException {
-
-		CoGroupContract coGroupContract = ((CoGroupNode) coGroupNode).getPactContract();
+	private JobTaskVertex generateCoGroupVertex(OptimizerNode coGroupNode) throws CompilerException
+	{
+		final CoGroupContract coGroupContract = ((CoGroupNode) coGroupNode).getPactContract();
 		
 		// create task vertex
-		JobTaskVertex coGroupVertex = new JobTaskVertex(coGroupNode.getPactContract().getName(), this.jobGraph);
-		// set task class
-		coGroupVertex.setTaskClass(CoGroupTask.class);
-
+		final JobTaskVertex coGroupVertex = new JobTaskVertex(coGroupNode.getPactContract().getName(), this.jobGraph);
 		// get task configuration object
-		TaskConfig coGroupConfig = new TaskConfig(coGroupVertex.getConfiguration());
+		final TaskConfig coGroupConfig = new TaskConfig(coGroupVertex.getConfiguration());
+		
+		// set task class
+		coGroupVertex.setTaskClass(RegularPactTask.class);
+		coGroupConfig.setDriver(CoGroupDriver.class);
+		
 		// set user code class
 		coGroupConfig.setStubClass(coGroupNode.getPactContract().getUserCodeClass());
 		
-		// write key parameters
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
-			coGroupConfig.getPrefixForInputParameters(0),
-			coGroupContract.getKeyColumnNumbers(0), coGroupContract.getKeyClasses());
+		// set contract's key information
+		final Ordering secondaryOrder1 = coGroupContract.getGroupOrder(0);
+		if (secondaryOrder1 == null) {
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
+				coGroupConfig.getPrefixForInputParameters(0),
+				coGroupContract.getKeyColumnNumbers(0), coGroupContract.getKeyClasses());
+		} else {
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
+				coGroupConfig.getPrefixForInputParameters(0),
+				coGroupContract.getKeyColumnNumbers(0), coGroupContract.getKeyClasses(),
+				secondaryOrder1.getFieldPositions(), secondaryOrder1.getTypes());
+		}
 		
-		PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
-			coGroupConfig.getPrefixForInputParameters(1),
-			coGroupContract.getKeyColumnNumbers(1), coGroupContract.getKeyClasses());
+		// set contract's key information
+		final Ordering secondaryOrder2 = coGroupContract.getGroupOrder(1);
+		if (secondaryOrder2 == null) {
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
+				coGroupConfig.getPrefixForInputParameters(1),
+				coGroupContract.getKeyColumnNumbers(1), coGroupContract.getKeyClasses());
+		} else {
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(coGroupConfig.getConfiguration(),
+				coGroupConfig.getPrefixForInputParameters(1),
+				coGroupContract.getKeyColumnNumbers(1), coGroupContract.getKeyClasses(),
+				secondaryOrder2.getFieldPositions(), secondaryOrder2.getTypes());
+		}
 
 		// set local strategy
 		switch (coGroupNode.getLocalStrategy()) {
@@ -752,14 +815,6 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		// set the degree-of-parallelism into the config to have it available during the output path checking.
 		sinkVertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, sinkNode.getDegreeOfParallelism());
 		
-//		// set the sort order into config (can also be NONE)
-//		if (sinkNode.getLocalProperties().getOrdering() != null) {
-//			sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, sinkNode.getLocalProperties().getOrdering().getOrder(0).name());	
-//		}
-//		else {
-//			sinkVertex.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
-//		}
-		
 		// get task configuration object
 		TaskConfig sinkConfig = new TaskConfig(sinkVertex.getConfiguration());
 		// set user code class
@@ -796,14 +851,18 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	 * @param dop
 	 * @return
 	 */
-	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop, int instancesPerMachine) {
+	private JobTaskVertex generateTempVertex(Class<?> stubClass, int dop, int instancesPerMachine)
+	{
 		// create task vertex
-		JobTaskVertex tempVertex = new JobTaskVertex("TempVertex", this.jobGraph);
-		// set task class
-		tempVertex.setTaskClass(TempTask.class);
-
+		final JobTaskVertex tempVertex = new JobTaskVertex("TempVertex", this.jobGraph);
 		// get task configuration object
-		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
+		final TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
+		
+		
+		// set task class
+		tempVertex.setTaskClass(RegularPactTask.class);
+		tempConfig.setDriver(TempDriver.class);
+		
 		// set key and value classes
 		tempConfig.setStubClass(stubClass);
 
@@ -1211,11 +1270,12 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			keyTypes = null;
 		}
 
-		final TaskConfig configForOutpuShipStrategy;
+		final TaskConfig configForOutputShipStrategy;
 		switch (connection.getTempMode()) {
 		case NONE:
 			outputVertex.connectTo(inputVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
-			configForOutpuShipStrategy = outputConfig;
+			configForOutputShipStrategy = outputConfig;
+			inputConfig.addInputToGroup(inputNumber);
 			break;
 		case TEMP_SENDER_SIDE:
 			// create tempTask
@@ -1239,7 +1299,9 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			// set strategies in task configs
 			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-			configForOutpuShipStrategy = tempConfig;
+			configForOutputShipStrategy = tempConfig;
+			inputConfig.addInputToGroup(inputNumber);
+			tempConfig.addInputToGroup(1);
 
 			break;
 		case TEMP_RECEIVER_SIDE:
@@ -1264,26 +1326,29 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 
 			// set strategies in task configs
 			tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-			configForOutpuShipStrategy = outputConfig;
+			configForOutputShipStrategy = outputConfig;
+			
+			inputConfig.addInputToGroup(inputNumber);
+			tempConfig.addInputToGroup(1);
 			break;
 		default:
 			throw new CompilerException("Invalid connection temp mode: " + connection.getTempMode());
 		}
 		
 		// set strategies in task configs
-		configForOutpuShipStrategy.addOutputShipStrategy(connection.getShipStrategy());
+		configForOutputShipStrategy.addOutputShipStrategy(connection.getShipStrategy());
 		if (! (keyPositions == null || keyTypes == null || keyPositions.length == 0 || keyTypes.length == 0))
 		{
-			final int outputNum = configForOutpuShipStrategy.getNumOutputs() - 1;
-			configForOutpuShipStrategy.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, outputNum);
-			PactRecordComparatorFactory.writeComparatorSetupToConfig(configForOutpuShipStrategy.getConfiguration(),
-				configForOutpuShipStrategy.getPrefixForOutputParameters(outputNum), keyPositions, keyTypes);
+			final int outputNum = configForOutputShipStrategy.getNumOutputs() - 1;
+			configForOutputShipStrategy.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, outputNum);
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(configForOutputShipStrategy.getConfiguration(),
+				configForOutputShipStrategy.getPrefixForOutputParameters(outputNum), keyPositions, keyTypes);
 		}
 		
 		if (targetContract instanceof GenericDataSink) {
 			final DataDistribution distri = ((GenericDataSink) targetContract).getDataDistribution();
 			if (distri != null) {
-				configForOutpuShipStrategy.setOutputDataDistribution(distri);
+				configForOutputShipStrategy.setOutputDataDistribution(distri);
 			}
 		}
 	}
@@ -1309,6 +1374,10 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			final PactConnection inConn = node.getIncomingConnections().get(0);
 			
 			final OptimizerNode predecessor = inConn.getSourcePact();
+			
+			// task cannot be chained if the input is an UnionNode
+			if (predecessor instanceof UnionNode) return false;
+			
 			if (inConn.getShipStrategy() == ShipStrategy.FORWARD && predecessor.getOutConns().size() == 1) {
 				return node.getDegreeOfParallelism() == predecessor.getDegreeOfParallelism() && 
 						node.getInstancesPerMachine() == predecessor.getInstancesPerMachine();
@@ -1320,7 +1389,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	
 	private static final class TaskInChain
 	{
-		private final Class<? extends ChainedTask<?, ?>> chainedTask;
+		private final Class<? extends ChainedDriver<?, ?>> chainedTask;
 		
 		private final TaskConfig taskConfig;
 		
@@ -1329,13 +1398,13 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		private AbstractJobVertex containingVertex;
 
 		@SuppressWarnings("unchecked")
-		TaskInChain(@SuppressWarnings("rawtypes") Class<? extends ChainedTask> chainedTask, TaskConfig taskConfig, String taskName) {
-			this.chainedTask = (Class<? extends ChainedTask<?, ?>>) chainedTask;
+		TaskInChain(@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> chainedTask, TaskConfig taskConfig, String taskName) {
+			this.chainedTask = (Class<? extends ChainedDriver<?, ?>>) chainedTask;
 			this.taskConfig = taskConfig;
 			this.taskName = taskName;
 		}
 		
-		public Class<? extends ChainedTask<?, ?>> getChainedTask() {
+		public Class<? extends ChainedDriver<?, ?>> getChainedTask() {
 			return this.chainedTask;
 		}
 		

@@ -67,7 +67,8 @@ public class ManagementEventTest {
 	@Test
 	public void testRecentJobEvent() {
 
-		final RecentJobEvent orig = new RecentJobEvent(new JobID(), JOBNAME, JobStatus.SCHEDULED, true, TIMESTAMP);
+		final RecentJobEvent orig = new RecentJobEvent(new JobID(), JOBNAME, JobStatus.SCHEDULED, true, TIMESTAMP,
+			TIMESTAMP);
 
 		final RecentJobEvent copy = (RecentJobEvent) ManagementTestUtils.createCopy(orig);
 
@@ -76,6 +77,7 @@ public class ManagementEventTest {
 		assertEquals(orig.getJobStatus(), copy.getJobStatus());
 		assertEquals(orig.isProfilingAvailable(), copy.isProfilingAvailable());
 		assertEquals(orig.getTimestamp(), copy.getTimestamp());
+		assertEquals(orig.getSubmissionTimestamp(), copy.getSubmissionTimestamp());
 		assertEquals(orig.hashCode(), copy.hashCode());
 		assertTrue(orig.equals(copy));
 	}

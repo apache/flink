@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import eu.stratosphere.nephele.annotations.ForceCheckpoint;
+import eu.stratosphere.nephele.checkpointing.CheckpointMode;
+import eu.stratosphere.nephele.checkpointing.CheckpointUtils;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -948,32 +950,89 @@ public class ExecutionGroupVertex {
 	 */
 	CheckpointState checkInitialCheckpointState() {
 
-		// Determine the vertex' initial checkpoint state
-		CheckpointState ics = CheckpointState.UNDECIDED;
-		boolean hasFileChannels = false;
-		for (int i = 0; i < this.forwardLinks.size(); ++i) {
-			if (this.forwardLinks.get(i).getChannelType() == ChannelType.FILE) {
-				hasFileChannels = true;
-				break;
-			}
-		}
+		final CheckpointMode cpm = CheckpointUtils.getCheckpointMode();
 
-		// The vertex has at least one file channel, so we must write a checkpoint anyways
-		if (hasFileChannels) {
-			ics = CheckpointState.PARTIAL;
-		} else {
+		if (cpm == CheckpointMode.ALWAYS) {
+
+			// Always create checkpoints
+			return CheckpointState.PARTIAL;
+
+		} else if (cpm == CheckpointMode.NEVER) {
+
+			// Check if vertex has a file channel
+			for (int i = 0; i < this.forwardLinks.size(); ++i) {
+				if (this.forwardLinks.get(i).getChannelType() == ChannelType.FILE) {
+					return CheckpointState.PARTIAL;
+				}
+			}
+
 			// Look for a user annotation
-			ForceCheckpoint forcedCheckpoint = this.environment.getInvokable().getClass()
+			final ForceCheckpoint forcedCheckpoint = this.environment.getInvokable().getClass()
 				.getAnnotation(ForceCheckpoint.class);
 
-			if (forcedCheckpoint != null) {
-				ics = forcedCheckpoint.checkpoint() ? CheckpointState.PARTIAL : CheckpointState.NONE;
+			// No user annotation, go with the default configuration
+			if (forcedCheckpoint == null) {
+				return CheckpointState.NONE;
 			}
 
-			// TODO: Consider state annotation here
-		}
+			// User enforced checkpoint
+			if (forcedCheckpoint.checkpoint()) {
+				return CheckpointState.PARTIAL;
+			}
 
-		return ics;
+			return CheckpointState.NONE;
+
+		} else if (cpm == CheckpointMode.NETWORK) {
+
+			// Check if vertex has a file channel or network channel
+			for (int i = 0; i < this.forwardLinks.size(); ++i) {
+				final ChannelType channelType = this.forwardLinks.get(i).getChannelType();
+				if (channelType == ChannelType.FILE || channelType == ChannelType.NETWORK) {
+					return CheckpointState.PARTIAL;
+				}
+			}
+
+			// Look for a user annotation
+			final ForceCheckpoint forcedCheckpoint = this.environment.getInvokable().getClass()
+				.getAnnotation(ForceCheckpoint.class);
+
+			// No user annotation, go with the default configuration
+			if (forcedCheckpoint == null) {
+				return CheckpointState.NONE;
+			}
+
+			// User enforced checkpoint
+			if (forcedCheckpoint.checkpoint()) {
+				return CheckpointState.PARTIAL;
+			}
+
+			return CheckpointState.NONE;
+
+		} else {
+
+			// Check if vertex has a file channel
+			for (int i = 0; i < this.forwardLinks.size(); ++i) {
+				if (this.forwardLinks.get(i).getChannelType() == ChannelType.FILE) {
+					return CheckpointState.PARTIAL;
+				}
+			}
+
+			// Look for a user annotation
+			final ForceCheckpoint forcedCheckpoint = this.environment.getInvokable().getClass()
+				.getAnnotation(ForceCheckpoint.class);
+
+			// No user annotation, go with the default configuration
+			if (forcedCheckpoint == null) {
+				return CheckpointState.UNDECIDED;
+			}
+
+			// User enforced checkpoint
+			if (forcedCheckpoint.checkpoint()) {
+				return CheckpointState.PARTIAL;
+			}
+
+			return CheckpointState.NONE;
+		}
 	}
 
 	/**

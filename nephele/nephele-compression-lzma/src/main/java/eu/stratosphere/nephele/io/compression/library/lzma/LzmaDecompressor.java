@@ -15,9 +15,9 @@
 
 package eu.stratosphere.nephele.io.compression.library.lzma;
 
-import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.compression.AbstractCompressionLibrary;
+import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.io.compression.AbstractDecompressor;
+import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 
 /**
  * This class provides an interface for decompressing byte-buffers with the native lzma library
@@ -35,22 +35,22 @@ public class LzmaDecompressor extends AbstractDecompressor {
 	 * private static final int LZMA_PROPS_SIZE = 5;
 	 */
 
-	public LzmaDecompressor(AbstractCompressionLibrary compressionLibrary) {
-		super(compressionLibrary);
+	LzmaDecompressor(final CompressionBufferProvider bufferProvider) {
+		super(bufferProvider);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void setCompressedDataBuffer(Buffer buffer) {
+	public void setCompressedDataBuffer(final MemoryBuffer buffer) {
 
 		if (buffer == null) {
 			this.compressedBuffer = null;
 			this.compressedDataBuffer = null;
 			this.compressedDataBufferLength = 0;
 		} else {
-			this.compressedDataBuffer = getInternalByteBuffer(buffer);
+			this.compressedDataBuffer = buffer.getByteBuffer();
 			// this.compressedDataBufferLength = this.compressedDataBuffer.limit();
 			this.compressedBuffer = buffer;
 
@@ -63,10 +63,4 @@ public class LzmaDecompressor extends AbstractDecompressor {
 	native static void initIDs();
 
 	protected native int decompressBytesDirect(int offset);
-
-	@Override
-	protected void freeInternalResources() {
-		// TODO Auto-generated method stub
-
-	}
 }

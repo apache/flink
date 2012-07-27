@@ -20,7 +20,7 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
 
 /**
- * Utility class for efficient string operations on strings containing ASCII characters only. The Operations are more
+ * Utility class for efficient string operations on strings containing ASCII characters only. The operations are more
  * efficient, because they use a very simple encoding logic and operate on mutable objects, sparing object allocation
  * and garbage collection overhead. 
  */
@@ -46,7 +46,7 @@ public class AsciiUtils
 	
 	/**
 	 * Replaces all non-word characters in a string by a given character. The only
-	 * characters not replaces are <code>A-Z, a-z, 0-9, and _</code>.
+	 * characters not replaced are <code>A-Z, a-z, 0-9, and _</code>.
 	 * <p>
 	 * This operation is intended to simplify strings for counting distinct words.
 	 * 

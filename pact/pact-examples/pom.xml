@@ -23,12 +23,6 @@
     	<version>${version}</version>
     </dependency>
     
-    <!--<dependency>
-    	<groupId>eu.stratosphere</groupId>
-    	<artifactId>pact-runtime</artifactId>
-    	<version>${version}</version>
-    	<scope>test</scope>
-    </dependency>-->
   </dependencies>
 
   <reporting>
@@ -133,7 +127,6 @@
               <includes>
                 <include>**/relational/TPCHQuery3.class</include>
                 <include>**/relational/TPCHQuery3$*.class</include>
-                <include>**/relational/util/*.class</include>
               </includes>
             </configuration>
           </execution>
@@ -156,7 +149,6 @@
               <includes>
                 <include>**/relational/TPCHQueryAsterix.class</include>
                 <include>**/relational/TPCHQueryAsterix$*.class</include>
-                <include>**/relational/util/*.class</include>
               </includes>
             </configuration>
           </execution>
@@ -180,7 +172,6 @@
               <includes>
                 <include>**/relational/WebLogAnalysis.class</include>
                 <include>**/relational/WebLogAnalysis$*.class</include>
-                <include>**/relational/util/*.class</include>
               </includes>
             </configuration>
           </execution>
@@ -207,7 +198,53 @@
               </includes>
             </configuration>
           </execution>
+          
+      <!-- TeraSort -->
+          <execution>
+            <id>TeraSort</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>TeraSort</classifier>
 
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.sort.TeraSort</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/sort/TeraSort.class</include>
+                <include>**/sort/terasort/Tera*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+      <!-- ReduceGroupSort -->
+          <execution>
+            <id>ReduceGroupSort</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>ReduceGroupSort</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.sort.ReduceGroupSort</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/sort/ReduceGroupSort.class</include>
+                <include>**/sort/ReduceGroupSort$*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+          
         </executions>
       </plugin>
       

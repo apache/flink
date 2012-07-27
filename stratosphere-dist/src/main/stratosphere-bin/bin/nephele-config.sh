@@ -26,6 +26,9 @@ DEFAULT_NEPHELE_TM_HEAP=512
 # Optional Nephele SSH parameters
 #NEPHELE_SSH_OPTS=""
 
+# The maximum number of old log files to keep
+MAX_LOG_FILE_NUMBER=5
+
 # Resolve links
 this="$0"
 while [ -h "$this" ]; do
@@ -38,48 +41,48 @@ while [ -h "$this" ]; do
   fi
 done
 
-# convert relative path to absolute path
+# Convert relative path to absolute path
 bin=`dirname "$this"`
 script=`basename "$this"`
 bin=`cd "$bin"; pwd`
 this="$bin/$script"
 
-# define JAVA_HOME if it is not already set
+# Define JAVA_HOME if it is not already set
 if [ -z "${JAVA_HOME+x}" ]; then
         JAVA_HOME=/usr/lib/jvm/java-6-sun/
 fi
 
-# define HOSTNAME if it is not already set
+# Define HOSTNAME if it is not already set
 if [ -z "${HOSTNAME+x}" ]; then
         HOSTNAME=`hostname`
 fi
 
-# define NEPHELE_JM_HEAP if it is not already set
+# Define NEPHELE_JM_HEAP if it is not already set
 if [ -z "${NEPHELE_JM_HEAP+x}" ]; then
 	NEPHELE_JM_HEAP=$DEFAULT_NEPHELE_JM_HEAP
 fi
 
-# define NEPHELE_TM_HEAP if it is not already set
+# Define NEPHELE_TM_HEAP if it is not already set
 if [ -z "${NEPHELE_TM_HEAP+x}" ]; then
 	NEPHELE_TM_HEAP=$DEFAULT_NEPHELE_TM_HEAP
 fi
 
-# define the main directory of the Nephele installation
+# Define the main directory of the Nephele installation
 NEPHELE_ROOT_DIR=`dirname "$this"`/..
 NEPHELE_CONF_DIR=$NEPHELE_ROOT_DIR/conf
 NEPHELE_BIN_DIR=$NEPHELE_ROOT_DIR/bin
 NEPHELE_LIB_DIR=$NEPHELE_ROOT_DIR/lib
 NEPHELE_LOG_DIR=$NEPHELE_ROOT_DIR/log
 
-# arguments for the JVM. Used for job manager and task manager JVMs
+# Arguments for the JVM. Used for job manager and task manager JVMs
 # DO NOT USE FOR MEMORY SETTINGS! Use DEFAULT_NEPHELE_JM_HEAP and
 # DEFAULT_NEPHELE_TM_HEAP for that!
 JVM_ARGS="-Djava.net.preferIPv4Stack=true"
 
-# default classpath 
+# Default classpath 
 CLASSPATH=$( echo $NEPHELE_LIB_DIR/*.jar . | sed 's/ /:/g' )
 
-# auxilliary function which extracts the name of host from a line which
+# Auxilliary function which extracts the name of host from a line which
 # also potentialy includes topology information and the instance type
 extractHostName() {
 
@@ -97,3 +100,17 @@ extractHostName() {
         echo $SLAVE
 }
 
+# Auxilliary function for log file rotation
+rotateLogFile() {
+
+        log=$1;
+        num=$MAX_LOG_FILE_NUMBER
+        if [ -f "$log" -a "$num" -gt 0 ]; then
+                while [ $num -gt 1 ]; do
+                        prev=`expr $num - 1`
+                        [ -f "$log.$prev" ] && mv "$log.$prev" "$log.$num"
+                        num=$prev
+                done
+                mv "$log" "$log.$num";
+        fi
+}

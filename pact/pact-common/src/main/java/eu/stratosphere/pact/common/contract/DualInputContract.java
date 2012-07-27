@@ -42,10 +42,10 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	private final int[] keyFields1;
 	
 	/**
-	 * The positions of the keys in the tuples of the first input.
+	 * The positions of the keys in the tuples of the second input.
 	 */
 	private final int[] keyFields2;
-
+	
 	// --------------------------------------------------------------------------------------------
 
 	/**

@@ -143,6 +143,15 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	 * {@inheritDoc}
 	 */
 	@Override
+	public CompressionLevel getCompressionLevel() {
+
+		return this.wrappedInputGate.getCompressionLevel();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	public GateID getGateID() {
 
 		return this.wrappedInputGate.getGateID();
@@ -182,6 +191,15 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	public void setChannelType(final ChannelType channelType) {
 
 		this.wrappedInputGate.setChannelType(channelType);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void setCompressionLevel(final CompressionLevel compressionLevel) {
+
+		this.wrappedInputGate.setCompressionLevel(compressionLevel);
 	}
 
 	/**

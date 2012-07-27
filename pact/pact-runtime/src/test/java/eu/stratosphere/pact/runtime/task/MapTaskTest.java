@@ -24,39 +24,41 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
+import eu.stratosphere.pact.common.generic.GenericMapper;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
-import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 
-public class MapTaskTest extends TaskTestBase
+public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRecord>>
 {
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
 	
 	private List<PactRecord> outList;
-		
+	
+	
+	public MapTaskTest() {
+		super(0);
+		this.outList = new ArrayList<PactRecord>();
+	}
+	
 	@Test
 	public void testMapTask()
 	{
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
-		this.outList = new ArrayList<PactRecord>();
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addOutput(this.outList);
 		
-		super.initEnvironment(1024 * 1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-		super.addOutput(this.outList);
-		
-		MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
-		
-		super.registerTask(testTask, MockMapStub.class);
+		final MapDriver<PactRecord, PactRecord> testDriver = new MapDriver<PactRecord, PactRecord>();
 		
 		try {
-			testTask.invoke();
+			testDriver(testDriver, MockMapStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
@@ -72,20 +74,14 @@ public class MapTaskTest extends TaskTestBase
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
-		this.outList = new ArrayList<PactRecord>();
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addOutput(this.outList);
 		
-		super.initEnvironment(1024 * 1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-		super.addOutput(this.outList);
-		
-		MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
-		
-		super.registerTask(testTask, MockFailingMapStub.class);
-		
+		final MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
 		boolean stubFailed = false;
 		
 		try {
-			testTask.invoke();
+			testDriver(testTask, MockFailingMapStub.class);
 		} catch (Exception e) {
 			stubFailed = true;
 		}
@@ -97,28 +93,27 @@ public class MapTaskTest extends TaskTestBase
 	@Test
 	public void testCancelMapTask()
 	{
-		super.initEnvironment(1024 * 1024);
-		super.addInput(new InfiniteInputIterator(), 1);
-		super.addOutput(new NirvanaOutputList());
+		addInput(new InfiniteInputIterator());
+		addOutput(new NirvanaOutputList());
 		
-		final MapTask<PactRecord, PactRecord> testTask = new MapTask<PactRecord, PactRecord>();
+		final MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
 		
-		super.registerTask(testTask, MockMapStub.class);
+		
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
-					testTask.invoke();
+					testDriver(testTask, MockMapStub.class);
 				} catch (Exception ie) {
 					ie.printStackTrace();
 					Assert.fail("Task threw exception although it was properly canceled");
-				}				
+				}
 			}
 		};
 		taskRunner.start();
 		
-		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
 		tct.start();
 		
 		try {

@@ -16,6 +16,8 @@
 package eu.stratosphere.nephele.visualization.swt;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -32,6 +34,7 @@ import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -114,7 +117,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	 * The sequence number of the last processed event received from the job manager.
 	 */
 	private long lastProcessedEventSequenceNumber = -1;
-	
+
 	public SWTVisualizationGUI(ExtendedManagementProtocol jobManager, int queryInterval) {
 
 		this.jobManager = jobManager;
@@ -150,6 +153,63 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 		this.jobTree = new Tree(jobGroup, SWT.SINGLE | SWT.BORDER);
 		this.jobTree.addSelectionListener(this);
+
+		// Disable native tooltip implementation
+		this.jobTree.setToolTipText("");
+
+		// Implementation of the extended tree tooltips
+		final Listener toolTipListener = new Listener() {
+
+			private SWTJobToolTip jobToolTip = null;
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void handleEvent(final Event event) {
+
+				switch (event.type) {
+				case SWT.Dispose:
+				case SWT.KeyDown:
+				case SWT.MouseMove:
+					if (this.jobToolTip != null) {
+						this.jobToolTip.dispose();
+						this.jobToolTip = null;
+					}
+					break;
+				case SWT.MouseHover:
+					final TreeItem ti = jobTree.getItem(new Point(event.x, event.y));
+					if (ti == null) {
+						break;
+					}
+					if (this.jobToolTip != null && !this.jobToolTip.isDisposed()) {
+						this.jobToolTip.dispose();
+					}
+
+					final Point pt = jobTree.toDisplay(event.x, event.y);
+
+					final GraphVisualizationData gvi = (GraphVisualizationData) ti.getData();
+					if (gvi == null) {
+						break;
+					}
+
+					final String jobName = gvi.getJobName();
+					final JobID jobID = gvi.getJobID();
+					final long submissionTimestamp = gvi.getSubmissionTimestamp();
+
+					this.jobToolTip = new SWTJobToolTip(shell, jobName, jobID, submissionTimestamp, pt.x, pt.y);
+					break;
+				}
+
+			}
+
+		};
+
+		// Register tooltip listener
+		this.jobTree.addListener(SWT.Dispose, toolTipListener);
+		this.jobTree.addListener(SWT.KeyDown, toolTipListener);
+		this.jobTree.addListener(SWT.MouseMove, toolTipListener);
+		this.jobTree.addListener(SWT.MouseHover, toolTipListener);
 
 		this.jobTabFolder = new CTabFolder(horizontalSash, SWT.TOP);
 		this.jobTabFolder.addSelectionListener(this);
@@ -447,12 +507,23 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 			// Check for new jobs
 			final List<RecentJobEvent> newJobs = this.jobManager.getRecentJobs();
+
+			// Sort jobs according to submission time stamps
+			Collections.sort(newJobs, new Comparator<RecentJobEvent>() {
+
+				@Override
+				public int compare(final RecentJobEvent o1, final RecentJobEvent o2) {
+
+					return (int) (o1.getSubmissionTimestamp() - o2.getSubmissionTimestamp());
+				}
+			});
+
 			if (!newJobs.isEmpty()) {
 				final Iterator<RecentJobEvent> it = newJobs.iterator();
 				while (it.hasNext()) {
 					final RecentJobEvent newJobEvent = it.next();
 					addJob(newJobEvent.getJobID(), newJobEvent.getJobName(), newJobEvent.isProfilingAvailable(),
-						newJobEvent.getTimestamp());
+						newJobEvent.getSubmissionTimestamp(), newJobEvent.getTimestamp());
 				}
 			}
 
@@ -481,14 +552,14 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 						while (eventIt.hasNext()) {
 
 							final AbstractEvent event = eventIt.next();
-							
+
 							// Did we already process this event?
-							if(this.lastProcessedEventSequenceNumber >= event.getSequenceNumber()){
+							if (this.lastProcessedEventSequenceNumber >= event.getSequenceNumber()) {
 								continue;
 							}
 
 							dispatchEvent(event, graphVisualizationData);
-							
+
 							this.lastProcessedEventSequenceNumber = event.getSequenceNumber();
 						}
 
@@ -527,8 +598,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 		((SWTJobTabItem) control).updateView();
 	}
 
-	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable, final long referenceTime)
-			throws IOException {
+	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable, final long submissionTimestamp,
+			final long referenceTime) throws IOException {
 
 		synchronized (this.recentJobs) {
 
@@ -543,7 +614,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 			// Create graph visualization object
 			final GraphVisualizationData graphVisualizationData = new GraphVisualizationData(jobID, jobName,
-				isProfilingAvailable, managementGraph, networkTopology);
+				isProfilingAvailable, submissionTimestamp, managementGraph, networkTopology);
 
 			managementGraph.setAttachment(graphVisualizationData);
 			final Iterator<ManagementVertex> it = new ManagementGraphIterator(managementGraph, true);

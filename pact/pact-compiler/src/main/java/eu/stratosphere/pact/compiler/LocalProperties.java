@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.UnionNode;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
@@ -154,6 +155,10 @@ public final class LocalProperties implements Cloneable {
 		boolean newGrouped = false;
 		Ordering newOrdering = null;
 		FieldSet newGroupedFields = null;
+		
+		
+		// no interesting LocalProperties for input of Unions
+		if (node instanceof UnionNode) return null;
 		
 		
 		// check, whether the local key grouping is preserved		

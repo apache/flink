@@ -1,2 +1,0 @@
-Manifest-Version: 1.0
-Pact-Assembler-Class: eu.stratosphere.pact.example.pigmix.L2
