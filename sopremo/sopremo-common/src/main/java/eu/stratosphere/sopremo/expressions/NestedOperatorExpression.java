@@ -47,7 +47,6 @@ public class NestedOperatorExpression extends UnevaluableExpression {
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		this.appendTags(builder);
 		builder.append("<").append(this.operator).append(">");
 	}
 

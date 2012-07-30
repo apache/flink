@@ -1,17 +1,13 @@
 package eu.stratosphere.sopremo.expressions;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.IdentityList;
-import eu.stratosphere.util.IdentitySet;
 import eu.stratosphere.util.IsEqualPredicate;
 import eu.stratosphere.util.IsInstancePredicate;
 import eu.stratosphere.util.IsSamePredicate;
@@ -26,11 +22,6 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 	 * 
 	 */
 	private static final long serialVersionUID = 1226647739750484403L;
-
-	/**
-	 * Used for secondary information during plan creation only.
-	 */
-	private transient Set<ExpressionTag> tags;
 
 	/**
 	 * Represents an expression that returns the input node without any modifications. The constant is mostly used for
@@ -59,22 +50,6 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 		}
 	};
 
-	/**
-	 * Initializes EvaluationExpression.
-	 */
-	public EvaluationExpression() {
-		this.tags = new IdentitySet<ExpressionTag>();
-	}
-
-	public void addTag(final ExpressionTag tag) {
-		this.tags.add(tag);
-	}
-
-	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();
-		this.tags = new IdentitySet<ExpressionTag>();
-	}
-
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Object#clone()
@@ -82,9 +57,7 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 	@Override
 	public EvaluationExpression clone() {
 		try {
-			final EvaluationExpression klone = (EvaluationExpression) super.clone();
-			klone.tags.addAll(this.tags);
-			return klone;
+			return (EvaluationExpression) super.clone();
 		} catch (final CloneNotSupportedException e) {
 			throw new IllegalStateException("Cannot occur");
 		}
@@ -98,16 +71,6 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 			return false;
 		if (this.getClass() != obj.getClass())
 			return false;
-		final EvaluationExpression other = (EvaluationExpression) obj;
-
-		// return this.tags.equals(other.tags);
-		return this.hasAllSemanticTags(other) && other.hasAllSemanticTags(this);
-	}
-
-	protected boolean hasAllSemanticTags(final EvaluationExpression other) {
-		for (final ExpressionTag tag : this.tags)
-			if (tag.isSemantic() && !other.tags.contains(tag))
-				return false;
 		return true;
 	}
 
@@ -289,20 +252,7 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		for (final ExpressionTag tag : this.tags)
-			if (tag.isSemantic())
-				result = prime * result + tag.hashCode();
-		return result;
-	}
-
-	public boolean hasTag(final ExpressionTag tag) {
-		return this.tags.contains(tag);
-	}
-
-	public boolean removeTag(final ExpressionTag preserve) {
-		return this.tags.remove(preserve);
+		return 37;
 	}
 
 	/**
@@ -338,22 +288,6 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 	 */
 	@Override
 	public void toString(final StringBuilder builder) {
-		this.appendTags(builder);
-	}
-
-	protected void appendTags(final StringBuilder builder) {
-		for (final ExpressionTag tag : this.tags)
-			if (tag.isSemantic())
-				builder.append(tag).append(" ");
-	}
-
-	public EvaluationExpression withTag(final ExpressionTag tag) {
-		this.addTag(tag);
-		return this;
-	}
-
-	public Set<ExpressionTag> getTags() {
-		return this.tags;
 	}
 
 	protected List<EvaluationExpression> transformChildExpressions(final TransformFunction function,

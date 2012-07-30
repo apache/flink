@@ -7,7 +7,6 @@ public class ExpressionTagFactory {
 	private final Map<String, ExpressionTag> tags = new HashMap<String, ExpressionTag>();
 
 	public ExpressionTagFactory() {
-		this.register(ExpressionTag.RETAIN);
 	}
 
 	public void register(final ExpressionTag tag) {

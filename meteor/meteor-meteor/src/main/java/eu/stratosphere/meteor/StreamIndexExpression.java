@@ -72,7 +72,6 @@ public class StreamIndexExpression extends UnevaluableExpression {
 
 	@Override
 	public void toString(StringBuilder builder) {
-		this.appendTags(builder);
 		builder.append(this.stream).append("[");
 		this.indexExpression.toString(builder);
 		builder.append("]");

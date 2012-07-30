@@ -1,5 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.List;
+
 import eu.stratosphere.sopremo.operator.JsonStream;
 import eu.stratosphere.sopremo.operator.Operator;
 
@@ -8,8 +10,6 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	 * 
 	 */
 	private static final long serialVersionUID = -4195183303903303669L;
-
-	public static final ExpressionTag THIS_CONTEXT = new ExpressionTag("This");
 
 	private final JsonStream stream;
 
@@ -40,6 +40,18 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	}
 
 	/**
+	 * Initializes a JsonStreamExpression with the given index.
+	 * 
+	 * @param stream
+	 *        the stream that should be used
+	 * @param inputIndex
+	 *        the index
+	 */
+	public JsonStreamExpression(int inputIndex) {
+		this(null, inputIndex);
+	}
+
+	/**
 	 * Returns the inputIndex.
 	 * 
 	 * @return the inputIndex
@@ -63,12 +75,11 @@ public class JsonStreamExpression extends UnevaluableExpression {
 	 */
 	@Override
 	public void toString(final StringBuilder builder) {
-		this.appendTags(builder);
-		if(this.stream != null)
+		if (this.stream != null)
 			builder.append(this.stream.getSource().getOperator().getName()).append("@");
-		if(this.inputIndex != -1)
+		if (this.inputIndex != -1)
 			builder.append(this.inputIndex);
-		else if(this.stream != null)
+		else if (this.stream != null)
 			builder.append(this.stream.getSource().getIndex());
 	}
 
@@ -90,8 +101,6 @@ public class JsonStreamExpression extends UnevaluableExpression {
 				return this;
 			inputSelection = new InputSelection(index);
 		}
-		for (final ExpressionTag tag : this.getTags())
-			inputSelection.addTag(tag);
 		return inputSelection;
 	}
 
@@ -113,6 +122,20 @@ public class JsonStreamExpression extends UnevaluableExpression {
 			return false;
 		final JsonStreamExpression other = (JsonStreamExpression) obj;
 		return this.stream.getSource().equals(other.stream.getSource());
+	}
+
+	/**
+	 * Returns the input index of the stream. If the inputIndex is set, it is directly return. Else the stream will be
+	 * looked up in the provided list of inputs.
+	 * 
+	 * @param inputs
+	 *        the inputs in which to look up the index
+	 * @return the index of the stream wrapped in this expression
+	 */
+	public int getInputIndex(List<JsonStream> inputs) {
+		if (this.inputIndex != -1)
+			return this.inputIndex;
+		return inputs.indexOf(this.stream);
 	}
 
 }

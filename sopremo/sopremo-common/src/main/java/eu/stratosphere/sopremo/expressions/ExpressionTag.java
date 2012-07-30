@@ -5,8 +5,6 @@ public class ExpressionTag {
 
 	private final boolean semantic;
 
-	public static final ExpressionTag RETAIN = new ExpressionTag("Retain", true);
-
 	public ExpressionTag(final String name) {
 		this(name, false);
 	}
