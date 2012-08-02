@@ -39,7 +39,7 @@ public class Simple {
 
   public static void main(String[] args) throws Exception {
 
-    int degreeOfParallelism = 1;
+    int degreeOfParallelism = 2;
     JobGraph jobGraph = new JobGraph("SimpleIteration");
 
     JobInputVertex input = JobGraphUtils.createInput(TextInputFormat.class,
@@ -52,7 +52,6 @@ public class Simple {
     headConfig.setStubClass(AppendMapper.AppendHeadMapper.class);
     headConfig.setMemorySize(10 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
-    //headConfig.setNumberOfIterations(3);
 
     JobTaskVertex intermediate = JobGraphUtils.createTask(BulkIterationIntermediatePactTask.class, "BulkIntermediate",
         jobGraph, degreeOfParallelism);
@@ -77,17 +76,26 @@ public class Simple {
     outputConfig.setStubClass(SimpleOutFormat.class);
     outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, "file:///tmp/stratosphere/iterations");
 
+    //TODO implicit order should be documented/configured somehow
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
 
-    JobGraphUtils.connectLocal(input, head);
-    //TODO implicit order should be documented/configured somehow
-    JobGraphUtils.connectLocal(head, intermediate);
-    JobGraphUtils.connectLocal(head, sync);
-    JobGraphUtils.connectLocal(head, output);
-    JobGraphUtils.connectLocal(intermediate, tail);
-    JobGraphUtils.connectLocal(tail, fakeTailOutput);
+    JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategy.FORWARD);
+    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(intermediate, tail, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategy.FORWARD);
+    JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategy.FORWARD);
 
-    head.setVertexToShareInstancesWith(tail);
+    input.setVertexToShareInstancesWith(head);
+    intermediate.setVertexToShareInstancesWith(head);
+    sync.setVertexToShareInstancesWith(head);
+    output.setVertexToShareInstancesWith(head);
+    intermediate.setVertexToShareInstancesWith(head);
+    tail.setVertexToShareInstancesWith(head);
+    fakeTailOutput.setVertexToShareInstancesWith(head);
 
     GlobalConfiguration.loadConfiguration(PlayConstants.PLAY_DIR + "local-conf");
     Configuration conf = GlobalConfiguration.getConfiguration();

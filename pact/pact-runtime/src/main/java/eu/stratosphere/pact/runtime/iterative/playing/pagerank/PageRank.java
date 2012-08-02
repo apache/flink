@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
@@ -62,7 +63,6 @@ public class PageRank {
     headConfig.setStubClass(IdentityMap.class);
     headConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
-    headConfig.setNumberOfIterations(15);
 
     JobTaskVertex intermediate = JobGraphUtils.createTask(BulkIterationIntermediatePactTask.class,
         "BulkIterationIntermediate", jobGraph, degreeOfParallelism);
@@ -90,6 +90,8 @@ public class PageRank {
     tailConfig.setNumFilehandles(2);
 
     JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
+    TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
+    syncConfig.setNumberOfIterations(15);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
@@ -98,20 +100,24 @@ public class PageRank {
 
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
 
-    JobGraphUtils.connectLocal(pageWithRankInput, head);
-    JobGraphUtils.connectLocal(head, intermediate, DistributionPattern.BIPARTITE, ShipStrategy.BROADCAST);
-    JobGraphUtils.connectLocal(transitionMatrixInput, intermediate, DistributionPattern.BIPARTITE,
+
+    //TODO implicit order should be documented/configured somehow
+    JobGraphUtils.connect(pageWithRankInput, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategy.FORWARD);
+    JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
+        ShipStrategy.BROADCAST);
+    JobGraphUtils.connect(transitionMatrixInput, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
         ShipStrategy.PARTITION_HASH);
     intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
-    JobGraphUtils.connectLocal(intermediate, tail, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategy.FORWARD);
+
+    JobGraphUtils.connect(intermediate, tail, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategy.FORWARD);
     tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-
-    //TODO implicit order should be documented/configured somehow
-    JobGraphUtils.connectLocal(head, sync);
-    JobGraphUtils.connectLocal(head, output);
-
-    JobGraphUtils.connectLocal(tail, fakeTailOutput);
 
     fakeTailOutput.setVertexToShareInstancesWith(tail);
     tail.setVertexToShareInstancesWith(head);

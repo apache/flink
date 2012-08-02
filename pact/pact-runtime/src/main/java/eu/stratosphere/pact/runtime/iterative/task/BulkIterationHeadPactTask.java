@@ -148,7 +148,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
       sendEventToAllIterationOutputs(endOfSuperstepEvent);
 
       // blocking call to wait for the result
-      DataInputView superStepResult = backChannel.getReadEndAfterSuperstepEnded();
+      DataInputView superstepResult = backChannel.getReadEndAfterSuperstepEnded();
       if (log.isInfoEnabled()) {
         log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
       }
@@ -168,9 +168,10 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
         requestTermination();
         sendEventToAllIterationOutputs(new TerminationEvent());
       } else {
-        feedBackSuperstepResult(superStepResult, serializer);
         incrementIterationCounter();
       }
+
+      feedBackSuperstepResult(superstepResult, serializer);
     }
 
     if (log.isInfoEnabled()) {
@@ -183,7 +184,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
   private Collector<PactRecord> iterationCollector() {
     int numOutputs = eventualOutputs.size();
     Preconditions.checkState(numOutputs > 2);
-    List<AbstractRecordWriter<PactRecord>> writers = Lists.newArrayListWithCapacity(numOutputs - 1);
+    List<AbstractRecordWriter<PactRecord>> writers = Lists.newArrayListWithCapacity(numOutputs - 2);
     //TODO remove implicit assumption
     for (int outputIndex = 0; outputIndex < numOutputs - 2; outputIndex++) {
       //TODO type safety
@@ -207,8 +208,8 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     System.out.println("Records to final out: " + recordsPut);
   }
 
-  private void feedBackSuperstepResult(DataInputView superStepResult, TypeSerializer serializer) {
-    inputs[getIterationInputIndex()] = new InputViewIterator(superStepResult, serializer);
+  private void feedBackSuperstepResult(DataInputView superstepResult, TypeSerializer serializer) {
+    inputs[getIterationInputIndex()] = new InputViewIterator(superstepResult, serializer);
   }
 
   private void sendEventToAllIterationOutputs(AbstractTaskEvent event) throws IOException, InterruptedException {

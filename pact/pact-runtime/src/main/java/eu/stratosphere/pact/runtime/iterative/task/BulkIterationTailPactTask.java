@@ -49,7 +49,7 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
     // redirect output to the backchannel
     output = new DataOutputCollector<OT>(backChannel.getWriteEnd(), createOutputTypeSerializer());
 
-    while (!terminationRequested() && currentIteration() < 7) {
+    while (!terminationRequested()) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));

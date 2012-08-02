@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.iterative.playing.iterativemapreduce;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.DistributionPattern;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
@@ -52,7 +53,6 @@ public class IterativeMapReduce {
     headConfig.setStubClass(AppendTokenMapper.class);
     headConfig.setMemorySize(10 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
-    headConfig.setNumberOfIterations(3);
     headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(),
         headConfig.getPrefixForOutputParameters(0), new int[] { 0 }, new Class[] { PactString.class });
@@ -70,6 +70,8 @@ public class IterativeMapReduce {
     tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
     JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
+    TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
+    syncConfig.setNumberOfIterations(3);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
@@ -78,14 +80,20 @@ public class IterativeMapReduce {
 
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
 
-    JobGraphUtils.connectLocal(input, head);
     //TODO implicit order should be documented/configured somehow
-    JobGraphUtils.connectLocal(head, tail, DistributionPattern.BIPARTITE, ShipStrategy.PARTITION_HASH);
-    JobGraphUtils.connectLocal(head, sync);
-    JobGraphUtils.connectLocal(head, output);
-    JobGraphUtils.connectLocal(tail, fakeTailOutput);
+    JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(head, tail, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
+        ShipStrategy.PARTITION_HASH);
+    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategy.FORWARD);
 
-    head.setVertexToShareInstancesWith(tail);
+    input.setVertexToShareInstancesWith(head);
+    tail.setVertexToShareInstancesWith(head);
+    sync.setVertexToShareInstancesWith(head);
+    output.setVertexToShareInstancesWith(head);
+    fakeTailOutput.setVertexToShareInstancesWith(head);
 
     GlobalConfiguration.loadConfiguration(PlayConstants.PLAY_DIR + "local-conf");
     Configuration conf = GlobalConfiguration.getConfiguration();

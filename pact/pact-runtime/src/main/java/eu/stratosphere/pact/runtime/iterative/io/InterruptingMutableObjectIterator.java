@@ -96,20 +96,21 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
     }
   }
 
-  private int recordsRead = 0;
+//  private int recordsRead = 0;
 
-  //TODO remove counting once code is stable
   @Override
   public boolean next(E target) throws IOException {
 
-    log.info("InterruptibleIterator of " + name + " waiting for record("+ (recordsRead) +")");
+//    log.info("InterruptibleIterator of " + name + " waiting for record("+ (recordsRead) +")");
 
     boolean recordFound = delegate.next(target);
 
-    if (recordFound) {
-      log.info("InterruptibleIterator of " + name + " read record("+ (recordsRead) +")");
-      recordsRead++;
-    } else {
+//    if (recordFound) {
+//      log.info("InterruptibleIterator of " + name + " read record("+ (recordsRead) +")");
+//      recordsRead++;
+//    } else {
+
+    if (!recordFound && log.isInfoEnabled()) {
       log.info("InterruptibleIterator of " + name + " releases input");
     }
     return recordFound;

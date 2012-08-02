@@ -63,16 +63,6 @@ public class JobGraphUtils {
     return inputVertex;
   }
 
-  public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target)
-      throws JobGraphDefinitionException {
-    connectLocal(source, target, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
-  }
-
-  public static void connectLocal(AbstractJobVertex source, AbstractJobVertex target,
-      DistributionPattern distributionPattern, ShipStrategy shipStrategy) throws JobGraphDefinitionException {
-    connect(source, target, ChannelType.INMEMORY, distributionPattern, shipStrategy);
-  }
-
   public static void connect(AbstractJobVertex source, AbstractJobVertex target, ChannelType channelType,
       DistributionPattern distributionPattern, ShipStrategy shipStrategy) throws JobGraphDefinitionException {
     source.connectTo(target, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);

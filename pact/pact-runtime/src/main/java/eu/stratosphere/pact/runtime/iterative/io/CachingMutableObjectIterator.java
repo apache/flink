@@ -62,20 +62,19 @@ public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T>
     return cache != null;
   }
 
-  //TODO remove counting once code is stable
-  private int recordsRead = 0;
+//  private int recordsRead = 0;
 
   /** read records from original input and write them to the cache */
   private boolean readFromDelegateAndCache(T record) throws IOException {
 
-    log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +")");
+//    log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +")");
 
     boolean recordFound = delegate.next(record);
     if (recordFound) {
-      log.info("CachingIterator of " + name + " read and cached record("+ (recordsRead) +")");
-      recordsRead++;
+//      log.info("CachingIterator of " + name + " read and cached record("+ (recordsRead) +")");
+//      recordsRead++;
       typeSerializer.serialize(record, spillingBuffer);
-    } else {
+    } else if (log.isInfoEnabled()) {
       log.info("CachingIterator of " + name + " releases input");
     }
     return recordFound;
@@ -92,12 +91,12 @@ public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T>
   /** reread input from the cache */
   private boolean readFromCache(T record) throws IOException {
 
-    log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +") in cache mode");
+//    log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +") in cache mode");
     try {
-      recordsRead++;
+//      recordsRead++;
       typeSerializer.deserialize(record, cache);
 
-      log.info("CachingIterator of " + name + " read record("+ (recordsRead) +") in cache mode");
+//      log.info("CachingIterator of " + name + " read record("+ (recordsRead) +") in cache mode");
       return true;
     } catch (EOFException e) {
       return false;

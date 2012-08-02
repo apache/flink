@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.taskmanager.bytebuffered;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 public abstract class AbstractOutputChannelContext implements OutputChannelContext {
@@ -44,9 +45,23 @@ public abstract class AbstractOutputChannelContext implements OutputChannelConte
 
 		final Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
 		while (it.hasNext()) {
-			this.forwardingChain.offerEvent(it.next());
+
+      final AbstractEvent event = it.next();
+      if (event instanceof AbstractTaskEvent) {
+        processEventAsynchronously(event);
+      } else {
+        processEventSynchronously(event);
+      }
 		}
 	}
+
+  protected void processEventSynchronously(final AbstractEvent event) {
+    this.forwardingChain.offerEvent(event);
+  }
+
+  protected void processEventAsynchronously(final AbstractEvent event) {
+    // The default implementation does nothing
+  }
 
 	/**
 	 * {@inheritDoc}

@@ -36,7 +36,7 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
   @Override
   public void invoke() throws Exception {
 
-    while (!terminationRequested() && currentIteration() < 7) {
+    while (!terminationRequested()) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));

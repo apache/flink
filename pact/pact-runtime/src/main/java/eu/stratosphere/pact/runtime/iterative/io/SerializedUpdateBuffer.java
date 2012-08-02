@@ -311,9 +311,8 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
         spilledBuffersRemaining--;
         try {
           return spilledBufferSource.getReturnQueue().take();
-        }
-        catch (InterruptedException iex) {
-          throw new RuntimeException("Read End was interrupted while waiting for spilled buffer.");
+        } catch (InterruptedException e) {
+          throw new RuntimeException("Read End was interrupted while waiting for spilled buffer.", e);
         }
       } else if (fullBufferSource.size() > 0) {
         return fullBufferSource.removeFirst();

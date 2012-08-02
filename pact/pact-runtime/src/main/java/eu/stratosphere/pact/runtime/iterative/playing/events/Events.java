@@ -70,8 +70,12 @@ public class Events {
     output.setFilePath(new Path("file:///tmp/stratosphere/output.txt"));
 
     input.connectTo(task1, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
-    task1.connectTo(task2, ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
+    task1.connectTo(task2, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
     task2.connectTo(output, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
+
+    input.setVertexToShareInstancesWith(task1);
+    task2.setVertexToShareInstancesWith(task1);
+    output.setVertexToShareInstancesWith(task1);
 
 
     GlobalConfiguration.loadConfiguration(PlayConstants.PLAY_DIR + "local-conf");
