@@ -12,31 +12,28 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.meteor.execution;
+package eu.stratosphere.sopremo.execution;
 
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.io.AbstractID;
 
 /**
- * A general purpose interface for everything that executes meteor scripts synchronically and asynchronically.
- * 
  * @author Arvid Heise
  */
-public interface MeteorExecutor extends VersionedProtocol {
+public class SopremoID extends AbstractID {
 	/**
-	 * Executes the query specified in the {@link ExecutionRequest}.
-	 * 
-	 * @param request
-	 *        the request with the query
-	 * @return the {@link ExecutionResponse}
+	 * Initializes SopremoID.
 	 */
-	public ExecutionResponse execute(ExecutionRequest request);
+	public SopremoID() {
+		super();
+	}
 
 	/**
-	 * Queries the status of the given job.
+	 * Initializes SopremoID.
 	 * 
-	 * @param jobId
-	 *        the job id
-	 * @return the {@link ExecutionResponse} with the status
+	 * @param bytes
 	 */
-	public ExecutionResponse getStatus(MeteorID jobId);
+	public SopremoID(byte[] bytes) {
+		super(bytes);
+	}
+
 }

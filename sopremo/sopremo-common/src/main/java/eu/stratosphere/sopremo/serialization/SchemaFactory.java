@@ -14,12 +14,13 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 
 /**
  * @author Arvid Heise
  */
-public interface SchemaFactory {
+public interface SchemaFactory extends ISerializableSopremoType {
 
 	/**
 	 * This method takes keyExpressions in form of EvaluationExpressions and tries to give back a matching

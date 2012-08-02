@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.meteor.execution;
+package eu.stratosphere.sopremo.execution;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -21,54 +21,38 @@ import java.io.IOException;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 
 /**
- * A response from a {@link MeteorExecutor} that reflects the status of a job.
+ * A response from a {@link SopremoExecutionProtocol} that reflects the state of a job.
  * 
  * @author Arvid Heise
  */
 public class ExecutionResponse implements IOReadableWritable {
 
-	public static enum ExecutionStatus {
-		FINISHED, ERROR, RUNNING, ENQUEUED;
-	}
-
-	private ExecutionStatus status;
+	private ExecutionState state;
 
 	private String details;
-	
-	private MeteorID jobId;
+
+	private SopremoID jobId;
 
 	/**
-	 * Initializes ExecutionResponse with the given job id, status, and response.
+	 * Initializes ExecutionResponse with the given job id, state, and response.
 	 * 
 	 * @param jobId
 	 *        the id of the jbo
-	 * @param status
-	 *        the current status
+	 * @param state
+	 *        the current state
 	 * @param response
 	 *        a detailed response (optional)
 	 */
-	public ExecutionResponse(MeteorID jobId, ExecutionStatus status, String response) {
+	public ExecutionResponse(SopremoID jobId, ExecutionState state, String response) {
 		this.jobId = jobId;
-		this.status = status;
+		this.state = state;
 		this.details = response;
 	}
 
 	/**
-	 * Returns the status.
-	 * 
-	 * @return the status
+	 * Needed for deserialization.
 	 */
-	public ExecutionStatus getStatus() {
-		return this.status;
-	}
-
-	/**
-	 * Returns the jobId.
-	 * 
-	 * @return the jobId
-	 */
-	public MeteorID getJobId() {
-		return this.jobId;
+	public ExecutionResponse() {
 	}
 
 	/**
@@ -80,15 +64,33 @@ public class ExecutionResponse implements IOReadableWritable {
 		return this.details;
 	}
 
+	/**
+	 * Returns the jobId.
+	 * 
+	 * @return the jobId
+	 */
+	public SopremoID getJobId() {
+		return this.jobId;
+	}
+
+	/**
+	 * Returns the state.
+	 * 
+	 * @return the state
+	 */
+	public ExecutionState getState() {
+		return this.state;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
 	public void read(DataInput in) throws IOException {
-		this.jobId = new MeteorID();
+		this.jobId = new SopremoID();
 		this.jobId.read(in);
-		this.status = ExecutionStatus.values()[in.readInt()];
+		this.state = ExecutionState.values()[in.readInt()];
 		this.details = in.readUTF();
 	}
 
@@ -99,7 +101,11 @@ public class ExecutionResponse implements IOReadableWritable {
 	@Override
 	public void write(DataOutput out) throws IOException {
 		this.jobId.write(out);
-		out.writeInt(this.status.ordinal());
+		out.writeInt(this.state.ordinal());
 		out.writeUTF(this.details);
+	}
+
+	public static enum ExecutionState {
+		FINISHED, ERROR, RUNNING, ENQUEUED;
 	}
 }

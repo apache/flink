@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.operator.JsonStream;
 import eu.stratosphere.sopremo.operator.Operator;
 import eu.stratosphere.sopremo.packages.DefaultConstantRegistry;
 import eu.stratosphere.sopremo.packages.DefaultFunctionRegistry;
@@ -64,7 +65,8 @@ public class EvaluationContext extends AbstractSopremoType implements ISerializa
 	}
 
 	public void pushOperator(final Operator<?> e) {
-		this.operatorStack.push(e);
+		// reset inputs to avoid serialization
+		this.operatorStack.push(e.clone().withInputs(new JsonStream[e.getMinInputs()]));
 	}
 
 	public Operator<?> popOperator() {

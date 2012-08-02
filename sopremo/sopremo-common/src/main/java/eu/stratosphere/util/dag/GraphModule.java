@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.util.dag;
 
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,7 +35,12 @@ import eu.stratosphere.util.IdentitySet;
  *        the type of all output nodes
  */
 public abstract class GraphModule<Node, InputNode extends Node, OutputNode extends Node> implements
-		SubGraph<Node, InputNode, OutputNode> {
+		SubGraph<Node, InputNode, OutputNode>, Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -8802006043539156002L;
+
 	/**
 	 * The outputs of the module.
 	 */

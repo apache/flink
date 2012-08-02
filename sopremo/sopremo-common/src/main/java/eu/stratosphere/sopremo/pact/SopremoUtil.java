@@ -520,4 +520,36 @@ public class SopremoUtil {
 		}
 	}
 
+	/**
+	 * Deserializes an {@link Serializable} from a {@link DataInput}.<br>
+	 * Please note that this method is not very efficient.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T extends Serializable> T deserializeObject(DataInput in, @SuppressWarnings("unused") Class<T> clazz)
+			throws IOException {
+		byte[] buffer = new byte[in.readInt()];
+		in.readFully(buffer);
+
+		final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(buffer));
+		try {
+			return (T) ois.readObject();
+		} catch (ClassNotFoundException e) {
+			throw new IllegalStateException("Cannot deserialize the object", e);
+		}
+	}
+
+	/**
+	 * Serializes an {@link Serializable} to a {@link DataOutput}.<br>
+	 * Please note that this method is not very efficient.
+	 */
+	public static void serializeObject(DataOutput out, Serializable serializable) throws IOException {
+		final ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
+		final ObjectOutputStream oos = new ObjectOutputStream(byteOutStream);
+		oos.writeObject(serializable);
+		oos.close();
+		final byte[] byteArray = byteOutStream.toByteArray();
+		out.writeInt(byteArray.length);
+		out.write(byteArray);
+	}
+
 }

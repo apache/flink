@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -70,7 +71,8 @@ public abstract class SopremoTest<T> {
 			.suppress(Warning.NONFINAL_FIELDS)
 			.withPrefabValues(BitSet.class, new BitSet(), blackBitSet)
 			.withPrefabValues(List.class, redList, blackList)
-			.withPrefabValues(EvaluationExpression.class, new ConstantExpression("red"), new ConstantExpression("black"))
+			.withPrefabValues(EvaluationExpression.class, new ConstantExpression("red"),
+				new ConstantExpression("black"))
 			.withPrefabValues(Map.class, new HashMap<Object, Object>(), blackMap)
 			.usingGetClass();
 	}
@@ -127,6 +129,16 @@ public abstract class SopremoTest<T> {
 		final EqualsVerifier<T> equalVerifier = EqualsVerifier.forExamples(first, second, more);
 		this.initVerifier(equalVerifier);
 		equalVerifier.verify();
+	}
+
+	public static String createTemporaryFile(String prefix) {
+		try {
+			final File tempFile = File.createTempFile(prefix, ".json");
+			tempFile.deleteOnExit();
+			return tempFile.toURI().toString();
+		} catch (final IOException e) {
+			throw new IllegalStateException("Cannot create temporary file", e);
+		}
 	}
 
 	public static String getResourcePath(final String resource) {

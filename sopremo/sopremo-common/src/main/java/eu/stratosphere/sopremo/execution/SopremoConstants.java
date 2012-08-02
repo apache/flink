@@ -12,29 +12,29 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.meteor.execution;
+package eu.stratosphere.sopremo.execution;
 
 /**
  * @author Arvid Heise
  */
-public class MeteorConstants {
+public class SopremoConstants {
 
 	/**
 	 * The key for the config parameter defining the network address to connect to
-	 * for communication with the meteor server.
+	 * for communication with the sopremo server.
 	 */
-	public static final String METEOR_SERVER_IPC_ADDRESS_KEY = "meteor.rpc.address";
+	public static final String SOPREMO_SERVER_IPC_ADDRESS_KEY = "sopremo.rpc.address";
 
 	/**
 	 * The key for the config parameter defining the network port to connect to
-	 * for communication with the meteor server.
+	 * for communication with the sopremo server.
 	 */
-	public static final String METEOR_SERVER_IPC_PORT_KEY = "meteor.rpc.port";
-	
+	public static final String SOPREMO_SERVER_IPC_PORT_KEY = "sopremo.rpc.port";
+
 	/**
-	 * The default network port to connect to for communication with the meteor server.
+	 * The default network port to connect to for communication with the sopremo server.
 	 */
-	public static final int DEFAULT_METEOR_SERVER_IPC_PORT = 6201;
-	
-	public static final String METEOR_SERVER_HANDLER_COUNT_KEY = "meteor.rpc.numhandler";
+	public static final int DEFAULT_SOPREMO_SERVER_IPC_PORT = 6201;
+
+	public static final String SOPREMO_SERVER_HANDLER_COUNT_KEY = "sopremo.rpc.numhandler";
 }

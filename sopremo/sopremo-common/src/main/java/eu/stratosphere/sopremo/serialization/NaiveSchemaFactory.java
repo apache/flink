@@ -73,4 +73,12 @@ public class NaiveSchemaFactory implements SchemaFactory {
 		}
 		return new GeneralSchema(mappings);
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.ISopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append("naive schema");
+	}
 }

@@ -768,7 +768,7 @@ public class SopremoTestPlan {
 		@Override
 		public PactModule asPactModule(final EvaluationContext context) {
 			final PactModule pactModule = new PactModule(this.toString(), 1, 0);
-			final FileDataSink contract = TestPlan.createDefaultSink(this.getOutputName());
+			final FileDataSink contract = TestPlan.createDefaultSink(this.getOutputPath());
 			contract.setInput(pactModule.getInput(0));
 			pactModule.addInternalOutput(contract);
 			SopremoUtil.serialize(contract.getParameters(), SopremoUtil.CONTEXT, context);

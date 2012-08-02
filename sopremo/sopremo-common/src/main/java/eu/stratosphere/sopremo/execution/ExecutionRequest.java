@@ -12,13 +12,15 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.meteor.execution;
+package eu.stratosphere.sopremo.execution;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
  * Represents a request to a {@link MeteorExecutor} that encapsulates the query and optional settings.
@@ -26,7 +28,7 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  * @author Arvid Heise
  */
 public class ExecutionRequest implements IOReadableWritable {
-	private String query;
+	private SopremoPlan query;
 	
 	private ExecutionMode mode = ExecutionMode.RUN;
 
@@ -36,8 +38,14 @@ public class ExecutionRequest implements IOReadableWritable {
 	 * @param query
 	 *        the query to execute
 	 */
-	public ExecutionRequest(String query) {
+	public ExecutionRequest(SopremoPlan query) {
 		this.query = query;
+	}
+	
+	/**
+	 * Needed for deserialization.
+	 */
+	public ExecutionRequest() {
 	}
 
 	public ExecutionMode getMode() {
@@ -49,7 +57,7 @@ public class ExecutionRequest implements IOReadableWritable {
 	 * 
 	 * @return the query
 	 */
-	public String getQuery() {
+	public SopremoPlan getQuery() {
 		return this.query;
 	}
 
@@ -59,7 +67,7 @@ public class ExecutionRequest implements IOReadableWritable {
 	 */
 	@Override
 	public void read(DataInput in) throws IOException {
-		this.query = in.readUTF();
+		this.query = SopremoUtil.deserializeObject(in, SopremoPlan.class);
 		this.mode = ExecutionMode.values()[in.readInt()];
 	}
 
@@ -76,12 +84,12 @@ public class ExecutionRequest implements IOReadableWritable {
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
-		out.writeUTF(this.query);
+		SopremoUtil.serializeObject(out, this.query);
 		out.writeInt(this.mode.ordinal());
 	}
 
 	public enum ExecutionMode {
-		RUN, RUN_WITH_STATISTICS, GENERATE_PLAN;
+		RUN, RUN_WITH_STATISTICS;
 	}
 
 }

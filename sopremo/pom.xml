@@ -91,5 +91,7 @@
         <module>sopremo-common</module>
         <module>sopremo-base</module>
         <module>sopremo-query</module>
+        <module>sopremo-client</module>
+        <module>sopremo-server</module>
     </modules>
 </project>

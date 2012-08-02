@@ -22,7 +22,7 @@ public class Sink extends ElementaryOperator<Sink> {
 	 */
 	private static final long serialVersionUID = -8917574029078139433L;
 
-	private final String outputName;
+	private String outputPath;
 
 	private Class<? extends FileOutputFormat> outputFormat;
 
@@ -31,19 +31,19 @@ public class Sink extends ElementaryOperator<Sink> {
 	 * 
 	 * @param outputFormat
 	 *        the FileOutputFormat that should be used
-	 * @param outputName
-	 *        the name of this Sink
+	 * @param outputPath
+	 *        the path of this Sink
 	 */
-	public Sink(final Class<? extends FileOutputFormat> outputFormat, final String outputName) {
+	public Sink(final Class<? extends FileOutputFormat> outputFormat, final String outputPath) {
 		this.outputFormat = outputFormat;
-		this.outputName = outputName;
+		this.outputPath = outputPath;
 	}
 
 	/**
 	 * Initializes a Sink with the given name. This Sink uses {@link Sink#Sink(Class, String)} with the given name and
 	 * a {@link JsonOutputFormat} to write the data.
 	 * 
-	 * @param outputName
+	 * @param outputPath
 	 *        the name of this Sink
 	 */
 	public Sink(final String outputName) {
@@ -87,7 +87,7 @@ public class Sink extends ElementaryOperator<Sink> {
 	@Override
 	public PactModule asPactModule(final EvaluationContext context) {
 		final PactModule pactModule = new PactModule(this.toString(), 1, 0);
-		final FileDataSink contract = new FileDataSink(this.outputFormat, this.outputName, this.outputName);
+		final FileDataSink contract = new FileDataSink(this.outputFormat, this.outputPath, this.outputPath);
 		contract.setInput(pactModule.getInput(0));
 		SopremoUtil.serialize(contract.getParameters(), SopremoUtil.CONTEXT, context);
 		// if(this.outputFormat == JsonOutputFormat.class)
@@ -110,13 +110,26 @@ public class Sink extends ElementaryOperator<Sink> {
 	 * 
 	 * @return the name
 	 */
-	public String getOutputName() {
-		return this.outputName;
+	public String getOutputPath() {
+		return this.outputPath;
+	}
+
+	/**
+	 * Sets the outputPath to the specified value.
+	 * 
+	 * @param outputPath
+	 *        the outputPath to set
+	 */
+	public void setOutputPath(String outputPath) {
+		if (outputPath == null)
+			throw new NullPointerException("outputPath must not be null");
+
+		this.outputPath = outputPath;
 	}
 
 	@Override
 	public String toString() {
-		return "Sink [" + this.outputName + "]";
+		return "Sink [" + this.outputPath + "]";
 	}
 
 }

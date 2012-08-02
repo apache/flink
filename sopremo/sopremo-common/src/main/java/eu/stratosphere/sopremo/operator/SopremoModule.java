@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.io.Source;
 import eu.stratosphere.util.dag.GraphModule;
@@ -21,7 +22,12 @@ import eu.stratosphere.util.dag.OneTimeTraverser;
  * 
  * @author Arvid Heise
  */
-public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
+public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> implements ISerializableSopremoType {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 5038229456879714912L;
 
 	/**
 	 * Initializes a SopremoModule having the given name, number of inputs, and number of outputs.
@@ -55,6 +61,15 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> {
 		final GraphPrinter<Operator<?>> graphPrinter = new GraphPrinter<Operator<?>>();
 		graphPrinter.setWidth(40);
 		return graphPrinter.toString(this.getAllOutputs(), OperatorNavigator.INSTANCE);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.ISopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append(toString());
 	}
 
 	/**
