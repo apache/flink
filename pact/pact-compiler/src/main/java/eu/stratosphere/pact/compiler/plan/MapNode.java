@@ -24,6 +24,9 @@ import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.NoneSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -132,19 +135,19 @@ public class MapNode extends SingleInputNode {
 	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans, CostEstimator estimator, List<OptimizerNode> outputPlans) {
 		
 		// we have to check if all input ShipStrategies are the same or at least compatible
-		ShipStrategy ss = ShipStrategy.NONE;
+		ShipStrategy ss = new NoneSS();
 
 		// check hint shipping strategy
 		ShipStrategy hintSS = this.inConn.getShipStrategy();
-		if(hintSS == ShipStrategy.BROADCAST || hintSS == ShipStrategy.SFR)
+		if(hintSS.type() == ShipStrategyType.BROADCAST || hintSS.type() == ShipStrategyType.SFR)
 			// invalid strategy: we do not produce an alternative node
 			return;
 		else
 			ss = hintSS;
 	
 		// if no hint for a strategy was provided, we use the default
-		if(ss == ShipStrategy.NONE)
-			ss = ShipStrategy.FORWARD;
+		if(ss.type() == ShipStrategyType.NONE)
+			ss = new ForwardSS();
 		
 		for(OptimizerNode subPlan : altSubPlans) {
 		

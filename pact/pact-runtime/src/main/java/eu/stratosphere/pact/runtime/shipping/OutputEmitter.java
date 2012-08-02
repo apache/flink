@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.shipping;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 /**
  * @author Erik Nijkamp
@@ -28,7 +29,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 {
 	private static final byte[] DEFAULT_SALT = new byte[] { 17, 31, 47, 51, 83, 1 };
 	
-	private final ShipStrategy strategy;		// the shipping strategy used by this output emitter
+	private final ShipStrategyType strategy;		// the shipping strategy used by this output emitter
 	
 	private int[] channels;						// the reused array defining target channels
 	
@@ -47,7 +48,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 */
 	public OutputEmitter()
 	{
-		this(ShipStrategy.NONE);
+		this(ShipStrategyType.NONE);
 	}
 
 	/**
@@ -55,7 +56,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * 
 	 * @param strategy The distribution strategy to be used.
 	 */
-	public OutputEmitter(ShipStrategy strategy)
+	public OutputEmitter(ShipStrategyType strategy)
 	{
 		this(strategy, null);
 	}	
@@ -67,7 +68,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * @param strategy The distribution strategy to be used.
 	 * @param comparator The comparator used to hash / compare the records.
 	 */
-	public OutputEmitter(ShipStrategy strategy, TypeComparator<T> comparator)
+	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator)
 	{
 		this(strategy, comparator, DEFAULT_SALT);
 	}
@@ -80,7 +81,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * @param comparator The comparator used to hash / compare the records.
 	 * @param salt The salt to use to randomize the hashes.
 	 */
-	public OutputEmitter(ShipStrategy strategy, TypeComparator<T> comparator, byte[] salt)
+	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, byte[] salt)
 	{
 		if (strategy == null | salt == null) { 
 			throw new NullPointerException();
