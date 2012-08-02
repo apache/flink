@@ -69,7 +69,8 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   }
 
   protected String identifier() {
-    return getEnvironment().getJobID() + "#" + getEnvironment().getIndexInSubtaskGroup();
+    return getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
+        getEnvironment().getCurrentNumberOfSubtasks() + ")";
   }
 
   protected void reinstantiateDriver() {
@@ -122,59 +123,67 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     if (wrappedInputs[inputGateIndex] != null) {
 
       if (getTaskConfig().isCachedInputGate(inputGateIndex)) {
-        CachingMutableObjectIterator<X> cachingInput = (CachingMutableObjectIterator<X>) wrappedInputs[inputGateIndex];
-        try {
-          cachingInput.enableReading();
-        } catch (IOException e) {
-          throw new IllegalStateException("Unable to enable reading on cached input [" + inputGateIndex + "]");
-        }
+        enableReadingOnCachingIterator(inputGateIndex);
       }
 
       return (MutableObjectIterator<X>) wrappedInputs[inputGateIndex];
     }
 
-    String name = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
-        getEnvironment().getCurrentNumberOfSubtasks() + ")";
-
     if (getTaskConfig().isCachedInputGate(inputGateIndex)) {
-
-      if (log.isInfoEnabled()) {
-        log.info(formatLogString("wrapping input [" + inputGateIndex + "] with a caching iterator"));
-      }
-
-      SpillingBuffer spillingBuffer = reserveMemoryForCaching(getTaskConfig().getInputGateCacheMemoryFraction());
-      //TODO type safety
-      MutableObjectIterator<X> cachedInput = new CachingMutableObjectIterator<X>((MutableObjectIterator<X>)
-          super.getInput(inputGateIndex), spillingBuffer, (TypeSerializer<X>) getInputSerializer(inputGateIndex), name);
-
-      wrappedInputs[inputGateIndex] = cachedInput;
-
-      return cachedInput;
+      return wrapWithCachingIterator(inputGateIndex);
     }
 
     if (getTaskConfig().isIterativeInputGate(inputGateIndex)) {
-
-      int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex);
-
-      //TODO type safety
-      InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
-          (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, name, this);
-
-      MutableReader<Record> inputReader = getReader(inputGateIndex);
-      inputReader.subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
-      inputReader.subscribeToEvent(interruptingIterator, TerminationEvent.class);
-
-      if (log.isInfoEnabled()) {
-        log.info(formatLogString("wrapping input [" + inputGateIndex + "] with an interrupting iterator that waits " +
-            "for [" + numberOfEventsUntilInterrupt + "] event(s)"));
-      }
-
-      wrappedInputs[inputGateIndex] = interruptingIterator;
-
-      return interruptingIterator;
+      return wrapWithInterruptingIterator(inputGateIndex);
     }
 
     return super.getInput(inputGateIndex);
+  }
+
+  private <X> MutableObjectIterator<X> wrapWithCachingIterator(int inputGateIndex) {
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("wrapping input [" + inputGateIndex + "] with a caching iterator"));
+    }
+
+    SpillingBuffer spillingBuffer = reserveMemoryForCaching(getTaskConfig().getInputGateCacheMemoryFraction());
+    //TODO type safety
+    CachingMutableObjectIterator<X> wrappedIterator = new CachingMutableObjectIterator<X>((MutableObjectIterator<X>)
+        super.getInput(inputGateIndex), spillingBuffer, (TypeSerializer<X>) getInputSerializer(inputGateIndex),
+        identifier());
+
+    wrappedInputs[inputGateIndex] = wrappedIterator;
+
+    return wrappedIterator;
+  }
+
+  private void enableReadingOnCachingIterator(int inputGateIndex) {
+    CachingMutableObjectIterator<?> cachingInput = (CachingMutableObjectIterator<?>) wrappedInputs[inputGateIndex];
+    try {
+      cachingInput.enableReading();
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to enable reading on cached input [" + inputGateIndex + "]", e);
+    }
+  }
+
+  private <X> MutableObjectIterator<X> wrapWithInterruptingIterator(int inputGateIndex) {
+    int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(inputGateIndex);
+
+    //TODO type safety
+    InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
+        (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, identifier(), this);
+
+    MutableReader<Record> inputReader = getReader(inputGateIndex);
+    inputReader.subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
+    inputReader.subscribeToEvent(interruptingIterator, TerminationEvent.class);
+
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("wrapping input [" + inputGateIndex + "] with an interrupting iterator that waits " +
+          "for [" + numberOfEventsUntilInterrupt + "] event(s)"));
+    }
+
+    wrappedInputs[inputGateIndex] = interruptingIterator;
+
+    return interruptingIterator;
   }
 
   // TODO check whether flush could be removed
