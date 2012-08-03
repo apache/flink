@@ -18,17 +18,12 @@
 	<dependencies>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-query</artifactId>
+			<artifactId>sopremo-client</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>meteor-meteor</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-base</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>

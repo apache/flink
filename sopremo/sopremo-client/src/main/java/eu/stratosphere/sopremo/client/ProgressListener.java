@@ -21,5 +21,5 @@ import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
  *
  */
 public interface ProgressListener {
-	public void progressUpdate(ExecutionState status, String detail);
+	public void progressUpdate(ExecutionState state, String detail);
 }

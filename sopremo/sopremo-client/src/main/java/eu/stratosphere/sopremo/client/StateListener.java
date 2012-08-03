@@ -31,11 +31,11 @@ public abstract class StateListener implements ProgressListener {
 	@Override
 	public void progressUpdate(ExecutionState status, String detail) {
 		if (this.lastState != status) {
-			statusChanged(this.lastState = status, detail);
+			stateChanged(this.lastState = status, detail);
 		}
 	}
 
-	public abstract void statusChanged(ExecutionState executionStatus, String detail);
+	public abstract void stateChanged(ExecutionState executionState, String detail);
 
 	/**
 	 * Returns the lastState.

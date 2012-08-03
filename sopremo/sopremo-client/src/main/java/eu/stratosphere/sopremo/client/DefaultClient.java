@@ -41,7 +41,7 @@ public class DefaultClient implements Closeable {
 	private InetSocketAddress serverAddress;
 
 	private int updateTime = 5000;
-	
+
 	private ExecutionMode executionMode = ExecutionMode.RUN;
 
 	/**
@@ -57,7 +57,7 @@ public class DefaultClient implements Closeable {
 	public DefaultClient(Configuration configuration) {
 		this.configuration = configuration;
 	}
-	
+
 	/**
 	 * Returns the executionMode.
 	 * 
@@ -66,11 +66,12 @@ public class DefaultClient implements Closeable {
 	public ExecutionMode getExecutionMode() {
 		return this.executionMode;
 	}
-	
+
 	/**
 	 * Sets the executionMode to the specified value.
-	 *
-	 * @param executionMode the executionMode to set
+	 * 
+	 * @param executionMode
+	 *        the executionMode to set
 	 */
 	public void setExecutionMode(ExecutionMode executionMode) {
 		if (executionMode == null)
@@ -159,14 +160,15 @@ public class DefaultClient implements Closeable {
 		return true;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see java.io.Closeable#close()
 	 */
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		RPC.stopProxy(this.executor);
 	}
-	
+
 	protected void sleepSafely(int updateTime) {
 		try {
 			Thread.sleep(updateTime);
@@ -191,7 +193,8 @@ public class DefaultClient implements Closeable {
 
 		try {
 			this.executor =
-				(SopremoExecutionProtocol) RPC.getProxy(SopremoExecutionProtocol.class, serverAddress, NetUtils.getSocketFactory());
+				(SopremoExecutionProtocol) RPC.getProxy(SopremoExecutionProtocol.class, serverAddress,
+					NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			this.dealWithError(progressListener, e, "Error while connecting to the server");
 		}

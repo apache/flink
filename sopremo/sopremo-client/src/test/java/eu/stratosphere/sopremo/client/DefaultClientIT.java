@@ -52,7 +52,7 @@ public class DefaultClientIT {
 		private String lastDetail;
 
 		@Override
-		public void statusChanged(ExecutionState executionStatus, String detail) {
+		public void stateChanged(ExecutionState executionStatus, String detail) {
 			this.states.add(executionStatus);
 			this.lastDetail = detail;
 			System.out.println(detail);
