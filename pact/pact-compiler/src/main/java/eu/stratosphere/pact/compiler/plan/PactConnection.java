@@ -20,13 +20,16 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.pact.common.contract.AbstractPact;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.NoneSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionLocalHashSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 /**
  * A connection between to PACTs. Represents a channel together with a data shipping
@@ -59,7 +62,7 @@ public class PactConnection {
 	
 	private int replicationFactor; // the factor by which the data that is shipped over this connection is replicated
 	
-	private int[] scramblePartitionedFields = null; // The fields which are used for partitioning, this is only used if the partitioned fields
+	// private int[] scramblePartitionedFields = null; // The fields which are used for partitioning, this is only used if the partitioned fields
 									 // are not the key fields
 
 
@@ -73,7 +76,7 @@ public class PactConnection {
 	 *        The target node.
 	 */
 	public PactConnection(OptimizerNode source, OptimizerNode target) {
-		this(source, target, ShipStrategy.NONE);
+		this(source, target, new NoneSS());
 	}
 
 	/**
@@ -115,7 +118,7 @@ public class PactConnection {
 		
 		// set replication factor
 		// TODO: replication factor must be propagated until resolved by PACT code (i.e. Match or Cross)
-		switch (shipStrategy) {
+		switch (shipStrategy.type()) {
 			case BROADCAST:
 				this.replicationFactor = target.getDegreeOfParallelism();
 				break;
@@ -148,9 +151,6 @@ public class PactConnection {
 		this.tempMode = template.tempMode;
 
 		this.interestingProps = template.interestingProps;
-		if (template.scramblePartitionedFields != null) {
-			this.scramblePartitionedFields = template.scramblePartitionedFields.clone();	
-		}
 	}
 
 	/**
@@ -188,14 +188,14 @@ public class PactConnection {
 	 */
 	public void setShipStrategy(ShipStrategy strategy) {
 		// adjust the ship strategy to the interesting properties, if necessary
-		if (strategy == ShipStrategy.FORWARD && this.sourcePact.getDegreeOfParallelism() < this.targetPact.getDegreeOfParallelism()) {
+		if (strategy.type() == ShipStrategyType.FORWARD && this.sourcePact.getDegreeOfParallelism() < this.targetPact.getDegreeOfParallelism()) {
 			// check, whether we have an interesting property on partitioning. if so, make sure that we use a
 			// forward strategy that preserves that partitioning by locally routing the keys correctly
 			if (this.interestingProps != null) {
 				for (InterestingProperties props : this.interestingProps) {
 					PartitionProperty pp = props.getGlobalProperties().getPartitioning();
 					if (pp == PartitionProperty.HASH_PARTITIONED || pp == PartitionProperty.ANY) {
-						strategy = ShipStrategy.PARTITION_LOCAL_HASH;
+						strategy = new PartitionLocalHashSS(props.getGlobalProperties().getPartitionedFields());
 						break;
 					}
 					else if (pp == PartitionProperty.RANGE_PARTITIONED) {
@@ -208,7 +208,7 @@ public class PactConnection {
 		
 		// set the replication factor of this connection
 		// TODO: replication factor must be propagated until resolved by PACT code (i.e. Match or Cross)
-		switch (strategy) {
+		switch (strategy.type()) {
 			case BROADCAST:
 				this.replicationFactor = this.targetPact.getDegreeOfParallelism();
 				break;
@@ -364,29 +364,17 @@ public class PactConnection {
 	 */
 	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, int targetInputNum, ShipStrategy shipMode) {
 		GlobalProperties gp = source.getGlobalPropertiesForParent(target);
-		
-		FieldList keyFields = null;
-		
-		// obtain key set
-		PactConnection conn = target.getIncomingConnections().get(targetInputNum);
-		if (conn.getScramblePartitionedFields() != null) {
-			// TODO get scrambled fields right!
-			throw new CompilerException("Scrambled Fields are not supported yet!");
-			//keyFields = conn.getScramblePartitionedFields();
-		} else if (target.getPactContract() instanceof AbstractPact<?>) {
-			keyFields = new FieldList(((AbstractPact<?>)target.getPactContract()).getKeyColumnNumbers(targetInputNum));
-		}
-		
-		switch (shipMode) {
+
+		switch (shipMode.type()) {
 		case BROADCAST:
 			gp.reset();
 			break;
 		case PARTITION_RANGE:
-			gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, keyFields);
+			gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, ((PartitionShipStrategy)shipMode).getPartitionFields());
 			gp.setOrdering(null);
 			break;
 		case PARTITION_HASH:
-			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, keyFields);
+			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, ((PartitionShipStrategy)shipMode).getPartitionFields());
 			gp.setOrdering(null);
 			break;
 		case FORWARD:
@@ -428,10 +416,10 @@ public class PactConnection {
 	public static LocalProperties getLocalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategy shipMode) {
 		LocalProperties lp = source.getLocalPropertiesForParent(target);
 
-		if (shipMode == null || shipMode == ShipStrategy.NONE) {
+		if (shipMode == null || shipMode.type() == ShipStrategyType.NONE) {
 			throw new CompilerException("Cannot determine properties if shipping strategy is not defined.");
 		}
-		else if (shipMode == ShipStrategy.FORWARD) {
+		else if (shipMode.type() == ShipStrategyType.FORWARD) {
 			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
 				// any order is destroyed by the random merging of the inputs
 				lp.setOrdering(null);
@@ -442,7 +430,10 @@ public class PactConnection {
 			lp.reset();
 		}
 		
-		if (lp.isGrouped() == false && shipMode != ShipStrategy.BROADCAST && shipMode != ShipStrategy.SFR) {
+		if (lp.isGrouped() == false && 
+				shipMode.type() != ShipStrategyType.BROADCAST && 
+				shipMode.type() != ShipStrategyType.SFR) {
+			
 			if (source.getUniqueFields().size() > 0) {
 				//TODO allow list of grouped fields, up to now only add the first one
 				lp.setGrouped(true, source.getUniqueFields().iterator().next());
@@ -451,12 +442,5 @@ public class PactConnection {
 
 		return lp;
 	}
-	
-	public int[] getScramblePartitionedFields() {
-		return scramblePartitionedFields;
-	}
 
-	public void setScramblePartitionedFields(int[] scramblePartitionedFields) {
-		this.scramblePartitionedFields = scramblePartitionedFields;
-	}
 }

@@ -25,7 +25,7 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -39,7 +39,7 @@ public class CombinerNode extends OptimizerNode {
 	public CombinerNode(ReduceContract reducer, OptimizerNode predecessor, float reducingFactor) {
 		super(reducer);
 
-		this.input = new PactConnection(predecessor, this, ShipStrategy.FORWARD);
+		this.input = new PactConnection(predecessor, this, new ForwardSS());
 		this.setLocalStrategy(LocalStrategy.COMBININGSORT);
 
 		this.globalProps = predecessor.globalProps;

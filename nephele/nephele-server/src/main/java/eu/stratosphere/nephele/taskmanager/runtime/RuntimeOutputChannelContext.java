@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.taskmanager.runtime;
 
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
@@ -76,5 +77,14 @@ public final class RuntimeOutputChannelContext extends AbstractOutputChannelCont
 	public ChannelType getType() {
 
 		return this.byteBufferedOutputChannel.getType();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	protected void processEventAsynchronously(final AbstractEvent event) {
+
+		this.byteBufferedOutputChannel.processEvent(event);
 	}
 }
