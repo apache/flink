@@ -21,9 +21,12 @@ import eu.stratosphere.pact.common.stubs.Collector;
 
 import java.io.IOException;
 
+/** {@link Collector} to write to a {@link DataOutputView} */
 public class DataOutputCollector<T> implements Collector<T> {
 
+  /** {@link DataOutputView} to write to */
   private final DataOutputView outputView;
+  /** serializer to use */
   private final TypeSerializer<T> typeSerializer;
 
   public DataOutputCollector(DataOutputView outputView, TypeSerializer<T> typeSerializer) {

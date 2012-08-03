@@ -91,7 +91,7 @@ public class PageRank {
 
     JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-    syncConfig.setNumberOfIterations(15);
+    syncConfig.setNumberOfIterations(25);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());

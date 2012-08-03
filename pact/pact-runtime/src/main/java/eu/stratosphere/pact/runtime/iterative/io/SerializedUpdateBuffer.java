@@ -109,9 +109,6 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
     readEnds = Lists.newArrayList();
   }
 
-  /* (non-Javadoc)
-   * @see eu.stratosphere.pact.runtime.io.AbstractPagedOutputViewV2#nextSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment, int)
-   */
   @Override
   protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
     current.putInt(0, positionInCurrent);
@@ -204,8 +201,8 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
         // create the read end reading one less buffer, because the first buffer is already read back
         readEnd = new ReadEnd(firstSeg, emptyBuffers, fullBuffers, reader, readSegments, segmentSize,
             numBuffersSpilled - 1);
-      } catch (InterruptedException iex) {
-        throw new RuntimeException("SerializedUpdateBuffer was interrupted while reclaiming memory by spilling.");
+      } catch (InterruptedException e) {
+        throw new RuntimeException("SerializedUpdateBuffer was interrupted while reclaiming memory by spilling.", e);
       }
     }
 
@@ -215,8 +212,8 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
     numBuffersSpilled = 0;
     try {
       seekOutput(emptyBuffers.take(), HEADER_LENGTH);
-    } catch (InterruptedException iex) {
-      throw new RuntimeException("SerializedUpdateBuffer was interrupted while reclaiming memory by spilling.");
+    } catch (InterruptedException e) {
+      throw new RuntimeException("SerializedUpdateBuffer was interrupted while reclaiming memory by spilling.", e);
     }
 
     // register this read end
@@ -247,11 +244,11 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
       }
 
       // release all empty segments
-      while (freeMem.size() < totalNumBuffers)
+      while (freeMem.size() < totalNumBuffers) {
         freeMem.add(emptyBuffers.take());
-    }
-    catch (InterruptedException iex) {
-      throw new RuntimeException("Retrieving memory back from asynchronous I/O was interrupted.");
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException("Retrieving memory back from asynchronous I/O was interrupted.", e);
     }
 
     return freeMem;
@@ -274,8 +271,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
     private ReadEnd(MemorySegment firstMemSegment, LinkedBlockingQueue<MemorySegment> emptyBufferTarget,
         ArrayDeque<MemorySegment> fullBufferSource, BlockChannelReader spilledBufferSource,
-        ArrayList<MemorySegment> emptyBuffers, int segmentSize, int numBuffersSpilled)
-    throws IOException {
+        ArrayList<MemorySegment> emptyBuffers, int segmentSize, int numBuffersSpilled) throws IOException {
       super(firstMemSegment, firstMemSegment.getInt(0), HEADER_LENGTH);
 
       this.emptyBufferTarget = emptyBufferTarget;
@@ -293,9 +289,6 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
       }
     }
 
-    /* (non-Javadoc)
-     * @see eu.stratosphere.pact.runtime.io.AbstractPagedInputViewV2#nextSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
-     */
     @Override
     protected MemorySegment nextSegment(MemorySegment current) throws IOException {
       // use the buffer to send the next request
@@ -328,9 +321,6 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
       }
     }
 
-    /* (non-Javadoc)
-     * @see eu.stratosphere.pact.runtime.io.AbstractPagedInputViewV2#getLimitForSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment)
-     */
     @Override
     protected int getLimitForSegment(MemorySegment segment) {
       return segment.getInt(0);
