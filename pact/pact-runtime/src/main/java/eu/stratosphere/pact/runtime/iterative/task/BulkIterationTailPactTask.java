@@ -37,7 +37,7 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
   private BlockingBackChannel retrieveBackChannel() throws Exception {
     // blocking call to retrieve the backchannel from the iteration head
     Broker<BlockingBackChannel> broker = BlockingBackChannelBroker.instance();
-    return broker.get(identifier());
+    return broker.get(brokerKey());
   }
 
   @Override

@@ -88,7 +88,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
 
     // hand the backchannel over to the iteration tail
     Broker<BlockingBackChannel> broker = BlockingBackChannelBroker.instance();
-    broker.handIn(identifier(), backChannel);
+    broker.handIn(brokerKey(), backChannel);
 
     return backChannel;
   }

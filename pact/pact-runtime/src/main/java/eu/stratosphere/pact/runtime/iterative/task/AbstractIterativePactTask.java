@@ -68,6 +68,10 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     numIterations++;
   }
 
+  protected String brokerKey() {
+    return getEnvironment().getJobID() + "#" + getEnvironment().getIndexInSubtaskGroup();
+  }
+
   protected String identifier() {
     return getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
         getEnvironment().getCurrentNumberOfSubtasks() + ")";
