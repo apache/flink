@@ -14,9 +14,17 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.server;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.fs.FileSystem;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -26,6 +34,8 @@ import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
+import eu.stratosphere.sopremo.io.Sink;
+import eu.stratosphere.sopremo.operator.Operator;
 import eu.stratosphere.sopremo.operator.SopremoPlan;
 
 /**
@@ -35,6 +45,11 @@ public class SopremoExecutionThread implements Runnable {
 	private SopremoJobInfo jobInfo;
 
 	private final InetSocketAddress jobManagerAddress;
+
+	/**
+	 * The logging object used for debugging.
+	 */
+	private static final Log LOG = LogFactory.getLog(JobClient.class);
 
 	public SopremoExecutionThread(SopremoJobInfo environment, InetSocketAddress jobManagerAddress) {
 		this.jobInfo = environment;
@@ -54,12 +69,13 @@ public class SopremoExecutionThread implements Runnable {
 		try {
 			switch (this.jobInfo.getInitialRequest().getMode()) {
 			case RUN:
-				if (executePlan(plan))
+				if (executePlan(plan) != -1)
 					this.jobInfo.setStatusAndDetail(ExecutionState.FINISHED, "");
 				break;
 			case RUN_WITH_STATISTICS:
-				if (executePlan(plan))
-					gatherStatistics(plan);
+				final long runtime = executePlan(plan);
+				if (runtime != -1)
+					gatherStatistics(plan, runtime);
 				break;
 			}
 		} catch (Throwable ex) {
@@ -71,11 +87,23 @@ public class SopremoExecutionThread implements Runnable {
 	/**
 	 * @param plan
 	 */
-	private void gatherStatistics(SopremoPlan plan) {
-		this.jobInfo.setStatusAndDetail(ExecutionState.FINISHED, "with nice statistics");
+	private void gatherStatistics(SopremoPlan plan, long runtime) {
+		StringBuilder statistics = new StringBuilder();
+		statistics.append("Executed in ").append(runtime).append(" ms");
+		for (Operator<?> op : plan.getContainedOperators())
+			if (op instanceof Sink) {
+				try {
+					final String path = ((Sink) op).getOutputPath();
+					final long length = FileSystem.get(new URI(path)).getFileStatus(new Path(path)).getLen();
+					statistics.append("\n").append(path).append(": ").append(length).append(" B");
+				} catch (Exception e) {
+					LOG.warn(StringUtils.stringifyException(e));
+				}
+			}
+		this.jobInfo.setStatusAndDetail(ExecutionState.FINISHED, statistics.toString());
 	}
 
-	private boolean executePlan(SopremoPlan plan) {
+	private long executePlan(SopremoPlan plan) {
 		final Plan pactPlan = plan.asPactPlan();
 
 		JobGraph jobGraph;
@@ -83,7 +111,7 @@ public class SopremoExecutionThread implements Runnable {
 			jobGraph = getJobGraph(pactPlan);
 		} catch (Exception e) {
 			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not generate job graph: " + e.getMessage());
-			return false;
+			return -1;
 		}
 
 		JobClient client;
@@ -91,20 +119,19 @@ public class SopremoExecutionThread implements Runnable {
 			client = new JobClient(jobGraph, this.jobInfo.getConfiguration(), this.jobManagerAddress);
 		} catch (Exception e) {
 			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not open job manager: " + e.getMessage());
-			return false;
+			return -1;
 		}
 
 		try {
 			this.jobInfo.setJobClient(client);
 			this.jobInfo.setStatusAndDetail(ExecutionState.RUNNING, "");
-			client.submitJobAndWait();
+			return client.submitJobAndWait();
 		} catch (Exception ex) {
 			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR,
 				"The job was not successfully submitted to the nephele job manager: "
 					+ StringUtils.stringifyException(ex));
-			return false;
+			return -1;
 		}
-		return true;
 	}
 
 	JobGraph getJobGraph(final Plan pactPlan) {

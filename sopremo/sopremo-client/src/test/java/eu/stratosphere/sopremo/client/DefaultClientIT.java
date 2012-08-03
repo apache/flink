@@ -26,6 +26,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.base.Selection;
 import eu.stratosphere.sopremo.execution.ExecutionResponse;
+import eu.stratosphere.sopremo.execution.ExecutionRequest.ExecutionMode;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
@@ -120,6 +121,22 @@ public class DefaultClientIT {
 		this.client.submit(plan, this.stateRecorder);
 		Assert.assertSame(ExecutionState.ENQUEUED, this.stateRecorder.getStates().getFirst());
 		Assert.assertSame(ExecutionState.FINISHED, this.stateRecorder.getStates().getLast());
+		Assert.assertEquals("", this.stateRecorder.getLastDetail());
+
+		this.testServer.checkContentsOf("output.json",
+			JsonUtil.createObjectNode("name", "Vince Wayne", "income", 32500, "mgr", false),
+			JsonUtil.createObjectNode("name", "Jane Dean", "income", 72000, "mgr", true));
+	}
+
+	@Test
+	public void testSuccessfulExecutionWithStatistics() throws IOException {
+		final SopremoPlan plan = createPlan("output.json");
+
+		this.client.setExecutionMode(ExecutionMode.RUN_WITH_STATISTICS);
+		this.client.submit(plan, this.stateRecorder);
+		Assert.assertSame(ExecutionState.ENQUEUED, this.stateRecorder.getStates().getFirst());
+		Assert.assertSame(ExecutionState.FINISHED, this.stateRecorder.getStates().getLast());
+		Assert.assertFalse("".equals(this.stateRecorder.getLastDetail()));
 
 		this.testServer.checkContentsOf("output.json",
 			JsonUtil.createObjectNode("name", "Vince Wayne", "income", 32500, "mgr", false),

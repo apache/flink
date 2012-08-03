@@ -23,6 +23,7 @@ import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionResponse;
+import eu.stratosphere.sopremo.execution.ExecutionRequest.ExecutionMode;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
 import eu.stratosphere.sopremo.execution.SopremoConstants;
 import eu.stratosphere.sopremo.execution.SopremoExecutionProtocol;
@@ -40,6 +41,8 @@ public class DefaultClient implements Closeable {
 	private InetSocketAddress serverAddress;
 
 	private int updateTime = 5000;
+	
+	private ExecutionMode executionMode = ExecutionMode.RUN;
 
 	/**
 	 * Initializes DefaultClient.
@@ -53,6 +56,27 @@ public class DefaultClient implements Closeable {
 	 */
 	public DefaultClient(Configuration configuration) {
 		this.configuration = configuration;
+	}
+	
+	/**
+	 * Returns the executionMode.
+	 * 
+	 * @return the executionMode
+	 */
+	public ExecutionMode getExecutionMode() {
+		return this.executionMode;
+	}
+	
+	/**
+	 * Sets the executionMode to the specified value.
+	 *
+	 * @param executionMode the executionMode to set
+	 */
+	public void setExecutionMode(ExecutionMode executionMode) {
+		if (executionMode == null)
+			throw new NullPointerException("executionMode must not be null");
+
+		this.executionMode = executionMode;
 	}
 
 	/**
@@ -176,6 +200,7 @@ public class DefaultClient implements Closeable {
 	private ExecutionResponse sendPlan(SopremoPlan query, ProgressListener progressListener) {
 		try {
 			ExecutionRequest request = new ExecutionRequest(query);
+			request.setMode(this.executionMode);
 			return this.executor.execute(request);
 		} catch (Exception e) {
 			this.dealWithError(progressListener, e, "Error while sending the query to the server");
