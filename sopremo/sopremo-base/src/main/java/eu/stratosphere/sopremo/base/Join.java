@@ -20,7 +20,6 @@ import eu.stratosphere.sopremo.expressions.BinaryBooleanExpression;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.io.Source;
@@ -133,7 +132,7 @@ public class Join extends CompositeOperator<Join> {
 		final IntIterator iterator = this.outerJoinSources.iterator();
 		for (int index = 0; iterator.hasNext(); index++) {
 			final int inputIndex = iterator.nextInt();
-			expressions[index] = new JsonStreamExpression(getInput(inputIndex), inputIndex);
+			expressions[index] = new InputSelection(inputIndex);
 		}
 		return new ArrayCreation(expressions);
 	}

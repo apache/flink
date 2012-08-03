@@ -12,7 +12,7 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class TwoSourceJoinTest extends SopremoTest<TwoSourceJoin> {
@@ -126,7 +126,7 @@ public class TwoSourceJoinTest extends SopremoTest<TwoSourceJoin> {
 		final BinaryBooleanExpression condition = new ComparativeExpression(leftTwoSourceJoinKey,
 			BinaryOperator.EQUAL, rightTwoSourceJoinKey);
 		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition).
-			withOuterJoinSources(new ArrayCreation(new JsonStreamExpression(0), new JsonStreamExpression(1)));
+			withOuterJoinSources(new ArrayCreation(new InputSelection(0), new InputSelection(1)));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -158,7 +158,7 @@ public class TwoSourceJoinTest extends SopremoTest<TwoSourceJoin> {
 		final BinaryBooleanExpression condition = new ComparativeExpression(leftTwoSourceJoinKey,
 			BinaryOperator.EQUAL, createPath("1", "userid"));
 		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition).
-			withOuterJoinSources(new JsonStreamExpression(0));
+			withOuterJoinSources(new InputSelection(0));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -188,7 +188,7 @@ public class TwoSourceJoinTest extends SopremoTest<TwoSourceJoin> {
 		final BinaryBooleanExpression condition = new ComparativeExpression(createPath("0", "id"),
 			BinaryOperator.EQUAL, rightTwoSourceJoinKey);
 		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition).
-			withOuterJoinSources(new JsonStreamExpression(1));
+			withOuterJoinSources(new InputSelection(1));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -271,7 +271,7 @@ public class TwoSourceJoinTest extends SopremoTest<TwoSourceJoin> {
 		final BinaryBooleanExpression condition = new ComparativeExpression(leftTwoSourceJoinKey,
 			BinaryOperator.EQUAL, rightTwoSourceJoinKey);
 		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition).
-			withOuterJoinSources(new ArrayCreation(new JsonStreamExpression(0), new JsonStreamExpression(1)));
+			withOuterJoinSources(new ArrayCreation(new InputSelection(0), new InputSelection(1)));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(1).
@@ -303,7 +303,7 @@ public class TwoSourceJoinTest extends SopremoTest<TwoSourceJoin> {
 		final BinaryBooleanExpression condition = new ComparativeExpression(leftTwoSourceJoinKey,
 			BinaryOperator.EQUAL, createPath("0", "userid"));
 		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition).
-			withOuterJoinSources(new JsonStreamExpression(1));
+			withOuterJoinSources(new InputSelection(1));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(1).
@@ -333,7 +333,7 @@ public class TwoSourceJoinTest extends SopremoTest<TwoSourceJoin> {
 		final BinaryBooleanExpression condition = new ComparativeExpression(createPath("1", "id"),
 			BinaryOperator.EQUAL, rightTwoSourceJoinKey);
 		final TwoSourceJoin join = new TwoSourceJoin().withCondition(condition).
-			withOuterJoinSources(new JsonStreamExpression(0));
+			withOuterJoinSources(new InputSelection(0));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(1).
