@@ -100,16 +100,6 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 		this.protocol = this.cluster.getFilesystemProvider().getURIPrefix();
 	}
 
-	public InetSocketAddress getServerAddress() {
-		return server.getServerAddress();
-	}
-
-	private void fail(Exception e, final String message) throws AssertionFailedError {
-		final AssertionFailedError assertionFailedError = new AssertionFailedError(message);
-		assertionFailedError.initCause(e);
-		throw assertionFailedError;
-	}
-
 	public void checkContentsOf(String fileName, IJsonNode... expected) throws IOException {
 		List<IJsonNode> remainingValues = new ArrayList<IJsonNode>(Arrays.asList(expected));
 
@@ -148,6 +138,19 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 		FileSystem.closeAll();
 	}
 
+	public void correctPathsOfPlan(SopremoPlan plan) {
+		for (Operator<?> op : plan.getContainedOperators())
+			if (op instanceof Source) {
+				final String fileName = ((Source) op).getInputPath();
+				this.filesToCleanup.add(getTempName(fileName));
+				((Source) op).setInputPath(this.protocol + getTempName(fileName));
+			} else if (op instanceof Sink) {
+				final String fileName = ((Sink) op).getOutputPath();
+				this.filesToCleanup.add(getTempName(fileName));
+				((Sink) op).setOutputPath(this.protocol + getTempName(fileName));
+			}
+	}
+
 	public boolean createDir(String dirName) throws IOException {
 		this.filesToCleanup.add(getTempName(dirName));
 		return getFilesystemProvider().createDir(getTempName(dirName));
@@ -169,26 +172,23 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 		return this.executor.execute(request);
 	}
 
-	public void correctPathsOfPlan(SopremoPlan plan) {
-		for (Operator<?> op : plan.getContainedOperators())
-			if (op instanceof Source) {
-				final String fileName = ((Source) op).getInputPath();
-				this.filesToCleanup.add(getTempName(fileName));
-				((Source) op).setInputPath(this.protocol + getTempName(fileName));
-			} else if (op instanceof Sink) {
-				final String fileName = ((Sink) op).getOutputPath();
-				this.filesToCleanup.add(getTempName(fileName));
-				((Sink) op).setOutputPath(this.protocol + getTempName(fileName));
-			}
-	}
-
 	public FilesystemProvider getFilesystemProvider() {
 		return this.cluster.getFilesystemProvider();
+	}
+
+	public InetSocketAddress getServerAddress() {
+		return this.server.getServerAddress();
 	}
 
 	@Override
 	public ExecutionResponse getState(SopremoID jobId) {
 		return this.executor.getState(jobId);
+	}
+
+	private void fail(Exception e, final String message) throws AssertionFailedError {
+		final AssertionFailedError assertionFailedError = new AssertionFailedError(message);
+		assertionFailedError.initCause(e);
+		throw assertionFailedError;
 	}
 
 	private String getJsonString(IJsonNode... nodes) throws IOException {

@@ -13,6 +13,11 @@ import eu.stratosphere.util.dag.ConnectionNavigator;
  */
 public class ContractNavigator implements ConnectionNavigator<Contract> {
 	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 2756977809723729627L;
+
+	/**
 	 * The default stateless instance that should be used in most cases.
 	 */
 	public static final ContractNavigator INSTANCE = new ContractNavigator();

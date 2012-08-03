@@ -192,9 +192,8 @@ public class DefaultClient implements Closeable {
 		}
 
 		try {
-			this.executor =
-				(SopremoExecutionProtocol) RPC.getProxy(SopremoExecutionProtocol.class, serverAddress,
-					NetUtils.getSocketFactory());
+			this.executor = (SopremoExecutionProtocol) RPC.getProxy(SopremoExecutionProtocol.class, serverAddress,
+				NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			this.dealWithError(progressListener, e, "Error while connecting to the server");
 		}

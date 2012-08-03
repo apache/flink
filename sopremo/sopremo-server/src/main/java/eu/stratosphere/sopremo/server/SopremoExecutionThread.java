@@ -14,10 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.server;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

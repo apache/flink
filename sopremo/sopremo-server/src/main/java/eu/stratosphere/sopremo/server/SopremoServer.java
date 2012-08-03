@@ -160,7 +160,7 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	}
 
 	private void startServer() throws IOException {
-		final int handlerCount = GlobalConfiguration.getInteger("jobmanager.rpc.numhandler", 3);
+		final int handlerCount = GlobalConfiguration.getInteger(SopremoConstants.SOPREMO_SERVER_HANDLER_COUNT_KEY, 1);
 		InetSocketAddress rpcServerAddress = getServerAddress();
 		this.server = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
 			handlerCount);
