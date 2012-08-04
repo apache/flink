@@ -35,6 +35,11 @@ import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionRangeSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -314,12 +319,12 @@ public class MatchNode extends TwoInputNode {
 
 				// test which degree of freedom we have in choosing the shipping strategies
 				// some may be fixed a priori by compiler hints
-				if (ss1 == ShipStrategy.NONE) {
+				if (ss1.type() == ShipStrategyType.NONE) {
 					// the first connection is free to choose for the compiler
 
 					gp1 = subPlan1.getGlobalPropertiesForParent(this);
 
-					if (ss2 == ShipStrategy.NONE) {
+					if (ss2.type() == ShipStrategyType.NONE) {
 						// case: both are free to choose
 					
 						gp2 = subPlan2.getGlobalPropertiesForParent(this);
@@ -328,7 +333,7 @@ public class MatchNode extends TwoInputNode {
 						// if that is the case, partitioning the other side accordingly is
 						// the cheapest thing to do
 						if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning().isComputablyPartitioned()) {
-							ss1 = ShipStrategy.FORWARD;
+							ss1 = new ForwardSS();
 						}
 
 						if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning().isComputablyPartitioned()) {
@@ -336,12 +341,12 @@ public class MatchNode extends TwoInputNode {
 
 							// check, whether that partitioning is the same as the one of input one!
 							if (!partitioningIsOnRightFields(gp1, 0) || !gp1.getPartitioning().isComputablyPartitioned()) {
-								ss2 = ShipStrategy.FORWARD;
+								ss2 = new ForwardSS();
 							}
 							else {
 								if (gp1.getPartitioning().isCompatibleWith(gp2.getPartitioning()) &&
 										partitioningIsOnSameSubkey(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
-									ss2 = ShipStrategy.FORWARD;
+									ss2 = new ForwardSS();
 								} else {
 									// both sides are partitioned, but in an incompatible way
 									// 3 alternatives:
@@ -349,18 +354,18 @@ public class MatchNode extends TwoInputNode {
 									// 2) re-partition 1 the same way as 2
 	
 									if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-										createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.FORWARD,
-											ShipStrategy.PARTITION_HASH, estimator);
+										createLocalAlternatives(outputPlans, subPlan1, subPlan2, new ForwardSS(),
+											new PartitionHashSS(this.keySet2), estimator);
 									} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-										createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.FORWARD,
-											ShipStrategy.PARTITION_RANGE, estimator);
+										createLocalAlternatives(outputPlans, subPlan1, subPlan2, new ForwardSS(),
+											new PartitionRangeSS(this.keySet2), estimator);
 									}
 									if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-										createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.PARTITION_HASH,
-											ShipStrategy.FORWARD, estimator);
+										createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
+												new ForwardSS(), estimator);
 									} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-										createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.PARTITION_RANGE,
-											ShipStrategy.FORWARD, estimator);
+										createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionRangeSS(this.keySet1),
+												new ForwardSS(), estimator);
 									}
 	
 									// do not go through the remaining logic of the loop!
@@ -371,8 +376,8 @@ public class MatchNode extends TwoInputNode {
 
 						// create the alternative nodes. the strategies to create depend on the different
 						// combinations of pre-existing partitions
-						if (ss1 == ShipStrategy.FORWARD) {
-							if (ss2 == ShipStrategy.FORWARD) {
+						if (ss1.type() == ShipStrategyType.FORWARD) {
+							if (ss2.type() == ShipStrategyType.FORWARD) {
 								// both are equally pre-partitioned
 								// we need not use any special shipping step
 								createLocalAlternatives(outputPlans, subPlan1, subPlan2, ss1, ss2, estimator);
@@ -380,8 +385,8 @@ public class MatchNode extends TwoInputNode {
 								// we create an additional plan with a range partitioning
 								// if this is not already a range partitioning
 								if (gp1.getPartitioning() != PartitionProperty.RANGE_PARTITIONED) {
-									createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.PARTITION_RANGE,
-										ShipStrategy.PARTITION_RANGE, estimator);
+									createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionRangeSS(this.keySet1),
+										new PartitionRangeSS(this.keySet2), estimator);
 								}
 							} else {
 								// input 1 is local-forward
@@ -391,35 +396,35 @@ public class MatchNode extends TwoInputNode {
 								// 2) partition both inputs with a different partitioning function (hash <-> range)
 								if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
 									createLocalAlternatives(outputPlans, subPlan1, subPlan2, ss1,
-										ShipStrategy.PARTITION_HASH, estimator);
+										new PartitionHashSS(this.keySet2), estimator);
 									// createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 									// ShipStrategy.PARTITION_RANGE, estimator);
 								} else if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
 									createLocalAlternatives(outputPlans, subPlan1, subPlan2, ss1,
-										ShipStrategy.PARTITION_RANGE, estimator);
-									createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.PARTITION_HASH,
-										ShipStrategy.PARTITION_HASH, estimator);
+										new PartitionRangeSS(this.keySet2), estimator);
+									createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
+										new PartitionHashSS(this.keySet2), estimator);
 								} else {
 									throw new CompilerException("Invalid partitioning property for input 1 of match '"
 										+ getPactContract().getName() + "'.");
 								}
 							}
-						} else if (ss2 == ShipStrategy.FORWARD) {
+						} else if (ss2.type() == ShipStrategyType.FORWARD) {
 							// input 2 is local-forward
 
 							// add two plans:
 							// 1) make input 1 the same partitioning as input 2
 							// 2) partition both inputs with a different partitioning function (hash <-> range)
 							if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-								createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.PARTITION_HASH, ss2,
+								createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1), ss2,
 									estimator);
 								// createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 								// ShipStrategy.PARTITION_RANGE, estimator);
 							} else if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-								createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.PARTITION_RANGE, ss2,
+								createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionRangeSS(this.keySet1), ss2,
 									estimator);
-								createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.PARTITION_HASH,
-									ShipStrategy.PARTITION_HASH, estimator);
+								createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
+									new PartitionHashSS(this.keySet2), estimator);
 							} else {
 								throw new CompilerException("Invalid partitioning property for input 2 of match '"
 									+ getPactContract().getName() + "'.");
@@ -431,17 +436,17 @@ public class MatchNode extends TwoInputNode {
 							// 2) re-partition both by range
 							// 3) broadcast the first input (forward the second)
 							// 4) broadcast the second input (forward the first)
-							createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.PARTITION_HASH,
-								ShipStrategy.PARTITION_HASH, estimator);
+							createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
+								new PartitionHashSS(this.keySet2), estimator);
 							// createLocalAlternatives(outputPlans, pred1, pred2, ShipStrategy.PARTITION_RANGE,
 							// ShipStrategy.PARTITION_RANGE, estimator);
 
 							// add the broadcasting strategies only, if the sizes of can be estimated
 							if (haveValidOutputEstimates(subPlan1) && haveValidOutputEstimates(subPlan2)) {
-								createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.BROADCAST,
-									ShipStrategy.FORWARD, estimator);
-								createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.FORWARD,
-									ShipStrategy.BROADCAST, estimator);
+								createLocalAlternatives(outputPlans, subPlan1, subPlan2, new BroadcastSS(),
+										new ForwardSS(), estimator);
+								createLocalAlternatives(outputPlans, subPlan1, subPlan2, new ForwardSS(),
+										new BroadcastSS(), estimator);
 							}
 						}
 					} else {
@@ -453,32 +458,32 @@ public class MatchNode extends TwoInputNode {
 						// side is partitioned
 						// 3) input 2 is hash-partition -> other side must be re-partition by hash as well
 						// 4) input 2 is range-partition -> other side must be re-partition by range as well
-						switch (ss2) {
+						switch (ss2.type()) {
 						case BROADCAST:
-							ss1 = ShipStrategy.FORWARD;
+							ss1 = new ForwardSS();;
 							break;
 						case FORWARD:
 							if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning().isPartitioned()) {
 								// adapt to the partitioning
 								if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-									ss1 = ShipStrategy.PARTITION_HASH;
+									ss1 = new PartitionHashSS(this.keySet1);
 								} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-									ss1 = ShipStrategy.PARTITION_RANGE;
+									ss1 = new PartitionRangeSS(this.keySet1);
 								} else {
 									throw new CompilerException();
 								}
 							} else {
 								// must broadcast
-								ss1 = ShipStrategy.BROADCAST;
+								ss1 = new BroadcastSS();
 							}
 							break;
 						case PARTITION_HASH:
-							ss1 = (partitioningIsOnSameSubkey(gp1.getPartitionedFields(), this.keySet2) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
-								: ShipStrategy.PARTITION_HASH;
+							ss1 = (partitioningIsOnSameSubkey(gp1.getPartitionedFields(), this.keySet2) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? new ForwardSS()
+								: new PartitionHashSS(this.keySet1);
 							break;
 						case PARTITION_RANGE:
-							ss1 = (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
-								: ShipStrategy.PARTITION_RANGE;
+							ss1 = (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? new ForwardSS()
+								: new PartitionRangeSS(this.keySet1);
 							break;
 						default:
 							throw new CompilerException("Invalid fixed shipping strategy '" + ss2.name()
@@ -488,7 +493,7 @@ public class MatchNode extends TwoInputNode {
 						createLocalAlternatives(outputPlans, subPlan1, subPlan2, ss1, ss2, estimator);
 					}
 
-				} else if (ss2 == ShipStrategy.NONE) {
+				} else if (ss2.type() == ShipStrategyType.NONE) {
 					// second connection free to choose, but first one is fixed
 
 					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
@@ -498,32 +503,32 @@ public class MatchNode extends TwoInputNode {
 					// 2) input 1 is forward -> other side must be broadcast, if forwarded side is not partitioned
 					// 3) input 1 is hash-partition -> other side must be re-partition by hash as well
 					// 4) input 1 is range-partition -> other side must be re-partition by range as well
-					switch (ss1) {
+					switch (ss1.type()) {
 					case BROADCAST:
-						ss2 = ShipStrategy.FORWARD;
+						ss2 = new ForwardSS();;
 						break;
 					case FORWARD:
 						if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning().isPartitioned()) {
 							// adapt to the partitioning
 							if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
-								ss2 = ShipStrategy.PARTITION_HASH;
+								ss2 = new PartitionHashSS(this.keySet2);
 							} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
-								ss2 = ShipStrategy.PARTITION_RANGE;
+								ss2 = new PartitionRangeSS(this.keySet2);
 							} else {
 								throw new CompilerException();
 							}
 						} else {
 							// must broadcast
-							ss2 = ShipStrategy.BROADCAST;
+							ss2 = new BroadcastSS();
 						}
 						break;
 					case PARTITION_HASH:
-						ss2 = (partitioningIsOnSameSubkey(this.keySet1, gp2.getPartitionedFields()) && partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? ShipStrategy.FORWARD
-							: ShipStrategy.PARTITION_HASH;
+						ss2 = (partitioningIsOnSameSubkey(this.keySet1, gp2.getPartitionedFields()) && partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? new ForwardSS()
+							: new PartitionHashSS(this.keySet2);
 						break;
 					case PARTITION_RANGE:
-						ss2 = (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? ShipStrategy.FORWARD
-							: ShipStrategy.PARTITION_RANGE;
+						ss2 = (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? new ForwardSS()
+							: new PartitionRangeSS(this.keySet2);
 						break;
 					default:
 						throw new CompilerException("Invalid fixed shipping strategy '" + ss1.name()
@@ -534,8 +539,8 @@ public class MatchNode extends TwoInputNode {
 				} else {
 					// both are fixed
 					// check, if they produce a valid plan
-					if ((ss1 == ShipStrategy.BROADCAST && ss2 != ShipStrategy.BROADCAST)
-						|| (ss1 != ShipStrategy.BROADCAST && ss2 == ShipStrategy.BROADCAST)) {
+					if ((ss1.type() == ShipStrategyType.BROADCAST && ss2.type() != ShipStrategyType.BROADCAST)
+						|| (ss1.type() != ShipStrategyType.BROADCAST && ss2.type() == ShipStrategyType.BROADCAST)) {
 						// the broadcast / not-broadcast combinations are legal
 						createLocalAlternatives(outputPlans, subPlan1, subPlan2, ss1, ss2, estimator);
 					} else {
@@ -773,7 +778,7 @@ public class MatchNode extends TwoInputNode {
 			int[] scrambledKeyOrder2 = null;
 			
 			// check if input 1 is already partitioned and prepare an identical partitioning for input 2
-			if (ss1 == ShipStrategy.FORWARD && ss2 == ShipStrategy.PARTITION_HASH) {
+			if (ss1.type() == ShipStrategyType.FORWARD && ss2.type() == ShipStrategyType.PARTITION_HASH) {
 				// determine the key order used for the existing partitioning on input 1
 				scrambledKeyOrder1 = getScrambledKeyOrder(this.keySet1, gp1.getPartitionedFields());
 				// scramble key order for the input 2 that needs to be partitioned
@@ -784,11 +789,12 @@ public class MatchNode extends TwoInputNode {
 					}
 					
 					gp2.setPartitioning(gp2.getPartitioning(), scrambledKeys2);
+					ss2 = new PartitionHashSS(scrambledKeys2);
 				}
 			}
 	
 			// check if input 2 is already partitioned and prepare an identical partitioning for input 1
-			if (ss2 == ShipStrategy.FORWARD && ss1 == ShipStrategy.PARTITION_HASH) {
+			if (ss2.type() == ShipStrategyType.FORWARD && ss1.type() == ShipStrategyType.PARTITION_HASH) {
 				// determine the key order used for the existing partitioning on input 2
 				scrambledKeyOrder2 = getScrambledKeyOrder(this.keySet2, gp2.getPartitionedFields());
 				// scramble key order for input 2 that needs to be partitioned
@@ -799,6 +805,7 @@ public class MatchNode extends TwoInputNode {
 					}
 					
 					gp1.setPartitioning(gp1.getPartitioning(), scrambledKeys1);
+					ss1 = new PartitionHashSS(scrambledKeys1);
 				}
 			}
 			
@@ -828,9 +835,7 @@ public class MatchNode extends TwoInputNode {
 			// create a new match node for this input
 			MatchNode n = new MatchNode(this, subPlan1, subPlan2, this.input1, this.input2, outGp, outLp);
 			n.input1.setShipStrategy(ss1);
-			n.input1.setScramblePartitionedFields(scrambledKeyOrder2);
 			n.input2.setShipStrategy(ss2);
-			n.input2.setScramblePartitionedFields(scrambledKeyOrder1);
 			n.setLocalStrategy(ls);
 	
 			// compute, which of the properties survive, depending on the output contract
@@ -867,9 +872,7 @@ public class MatchNode extends TwoInputNode {
 			n = new MatchNode(this, subPlan1, subPlan2, input1, input2, outGp, outLp);
 	
 			n.input1.setShipStrategy(ss1);
-			n.input1.setScramblePartitionedFields(scrambledKeyOrder2);
 			n.input2.setShipStrategy(ss2);
-			n.input2.setScramblePartitionedFields(scrambledKeyOrder1);
 			n.setLocalStrategy(ls);
 	
 			// compute, which of the properties survive, depending on the output contract

@@ -9,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
@@ -20,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -68,7 +68,7 @@ public class JsonParser {
 	 * @param stream
 	 *        the stream that provides the data
 	 */
-	public JsonParser(final FSDataInputStream stream) {
+	public JsonParser(final InputStream stream) {
 		this(new InputStreamReader(stream, Charset.forName("utf-8")));
 	}
 

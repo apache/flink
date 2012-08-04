@@ -1,5 +1,6 @@
 package eu.stratosphere.util.dag;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -9,7 +10,7 @@ import java.util.List;
  * @param <Node>
  *        the class of the node
  */
-public interface ConnectionNavigator<Node> {
+public interface ConnectionNavigator<Node> extends Serializable {
 	/**
 	 * Return all nodes which are referenced by the given node.
 	 * 

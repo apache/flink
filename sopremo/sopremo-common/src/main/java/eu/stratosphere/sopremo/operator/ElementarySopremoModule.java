@@ -45,6 +45,11 @@ import eu.stratosphere.util.dag.OneTimeTraverser;
  */
 public class ElementarySopremoModule extends SopremoModule {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -1424093837923557519L;
+
 	private Schema schema;
 
 	/**

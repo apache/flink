@@ -13,7 +13,7 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression.Quantor;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
@@ -126,7 +126,7 @@ public class JoinTest extends SopremoTest<Join> {
 		final AndExpression condition = new AndExpression(new ComparativeExpression(leftJoinKey,
 			BinaryOperator.EQUAL, rightJoinKey));
 		final Join join = new Join().withJoinCondition(condition).
-			withOuterJoinSources(new ArrayCreation(new JsonStreamExpression(0), new JsonStreamExpression(1)));
+			withOuterJoinSources(new ArrayCreation(new InputSelection(0), new InputSelection(1)));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -158,7 +158,7 @@ public class JoinTest extends SopremoTest<Join> {
 		final AndExpression condition = new AndExpression(new ComparativeExpression(leftJoinKey,
 			BinaryOperator.EQUAL, createPath("1", "userid")));
 		final Join join = new Join().withJoinCondition(condition).
-			withOuterJoinSources(new JsonStreamExpression(0));
+			withOuterJoinSources(new InputSelection(0));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).
@@ -188,7 +188,7 @@ public class JoinTest extends SopremoTest<Join> {
 		final AndExpression condition = new AndExpression(new ComparativeExpression(createPath("0", "id"),
 			BinaryOperator.EQUAL, rightJoinKey));
 		final Join join = new Join().withJoinCondition(condition).
-			withOuterJoinSources(new JsonStreamExpression(1));
+			withOuterJoinSources(new InputSelection(1));
 		join.setInputs(sopremoPlan.getInputOperators(0, 2));
 		sopremoPlan.getOutputOperator(0).setInputs(join);
 		sopremoPlan.getInput(0).

@@ -37,7 +37,9 @@ import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
 
 /**
  * A node in the optimizer plan that represents a PACT with a two different inputs, such as MATCH or CROSS.
@@ -276,14 +278,14 @@ public abstract class TwoInputNode extends OptimizerNode
 		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategy.FORWARD);
-				this.input2.setShipStrategy(ShipStrategy.FORWARD);
+				this.input1.setShipStrategy(new ForwardSS());
+				this.input2.setShipStrategy(new ForwardSS());
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategy.BROADCAST);
-				this.input2.setShipStrategy(ShipStrategy.BROADCAST);
+				this.input1.setShipStrategy(new BroadcastSS());
+				this.input2.setShipStrategy(new BroadcastSS());
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategy.PARTITION_HASH);
-				this.input2.setShipStrategy(ShipStrategy.PARTITION_HASH);
+				this.input1.setShipStrategy(new PartitionHashSS(this.keySet1));
+				this.input2.setShipStrategy(new PartitionHashSS(this.keySet2));
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy: " + shipStrategy);
 			}
@@ -293,11 +295,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategy.FORWARD);
+				this.input1.setShipStrategy(new ForwardSS());
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategy.BROADCAST);
+				this.input1.setShipStrategy(new BroadcastSS());
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				this.input1.setShipStrategy(ShipStrategy.PARTITION_HASH);
+				this.input1.setShipStrategy(new PartitionHashSS(this.keySet1));
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input one: " + shipStrategy);
 			}
@@ -307,11 +309,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input2.setShipStrategy(ShipStrategy.FORWARD);
+				this.input2.setShipStrategy(new ForwardSS());
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input2.setShipStrategy(ShipStrategy.BROADCAST);
+				this.input2.setShipStrategy(new BroadcastSS());
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				this.input2.setShipStrategy(ShipStrategy.PARTITION_HASH);
+				this.input2.setShipStrategy(new PartitionHashSS(this.keySet2));
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input two: " + shipStrategy);
 			}

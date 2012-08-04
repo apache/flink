@@ -11,6 +11,8 @@ import java.beans.Introspector;
 import java.beans.MethodDescriptor;
 import java.beans.PropertyDescriptor;
 import java.beans.SimpleBeanInfo;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -50,7 +52,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 */
 	private static final long serialVersionUID = 7808932536291658512L;
 
-	private transient List<JsonStream> inputs = new ArrayList<JsonStream>();
+	private List<JsonStream> inputs = new ArrayList<JsonStream>();
 
 	private String name;
 
@@ -96,7 +98,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	}
 
 	public abstract ElementarySopremoModule asElementaryOperators(EvaluationContext context);
-
+	
 	/**
 	 * Converts this operator to a {@link PactModule} using the provided {@link EvaluationContext}.
 	 * 
@@ -346,17 +348,6 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		this.name = name;
 	}
 
-	/**
-	 * Sets the name of this operator.
-	 * 
-	 * @param name
-	 *        the new name of this operator
-	 */
-	public Self withName(final String name) {
-		this.setName(name);
-		return this.self();
-	}
-
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.SopremoType#toString(java.lang.StringBuilder)
@@ -393,6 +384,17 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 */
 	public Self withInputs(final List<? extends JsonStream> inputs) {
 		this.setInputs(inputs);
+		return this.self();
+	}
+
+	/**
+	 * Sets the name of this operator.
+	 * 
+	 * @param name
+	 *        the new name of this operator
+	 */
+	public Self withName(final String name) {
+		this.setName(name);
 		return this.self();
 	}
 
@@ -513,6 +515,12 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		if (beanInfo == null)
 			beanInfos.put(this.getClass(), beanInfo = new Info(this.getClass()));
 		return beanInfo;
+	}
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		this.outputs = new ArrayList<JsonStream>();
+		CollectionUtil.ensureSize(this.outputs, this.minOutputs);
 	}
 
 	public static class Info extends SimpleBeanInfo {

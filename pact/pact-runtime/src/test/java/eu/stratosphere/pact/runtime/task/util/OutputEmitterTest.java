@@ -40,7 +40,7 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 public class OutputEmitterTest extends TestCase
 {
@@ -52,7 +52,7 @@ public class OutputEmitterTest extends TestCase
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, intComp);
 
 		int numChans = 100;
 		int numRecs = 50000;
@@ -78,7 +78,7 @@ public class OutputEmitterTest extends TestCase
 		// Test for PactString
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator stringComp = new PactRecordComparator(new int[] {0}, new Class[] {PactString.class});
-		ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, stringComp);
+		ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, stringComp);
 
 		numChans = 100;
 		numRecs = 10000;
@@ -110,7 +110,7 @@ public class OutputEmitterTest extends TestCase
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.FORWARD, intComp);
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.FORWARD, intComp);
 
 		int numChannels = 100;
 		int numRecords = 50000;
@@ -137,7 +137,7 @@ public class OutputEmitterTest extends TestCase
 		// Test for PactString
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator stringComp = new PactRecordComparator(new int[] {0}, new Class[] {PactString.class});
-		final ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategy.FORWARD, stringComp);
+		final ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategyType.FORWARD, stringComp);
 
 		numChannels = 100;
 		numRecords = 10000;
@@ -169,7 +169,7 @@ public class OutputEmitterTest extends TestCase
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.BROADCAST, intComp);
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.BROADCAST, intComp);
 
 		int numChannels = 100;
 		int numRecords = 50000;
@@ -193,7 +193,7 @@ public class OutputEmitterTest extends TestCase
 		// Test for PactString
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator stringComp = new PactRecordComparator(new int[] {0}, new Class[] {PactString.class});
-		final ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategy.BROADCAST, stringComp);
+		final ChannelSelector<PactRecord> oe2 = new PactRecordOutputEmitter(ShipStrategyType.BROADCAST, stringComp);
 
 		numChannels = 100;
 		numRecords = 5000;
@@ -220,7 +220,7 @@ public class OutputEmitterTest extends TestCase
 	{	
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator multiComp = new PactRecordComparator(new int[] {0,1,3}, new Class[] {PactInteger.class, PactString.class, PactDouble.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, multiComp);
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, multiComp);
 
 		int numChannels = 100;
 		int numRecords = 5000;
@@ -254,7 +254,7 @@ public class OutputEmitterTest extends TestCase
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {1}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, intComp);
 
 		PactRecord rec = new PactRecord(0);
 		rec.setField(0, new PactInteger(1));
@@ -274,7 +274,7 @@ public class OutputEmitterTest extends TestCase
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, intComp);
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, intComp);
 
 		PactRecord rec = new PactRecord(2);
 		rec.setField(1, new PactInteger(1));
@@ -294,7 +294,7 @@ public class OutputEmitterTest extends TestCase
 		// Test for PactInteger
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator doubleComp = new PactRecordComparator(new int[] {0}, new Class[] {PactDouble.class});
-		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategy.PARTITION_HASH, doubleComp);
+		final ChannelSelector<PactRecord> oe1 = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_HASH, doubleComp);
 
 		PipedInputStream pipedInput = new PipedInputStream(1024*1024);
 		DataInputStream in = new DataInputStream(pipedInput);
@@ -340,7 +340,7 @@ public class OutputEmitterTest extends TestCase
 		
 		@SuppressWarnings("unchecked")
 		final PactRecordComparator intComp = new PactRecordComparator(new int[] {0}, new Class[] {PactInteger.class});
-		final ChannelSelector<PactRecord> oe = new PactRecordOutputEmitter(ShipStrategy.PARTITION_RANGE, intComp, distri);
+		final ChannelSelector<PactRecord> oe = new PactRecordOutputEmitter(ShipStrategyType.PARTITION_RANGE, intComp, distri);
 		
 		final PactInteger integer = new PactInteger();
 		final PactRecord rec = new PactRecord();

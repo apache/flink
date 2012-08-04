@@ -15,7 +15,7 @@
 package eu.stratosphere.meteor.client;
 
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -27,14 +27,14 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 
-import eu.stratosphere.meteor.execution.ExecutionRequest;
-import eu.stratosphere.meteor.execution.ExecutionResponse;
-import eu.stratosphere.meteor.execution.ExecutionResponse.ExecutionStatus;
-import eu.stratosphere.meteor.execution.MeteorConstants;
-import eu.stratosphere.meteor.execution.MeteorExecutor;
+import eu.stratosphere.meteor.QueryParser;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.sopremo.client.DefaultClient;
+import eu.stratosphere.sopremo.client.StateListener;
+import eu.stratosphere.sopremo.execution.ExecutionRequest.ExecutionMode;
+import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
+import eu.stratosphere.sopremo.execution.SopremoConstants;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
 
 /**
  * @author Arvid Heise
@@ -42,13 +42,7 @@ import eu.stratosphere.nephele.net.NetUtils;
 public class CLClient {
 	private Options options = new Options();
 
-	private MeteorExecutor executor;
-
-	private InetSocketAddress serverAddress;
-
-	private ExecutionRequest request;
-
-	private String submittedJobId;
+	private DefaultClient sopremoClient;
 
 	/**
 	 * Initializes CLClient.
@@ -84,55 +78,62 @@ public class CLClient {
 	}
 
 	private void process(String[] args) {
-		CommandLine cmd = this.parse(args);
-		this.loadConfig(cmd);
-		this.initConnection(cmd);
-		this.loadScript(cmd);
-		final ExecutionResponse response = this.sendScript();
-		if (response.getStatus() == ExecutionStatus.ERROR)
-			this.dealWithError(null, "Script contains errors: " + response.getDetails());
-		else if (cmd.hasOption("wait"))
-			this.waitForCompletion(cmd, response);
-		else
-			System.out.println("Successfully submitted script");
+		CommandLine cmd = this.parseOptions(args);
+		final SopremoPlan plan = this.parseScript(cmd);
+		this.configureClient(cmd);
+
+		this.sopremoClient.submit(plan, new StateListener() {
+			@Override
+			public void stateChanged(ExecutionState executionState, String detail) {
+				switch (executionState) {
+				case ENQUEUED:
+					System.out.print("Submitted script");
+					break;
+				case RUNNING:
+					System.out.print("\nExecuting script");
+					break;
+				case FINISHED:
+					System.out.println("\n" + detail);
+					break;
+				case ERROR:
+					System.err.println("\n" + detail);
+					break;
+				}
+			}
+
+			/*
+			 * (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.client.StateListener#progressUpdate(eu.stratosphere.sopremo.execution.
+			 * ExecutionResponse.ExecutionState, java.lang.String)
+			 */
+			@Override
+			public void progressUpdate(ExecutionState status, String detail) {
+				super.progressUpdate(status, detail);
+				System.out.print(".");
+			}
+		}, cmd.hasOption("wait"));
+
+		this.sopremoClient.close();
 	}
 
-	private void loadConfig(CommandLine cmd) {
+	private void configureClient(CommandLine cmd) {
 		String configDir = cmd.getOptionValue("config");
 		GlobalConfiguration.loadConfiguration(configDir);
-	}
+		this.sopremoClient = new DefaultClient();
 
-	private void waitForCompletion(CommandLine cmd, ExecutionResponse submissionResponse) {
-		ExecutionResponse lastResponse = submissionResponse;
-		int updateTime = 5000;
-
+		int updateTime = 1000;
 		if (cmd.hasOption("updateTime"))
 			updateTime = Integer.parseInt(cmd.getOptionValue("updateTime"));
+		this.sopremoClient.setUpdateTime(updateTime);
 
-		try {
-			System.out.print("Submitted script");
-			while (lastResponse.getStatus() == ExecutionStatus.ENQUEUED) {
-				lastResponse = this.executor.getStatus(this.submittedJobId);
-				sleepSafely(updateTime);
-				System.out.print('.');
-			}
-			System.out.println();
-
-			System.out.print("Running script");
-			while (lastResponse.getStatus() == ExecutionStatus.RUNNING) {
-				lastResponse = this.executor.getStatus(this.submittedJobId);
-				sleepSafely(updateTime);
-				System.out.print('.');
-			}
-			System.out.println();
-
-			if (lastResponse.getStatus() == ExecutionStatus.ERROR)
-				this.dealWithError(null, "Execution of the script yielded errors: " + lastResponse.getDetails());
-			else
-				System.out.println("Successfully executed script: " + lastResponse.getDetails());
-		} catch (Exception e) {
-			this.dealWithError(e, "Error while waiting for job execution");
+		String address = cmd.getOptionValue("server"), port = cmd.getOptionValue("port");
+		if (address != null || port != null) {
+			this.sopremoClient.setServerAddress(new InetSocketAddress(
+				address == null ? "localhost" : address,
+				port == null ? SopremoConstants.DEFAULT_SOPREMO_SERVER_IPC_PORT : Integer.parseInt(port)));
 		}
+
+		this.sopremoClient.setExecutionMode(ExecutionMode.RUN_WITH_STATISTICS);
 	}
 
 	protected void sleepSafely(int updateTime) {
@@ -152,55 +153,20 @@ public class CLClient {
 		System.exit(1);
 	}
 
-	private void loadScript(CommandLine cmd) {
+	private SopremoPlan parseScript(CommandLine cmd) {
 		File file = new File(cmd.getOptionValue("file"));
 		if (!file.exists())
 			this.dealWithError(null, "Given file not found");
 
-		StringBuilder builder;
 		try {
-			FileReader reader = new FileReader(file);
-			builder = new StringBuilder();
-			char[] buffer = new char[512];
-			int read;
-			while ((read = reader.read(buffer)) > 0)
-				builder.append(buffer, 0, read);
-			this.request = new ExecutionRequest(builder.toString());
+			return new QueryParser().tryParse(new FileInputStream(file));
 		} catch (IOException e) {
-			this.dealWithError(e, "Error while reading script");
-		}
-	}
-
-	private ExecutionResponse sendScript() {
-		try {
-			ExecutionResponse response = this.executor.execute(this.request);
-			this.submittedJobId = response.getJobId();
-			return response;
-		} catch (Exception e) {
-			this.dealWithError(e, "Error while sending the query to the server");
+			this.dealWithError(e, "Error while parsing script");
 			return null;
 		}
 	}
 
-	private void initConnection(CommandLine cmd) {
-		String address = cmd.getOptionValue("server");
-		if (address == null)
-			address = GlobalConfiguration.getString(MeteorConstants.METEOR_SERVER_IPC_ADDRESS_KEY, null);
-		final int port = cmd.getOptionValues("port") != null ? Integer.parseInt(cmd.getOptionValue("port")) :
-			GlobalConfiguration.getInteger(MeteorConstants.METEOR_SERVER_IPC_PORT_KEY,
-				MeteorConstants.DEFAULT_METEOR_SERVER_IPC_PORT);
-
-		this.serverAddress = new InetSocketAddress(address, port);
-
-		try {
-			this.executor =
-				(MeteorExecutor) RPC.getProxy(MeteorExecutor.class, this.serverAddress, NetUtils.getSocketFactory());
-		} catch (IOException e) {
-			this.dealWithError(e, "Error while connecting to the server");
-		}
-	}
-
-	protected CommandLine parse(String[] args) {
+	protected CommandLine parseOptions(String[] args) {
 		CommandLineParser parser = new PosixParser();
 		try {
 			return parser.parse(this.options, args);

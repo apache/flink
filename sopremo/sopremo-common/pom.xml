@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>sopremo</artifactId>
 		<groupId>eu.stratosphere</groupId>
-        <version>0.2</version>
+		<version>0.2</version>
 	</parent>
 
 	<artifactId>sopremo-common</artifactId>
@@ -24,7 +24,7 @@
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>pact-clients</artifactId>
@@ -42,17 +42,17 @@
 
 	<build>
 		<plugins>
-	     	<plugin>
-		       <groupId>org.apache.maven.plugins</groupId>
-		       <artifactId>maven-jar-plugin</artifactId>
-		       <executions>
-		         <execution>
-		           <goals>
-		             <goal>test-jar</goal>
-		           </goals>
-		         </execution>
-		       </executions>
-		     </plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>

@@ -34,6 +34,9 @@ import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionRangeSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -309,9 +312,9 @@ public class DataSinkNode extends OptimizerNode {
 				// requires global sort
 
 				ShipStrategy s = this.input.getShipStrategy();
-				if (s == ShipStrategy.NONE || s == ShipStrategy.PARTITION_RANGE) {
+				if (s.type() == ShipStrategyType.NONE || s.type() == ShipStrategyType.PARTITION_RANGE) {
 					// strategy not fixed a priori, or strategy fixed, but valid
-					ss = ShipStrategy.PARTITION_RANGE;
+					ss = new PartitionRangeSS(po.getInvolvedIndexes());
 				} else {
 					// strategy is set a priory --> via compiler hint
 					// this input plan cannot produce a valid plan
@@ -321,7 +324,7 @@ public class DataSinkNode extends OptimizerNode {
 				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, po.getInvolvedIndexes());
 				gp.setOrdering(po);
 			} else {
-				ss = ShipStrategy.FORWARD;
+				ss = new ForwardSS();
 			}
 			
 			if (lo != null && !lo.isMetBy(lp.getOrdering())) {

@@ -1,8 +1,10 @@
 package eu.stratosphere.sopremo.base;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
-import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.operator.ElementaryOperator;
 import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.operator.Name;
@@ -20,7 +22,7 @@ public class Selection extends ElementaryOperator<Selection> {
 	 */
 	private static final long serialVersionUID = -7687925343684319311L;
 
-	private EvaluationExpression condition = new ConstantExpression(true);
+	private BooleanExpression condition = new UnaryExpression(new ConstantExpression(true));
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -33,7 +35,7 @@ public class Selection extends ElementaryOperator<Selection> {
 		return super.equals(obj) && this.condition.equals(((Selection) obj).condition);
 	}
 
-	public EvaluationExpression getCondition() {
+	public BooleanExpression getCondition() {
 		return this.condition;
 	}
 
@@ -47,14 +49,14 @@ public class Selection extends ElementaryOperator<Selection> {
 
 	@Property(preferred = true)
 	@Name(preposition = "where")
-	public void setCondition(EvaluationExpression condition) {
+	public void setCondition(BooleanExpression condition) {
 		if (condition == null)
 			throw new NullPointerException("condition must not be null");
 
 		this.condition = condition;
 	}
 
-	public Selection withCondition(EvaluationExpression condition) {
+	public Selection withCondition(BooleanExpression condition) {
 		this.setCondition(condition);
 		return this;
 	}
@@ -68,6 +70,16 @@ public class Selection extends ElementaryOperator<Selection> {
 
 	public static class Implementation extends SopremoMap {
 		private BooleanExpression condition;
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.pact.SopremoMap#open(eu.stratosphere.nephele.configuration.Configuration)
+		 */
+		@Override
+		public void open(Configuration parameters) {
+			super.open(parameters);
+			this.condition.remove(new InputSelection(0));
+		}
 
 		@Override
 		protected void map(final IJsonNode value, final JsonCollector out) {

@@ -22,7 +22,6 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.operator.Property;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -102,7 +101,7 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 		final IntIterator iterator = this.outerJoinSources.iterator();
 		for (int index = 0; iterator.hasNext(); index++) {
 			final int inputIndex = iterator.nextInt();
-			expressions[index] = new JsonStreamExpression(getInput(inputIndex), inputIndex);
+			expressions[index] = new InputSelection(inputIndex);
 		}
 		return new ArrayCreation(expressions);
 	}
@@ -139,7 +138,7 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 			throw new NullPointerException("outerJoinSources must not be null");
 		
 		final Iterable<? extends EvaluationExpression> expressions;
-		if (outerJoinSources instanceof JsonStreamExpression)
+		if (outerJoinSources instanceof InputSelection)
 			expressions = Collections.singleton(outerJoinSources);
 		else if (outerJoinSources instanceof ArrayCreation)
 			expressions = ((ArrayCreation) outerJoinSources).getChildren();
@@ -148,7 +147,7 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 
 		this.outerJoinSources.clear();
 		for (EvaluationExpression expression : expressions)
-			this.outerJoinSources.add(((JsonStreamExpression) expression).getInputIndex(getInputs()));
+			this.outerJoinSources.add(((InputSelection) expression).getIndex());
 	}
 
 	public void setOuterJoinIndices(int... outerJoinIndices) {

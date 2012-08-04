@@ -92,7 +92,7 @@ public abstract class CostEstimator {
 			
 			Costs tempGlobalCost = new Costs();
 			
-			switch (connection.getShipStrategy()) {
+			switch (connection.getShipStrategy().type()) {
 			case NONE:
 				throw new CompilerException(
 					"Cannot determine costs: Shipping strategy has not been set for an input.");

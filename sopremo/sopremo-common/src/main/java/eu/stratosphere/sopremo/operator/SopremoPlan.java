@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.operator;
 
+import java.io.Serializable;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,7 +22,12 @@ import eu.stratosphere.sopremo.serialization.SchemaFactory;
  * 
  * @author Arvid Heise
  */
-public class SopremoPlan {
+public class SopremoPlan implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8356877087065206174L;
+
 	private final SopremoModule module;
 
 	private EvaluationContext context = new EvaluationContext();

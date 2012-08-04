@@ -36,6 +36,10 @@ import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.NoneSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -128,11 +132,11 @@ public class ReduceNode extends SingleInputNode {
 		}
 		// else
 
-		if(this.inConn.getShipStrategy() == ShipStrategy.PARTITION_HASH) {
+		if(this.inConn.getShipStrategy().type() == ShipStrategyType.PARTITION_HASH) {
 			return true;
 		}
 		
-		if(this.inConn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
+		if(this.inConn.getShipStrategy().type() == ShipStrategyType.PARTITION_RANGE) {
 			return true;
 		}
 		
@@ -223,12 +227,12 @@ public class ReduceNode extends SingleInputNode {
 		FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
 
 		// we have to check if all shipStrategies are the same or at least compatible
-		ShipStrategy ss = ShipStrategy.NONE;
+		ShipStrategy ss = new NoneSS();
 		
 		// check hint and use if available
 		ShipStrategy hintSS = this.inConn.getShipStrategy();
 			
-		if(hintSS == ShipStrategy.BROADCAST || hintSS == ShipStrategy.SFR)
+		if(hintSS.type() == ShipStrategyType.BROADCAST || hintSS.type() == ShipStrategyType.SFR)
 			// invalid strategy: we do not produce an alternative node
 			return;
 		else
@@ -239,16 +243,16 @@ public class ReduceNode extends SingleInputNode {
 			GlobalProperties gp;
 			LocalProperties lp;
 
-			if (ss == ShipStrategy.NONE) {
+			if (ss.type() == ShipStrategyType.NONE) {
 				
 				gp = subPlan.getGlobalPropertiesForParent(this);
 				lp = subPlan.getLocalPropertiesForParent(this);
 
 				if ((partitioningIsOnRightFields(gp) && gp.getPartitioning().isPartitioned()) 
 					 || isFieldSetUnique(keySet, 0)	){
-					ss = ShipStrategy.FORWARD;
+					ss = new ForwardSS();
 				} else {
-					ss = ShipStrategy.PARTITION_HASH;
+					ss = new PartitionHashSS(this.keyList);
 				}
 
 				gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, 0, ss);
@@ -314,7 +318,7 @@ public class ReduceNode extends SingleInputNode {
 			
 			OptimizerNode reducePred = subPlan;
 			
-			if (isCombineable() && ss != ShipStrategy.FORWARD) {
+			if (isCombineable() && ss.type() != ShipStrategyType.FORWARD) {
 				// this node contains the estimates for the costs of the combiner,
 				// as well as the updated size and cardinality estimates
 

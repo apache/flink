@@ -27,14 +27,18 @@ import eu.stratosphere.sopremo.expressions.ObjectAccess;
  * <ul>
  * <li>no key expressions are provided: {@link DirectSchema}</br>
  * <li>all key expressions are {@link ObjectAccess}: {@link ObjectSchema}</br>
- * <li>all key expressions are {@link ArrayAccess}:</br>
- * - startIndex of the first key expression is 0: {@link HeadArraySchema}</br>
- * - else: {@link TailArraySchema}</br>
+ * <li>all key expressions are {@link ArrayAccess}:</br> - startIndex of the first key expression is 0:
+ * {@link HeadArraySchema}</br> - else: {@link TailArraySchema}</br>
  * <li>non of the conditions described above are true: {@link GeneralSchema}
  * 
  * @author Arvid Heise
  */
 public class NaiveSchemaFactory implements SchemaFactory {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -2116538067208466632L;
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.serialization.SchemaFactory#create(java.lang.Iterable)
@@ -72,5 +76,14 @@ public class NaiveSchemaFactory implements SchemaFactory {
 			return new TailArraySchema(endIndex - startIndex + 1);
 		}
 		return new GeneralSchema(mappings);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.ISopremoType#toString(java.lang.StringBuilder)
+	 */
+	@Override
+	public void toString(StringBuilder builder) {
+		builder.append("naive schema");
 	}
 }
