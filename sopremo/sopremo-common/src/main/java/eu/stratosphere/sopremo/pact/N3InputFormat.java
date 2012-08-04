@@ -17,7 +17,6 @@ package eu.stratosphere.sopremo.pact;
 import static eu.stratosphere.sopremo.pact.IOConstants.ENCODING;
 
 import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
