@@ -101,6 +101,10 @@ public class N3InputFormat extends DelimitedInputFormat {
 		final int firstSpacePos = tripleString.indexOf(' ');
 		final int secondSpacePos = tripleString.indexOf(' ', firstSpacePos + 1);
 		final int lastSpacePos = tripleString.lastIndexOf(' ');
+		if (firstSpacePos >= secondSpacePos || secondSpacePos >= lastSpacePos) {
+			return false;
+		}
+		
 
 		this.subjectNode.setValue(tripleString.substring(0, firstSpacePos));
 		this.propertyNode.setValue(tripleString.substring(firstSpacePos + 1, secondSpacePos));
