@@ -92,6 +92,8 @@ public class SopremoTestPlan {
 	private final EvaluationContext evaluationContext = new EvaluationContext();
 
 	private boolean trace;
+	
+	private int dop = -1;
 
 	/**
 	 * Initializes a SopremoTestPlan with the given number of in/outputs. All inputs are initialized with {@link Input}s
@@ -362,6 +364,8 @@ public class SopremoTestPlan {
 			input.prepare(this.testPlan, schema);
 		for (final ExpectedOutput output : this.expectedOutputs)
 			output.prepare(this.testPlan, schema);
+		if (this.dop > 0)
+			this.testPlan.setDegreeOfParallelism(this.dop);
 		if (this.trace)
 			SopremoUtil.trace();
 		this.testPlan.run();
@@ -402,18 +406,10 @@ public class SopremoTestPlan {
 	 * Returns the degree of parallelism of the
 	 * test plan.
 	 */
-	public int getDegreeOfParallelism() {
-		return this.testPlan.getDegreeOfParallelism();
-	}
-
-	/**
-	 * Returns the degree of parallelism of the
-	 * test plan.
-	 */
 	public void setDegreeOfParallelism(final int dop) {
 		if (dop < 1)
 			throw new IllegalArgumentException("Degree of parallelism must be greater than 0!");
-		this.testPlan.setDegreeOfParallelism(dop);
+		this.dop = dop;
 	}
 
 	@Override
