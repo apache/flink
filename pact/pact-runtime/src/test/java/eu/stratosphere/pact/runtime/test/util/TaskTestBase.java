@@ -32,7 +32,7 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.PactDriver;
@@ -60,7 +60,7 @@ public abstract class TaskTestBase
 
 	public void addOutput(List<PactRecord> output) {
 		this.mockEnv.addOutput(output);
-		new TaskConfig(this.mockEnv.getTaskConfiguration()).addOutputShipStrategy(ShipStrategy.FORWARD);
+		new TaskConfig(this.mockEnv.getTaskConfiguration()).addOutputShipStrategy(ShipStrategyType.FORWARD);
 	}
 
 	public TaskConfig getTaskConfig() {

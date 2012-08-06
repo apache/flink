@@ -44,7 +44,7 @@ import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 /**
  */
@@ -120,7 +120,7 @@ public class UnionPropertyPropagationTest {
 				if (visitable instanceof ReduceNode) {
 					for (PactConnection inConn : visitable.getIncomingConnections()) {
 						Assert.assertTrue("Reduce should just forward the input if it is already partitioned",
-								inConn.getShipStrategy() == ShipStrategy.FORWARD); 
+								inConn.getShipStrategy().type() == ShipStrategyType.FORWARD); 
 					}
 					//just check latest ReduceNode
 					return false;
