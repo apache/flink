@@ -22,11 +22,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.GnuParser;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionBuilder;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.RPC.Server;
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.testing.DaemonThreadFactory;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionResponse;
@@ -63,7 +74,7 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	 * @see java.io.Closeable#close()
 	 */
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		if (this.server != null) {
 			this.server.stop();
 			this.server = null;
@@ -131,10 +142,7 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			 */
 			@Override
 			public void run() {
-				try {
-					close();
-				} catch (IOException e) {
-				}
+				close();
 			}
 		});
 	}
@@ -166,4 +174,44 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			handlerCount);
 		this.server.start();
 	}
+
+	private static final Log LOG = LogFactory.getLog(SopremoServer.class);
+
+	/**
+	 * Entry point for the program
+	 * 
+	 * @param args
+	 *        arguments from the command line
+	 */
+	@SuppressWarnings("static-access")
+	public static void main(final String[] args) {
+
+		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
+			.withDescription("Specify configuration directory.").create("configDir");
+
+		final Options options = new Options();
+		options.addOption(configDirOpt);
+
+		CommandLineParser parser = new GnuParser();
+		CommandLine line = null;
+		try {
+			line = parser.parse(options, args);
+			final String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
+			GlobalConfiguration.loadConfiguration(configDir);
+		} catch (ParseException e) {
+			LOG.error("CLI Parsing failed. Reason: " + e.getMessage());
+			System.exit(1);
+		}
+
+		// Create a new job manager object
+		SopremoServer sopremoServer = new SopremoServer(new Configuration());
+		try {
+			sopremoServer.start();
+		} catch (IOException e) {
+			LOG.error("Cannot start Sopremo server: " + StringUtils.stringifyException(e));
+		} finally {
+			sopremoServer.close();
+		}
+	}
+
 }

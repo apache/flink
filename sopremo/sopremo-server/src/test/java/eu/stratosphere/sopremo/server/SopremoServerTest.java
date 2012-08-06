@@ -18,9 +18,6 @@ import static org.mockito.Matchers.any;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
-
-import java.io.IOException;
-
 import junit.framework.Assert;
 
 import org.junit.After;
@@ -73,7 +70,7 @@ public class SopremoServerTest {
 	}
 
 	@After
-	public void teardown() throws IOException {
+	public void teardown() {
 		this.server.close();
 	}
 
