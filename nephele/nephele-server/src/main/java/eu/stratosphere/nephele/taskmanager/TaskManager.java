@@ -125,7 +125,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	private final static int FAILURERETURNCODE = -1;
 
-	private final static int DEFAULTPERIODICTASKSINTERVAL = 1000;
+	private final static int DEFAULTPERIODICTASKSINTERVAL = 2000;
 
 	/**
 	 * The instance of the {@link ByteBufferedChannelManager} which is responsible for

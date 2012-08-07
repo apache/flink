@@ -159,7 +159,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final int recommendedClientPollingInterval;
 
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	private final ExecutorService executorService = Executors.newCachedThreadPool();
 
 	private final static int SLEEPINTERVAL = 1000;
 
