@@ -88,18 +88,31 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	
 	private final boolean normalizedKeyFullyDetermines;
 	
+	private final boolean useNormKeyUninverted;
+	
 	
 	// -------------------------------------------------------------------------
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
 
-	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory)
-	{
+	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) {
 		this(serializer, comparator, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN);
+	}
+	
+	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator,
+			List<MemorySegment> memory, boolean invertNormalizedKeyDirection)
+	{
+		this(serializer, comparator, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN, invertNormalizedKeyDirection);
 	}
 	
 	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
 			List<MemorySegment> memory, int maxNormalizedKeyBytes)
+	{
+		this(serializer, comparator, memory, maxNormalizedKeyBytes, false);
+	}
+	
+	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
+			List<MemorySegment> memory, int maxNormalizedKeyBytes, boolean invertNormalizedKeyDirection)
 	{
 		if (serializer == null || comparator == null || memory == null)
 			throw new NullPointerException();
@@ -108,6 +121,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		
 		this.serializer = serializer;
 		this.comparator = comparator;
+		this.useNormKeyUninverted = !invertNormalizedKeyDirection;
 		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
@@ -163,8 +177,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	/**
 	 * Resets the sort buffer back to the state where it is empty. All contained data is discarded.
 	 */
-	public void reset()
-	{
+	public void reset() {
 		// reset all offsets
 		this.numRecords = 0;
 		this.currentSortIndexOffset = 0;
@@ -188,8 +201,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return True, if no record is contained, false otherwise.
 	 */
-	public boolean isEmpty()
-	{
+	public boolean isEmpty() {
 		return this.numRecords == 0;
 	}
 	
@@ -198,8 +210,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return All memory segments from this sorter.
 	 */
-	public List<MemorySegment> dispose()
-	{
+	public List<MemorySegment> dispose() {
 		this.freeMemory.addAll(this.sortIndex);
 		this.freeMemory.addAll(this.recordBufferSegments);
 		
@@ -214,8 +225,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return The sorter's total capacity.
 	 */
-	public long getCapacity()
-	{
+	public long getCapacity() {
 		return ((long) this.totalNumBuffers) * this.segmentSize;
 	}
 	
@@ -224,8 +234,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * 
 	 * @return The number of bytes occupied.
 	 */
-	public long getOccupancy()
-	{
+	public long getOccupancy() {
 		return this.currentDataBufferOffset + this.sortIndexBytes;
 	}
 
@@ -240,8 +249,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 	 * @param logicalPosition The logical position of the record.
 	 * @throws IOException Thrown, if an exception occurred during deserialization.
 	 */
-	public void getRecord(T target, int logicalPosition) throws IOException
-	{
+	public void getRecord(T target, int logicalPosition) throws IOException {
 		getRecordFromBuffer(target, readPointer(logicalPosition));
 	}
 
@@ -316,13 +324,11 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		}
 	}
 	
-	private final boolean memoryAvailable()
-	{
+	private final boolean memoryAvailable() {
 		return !this.freeMemory.isEmpty();
 	}
 	
-	private final MemorySegment nextMemorySegment()
-	{
+	private final MemorySegment nextMemorySegment() {
 		return this.freeMemory.remove(this.freeMemory.size() - 1);
 	}
 
@@ -351,7 +357,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 			pos < this.numKeyBytes && (val = (bI[posI] & 0xff) - (bJ[posJ] & 0xff)) == 0; pos++, posI++, posJ++);
 		
 		if (val != 0 || this.normalizedKeyFullyDetermines) {
-			return val;
+			return this.useNormKeyUninverted ? val : -val;
 		}
 		
 		final long pointerI = segI.getLong(segmentOffsetI);
