@@ -40,31 +40,51 @@ public final class TeraValue implements Value {
 	/**
 	 * The buffer to store the value.
 	 */
-	private final byte[] value = new byte[VALUE_SIZE];
+	private byte[] value;
+	
+	/**
+	 * The offset to the value byte sequence.
+	 */
+	private int offset;
 
 	/**
-	 * Constructs a new value object.
+	 * Constructs a new value object. The value points to the subsequence in the given array, i.e. it 
+	 * is sharing the byte array.
 	 * 
-	 * @param srcBuf
-	 *        the source buffer to read the value from
+	 * @param srcBuf The source buffer to read the value from.
+	 * @param offset The offset in the byte array where the value subsequence starts.
 	 */
 	public TeraValue(final byte[] srcBuf, int offset) {
-		System.arraycopy(srcBuf, offset, this.value, 0, VALUE_SIZE);
+		this.value = srcBuf;
+		this.offset = offset;
 	}
 
 	/**
 	 * Default constructor required for serialization/deserialization.
 	 */
 	public TeraValue() {
+		this.value = new byte[VALUE_SIZE];
+	}
+	
+	/**
+	 * Sets the value of this value object. This value will point to the subsequence in the given array, i.e. it 
+	 * is sharing the byte array.
+	 * 
+	 * @param data The source buffer to read the value from.
+	 * @param offset The offset in the byte array where the value subsequence starts.
+	 */
+	public void setValue(final byte[] data, int offset) {
+		this.value = data;
+		this.offset = offset;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-
-		out.write(this.value);
+	public void write(DataOutput out) throws IOException
+	{
+		out.write(this.value, this.offset, VALUE_SIZE);
 	}
 
 	/**
@@ -72,8 +92,8 @@ public final class TeraValue implements Value {
 	 */
 	@Override
 	public void read(DataInput in) throws IOException {
-
-		in.readFully(this.value);
+		in.readFully(this.value, 0, VALUE_SIZE);
+		this.offset = 0;
 	}
 
 	/**
@@ -84,6 +104,16 @@ public final class TeraValue implements Value {
 	 */
 	public void copyToBuffer(final byte[] buf) {
 
-		System.arraycopy(this.value, 0, buf, TeraKey.KEY_SIZE, VALUE_SIZE);
+		System.arraycopy(this.value, this.offset, buf, 0, VALUE_SIZE);
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public String toString() {
+
+		return new String(this.value, this.offset, VALUE_SIZE);
 	}
 }
+
