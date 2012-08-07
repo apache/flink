@@ -34,6 +34,7 @@ import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
@@ -159,6 +160,8 @@ public class TaskConfig
   private static final String NUMBER_OF_ITERATIONS = "pact.iterative.numberOfIterations";
 
   private static final String BACKCHANNEL_MEMORY_FRACTION = "pact.iterative.backChannelMemoryFraction";
+
+  private static final String CONVERGENCE_CRITERION = "pact.iterative.terminationCriterion";
 
   // --------------------------------------------------------------------------------------------
 
@@ -670,6 +673,18 @@ public class TaskConfig
 
   public int getNumberOfEventsUntilInterruptInIterativeGate(int inputGateIndex) {
     return config.getInteger(NUMBER_OF_EVENTS_UNTIL_INTERRUPT + inputGateIndex, 0);
+  }
+
+  public void setConvergenceCriterion(Class<? extends ConvergenceCriterion> convergenceCriterionClass) {
+    config.setClass(CONVERGENCE_CRITERION, convergenceCriterionClass);
+  }
+
+  public Class<? extends ConvergenceCriterion> getConvergenceCriterion() {
+    return Preconditions.checkNotNull(config.getClass(CONVERGENCE_CRITERION, null, ConvergenceCriterion.class));
+  }
+
+  public boolean usesConvergenceCriterion() {
+    return config.getClass(CONVERGENCE_CRITERION, null) != null;
   }
 	
 	// --------------------------------------------------------------------------------------------

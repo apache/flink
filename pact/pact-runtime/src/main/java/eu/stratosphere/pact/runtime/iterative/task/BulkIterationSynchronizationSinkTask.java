@@ -20,6 +20,8 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
@@ -43,15 +45,20 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
 
   private TaskConfig taskConfig;
 
-  private InterruptingMutableObjectIterator<PactRecord> recordIterator;
-  private MutableRecordReader<PactRecord> reader;
+  private InterruptingMutableObjectIterator<PactRecord> headEventRecordIterator;
+  private MutableRecordReader<PactRecord> headEventReader;
 
-  private int numIterations = 1;
+  private ConvergenceCriterion convergenceCriterion;
+
+  private InterruptingMutableObjectIterator<PactRecord> convergenceRecordIterator;
+  private MutableRecordReader<PactRecord> convergenceReader;
+
+  private int currentIteration = 1;
 
   private final AtomicBoolean terminated = new AtomicBoolean(false);
 
-  // this task will never see any records, just events
-  private static final PactRecord DUMMY = new PactRecord();
+  private final PactRecord headEventRecord = new PactRecord();
+  private final PactRecord convergenceRecord = new PactRecord();
 
   private static final Log log = LogFactory.getLog(BulkIterationSynchronizationSinkTask.class);
 
@@ -63,6 +70,7 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
 
     String name = getEnvironment().getTaskName() + " (" + (getEnvironment().getIndexInSubtaskGroup() + 1) + '/' +
         getEnvironment().getCurrentNumberOfSubtasks() + ")";
+
     int numberOfEventsUntilInterrupt = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
 
     if (log.isInfoEnabled()) {
@@ -70,12 +78,33 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
           "for [" + numberOfEventsUntilInterrupt + "] event(s)"));
     }
 
-    reader = new MutableRecordReader<PactRecord>(this);
-    recordIterator = new InterruptingMutableObjectIterator<PactRecord>(new PactRecordNepheleReaderIterator(reader,
-        ReaderInterruptionBehaviors.FALSE_ON_INTERRUPT), numberOfEventsUntilInterrupt, name, this);
+    headEventReader = new MutableRecordReader<PactRecord>(this, 0);
+    headEventRecordIterator = new InterruptingMutableObjectIterator<PactRecord>(
+        new PactRecordNepheleReaderIterator(headEventReader, ReaderInterruptionBehaviors.RELEASE_ON_INTERRUPT),
+        numberOfEventsUntilInterrupt, name, this, 0);
 
-    reader.subscribeToEvent(recordIterator, EndOfSuperstepEvent.class);
-    reader.subscribeToEvent(recordIterator, TerminationEvent.class);
+    headEventReader.subscribeToEvent(headEventRecordIterator, EndOfSuperstepEvent.class);
+    //TODO necessary???
+    headEventReader.subscribeToEvent(headEventRecordIterator, TerminationEvent.class);
+
+    if (taskConfig.usesConvergenceCriterion()) {
+
+      int numberOfEventsUntilInterruptOnConvergenceGate = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(1);
+
+      convergenceCriterion = InstantiationUtil.instantiate(taskConfig.getConvergenceCriterion(),
+          ConvergenceCriterion.class);
+      convergenceReader = new MutableRecordReader<PactRecord>(this, 1);
+      convergenceRecordIterator = new InterruptingMutableObjectIterator<PactRecord>(
+          new PactRecordNepheleReaderIterator(convergenceReader, ReaderInterruptionBehaviors.RELEASE_ON_INTERRUPT),
+          numberOfEventsUntilInterruptOnConvergenceGate, name, this, 1);
+
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("wrapping input [1] with an interrupting iterator that waits " +
+            "for [" + numberOfEventsUntilInterruptOnConvergenceGate + "] event(s)"));
+      }
+
+      convergenceReader.subscribeToEvent(convergenceRecordIterator, EndOfSuperstepEvent.class);
+    }
   }
 
   @Override
@@ -97,19 +126,19 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
     while (!terminationRequested()) {
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("starting iteration [" + numIterations + "]"));
+        log.info(formatLogString("starting iteration [" + currentIteration + "]"));
       }
 
-      readInput();
+      readHeadEventChannel();
 
       if (log.isInfoEnabled()) {
-        log.info(formatLogString("finishing iteration [" + numIterations + "]"));
+        log.info(formatLogString("finishing iteration [" + currentIteration + "]"));
       }
 
-      if (checkTerminationCriterion(numIterations)) {
+      if (checkForConvergence()) {
 
         if (log.isInfoEnabled()) {
-          log.info(formatLogString("signaling that all workers are to terminate in iteration [" + numIterations + "]"));
+          log.info(formatLogString("signaling that all workers are to terminate in iteration [" + currentIteration + "]"));
         }
 
         requestTermination();
@@ -117,32 +146,67 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
       } else {
 
         if (log.isInfoEnabled()) {
-          log.info(formatLogString("signaling that all workers are done in iteration [" + numIterations + "]"));
+          log.info(formatLogString("signaling that all workers are done in iteration [" + currentIteration + "]"));
         }
 
         sendToAllWorkers(new AllWorkersDoneEvent());
-        numIterations++;
+        currentIteration++;
       }
 
     }
   }
 
-  private boolean checkTerminationCriterion(int numIterations) {
+  private boolean checkForConvergence() throws IOException, InterruptedException {
     Preconditions.checkState(taskConfig.getNumberOfIterations() > 0);
-    return taskConfig.getNumberOfIterations() == numIterations;
+
+    boolean converged = false;
+
+    if (taskConfig.usesConvergenceCriterion()) {
+      converged = readConvergenceChannel();
+    }
+
+    if (converged) {
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("convergence reached after [" + currentIteration + "] iterations, terminating..."));
+      }
+      return true;
+    }
+
+    converged = maximumNumberOfIterationsReached();
+
+    if (converged) {
+      if (log.isInfoEnabled()) {
+        log.info(formatLogString("maximum number of iterations [" + currentIteration + "] reached, terminating..."));
+      }
+      return true;
+    }
+
+    return false;
   }
 
-  private void readInput() throws IOException {
-    boolean recordFound;
-    while (recordFound = recordIterator.next(DUMMY)) {
-      if (recordFound) {
-        throw new IllegalStateException("Synchronization task must not see any records!");
-      }
+  private boolean maximumNumberOfIterationsReached() {
+    return taskConfig.getNumberOfIterations() == currentIteration;
+  }
+
+  private void readHeadEventChannel() throws IOException {
+    while (headEventRecordIterator.next(headEventRecord)) {
+      throw new IllegalStateException("Synchronization task must not see any records!");
     }
+  }
+
+  private boolean readConvergenceChannel() throws IOException, InterruptedException {
+
+    convergenceCriterion.prepareForNextIteration();
+
+    while (convergenceRecordIterator.next(convergenceRecord)) {
+      convergenceCriterion.analyze(convergenceRecord);
+    }
+
+    return convergenceCriterion.isConverged();
   }
 
   private void sendToAllWorkers(AbstractTaskEvent event) throws IOException, InterruptedException {
-    reader.publishEvent(event);
+    headEventReader.publishEvent(event);
   }
 
   //TODO remove duplicated code

@@ -15,14 +15,22 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import com.google.common.collect.Lists;
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import java.io.IOException;
+import java.util.List;
 
 //TODO could this be an output???
 /**
@@ -31,6 +39,8 @@ import org.apache.commons.logging.LogFactory;
  */
 public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
+
+  private List<AbstractRecordWriter> validOutputs;
 
   private static final Log log = LogFactory.getLog(BulkIterationTailPactTask.class);
 
@@ -41,13 +51,26 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
   }
 
   @Override
+  protected void initOutputs() throws Exception {
+    super.initOutputs();
+    //TODO remove implicit order assumption
+    //TODO type safety
+    validOutputs = Lists.newArrayListWithCapacity(eventualOutputs.size() - 1);
+
+    for (int n = 0; n < eventualOutputs.size() - 1; n++) {
+      validOutputs.add(eventualOutputs.get(n));
+    }
+  }
+
+  @Override
   public void invoke() throws Exception {
 
     // Initially retreive the backchannel from the iteration head
     final BlockingBackChannel backChannel = retrieveBackChannel();
 
     // redirect output to the backchannel
-    output = new DataOutputCollector<OT>(backChannel.getWriteEnd(), createOutputTypeSerializer());
+    //TODO type safety
+    output = new DataOutputCollector(backChannel.getWriteEnd(), createOutputTypeSerializer(), validOutputs);
 
     while (!terminationRequested()) {
 
@@ -67,9 +90,20 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
 
       if (!terminationRequested()) {
         backChannel.notifyOfEndOfSuperstep();
+        propagateEvent(new EndOfSuperstepEvent());
         incrementIterationCounter();
+      } else {
+        propagateEvent(new TerminationEvent());
       }
     }
   }
 
+  private void propagateEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("propagating " + event.getClass().getSimpleName()));
+    }
+    for (AbstractRecordWriter<?> validOutput : validOutputs) {
+      validOutput.publishEvent(event);
+    }
+  }
 }

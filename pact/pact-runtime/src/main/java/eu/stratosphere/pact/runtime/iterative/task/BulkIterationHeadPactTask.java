@@ -20,8 +20,10 @@ import com.google.common.collect.Lists;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.Writer;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
@@ -180,7 +182,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     streamOutFinalOutput();
   }
 
-  // send output to all but the last two connected task while iterating
+  // send output to all but the last two connected tasks while iterating
   private Collector<PactRecord> iterationCollector() {
     int numOutputs = eventualOutputs.size();
     Preconditions.checkState(numOutputs > 2);
@@ -218,7 +220,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     }
     //TODO remove implicit assumption
     for (int outputIndex = 0; outputIndex < eventualOutputs.size() - 2; outputIndex++) {
-      flushAndPublishEvent(eventualOutputs.get(outputIndex), event);
+      eventualOutputs.get(outputIndex).publishEvent(event);
     }
   }
 
@@ -226,7 +228,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     if (log.isInfoEnabled()) {
       log.info(formatLogString("sending " + event.getClass().getSimpleName() + " to sync"));
     }
-    flushAndPublishEvent(getSyncOutput(), event);
+    getSyncOutput().publishEvent(event);
   }
 
 }

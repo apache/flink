@@ -13,12 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.task;
+package eu.stratosphere.pact.runtime.iterative.convergence;
 
-/** models the functionality that the termination of an iterative task can be requested from outside */
-public interface Terminable {
+import eu.stratosphere.pact.common.type.PactRecord;
 
-  boolean terminationRequested();
+public interface ConvergenceCriterion {
 
-  void requestTermination();
+  void prepareForNextIteration();
+
+  void analyze(PactRecord record);
+
+  boolean isConverged();
 }

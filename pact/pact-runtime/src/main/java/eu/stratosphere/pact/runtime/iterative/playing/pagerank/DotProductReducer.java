@@ -21,12 +21,12 @@ public class DotProductReducer extends ReduceStub {
       PactRecord record = records.next();
       accumulator.setField(0, record.getField(0, PactLong.class));
       sum += record.getField(1, PactDouble.class).getValue();
-      System.out.println("\t" + record.getField(0, PactLong.class) + " " + record.getField(1, PactDouble.class));
+      //System.out.println("\t" + record.getField(0, PactLong.class) + " " + record.getField(1, PactDouble.class));
     }
 
     accumulator.setField(1, new PactDouble(sum));
 
-    System.out.println("Reduce: " + accumulator.getField(0, PactLong.class) + " " + sum);
+    //System.out.println("Reduce: " + accumulator.getField(0, PactLong.class) + " " + sum);
 
     collector.collect(accumulator);
   }

@@ -20,8 +20,8 @@ public class DotProductMatch extends MatchStub {
     record.setField(0, new PactLong(vertexID));
     record.setField(1, new PactDouble(rank * transitionProbability));
 
-    long source = transitionMatrixEntry.getField(0, PactLong.class).getValue();
-    System.out.println("Match from " + source + " to " + vertexID + ": " + rank + " * " + transitionProbability + " = " +  (rank * transitionProbability));
+    //long source = transitionMatrixEntry.getField(0, PactLong.class).getValue();
+    //System.out.println("Match from " + source + " to " + vertexID + ": " + rank + " * " + transitionProbability + " = " +  (rank * transitionProbability));
 
     collector.collect(record);
   }

@@ -15,8 +15,6 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
@@ -118,7 +116,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   @Override
   protected ReaderInterruptionBehavior readerInterruptionBehavior(int inputGateIndex) {
     return getTaskConfig().isIterativeInputGate(inputGateIndex) ?
-        ReaderInterruptionBehaviors.FALSE_ON_INTERRUPT : ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
+        ReaderInterruptionBehaviors.RELEASE_ON_INTERRUPT : ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT;
   }
 
   @Override
@@ -174,7 +172,8 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
     //TODO type safety
     InterruptingMutableObjectIterator<X> interruptingIterator = new InterruptingMutableObjectIterator<X>(
-        (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, identifier(), this);
+        (MutableObjectIterator<X>) super.getInput(inputGateIndex), numberOfEventsUntilInterrupt, identifier(), this,
+        inputGateIndex);
 
     MutableReader<Record> inputReader = getReader(inputGateIndex);
     inputReader.subscribeToEvent(interruptingIterator, EndOfSuperstepEvent.class);
@@ -188,14 +187,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     wrappedInputs[inputGateIndex] = interruptingIterator;
 
     return interruptingIterator;
-  }
-
-  // TODO check whether flush could be removed
-  protected void flushAndPublishEvent(AbstractRecordWriter<?> writer, AbstractTaskEvent event)
-      throws IOException, InterruptedException {
-    writer.flush();
-    writer.publishEvent(event);
-    writer.flush();
   }
 
   //TODO move up to RegularPactTask

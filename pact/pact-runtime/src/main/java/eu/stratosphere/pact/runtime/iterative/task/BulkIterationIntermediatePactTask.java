@@ -66,7 +66,7 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
       log.info(formatLogString("propagating " + event.getClass().getSimpleName()));
     }
     for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
-      flushAndPublishEvent(eventualOutput, event);
+      eventualOutput.publishEvent(event);
     }
   }
 
