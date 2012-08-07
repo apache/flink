@@ -790,33 +790,6 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	/**
-	 * Returns a (possibly empty) list of execution vertices which are currently assigned to the
-	 * given allocated resource. The vertices in that list may have an arbitrary execution state.
-	 * 
-	 * @param allocatedResource
-	 *        the allocated resource to check the assignment for
-	 * @return a (possibly empty) list of execution vertices which are currently assigned to the given instance
-	 */
-	public List<ExecutionVertex> getVerticesAssignedToResource(final AllocatedResource allocatedResource) {
-
-		final List<ExecutionVertex> list = new ArrayList<ExecutionVertex>();
-
-		if (allocatedResource == null) {
-			return list;
-		}
-
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
-		while (it.hasNext()) {
-			final ExecutionVertex vertex = it.next();
-			if (allocatedResource.equals(vertex.getAllocatedResource())) {
-				list.add(vertex);
-			}
-		}
-
-		return list;
-	}
-
-	/**
 	 * Registers an execution vertex with the execution graph.
 	 * 
 	 * @param vertex

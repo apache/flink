@@ -498,14 +498,8 @@ public abstract class AbstractScheduler implements InstanceListener {
 			return;
 		}
 
-		final List<ExecutionVertex> assignedVertices = executionGraph
-			.getVerticesAssignedToResource(allocatedResource);
-		if (assignedVertices.isEmpty()) {
-			return;
-		}
-
 		boolean resourceCanBeReleased = true;
-		Iterator<ExecutionVertex> it = assignedVertices.iterator();
+		final Iterator<ExecutionVertex> it = allocatedResource.assignedVertices();
 		while (it.hasNext()) {
 			final ExecutionVertex vertex = it.next();
 			final ExecutionState state = vertex.getExecutionState();
@@ -587,8 +581,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 					return;
 				}
 
-				final List<ExecutionVertex> vertices = executionGraph.getVerticesAssignedToResource(allocatedResource);
-				Iterator<ExecutionVertex> vertexIter = vertices.iterator();
+				Iterator<ExecutionVertex> vertexIter = allocatedResource.assignedVertices();
 
 				// Assign vertices back to a dummy resource.
 				final DummyInstance dummyInstance = DummyInstance.createDummyInstance(allocatedResource.getInstance()
@@ -603,7 +596,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 
 				final String failureMessage = allocatedResource.getInstance().getName() + " died";
 
-				vertexIter = vertices.iterator();
+				vertexIter = allocatedResource.assignedVertices();
 
 				while (vertexIter.hasNext()) {
 					final ExecutionVertex vertex = vertexIter.next();
