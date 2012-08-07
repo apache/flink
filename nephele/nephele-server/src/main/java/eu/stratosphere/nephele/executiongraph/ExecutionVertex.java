@@ -196,6 +196,9 @@ public final class ExecutionVertex {
 		this.outputGates = new ExecutionGate[numberOfOutputGates];
 		this.inputGates = new ExecutionGate[numberOfInputGates];
 
+		// Register vertex with execution graph
+		this.executionGraph.registerExecutionVertex(this);
+
 		// Register the vertex itself as a listener for state changes
 		registerExecutionListener(this.executionGraph);
 	}

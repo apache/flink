@@ -83,6 +83,12 @@ public class ExecutionGraph implements ExecutionListener {
 	private final String jobName;
 
 	/**
+	 * Mapping of vertex IDs to vertices.
+	 */
+	private final ConcurrentMap<ExecutionVertexID, ExecutionVertex> vertexMap = new ConcurrentHashMap<ExecutionVertexID, ExecutionVertex>(
+		1024);
+
+	/**
 	 * Mapping of channel IDs to edges.
 	 */
 	private final ConcurrentMap<ChannelID, ExecutionEdge> edgeMap = new ConcurrentHashMap<ChannelID, ExecutionEdge>(
@@ -563,8 +569,7 @@ public class ExecutionGraph implements ExecutionListener {
 						+ ": " + StringUtils.stringifyException(e));
 				}
 			} else {
-				throw new GraphConversionException(
-					"BUG: JobInputVertex contained a task class which was not an input task.");
+				throw new GraphConversionException("JobInputVertex contained a task class which was not an input task.");
 			}
 
 			if (inputSplits == null) {
@@ -811,23 +816,31 @@ public class ExecutionGraph implements ExecutionListener {
 		return list;
 	}
 
+	/**
+	 * Registers an execution vertex with the execution graph.
+	 * 
+	 * @param vertex
+	 *        the execution vertex to register
+	 */
+	void registerExecutionVertex(final ExecutionVertex vertex) {
+
+		if (this.vertexMap.put(vertex.getID(), vertex) != null) {
+			throw new IllegalStateException("There is already an execution vertex with ID " + vertex.getID()
+				+ " registered");
+		}
+	}
+
+	/**
+	 * Returns the execution vertex with the given vertex ID.
+	 * 
+	 * @param id
+	 *        the vertex ID to retrieve the execution vertex
+	 * @return the execution vertex matching the provided vertex ID or <code>null</code> if no such vertex could be
+	 *         found
+	 */
 	public ExecutionVertex getVertexByID(final ExecutionVertexID id) {
 
-		if (id == null) {
-			return null;
-		}
-
-		final ExecutionGraphIterator it = new ExecutionGraphIterator(this, true);
-
-		while (it.hasNext()) {
-
-			final ExecutionVertex vertex = it.next();
-			if (vertex.getID().equals(id)) {
-				return vertex;
-			}
-		}
-
-		return null;
+		return this.vertexMap.get(id);
 	}
 
 	/**
@@ -1234,6 +1247,7 @@ public class ExecutionGraph implements ExecutionListener {
 		final ExecutionVertex vertex = getVertexByID(vertexID);
 		if (vertex == null) {
 			LOG.error("Cannot find execution vertex with the ID " + vertexID);
+			return;
 		}
 
 		final ExecutionState actualExecutionState = vertex.getExecutionState();
