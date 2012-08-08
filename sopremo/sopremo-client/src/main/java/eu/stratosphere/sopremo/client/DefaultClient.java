@@ -19,8 +19,10 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionResponse;
 import eu.stratosphere.sopremo.execution.ExecutionRequest.ExecutionMode;
@@ -48,7 +50,7 @@ public class DefaultClient implements Closeable {
 	 * Initializes DefaultClient.
 	 */
 	public DefaultClient() {
-		this(new Configuration());
+		this(GlobalConfiguration.getConfiguration());
 	}
 
 	/**
@@ -150,6 +152,9 @@ public class DefaultClient implements Closeable {
 	public boolean submit(SopremoPlan plan, ProgressListener progressListener, boolean wait) {
 		this.initConnection(progressListener);
 		final ExecutionResponse response = this.sendPlan(plan, progressListener);
+		if (response == null)
+			return false;
+
 		if (response.getState() == ExecutionState.ERROR) {
 			dealWithError(progressListener, null, "Error while waiting for job execution");
 			return false;
@@ -177,8 +182,8 @@ public class DefaultClient implements Closeable {
 	}
 
 	private void dealWithError(ProgressListener progressListener, Exception e, final String detail) {
-		progressListener.progressUpdate(ExecutionState.ERROR, detail
-			+ e.getMessage());
+		progressListener.progressUpdate(ExecutionState.ERROR, String.format("%s: %s", detail,
+			StringUtils.stringifyException(e)));
 	}
 
 	private void initConnection(ProgressListener progressListener) {

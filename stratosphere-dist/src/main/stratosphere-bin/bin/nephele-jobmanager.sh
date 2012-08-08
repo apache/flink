@@ -94,6 +94,8 @@ constructJobManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'sopremo' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'fastutil' ]]; then
+			add=1
 		fi
 
 		if [[ "$add" = "1" ]]; then

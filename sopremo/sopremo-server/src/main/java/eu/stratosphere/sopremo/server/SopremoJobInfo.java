@@ -17,6 +17,7 @@ package eu.stratosphere.sopremo.server;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
+import eu.stratosphere.sopremo.execution.SopremoID;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
 
 /**
@@ -29,9 +30,21 @@ public class SopremoJobInfo {
 
 	private JobClient jobClient;
 
-	public SopremoJobInfo(ExecutionRequest initialRequest, Configuration configuration) {
+	private final SopremoID jobId;
+
+	public SopremoJobInfo(SopremoID jobId, ExecutionRequest initialRequest, Configuration configuration) {
 		this.initialRequest = initialRequest;
 		this.configuration = configuration;
+		this.jobId = jobId;
+	}
+
+	/**
+	 * Returns the jobId.
+	 * 
+	 * @return the jobId
+	 */
+	public SopremoID getJobId() {
+		return this.jobId;
 	}
 
 	/**

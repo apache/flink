@@ -41,7 +41,27 @@ constructSopremoClassPath() {
 
 		if [[ "$jarfile" =~ 'nephele-common' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'nephele-management' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-compiler' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-clients' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'sopremo' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'log4j' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'fastutil' ]]; then
 			add=1
 		fi
 
@@ -59,8 +79,8 @@ constructSopremoClassPath() {
 
 SOPREMO_SERVER_CLASSPATH=$(constructSopremoClassPath)
 
-log=$NEPHELE_LOG_DIR/nephele-$NEPHELE_IDENT_STRING-sopremo-server-$HOSTNAME.log
-pid=$NEPHELE_PID_DIR/nephele-$NEPHELE_IDENT_STRING-sopremo-server.pid
+log=$NEPHELE_LOG_DIR/sopremo.log
+pid=$NEPHELE_PID_DIR/sopremo-server.pid
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file://"$NEPHELE_CONF_DIR"/log4j.properties"
 
 case $STARTSTOP in
@@ -83,6 +103,7 @@ case $STARTSTOP in
                         if kill -0 `cat $pid` > /dev/null 2>&1; then
                                 echo Stopping Sopremo server
                                 kill `cat $pid`
+                                kill -9 `cat $pid`
                         else
                                 echo No Sopremo server to stop
                         fi

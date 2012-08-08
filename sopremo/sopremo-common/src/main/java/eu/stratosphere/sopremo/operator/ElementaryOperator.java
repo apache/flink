@@ -31,6 +31,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.DegreeOfParallelism;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.util.CollectionUtil;
@@ -83,7 +84,8 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	private static final org.apache.commons.logging.Log LOG = LogFactory
 		.getLog(ElementaryOperator.class);
 
-	private final List<List<? extends EvaluationExpression>> keyExpressions = new ArrayList<List<? extends EvaluationExpression>>();
+	private final List<List<? extends EvaluationExpression>> keyExpressions =
+		new ArrayList<List<? extends EvaluationExpression>>();
 
 	private EvaluationExpression resultProjection = EvaluationExpression.VALUE;
 
@@ -97,7 +99,10 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 		if (resultProjection == null)
 			throw new NullPointerException("resultProjection must not be null");
 
-		this.resultProjection = resultProjection;
+		if (getMaxInputs() == 1)
+			this.resultProjection = resultProjection.clone().remove(new InputSelection(0));
+		else
+			this.resultProjection = resultProjection;
 	}
 
 	public Self withResultProjection(final EvaluationExpression resultProjection) {
@@ -415,7 +420,8 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	// }
 	//
 	public List<List<? extends EvaluationExpression>> getAllKeyExpressions() {
-		final ArrayList<List<? extends EvaluationExpression>> allKeys = new ArrayList<List<? extends EvaluationExpression>>();
+		final ArrayList<List<? extends EvaluationExpression>> allKeys =
+			new ArrayList<List<? extends EvaluationExpression>>();
 		final List<JsonStream> inputs = this.getInputs();
 		for (int index = 0; index < inputs.size(); index++)
 			allKeys.add(this.getKeyExpressions(index));

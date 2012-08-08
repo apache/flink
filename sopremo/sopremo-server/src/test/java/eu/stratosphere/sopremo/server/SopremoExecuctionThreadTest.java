@@ -36,6 +36,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
+import eu.stratosphere.sopremo.execution.SopremoID;
 import eu.stratosphere.sopremo.execution.ExecutionRequest.ExecutionMode;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
 
@@ -54,7 +55,8 @@ public class SopremoExecuctionThreadTest {
 
 	@Before
 	public void setup() throws Exception {
-		this.jobInfo = new SopremoJobInfo(new ExecutionRequest(SopremoServerTest.createPlan()), new Configuration());
+		this.jobInfo = new SopremoJobInfo(new SopremoID(),
+			new ExecutionRequest(SopremoServerTest.createPlan()), new Configuration());
 		this.thread = new SopremoExecutionThread(this.jobInfo, new InetSocketAddress(0)) {
 			/*
 			 * (non-Javadoc)
@@ -79,8 +81,8 @@ public class SopremoExecuctionThreadTest {
 		Assert.assertSame(this.jobInfo.getDetail(), ExecutionState.FINISHED, this.jobInfo.getStatus());
 		Assert.assertSame("", this.jobInfo.getDetail());
 	}
-	
-	@Test	
+
+	@Test
 	public void testSuccessfulExecutionWithStatistics() throws Exception {
 		this.jobInfo.getInitialRequest().setMode(ExecutionMode.RUN_WITH_STATISTICS);
 		when(this.mockClient.submitJobAndWait()).thenReturn(1L);

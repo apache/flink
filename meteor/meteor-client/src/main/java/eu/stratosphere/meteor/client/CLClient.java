@@ -58,7 +58,7 @@ public class CLClient {
 			withDescription("Executes the given script").create("f"));
 		this.options.addOption(OptionBuilder.
 			withArgName("config").hasArg(true).
-			withDescription("Uses the given configuration").withLongOpt("conf").create());
+			withDescription("Uses the given configuration").withLongOpt("configDir").create());
 		this.options.addOption(OptionBuilder.
 			withArgName("server").hasArg(true).
 			withDescription("Uses the specified server").withLongOpt("server").create());
@@ -85,30 +85,28 @@ public class CLClient {
 		this.sopremoClient.submit(plan, new StateListener() {
 			@Override
 			public void stateChanged(ExecutionState executionState, String detail) {
+				System.out.println();
 				switch (executionState) {
 				case ENQUEUED:
 					System.out.print("Submitted script");
 					break;
 				case RUNNING:
-					System.out.print("\nExecuting script");
+					System.out.print("Executing script");
 					break;
 				case FINISHED:
-					System.out.println("\n" + detail);
+					System.out.print(detail);
 					break;
-				case ERROR:
-					System.err.println("\n" + detail);
+				case ERROR:			
+					System.out.print(detail);
 					break;
 				}
 			}
 
-			/*
-			 * (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.client.StateListener#progressUpdate(eu.stratosphere.sopremo.execution.
-			 * ExecutionResponse.ExecutionState, java.lang.String)
+			/* (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.client.StateListener#stateNotChanged(eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState, java.lang.String)
 			 */
 			@Override
-			public void progressUpdate(ExecutionState status, String detail) {
-				super.progressUpdate(status, detail);
+			protected void stateNotChanged(ExecutionState state, String detail) {
 				System.out.print(".");
 			}
 		}, cmd.hasOption("wait"));
@@ -117,9 +115,9 @@ public class CLClient {
 	}
 
 	private void configureClient(CommandLine cmd) {
-		String configDir = cmd.getOptionValue("config");
+		String configDir = cmd.getOptionValue("configDir");
 		GlobalConfiguration.loadConfiguration(configDir);
-		this.sopremoClient = new DefaultClient();
+		this.sopremoClient = new DefaultClient(GlobalConfiguration.getConfiguration());
 
 		int updateTime = 1000;
 		if (cmd.hasOption("updateTime"))
@@ -143,8 +141,8 @@ public class CLClient {
 		}
 	}
 
-	protected void dealWithError(Exception e, final String message) {
-		System.err.print(message);
+	protected void dealWithError(Exception e, final String message, Object... args) {
+		System.err.print(String.format(message, args));
 		if (e != null) {
 			System.err.print(": ");
 			System.err.print(e);
@@ -154,9 +152,9 @@ public class CLClient {
 	}
 
 	private SopremoPlan parseScript(CommandLine cmd) {
-		File file = new File(cmd.getOptionValue("file"));
+		File file = new File(cmd.getOptionValue("f"));
 		if (!file.exists())
-			this.dealWithError(null, "Given file not found");
+			this.dealWithError(null, "Given file %s not found", file);
 
 		try {
 			return new QueryParser().tryParse(new FileInputStream(file));
@@ -173,7 +171,7 @@ public class CLClient {
 		} catch (ParseException e) {
 			System.err.println("Cannot process the given arguments: " + e);
 			HelpFormatter formatter = new HelpFormatter();
-			formatter.printHelp("", this.options);
+			formatter.printHelp("meteor-client.sh", this.options);
 			System.exit(1);
 			return null;
 		}

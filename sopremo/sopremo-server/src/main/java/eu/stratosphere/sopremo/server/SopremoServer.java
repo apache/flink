@@ -38,7 +38,6 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.RPC.Server;
 import eu.stratosphere.nephele.util.StringUtils;
-import eu.stratosphere.pact.testing.DaemonThreadFactory;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionResponse;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
@@ -61,8 +60,19 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	private Map<SopremoID, SopremoJobInfo> meteorInfo =
 		new ConcurrentHashMap<SopremoID, SopremoJobInfo>();
 
+	private boolean stopped = false;
+
+	/**
+	 * Returns the stopped.
+	 * 
+	 * @return the stopped
+	 */
+	public boolean isStopped() {
+		return this.stopped;
+	}
+
 	public SopremoServer() {
-		this(new Configuration());
+		this(GlobalConfiguration.getConfiguration());
 	}
 
 	public SopremoServer(Configuration configuration) {
@@ -82,6 +92,10 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 		this.executorService.shutdownNow();
 	}
 
+	public void stop() {
+		this.stopped = true;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.meteor.execution.SopremoExecutor#execute(eu.stratosphere.meteor.execution.ExecutionRequest)
@@ -89,7 +103,8 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	@Override
 	public ExecutionResponse execute(ExecutionRequest request) {
 		SopremoID jobId = new SopremoID();
-		final SopremoJobInfo info = new SopremoJobInfo(request, this.configuration);
+		LOG.info("Receive execution request for job " + jobId);
+		final SopremoJobInfo info = new SopremoJobInfo(jobId, request, this.configuration);
 		this.meteorInfo.put(jobId, info);
 		this.executorService.submit(new SopremoExecutionThread(info, getJobManagerAddress()));
 		return this.getState(jobId);
@@ -142,6 +157,7 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			 */
 			@Override
 			public void run() {
+				SopremoServer.this.stop();
 				close();
 			}
 		});
@@ -162,13 +178,13 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	}
 
 	private ScheduledThreadPoolExecutor createExecutor() {
-		final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1, new DaemonThreadFactory());
+		final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 		executor.setMaximumPoolSize(1);
 		return executor;
 	}
 
 	private void startServer() throws IOException {
-		final int handlerCount = GlobalConfiguration.getInteger(SopremoConstants.SOPREMO_SERVER_HANDLER_COUNT_KEY, 1);
+		final int handlerCount = this.configuration.getInteger(SopremoConstants.SOPREMO_SERVER_HANDLER_COUNT_KEY, 1);
 		InetSocketAddress rpcServerAddress = getServerAddress();
 		this.server = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
 			handlerCount);
@@ -176,6 +192,8 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	}
 
 	private static final Log LOG = LogFactory.getLog(SopremoServer.class);
+
+	private final static int SLEEPINTERVAL = 1000;
 
 	/**
 	 * Entry point for the program
@@ -203,14 +221,25 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			System.exit(1);
 		}
 
-		// Create a new job manager object
-		SopremoServer sopremoServer = new SopremoServer(new Configuration());
+		// start server
+		SopremoServer sopremoServer = new SopremoServer();
 		try {
 			sopremoServer.start();
 		} catch (IOException e) {
 			LOG.error("Cannot start Sopremo server: " + StringUtils.stringifyException(e));
-		} finally {
 			sopremoServer.close();
+			return;
+		}
+
+		// and wait for any shutdown signal
+		while (!Thread.interrupted()) {
+			// Sleep
+			try {
+				Thread.sleep(SLEEPINTERVAL);
+			} catch (InterruptedException e) {
+				break;
+			}
+			// Do nothing here
 		}
 	}
 

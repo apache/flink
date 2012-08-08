@@ -37,6 +37,7 @@ public class TypeCoercer {
 	public static final TypeCoercer INSTANCE = new TypeCoercer();
 
 	public TypeCoercer() {
+		this.addCoercers(MissingNode.class, new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, MissingNode>>());
 		this.addCoercers(BooleanNode.class, this.getToBooleanCoercers());
 		this.addCoercers(TextNode.class, this.getToStringCoercers());
 		this.addCoercers(IArrayNode.class, this.getToArrayCoercers());
@@ -314,6 +315,12 @@ public class TypeCoercer {
 		toBooleanCoercers.put(NullNode.class, new Coercer<NullNode, BooleanNode>() {
 			@Override
 			public BooleanNode coerce(final NullNode from, final BooleanNode target) {
+				return BooleanNode.FALSE;
+			}
+		});
+		toBooleanCoercers.put(MissingNode.class, new Coercer<MissingNode, BooleanNode>() {
+			@Override
+			public BooleanNode coerce(final MissingNode from, final BooleanNode target) {
 				return BooleanNode.FALSE;
 			}
 		});
