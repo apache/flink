@@ -521,6 +521,9 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 
 		public InputSplitOpenThread(FileInputSplit split, long timeout)
 		{
+			super("Transient InputSplit Opener");
+			setDaemon(true);
+			
 			this.split = split;
 			this.timeout = timeout;
 		}
@@ -564,6 +567,13 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 				return this.fdis;
 			} else {
 				this.aborted = true;
+				
+				final boolean stillAlive = this.isAlive();
+				final StringBuilder bld = new StringBuilder(256);
+				for (StackTraceElement e : this.getStackTrace()) {
+					bld.append("\tat ").append(e.toString()).append('\n');
+				}
+				
 				// double-check that the stream has not been set by now. we don't know here whether
 				// a) the opener thread recognized the canceling and closed the stream
 				// b) the flag was set such that the stream did not see it and we have a valid stream
@@ -575,7 +585,8 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 						inStream.close();
 					} catch (Throwable t) {}
 				}
-				throw new IOException("Opening request timed out.");
+				throw new IOException("Opening request timed out. Opener was " + (stillAlive ? "" : "NOT ") + 
+					" alive. Stack:\n" + bld.toString());
 			}
 		}
 	}
