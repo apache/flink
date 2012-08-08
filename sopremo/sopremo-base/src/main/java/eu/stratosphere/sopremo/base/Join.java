@@ -31,6 +31,7 @@ import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.operator.OutputCardinality;
 import eu.stratosphere.sopremo.operator.Property;
 import eu.stratosphere.sopremo.operator.SopremoModule;
+import eu.stratosphere.sopremo.rewrite.ReplaceInputSelectionWithArray;
 import eu.stratosphere.util.IsInstancePredicate;
 
 @InputCardinality(min = 2)
@@ -99,8 +100,10 @@ public class Join extends CompositeOperator<Join> {
 			}
 
 			final TwoSourceJoin lastJoin = joins.get(joins.size() - 1);
+			EvaluationExpression resultProjection = getResultProjection();
+			resultProjection.replace(new IsInstancePredicate(InputSelection.class), new ReplaceInputSelectionWithArray());
 			module.getOutput(0).setInput(0,
-				new Projection().withInputs(lastJoin).withResultProjection(getResultProjection()));
+				new Projection().withInputs(lastJoin).withResultProjection(resultProjection));
 		}
 
 		return module.asElementary(context);

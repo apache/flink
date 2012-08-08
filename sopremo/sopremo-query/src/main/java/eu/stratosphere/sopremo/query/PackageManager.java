@@ -108,7 +108,7 @@ public class PackageManager implements ParsingScope {
 			int nextIndex = pathIndex + sopremoPackage.length();
 			// next character must be '.' or file separator
 			if (nextIndex < path.length() && path.charAt(nextIndex) != File.separatorChar
-				&& path.charAt(nextIndex) != '.')
+				&& path.charAt(nextIndex) != '.' && path.charAt(nextIndex) != '-')
 				continue;
 			return new File(path);
 		}

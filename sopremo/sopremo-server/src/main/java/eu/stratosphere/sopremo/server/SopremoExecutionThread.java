@@ -47,7 +47,7 @@ public class SopremoExecutionThread implements Runnable {
 	/**
 	 * The logging object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(JobClient.class);
+	private static final Log LOG = LogFactory.getLog(SopremoExecutionThread.class);
 
 	public SopremoExecutionThread(SopremoJobInfo environment, InetSocketAddress jobManagerAddress) {
 		this.jobInfo = environment;
@@ -65,18 +65,21 @@ public class SopremoExecutionThread implements Runnable {
 
 	private void processPlan(SopremoPlan plan) {
 		try {
+			LOG.info("Starting job " + this.jobInfo.getJobId());
+			final long runtime = executePlan(plan);
 			switch (this.jobInfo.getInitialRequest().getMode()) {
 			case RUN:
-				if (executePlan(plan) != -1)
+				if (runtime != -1)
 					this.jobInfo.setStatusAndDetail(ExecutionState.FINISHED, "");
 				break;
 			case RUN_WITH_STATISTICS:
-				final long runtime = executePlan(plan);
 				if (runtime != -1)
 					gatherStatistics(plan, runtime);
 				break;
 			}
+			LOG.info(String.format("Finished job %s in %s ms", this.jobInfo.getJobId(), runtime));
 		} catch (Throwable ex) {
+			LOG.error("Cannot process plan " + this.jobInfo.getJobId(), ex);
 			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR,
 				"Cannot process plan: " + StringUtils.stringifyException(ex));
 		}
@@ -95,7 +98,7 @@ public class SopremoExecutionThread implements Runnable {
 					final long length = FileSystem.get(new URI(path)).getFileStatus(new Path(path)).getLen();
 					statistics.append("\n").append(path).append(": ").append(length).append(" B");
 				} catch (Exception e) {
-					LOG.warn(StringUtils.stringifyException(e));
+					LOG.warn("While gathering statistics", e);
 				}
 			}
 		this.jobInfo.setStatusAndDetail(ExecutionState.FINISHED, statistics.toString());
@@ -108,7 +111,8 @@ public class SopremoExecutionThread implements Runnable {
 		try {
 			jobGraph = getJobGraph(pactPlan);
 		} catch (Exception e) {
-			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not generate job graph: " + e.getMessage());
+			LOG.error("Could not generate job graph " + this.jobInfo.getJobId(), e);
+			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not generate job graph: " + StringUtils.stringifyException(e));
 			return -1;
 		}
 
@@ -116,7 +120,8 @@ public class SopremoExecutionThread implements Runnable {
 		try {
 			client = new JobClient(jobGraph, this.jobInfo.getConfiguration(), this.jobManagerAddress);
 		} catch (Exception e) {
-			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not open job manager: " + e.getMessage());
+			LOG.error("Could not open job manager " + this.jobInfo.getJobId(), e);
+			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not open job manager: " + StringUtils.stringifyException(e));
 			return -1;
 		}
 
@@ -124,10 +129,11 @@ public class SopremoExecutionThread implements Runnable {
 			this.jobInfo.setJobClient(client);
 			this.jobInfo.setStatusAndDetail(ExecutionState.RUNNING, "");
 			return client.submitJobAndWait();
-		} catch (Exception ex) {
+		} catch (Exception e) {
+			LOG.error("The job was not successfully submitted to the nephele job manager " + this.jobInfo.getJobId(), e);
 			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR,
 				"The job was not successfully submitted to the nephele job manager: "
-					+ StringUtils.stringifyException(ex));
+					+ StringUtils.stringifyException(e));
 			return -1;
 		}
 	}

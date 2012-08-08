@@ -30,12 +30,16 @@ public abstract class StateListener implements ProgressListener {
 	 */
 	@Override
 	public void progressUpdate(ExecutionState status, String detail) {
-		if (this.lastState != status) {
+		if (this.lastState != status) 
 			stateChanged(this.lastState = status, detail);
-		}
+		else stateNotChanged(this.lastState, detail);
 	}
 
-	public abstract void stateChanged(ExecutionState executionState, String detail);
+	@SuppressWarnings("unused")
+	protected void stateNotChanged(ExecutionState state, String detail) {
+	}
+
+	protected abstract void stateChanged(ExecutionState executionState, String detail);
 
 	/**
 	 * Returns the lastState.

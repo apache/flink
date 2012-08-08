@@ -22,12 +22,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.GnuParser;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionBuilder;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.RPC.Server;
-import eu.stratosphere.pact.testing.DaemonThreadFactory;
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionResponse;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
@@ -50,8 +60,19 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	private Map<SopremoID, SopremoJobInfo> meteorInfo =
 		new ConcurrentHashMap<SopremoID, SopremoJobInfo>();
 
+	private boolean stopped = false;
+
+	/**
+	 * Returns the stopped.
+	 * 
+	 * @return the stopped
+	 */
+	public boolean isStopped() {
+		return this.stopped;
+	}
+
 	public SopremoServer() {
-		this(new Configuration());
+		this(GlobalConfiguration.getConfiguration());
 	}
 
 	public SopremoServer(Configuration configuration) {
@@ -63,12 +84,16 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	 * @see java.io.Closeable#close()
 	 */
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		if (this.server != null) {
 			this.server.stop();
 			this.server = null;
 		}
 		this.executorService.shutdownNow();
+	}
+
+	public void stop() {
+		this.stopped = true;
 	}
 
 	/*
@@ -78,7 +103,8 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	@Override
 	public ExecutionResponse execute(ExecutionRequest request) {
 		SopremoID jobId = new SopremoID();
-		final SopremoJobInfo info = new SopremoJobInfo(request, this.configuration);
+		LOG.info("Receive execution request for job " + jobId);
+		final SopremoJobInfo info = new SopremoJobInfo(jobId, request, this.configuration);
 		this.meteorInfo.put(jobId, info);
 		this.executorService.submit(new SopremoExecutionThread(info, getJobManagerAddress()));
 		return this.getState(jobId);
@@ -131,10 +157,8 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			 */
 			@Override
 			public void run() {
-				try {
-					close();
-				} catch (IOException e) {
-				}
+				SopremoServer.this.stop();
+				close();
 			}
 		});
 	}
@@ -154,16 +178,69 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	}
 
 	private ScheduledThreadPoolExecutor createExecutor() {
-		final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1, new DaemonThreadFactory());
+		final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 		executor.setMaximumPoolSize(1);
 		return executor;
 	}
 
 	private void startServer() throws IOException {
-		final int handlerCount = GlobalConfiguration.getInteger(SopremoConstants.SOPREMO_SERVER_HANDLER_COUNT_KEY, 1);
+		final int handlerCount = this.configuration.getInteger(SopremoConstants.SOPREMO_SERVER_HANDLER_COUNT_KEY, 1);
 		InetSocketAddress rpcServerAddress = getServerAddress();
 		this.server = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
 			handlerCount);
 		this.server.start();
 	}
+
+	private static final Log LOG = LogFactory.getLog(SopremoServer.class);
+
+	private final static int SLEEPINTERVAL = 1000;
+
+	/**
+	 * Entry point for the program
+	 * 
+	 * @param args
+	 *        arguments from the command line
+	 */
+	@SuppressWarnings("static-access")
+	public static void main(final String[] args) {
+
+		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
+			.withDescription("Specify configuration directory.").create("configDir");
+
+		final Options options = new Options();
+		options.addOption(configDirOpt);
+
+		CommandLineParser parser = new GnuParser();
+		CommandLine line = null;
+		try {
+			line = parser.parse(options, args);
+			final String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
+			GlobalConfiguration.loadConfiguration(configDir);
+		} catch (ParseException e) {
+			LOG.error("CLI Parsing failed. Reason: " + e.getMessage());
+			System.exit(1);
+		}
+
+		// start server
+		SopremoServer sopremoServer = new SopremoServer();
+		try {
+			sopremoServer.start();
+		} catch (IOException e) {
+			LOG.error("Cannot start Sopremo server: " + StringUtils.stringifyException(e));
+			sopremoServer.close();
+			return;
+		}
+
+		// and wait for any shutdown signal
+		while (!Thread.interrupted()) {
+			// Sleep
+			try {
+				Thread.sleep(SLEEPINTERVAL);
+			} catch (InterruptedException e) {
+				break;
+			}
+			// Do nothing here
+		}
+	}
+
 }

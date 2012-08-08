@@ -168,7 +168,8 @@ pathExpression
 scope {  List<EvaluationExpression> fragments; }
 @init { $pathExpression::fragments = new ArrayList<EvaluationExpression>(); }
   : // add .field or [index] to path
-    ( (('.')=> '.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
+    ( (('?.')=> '?.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text, true)); } )) 
+        | (('.')=> '.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
         | ('[')=> arrayAccess { $pathExpression::fragments.add($arrayAccess.tree); } )+ 
   -> { PathExpression.wrapIfNecessary($pathExpression::fragments) };
 

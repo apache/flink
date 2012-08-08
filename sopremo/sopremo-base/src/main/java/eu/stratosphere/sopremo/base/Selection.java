@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.base;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.operator.ElementaryOperator;
@@ -35,7 +36,7 @@ public class Selection extends ElementaryOperator<Selection> {
 		return super.equals(obj) && this.condition.equals(((Selection) obj).condition);
 	}
 
-	public BooleanExpression getCondition() {
+	public EvaluationExpression getCondition() {
 		return this.condition;
 	}
 
@@ -49,11 +50,12 @@ public class Selection extends ElementaryOperator<Selection> {
 
 	@Property(preferred = true)
 	@Name(preposition = "where")
-	public void setCondition(BooleanExpression condition) {
+	public void setCondition(EvaluationExpression condition) {
 		if (condition == null)
 			throw new NullPointerException("condition must not be null");
 
-		this.condition = condition;
+		this.condition = (BooleanExpression) BooleanExpression.ensureBooleanExpression(condition).clone();
+		this.condition.remove(new InputSelection(0));
 	}
 
 	public Selection withCondition(BooleanExpression condition) {
@@ -78,7 +80,6 @@ public class Selection extends ElementaryOperator<Selection> {
 		@Override
 		public void open(Configuration parameters) {
 			super.open(parameters);
-			this.condition.remove(new InputSelection(0));
 		}
 
 		@Override

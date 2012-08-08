@@ -35,12 +35,6 @@
 			<version>3.4</version>
 			<type>jar</type>
 		</dependency>
-
-		<dependency>
-			<groupId>fastutil</groupId>
-			<artifactId>fastutil</artifactId>
-			<version>5.0.9</version>
-		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.commons</groupId>

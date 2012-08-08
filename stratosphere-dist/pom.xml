@@ -111,10 +111,25 @@
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>sopremo-query</artifactId>
     		<version>${version}</version>
-    	</dependency>		
+    	</dependency>
+    	<dependency>
+    		<groupId>eu.stratosphere</groupId>
+    		<artifactId>sopremo-server</artifactId>
+    		<version>${version}</version>
+    	</dependency>	
+    	<dependency>
+    		<groupId>eu.stratosphere</groupId>
+    		<artifactId>sopremo-client</artifactId>
+    		<version>${version}</version>
+    	</dependency>			
     	<dependency>
     		<groupId>eu.stratosphere</groupId>
     		<artifactId>meteor-meteor</artifactId>
+    		<version>${version}</version>
+    	</dependency>	
+    	<dependency>
+    		<groupId>eu.stratosphere</groupId>
+    		<artifactId>meteor-client</artifactId>
     		<version>${version}</version>
     	</dependency>
     	
