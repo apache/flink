@@ -364,7 +364,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 			throw new IOException("Error opening the Input Split " + fileSplit.getPath() + 
 					" [" + splitStart + "," + splitLength + "]: " + t.getMessage(), t);
 		}
-
+		
 		// get FSDataInputStream
 		this.stream.seek(this.splitStart);
 	}
@@ -554,8 +554,14 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 			
 			do {
 				try {
+					// wait for the task completion
 					this.join(remaining);
-				} catch (InterruptedException iex) {}
+				}
+				catch (InterruptedException iex) {
+					// we were canceled, so abort the procedure
+					abortWait();
+					throw iex;
+				}
 			}
 			while (this.error == null && this.fdis == null &&
 					(remaining = this.timeout + start - System.currentTimeMillis()) > 0);
@@ -566,7 +572,11 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 			if (this.fdis != null) {
 				return this.fdis;
 			} else {
-				this.aborted = true;
+				// double-check that the stream has not been set by now. we don't know here whether
+				// a) the opener thread recognized the canceling and closed the stream
+				// b) the flag was set such that the stream did not see it and we have a valid stream
+				// In any case, close the stream and throw an exception.
+				abortWait();
 				
 				final boolean stillAlive = this.isAlive();
 				final StringBuilder bld = new StringBuilder(256);
@@ -574,19 +584,22 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 					bld.append("\tat ").append(e.toString()).append('\n');
 				}
 				
-				// double-check that the stream has not been set by now. we don't know here whether
-				// a) the opener thread recognized the canceling and closed the stream
-				// b) the flag was set such that the stream did not see it and we have a valid stream
-				// In any case, close the stream and throw an exception.
-				final FSDataInputStream inStream = this.fdis;
-				this.fdis = null;
-				if (inStream != null) {
-					try {
-						inStream.close();
-					} catch (Throwable t) {}
-				}
 				throw new IOException("Opening request timed out. Opener was " + (stillAlive ? "" : "NOT ") + 
 					" alive. Stack:\n" + bld.toString());
+			}
+		}
+		
+		/**
+		 * Double checked procedure setting the abort flag and closing the stream.
+		 */
+		private final void abortWait() {
+			this.aborted = true;
+			final FSDataInputStream inStream = this.fdis;
+			this.fdis = null;
+			if (inStream != null) {
+				try {
+					inStream.close();
+				} catch (Throwable t) {}
 			}
 		}
 	}
