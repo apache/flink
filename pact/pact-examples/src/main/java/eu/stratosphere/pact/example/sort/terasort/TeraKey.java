@@ -40,32 +40,51 @@ public final class TeraKey implements Key {
 	/**
 	 * The buffer to store the key.
 	 */
-	private final byte[] key = new byte[KEY_SIZE];
+	private byte[] key;
+	
+	/**
+	 * The offset to the key byte sequence.
+	 */
+	private int offset;
 
 	/**
-	 * Constructs a new key object.
+	 * Constructs a new key object. The key points to the subsequence in the given array, i.e. it 
+	 * is sharing the byte array.
 	 * 
-	 * @param srcBuf
-	 *        the source buffer to read the key from
+	 * @param srcBuf The source buffer to read the key from.
+	 * @param offset The offset in the byte array where the key subsequence starts.
 	 */
 	public TeraKey(final byte[] srcBuf, int offset) {
-		System.arraycopy(srcBuf, offset, this.key, 0, KEY_SIZE);
+		this.key = srcBuf;
+		this.offset = offset;
 	}
 
 	/**
 	 * Default constructor required for serialization/deserialization.
 	 */
 	public TeraKey() {
-
+		this.key = new byte[KEY_SIZE];
+	}
+	
+	/**
+	 * Sets the value of this key object. This key will point to the subsequence in the given array, i.e. it 
+	 * is sharing the byte array.
+	 * 
+	 * @param data The source buffer to read the key from.
+	 * @param offset The offset in the byte array where the key subsequence starts.
+	 */
+	public void setValue(final byte[] data, int offset) {
+		this.key = data;
+		this.offset = offset;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-
-		out.write(this.key);
+	public void write(DataOutput out) throws IOException
+	{
+		out.write(this.key, this.offset, KEY_SIZE);
 	}
 
 	/**
@@ -73,8 +92,8 @@ public final class TeraKey implements Key {
 	 */
 	@Override
 	public void read(DataInput in) throws IOException {
-
-		in.readFully(this.key);
+		in.readFully(this.key, 0, KEY_SIZE);
+		this.offset = 0;
 	}
 
 	/**
@@ -92,13 +111,42 @@ public final class TeraKey implements Key {
 		int diff = 0;
 		for (int i = 0; i < KEY_SIZE; ++i) {
 
-			diff = (this.key[i] - tsk.key[i]);
+			diff = (this.key[i + this.offset] - tsk.key[i + tsk.offset]);
 			if (diff != 0) {
 				break;
 			}
 		}
 
 		return diff;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#hashCode()
+	 */
+	@Override
+	public int hashCode() {
+		int result = 1;
+		for (int i = 0; i < KEY_SIZE; i++) {
+			result = 31 * result + this.key[i + this.offset];
+		}
+		return result;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#equals(java.lang.Object)
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		if (getClass() != obj.getClass())
+			return false;
+		
+		final TeraKey other = (TeraKey) obj;
+		for (int i = 0, tx = this.offset, ox = other.offset; i < KEY_SIZE; i++, tx++, ox++) {
+			if (this.key[tx] != other.key[ox]) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -109,7 +157,7 @@ public final class TeraKey implements Key {
 	 */
 	public void copyToBuffer(final byte[] buf) {
 
-		System.arraycopy(this.key, 0, buf, 0, KEY_SIZE);
+		System.arraycopy(this.key, this.offset, buf, 0, KEY_SIZE);
 	}
 
 	/**
@@ -118,6 +166,6 @@ public final class TeraKey implements Key {
 	@Override
 	public String toString() {
 
-		return new String(this.key);
+		return new String(this.key, this.offset, KEY_SIZE);
 	}
 }
