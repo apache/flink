@@ -94,10 +94,12 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		for (int i = 0; i < this.keyHolders.length; i++) {
 			Key k = this.keyHolders[i];
 			if (k instanceof NormalizableKey) {
-				if (this.ascending[i] && inverted) {
-					break;
-				} else if (i == 0 && !this.ascending[0]) {
-					inverted = true;
+				if (this.ascending != null) {
+					if (this.ascending[i] && inverted) {
+						break;
+					} else if (i == 0 && !this.ascending[0]) {
+						inverted = true;
+					}
 				}
 				nKeys++;
 				final int len = ((NormalizableKey) k).getMaxNormalizedKeyLen();
