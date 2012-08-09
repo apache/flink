@@ -24,6 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.BlockLocation;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
@@ -33,6 +34,7 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.PactConfigConstants;
 
 /**
  * Describes the base interface that is used for reading from a file input. For specific input types the 
@@ -73,6 +75,32 @@ import eu.stratosphere.pact.common.type.PactRecord;
 public abstract class FileInputFormat implements InputFormat<PactRecord, FileInputSplit>
 {
 	/**
+	 * The LOG for logging messages in this class.
+	 */
+	private static final Log LOG = LogFactory.getLog(FileInputFormat.class);
+	
+	/**
+	 * The timeout (in milliseconds) to wait for a filesystem stream to respond.
+	 */
+	static final long OPENING_TIMEOUT;
+	
+	static {
+		final long to = GlobalConfiguration.getLong(PactConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
+				PactConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
+		if (to < 0) {
+			LOG.error("Invalid timeout value for filesystem stream opening: " + to + ". Using default value of " +
+				PactConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
+			OPENING_TIMEOUT = PactConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT;
+		} else if (to == 0) {
+			OPENING_TIMEOUT = Long.MAX_VALUE;
+		} else {
+			OPENING_TIMEOUT = to;
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
 	 * The config parameter which defines the input file path.
 	 */
 	public static final String FILE_PARAMETER_KEY = "pact.input.file.path";
@@ -86,17 +114,6 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 	 * The config parameter for the minimal split size.
 	 */
 	public static final String MINIMAL_SPLIT_SIZE_PARAMETER_KEY = "pact.input.file.minsplitsize";
-	
-	
-	/**
-	 * The LOG for logging messages in this class.
-	 */
-	private static final Log LOG = LogFactory.getLog(FileInputFormat.class);
-	
-	/**
-	 * The maximal time that the format waits for a split to be opened before declaring failure.
-	 */
-	private static final long OPEN_TIMEOUT_MILLIES = 10000;
 	
 	/**
 	 * The fraction that the last split may be larger than the others.
@@ -354,7 +371,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 
 		
 		// open the split in an asynchronous thread
-		final InputSplitOpenThread isot = new InputSplitOpenThread(fileSplit, OPEN_TIMEOUT_MILLIES);
+		final InputSplitOpenThread isot = new InputSplitOpenThread(fileSplit, OPENING_TIMEOUT);
 		isot.start();
 		
 		try {
@@ -584,7 +601,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 					bld.append("\tat ").append(e.toString()).append('\n');
 				}
 				
-				throw new IOException("Opening request timed out. Opener was " + (stillAlive ? "" : "NOT ") + 
+				throw new IOException("Input opening request timed out. Opener was " + (stillAlive ? "" : "NOT ") + 
 					" alive. Stack:\n" + bld.toString());
 			}
 		}

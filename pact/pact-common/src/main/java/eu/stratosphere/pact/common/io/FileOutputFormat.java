@@ -76,7 +76,7 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 	public void open(int taskNumber) throws IOException
 	{
 		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, taskNumber, 10000);
+		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, taskNumber, FileInputFormat.OPENING_TIMEOUT);
 		opot.start();
 		
 		try {
@@ -164,7 +164,11 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 			do {
 				try {
 					this.join(remaining);
-				} catch (InterruptedException iex) {}
+				} catch (InterruptedException iex) {
+					// we were canceled, so abort the procedure
+					abortWait();
+					throw iex;
+				}
 			}
 			while (this.error == null && this.fdos == null &&
 					(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
@@ -177,19 +181,33 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 			if (this.fdos != null) {
 				return this.fdos;
 			} else {
-				this.aborted = true;
 				// double-check that the stream has not been set by now. we don't know here whether
 				// a) the opener thread recognized the canceling and closed the stream
 				// b) the flag was set such that the stream did not see it and we have a valid stream
 				// In any case, close the stream and throw an exception.
-				final FSDataOutputStream outStream = this.fdos;
-				this.fdos = null;
-				if (outStream != null) {
-					try {
-						outStream.close();
-					} catch (Throwable t) {}
+				abortWait();
+				
+				final boolean stillAlive = this.isAlive();
+				final StringBuilder bld = new StringBuilder(256);
+				for (StackTraceElement e : this.getStackTrace()) {
+					bld.append("\tat ").append(e.toString()).append('\n');
 				}
-				throw new IOException("Opening request timed out.");
+				throw new IOException("Output opening request timed out. Opener was " + (stillAlive ? "" : "NOT ") + 
+					" alive. Stack:\n" + bld.toString());
+			}
+		}
+		
+		/**
+		 * Double checked procedure setting the abort flag and closing the stream.
+		 */
+		private final void abortWait() {
+			this.aborted = true;
+			final FSDataOutputStream outStream = this.fdos;
+			this.fdos = null;
+			if (outStream != null) {
+				try {
+					outStream.close();
+				} catch (Throwable t) {}
 			}
 		}
 	}
