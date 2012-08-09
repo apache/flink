@@ -82,7 +82,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 	/**
 	 * The timeout (in milliseconds) to wait for a filesystem stream to respond.
 	 */
-	static final long OPENING_TIMEOUT;
+	static final long DEFAULT_OPENING_TIMEOUT;
 	
 	static {
 		final long to = GlobalConfiguration.getLong(PactConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
@@ -90,11 +90,11 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 		if (to < 0) {
 			LOG.error("Invalid timeout value for filesystem stream opening: " + to + ". Using default value of " +
 				PactConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
-			OPENING_TIMEOUT = PactConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT;
+			DEFAULT_OPENING_TIMEOUT = PactConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT;
 		} else if (to == 0) {
-			OPENING_TIMEOUT = Long.MAX_VALUE;
+			DEFAULT_OPENING_TIMEOUT = Long.MAX_VALUE;
 		} else {
-			OPENING_TIMEOUT = to;
+			DEFAULT_OPENING_TIMEOUT = to;
 		}
 	}
 	
@@ -114,6 +114,11 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 	 * The config parameter for the minimal split size.
 	 */
 	public static final String MINIMAL_SPLIT_SIZE_PARAMETER_KEY = "pact.input.file.minsplitsize";
+
+	/**
+	 * The config parameter for the opening timeout in milliseconds.
+	 */
+	public static final String INPUT_STREAM_OPEN_TIMEOUT = "pact.input.file.timeout";
 	
 	/**
 	 * The fraction that the last split may be larger than the others.
@@ -151,6 +156,11 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 	 * The desired number of splits, as set by the configure() method.
 	 */
 	protected int numSplits;
+	
+	/**
+	 * Stream opening timeout.
+	 */
+	private long openTimeout;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -189,6 +199,15 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 			this.minSplitSize = 1;
 			if (LOG.isWarnEnabled())
 				LOG.warn("Ignoring invalid parameter for minimal split size (requires a positive value): " + this.numSplits);
+		}
+		
+		this.openTimeout = parameters.getLong(INPUT_STREAM_OPEN_TIMEOUT, DEFAULT_OPENING_TIMEOUT);
+		if (this.openTimeout < 0) {
+			this.openTimeout = DEFAULT_OPENING_TIMEOUT;
+			if (LOG.isWarnEnabled())
+				LOG.warn("Ignoring invalid parameter for stream opening timeout (requires a positive value or zero=infinite): " + this.openTimeout);
+		} else if (this.openTimeout == 0) {
+			this.openTimeout = Long.MAX_VALUE;
 		}
 	}
 	
@@ -371,7 +390,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 
 		
 		// open the split in an asynchronous thread
-		final InputSplitOpenThread isot = new InputSplitOpenThread(fileSplit, OPENING_TIMEOUT);
+		final InputSplitOpenThread isot = new InputSplitOpenThread(fileSplit, this.openTimeout);
 		isot.start();
 		
 		try {
