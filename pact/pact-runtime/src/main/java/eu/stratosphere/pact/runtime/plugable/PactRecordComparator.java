@@ -90,9 +90,15 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		this.normalizedKeyLengths = new int[keyFields.length];
 		int nKeys = 0;
 		int nKeyLen = 0;
+		boolean inverted = false;
 		for (int i = 0; i < this.keyHolders.length; i++) {
 			Key k = this.keyHolders[i];
 			if (k instanceof NormalizableKey) {
+				if (this.ascending[i] && inverted) {
+					break;
+				} else if (i == 0 && !this.ascending[0]) {
+					inverted = true;
+				}
 				nKeys++;
 				final int len = ((NormalizableKey) k).getMaxNormalizedKeyLen();
 				if (len < 0) {
@@ -103,6 +109,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 				nKeyLen += this.normalizedKeyLengths[i];
 				if (nKeyLen < 0) {
 					nKeyLen = Integer.MAX_VALUE;
+					break;
 				}
 			}
 			else break;
@@ -303,6 +310,14 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	}
 	
 	// --------------------------------------------------------------------------------------------
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.generic.types.TypeComparator#invertNormalizedKey()
+	 */
+	@Override
+	public boolean invertNormalizedKey() {
+		return !this.ascending[0];
+	}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#duplicate()

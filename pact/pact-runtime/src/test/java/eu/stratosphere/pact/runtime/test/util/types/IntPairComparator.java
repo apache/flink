@@ -88,7 +88,7 @@ public class IntPairComparator implements TypeComparator<IntPair>
 	 */
 	@Override
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return false;
+		return keyBytes < 4;
 	}
 
 	/* (non-Javadoc)
@@ -130,6 +130,14 @@ public class IntPairComparator implements TypeComparator<IntPair>
 				target[offset + i] = 0;
 			}
 		}
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.generic.types.TypeComparator#invertNormalizedKey()
+	 */
+	@Override
+	public boolean invertNormalizedKey() {
+		return false;
 	}
 
 	/* (non-Javadoc)

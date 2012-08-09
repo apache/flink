@@ -99,20 +99,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		this(serializer, comparator, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN);
 	}
 	
-	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator,
-			List<MemorySegment> memory, boolean invertNormalizedKeyDirection)
-	{
-		this(serializer, comparator, memory, DEFAULT_MAX_NORMALIZED_KEY_LEN, invertNormalizedKeyDirection);
-	}
-	
 	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
 			List<MemorySegment> memory, int maxNormalizedKeyBytes)
-	{
-		this(serializer, comparator, memory, maxNormalizedKeyBytes, false);
-	}
-	
-	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
-			List<MemorySegment> memory, int maxNormalizedKeyBytes, boolean invertNormalizedKeyDirection)
 	{
 		if (serializer == null || comparator == null || memory == null)
 			throw new NullPointerException();
@@ -121,7 +109,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		
 		this.serializer = serializer;
 		this.comparator = comparator;
-		this.useNormKeyUninverted = !invertNormalizedKeyDirection;
+		this.useNormKeyUninverted = !comparator.invertNormalizedKey();
 		
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2

@@ -321,9 +321,9 @@ public class TaskConfig
 			}
 		}
 	
-	public String getPrefixForInputParameters(int inputNum)
+	public Configuration getConfigForInputParameters(int inputNum)
 	{
-		return INPUT_PARAMETERS_PREFIX + inputNum + '.';
+		return new DelegatingConfiguration(this.config, INPUT_PARAMETERS_PREFIX + inputNum + '.');
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -411,6 +411,11 @@ public class TaskConfig
 						"is no subclass of TypeComparatorFactory.");
 			}
 		}
+	}
+	
+	public Configuration getConfigForOutputParameters(int outputNum)
+	{
+		return new DelegatingConfiguration(this.config, OUTPUT_PARAMETERS_PREFIX + outputNum + '.');
 	}
 	
 	public String getPrefixForOutputParameters(int outputNum)
