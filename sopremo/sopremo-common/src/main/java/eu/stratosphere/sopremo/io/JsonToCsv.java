@@ -99,7 +99,7 @@ public class JsonToCsv {
 		final PactModule sourceModule = new Source(sourceFile).asPactModule(jsonToCsv.getContext());
 		final Contract source = sourceModule.getOutput(0).getInputs().get(0);
 
-		final MapContract jsonToString = new MapContract.Builder(JsonToString.class).build();
+		final MapContract jsonToString = MapContract.builder(JsonToString.class).build();
 		jsonToString.getParameters().setString("separator", jsonToCsv.getSeparator());
 		SopremoUtil.serialize(jsonToString.getParameters(), SopremoUtil.CONTEXT, jsonToCsv.getContext());
 		SopremoUtil.serialize(jsonToString.getParameters(), "extractionExpressions",
@@ -176,7 +176,7 @@ public class JsonToCsv {
 		 * eu.stratosphere.pact.common.stubs.Collector)
 		 */
 		@Override
-		public void map(final PactRecord record, final Collector out) throws Exception {
+		public void map(final PactRecord record, final Collector<PactRecord> out) throws Exception {
 			final StringBuilder string = new StringBuilder();
 
 			this.node = this.schema.recordToJson(record, this.node);

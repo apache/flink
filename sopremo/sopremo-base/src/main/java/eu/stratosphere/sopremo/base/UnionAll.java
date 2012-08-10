@@ -34,7 +34,7 @@ public class UnionAll extends ElementaryOperator<UnionAll> {
 		final List<JsonStream> inputs = this.getInputs();
 		final PactModule module = new PactModule(this.getName(), inputs.size(), 1);
 		// TODO: remove identity map, when Nephele can deal with direct source->sink connections
-		MapContract identityContract = new MapContract.Builder(IdentityMap.class).build();
+		MapContract identityContract = MapContract.builder(IdentityMap.class).build();
 		for (Contract input : module.getInputs())
 			identityContract.addInput(input);
 		module.getOutput(0).setInput(identityContract);
