@@ -146,7 +146,7 @@ public class SopremoExecutionThread implements Runnable {
 		} catch (Exception e) {
 			LOG.error("The job was not successfully executed " + this.jobInfo.getJobId(), e);
 			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR,
-				"The job was not successfully submitted to the nephele job manager: "
+				"The job was not successfully executed: "
 					+ StringUtils.stringifyException(e));
 			return -1;
 		}
