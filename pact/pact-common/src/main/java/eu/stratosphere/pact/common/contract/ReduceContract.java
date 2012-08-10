@@ -19,7 +19,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.ReduceStub;
@@ -46,6 +46,26 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	private Ordering groupOrder;
 	
 	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Creates a Builder with the provided {@link ReduceStub} implementation.
+	 * 
+	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+	 */
+	public static Builder builder(Class<? extends ReduceStub> udf) {
+		return new Builder(udf);
+	}
+	
+	/**
+	 * Creates a Builder with the provided {@link ReduceStub} implementation.
+	 * 
+	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+	 * @param keyClass The class of the key data type.
+	 * @param keyColumn The position of the key.
+	 */
+	public static Builder builder(Class<? extends ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
+		return new Builder(udf, keyClass, keyColumn);
+	}
 	
 	/**
 	 * The private constructor that only gets invoked from the Builder.
@@ -133,52 +153,51 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	@Target(ElementType.TYPE)
 	public @interface Combinable {};
 	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
 	 * 
 	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
-		/**
-		 * The required parameters.
-		 */
+		
+		/* The required parameters */
 		private final Class<? extends ReduceStub> udf;
 		private final List<Class<? extends Key>> keyClasses;
 		private final List<Integer> keyColumns;
 		
-		/**
-		 * The optional parameters.
-		 */
+		/* The optional parameters */
 		private Ordering secondaryOrder = null;
 		private List<Contract> inputs;
 		private String name = DEFAULT_NAME;
 		
 		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+		 * Creates a Builder with the provided {@link ReduceStub} implementation.
 		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
 		 */
-		public Builder(Class<? extends ReduceStub> udf) {
+		private Builder(Class<? extends ReduceStub> udf) {
 			this.udf = udf;
-			this.keyClasses = new LinkedList<Class<? extends Key>>();
-			this.keyColumns = new LinkedList<Integer>();
-			this.inputs = new LinkedList<Contract>();
+			this.keyClasses = new ArrayList<Class<? extends Key>>();
+			this.keyColumns = new ArrayList<Integer>();
+			this.inputs = new ArrayList<Contract>();
 		}
 		
 		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+		 * Creates a Builder with the provided {@link ReduceStub} implementation.
 		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn The position of the key.
 		 */
 		public Builder(Class<? extends ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
 			this.udf = udf;
-			this.keyClasses = new LinkedList<Class<? extends Key>>();
+			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyClasses.add(keyClass);
-			this.keyColumns = new LinkedList<Integer>();
+			this.keyColumns = new ArrayList<Integer>();
 			this.keyColumns.add(keyColumn);
-			this.inputs = new LinkedList<Contract>();
+			this.inputs = new ArrayList<Contract>();
 		}
 		
 		private int[] getKeyColumnsArray() {

@@ -326,7 +326,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 
 		// Create MapContract for filtering the entries from the documents
 		// relation
-		MapContract filterDocs = new MapContract.Builder(FilterDocs.class)
+		MapContract filterDocs = MapContract.builder(FilterDocs.class)
 			.input(docs)
 			.name("Filter Docs")
 			.build();
@@ -336,7 +336,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		filterDocs.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the ranks relation
-		MapContract filterRanks = new MapContract.Builder(FilterRanks.class)
+		MapContract filterRanks = MapContract.builder(FilterRanks.class)
 			.input(ranks)
 			.name("Filter Ranks")
 			.build();
@@ -345,7 +345,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		filterRanks.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the visits relation
-		MapContract filterVisits = new MapContract.Builder(FilterVisits.class)
+		MapContract filterVisits = MapContract.builder(FilterVisits.class)
 			.input(visits)
 			.name("Filter Visits")
 			.build();
@@ -355,7 +355,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 
 		// Create MatchContract to join the filtered documents and ranks
 		// relation
-		MatchContract joinDocsRanks = new MatchContract.Builder(JoinDocRanks.class, PactString.class, 0, 0)
+		MatchContract joinDocsRanks = MatchContract.builder(JoinDocRanks.class, PactString.class, 0, 0)
 			.input1(filterDocs)
 			.input2(filterRanks)
 			.name("Join Docs Ranks")
@@ -364,7 +364,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 
 		// Create CoGroupContract to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
-		CoGroupContract antiJoinVisits = new CoGroupContract.Builder(AntiJoinVisits.class, PactString.class, 0, 0)
+		CoGroupContract antiJoinVisits = CoGroupContract.builder(AntiJoinVisits.class, PactString.class, 0, 0)
 			.input1(joinDocsRanks)
 			.input2(filterVisits)
 			.name("Antijoin DocsVisits")

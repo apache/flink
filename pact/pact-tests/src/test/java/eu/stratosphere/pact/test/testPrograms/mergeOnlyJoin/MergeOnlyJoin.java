@@ -120,7 +120,7 @@ public class MergeOnlyJoin implements PlanAssembler, PlanAssemblerDescription {
 		aggInput2.setDegreeOfParallelism(noSubtasksInput2);		
 		
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinLiO = new MatchContract.Builder(JoinInputs.class, PactInteger.class, 0, 0)
+		MatchContract joinLiO = MatchContract.builder(JoinInputs.class, PactInteger.class, 0, 0)
 			.input1(aggInput1)
 			.input2(aggInput2)
 			.name("JoinLiO")

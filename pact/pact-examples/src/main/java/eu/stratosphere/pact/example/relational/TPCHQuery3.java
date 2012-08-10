@@ -259,7 +259,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
 
 		// create MapContract for filtering Orders tuples
-		MapContract filterO = new MapContract.Builder(FilterO.class)
+		MapContract filterO = MapContract.builder(FilterO.class)
 			.input(orders)
 			.name("FilterO")
 			.build();
@@ -273,7 +273,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		filterO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinLiO = new MatchContract.Builder(JoinLiO.class, PactLong.class, 0, 0)
+		MatchContract joinLiO = MatchContract.builder(JoinLiO.class, PactLong.class, 0, 0)
 			.input1(filterO)
 			.input2(lineitems)
 			.name("JoinLiO")
@@ -285,7 +285,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
-		ReduceContract aggLiO = new ReduceContract.Builder(AggLiO.class)
+		ReduceContract aggLiO = ReduceContract.builder(AggLiO.class)
 			.keyField(PactLong.class, 0)
 			.keyField(PactString.class, 1)
 			.input(joinLiO)

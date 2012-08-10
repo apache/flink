@@ -263,8 +263,7 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 			.name("Build Triads")
 			.build();
 
-		MatchContract closeTriads = new MatchContract.Builder(CloseTriads.class)
-			.keyField(PactString.class, 1, 0)
+		MatchContract closeTriads = MatchContract.builder(CloseTriads.class, PactString.class, 1, 0)
 			.keyField(PactString.class, 2, 1)
 			.name("Close Triads")
 			.build();

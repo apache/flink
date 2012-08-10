@@ -319,42 +319,42 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		nations.setParameter(TextInputFormat.RECORD_DELIMITER, "\n");
 		nations.setDegreeOfParallelism(degreeOfParallelism);
 
-		MapContract mapO = new MapContract.Builder(FilterO.class)
+		MapContract mapO = MapContract.builder(FilterO.class)
 			.name("FilterO")
 			.build();
 		mapO.setDegreeOfParallelism(degreeOfParallelism);
 
-		MapContract mapLi = new MapContract.Builder(FilterLI.class)
+		MapContract mapLi = MapContract.builder(FilterLI.class)
 			.name("FilterLi")
 			.build();
 		mapLi.setDegreeOfParallelism(degreeOfParallelism);
 
-		MapContract projectC = new MapContract.Builder(ProjectC.class)
+		MapContract projectC = MapContract.builder(ProjectC.class)
 			.name("ProjectC")
 			.build();
 		projectC.setDegreeOfParallelism(degreeOfParallelism);
 
-		MapContract projectN = new MapContract.Builder(ProjectN.class)
+		MapContract projectN = MapContract.builder(ProjectN.class)
 			.name("ProjectN")
 			.build();
 		projectN.setDegreeOfParallelism(degreeOfParallelism);
 
-		MatchContract joinOL = new MatchContract.Builder(JoinOL.class, PactInteger.class, 0, 0)
+		MatchContract joinOL = MatchContract.builder(JoinOL.class, PactInteger.class, 0, 0)
 			.name("JoinOL")
 			.build();
 		joinOL.setDegreeOfParallelism(degreeOfParallelism);
 
-		MatchContract joinCOL = new MatchContract.Builder(JoinCOL.class, PactInteger.class, 0, 0)
+		MatchContract joinCOL = MatchContract.builder(JoinCOL.class, PactInteger.class, 0, 0)
 			.name("JoinCOL")
 			.build();
 		joinCOL.setDegreeOfParallelism(degreeOfParallelism);
 
-		MatchContract joinNCOL = new MatchContract.Builder(JoinNCOL.class, PactInteger.class, 4, 0)
+		MatchContract joinNCOL = MatchContract.builder(JoinNCOL.class, PactInteger.class, 4, 0)
 			.name("JoinNCOL")
 			.build();
 		joinNCOL.setDegreeOfParallelism(degreeOfParallelism);
 
-		ReduceContract reduce = new ReduceContract.Builder(Sum.class)
+		ReduceContract reduce = ReduceContract.builder(Sum.class)
 			.keyField(PactInteger.class, 0) 
 			.keyField(PactString.class, 1)
 			.keyField(PactString.class, 3)

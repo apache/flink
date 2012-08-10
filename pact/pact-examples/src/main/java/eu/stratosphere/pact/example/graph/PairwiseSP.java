@@ -407,16 +407,15 @@ public class PairwiseSP implements PlanAssembler, PlanAssemblerDescription {
 		pathsInput.setDegreeOfParallelism(noSubTasks);
 
 		MatchContract concatPaths = 
-				new MatchContract.Builder(ConcatPaths.class, PactString.class, 0, 1)
+				MatchContract.builder(ConcatPaths.class, PactString.class, 0, 1)
 			.name("Concat Paths")
 			.build();
 
 		concatPaths.setDegreeOfParallelism(noSubTasks);
 
 		CoGroupContract findShortestPaths = 
-				new CoGroupContract.Builder(FindShortestPath.class)
-            .keyField(PactString.class, 0, 0)
-            .keyField(PactString.class, 1, 1)
+				CoGroupContract.builder(FindShortestPath.class, PactString.class, 0, 0)
+			.keyField(PactString.class, 1, 1)
 			.name("Find Shortest Paths")
 			.build();
 		findShortestPaths.setDegreeOfParallelism(noSubTasks);

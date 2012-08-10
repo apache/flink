@@ -250,7 +250,7 @@ public class TestPlanTest {
 			"TestPlan/test.txt");
 
 		final MapContract map =
-			new MapContract.Builder(IdentityMap.class).name("Map").build();
+			MapContract.builder(IdentityMap.class).name("Map").build();
 		map.setInput(read);
 
 		FileDataSink output = createOutput(map, SequentialOutputFormat.class);
@@ -268,7 +268,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void adhocInputAndOutputShouldTransparentlyWork() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -306,7 +306,7 @@ public class TestPlanTest {
 		final FileDataSource read = createInput(IntegerInFormat.class,
 			"TestPlan/test.txt");
 
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		map.setInput(read);
@@ -335,7 +335,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -353,7 +353,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldMatchValuesWithSameKey() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -380,7 +380,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void crossShouldBeSupported() {
-		CrossContract crossContract = new CrossContract.Builder(CartesianProduct.class).build();
+		CrossContract crossContract = CrossContract.builder(CartesianProduct.class).build();
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		testPlan.getInput(0).
@@ -403,7 +403,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void coGroupShouldBeSupported() {
-		CoGroupContract crossContract = new CoGroupContract.Builder(AppendingCoGroup.class, PactInteger.class, 0, 0)
+		CoGroupContract crossContract = CoGroupContract.builder(AppendingCoGroup.class, PactInteger.class, 0, 0)
 			.build();
 
 		TestPlan testPlan = new TestPlan(crossContract);
@@ -427,7 +427,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void matchShouldBeSupported() {
-		MatchContract crossContract = new MatchContract.Builder(Join.class, PactInteger.class, 0, 0)
+		MatchContract crossContract = MatchContract.builder(Join.class, PactInteger.class, 0, 0)
 			.build();
 
 		TestPlan testPlan = new TestPlan(crossContract);
@@ -473,7 +473,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void settingValuesShouldWorkWithSourceContracts() {
-		CrossContract crossContract = new CrossContract.Builder(CartesianProduct.class).build();
+		CrossContract crossContract = CrossContract.builder(CartesianProduct.class).build();
 
 		TestPlan testPlan = new TestPlan(crossContract);
 		// first and second input are added in TestPlan
@@ -497,7 +497,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void degreeOfParallelismShouldBeConfigurable() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -602,7 +602,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void complexTestPassesWithExpectedValues() {
-		final MapContract tokenize = new MapContract.Builder(TokenizeLine.class)
+		final MapContract tokenize = MapContract.builder(TokenizeLine.class)
 			.name("Map")
 			.build();
 		final ReduceContract summing = new ReduceContract.Builder(CountWords.class, PactString.class, 0)
@@ -642,7 +642,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailIfExpectedAndActualValuesDiffer() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -660,7 +660,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailIfTooManyValues() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -677,7 +677,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailIfTooFewValues() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -696,7 +696,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailIfPactThrowsException() {
-		final MapContract map = new MapContract.Builder(ErroneousPact.class)
+		final MapContract map = MapContract.builder(ErroneousPact.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -729,7 +729,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldSucceedIfNoExpectedValues() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -744,7 +744,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailWithEqualValuesWithSameKey() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -771,7 +771,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldFailIfNonEmptyExpectedValues() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -787,7 +787,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void shouldCompareTwoTestPlans() {
-		final MapContract map = new MapContract.Builder(IdentityMap.class)
+		final MapContract map = MapContract.builder(IdentityMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan1 = new TestPlan(map);

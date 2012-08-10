@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
@@ -47,6 +47,19 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	private Ordering groupOrder2;
 	
 	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+	 * 
+	 * @param udf The {@link CoGroupStub} implementation for this CoGroup contract.
+	 * @param keyClass The class of the key data type.
+	 * @param keyColumn1 The position of the key in the first input's records.
+	 * @param keyColumn2 The position of the key in the second input's records.
+	 */
+	public static Builder builder(Class<? extends CoGroupStub> udf, Class<? extends Key> keyClass,
+			int keyColumn1, int keyColumn2) {
+		return new Builder(udf, keyClass, keyColumn1, keyColumn2);
+	}
 	
 	/**
 	 * The private constructor that only gets invoked from the Builder.
@@ -138,17 +151,14 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
-		/**
-		 * The required parameters.
-		 */
+		
+		/* The required parameters */
 		private final Class<? extends CoGroupStub> udf;
 		private final List<Class<? extends Key>> keyClasses;
 		private final List<Integer> keyColumns1;
 		private final List<Integer> keyColumns2;
 		
-		/**
-		 * The optional parameters.
-		 */
+		/* The optional parameters */
 		private List<Contract> inputs1;
 		private List<Contract> inputs2;
 		private Ordering secondaryOrder1 = null;
@@ -158,36 +168,23 @@ public class CoGroupContract extends DualInputContract<CoGroupStub>
 		/**
 		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
 		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
-		 */
-		public Builder(Class<? extends CoGroupStub> udf) {
-			this.udf = udf;
-			this.keyClasses = new LinkedList<Class<? extends Key>>();
-			this.keyColumns1 = new LinkedList<Integer>();
-			this.keyColumns2 = new LinkedList<Integer>();
-			this.inputs1 = new LinkedList<Contract>();
-			this.inputs2 = new LinkedList<Contract>();
-		}
-		
-		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
-		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param udf The {@link CoGroupStub} implementation for this CoGroup contract.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		public Builder(Class<? extends CoGroupStub> udf, Class<? extends Key> keyClass,
-				int keyColumn1, int keyColumn2) {
+		private Builder(Class<? extends CoGroupStub> udf, Class<? extends Key> keyClass,
+				int keyColumn1, int keyColumn2)
+		{
 			this.udf = udf;
-			this.keyClasses = new LinkedList<Class<? extends Key>>();
+			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyClasses.add(keyClass);
-			this.keyColumns1 = new LinkedList<Integer>();
+			this.keyColumns1 = new ArrayList<Integer>();
 			this.keyColumns1.add(keyColumn1);
-			this.keyColumns2 = new LinkedList<Integer>();
+			this.keyColumns2 = new ArrayList<Integer>();
 			this.keyColumns2.add(keyColumn2);
-			this.inputs1 = new LinkedList<Contract>();
-			this.inputs2 = new LinkedList<Contract>();
+			this.inputs1 = new ArrayList<Contract>();
+			this.inputs2 = new ArrayList<Contract>();
 		}
 		
 		private int[] getKeyColumnsArray1() {

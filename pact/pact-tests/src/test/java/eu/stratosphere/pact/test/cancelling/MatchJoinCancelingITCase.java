@@ -43,7 +43,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		GenericDataSource<InfiniteIntegerInputFormatWithDelay> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(InfiniteIntegerInputFormatWithDelay.class, "Source 2");
 		
-		MatchContract matcher = new MatchContract.Builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Sort Join")
@@ -65,7 +65,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 2");
 		
-		MatchContract matcher = new MatchContract.Builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Sort Join")
@@ -87,7 +87,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 2");
 		
-		MatchContract matcher = new MatchContract.Builder(StuckInOpenMatcher.class, PactInteger.class, 0, 0)
+		MatchContract matcher = MatchContract.builder(StuckInOpenMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Stuc-In-Open Match")
@@ -115,7 +115,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 50000);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 100);
 		
-		MatchContract matcher = new MatchContract.Builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Long Cancelling Sort Join")
@@ -144,7 +144,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 		
-		MatchContract matcher = new MatchContract.Builder(DelayingMatcher.class, PactInteger.class, 0, 0)
+		MatchContract matcher = MatchContract.builder(DelayingMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Long Cancelling Sort Join")
@@ -170,7 +170,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 		
-		MatchContract matcher = new MatchContract.Builder(LongCancelTimeMatcher.class, PactInteger.class, 0, 0)
+		MatchContract matcher = MatchContract.builder(LongCancelTimeMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Long Cancelling Sort Join")
@@ -194,7 +194,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 2");
 		
-		MatchContract matcher = new MatchContract.Builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.name("Sort Join")

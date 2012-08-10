@@ -35,7 +35,7 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract.Builder(IdentityMapper.class)
+		MapContract mapper = MapContract.builder(IdentityMapper.class)
 			.input(source)
 			.name("Identity Mapper")
 			.build();
@@ -53,7 +53,7 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract.Builder(DelayingIdentityMapper.class)
+		MapContract mapper = MapContract.builder(DelayingIdentityMapper.class)
 			.input(source)
 			.name("Delay Mapper")
 			.build();
@@ -71,7 +71,7 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract.Builder(LongCancelTimeIdentityMapper.class)
+		MapContract mapper = MapContract.builder(LongCancelTimeIdentityMapper.class)
 			.input(source)
 			.name("Long Cancelling Time Mapper")
 			.build();
@@ -89,7 +89,7 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract.Builder(StuckInOpenIdentityMapper.class)
+		MapContract mapper = MapContract.builder(StuckInOpenIdentityMapper.class)
 			.input(source)
 			.name("Stuck-In-Open Mapper")
 			.build();

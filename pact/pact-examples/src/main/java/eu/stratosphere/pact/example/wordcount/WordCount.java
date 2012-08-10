@@ -136,7 +136,7 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 
 		FileDataSource source = new FileDataSource(TextInputFormat.class, dataInput, "Input Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");		// comment out this line for UTF-8 inputs
-		MapContract mapper = new MapContract.Builder(TokenizeLine.class)
+		MapContract mapper = MapContract.builder(TokenizeLine.class)
 			.input(source)
 			.name("Tokenize Lines")
 			.build();

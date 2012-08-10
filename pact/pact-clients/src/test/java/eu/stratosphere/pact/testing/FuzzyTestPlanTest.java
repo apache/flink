@@ -54,7 +54,7 @@ public class FuzzyTestPlanTest {
 	 */
 	@Test
 	public void shouldFailInaccurateDoublesWithoutDelta() {
-		final MapContract map = new MapContract.Builder(DoubleTruncatingMap.class)
+		final MapContract map = MapContract.builder(DoubleTruncatingMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -72,7 +72,7 @@ public class FuzzyTestPlanTest {
 	 */
 	@Test
 	public void shouldMatchInaccurateDoublesWithDelta() {
-		final MapContract map = new MapContract.Builder(DoubleTruncatingMap.class)
+		final MapContract map = MapContract.builder(DoubleTruncatingMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);
@@ -91,7 +91,7 @@ public class FuzzyTestPlanTest {
 	 */
 	@Test
 	public void shouldMatchInaccurateDoublesWithDeltaAndSameKey() {
-		final MapContract map = new MapContract.Builder(DoubleTruncatingMap.class)
+		final MapContract map = MapContract.builder(DoubleTruncatingMap.class)
 			.name("Map")
 			.build();
 		TestPlan testPlan = new TestPlan(map);

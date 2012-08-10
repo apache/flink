@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.MatchStub;
@@ -40,6 +40,18 @@ public class MatchContract extends DualInputContract<MatchStub>
 	// --------------------------------------------------------------------------------------------
 	
 	/**
+	 * Creates a Builder with the provided {@link MatchStub} implementation
+	 * 
+	 * @param udf The {@link MatchStub} implementation for this Match contract.
+	 * @param keyClass The class of the key data type.
+	 * @param keyColumn1 The position of the key in the first input's records.
+	 * @param keyColumn2 The position of the key in the second input's records.
+	 */
+	public static Builder builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		return new Builder(udf, keyClass, keyColumn1, keyColumn2);
+	}
+	
+	/**
 	 * The private constructor that only gets invoked from the Builder.
 	 * @param builder
 	 */
@@ -49,63 +61,46 @@ public class MatchContract extends DualInputContract<MatchStub>
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+		
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
 	 * 
 	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
-		/**
-		 * The required parameters.
-		 */
+		
+		/* The required parameters */
 		private final Class<? extends MatchStub> udf;
 		private final List<Class<? extends Key>> keyClasses;
 		private final List<Integer> keyColumns1;
 		private final List<Integer> keyColumns2;
 		
-		/**
-		 * The optional parameters.
-		 */
+		/* The optional parameters */
 		private List<Contract> inputs1;
 		private List<Contract> inputs2;
 		private String name = DEFAULT_NAME;
 		
-		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation
-		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
-		 * @param keyClass The class of the key data type.
-		 * @param keyColumn1 The position of the key in the first input's records.
-		 * @param keyColumn2 The position of the key in the second input's records.
-		 */
-		public Builder(Class<? extends MatchStub> udf) {
-			this.udf = udf;
-			this.keyClasses = new LinkedList<Class<? extends Key>>();
-			this.keyColumns1 = new LinkedList<Integer>();
-			this.keyColumns2 = new LinkedList<Integer>();
-			this.inputs1 = new LinkedList<Contract>();
-			this.inputs2 = new LinkedList<Contract>();
-		}
 		
 		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation
+		 * Creates a Builder with the provided {@link MatchStub} implementation
 		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param udf The {@link MatchStub} implementation for this Match contract.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		public Builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		private Builder(Class<? extends MatchStub> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
 			this.udf = udf;
-			this.keyClasses = new LinkedList<Class<? extends Key>>();
+			this.keyClasses = new ArrayList<Class<? extends Key>>();
 			this.keyClasses.add(keyClass);
-			this.keyColumns1 = new LinkedList<Integer>();
+			this.keyColumns1 = new ArrayList<Integer>();
 			this.keyColumns1.add(keyColumn1);
-			this.keyColumns2 = new LinkedList<Integer>();
+			this.keyColumns2 = new ArrayList<Integer>();
 			this.keyColumns2.add(keyColumn2);
-			this.inputs1 = new LinkedList<Contract>();
-			this.inputs2 = new LinkedList<Contract>();
+			this.inputs1 = new ArrayList<Contract>();
+			this.inputs2 = new ArrayList<Contract>();
 		}
 		
 		private int[] getKeyColumnsArray1() {

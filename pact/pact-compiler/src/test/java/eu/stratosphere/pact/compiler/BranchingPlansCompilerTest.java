@@ -105,51 +105,51 @@ public class BranchingPlansCompilerTest {
 
 		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
 		
-		MatchContract mat1 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat1 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(sourceA)
 			.input2(sourceA)
 			.build();
-		MatchContract mat2 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat2 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(sourceA)
 			.input2(mat1)
 			.build();
-		MatchContract mat3 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat3 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(sourceA)
 			.input2(mat2)
 			.build();
-		MatchContract mat4 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat4 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(sourceA)
 			.input2(mat3)
 			.build();
-		MatchContract mat5 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat5 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(sourceA)
 			.input2(mat4)
 			.build();
 		
-		MapContract ma = new MapContract.Builder(IdentityMap.class).input(sourceA).build();
+		MapContract ma = MapContract.builder(IdentityMap.class).input(sourceA).build();
 		
-		MatchContract mat6 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat6 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(ma)
 			.input2(ma)
 			.build();
-		MatchContract mat7 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat7 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(ma)
 			.input2(mat6)
 			.build();
-		MatchContract mat8 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat8 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(ma)
 			.input2(mat7)
 			.build();
-		MatchContract mat9 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat9 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(ma)
 			.input2(mat8)
 			.build();
-		MatchContract mat10 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat10 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(ma)
 			.input2(mat9)
 			.build();
 		
-		CoGroupContract co = new CoGroupContract.Builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+		CoGroupContract co = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(mat5)
 			.input2(mat10)
 			.build();
@@ -175,23 +175,23 @@ public class BranchingPlansCompilerTest {
 		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
 		FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
 		
-		CoGroupContract co = new CoGroupContract.Builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+		CoGroupContract co = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(sourceA)
 			.input2(sourceB)
 			.build();
-		MapContract ma = new MapContract.Builder(IdentityMap.class).input(co).build();
-		MatchContract mat1 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MapContract ma = MapContract.builder(IdentityMap.class).input(co).build();
+		MatchContract mat1 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(sourceB)
 			.input2(sourceC)
 			.build();
-		MatchContract mat2 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat2 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(ma)
 			.input2(mat1)
 			.build();
 		ReduceContract r = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
 			.input(ma)
 			.build();
-		CrossContract c = new CrossContract.Builder(DummyCrossStub.class)
+		CrossContract c = CrossContract.builder(DummyCrossStub.class)
 			.input1(r)
 			.input2(mat2)
 			.build();
@@ -225,48 +225,48 @@ public class BranchingPlansCompilerTest {
 		FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, IN_FILE_1, "Source C");
 		
 		
-		MapContract branchingMap = new MapContract.Builder(IdentityMap.class).input(sourceA).build();
+		MapContract branchingMap = MapContract.builder(IdentityMap.class).input(sourceA).build();
 		ReduceContract branchingReduce = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
 			.input(branchingMap)
 			.build();
-		MatchContract branchingMatch = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract branchingMatch = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(sourceB)
 			.input2(sourceC)
 			.build();
 		branchingMatch.addFirstInput(sourceB);
 		branchingMatch.addFirstInput(sourceC);
-		CoGroupContract branchingCoGroup = new CoGroupContract.Builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+		CoGroupContract branchingCoGroup = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(sourceA)
 			.input2(sourceB)
 			.build();
-		CrossContract branchingCross = new CrossContract.Builder(DummyCrossStub.class)
+		CrossContract branchingCross = CrossContract.builder(DummyCrossStub.class)
 			.input1(branchingReduce)
 			.input2(branchingCoGroup)
 			.build();
 		
 		
-		CoGroupContract co1 = new CoGroupContract.Builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+		CoGroupContract co1 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(branchingCross)
 			.input2(branchingCross)
 			.build();
-		CoGroupContract co2 = new CoGroupContract.Builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+		CoGroupContract co2 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(branchingMap)
 			.input2(branchingMatch)
 			.build();
-		MapContract ma = new MapContract.Builder(IdentityMap.class).input(co2).build();
-		CoGroupContract co3 = new CoGroupContract.Builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+		MapContract ma = MapContract.builder(IdentityMap.class).input(co2).build();
+		CoGroupContract co3 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(ma)
 			.input2(branchingMatch)
 			.build();
-		CoGroupContract co4 = new CoGroupContract.Builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+		CoGroupContract co4 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(co1)
 			.input2(branchingCoGroup)
 			.build();
-		CoGroupContract co5 = new CoGroupContract.Builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+		CoGroupContract co5 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(branchingReduce)
 			.input2(co3)
 			.build();
-		CoGroupContract co6 = new CoGroupContract.Builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
+		CoGroupContract co6 = CoGroupContract.builder(DummyCoGroupStub.class, PactInteger.class, 0,0)
 			.input1(co4)
 			.input2(co5)
 			.build();
@@ -296,12 +296,12 @@ public class BranchingPlansCompilerTest {
 		FileDataSource source1 = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
 		FileDataSource source2 = new FileDataSource(DummyInputFormat.class, IN_FILE_1);
 		
-		MatchContract mat1 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat1 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(source1)
 			.input2(source2)
 			.build();
 		
-		MapContract ma1 = new MapContract.Builder(IdentityMap.class).input(mat1).build();
+		MapContract ma1 = MapContract.builder(IdentityMap.class).input(mat1).build();
 		ReduceContract r1 = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
 			.input(ma1)
 			.build();
@@ -309,11 +309,11 @@ public class BranchingPlansCompilerTest {
 			.input(mat1)
 			.build();
 		
-		MapContract ma2 = new MapContract.Builder(IdentityMap.class).input(mat1).build();
+		MapContract ma2 = MapContract.builder(IdentityMap.class).input(mat1).build();
 		
-		MapContract ma3 = new MapContract.Builder(IdentityMap.class).input(ma2).build();
+		MapContract ma3 = MapContract.builder(IdentityMap.class).input(ma2).build();
 		
-		MatchContract mat2 = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat2 = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(r1)
 			.input2(ma2)
 			.build();

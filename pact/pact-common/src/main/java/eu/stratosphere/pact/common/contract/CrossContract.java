@@ -15,10 +15,9 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 
 
@@ -36,6 +35,17 @@ public class CrossContract extends DualInputContract<CrossStub>
 {	
 	private static String DEFAULT_NAME = "<Unnamed Crosser>";
 
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Creates a Builder with the provided {@link CrossStub} implementation.
+	 * 
+	 * @param udf The {@link CrossStub} implementation for this Cross contract.
+	 */
+	public static Builder builder(Class<? extends CrossStub> udf) {
+		return new Builder(udf);
+	}
+	
 	/**
 	 * The private constructor that only gets invoked from the Builder.
 	 * @param builder
@@ -45,6 +55,8 @@ public class CrossContract extends DualInputContract<CrossStub>
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
@@ -52,27 +64,24 @@ public class CrossContract extends DualInputContract<CrossStub>
 	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
-		/**
-		 * The required parameters.
-		 */
+		
+		/* The required parameters */
 		private final Class<? extends CrossStub> udf;
 		
-		/**
-		 * The optional parameters.
-		 */
+		/* The optional parameters */
 		private List<Contract> inputs1;
 		private List<Contract> inputs2;
 		private String name = DEFAULT_NAME;
 		
 		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+		 * Creates a Builder with the provided {@link CrossStub} implementation.
 		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param udf The {@link CrossStub} implementation for this Cross contract.
 		 */
-		public Builder(Class<? extends CrossStub> udf) {
+		private Builder(Class<? extends CrossStub> udf) {
 			this.udf = udf;
-			this.inputs1 = new LinkedList<Contract>();
-			this.inputs2 = new LinkedList<Contract>();
+			this.inputs1 = new ArrayList<Contract>();
+			this.inputs2 = new ArrayList<Contract>();
 		}
 		
 		/**

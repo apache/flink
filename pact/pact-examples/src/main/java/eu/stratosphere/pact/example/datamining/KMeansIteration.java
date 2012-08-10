@@ -625,7 +625,7 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		clusterPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create CrossContract for distance computation
-		CrossContract computeDistance = new CrossContract.Builder(ComputeDistance.class)
+		CrossContract computeDistance = CrossContract.builder(ComputeDistance.class)
 			.input1(dataPoints)
 			.input2(clusterPoints)
 			.name("Compute Distances")

@@ -134,7 +134,7 @@ public class UnionITCase extends TestBase
 		input2.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input2.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 		
-		MapContract testMapper = new MapContract.Builder(TestMapper.class).build();
+		MapContract testMapper = MapContract.builder(TestMapper.class).build();
 		testMapper.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 
 		FileDataSink output = new FileDataSink(

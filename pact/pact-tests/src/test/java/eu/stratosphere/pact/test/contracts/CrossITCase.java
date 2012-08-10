@@ -148,7 +148,7 @@ public class CrossITCase extends TestBase
 		input_right.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
-		CrossContract testCross = new CrossContract.Builder(TestCross.class).build();
+		CrossContract testCross = CrossContract.builder(TestCross.class).build();
 		testCross.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 		testCross.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("CrossTest#LocalStrategy", ""));

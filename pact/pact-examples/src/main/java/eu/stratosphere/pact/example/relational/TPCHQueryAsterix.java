@@ -180,7 +180,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		customers.getCompilerHints().setAvgBytesPerRecord(20);
 		
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinCO = new MatchContract.Builder(JoinCO.class, PactInteger.class, 0, 0)
+		MatchContract joinCO = MatchContract.builder(JoinCO.class, PactInteger.class, 0, 0)
 			.name("JoinCO")
 			.build();
 		joinCO.setDegreeOfParallelism(noSubtasks);

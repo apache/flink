@@ -237,19 +237,19 @@ public class TPCHQuery4 implements PlanAssembler, PlanAssemblerDescription {
 		result.setDegreeOfParallelism(degreeOfParallelism);
 		
 		MapContract lineFilter = 
-				new MapContract.Builder(LiFilter.class)
+				MapContract.builder(LiFilter.class)
 			.name("LineItemFilter")
 			.build();
 		lineFilter.setDegreeOfParallelism(degreeOfParallelism);
 		
 		MapContract ordersFilter = 
-				new MapContract.Builder(OFilter.class)
+				MapContract.builder(OFilter.class)
 			.name("OrdersFilter")
 			.build();
 		ordersFilter.setDegreeOfParallelism(degreeOfParallelism);
 		
 		MatchContract join = 
-				new MatchContract.Builder(JoinLiO.class, PactInteger.class, 0, 0)
+				MatchContract.builder(JoinLiO.class, PactInteger.class, 0, 0)
 			.name("OrdersLineitemsJoin")
 			.build();
 			join.setDegreeOfParallelism(degreeOfParallelism);

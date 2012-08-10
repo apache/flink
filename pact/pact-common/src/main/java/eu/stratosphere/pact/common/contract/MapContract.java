@@ -15,10 +15,9 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.MapStub;
 
 
@@ -32,13 +31,22 @@ import eu.stratosphere.pact.common.stubs.MapStub;
  * 
  * @see MapStub
  * 
- * @author Erik Nijkamp
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  * @author Aljoscha Krettek
  */
 public class MapContract extends SingleInputContract<MapStub>
 {	
 	private static String DEFAULT_NAME = "<Unnamed Mapper>";
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Creates a Builder with the provided {@link MapStub} implementation.
+	 * 
+	 * @param udf The {@link MapStub} implementation for this Map contract.
+	 */
+	public static Builder builder(Class<? extends MapStub> udf) {
+		return new Builder(udf);
+	}
 	
 	/**
 	 * The private constructor that only gets invoked from the Builder.
@@ -49,31 +57,30 @@ public class MapContract extends SingleInputContract<MapStub>
 		setInputs(builder.inputs);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
 	 * 
 	 * @author Aljoscha Krettek
 	 */
 	public static class Builder {
-		/**
-		 * The required parameters.
-		 */
+		
+		/* The required parameters */
 		private final Class<? extends MapStub> udf;
 		
-		/**
-		 * The optional parameters.
-		 */
+		/* The optional parameters */
 		private List<Contract> inputs;
 		private String name = DEFAULT_NAME;
 		
 		/**
-		 * Creates a Builder with the provided {@link CoGroupStub} implementation.
+		 * Creates a Builder with the provided {@link MapStub} implementation.
 		 * 
-		 * @param udf The {@link CoGroupStub} implementation for this CoGroup InputContract.
+		 * @param udf The {@link MapStub} implementation for this Map contract.
 		 */
-		public Builder(Class<? extends MapStub> udf) {
+		private Builder(Class<? extends MapStub> udf) {
 			this.udf = udf;
-			this.inputs = new LinkedList<Contract>();
+			this.inputs = new ArrayList<Contract>();
 		}
 		
 		/**

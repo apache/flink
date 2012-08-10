@@ -188,7 +188,7 @@ public class CoGroupITCase extends TestBase
 		input_right.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
-		CoGroupContract testCoGrouper = new CoGroupContract.Builder(TestCoGrouper.class, PactString.class, 0, 0)
+		CoGroupContract testCoGrouper = CoGroupContract.builder(TestCoGrouper.class, PactString.class, 0, 0)
 			.build();
 		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 		testCoGrouper.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,

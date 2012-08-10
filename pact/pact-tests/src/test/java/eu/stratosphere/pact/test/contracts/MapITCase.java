@@ -112,7 +112,7 @@ public class MapITCase extends TestBase
 		input.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
-		MapContract testMapper = new MapContract.Builder(TestMapper.class).build();
+		MapContract testMapper = MapContract.builder(TestMapper.class).build();
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		FileDataSink output = new FileDataSink(

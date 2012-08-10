@@ -103,7 +103,7 @@ public class PartitionDOPChangeTest {
 			.input(sourceB)
 			.build();
 		
-		MatchContract mat = new MatchContract.Builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+		MatchContract mat = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
 			.input1(redA)
 			.input2(redB)
 			.build();
