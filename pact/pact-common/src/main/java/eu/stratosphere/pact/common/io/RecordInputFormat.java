@@ -59,15 +59,17 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 	
 	// ------------------------------------- Config Keys ------------------------------------------
 	
-	private static final String FIELD_DELIMITER_PARAMETER = "recordinformat.delimiter.field";
+	public static final String FIELD_DELIMITER_PARAMETER = "recordinformat.delimiter.field";
 	
-	private static final String NUM_FIELDS_PARAMETER = "recordinformat.field.number";
+	public static final String NUM_FIELDS_PARAMETER = "recordinformat.field.number";
 	
-	private static final String FIELD_PARSER_PARAMETER_PREFIX = "recordinformat.field.parser_";
+	public static final String FIELD_PARSER_PARAMETER_PREFIX = "recordinformat.field.parser_";
 	
-	private static final String TEXT_POSITION_PARAMETER_PREFIX = "recordinformat.text.position_";
+	public static final String TEXT_POSITION_PARAMETER_PREFIX = "recordinformat.text.position_";
 	
-	private static final String RECORD_POSITION_PARAMETER_PREFIX = "recordinformat.record.position_";
+	public static final String RECORD_POSITION_PARAMETER_PREFIX = "recordinformat.record.position_";
+	
+	public static final String RECORD_DELIMITER_PARAMETER = DelimitedInputFormat.RECORD_DELIMITER;
 	
 	// --------------------------------------------------------------------------------------------
 	
