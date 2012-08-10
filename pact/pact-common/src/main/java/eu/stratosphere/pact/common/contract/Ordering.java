@@ -62,7 +62,7 @@ public class Ordering
 		if (index < 0) {
 			throw new IllegalArgumentException("The key index must not be negative.");
 		}
-		if (type == null || order == null) {
+		if (order == null) {
 			throw new NullPointerException();
 		}
 		if (order == Order.NONE) {
