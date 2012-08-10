@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -208,7 +207,8 @@ public class ComparativeExpression extends BinaryBooleanExpression {
 				if (e1 instanceof AbstractNumericNode && e2 instanceof AbstractNumericNode)
 					return this.isTrue(e1.compareTo(e2));
 
-				throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));
+				// throw new EvaluationException(String.format("Cannot compare %s %s %s", e1, this, e2));
+				return false;
 			}
 
 			return this.isTrue(e1.compareToSameType(e2));

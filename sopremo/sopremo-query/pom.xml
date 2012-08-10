@@ -18,7 +18,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-base</artifactId>
+			<artifactId>sopremo-common</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

@@ -15,17 +15,28 @@
 package eu.stratosphere.sopremo.client;
 
 import java.io.Closeable;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
+import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.ipc.RPC;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
-import eu.stratosphere.sopremo.execution.ExecutionResponse;
 import eu.stratosphere.sopremo.execution.ExecutionRequest.ExecutionMode;
+import eu.stratosphere.sopremo.execution.ExecutionResponse;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
 import eu.stratosphere.sopremo.execution.SopremoConstants;
 import eu.stratosphere.sopremo.execution.SopremoExecutionProtocol;
@@ -36,6 +47,22 @@ import eu.stratosphere.sopremo.operator.SopremoPlan;
  * @author Arvid Heise
  */
 public class DefaultClient implements Closeable {
+	/**
+	 * Avoids plenty of null checks.
+	 * 
+	 * @author Arvid Heise
+	 */
+	private static class DummyListener implements ProgressListener {
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.client.ProgressListener#progressUpdate(eu.stratosphere.sopremo.execution.
+		 * ExecutionResponse.ExecutionState, java.lang.String)
+		 */
+		@Override
+		public void progressUpdate(ExecutionState state, String detail) {
+		}
+	}
+
 	private Configuration configuration;
 
 	private SopremoExecutionProtocol executor;
@@ -150,19 +177,73 @@ public class DefaultClient implements Closeable {
 	}
 
 	public boolean submit(SopremoPlan plan, ProgressListener progressListener, boolean wait) {
+		if (progressListener == null)
+			progressListener = new DummyListener();
 		this.initConnection(progressListener);
+		if (!this.transferLibraries(plan, progressListener))
+			return false;
+
 		final ExecutionResponse response = this.sendPlan(plan, progressListener);
 		if (response == null)
 			return false;
 
 		if (response.getState() == ExecutionState.ERROR) {
-			dealWithError(progressListener, null, "Error while waiting for job execution");
+			dealWithError(progressListener, null, "Error while submitting to job execution");
 			return false;
 		}
 
 		if (wait)
 			return this.waitForCompletion(response, progressListener);
 		return true;
+	}
+
+	private boolean transferLibraries(SopremoPlan plan, ProgressListener progressListener) {
+		final JobID dummyKey = new JobID();
+		List<String> requiredLibraries = new ArrayList<String>(plan.getRequiredPackages());
+		try {
+			progressListener.progressUpdate(ExecutionState.SETUP, "");
+			List<Path> libraryPaths = new ArrayList<Path>();
+			for (String library : requiredLibraries) {
+				final DataInputStream dis = new DataInputStream(new FileInputStream(library));
+				final Path libraryPath = new Path(library);
+				LibraryCacheManager.addLibrary(dummyKey, libraryPath, new File(library).length(), dis);
+				dis.close();
+				libraryPaths.add(libraryPath);
+			}
+
+			LibraryCacheManager.register(dummyKey, libraryPaths.toArray(new Path[libraryPaths.size()]));
+			LibraryCacheProfileRequest request = new LibraryCacheProfileRequest();
+			final String[] internalJarNames = LibraryCacheManager.getRequiredJarFiles(dummyKey);
+			request.setRequiredLibraries(internalJarNames);
+
+			// Send the request
+			LibraryCacheProfileResponse response = null;
+			response = this.executor.getLibraryCacheProfile(request);
+
+			// Check response and transfer libraries if necessary
+			for (int k = 0; k < internalJarNames.length; k++)
+				if (!response.isCached(k)) {
+					final String library = internalJarNames[k];
+					progressListener.progressUpdate(ExecutionState.SETUP, "Transfering " + requiredLibraries.get(k));
+					LibraryCacheUpdate update = new LibraryCacheUpdate(library);
+					this.executor.updateLibraryCache(update);
+				}
+
+			// now change the names of the required libraries to the internal names
+			for (int index = 0; index < internalJarNames.length; index++)
+				requiredLibraries.set(index, internalJarNames[index]);
+			plan.setRequiredPackages(requiredLibraries);
+
+			return true;
+		} catch (IOException e) {
+			dealWithError(progressListener, e, "Cannot transfer libraries");
+			return false;
+		} finally {
+			try {
+				LibraryCacheManager.unregister(dummyKey);
+			} catch (IOException e) {
+			}
+		}
 	}
 
 	/*
@@ -197,8 +278,7 @@ public class DefaultClient implements Closeable {
 		}
 
 		try {
-			this.executor = (SopremoExecutionProtocol) RPC.getProxy(SopremoExecutionProtocol.class, serverAddress,
-				NetUtils.getSocketFactory());
+			this.executor = RPC.getProxy(SopremoExecutionProtocol.class, serverAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			this.dealWithError(progressListener, e, "Error while connecting to the server");
 		}

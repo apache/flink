@@ -21,7 +21,7 @@ import eu.stratosphere.nephele.protocols.VersionedProtocol;
  * 
  * @author Arvid Heise
  */
-public interface SopremoExecutionProtocol extends VersionedProtocol {
+public interface SopremoExecutionProtocol extends VersionedProtocol, LibraryTransferProtocol {
 	/**
 	 * Executes the query specified in the {@link ExecutionRequest}.
 	 * 

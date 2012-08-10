@@ -35,12 +35,16 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.RPC.Server;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionResponse;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
+import eu.stratosphere.sopremo.execution.LibraryTransferAgent;
 import eu.stratosphere.sopremo.execution.SopremoConstants;
 import eu.stratosphere.sopremo.execution.SopremoExecutionProtocol;
 import eu.stratosphere.sopremo.execution.SopremoID;
@@ -62,14 +66,11 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 
 	private boolean stopped = false;
 
-	/**
-	 * Returns the stopped.
-	 * 
-	 * @return the stopped
-	 */
-	public boolean isStopped() {
-		return this.stopped;
-	}
+	private LibraryTransferAgent libraryTransferAgent = new LibraryTransferAgent();
+
+	private static final Log LOG = LogFactory.getLog(SopremoServer.class);
+
+	private final static int SLEEPINTERVAL = 1000;
 
 	public SopremoServer() {
 		this(GlobalConfiguration.getConfiguration());
@@ -90,10 +91,6 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			this.server = null;
 		}
 		this.executorService.shutdownNow();
-	}
-
-	public void stop() {
-		this.stopped = true;
 	}
 
 	/*
@@ -123,6 +120,11 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 		return serverAddress;
 	}
 
+	@Override
+	public LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException {
+		return this.libraryTransferAgent.getLibraryCacheProfile(request);
+	}
+
 	public InetSocketAddress getServerAddress() {
 		InetSocketAddress serverAddress = this.serverAddress;
 		if (serverAddress == null) {
@@ -147,20 +149,13 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 		return new ExecutionResponse(jobId, info.getStatus(), info.getDetail());
 	}
 
-	public void start() throws IOException {
-		this.startServer();
-
-		Runtime.getRuntime().addShutdownHook(new Thread() {
-			/*
-			 * (non-Javadoc)
-			 * @see java.lang.Thread#run()
-			 */
-			@Override
-			public void run() {
-				SopremoServer.this.stop();
-				close();
-			}
-		});
+	/**
+	 * Returns the stopped.
+	 * 
+	 * @return the stopped
+	 */
+	public boolean isStopped() {
+		return this.stopped;
 	}
 
 	public void setJobManagerAddress(InetSocketAddress jobManagerAddress) {
@@ -177,6 +172,31 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 		this.serverAddress = rpcServerAddress;
 	}
 
+	public void start() throws IOException {
+		this.startServer();
+
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			/*
+			 * (non-Javadoc)
+			 * @see java.lang.Thread#run()
+			 */
+			@Override
+			public void run() {
+				SopremoServer.this.stop();
+				close();
+			}
+		});
+	}
+
+	public void stop() {
+		this.stopped = true;
+	}
+
+	@Override
+	public void updateLibraryCache(LibraryCacheUpdate update) throws IOException {
+		this.libraryTransferAgent.updateLibraryCache(update);
+	}
+
 	private ScheduledThreadPoolExecutor createExecutor() {
 		final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 		executor.setMaximumPoolSize(1);
@@ -190,10 +210,6 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			handlerCount);
 		this.server.start();
 	}
-
-	private static final Log LOG = LogFactory.getLog(SopremoServer.class);
-
-	private final static int SLEEPINTERVAL = 1000;
 
 	/**
 	 * Entry point for the program

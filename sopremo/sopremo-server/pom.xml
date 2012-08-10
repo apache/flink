@@ -15,17 +15,12 @@
 
 	<packaging>jar</packaging>
 
-	<dependencies>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-query</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
+	<dependencies>		
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>sopremo-base</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>

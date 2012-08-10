@@ -24,7 +24,6 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.operator.Property;
-import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 	private static final long serialVersionUID = 3299811281318600335L;
@@ -121,8 +120,8 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 			throw new IllegalArgumentException(String.format("Type of condition %s not supported",
 				condition.getClass().getSimpleName()));
 
-		int inputIndex1 = SopremoUtil.getInputIndex(expr1);
-		int inputIndex2 = SopremoUtil.getInputIndex(expr2);
+		int inputIndex1 = expr1.find(InputSelection.class).getIndex();
+		int inputIndex2 = expr2.find(InputSelection.class).getIndex();
 		if (inputIndex1 == inputIndex2)
 			throw new IllegalArgumentException(String.format("Condition input selection is invalid %s", condition));
 		else if (inputIndex1 < 0 || inputIndex1 > 1 || inputIndex2 < 0 || inputIndex2 > 1)

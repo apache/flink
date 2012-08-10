@@ -1,7 +1,6 @@
 package eu.stratosphere.sopremo.operator;
 
 import java.io.Serializable;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,8 +32,8 @@ public class SopremoPlan implements Serializable {
 	private EvaluationContext context = new EvaluationContext();
 
 	private SchemaFactory schemaFactory = new NaiveSchemaFactory();
-	
-	private List<URI> packageLocations = new ArrayList<URI>();
+
+	private List<String> requiredPackages = new ArrayList<String>();
 
 	public SopremoPlan() {
 		this.module = new SopremoModule("plan", 0, 0);
@@ -49,26 +48,31 @@ public class SopremoPlan implements Serializable {
 	public Plan asPactPlan() {
 		return new Plan(this.checkForSinks(this.assemblePact()));
 	}
-	
-	/**
-	 * Returns the packageLocations.
-	 * 
-	 * @return the packageLocations
-	 */
-	public List<URI> getPackageLocations() {
-		return this.packageLocations;
-	}
-	
-	/**
-	 * Sets the packageLocations to the specified value.
-	 *
-	 * @param packageLocations the packageLocations to set
-	 */
-	public void setPackageLocations(List<URI> packageLocations) {
-		if (packageLocations == null)
-			throw new NullPointerException("packageLocations must not be null");
 
-		this.packageLocations = packageLocations;
+	/**
+	 * Returns the requiredPackages.
+	 * 
+	 * @return the requiredPackages
+	 */
+	public List<String> getRequiredPackages() {
+		return this.requiredPackages;
+	}
+
+	/**
+	 * Sets the requiredPackages to the specified value.
+	 * 
+	 * @param requiredPackages
+	 *        the requiredPackages to set
+	 */
+	public void setRequiredPackages(List<String> packageNames) {
+		if (packageNames == null)
+			throw new NullPointerException("requiredPackages must not be null");
+
+		this.requiredPackages = packageNames;
+	}
+
+	public void addRequiredPackage(String packageName) {
+		this.requiredPackages.add(packageName);
 	}
 
 	/**

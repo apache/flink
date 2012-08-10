@@ -31,6 +31,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.junit.Ignore;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
@@ -88,7 +91,7 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 			try {
 				this.server.setServerAddress(new InetSocketAddress(SopremoConstants.DEFAULT_SOPREMO_SERVER_IPC_PORT));
 				this.server.start();
-				this.executor = (SopremoExecutionProtocol) RPC.getProxy(SopremoExecutionProtocol.class, this.server.getServerAddress());
+				this.executor = RPC.getProxy(SopremoExecutionProtocol.class, this.server.getServerAddress());
 			} catch (IOException e) {
 				fail(e, "Cannot start rpc sopremo server");
 			}
@@ -98,6 +101,34 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 
 		this.tempDir = this.cluster.getFilesystemProvider().getTempDirPath() + "/";
 		this.protocol = this.cluster.getFilesystemProvider().getURIPrefix();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.execution.LibraryTransferProtocol#getLibraryCacheProfile(eu.stratosphere.nephele.execution
+	 * .librarycache.LibraryCacheProfileRequest)
+	 */
+	@Override
+	public LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException {
+		LibraryCacheProfileResponse response = new LibraryCacheProfileResponse(request);
+		String[] requiredLibraries = request.getRequiredLibraries();
+
+		// since the test server is executed locally, all libraries are available
+		for (int i = 0; i < requiredLibraries.length; i++)
+			response.setCached(i, true);
+
+		return response;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.execution.LibraryTransferProtocol#updateLibraryCache(eu.stratosphere.nephele.execution
+	 * .librarycache.LibraryCacheUpdate)
+	 */
+	@Override
+	public void updateLibraryCache(LibraryCacheUpdate update) throws IOException {
 	}
 
 	public void checkContentsOf(String fileName, IJsonNode... expected) throws IOException {

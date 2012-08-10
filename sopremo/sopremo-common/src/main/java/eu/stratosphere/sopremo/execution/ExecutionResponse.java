@@ -106,6 +106,6 @@ public class ExecutionResponse implements IOReadableWritable {
 	}
 
 	public static enum ExecutionState {
-		FINISHED, ERROR, RUNNING, ENQUEUED;
+		SETUP, ENQUEUED, RUNNING, FINISHED, ERROR;
 	}
 }

@@ -17,8 +17,12 @@ package eu.stratosphere.sopremo.execution;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.sopremo.operator.SopremoPlan;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
@@ -29,8 +33,12 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  */
 public class ExecutionRequest implements IOReadableWritable {
 	private SopremoPlan query;
-	
+
 	private ExecutionMode mode = ExecutionMode.RUN;
+
+	private transient byte[] planBuffer = null;
+
+	private transient List<String> requiredPackages;
 
 	/**
 	 * Initializes ExecutionRequest with the given query.
@@ -41,7 +49,7 @@ public class ExecutionRequest implements IOReadableWritable {
 	public ExecutionRequest(SopremoPlan query) {
 		this.query = query;
 	}
-	
+
 	/**
 	 * Needed for deserialization.
 	 */
@@ -58,6 +66,23 @@ public class ExecutionRequest implements IOReadableWritable {
 	 * @return the query
 	 */
 	public SopremoPlan getQuery() {
+		if (this.query != null || this.planBuffer == null)
+			return this.query;
+
+		final JobID dummId = new JobID();
+		try {
+			LibraryCacheManager.register(dummId,
+				this.requiredPackages.toArray(new String[this.requiredPackages.size()]));
+			this.query = SopremoUtil.byteArrayToSerializable(this.planBuffer, 
+				LibraryCacheManager.getClassLoader(dummId));
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				LibraryCacheManager.unregister(dummId);
+			} catch (IOException e) {
+			}
+		}
 		return this.query;
 	}
 
@@ -67,14 +92,21 @@ public class ExecutionRequest implements IOReadableWritable {
 	 */
 	@Override
 	public void read(DataInput in) throws IOException {
-		this.query = SopremoUtil.deserializeObject(in, SopremoPlan.class);
 		this.mode = ExecutionMode.values()[in.readInt()];
+
+		this.requiredPackages = new ArrayList<String>();
+		for (int count = in.readInt(); count > 0; count--)
+			this.requiredPackages.add(in.readUTF());
+		this.query = null;
+
+		this.planBuffer = new byte[in.readInt()];
+		in.readFully(this.planBuffer);
 	}
 
 	public void setMode(ExecutionMode mode) {
 		if (mode == null)
 			throw new NullPointerException("mode must not be null");
-	
+
 		this.mode = mode;
 	}
 
@@ -84,8 +116,16 @@ public class ExecutionRequest implements IOReadableWritable {
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
-		SopremoUtil.serializeObject(out, this.query);
 		out.writeInt(this.mode.ordinal());
+
+		final List<String> requiredPackages = this.query.getRequiredPackages();
+		out.writeInt(requiredPackages.size());
+		for (String packageName : requiredPackages)
+			out.writeUTF(packageName);
+
+		final byte[] planBuffer = SopremoUtil.serializableToByteArray(this.query);
+		out.writeInt(planBuffer.length);
+		out.write(planBuffer);
 	}
 
 	public enum ExecutionMode {

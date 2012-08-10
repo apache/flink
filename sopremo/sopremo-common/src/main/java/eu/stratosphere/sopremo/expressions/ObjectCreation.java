@@ -19,7 +19,7 @@ import eu.stratosphere.sopremo.type.ObjectNode;
  * Creates an object with the given {@link Mapping}s.
  */
 @OptimizerHints(scope = Scope.ANY)
-public class ObjectCreation extends ContainerExpression {
+public class ObjectCreation extends EvaluationExpression {
 	/**
 	 * 
 	 */
@@ -44,7 +44,7 @@ public class ObjectCreation extends ContainerExpression {
 		}
 	};
 
-	private final List<Mapping<?>> mappings;
+	private List<Mapping<?>> mappings;
 
 	/**
 	 * Initializes an ObjectCreation with empty mappings.
@@ -123,6 +123,18 @@ public class ObjectCreation extends ContainerExpression {
 		return targetObject;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#clone()
+	 */
+	@Override
+	public ObjectCreation clone() {
+		final ObjectCreation clone = (ObjectCreation) super.clone();
+		clone.mappings = new ArrayList<ObjectCreation.Mapping<?>>(this.mappings.size());
+		for (Mapping<?> mapping : this.mappings) 
+			clone.mappings.add(mapping.clone());
+		return clone;
+	}
+	
 	/*
 	 * (non-Javadoc)
 	 * @see
@@ -133,7 +145,7 @@ public class ObjectCreation extends ContainerExpression {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		for (final Mapping mapping : this.mappings) {
-			mapping.expression.transformRecursively(function);
+			mapping.expression = mapping.expression.transformRecursively(function);
 			if (mapping.target instanceof EvaluationExpression)
 				mapping.target = ((EvaluationExpression) mapping.target).transformRecursively(function);
 		}
@@ -175,31 +187,6 @@ public class ObjectCreation extends ContainerExpression {
 		int result = super.hashCode();
 		result = prime * result + this.mappings.hashCode();
 		return result;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
-	 */
-	@Override
-	public List<? extends EvaluationExpression> getChildren() {
-		final ArrayList<EvaluationExpression> list = new ArrayList<EvaluationExpression>();
-		for (final Mapping<?> mapping : this.mappings)
-			list.add(mapping.getExpression());
-		return list;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
-	 */
-	@Override
-	public void setChildren(final List<? extends EvaluationExpression> children) {
-		if (this.mappings.size() != children.size())
-			throw new IllegalArgumentException();
-
-		for (int index = 0; index < children.size(); index++)
-			this.mappings.get(index).setExpression(children.get(index));
 	}
 
 	@Override
@@ -306,6 +293,16 @@ public class ObjectCreation extends ContainerExpression {
 			super(target, expression);
 		}
 
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping#clone()
+		 */
+		@Override
+		protected ExpressionAssignment clone() {
+			final ExpressionAssignment clone = (ExpressionAssignment) super.clone();
+			clone.target = clone.target.clone();
+			return clone;
+		}
+		
 		private IJsonNode lastResult;
 
 		@Override
@@ -315,7 +312,7 @@ public class ObjectCreation extends ContainerExpression {
 		}
 	}
 
-	public abstract static class Mapping<Target> extends AbstractSopremoType implements ISerializableSopremoType {
+	public abstract static class Mapping<Target> extends AbstractSopremoType implements ISerializableSopremoType, Cloneable {
 		/**
 		 * 
 		 */
@@ -349,6 +346,21 @@ public class ObjectCreation extends ContainerExpression {
 				throw new NullPointerException("expression must not be null");
 
 			this.expression = expression;
+		}
+		
+		/* (non-Javadoc)
+		 * @see java.lang.Object#clone()
+		 */
+		@SuppressWarnings("unchecked")
+		@Override
+		protected Mapping<Target> clone() {
+			try {
+				final Mapping<Target> clone = (Mapping<Target>) super.clone();
+				clone.expression = this.expression.clone();
+				return clone;
+			} catch (CloneNotSupportedException e) {
+				return null;
+			}
 		}
 
 		@Override

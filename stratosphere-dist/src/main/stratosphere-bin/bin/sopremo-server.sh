@@ -51,7 +51,9 @@ constructSopremoClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'sopremo' ]]; then
+		elif [[ "$jarfile" =~ 'sopremo-common' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'sopremo-server' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
 			add=1

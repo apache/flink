@@ -75,7 +75,7 @@ constructTaskManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'guava' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'sopremo' ]]; then
+		elif [[ "$jarfile" =~ 'sopremo-common' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'fastutil' ]]; then
 			add=1

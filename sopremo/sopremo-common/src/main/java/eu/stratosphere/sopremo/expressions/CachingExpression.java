@@ -70,6 +70,17 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	public EvaluationExpression getInnerExpression() {
 		return this.innerExpression;
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#clone()
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	public CachingExpression<CacheType> clone() {
+		final CachingExpression<CacheType> clone = (CachingExpression<CacheType>) super.clone();
+		clone.innerExpression = this.innerExpression.clone();
+		return clone;
+	}
 
 	@Override
 	public int hashCode() {
