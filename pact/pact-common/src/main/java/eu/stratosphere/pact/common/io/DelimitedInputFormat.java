@@ -30,6 +30,7 @@ import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.LineReader;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -43,15 +44,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  */
 public abstract class DelimitedInputFormat extends FileInputFormat
 {
-	/**
-	 * The configuration key to set the record delimiter.
-	 */
-	public static final String RECORD_DELIMITER = "delimited-format.delimiter";
-	
-	/**
-	 * The configuration key to set the number of samples to take for the statistics.
-	 */
-	public static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
+	// -------------------------------------- Constants -------------------------------------------
 	
 	/**
 	 * The log.
@@ -68,6 +61,23 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	 */
 	private static final int DEFAULT_NUM_SAMPLES = 10;
 	
+	// ------------------------------------- Config Keys ------------------------------------------
+	
+	/**
+	 * The configuration key to set the record delimiter.
+	 */
+	private static final String RECORD_DELIMITER = "delimited-format.delimiter";
+	
+	/**
+	 * The configuration key to set the record delimiter encoding.
+	 */
+	private static final String RECORD_DELIMITER_ENCODING = "delimited-format.delimiter-encoding";
+	
+	/**
+	 * The configuration key to set the number of samples to take for the statistics.
+	 */
+	private static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
+	
 	// --------------------------------------------------------------------------------------------
 	
 	protected byte[] readBuffer;
@@ -78,7 +88,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 
 	protected int limit;
 
-	protected byte[] delimiter = new byte[] { '\n' };
+	protected byte[] delimiter = new byte[] {'\n'};
 	
 	private byte[] currBuffer;
 	private int currOffset;
@@ -374,6 +384,9 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 		return this.end;
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#nextRecord(java.lang.Object)
+	 */
 	@Override
 	public boolean nextRecord(PactRecord record) throws IOException
 	{
@@ -499,6 +512,65 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			this.readPos = 0;
 			this.limit = read;
 			return true;
+		}
+	}
+	
+	// ============================================================================================
+	
+	/**
+	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
+	 * fashion.
+	 * 
+	 * @return A config builder for setting parameters.
+	 */
+	@SuppressWarnings("rawtypes")
+	public static ConfigBuilder configure(FileDataSource target) {
+		return new ConfigBuilder(target.getParameters());
+	}
+	
+	public static class ConfigBuilder<T> extends FileInputFormat.ConfigBuilder<T>
+	{
+		private static final String NEWLINE_DELIMITER = "\n";
+		
+		// --------------------------------------------------------------------
+		
+		protected ConfigBuilder(Configuration config) {
+			super(config);
+		}
+		
+		// --------------------------------------------------------------------
+		
+		public T recordDelimiter(char delimiter) {
+			if (delimiter == '\n') {
+				this.config.setString(RECORD_DELIMITER, NEWLINE_DELIMITER);
+			} else {
+				this.config.setString(RECORD_DELIMITER, String.valueOf(delimiter));
+			}
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		public T recordDelimiter(String delimiter) {
+			this.config.setString(RECORD_DELIMITER, delimiter);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		public T delimiter(String delimiter, String charsetName) {
+			this.config.setString(RECORD_DELIMITER, delimiter);
+			this.config.setString(RECORD_DELIMITER_ENCODING, charsetName);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		public T numSamplesForStatistics(int numSamples) {
+			this.config.setInteger(NUM_STATISTICS_SAMPLES, numSamples);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
 		}
 	}
 }

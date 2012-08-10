@@ -170,14 +170,12 @@ public class GlobalSortingITCase extends TestBase {
 			String recordsPath    = (args.length > 1 ? args[1] : "");
 			String output        = (args.length > 2 ? args[2] : "");
 			
-			FileDataSource source =
-				new FileDataSource(RecordInputFormat.class, recordsPath);
+			FileDataSource source = new FileDataSource(RecordInputFormat.class, recordsPath);
 			source.setDegreeOfParallelism(noSubtasks);
-			source.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-			source.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			source.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 1);
-			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextIntParser.class);
-			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
+			RecordInputFormat.configure(source)
+				.recordDelimiter('\n')
+				.fieldDelimiter('|')
+				.field(DecimalTextIntParser.class, 0);
 			
 			FileDataSink sink =
 				new FileDataSink(RecordOutputFormat.class, output);
