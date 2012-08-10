@@ -197,15 +197,12 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 			final String output      = (args.length > 2 ? args[2] : "");
 			
 			FileDataSource source = new FileDataSource(RecordInputFormat.class, recordsPath);
-			source.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-			source.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, ",");
-			source.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
-			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
-			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 0);
-			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 1, 1);
-			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 2, 2);
+			RecordInputFormat.configure(source)
+				.recordDelimiter('\n')
+				.fieldDelimiter(',')
+				.field(DecimalTextIntParser.class, 0)
+				.field(DecimalTextIntParser.class, 1)
+				.field(DecimalTextIntParser.class, 2);
 			
 			FileDataSink sink = new FileDataSink(RecordOutputFormat.class, output);
 			sink.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");

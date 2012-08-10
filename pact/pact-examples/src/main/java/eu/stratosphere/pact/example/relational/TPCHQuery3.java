@@ -216,26 +216,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create DataSourceContract for Orders input
 		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
-		orders.setDegreeOfParallelism(noSubtasks);
-		
-		orders.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		orders.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		orders.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
-		// order id
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// ship prio
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 7);
-		// order status
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+2, VarLengthStringParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+2, 2);
-		// order date
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+3, VarLengthStringParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+3, 4);
-		// order prio
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+4, VarLengthStringParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+4, 5);
+		RecordInputFormat.configure(orders)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextLongParser.class, 0)		// order id
+			.field(DecimalTextIntParser.class, 7) 		// ship prio
+			.field(VarLengthStringParser.class, 2)		// order status
+			.field(VarLengthStringParser.class, 4)		// order date
+			.field(VarLengthStringParser.class, 5);		// order prio
 		// compiler hints
 		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		orders.getCompilerHints().setAvgBytesPerRecord(16);
@@ -243,17 +231,11 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
-		lineitems.setDegreeOfParallelism(noSubtasks);
-
-		lineitems.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		lineitems.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		lineitems.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-		// order id
-		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
-		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// extended price
-		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextDoubleParser.class);
-		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 5);
+		RecordInputFormat.configure(lineitems)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextLongParser.class, 0)		// order id
+			.field(DecimalTextDoubleParser.class, 5);	// extended price
 		// compiler hints	
 		lineitems.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 4);
 		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
@@ -263,7 +245,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.input(orders)
 			.name("FilterO")
 			.build();
-		filterO.setDegreeOfParallelism(noSubtasks);
 		// filter configuration
 		filterO.setParameter(YEAR_FILTER, 1993);
 		filterO.setParameter(PRIO_FILTER, "5");
@@ -278,7 +259,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.input2(lineitems)
 			.name("JoinLiO")
 			.build();
-		joinLiO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(24);
 		joinLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 4);
@@ -291,7 +271,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 			.input(joinLiO)
 			.name("AggLio")
 			.build();
-		aggLiO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
 		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
@@ -299,7 +278,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
-		result.setDegreeOfParallelism(noSubtasks);
 		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
 		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
 		result.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);

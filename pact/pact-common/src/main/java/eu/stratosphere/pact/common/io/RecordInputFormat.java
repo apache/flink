@@ -21,6 +21,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.parser.FieldParser;
@@ -49,24 +50,24 @@ import eu.stratosphere.pact.common.type.base.parser.FieldParser;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class RecordInputFormat extends DelimitedInputFormat implements OutputSchemaProvider {
-
-	public static final String FILE_PARAMETER_KEY = FileInputFormat.FILE_PARAMETER_KEY;
-	
-	public static final String RECORD_DELIMITER_PARAMETER = DelimitedInputFormat.RECORD_DELIMITER;
-	
-	public static final String FIELD_DELIMITER_PARAMETER = "recordinformat.delimiter.field";
-	
-	public static final String NUM_FIELDS_PARAMETER = "recordinformat.field.number";
-	
-	public static final String FIELD_PARSER_PARAMETER_PREFIX = "recordinformat.field.parser_";
-	
-	public static final String TEXT_POSITION_PARAMETER_PREFIX = "recordinformat.text.position_";
-	
-	public static final String RECORD_POSITION_PARAMETER_PREFIX = "recordinformat.record.position_";
+public class RecordInputFormat extends DelimitedInputFormat implements OutputSchemaProvider
+{
+	// -------------------------------------- Constants -------------------------------------------
 	
 	@SuppressWarnings("unused")
 	private static final Log LOG = LogFactory.getLog(RecordInputFormat.class);
+	
+	// ------------------------------------- Config Keys ------------------------------------------
+	
+	private static final String FIELD_DELIMITER_PARAMETER = "recordinformat.delimiter.field";
+	
+	private static final String NUM_FIELDS_PARAMETER = "recordinformat.field.number";
+	
+	private static final String FIELD_PARSER_PARAMETER_PREFIX = "recordinformat.field.parser_";
+	
+	private static final String TEXT_POSITION_PARAMETER_PREFIX = "recordinformat.text.position_";
+	
+	private static final String RECORD_POSITION_PARAMETER_PREFIX = "recordinformat.record.position_";
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -175,13 +176,12 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 			fieldValues[pos] = fieldParsers[pos].getValue();
 		}
 		
-		String fieldDelimStr = config.getString(FIELD_DELIMITER_PARAMETER, ",");
-		if(fieldDelimStr.length() != 1) {
+		final String fieldDelimStr = config.getString(FIELD_DELIMITER_PARAMETER, ",");
+		if (fieldDelimStr.length() != 1) {
 			throw new IllegalArgumentException("Invalid configuration for RecordInputFormat: " +
 					"Field delimiter must be a single character");
 		}
 		this.fieldDelim = fieldDelimStr.charAt(0);
-		
 	}
 	
 	/*
@@ -266,5 +266,41 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 		}
 		Arrays.sort(outputSchema);
 		return outputSchema;
+	}
+	
+	// ============================================================================================
+	
+	/**
+	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
+	 * fashion.
+	 * 
+	 * @return A config builder for setting parameters.
+	 */
+	public static ConfigBuilder configure(FileDataSource target) {
+		return new ConfigBuilder(target.getParameters());
+	}
+	
+	public static class ConfigBuilder extends DelimitedInputFormat.ConfigBuilder<RecordInputFormat.ConfigBuilder>
+	{
+		// --------------------------------------------------------------------
+		
+		protected ConfigBuilder(Configuration config) {
+			super(config);
+		}
+		
+		// --------------------------------------------------------------------
+		
+		public ConfigBuilder fieldDelimiter(char delimiter) {
+			this.config.setString(FIELD_DELIMITER_PARAMETER, String.valueOf(delimiter));
+			return this;
+		}
+		
+		public ConfigBuilder field(Class<? extends FieldParser<?>> parser, int textPosition) {
+			final int numYet = this.config.getInteger(NUM_FIELDS_PARAMETER, 0);
+			this.config.setClass(FIELD_PARSER_PARAMETER_PREFIX + numYet, parser);
+			this.config.setInteger(TEXT_POSITION_PARAMETER_PREFIX + numYet, textPosition);
+			this.config.setInteger(NUM_FIELDS_PARAMETER, numYet + 1);
+			return this;
+		}
 	}
 }
