@@ -500,6 +500,7 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 		public void readFully(byte[] b, int off, int len) throws EOFException {
 			if (this.position <= this.limit - len) {
 				System.arraycopy(this.source, this.position, b, off, len);
+				this.position += len;
 			} else {
 				throw new EOFException();
 			}
