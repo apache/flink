@@ -359,7 +359,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			initializeCompressionComponents();
 
 			// Activate input channels
-			activateInputChannels();
+			// activateInputChannels();
 
 			this.invokable.invoke();
 
@@ -437,6 +437,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * @throws InterruptedException
 	 *         throws if the task is interrupted while waiting for the activation process to complete
 	 */
+	@SuppressWarnings("unused")
 	private void activateInputChannels() throws IOException, InterruptedException {
 
 		for (int i = 0; i < getNumberOfInputGates(); ++i) {
