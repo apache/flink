@@ -212,8 +212,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub for the job manager
 		JobManagerProtocol jobManager = null;
 		try {
-			jobManager = (JobManagerProtocol) RPC.getProxy(JobManagerProtocol.class, jobManagerAddress, NetUtils
-				.getSocketFactory());
+			jobManager = RPC.getProxy(JobManagerProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize connection to JobManager: " + e.getMessage(), e);
@@ -223,8 +222,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub of the global input split provider
 		InputSplitProviderProtocol globalInputSplitProvider = null;
 		try {
-			globalInputSplitProvider = (InputSplitProviderProtocol) RPC.getProxy(InputSplitProviderProtocol.class,
-				jobManagerAddress, NetUtils.getSocketFactory());
+			globalInputSplitProvider = RPC.getProxy(InputSplitProviderProtocol.class, jobManagerAddress, 
+				NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize connection to global input split provider: " + e.getMessage(), e);
@@ -234,8 +233,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub for the lookup service
 		ChannelLookupProtocol lookupService = null;
 		try {
-			lookupService = (ChannelLookupProtocol) RPC.getProxy(ChannelLookupProtocol.class, jobManagerAddress,
-				NetUtils.getSocketFactory());
+			lookupService = RPC.getProxy(ChannelLookupProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize channel lookup protocol. " + e.getMessage(), e);
@@ -245,8 +243,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub for the plugin communication service
 		PluginCommunicationProtocol pluginCommunicationService = null;
 		try {
-			pluginCommunicationService = (PluginCommunicationProtocol) RPC.getProxy(PluginCommunicationProtocol.class,
-				jobManagerAddress, NetUtils.getSocketFactory());
+			pluginCommunicationService = RPC.getProxy(PluginCommunicationProtocol.class, jobManagerAddress, 
+				NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize plugin communication protocol. " + e.getMessage(), e);

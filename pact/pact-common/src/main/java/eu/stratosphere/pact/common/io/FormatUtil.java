@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.generic.io.OutputFormat;
+import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
@@ -60,6 +61,7 @@ public class FormatUtil {
 		final T inputFormat = ReflectionUtil.newInstance(inputFormatClass);
 
 		configuration.setString(FileInputFormat.FILE_PARAMETER_KEY, path);
+		configuration.setLong(FileInputFormat.INPUT_STREAM_OPEN_TIMEOUT, 0);
 		inputFormat.configure(configuration);
 
 		final FileSystem fs = FileSystem.get(normalizedPath.toUri());
@@ -124,6 +126,7 @@ public class FormatUtil {
 		configuration = configuration == null ? new Configuration() : configuration;
 
 		configuration.setString(FileOutputFormat.FILE_PARAMETER_KEY, path);
+		configuration.setLong(FileOutputFormat.OUTPUT_STREAM_OPEN_TIMEOUT, 0);
 		outputFormat.configure(configuration);
 		outputFormat.open(1);
 		return outputFormat;

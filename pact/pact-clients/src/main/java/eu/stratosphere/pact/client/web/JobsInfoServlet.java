@@ -114,7 +114,7 @@ public class JobsInfoServlet extends HttpServlet {
 		String jmHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		String jmPort = config.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, null);
 		
-		return (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
+		return RPC.getProxy(ExtendedManagementProtocol.class,
 				new InetSocketAddress(jmHost, Integer.parseInt(jmPort)), NetUtils.getSocketFactory());
 	}
 
