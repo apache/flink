@@ -99,10 +99,10 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 			}
 			
 			// next key sort direction
-			direction[i] = config.getBoolean(KEY_SORT_DIRECTION_PREFIX, true);
+			direction[i] = config.getBoolean(KEY_SORT_DIRECTION_PREFIX + i, true);
 		}
 		
-		return new PactRecordComparator(positions, types);
+		return new PactRecordComparator(positions, types, direction);
 	}
 	
 
@@ -152,7 +152,7 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 			}
 			
 			// next key sort direction
-			direction[i] = config.getBoolean(KEY_SORT_DIRECTION_PREFIX, true);
+			direction[i] = config.getBoolean(KEY_SORT_DIRECTION_PREFIX + i, true);
 		}
 		
 		// read the individual key positions and types
@@ -173,10 +173,10 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 				throw new CorruptConfigurationException("The key type (" + i + ") for the comparator is null"); 
 			}
 			// next key sort direction
-			direction[numKeyFields + i] = config.getBoolean(SS_KEY_SORT_DIRECTION_PREFIX, true);
+			direction[numKeyFields + i] = config.getBoolean(SS_KEY_SORT_DIRECTION_PREFIX + i, true);
 		}
 		
-		return new PactRecordComparator(positions, types);
+		return new PactRecordComparator(positions, types, direction);
 	}
 
 	/* (non-Javadoc)
@@ -235,7 +235,7 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 		for (int i = 0; i < secondarySortKeyPositions.length; i++) {
 			config.setInteger(SS_KEY_POS_PREFIX + i, secondarySortKeyPositions[i]);
 			config.setString(SS_KEY_CLASS_PREFIX + i, secondarySortKeyTypes[i].getName());
-			config.setBoolean(SS_KEY_SORT_DIRECTION_PREFIX, secondarySortDirections[i]);
+			config.setBoolean(SS_KEY_SORT_DIRECTION_PREFIX + i, secondarySortDirections[i]);
 		}
 	}
 	
@@ -261,7 +261,7 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 		for (int i = 0; i < keyPositions.length; i++) {
 			config.setInteger(KEY_POS_PREFIX + i, keyPositions[i]);
 			config.setString(KEY_CLASS_PREFIX + i, keyTypes[i].getName());
-			config.setBoolean(KEY_SORT_DIRECTION_PREFIX, directions[i]);
+			config.setBoolean(KEY_SORT_DIRECTION_PREFIX + i, directions[i]);
 		}
 		
 		// write the config

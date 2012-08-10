@@ -94,10 +94,10 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		for (int i = 0; i < this.keyHolders.length; i++) {
 			Key k = this.keyHolders[i];
 			if (k instanceof NormalizableKey) {
-				if (this.ascending != null) {
-					if (this.ascending[i] && inverted) {
+				if (sortDirection != null) {
+					if (sortDirection[i] && inverted) {
 						break;
-					} else if (i == 0 && !this.ascending[0]) {
+					} else if (i == 0 && !sortDirection[0]) {
 						inverted = true;
 					}
 				}
@@ -285,7 +285,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes)
 	{
 		return this.numLeadingNormalizableKeys < this.keyFields.length ||
-		        this.normalizableKeyPrefixLen == Integer.MAX_VALUE ||
+				this.normalizableKeyPrefixLen == Integer.MAX_VALUE ||
 				this.normalizableKeyPrefixLen > keyBytes;
 	}
 
