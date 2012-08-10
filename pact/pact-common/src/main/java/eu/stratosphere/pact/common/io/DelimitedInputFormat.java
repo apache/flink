@@ -66,7 +66,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	/**
 	 * The configuration key to set the record delimiter.
 	 */
-	private static final String RECORD_DELIMITER = "delimited-format.delimiter";
+	public static final String RECORD_DELIMITER = "delimited-format.delimiter";
 	
 	/**
 	 * The configuration key to set the record delimiter encoding.
