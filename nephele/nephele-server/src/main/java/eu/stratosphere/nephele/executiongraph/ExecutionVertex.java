@@ -315,6 +315,43 @@ public final class ExecutionVertex {
 	}
 
 	/**
+	 * Updates the vertex's current execution state through the job's executor service.
+	 * 
+	 * @param newExecutionState
+	 *        the new execution state
+	 * @param optionalMessage
+	 *        an optional message related to the state change
+	 */
+	public void updateExecutionStateAsynchronously(final ExecutionState newExecutionState,
+			final String optionalMessage) {
+
+		final Runnable command = new Runnable() {
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void run() {
+
+				updateExecutionState(newExecutionState, optionalMessage);
+			}
+		};
+
+		this.executionGraph.executeCommand(command);
+	}
+
+	/**
+	 * Updates the vertex's current execution state through the job's executor service.
+	 * 
+	 * @param newExecutionState
+	 *        the new execution state
+	 */
+	public void updateExecutionStateAsynchronously(final ExecutionState newExecutionState) {
+
+		updateExecutionStateAsynchronously(newExecutionState, null);
+	}
+
+	/**
 	 * Updates the vertex's current execution state.
 	 * 
 	 * @param newExecutionState

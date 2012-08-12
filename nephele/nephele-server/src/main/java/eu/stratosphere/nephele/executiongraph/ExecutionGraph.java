@@ -26,6 +26,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
@@ -98,6 +100,11 @@ public class ExecutionGraph implements ExecutionListener {
 	 * List of stages in the graph.
 	 */
 	private final CopyOnWriteArrayList<ExecutionStage> stages = new CopyOnWriteArrayList<ExecutionStage>();
+
+	/**
+	 * The executor service to asynchronously perform update operations to this graph.
+	 */
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 	/**
 	 * Index to the current execution stage.
@@ -1418,5 +1425,16 @@ public class ExecutionGraph implements ExecutionListener {
 	public int getPriority() {
 
 		return 1;
+	}
+
+	/**
+	 * Performs an asynchronous update operation to this execution graph.
+	 * 
+	 * @param command
+	 *        the update command to be asynchronously executed on this graph
+	 */
+	public void executeCommand(final Runnable command) {
+
+		this.executorService.execute(command);
 	}
 }
