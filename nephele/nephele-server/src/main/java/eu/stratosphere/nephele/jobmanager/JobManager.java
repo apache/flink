@@ -166,7 +166,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final static int FAILURERETURNCODE = -1;
 
-	private final AtomicBoolean isShutDown = new AtomicBoolean(false);
+	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
+
+	private volatile boolean isShutDown = false;
 
 	/**
 	 * Constructs a new job manager, starts its discovery service and its IPC service.
@@ -305,7 +307,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	public void shutdown() {
 
-		if (this.isShutDown.compareAndSet(false, true)) {
+		if (!this.isShutdownInProgress.compareAndSet(false, true)) {
 			return;
 		}
 
@@ -355,7 +357,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.scheduler.shutdown();
 		}
 
-		this.isShutDown.set(true);
+		this.isShutDown = true;
 		LOG.debug("Shutdown of job manager completed");
 	}
 
@@ -1089,7 +1091,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	public boolean isShutDown() {
 
-		return this.isShutDown.get();
+		return this.isShutDown;
 	}
 
 	/**
