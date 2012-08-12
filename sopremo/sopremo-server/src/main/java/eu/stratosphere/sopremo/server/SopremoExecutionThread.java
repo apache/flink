@@ -69,17 +69,17 @@ public class SopremoExecutionThread implements Runnable {
 			LOG.info("Starting job " + this.jobInfo.getJobId());
 			SopremoPlan plan = this.jobInfo.getInitialRequest().getQuery();
 			final long runtime = executePlan(plan);
-			switch (this.jobInfo.getInitialRequest().getMode()) {
-			case RUN:
-				if (runtime != -1)
+			if (runtime != -1) {
+				switch (this.jobInfo.getInitialRequest().getMode()) {
+				case RUN:
 					this.jobInfo.setStatusAndDetail(ExecutionState.FINISHED, "");
-				break;
-			case RUN_WITH_STATISTICS:
-				if (runtime != -1)
+					break;
+				case RUN_WITH_STATISTICS:
 					gatherStatistics(plan, runtime);
-				break;
+					break;
+				}
+				LOG.info(String.format("Finished job %s in %s ms", this.jobInfo.getJobId(), runtime));
 			}
-			LOG.info(String.format("Finished job %s in %s ms", this.jobInfo.getJobId(), runtime));
 		} catch (Throwable ex) {
 			LOG.error("Cannot process plan " + this.jobInfo.getJobId(), ex);
 			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR,

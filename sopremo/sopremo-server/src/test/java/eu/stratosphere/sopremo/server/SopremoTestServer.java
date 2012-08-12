@@ -80,7 +80,8 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 		verifyJvmOptions();
 
 		this.server = new SopremoServer();
-		this.server.setJobManagerAddress(new InetSocketAddress(ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT));
+		this.server.setJobManagerAddress(
+			new InetSocketAddress("localhost", ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT));
 		try {
 			this.cluster = ClusterProviderPool.getInstance(this.configName);
 		} catch (Exception e) {
@@ -89,7 +90,8 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 
 		if (rpc) {
 			try {
-				this.server.setServerAddress(new InetSocketAddress(SopremoConstants.DEFAULT_SOPREMO_SERVER_IPC_PORT));
+				this.server.setServerAddress(
+					new InetSocketAddress("localhost", SopremoConstants.DEFAULT_SOPREMO_SERVER_IPC_PORT));
 				this.server.start();
 				this.executor = RPC.getProxy(SopremoExecutionProtocol.class, this.server.getServerAddress());
 			} catch (IOException e) {
@@ -248,7 +250,7 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 
 	public static ExecutionResponse waitForStateToFinish(SopremoExecutionProtocol server, ExecutionResponse response,
 			ExecutionState status) {
-		for (int waits = 0; response.getState() == status && waits < 100; waits++) {
+		for (int waits = 0; response.getState() == status && waits < 1000; waits++) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
