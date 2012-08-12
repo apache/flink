@@ -466,14 +466,12 @@ public abstract class AbstractScheduler implements InstanceListener {
 							return;
 						}
 
-						// Replace the selected instance in the entire graph with the new instance
-						final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
+						// Replace the selected instance
+						final Iterator<ExecutionVertex> it = resourceToBeReplaced.assignedVertices();
 						while (it.hasNext()) {
 							final ExecutionVertex vertex = it.next();
-							if (vertex.getAllocatedResource().equals(resourceToBeReplaced)) {
-								vertex.setAllocatedResource(allocatedResource);
-								vertex.updateExecutionState(ExecutionState.ASSIGNED);
-							}
+							vertex.setAllocatedResource(allocatedResource);
+							vertex.updateExecutionState(ExecutionState.ASSIGNED);
 						}
 					}
 				}
