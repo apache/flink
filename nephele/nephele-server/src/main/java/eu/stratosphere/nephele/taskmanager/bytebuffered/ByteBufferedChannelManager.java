@@ -59,6 +59,9 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private static final boolean DEFAULT_MERGE_SPILLED_BUFFERS = true;
 
+	// TODO: Make this configurable
+	private static final int NUMBER_OF_CHANNELS_FOR_MULTICAST = 10;
+
 	private final Map<ChannelID, ChannelContext> registeredChannels = new ConcurrentHashMap<ChannelID, ChannelContext>();
 
 	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
@@ -119,8 +122,14 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 *        the task to be registered
 	 * @param the
 	 *        set of output channels which are initially active
+	 * @throws InsufficientResourcesException
+	 *         thrown if the channel manager does not have enough memory buffers to safely run this task
 	 */
-	public void register(final Task task, final Set<ChannelID> activeOutputChannels) {
+	public void register(final Task task, final Set<ChannelID> activeOutputChannels)
+			throws InsufficientResourcesException {
+
+		// Check if we can safely run this task with the given resources
+		checkBufferAvailability(task);
 
 		final Environment environment = task.getEnvironment();
 
@@ -738,14 +747,54 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		return this.transitBufferPool;
 	}
 
-	private void redistributeGlobalBuffers() {
+	/**
+	 * Checks if the byte buffered channel manager has enough resources available to safely execute the given task.
+	 * 
+	 * @param task
+	 *        the task to be executed
+	 * @throws InsufficientResourcesException
+	 *         thrown if the byte buffered manager currently does not have enough resources available to execute the
+	 *         task
+	 */
+	private void checkBufferAvailability(final Task task) throws InsufficientResourcesException {
 
-		final int numberOfChannelsForMulticast = 10; // TODO: Make this configurable
+		final int totalNumberOfBuffers = GlobalBufferPool.getInstance().getTotalNumberOfBuffers();
+		int numberOfAlreadyRegisteredChannels = this.registeredChannels.size();
+		if (this.multicastEnabled) {
+			numberOfAlreadyRegisteredChannels += NUMBER_OF_CHANNELS_FOR_MULTICAST;
+		}
+
+		final Environment env = task.getEnvironment();
+
+		final int numberOfNewChannels = env.getNumberOfOutputChannels() + env.getNumberOfInputChannels();
+		final int totalNumberOfChannels = numberOfAlreadyRegisteredChannels + numberOfNewChannels;
+
+		final double buffersPerChannel = (double) totalNumberOfBuffers
+			/ (double) totalNumberOfChannels;
+
+		if (buffersPerChannel < 1.0) {
+
+			// Construct error message
+			final StringBuilder sb = new StringBuilder(this.localConnectionInfo.getHostName());
+			sb.append(" has not enough buffers available to safely execute ");
+			sb.append(env.getTaskName());
+			sb.append(" (");
+			sb.append(totalNumberOfChannels - totalNumberOfBuffers);
+			sb.append(" buffers are currently missing)");
+
+			throw new InsufficientResourcesException(sb.toString());
+		}
+	}
+
+	/**
+	 * Redistributes the global buffers among the registered tasks.
+	 */
+	private void redistributeGlobalBuffers() {
 
 		final int totalNumberOfBuffers = GlobalBufferPool.getInstance().getTotalNumberOfBuffers();
 		int totalNumberOfChannels = this.registeredChannels.size();
 		if (this.multicastEnabled) {
-			totalNumberOfChannels += numberOfChannelsForMulticast;
+			totalNumberOfChannels += NUMBER_OF_CHANNELS_FOR_MULTICAST;
 		}
 		final double buffersPerChannel = (double) totalNumberOfBuffers / (double) totalNumberOfChannels;
 		if (buffersPerChannel < 1.0) {
@@ -769,7 +818,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		if (this.multicastEnabled) {
 			this.transitBufferPool.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel
-				* numberOfChannelsForMulticast));
+				* NUMBER_OF_CHANNELS_FOR_MULTICAST));
 		}
 	}
 

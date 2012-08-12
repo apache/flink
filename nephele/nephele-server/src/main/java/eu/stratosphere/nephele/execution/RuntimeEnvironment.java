@@ -512,6 +512,34 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	}
 
 	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getNumberOfOutputChannels() {
+
+		int numberOfOutputChannels = 0;
+		for (int i = 0; i < this.outputGates.size(); ++i) {
+			numberOfOutputChannels += this.outputGates.get(i).getNumberOfOutputChannels();
+		}
+
+		return numberOfOutputChannels;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getNumberOfInputChannels() {
+
+		int numberOfInputChannels = 0;
+		for (int i = 0; i < this.inputGates.size(); ++i) {
+			numberOfInputChannels += this.inputGates.get(i).getNumberOfInputChannels();
+		}
+
+		return numberOfInputChannels;
+	}
+
+	/**
 	 * Returns the registered input gate with index <code>pos</code>.
 	 * 
 	 * @param pos
