@@ -94,15 +94,13 @@ public class TestDeploymentManager implements DeploymentManager {
 	 */
 	void waitForDeployment() {
 
-		if (this.jobID != null) {
-			return;
-		}
-
-		synchronized (this.synchronizationObject) {
-			try {
-				this.synchronizationObject.wait(50);
-			} catch (InterruptedException e) {
-				// Ignore exception
+		while (this.jobID == null) {
+			synchronized (this.synchronizationObject) {
+				try {
+					this.synchronizationObject.wait(50);
+				} catch (InterruptedException e) {
+					// Ignore exception
+				}
 			}
 		}
 	}
