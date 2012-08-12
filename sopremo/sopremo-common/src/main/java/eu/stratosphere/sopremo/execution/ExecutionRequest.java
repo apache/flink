@@ -73,7 +73,7 @@ public class ExecutionRequest implements IOReadableWritable {
 		try {
 			LibraryCacheManager.register(dummId,
 				this.requiredPackages.toArray(new String[this.requiredPackages.size()]));
-			this.query = SopremoUtil.byteArrayToSerializable(this.planBuffer, 
+			this.query = SopremoUtil.byteArrayToSerializable(this.planBuffer, SopremoPlan.class, 
 				LibraryCacheManager.getClassLoader(dummId));
 		} catch (IOException e) {
 			e.printStackTrace();

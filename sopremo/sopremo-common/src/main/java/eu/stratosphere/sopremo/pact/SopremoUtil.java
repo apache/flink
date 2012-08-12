@@ -494,11 +494,11 @@ public class SopremoUtil {
 		byte[] buffer = new byte[in.readInt()];
 		in.readFully(buffer);
 
-		return byteArrayToSerializable(buffer, clazz.getClassLoader());
+		return byteArrayToSerializable(buffer, clazz, clazz.getClassLoader());
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T extends Serializable> T byteArrayToSerializable(byte[] buffer, final ClassLoader classLoader)
+	public static <T extends Serializable> T byteArrayToSerializable(byte[] buffer, Class<T> clazz, final ClassLoader classLoader)
 			throws IOException {
 		final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(buffer)) {
 			/*
