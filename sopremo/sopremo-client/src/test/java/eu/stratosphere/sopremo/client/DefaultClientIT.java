@@ -119,7 +119,7 @@ public class DefaultClientIT {
 		final SopremoPlan plan = createPlan("output.json");
 
 		this.client.submit(plan, this.stateRecorder);
-		Assert.assertSame(ExecutionState.ENQUEUED, this.stateRecorder.getStates().getFirst());
+		Assert.assertSame(ExecutionState.SETUP, this.stateRecorder.getStates().getFirst());
 		Assert.assertSame(ExecutionState.FINISHED, this.stateRecorder.getStates().getLast());
 		Assert.assertEquals("", this.stateRecorder.getLastDetail());
 
@@ -134,7 +134,7 @@ public class DefaultClientIT {
 
 		this.client.setExecutionMode(ExecutionMode.RUN_WITH_STATISTICS);
 		this.client.submit(plan, this.stateRecorder);
-		Assert.assertSame(ExecutionState.ENQUEUED, this.stateRecorder.getStates().getFirst());
+		Assert.assertSame(ExecutionState.SETUP, this.stateRecorder.getStates().getFirst());
 		Assert.assertSame(ExecutionState.FINISHED, this.stateRecorder.getStates().getLast());
 		Assert.assertFalse("".equals(this.stateRecorder.getLastDetail()));
 
@@ -149,7 +149,7 @@ public class DefaultClientIT {
 		for (int index = 0; index < responses.length; index++) {
 			final SopremoPlan plan = createPlan("output" + index + ".json");
 			this.client.submit(plan, this.stateRecorder);
-			Assert.assertSame(ExecutionState.ENQUEUED, this.stateRecorder.getStates().getFirst());
+			Assert.assertSame(ExecutionState.SETUP, this.stateRecorder.getStates().getFirst());
 			Assert.assertSame(ExecutionState.FINISHED, this.stateRecorder.getStates().getLast());
 
 			this.testServer.checkContentsOf("output" + index + ".json",
@@ -164,7 +164,7 @@ public class DefaultClientIT {
 		plan.setSinks(new Sink("invalidSink"));
 
 		this.client.submit(plan, this.stateRecorder);
-		Assert.assertSame(ExecutionState.ENQUEUED, this.stateRecorder.getStates().getFirst());
+		Assert.assertSame(ExecutionState.SETUP, this.stateRecorder.getStates().getFirst());
 		Assert.assertSame(ExecutionState.ERROR, this.stateRecorder.getStates().getLast());
 		Assert.assertNotSame("", this.stateRecorder.getLastDetail());
 	}
@@ -177,7 +177,7 @@ public class DefaultClientIT {
 				((Selection) op).setCondition(new UnaryExpression(new UnevaluableExpression("test failure")));
 
 		this.client.submit(plan, this.stateRecorder);
-		Assert.assertSame(ExecutionState.ENQUEUED, this.stateRecorder.getStates().getFirst());
+		Assert.assertSame(ExecutionState.SETUP, this.stateRecorder.getStates().getFirst());
 		Assert.assertSame(ExecutionState.ERROR, this.stateRecorder.getStates().getLast());
 		Assert.assertNotSame("", this.stateRecorder.getLastDetail());
 	}
@@ -189,7 +189,7 @@ public class DefaultClientIT {
 		final SopremoPlan plan = createPlan("output.json");
 
 		this.client.submit(plan, this.stateRecorder);
-		Assert.assertSame(ExecutionState.ENQUEUED, this.stateRecorder.getStates().getFirst());
+		Assert.assertSame(ExecutionState.SETUP, this.stateRecorder.getStates().getFirst());
 		Assert.assertSame(ExecutionState.ERROR, this.stateRecorder.getStates().getLast());
 		Assert.assertNotSame("", this.stateRecorder.getLastDetail());
 	}
