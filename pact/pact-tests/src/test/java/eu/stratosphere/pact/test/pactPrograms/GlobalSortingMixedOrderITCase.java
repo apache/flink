@@ -197,7 +197,7 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 			final String output      = (args.length > 2 ? args[2] : "");
 			
 			FileDataSource source = new FileDataSource(RecordInputFormat.class, recordsPath);
-			RecordInputFormat.configure(source)
+			RecordInputFormat.configureRecordFormat(source)
 				.recordDelimiter('\n')
 				.fieldDelimiter(',')
 				.field(DecimalTextIntParser.class, 0)

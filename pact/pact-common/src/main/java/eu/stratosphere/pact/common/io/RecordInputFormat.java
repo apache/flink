@@ -278,31 +278,65 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 	 * 
 	 * @return A config builder for setting parameters.
 	 */
-	public static ConfigBuilder configure(FileDataSource target) {
+	public static ConfigBuilder configureRecordFormat(FileDataSource target) {
 		return new ConfigBuilder(target.getParameters());
 	}
 	
-	public static class ConfigBuilder extends DelimitedInputFormat.ConfigBuilder<RecordInputFormat.ConfigBuilder>
+	/**
+	 * An abstract builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	protected static class AbstractConfigBuilder<T> extends DelimitedInputFormat.AbstractConfigBuilder<T>
 	{
 		// --------------------------------------------------------------------
 		
-		protected ConfigBuilder(Configuration config) {
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected AbstractConfigBuilder(Configuration config) {
 			super(config);
 		}
 		
 		// --------------------------------------------------------------------
 		
-		public ConfigBuilder fieldDelimiter(char delimiter) {
+		/**
+		 * Sets the delimiter that delimits the individual fields in the records textual input representation.
+		 * 
+		 * @param delimiter The character to be used as a field delimiter.
+		 * @return The builder itself.
+		 */
+		public T fieldDelimiter(char delimiter) {
 			this.config.setString(FIELD_DELIMITER_PARAMETER, String.valueOf(delimiter));
-			return this;
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
 		}
 		
-		public ConfigBuilder field(Class<? extends FieldParser<?>> parser, int textPosition) {
+		public T field(Class<? extends FieldParser<?>> parser, int textPosition) {
 			final int numYet = this.config.getInteger(NUM_FIELDS_PARAMETER, 0);
 			this.config.setClass(FIELD_PARSER_PARAMETER_PREFIX + numYet, parser);
 			this.config.setInteger(TEXT_POSITION_PARAMETER_PREFIX + numYet, textPosition);
 			this.config.setInteger(NUM_FIELDS_PARAMETER, numYet + 1);
-			return this;
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
 		}
+	}
+	
+	/**
+	 * A builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
+	{
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected ConfigBuilder(Configuration targetConfig) {
+			super(targetConfig);
+		}
+		
 	}
 }

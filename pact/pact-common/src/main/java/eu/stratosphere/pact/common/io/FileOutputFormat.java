@@ -25,6 +25,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -48,7 +49,7 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 	/**
 	 * The config parameter for the opening timeout in milliseconds.
 	 */
-	public static final String OUTPUT_STREAM_OPEN_TIMEOUT = "pact.output.file.timeout";
+	private static final String OUTPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.output.file.timeout";
 	
 	/**
 	 * The path of the file to be written.
@@ -87,7 +88,7 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 		}
 		
 		// get timeout for stream opening
-		this.openTimeout = parameters.getLong(OUTPUT_STREAM_OPEN_TIMEOUT, FileInputFormat.DEFAULT_OPENING_TIMEOUT);
+		this.openTimeout = parameters.getLong(OUTPUT_STREAM_OPEN_TIMEOUT_KEY, FileInputFormat.DEFAULT_OPENING_TIMEOUT);
 		if (this.openTimeout < 0) {
 			this.openTimeout = FileInputFormat.DEFAULT_OPENING_TIMEOUT;
 			if (LOG.isWarnEnabled())
@@ -239,5 +240,71 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 				} catch (Throwable t) {}
 			}
 		}
+	}
+	
+	// ============================================================================================
+	
+	/**
+	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
+	 * fashion.
+	 * 
+	 * @return A config builder for setting parameters.
+	 */
+	public static ConfigBuilder configureFileFormat(FileDataSink target) {
+		return new ConfigBuilder(target.getParameters());
+	}
+	
+	/**
+	 * A builder used to set parameters to the output format's configuration in a fluent way.
+	 */
+	public static abstract class AbstractConfigBuilder<T>
+	{
+		/**
+		 * The configuration into which the parameters will be written.
+		 */
+		protected final Configuration config;
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected AbstractConfigBuilder(Configuration targetConfig) {
+			this.config = targetConfig;
+		}
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Sets the timeout after which the output format will abort the opening of the output stream,
+		 * if the stream has not responded until then.
+		 * 
+		 * @param timeoutInMillies The timeout, in milliseconds, or <code>0</code> for infinite.
+		 * @return The builder itself.
+		 */
+		public T openingTimeout(int timeoutInMillies) {
+			this.config.setLong(OUTPUT_STREAM_OPEN_TIMEOUT_KEY, timeoutInMillies);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+	}
+	
+	/**
+	 * A builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
+	{
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected ConfigBuilder(Configuration targetConfig) {
+			super(targetConfig);
+		}
+		
 	}
 }
