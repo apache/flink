@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
@@ -1079,13 +1078,11 @@ public class JobManagerITCase {
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
-				fail(e.getMessage());
+				// Job execution should lead to an error due to lack of resources
+				return;
 			}
 
-			// Finally, make sure Nephele created a directory as output
-			assertTrue(outputFile.isDirectory());
-
-			// Make s
+			fail("Undetected lack of resources");
 
 		} catch (JobGraphDefinitionException jgde) {
 			fail(jgde.getMessage());

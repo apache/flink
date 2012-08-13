@@ -21,8 +21,6 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
 
@@ -47,18 +45,22 @@ public class TransferEnvelopeReceiverList {
 		this.remoteReceivers = Collections.unmodifiableList(cilr.getRemoteTargets());
 	}
 
-	public TransferEnvelopeReceiverList(final ChannelContext channelContext) {
-
-		if (channelContext.getType() != ChannelType.INMEMORY) {
-			throw new IllegalArgumentException(
-				"Transfer envelope receiver lists can only be constructed from in-memory channels.");
-		}
+	public TransferEnvelopeReceiverList(final ChannelID localReceiver) {
 
 		final List<ChannelID> lr = new ArrayList<ChannelID>(1);
-		lr.add(channelContext.getConnectedChannelID());
+		lr.add(localReceiver);
 
 		this.localReceivers = Collections.unmodifiableList(lr);
 		this.remoteReceivers = Collections.emptyList();
+	}
+
+	public TransferEnvelopeReceiverList(final RemoteReceiver remoteReceiver) {
+
+		final List<RemoteReceiver> rr = new ArrayList<RemoteReceiver>(1);
+		rr.add(remoteReceiver);
+
+		this.localReceivers = Collections.emptyList();
+		this.remoteReceivers = Collections.unmodifiableList(rr);
 	}
 
 	public boolean hasLocalReceivers() {

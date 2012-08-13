@@ -83,7 +83,7 @@ public final class ExecutionVertex {
 	/**
 	 * The allocated resources assigned to this vertex.
 	 */
-	private volatile AllocatedResource allocatedResource = null;
+	private final AtomicReference<AllocatedResource> allocatedResource = new AtomicReference<AllocatedResource>(null);
 
 	/**
 	 * The allocation ID identifying the allocated resources used by this vertex
@@ -196,6 +196,9 @@ public final class ExecutionVertex {
 		this.outputGates = new ExecutionGate[numberOfOutputGates];
 		this.inputGates = new ExecutionGate[numberOfInputGates];
 
+		// Register vertex with execution graph
+		this.executionGraph.registerExecutionVertex(this);
+
 		// Register the vertex itself as a listener for state changes
 		registerExecutionListener(this.executionGraph);
 	}
@@ -252,7 +255,7 @@ public final class ExecutionVertex {
 		duplicatedVertex.checkpointState.set(this.checkpointState.get());
 
 		// TODO set new profiling record with new vertex id
-		duplicatedVertex.setAllocatedResource(this.allocatedResource);
+		duplicatedVertex.setAllocatedResource(this.allocatedResource.get());
 
 		return duplicatedVertex;
 	}
@@ -309,6 +312,43 @@ public final class ExecutionVertex {
 	 */
 	public ExecutionState getExecutionState() {
 		return this.executionState.get();
+	}
+
+	/**
+	 * Updates the vertex's current execution state through the job's executor service.
+	 * 
+	 * @param newExecutionState
+	 *        the new execution state
+	 * @param optionalMessage
+	 *        an optional message related to the state change
+	 */
+	public void updateExecutionStateAsynchronously(final ExecutionState newExecutionState,
+			final String optionalMessage) {
+
+		final Runnable command = new Runnable() {
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void run() {
+
+				updateExecutionState(newExecutionState, optionalMessage);
+			}
+		};
+
+		this.executionGraph.executeCommand(command);
+	}
+
+	/**
+	 * Updates the vertex's current execution state through the job's executor service.
+	 * 
+	 * @param newExecutionState
+	 *        the new execution state
+	 */
+	public void updateExecutionStateAsynchronously(final ExecutionState newExecutionState) {
+
+		updateExecutionStateAsynchronously(newExecutionState, null);
 	}
 
 	/**
@@ -472,7 +512,12 @@ public final class ExecutionVertex {
 			throw new IllegalArgumentException("Argument allocatedResource must not be null");
 		}
 
-		this.allocatedResource = allocatedResource;
+		final AllocatedResource previousResource = this.allocatedResource.getAndSet(allocatedResource);
+		if (previousResource != null) {
+			previousResource.removeVertexFromResource(this);
+		}
+
+		allocatedResource.assignVertexToResource(this);
 
 		// Notify all listener objects
 		final Iterator<VertexAssignmentListener> it = this.vertexAssignmentListeners.iterator();
@@ -487,7 +532,8 @@ public final class ExecutionVertex {
 	 * @return the allocated resources assigned to this execution vertex
 	 */
 	public AllocatedResource getAllocatedResource() {
-		return this.allocatedResource;
+
+		return this.allocatedResource.get();
 	}
 
 	/**
@@ -685,7 +731,9 @@ public final class ExecutionVertex {
 	 */
 	public TaskSubmissionResult startTask() {
 
-		if (this.allocatedResource == null) {
+		final AllocatedResource ar = this.allocatedResource.get();
+
+		if (ar == null) {
 			final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
 				AbstractTaskResult.ReturnCode.NO_INSTANCE);
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
@@ -696,7 +744,7 @@ public final class ExecutionVertex {
 		tasks.add(constructDeploymentDescriptor());
 
 		try {
-			final List<TaskSubmissionResult> results = this.allocatedResource.getInstance().submitTasks(tasks);
+			final List<TaskSubmissionResult> results = ar.getInstance().submitTasks(tasks);
 
 			return results.get(0);
 
@@ -726,14 +774,16 @@ public final class ExecutionVertex {
 			return result;
 		}
 
-		if (this.allocatedResource == null) {
+		final AllocatedResource ar = this.allocatedResource.get();
+
+		if (ar == null) {
 			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.NO_INSTANCE);
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 			return result;
 		}
 
 		try {
-			return this.allocatedResource.getInstance().killTask(this.vertexID);
+			return ar.getInstance().killTask(this.vertexID);
 		} catch (IOException e) {
 			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.IPC_ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
@@ -743,7 +793,9 @@ public final class ExecutionVertex {
 
 	public TaskCheckpointResult requestCheckpointDecision() {
 
-		if (this.allocatedResource == null) {
+		final AllocatedResource ar = this.allocatedResource.get();
+
+		if (ar == null) {
 			final TaskCheckpointResult result = new TaskCheckpointResult(getID(),
 				AbstractTaskResult.ReturnCode.NO_INSTANCE);
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
@@ -751,7 +803,7 @@ public final class ExecutionVertex {
 		}
 
 		try {
-			return this.allocatedResource.getInstance().requestCheckpointDecision(this.vertexID);
+			return ar.getInstance().requestCheckpointDecision(this.vertexID);
 
 		} catch (IOException e) {
 			final TaskCheckpointResult result = new TaskCheckpointResult(getID(),
@@ -823,7 +875,9 @@ public final class ExecutionVertex {
 					return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
 				}
 
-				if (this.allocatedResource == null) {
+				final AllocatedResource ar = this.allocatedResource.get();
+
+				if (ar == null) {
 					final TaskCancelResult result = new TaskCancelResult(getID(),
 						AbstractTaskResult.ReturnCode.NO_INSTANCE);
 					result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
@@ -831,7 +885,7 @@ public final class ExecutionVertex {
 				}
 
 				try {
-					return this.allocatedResource.getInstance().cancelTask(this.vertexID);
+					return ar.getInstance().cancelTask(this.vertexID);
 
 				} catch (IOException e) {
 					final TaskCancelResult result = new TaskCancelResult(getID(),

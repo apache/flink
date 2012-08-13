@@ -83,6 +83,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.InsufficientResourcesException;
 import eu.stratosphere.nephele.taskmanager.runtime.EnvelopeConsumptionLog;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.SerializableArrayList;
@@ -125,7 +126,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	private final static int FAILURERETURNCODE = -1;
 
-	private final static int DEFAULTPERIODICTASKSINTERVAL = 1000;
+	private final static int DEFAULTPERIODICTASKSINTERVAL = 2000;
 
 	/**
 	 * The instance of the {@link ByteBufferedChannelManager} which is responsible for
@@ -538,18 +539,30 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			final Set<ChannelID> activeOutputChannels = null; // TODO: Fix me
 
 			// Register the task
-			final Task task = createAndRegisterTask(vertexID, jobConfiguration, re, initialCheckpointState,
-				activeOutputChannels);
+			Task task;
+			try {
+				task = createAndRegisterTask(vertexID, jobConfiguration, re, initialCheckpointState,
+					activeOutputChannels);
+			} catch (InsufficientResourcesException e) {
+				final TaskSubmissionResult result = new TaskSubmissionResult(vertexID,
+					AbstractTaskResult.ReturnCode.INSUFFICIENT_RESOURCES);
+				result.setDescription(e.getMessage());
+				LOG.error(result.getDescription());
+				submissionResultList.add(result);
+				continue;
+			}
+
 			if (task == null) {
 				final TaskSubmissionResult result = new TaskSubmissionResult(vertexID,
 					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
 				result.setDescription("Task " + re.getTaskNameWithIndex() + " (" + vertexID + ") was already running");
 				LOG.error(result.getDescription());
 				submissionResultList.add(result);
-			} else {
-				submissionResultList.add(new TaskSubmissionResult(vertexID, AbstractTaskResult.ReturnCode.SUCCESS));
-				tasksToStart.add(task);
+				continue;
 			}
+
+			submissionResultList.add(new TaskSubmissionResult(vertexID, AbstractTaskResult.ReturnCode.SUCCESS));
+			tasksToStart.add(task);
 		}
 
 		// Now start the tasks
@@ -577,7 +590,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	private Task createAndRegisterTask(final ExecutionVertexID id, final Configuration jobConfiguration,
 			final RuntimeEnvironment environment, final CheckpointState initialCheckpointState,
-			final Set<ChannelID> activeOutputChannels) throws IOException {
+			final Set<ChannelID> activeOutputChannels) throws InsufficientResourcesException, IOException {
 
 		if (id == null) {
 			throw new IllegalArgumentException("Argument id is null");

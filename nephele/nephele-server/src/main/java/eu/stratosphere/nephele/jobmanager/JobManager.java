@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -159,13 +160,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final int recommendedClientPollingInterval;
 
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	private final ExecutorService executorService = Executors.newCachedThreadPool();
 
 	private final static int SLEEPINTERVAL = 1000;
 
 	private final static int FAILURERETURNCODE = -1;
 
-	private boolean isShutDown = false;
+	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
+
+	private volatile boolean isShutDown = false;
 
 	/**
 	 * Constructs a new job manager, starts its discovery service and its IPC service.
@@ -302,9 +305,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 	}
 
-	public synchronized void shutdown() {
+	public void shutdown() {
 
-		if (this.isShutDown) {
+		if (!this.isShutdownInProgress.compareAndSet(false, true)) {
 			return;
 		}
 
@@ -672,18 +675,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return;
 		}
 
-		final Runnable taskStateChangeRunnable = new Runnable() {
-
-			@Override
-			public void run() {
-
-				// The registered listeners of the vertex will make sure the appropriate actions are taken
-				vertex.updateExecutionState(executionState.getExecutionState(), executionState.getDescription());
-			}
-		};
-
-		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
-		this.executorService.execute(taskStateChangeRunnable);
+		// Asynchronously update execute state of vertex
+		vertex.updateExecutionStateAsynchronously(executionState.getExecutionState(), executionState.getDescription());
 	}
 
 	/**
@@ -710,7 +703,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				}
 			}
 		};
-		this.executorService.execute(cancelJobRunnable);
+
+		eg.executeCommand(cancelJobRunnable);
 
 		LOG.info("Cancel of job " + jobID + " successfully triggered");
 
@@ -843,7 +837,19 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				&& executionState != ExecutionState.FINISHING && executionState != ExecutionState.FINISHED) {
 
 				if (executionState == ExecutionState.ASSIGNED) {
-					this.scheduler.deployAssignedVertices(targetVertex);
+
+					final Runnable command = new Runnable() {
+
+						/**
+						 * {@inheritDoc}
+						 */
+						@Override
+						public void run() {
+							scheduler.deployAssignedVertices(targetVertex);
+						}
+					};
+
+					eg.executeCommand(command);
 				}
 
 				// LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 3");
@@ -978,8 +984,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 		};
 
-		// Hand it over to the executor service
-		this.executorService.execute(runnable);
+		eg.executeCommand(runnable);
 	}
 
 	/**
@@ -1013,7 +1018,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	}
 
 	/**
-	 * Collects all vertices with checkpoints from the given execution graph and advices the corresponding task managers
+	 * Collects all vertices with checkpoints from the given execution graph and advises the corresponding task managers
 	 * to remove those checkpoints.
 	 * 
 	 * @param executionGraph
@@ -1084,7 +1089,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * 
 	 * @return <code>true</code> if the job manager has been shut down completely, <code>false</code> otherwise
 	 */
-	public synchronized boolean isShutDown() {
+	public boolean isShutDown() {
 
 		return this.isShutDown;
 	}
@@ -1235,7 +1240,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				} catch (final IOException ioe) {
 					final String errorMsg = StringUtils.stringifyException(ioe);
 					for (final ExecutionVertex vertex : verticesToBeDeployed) {
-						vertex.updateExecutionState(ExecutionState.FAILED, errorMsg);
+						vertex.updateExecutionStateAsynchronously(ExecutionState.FAILED, errorMsg);
 					}
 				}
 
@@ -1265,7 +1270,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 					if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
 						// Change the execution state to failed and let the scheduler deal with the rest
-						vertex.updateExecutionState(ExecutionState.FAILED, tsr.getDescription());
+						vertex.updateExecutionStateAsynchronously(ExecutionState.FAILED, tsr.getDescription());
 					}
 				}
 			}
@@ -1303,7 +1308,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	public void updateCheckpointState(final TaskCheckpointState taskCheckpointState) throws IOException {
 
 		// Get the graph object for this
-		final ExecutionGraph executionGraph = this.scheduler.getExecutionGraphByID(taskCheckpointState.getJobID());
+		final JobID jobID = taskCheckpointState.getJobID();
+		final ExecutionGraph executionGraph = this.scheduler.getExecutionGraphByID(jobID);
 		if (executionGraph == null) {
 			LOG.error("Cannot find execution graph for job " + taskCheckpointState.getJobID()
 				+ " to update checkpoint state");
@@ -1327,7 +1333,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		};
 
 		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
-		this.executorService.execute(taskStateChangeRunnable);
+		executionGraph.executeCommand(taskStateChangeRunnable);
 	}
 
 	/**
