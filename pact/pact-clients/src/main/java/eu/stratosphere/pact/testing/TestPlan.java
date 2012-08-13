@@ -641,6 +641,7 @@ public class TestPlan implements Closeable {
 		try {
 			this.validateResults();
 		} finally {
+			this.errorHandlers.clear();
 			try {
 				this.close();
 			} catch (IOException e) {
