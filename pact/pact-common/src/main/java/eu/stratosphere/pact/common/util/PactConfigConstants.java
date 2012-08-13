@@ -18,7 +18,7 @@ package eu.stratosphere.pact.common.util;
 /**
  * A collection of all configuration constants, such as config keys and default values.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public final class PactConfigConstants {
 	

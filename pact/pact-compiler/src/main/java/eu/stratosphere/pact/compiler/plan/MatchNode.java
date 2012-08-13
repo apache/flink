@@ -612,7 +612,7 @@ public class MatchNode extends TwoInputNode {
 			} else if (ls == LocalStrategy.SELF_NESTEDLOOP) {
 				LocalProperties outLp = new LocalProperties();
 				outLp.setOrdering(lp1.getOrdering());
-				outLp.setGrouped(true, lp1.getGroupedFields());
+				outLp.setGroupedFields(lp1.getGroupedFields());
 				
 				createMatchAlternative(target, subPlan1, null, ss1, null, ls, Order.ANY, true, outLp, estimator);
 			}
@@ -829,7 +829,11 @@ public class MatchNode extends TwoInputNode {
 				else {
 					outLp.setOrdering(null);
 				}
-				outLp.setGrouped(grouped, new FieldSet(this.keySet1));
+				if (grouped) {
+					outLp.setGroupedFields(new FieldSet(this.keySet1));
+				} else {
+					outLp.setGroupedFields(null);
+				}
 			}
 					
 			// create a new match node for this input
@@ -865,7 +869,11 @@ public class MatchNode extends TwoInputNode {
 				else {
 					outLp.setOrdering(null);	
 				}
-				outLp.setGrouped(grouped, new FieldSet(this.keySet2));
+				if (grouped) {
+					outLp.setGroupedFields(new FieldSet(this.keySet2));
+				} else {
+					outLp.setGroupedFields(null);
+				}
 			}
 					
 			// create a new reduce node for this input
@@ -907,7 +915,11 @@ public class MatchNode extends TwoInputNode {
 				else {
 					outLp.setOrdering(null);	
 				}
-				outLp.setGrouped(grouped, new FieldSet(this.keySet1));
+				if (grouped) {
+					outLp.setGroupedFields(new FieldSet(this.keySet1));
+				} else {
+					outLp.setGroupedFields(null);
+				}
 			}
 			
 			// create a new match node for this input
@@ -1135,7 +1147,7 @@ public class MatchNode extends TwoInputNode {
 			}
 		}
 		
-		return otherKeyIsUnique;	
+		return otherKeyIsUnique;
 	}
 	
 }

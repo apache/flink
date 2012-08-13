@@ -321,19 +321,14 @@ public class InterestingProperties implements Cloneable {
 					p.getLocalProperties().createInterestingLocalProperties(node, input);
 
 			if (preservedGp != null || preservedLp != null) {
-				try {
-					if (preservedGp == null) {
-						preservedGp = new GlobalProperties();
-					}
-					if (preservedLp == null) {
-						preservedLp = new LocalProperties();
-					}
-					InterestingProperties newIp = new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp);
-					mergeUnionOfInterestingProperties(preserved, newIp);
-				} catch (CloneNotSupportedException cnse) {
-					// should never happen, but propagate just in case
-					throw new RuntimeException(cnse);
+				if (preservedGp == null) {
+					preservedGp = new GlobalProperties();
 				}
+				if (preservedLp == null) {
+					preservedLp = new LocalProperties();
+				}
+				InterestingProperties newIp = new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp);
+				mergeUnionOfInterestingProperties(preserved, newIp);
 			}
 		}
 

@@ -191,7 +191,7 @@ public class ReduceNode extends SingleInputNode {
 		// add the first interesting properties: partitioned and grouped
 		InterestingProperties ip1 = new InterestingProperties();
 		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, (FieldList)this.keyList.clone());
-		ip1.getLocalProperties().setGrouped(true, new FieldSet(this.keyList));
+		ip1.getLocalProperties().setGroupedFields(new FieldSet(this.keyList));
 		
 		ip1.getMaximalCosts().setNetworkCost(0);
 		ip1.getMaximalCosts().setSecondaryStorageCost(0);
@@ -310,7 +310,7 @@ public class ReduceNode extends SingleInputNode {
 					ordering.appendOrdering(index, null, Order.ASCENDING);
 				}
 				lp.setOrdering(ordering);
-				lp.setGrouped(true, keySet);
+				lp.setGroupedFields(keySet);
 			}
 
 			// ----------------------------------------------------------------

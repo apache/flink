@@ -556,7 +556,7 @@ public class CoGroupNode extends TwoInputNode {
 
 		// output will have ascending order
 		n.getLocalProperties().setOrdering(ordering1);
-		n.getLocalProperties().setGrouped(true, new FieldSet(keyColumns1));
+		n.getLocalProperties().setGroupedFields(new FieldSet(keyColumns1));
 		
 		if(n.getLocalStrategy() == LocalStrategy.NONE) {
 			// local strategy was NOT set with compiler hint
@@ -598,7 +598,7 @@ public class CoGroupNode extends TwoInputNode {
 
 		// output will have ascending order
 		n.getLocalProperties().setOrdering(ordering2);
-		n.getLocalProperties().setGrouped(true, new FieldSet(keyColumns2));
+		n.getLocalProperties().setGroupedFields(new FieldSet(keyColumns2));
 		
 		if(n.getLocalStrategy() == LocalStrategy.NONE) {
 			// local strategy was NOT set with compiler hint

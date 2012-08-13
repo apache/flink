@@ -50,16 +50,15 @@ public class Ordering
 		appendOrdering(index, type, order);
 	}
 	
-	
 	/**
 	 * @param index
 	 * @param type
 	 * @param order
 	 * @return
 	 */
-	public Ordering appendOrdering(int index, Class<? extends Key> type, Order order)
+	public Ordering appendOrdering(Integer index, Class<? extends Key> type, Order order)
 	{
-		if (index < 0) {
+		if (index.intValue() < 0) {
 			throw new IllegalArgumentException("The key index must not be negative.");
 		}
 		if (order == null) {
@@ -77,32 +76,29 @@ public class Ordering
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public FieldList getInvolvedIndexes() {
-		return this.indexes;
-	}
-	
 	public int getNumberOfFields() {
 		return this.indexes.size();
 	}
 	
-	public int getFieldNumber(int index) {
+	public FieldList getInvolvedIndexes() {
+		return this.indexes;
+	}
+	
+	public Integer getFieldNumber(int index) {
 		if (index < 0 || index >= this.indexes.size()) {
 			throw new IndexOutOfBoundsException(String.valueOf(index));
 		}
-		
 		return this.indexes.get(index);
 	}
 	
-	public Class<? extends Key> getType(int index)
-	{
+	public Class<? extends Key> getType(int index) {
 		if (index < 0 || index >= this.types.size()) {
 			throw new IndexOutOfBoundsException(String.valueOf(index));
 		}
 		return this.types.get(index);
 	}
 	
-	public Order getOrder(int index)
-	{
+	public Order getOrder(int index) {
 		if (index < 0 || index >= this.types.size()) {
 			throw new IndexOutOfBoundsException(String.valueOf(index));
 		}
@@ -112,8 +108,7 @@ public class Ordering
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	public Class<? extends Key>[] getTypes()
-	{
+	public Class<? extends Key>[] getTypes() {
 		return this.types.toArray(new Class[this.types.size()]);
 	}
 	
@@ -125,6 +120,10 @@ public class Ordering
 		return ia;
 	}
 	
+	public Order[] getFieldOrders() {
+		return this.orders.toArray(new Order[this.orders.size()]);
+	}	
+	
 	public boolean[] getFieldSortDirections() {
 		final boolean[] directions = new boolean[this.orders.size()];
 		for (int i = 0; i < directions.length; i++) {
@@ -135,8 +134,7 @@ public class Ordering
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public boolean isMetBy(Ordering otherOrdering)
-	{
+	public boolean isMetBy(Ordering otherOrdering) {
 		if (otherOrdering == null || this.indexes.size() > otherOrdering.indexes.size()) {
 			return false;
 		}
@@ -166,32 +164,24 @@ public class Ordering
 		return true;
 	}
 	
-	public boolean groupsFieldSet(FieldSet fieldSet)
-	{
-		if (fieldSet.size() > this.indexes.size()) {
-			return false;
-		}
-		
-		for (int i = 0; i < fieldSet.size(); i++) {
-			if (!fieldSet.contains(this.indexes.get(i))) {
-				return false;
-			}
-		}
-		return true;
+	public boolean groupsFieldSet(FieldSet fieldSet) {
+		return fieldSet.isValidSubset(this.indexes);
 	}
 	
 	/**
-	 * @param exclusiveIndex
-	 * @return
+	 * Creates a new ordering the represents an ordering on a prefix of the fields. If the
+	 * exclusive index up to which to create the ordering is <code>0</code>, then there is
+	 * no resulting ordering and this method return <code>null</code>.
+	 * 
+	 * @param exclusiveIndex The index (exclusive) up to which to create the ordering.
+	 * @return The new ordering on the prefix of the fields, or <code>null</code>, if the prefix is empty.
 	 */
-	public Ordering createNewOrderingUpToIndex(int exclusiveIndex)
-	{
+	public Ordering createNewOrderingUpToIndex(int exclusiveIndex) {
 		if (exclusiveIndex == 0) {
 			return null;
 		}
-		final Ordering newOrdering = new Ordering(this.indexes.get(0),
-										this.types.get(0), this.orders.get(0));
-		for (int i = 1; i < exclusiveIndex; i++) {
+		final Ordering newOrdering = new Ordering();
+		for (int i = 0; i < exclusiveIndex; i++) {
 			newOrdering.appendOrdering(this.indexes.get(i), this.types.get(i), this.orders.get(i));
 		}
 		return newOrdering;
@@ -214,17 +204,15 @@ public class Ordering
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
-	public String toString()
-	{
+	public String toString() {
 		if (this.indexes.size() == 0) {
-			return "(none)";
+			return "Ordering (none)";
 		}
-		final StringBuffer buf = new StringBuffer();
+		final StringBuffer buf = new StringBuffer("Ordering [");
+		
+		
 		for (int i = 0; i < indexes.size(); i++) {
-			if (buf.length() == 0) {
-				buf.append("[");
-			}
-			else {
+			if (buf.length() != 0) {
 				buf.append(",");
 			}
 			buf.append(this.indexes.get(i));

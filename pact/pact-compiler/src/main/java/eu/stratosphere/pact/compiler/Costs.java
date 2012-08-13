@@ -234,8 +234,8 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * @see java.lang.Object#clone()
 	 */
 	@Override
-	public Costs clone() throws CloneNotSupportedException {
-		return (Costs) super.clone();
+	public Costs clone() {
+		return new Costs(this.networkCost, this.secondaryStorageCost);
 	}
 
 	/**
@@ -244,11 +244,6 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 * @return A perfect copy of this object.
 	 */
 	public final Costs createCopy() {
-		try {
-			return this.clone();
-		} catch (CloneNotSupportedException cnse) {
-			// should never happen, but throw an exception to ensure fast failure
-			throw new RuntimeException(cnse);
-		}
+		return clone();
 	}
 }

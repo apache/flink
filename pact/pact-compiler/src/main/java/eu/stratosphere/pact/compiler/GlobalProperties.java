@@ -25,43 +25,29 @@ import eu.stratosphere.pact.compiler.plan.UnionNode;
 /**
  * This class represents global properties of the data. Global properties are properties that
  * describe data across different partitions.
- * NOTE: Currently, this class has a very simple property about the partitioning, namely simply whether
- * the data is partitioned on the key. Later, we might need to replace that by tracking partition maps.
  */
 public final class GlobalProperties implements Cloneable
 {
-	private FieldList partitionedFields;
-
-	private PartitionProperty partitioning; // the partitioning
-
-	private Ordering ordering; // order across all partitions
-
+	private PartitionProperty partitioning;		// the type partitioning
+	
+	private Ordering ordering;					// order of the partitioned fields. a NONE ordering describes an
+												// arbitrary partitioning, a specific order describes a range partitioning
+	
 	/**
-	 * Initializes the global properties with no partitioning, no order and no uniqueness.
+	 * Initializes the global properties with no partitioning.
 	 */
 	public GlobalProperties() {
-		partitioning = PartitionProperty.NONE;
-		ordering = null;
+		this.partitioning = PartitionProperty.NONE;
 	}
+
 
 	/**
-	 * Initializes the global properties with the given partitioning, order and uniqueness.
-	 * 
 	 * @param partitioning
-	 *        The partitioning property.
-	 * @param keyOrder
-	 *        The order property.
-	 * @param keyUnique
-	 *        The flag that indicates, whether the keys are unique.
+	 * @param ordering
 	 */
-	public GlobalProperties(PartitionProperty partitioning, Ordering ordering, FieldList partitionedFields) {
+	public GlobalProperties(PartitionProperty partitioning, Ordering ordering) {
 		this.partitioning = partitioning;
 		this.ordering = ordering;
-		this.partitionedFields = partitionedFields;
-	}
-
-	public FieldList getPartitionedFields() {
-		return partitionedFields;
 	}
 
 	/**
@@ -71,6 +57,10 @@ public final class GlobalProperties implements Cloneable
 	 */
 	public PartitionProperty getPartitioning() {
 		return partitioning;
+	}
+	
+	public FieldList getPartitionedFields() {
+		return this.partitioning == PartitionProperty.NONE ? null : this.ordering.getInvolvedIndexes();
 	}
 
 	/**
@@ -82,6 +72,12 @@ public final class GlobalProperties implements Cloneable
 	public void setPartitioning(PartitionProperty partitioning, FieldList partitionedFields) {
 		this.partitioning = partitioning;
 		this.partitionedFields = partitionedFields;
+	}
+	
+
+	public void setPartitioning(PartitionProperty partitioning, Ordering ordering) {
+		this.partitioning = partitioning;
+		this.ordering = ordering;
 	}
 
 	/**
@@ -107,14 +103,13 @@ public final class GlobalProperties implements Cloneable
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
 	 */
 	public boolean isTrivial() {
-		return partitioning == PartitionProperty.NONE && ordering == null;
+		return partitioning == PartitionProperty.NONE;
 	}
 
 	/**
 	 * This method resets the properties to a state where no properties are given.
 	 */
 	public void reset() {
-		this.partitionedFields = null;
 		this.partitioning = PartitionProperty.NONE;
 		this.ordering = null;
 	}
@@ -289,8 +284,7 @@ public final class GlobalProperties implements Cloneable
 	@Override
 	public String toString() {
 		return "GlobalProperties [partitioning=" + partitioning + " on fields=" + partitionedFields + ", ordering="
-			+ ordering // + ", keyUnique=" + keyUnique
-			+ "]";
+			+ ordering + "]";
 	}
 
 	/*

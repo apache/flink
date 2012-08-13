@@ -22,7 +22,7 @@ import java.lang.reflect.Modifier;
 /**
  * Utility class to create instances from class objects and checking failure reasons.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public class InstantiationUtil
 {
