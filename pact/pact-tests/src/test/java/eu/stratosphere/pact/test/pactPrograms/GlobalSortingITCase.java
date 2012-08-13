@@ -172,7 +172,7 @@ public class GlobalSortingITCase extends TestBase {
 			
 			FileDataSource source = new FileDataSource(RecordInputFormat.class, recordsPath);
 			source.setDegreeOfParallelism(noSubtasks);
-			RecordInputFormat.configure(source)
+			RecordInputFormat.configureRecordFormat(source)
 				.recordDelimiter('\n')
 				.fieldDelimiter('|')
 				.field(DecimalTextIntParser.class, 0);

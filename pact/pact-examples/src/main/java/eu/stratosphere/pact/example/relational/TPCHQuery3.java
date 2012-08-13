@@ -209,14 +209,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	public Plan getPlan(final String... args) 
 	{
 		// parse program parameters
-		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
-		String ordersPath    = (args.length > 1 ? args[1] : "");
-		String lineitemsPath = (args.length > 2 ? args[2] : "");
-		String output        = (args.length > 3 ? args[3] : "");
+		final int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		final String ordersPath    = (args.length > 1 ? args[1] : "");
+		final String lineitemsPath = (args.length > 2 ? args[2] : "");
+		final String output        = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for Orders input
 		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
-		RecordInputFormat.configure(orders)
+		RecordInputFormat.configureRecordFormat(orders)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
 			.field(DecimalTextLongParser.class, 0)		// order id
@@ -231,7 +231,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
-		RecordInputFormat.configure(lineitems)
+		RecordInputFormat.configureRecordFormat(lineitems)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
 			.field(DecimalTextLongParser.class, 0)		// order id
@@ -278,16 +278,13 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
-		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		result.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactLong.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactDouble.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 5);
+		RecordOutputFormat.configureRecordFormat(result)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.lenient(true)
+			.field(PactLong.class, 0)
+			.field(PactInteger.class, 1)
+			.field(PactDouble.class, 5);
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "TPCH Q3");
