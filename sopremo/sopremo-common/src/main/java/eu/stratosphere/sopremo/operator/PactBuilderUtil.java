@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo;
+package eu.stratosphere.sopremo.operator;
 
 import com.google.common.base.Preconditions;
 
