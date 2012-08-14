@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 /**
+ * Interface for all nodes that store numerical values.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

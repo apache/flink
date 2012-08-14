@@ -31,13 +31,18 @@ import eu.stratosphere.pact.testing.AssertUtil;
  * @author Michael Hopstock
  */
 @Ignore
-public abstract class ObjectNodeBaseTest<T extends IObjectNode> {
+public abstract class ObjectNodeBaseTest<T extends IObjectNode> extends JsonNodeTest<T> {
 
-	protected T node;
+	// protected T node;
+
+	@Override
+	@Before
+	public void setUp() {
+	}
 
 	@Before
 	public void initObjectNode() {
-		this.node = createObjectNode();
+		this.node = this.createObjectNode();
 	}
 
 	public abstract T createObjectNode();
@@ -71,17 +76,17 @@ public abstract class ObjectNodeBaseTest<T extends IObjectNode> {
 	@Test
 	public void shouldCreateIterator() {
 		this.node.clear();
-		Map<String, IJsonNode> expected = new TreeMap<String, IJsonNode>();
+		final Map<String, IJsonNode> expected = new TreeMap<String, IJsonNode>();
 
 		for (int i = 0; i < 5; i++) {
-			String key = "key" + i;
-			IJsonNode value = IntNode.valueOf(i);
+			final String key = "key" + i;
+			final IJsonNode value = IntNode.valueOf(i);
 
 			expected.put(key, value);
 			this.node.put(key, value);
 		}
 
-		Iterator<Entry<String, IJsonNode>> it = this.node.iterator();
+		final Iterator<Entry<String, IJsonNode>> it = this.node.iterator();
 		AssertUtil.assertIteratorEquals(expected.entrySet().iterator(), it);
 	}
 
@@ -90,4 +95,8 @@ public abstract class ObjectNodeBaseTest<T extends IObjectNode> {
 		Assert.assertEquals(this.node, this.node.putAll(this.node));
 	}
 
+	@Test
+	public void shouldBeEqualWithAnotherObjectNode() {
+		Assert.assertEquals(this.createObjectNode(), this.createObjectNode());
+	}
 }

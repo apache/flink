@@ -131,6 +131,11 @@ public class GraphTest {
 	}
 
 	static class SimpleNodeModifier implements ConnectionModifier<SimpleNode> {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -4983291654753981108L;
+
 		/*
 		 * (non-Javadoc)
 		 * @see eu.stratosphere.util.dag.ConnectionNavigator#getConnectedNodes(java.lang.Object)

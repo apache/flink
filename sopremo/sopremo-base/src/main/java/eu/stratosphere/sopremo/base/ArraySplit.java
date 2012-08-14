@@ -1,19 +1,18 @@
 package eu.stratosphere.sopremo.base;
 
-import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.operator.ElementaryOperator;
+import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.NullNode;
 
 /**
@@ -107,7 +106,7 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 			int index = 0;
 			final EvaluationContext context = this.getContext();
 			IntNode indexNode = IntNode.valueOf(0);
-			ArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), indexNode, array, value);
+			IArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), indexNode, array, value);
 			for (IJsonNode element : array) {
 				contextNode.set(0, element);
 				indexNode.setValue(index);

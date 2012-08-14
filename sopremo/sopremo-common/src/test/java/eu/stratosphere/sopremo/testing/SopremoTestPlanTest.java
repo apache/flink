@@ -28,19 +28,17 @@ import java.util.regex.Pattern;
 import junit.framework.AssertionFailedError;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.internal.ArrayComparisonFailure;
 
 import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.testing.TestRecords;
-import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.Sink;
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.Source;
 import eu.stratosphere.sopremo.expressions.ObjectAccess;
+import eu.stratosphere.sopremo.io.Sink;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.operator.ElementaryOperator;
+import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
 import eu.stratosphere.sopremo.pact.SopremoMap;
@@ -51,6 +49,7 @@ import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.TextNode;
 
 /**
@@ -96,7 +95,6 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	 * @throws IOException
 	 */
 	@Test
-	@Ignore
 	public void completeTestPasses() throws IOException {
 		final Source source = new Source(getResourcePath("SopremoTestPlan/test.json"));
 
@@ -147,7 +145,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 	@Override
 	protected void initVerifier(final EqualsVerifier<SopremoTestPlan> equalVerifier) {
 		super.initVerifier(equalVerifier);
-		ObjectSchema redSchema = new ObjectSchema("redField");
+		final ObjectSchema redSchema = new ObjectSchema("redField");
 		equalVerifier.
 			withPrefabValues(
 				TestRecords.class,
@@ -162,11 +160,11 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			// new SopremoTestPlan.ActualOutput(0).addValue(0),
 			// new SopremoTestPlan.ActualOutput(1).addValue(1)).
 			withPrefabValues(SopremoTestPlan.ExpectedOutput.class,
-				new SopremoTestPlan.ExpectedOutput(0).addValue(0),
-				new SopremoTestPlan.ExpectedOutput(1).addValue(1)).
+				new SopremoTestPlan.ExpectedOutput(null, 0).addValue(0),
+				new SopremoTestPlan.ExpectedOutput(null, 1).addValue(1)).
 			withPrefabValues(SopremoTestPlan.Input.class,
-				new SopremoTestPlan.Input(0).addValue(0),
-				new SopremoTestPlan.Input(1).addValue(1));
+				new SopremoTestPlan.Input(null, 0).addValue(0),
+				new SopremoTestPlan.Input(null, 1).addValue(1));
 	}
 
 	/**
@@ -286,8 +284,9 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void map(IJsonNode value, JsonCollector out) {
-				Matcher matcher = WORD_PATTERN.matcher(((TextNode) ((IObjectNode) value).get("line")).getJavaValue());
+			protected void map(final IJsonNode value, final JsonCollector out) {
+				final Matcher matcher = WORD_PATTERN.matcher(((TextNode) ((IObjectNode) value).get("line"))
+					.getJavaValue());
 				while (matcher.find())
 					out.collect(JsonUtil.createObjectNode("word", TextNode.valueOf(matcher.group())));
 			}
@@ -312,7 +311,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		 * Initializes SopremoTestPlanTest.CountWords.
 		 */
 		public CountWords() {
-			setKeyExpressions(0, new ObjectAccess("word"));
+			this.setKeyExpressions(0, new ObjectAccess("word"));
 		}
 
 		@Combinable
@@ -323,18 +322,18 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void reduce(IArrayNode values, JsonCollector out) {
-				Iterator<IJsonNode> valueIterator = values.iterator();
-				IObjectNode firstEntry = (IObjectNode) valueIterator.next();
-				String word = ((TextNode) firstEntry.get("word")).getTextValue();
-				int sum = getCount(firstEntry);
+			protected void reduce(final IArrayNode values, final JsonCollector out) {
+				final Iterator<IJsonNode> valueIterator = values.iterator();
+				final IObjectNode firstEntry = (IObjectNode) valueIterator.next();
+				final String word = ((TextNode) firstEntry.get("word")).getTextValue();
+				int sum = this.getCount(firstEntry);
 				while (valueIterator.hasNext())
-					sum += getCount((IObjectNode) valueIterator.next());
+					sum += this.getCount((IObjectNode) valueIterator.next());
 				out.collect(JsonUtil.createObjectNode("word", TextNode.valueOf(word), "count", sum));
 			}
 
-			protected int getCount(IObjectNode entry) {
-				IJsonNode countNode = entry.get("count");
+			protected int getCount(final IObjectNode entry) {
+				final IJsonNode countNode = entry.get("count");
 				if (countNode.isMissing())
 					return 1;
 				return ((IntNode) countNode).getIntValue();
@@ -350,24 +349,25 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		final TokenizeLine tokenize = new TokenizeLine();
 		final CountWords countWords = new CountWords().withInputs(tokenize);
 
-		SopremoTestPlan testPlan = new SopremoTestPlan(countWords);
-		String[] lines =
-			{
-				"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-				"Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-				"Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-				"Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-			};
-		for (String line : lines)
+		final SopremoTestPlan testPlan = new SopremoTestPlan(countWords);
+		final String[] lines =
+		{
+			"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+			"Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+			"Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+			"Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+		};
+		for (final String line : lines)
 			testPlan.getInput(0).add(JsonUtil.createObjectNode("line", TextNode.valueOf(line.toLowerCase())));
 
-		String[] singleWords = { "voluptate", "veniam", "velit", "ullamco", "tempor", "sunt", "sit", "sint", "sed",
+		final String[] singleWords = { "voluptate", "veniam", "velit", "ullamco", "tempor", "sunt", "sit", "sint",
+			"sed",
 			"reprehenderit", "quis", "qui", "proident", "pariatur", "officia", "occaecat", "nulla", "nostrud", "non",
 			"nisi", "mollit", "minim", "magna", "lorem", "laborum", "laboris", "labore", "irure", "ipsum",
 			"incididunt", "id", "fugiat", "exercitation", "excepteur", "ex", "eu", "et", "est", "esse", "enim", "elit",
 			"eiusmod", "ea", "duis", "do", "deserunt", "cupidatat", "culpa", "consequat", "consectetur", "commodo",
 			"cillum", "aute", "anim", "amet", "aliquip", "aliqua", "adipisicing", "ad" };
-		for (String singleWord : singleWords)
+		for (final String singleWord : singleWords)
 			testPlan.getExpectedOutput(0).add(JsonUtil.createObjectNode("word", singleWord, "count", 1));
 		testPlan.getExpectedOutput(0).
 			add(JsonUtil.createObjectNode("word", "ut", "count", 3)).

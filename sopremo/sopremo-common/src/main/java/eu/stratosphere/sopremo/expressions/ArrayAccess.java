@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -66,11 +65,6 @@ public class ArrayAccess extends EvaluationExpression {
 		// throw new IllegalArgumentException("negative endIndex < negative startIndex");
 		this.startIndex = startIndex;
 		this.endIndex = endIndex;
-
-		if (startIndex != endIndex)
-			this.expectedTarget = ArrayNode.class;
-		else
-			this.expectedTarget = AbstractJsonNode.class;
 	}
 
 	@Override
@@ -82,36 +76,31 @@ public class ArrayAccess extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		if (!node.isArray())
 			return MissingNode.getInstance();
 
+		final IArrayNode arrayNode = (IArrayNode) node;
 		if (this.isSelectingAll()) {
-			target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
-
-			((IArrayNode) target).clear();
-			((IArrayNode) target).addAll((IArrayNode) node);
-			return target;
+			final IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
+			targetArray.addAll(arrayNode);
+			return targetArray;
 		}
-		final int size = ((IArrayNode) node).size();
+		final int size = arrayNode.size();
 		if (this.isSelectingRange()) {
-
-			target = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
-
-			((IArrayNode) target).clear();
+			final IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
 			int index = this.resolveIndex(this.startIndex, size);
 			final int endIndex = this.resolveIndex(this.endIndex, size);
 			final int increment = index < endIndex ? 1 : -1;
 
 			for (boolean moreElements = true; moreElements; index += increment) {
-				((IArrayNode) target).add(((IArrayNode) node).get(index));
+				targetArray.add(arrayNode.get(index));
 				moreElements = index != endIndex;
 			}
-			return target;
+			return targetArray;
 		}
 
-		// TODO Reuse target (problem: result could be any kind of JsonNode)
-		final IJsonNode value = ((IArrayNode) node).get(this.resolveIndex(this.startIndex, size));
+		final IJsonNode value = arrayNode.get(this.resolveIndex(this.startIndex, size));
 		return value == null ? NullNode.getInstance() : value;
 	}
 
@@ -215,7 +204,7 @@ public class ArrayAccess extends EvaluationExpression {
 			return new ArrayCreation(new ArrayAccess(indices[0]));
 		default:
 			boolean monoton = true;
-			int step = indices[1] - indices[0];
+			final int step = indices[1] - indices[0];
 			if (Math.abs(step) != 1)
 				monoton = false;
 
@@ -225,7 +214,7 @@ public class ArrayAccess extends EvaluationExpression {
 			if (monoton)
 				return new ArrayAccess(indices[0], indices[indices.length - 1]);
 
-			ArrayAccess[] accesses = new ArrayAccess[indices.length];
+			final ArrayAccess[] accesses = new ArrayAccess[indices.length];
 			for (int index = 0; index < indices.length; index++)
 				accesses[index] = new ArrayAccess(indices[index]);
 			return new ArrayCreation();

@@ -61,8 +61,6 @@ public class CompilerHints {
 
 	private Map<FieldSet, Float> avgNumRecordsPerDistinctFields = new HashMap<FieldSet, Float>();
 
-	private Class<? extends DataDistribution> inputDistribution = null;
-	
 	private Set<FieldSet> uniqueFields = null;
 
 	/**
@@ -108,23 +106,6 @@ public class CompilerHints {
 		return distinctCounts;
 	}
 	
-	/**
-	 * Gets the class that models the distribution of input data
-	 *
-	 * @return input distribution model class
-	 */
-	public Class<? extends DataDistribution> getInputDistributionClass() {
-		return inputDistribution;
-	}
-
-	/**
-	 * Set the class that models the distribution of the input data
-	 * @param cls input distribution model class
-	 */
-	public void setInputDistributionClass(Class<? extends DataDistribution> cls) {
-		this.inputDistribution = cls;
-	}
-
 	/**
 	 * Gets the average number of records per distinct field set from the contract containing these hints.
 	 * 

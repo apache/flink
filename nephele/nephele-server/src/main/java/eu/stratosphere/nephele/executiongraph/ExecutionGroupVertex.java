@@ -44,14 +44,13 @@ import eu.stratosphere.nephele.template.InputSplit;
 
 /**
  * An ExecutionGroupVertex is created for every JobVertex of the initial job graph. It represents a number of execution
- * vertices
- * that originate from the same job vertex.
+ * vertices that originate from the same job vertex.
  * <p>
  * This class is thread-safe.
  * 
  * @author warneke
  */
-public class ExecutionGroupVertex {
+public final class ExecutionGroupVertex {
 
 	/**
 	 * The default number of retries in case of an error before the task represented by this vertex is considered as

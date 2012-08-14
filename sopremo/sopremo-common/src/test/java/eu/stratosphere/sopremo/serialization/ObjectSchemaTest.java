@@ -2,7 +2,6 @@ package eu.stratosphere.sopremo.serialization;
 
 import junit.framework.Assert;
 
-import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -15,123 +14,113 @@ import eu.stratosphere.sopremo.type.TextNode;
 
 public class ObjectSchemaTest {
 
-	private ObjectSchema schema;
+	@Test
+	public void conversionShouldKeepIdentity() {
+		final ObjectSchema schema = new ObjectSchema("firstname", "lastname");
+		final ObjectNode object = new ObjectNode();
+		object.put("firstname", TextNode.valueOf("testfn"))
+			.put("lastnameasdf", TextNode.valueOf("testln123"));
 
-	@Before
-	public void setUp() {
-		this.schema = new ObjectSchema();
+		final PactRecord record = schema.jsonToRecord(object, null, null);
+
+		final IJsonNode object2 = schema.recordToJson(record, null);
+
+		Assert.assertEquals(object, object2);
 	}
 
-	
 	@Test
 	public void shouldConvertFromJsonToRecord() {
-		this.schema.setMappings("firstname", "lastname");
+		final ObjectSchema schema = new ObjectSchema("firstname", "lastname");
 
-		ObjectNode object = new ObjectNode();
+		final ObjectNode object = new ObjectNode();
 		object.put("firstname", TextNode.valueOf("testfn"))
 			.put("lastname", TextNode.valueOf("testln"));
 
-		PactRecord result = this.schema.jsonToRecord(object, null, null);
-		PactRecord expected = new PactRecord();
+		final PactRecord result = schema.jsonToRecord(object, null, null);
+		final PactRecord expected = new PactRecord();
 		expected.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
 		expected.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
 		expected.setField(2, new JsonNodeWrapper(new ObjectNode()));
 
-		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, this.schema.getPactSchema()));
+		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, schema.getPactSchema()));
 	}
 
 	@Test
 	public void shouldConvertFromRecordToJson() {
-		this.schema.setMappings("firstname", "lastname");
+		final ObjectSchema schema = new ObjectSchema("firstname", "lastname");
 
-		PactRecord record = new PactRecord();
+		final PactRecord record = new PactRecord();
 		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
 		record.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
 		record.setField(2, new JsonNodeWrapper(new ObjectNode()));
 
-		IJsonNode result = this.schema.recordToJson(record, null);
-		IJsonNode expected = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
+		final IJsonNode result = schema.recordToJson(record, null);
+		final IJsonNode expected = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
 			.put("lastname", TextNode.valueOf("testln"));
 
 		Assert.assertEquals(expected, result);
 	}
 
-	@Test
-	public void shouldUseRecordTarget() {
-		this.schema.setMappings("firstname", "lastname");
-
-		ObjectNode object = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
-			.put("lastname", TextNode.valueOf("testln"));
-
-		PactRecord target = this.schema.jsonToRecord(object, null, null);
-		PactRecord result = this.schema.jsonToRecord(object, target, null);
-
-		Assert.assertSame(target, result);
-	}
-
-	@Test
-	public void shouldUseJsonNodeTarget() {
-		this.schema.setMappings("firstname", "lastname");
-
-		PactRecord record = new PactRecord();
-		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
-		record.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
-		record.setField(2, new JsonNodeWrapper(new ObjectNode()));
-
-
-		IJsonNode target = new ObjectNode();
-		IJsonNode result = this.schema.recordToJson(record, target);
-
-		Assert.assertSame(target, result);
-	}
-
-
 	@SuppressWarnings("unchecked")
 	@Test
 	public void shouldReturnObjectAsRecordWithMissingSchema() {
-		ObjectNode object = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
+		final ObjectSchema schema = new ObjectSchema();
+		final ObjectNode object = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
 			.put("lastname", TextNode.valueOf("testln"));
 
-		PactRecord result = this.schema.jsonToRecord(object, null, null);
+		final PactRecord result = schema.jsonToRecord(object, null, null);
 
-		PactRecord expected = new PactRecord();
+		final PactRecord expected = new PactRecord();
 		expected.setField(0, new JsonNodeWrapper(object));
 
-		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, new Class[]{ JsonNodeWrapper.class}));
+		Assert.assertTrue(PactRecordEqualer.recordsEqual(expected, result, new Class[] { JsonNodeWrapper.class }));
 	}
 
 	@Test
 	public void shouldReturnObjectNodeWithMissingSchema() {
-		PactRecord record = new PactRecord();
-		ObjectNode object = new ObjectNode().put("firstName", TextNode.valueOf("Hans"))
+		final ObjectSchema schema = new ObjectSchema();
+		final PactRecord record = new PactRecord();
+		final ObjectNode object = new ObjectNode().put("firstName", TextNode.valueOf("Hans"))
 			.put("lastName", TextNode.valueOf("Maier")).put("age", IntNode.valueOf(23));
-		record.setField(
-			0,
-			new JsonNodeWrapper(object));
-		IJsonNode result = this.schema.recordToJson(record, null);
+		record.setField(0, new JsonNodeWrapper(object));
+		final IJsonNode result = schema.recordToJson(record, null);
 		Assert.assertEquals(object, result);
 	}
-	
-	@Test(expected=IllegalStateException.class)
-	public void shouldThrowExceptionWhenSchemaAndRecordDontMatch(){
-		this.schema.setMappings("firstname", "lastname");
 
-		PactRecord record = new PactRecord();
+	@Test(expected = IllegalStateException.class)
+	public void shouldThrowExceptionWhenSchemaAndRecordDontMatch() {
+		final ObjectSchema schema = new ObjectSchema("firstname", "lastname");
+
+		final PactRecord record = new PactRecord();
 		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
-		this.schema.recordToJson(record, null);
+		schema.recordToJson(record, null);
 	}
-	
+
 	@Test
-	public void conversionShouldKeepIdentity(){
-		this.schema.setMappings("firstname", "lastname");
-		ObjectNode object = new ObjectNode();
-		object.put("firstname", TextNode.valueOf("testfn"))
-			.put("lastnameasdf", TextNode.valueOf("testln123"));
-		
-		PactRecord record = this.schema.jsonToRecord(object, null, null);
-		
-		IJsonNode object2 = this.schema.recordToJson(record, null);
-		
-		Assert.assertEquals(object, object2);
+	public void shouldUseJsonNodeTarget() {
+		final ObjectSchema schema = new ObjectSchema("firstname", "lastname");
+
+		final PactRecord record = new PactRecord();
+		record.setField(0, new JsonNodeWrapper(TextNode.valueOf("testfn")));
+		record.setField(1, new JsonNodeWrapper(TextNode.valueOf("testln")));
+		record.setField(2, new JsonNodeWrapper(new ObjectNode()));
+
+		final IJsonNode target = new ObjectNode();
+		final IJsonNode result = schema.recordToJson(record, target);
+
+		Assert.assertSame(target, result);
+	}
+
+	@Test
+	public void shouldUseRecordTarget() {
+		final ObjectSchema schema = new ObjectSchema("firstname", "lastname");
+
+		final ObjectNode object = new ObjectNode().put("firstname", TextNode.valueOf("testfn"))
+			.put("lastname", TextNode.valueOf("testln"));
+
+		final PactRecord target = schema.jsonToRecord(object, null, null);
+		final PactRecord result = schema.jsonToRecord(object, target, null);
+
+		Assert.assertSame(target, result);
 	}
 }

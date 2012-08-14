@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.base;
 
-import static eu.stratosphere.sopremo.JsonUtil.createPath;
+import static eu.stratosphere.sopremo.type.JsonUtil.createPath;
 
 import org.junit.Test;
 
@@ -35,6 +35,29 @@ public class ProjectionTest extends SopremoTest<Projection> {
 		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("sum", new ArithmeticExpression(createPath("a"),
 			ArithmeticOperator.ADDITION, createPath("b")));
+		sopremoPlan.getOutputOperator(0).setInputs(
+			new Projection().
+				withResultProjection(transformation).
+				withInputs(sopremoPlan.getInputOperator(0)));
+		sopremoPlan.getInput(0).
+			addObject("a", 1, "b", 4).
+			addObject("a", 2, "b", 5).
+			addObject("a", -1, "b", 4);
+		sopremoPlan.getExpectedOutput(0).
+			addObject("sum", 5).
+			addObject("sum", 7).
+			addObject("sum", 3);
+
+		sopremoPlan.run();
+	}
+	
+	@Test
+	public void shouldProjectSomeFieldsWithInputSelection() {
+		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(1, 1);
+
+		final ObjectCreation transformation = new ObjectCreation();
+		transformation.addMapping("sum", new ArithmeticExpression(createPath("0", "a"),
+			ArithmeticOperator.ADDITION, createPath("0", "b")));
 		sopremoPlan.getOutputOperator(0).setInputs(
 			new Projection().
 				withResultProjection(transformation).
