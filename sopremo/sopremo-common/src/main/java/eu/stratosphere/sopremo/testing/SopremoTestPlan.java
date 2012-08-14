@@ -396,6 +396,25 @@ public class SopremoTestPlan {
 	public void setOutputOperator(final int index, final Sink operator) {
 		this.actualOutputs[index].setOperator(operator);
 	}
+	
+
+	/**
+	 * Returns the degree of parallelism of the
+	 * test plan.
+	 */
+	public int getDegreeOfParallelism() {
+		return this.testPlan.getDegreeOfParallelism();
+	}
+
+	/**
+	 * Returns the degree of parallelism of the
+	 * test plan.
+	 */
+	public void setDegreeOfParallelism(final int dop) {
+		if (dop < 1)
+			throw new IllegalArgumentException("Degree of parallelism must be greater than 0!");
+		this.testPlan.setDegreeOfParallelism(dop);
+	}
 
 	@Override
 	public String toString() {
