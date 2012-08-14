@@ -17,12 +17,15 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.IdentityMap;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.CrossStub;
+import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.Stub;
@@ -380,9 +383,14 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 				builder.name(this.toString());
 				PactBuilderUtil.addKeysExceptFirst(builder, keyTypes, keyIndices1, keyIndices2);
 				return builder.build();
-			}
-			return ReflectUtil.newInstance(contractClass, stubClass,
-				this.toString());
+			} else if(contractClass == MapContract.class) 
+				return MapContract.builder((Class<? extends MapStub>) stubClass).
+						name(this.toString()).build();
+			else if(contractClass == CrossContract.class) 
+				return CrossContract.builder((Class<? extends CrossStub>) stubClass).
+						name(this.toString()).build();
+			else throw new UnsupportedOperationException("Unknown contract type");
+				
 		} catch (final Exception e) {
 			throw new IllegalStateException("Cannot create contract from stub "
 				+ stubClass, e);
