@@ -495,7 +495,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		}
 
 		// assign the memory
-		assignMemory(combineConfig, combineNode.getMemoryPerTask());
+//		assignMemory(combineConfig, combineNode.getMemoryPerTask());
 
 		// forward stub parameters to task and stub
 		combineConfig.setStubParameters(combineNode.getPactContract().getParameters());
@@ -552,7 +552,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		}
 
 		// assign the memory
-		assignMemory(reduceConfig, reduceNode.getMemoryPerTask());
+//		assignMemory(reduceConfig, reduceNode.getMemoryPerTask());
 
 		// forward stub parameters to task and stub
 		reduceConfig.setStubParameters(reduceNode.getPactContract().getParameters());
@@ -612,14 +612,6 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 			matchConfig.setDriver(MatchDriver.class);
 			matchConfig.setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
 			break;
-		case MMHASH_FIRST:
-			matchConfig.setDriver(MatchDriver.class);
-			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_FIRST);
-			break;
-		case MMHASH_SECOND:
-			matchConfig.setDriver(MatchDriver.class);
-			matchConfig.setLocalStrategy(LocalStrategy.MMHASH_SECOND);
-			break;
 //		case SORT_SELF_NESTEDLOOP:
 //			matchVertex.setTaskClass(SelfMatchTask.class);
 //			matchConfig.setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
@@ -634,7 +626,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		}
 
 		// assign the memory
-		assignMemory(matchConfig, matchNode.getMemoryPerTask());
+//		assignMemory(matchConfig, matchNode.getMemoryPerTask());
 
 		// forward stub parameters to task and stub
 		matchConfig.setStubParameters(matchNode.getPactContract().getParameters());
@@ -680,7 +672,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 				+ crossNode.getLocalStrategy());
 		}
 
-		assignMemory(crossConfig, crossNode.getMemoryPerTask());
+//		assignMemory(crossConfig, crossNode.getMemoryPerTask());
 
 		// forward stub parameters to task and stub
 		crossConfig.setStubParameters(crossNode.getPactContract().getParameters());
@@ -755,7 +747,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		}
 
 		// assign the memory
-		assignMemory(coGroupConfig, coGroupNode.getMemoryPerTask());
+//		assignMemory(coGroupConfig, coGroupNode.getMemoryPerTask());
 
 		// forward stub parameters to task and stub
 		coGroupConfig.setStubParameters(coGroupNode.getPactContract().getParameters());
@@ -826,7 +818,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		sinkConfig.setStubParameters(sinkContract.getParameters());
 		
 		if (sNode.getLocalStrategy() == LocalStrategy.SORT) {
-			assignMemory(sinkConfig, sinkNode.getMemoryPerTask());
+//			assignMemory(sinkConfig, sinkNode.getMemoryPerTask());
 			
 			PactRecordComparatorFactory.writeComparatorSetupToConfig(sinkConfig.getConfigForInputParameters(0),
 				sNode.getPactContract().getLocalOrder().getFieldPositions(),

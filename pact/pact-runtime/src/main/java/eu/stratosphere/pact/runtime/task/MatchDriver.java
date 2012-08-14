@@ -125,8 +125,6 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 			case MERGE:
 			case HYBRIDHASH_FIRST:
 			case HYBRIDHASH_SECOND:
-			case MMHASH_FIRST:
-			case MMHASH_SECOND:
 				strategyMinMem = MIN_REQUIRED_MEMORY;
 				break;
 		}

@@ -237,13 +237,4 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	public Costs clone() {
 		return new Costs(this.networkCost, this.secondaryStorageCost);
 	}
-
-	/**
-	 * Convenience method to create copies without potential exceptions.
-	 * 
-	 * @return A perfect copy of this object.
-	 */
-	public final Costs createCopy() {
-		return clone();
-	}
 }

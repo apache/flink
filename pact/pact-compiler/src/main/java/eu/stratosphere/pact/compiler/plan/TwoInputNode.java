@@ -404,51 +404,7 @@ public abstract class TwoInputNode extends OptimizerNode
 
 	// ------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor
-	 * )
-	 */
-	@Override
-	public void accept(Visitor<OptimizerNode> visitor) {
-		boolean descend = visitor.preVisit(this);
 
-		if (descend) {
-			if (this.getFirstPredNode() != null) {
-				this.getFirstPredNode().accept(visitor);
-			}
-			if (this.getSecondPredNode() != null) {
-				this.getSecondPredNode().accept(visitor);
-			}
-
-			visitor.postVisit(this);
-		}
-	}
-
-	/**
-	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.pact.compiler.plan.OptimizerNode}.
-	 * Since nodes with multiple inputs may join branched plans, care must be taken not to double-count the costs of the subtree rooted
-	 * at the last unjoined branch.
-	 * 
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setCosts(eu.stratosphere.pact.compiler.Costs)
-	 */
-	@Override
-	public void setCosts(Costs nodeCosts) {
-		super.setCosts(nodeCosts);
-		
-		// check, if this node has no branch beneath it, no double-counted cost then
-		if (this.lastJoinedBranchNode == null) {
-			return;
-		}
-
-		// TODO: Check this!
-		// get the cumulative costs of the last joined branching node
-		OptimizerNode lastCommonChild = this.getFirstPredNode().branchPlan.get(this.lastJoinedBranchNode);
-		Costs douleCounted = lastCommonChild.getCumulativeCosts();
-		getCumulativeCosts().subtractCosts(douleCounted);
-		
-	}
 	
 	// ---------------------- Stub Annotation Handling
 	
@@ -582,4 +538,25 @@ public abstract class TwoInputNode extends OptimizerNode
 		}
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	//                                     Miscellaneous
+	// --------------------------------------------------------------------------------------------
+	
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor
+	 * )
+	 */
+	@Override
+	public void accept(Visitor<OptimizerNode> visitor) {
+		if (visitor.preVisit(this)) {
+			if (this.input1 == null || this.input2 == null) {
+				throw new CompilerException();
+			}
+			this.getFirstPredNode().accept(visitor);
+			this.getSecondPredNode().accept(visitor);
+			visitor.postVisit(this);
+		}
+	}
 }

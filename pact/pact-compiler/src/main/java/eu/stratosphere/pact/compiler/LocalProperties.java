@@ -15,13 +15,10 @@
 
 package eu.stratosphere.pact.compiler;
 
-import java.util.ArrayList;
-
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.compiler.plan.UnionNode;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
@@ -31,9 +28,9 @@ import eu.stratosphere.pact.compiler.plan.UnionNode;
  */
 public final class LocalProperties implements Cloneable
 {
-	private Ordering ordering;			// order inside a partition, null if not ordered
+	private Ordering ordering;					// order inside a partition, null if not ordered
 
-	private FieldSet groupedFields;		// fields by which the stream is grouped. null if not grouped.
+	private FieldSet groupedFields;	// fields by which the stream is grouped. null if not grouped.
 	
 	private FieldSet uniqueFields;		// fields whose value combination is unique in the stream
 
@@ -163,7 +160,7 @@ public final class LocalProperties implements Cloneable
 		if (this.ordering != null) {
 			FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (!node.isFieldKept(input, involvedIndexes.get(i))) {
+				if (!node.isFieldConstant(input, involvedIndexes.get(i))) {
 					this.ordering = this.ordering.createNewOrderingUpToIndex(i);
 					break;
 				}
@@ -173,7 +170,7 @@ public final class LocalProperties implements Cloneable
 		// check, whether the local key grouping is preserved
 		if (this.groupedFields != null) {
 			for (Integer index : this.groupedFields) {
-				if (!node.isFieldKept(input, index)) {
+				if (!node.isFieldConstant(input, index)) {
 					this.groupedFields = null;
 					break;
 				}
@@ -183,7 +180,7 @@ public final class LocalProperties implements Cloneable
 		// check, whether the local key grouping is preserved
 		if (this.uniqueFields != null) {
 			for (Integer index : this.uniqueFields) {
-				if (!node.isFieldKept(input, index)) {
+				if (!node.isFieldConstant(input, index)) {
 					this.uniqueFields = null;
 					break;
 				}
@@ -195,54 +192,54 @@ public final class LocalProperties implements Cloneable
 	
 	public LocalProperties createInterestingLocalProperties(OptimizerNode node, int input)
 	{
-		// check, whether the local order is preserved
-		boolean newGrouped = false;
-		Ordering newOrdering = null;
-		FieldSet newGroupedFields = null;
-		
-		
-		// no interesting LocalProperties for input of Unions
-		if (node instanceof UnionNode) return null;
-		
-		
-		// check, whether the local key grouping is preserved
-		if (this.groupedFields != null) {
-			boolean groupingPreserved = true;
-			for (Integer index : this.groupedFields) {
-				if (node.isFieldKept(input, index) == false) {
-					groupingPreserved = false;
-					break;
-				}
-			}
-			
-			if (groupingPreserved) {
-				newGroupedFields = (FieldSet) this.groupedFields.clone();
-				newGrouped = true;
-			}
-		}
-		
-		// check, whether the global order is preserved
-		if (ordering != null) {
-			boolean orderingPreserved = true;
-			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
-			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (node.isFieldKept(input, i) == false) {
-					orderingPreserved = false;
-					break;
-				}
-			}
-			
-			if (orderingPreserved) {
-				newOrdering = ordering.clone();
-			}
-		}
-		
-		if (newGrouped == false && newOrdering == null) {
+//		// check, whether the local order is preserved
+//		boolean newGrouped = false;
+//		Ordering newOrdering = null;
+//		FieldSet newGroupedFields = null;
+//		
+//		
+//		// no interesting LocalProperties for input of Unions
+//		if (node instanceof UnionNode) return null;
+//		
+//		
+//		// check, whether the local key grouping is preserved
+//		if (this.groupedFields != null) {
+//			boolean groupingPreserved = true;
+//			for (Integer index : this.groupedFields) {
+//				if (node.isFieldKept(input, index) == false) {
+//					groupingPreserved = false;
+//					break;
+//				}
+//			}
+//			
+//			if (groupingPreserved) {
+//				newGroupedFields = (FieldSet) this.groupedFields.clone();
+//				newGrouped = true;
+//			}
+//		}
+//		
+//		// check, whether the global order is preserved
+//		if (ordering != null) {
+//			boolean orderingPreserved = true;
+//			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
+//			for (int i = 0; i < involvedIndexes.size(); i++) {
+//				if (node.isFieldKept(input, i) == false) {
+//					orderingPreserved = false;
+//					break;
+//				}
+//			}
+//			
+//			if (orderingPreserved) {
+//				newOrdering = ordering.clone();
+//			}
+//		}
+//		
+//		if (newGrouped == false && newOrdering == null) {
 			return null;	
-		}
-		else {
-			return new LocalProperties(newGrouped, newGroupedFields, newOrdering);
-		}
+//		}
+//		else {
+//			return new LocalProperties(newGrouped, newGroupedFields, newOrdering);
+//		}
 	}
 
 	/**
@@ -280,9 +277,7 @@ public final class LocalProperties implements Cloneable
 		
 		if (this.uniqueFields != null) {
 			// we demand field uniqueness
-			if (other.uniqueFields == null || !this.uniqueFields.isValidSubset(other.uniqueFields)) {
-				return false;
-			}
+			throw new RuntimeException("Uniqueness as a required property is not supported.");
 		}
 		
 		return true;

@@ -69,10 +69,6 @@ public class TaskConfig
 		HYBRIDHASH_FIRST,
 		// the second input is build side, the first side is probe side of a hybrid hash table
 		HYBRIDHASH_SECOND,
-		// the first input is build side, the second side is probe side of an in-memory hash table
-		MMHASH_FIRST,
-		// the second input is build side, the first side is probe side of an in-memory hash table
-		MMHASH_SECOND,
 		// the second input is inner loop, the first input is outer loop and block-wise processed
 		NESTEDLOOP_BLOCKED_OUTER_FIRST,
 		// the first input is inner loop, the second input is outer loop and block-wise processed

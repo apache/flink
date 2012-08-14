@@ -47,7 +47,6 @@ import eu.stratosphere.pact.common.util.FieldSet;
  * <li>The average number of bytes per record. <code>-1.0</code> by default, indicating that this value is unknown.</li>
  * </ul>
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  * @author Matthias Ringwald
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
@@ -61,9 +60,9 @@ public class CompilerHints {
 
 	private Map<FieldSet, Float> avgNumRecordsPerDistinctFields = new HashMap<FieldSet, Float>();
 
-	private Class<? extends DataDistribution> inputDistribution = null;
+	private Class<? extends DataDistribution> inputDistribution;
 	
-	private Set<FieldSet> uniqueFields = null;
+	private Set<FieldSet> uniqueFields;
 
 	/**
 	 * Default constructor. Creates a new <tt>CompilerHints</tt> object
@@ -233,7 +232,4 @@ public class CompilerHints {
 	public void setUniqueField(Set<FieldSet> uniqueFieldSets) {
 		this.uniqueFields = uniqueFieldSets;
 	}
-	
-	
-
 }

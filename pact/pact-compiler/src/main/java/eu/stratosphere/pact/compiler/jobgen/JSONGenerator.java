@@ -382,10 +382,10 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			else {
 				addProperty(jsonString, "Uniqueness", visitable.getUniqueFields().toString(), false);	
 			}
-			addProperty(jsonString, "Grouping", lp.isGrouped() ? "grouped": "not grouped", false);
-			if (lp.isGrouped()) {
-				addProperty(jsonString, "Grouped on", lp.getGroupedFields().toString(), false);	
-			}
+//			addProperty(jsonString, "Grouping", lp.isGrouped() ? "grouped": "not grouped", false);
+//			if (lp.isGrouped()) {
+//				addProperty(jsonString, "Grouped on", lp.getGroupedFields().toString(), false);	
+//			}
 
 			this.jsonString.append("\n\t\t]");
 		}

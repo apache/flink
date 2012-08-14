@@ -26,94 +26,27 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.AbstractPact;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.CrossContract;
-import eu.stratosphere.pact.common.contract.GenericDataSink;
-import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.util.PactType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
- * This class represents a node in the internal representation of the PACT plan. The internal
- * representation is used by the optimizer to determine the algorithms to be used
- * and to create the Nephele schedule for the runtime system.
+ * This class represents a node in the optimizer's internal representation of the PACT plan. It contains
+ * extra information about estimates, hints and data properties.
  * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- * @author Stephan Ewen (stephan.ewen@tu -berlin.de)
+ * @author Stephan Ewen
+ * @author Fabian Hueske
  */
 public abstract class OptimizerNode implements Visitable<OptimizerNode>
 {
-	// ------------------------------------------------------------------------
-	//                         Internal classes
-	// ------------------------------------------------------------------------
-
-	/**
-	 * An enumeration describing the type of the PACT.
-	 */
-	public enum PactType {
-		Cogroup(CoGroupContract.class),
-		Cross(CrossContract.class),
-		DataSource(GenericDataSource.class),
-		DataSink(GenericDataSink.class),
-		Map(MapContract.class),
-		Match(MatchContract.class),
-		Reduce(ReduceContract.class),
-		Union(Contract.class);
-
-		private Class<? extends Contract> clazz; // The class describing the contract
-
-		/**
-		 * Private constructor to set enum attributes.
-		 * 
-		 * @param clazz
-		 *        The class of the actual PACT contract represented by this enum constant.
-		 */
-		private PactType(Class<? extends Contract> clazz) {
-			this.clazz = clazz;
-		}
-
-		/**
-		 * Gets the class of the actual PACT contract represented by this enum constant.
-		 * 
-		 * @return The class of the actual PACT contract.
-		 */
-		public Class<? extends Contract> getPactClass() {
-			return this.clazz;
-		}
-
-		/**
-		 * Utility method that gets the enum constant for a PACT class.
-		 * 
-		 * @param pactClass
-		 *        The PACT class to find the enum constant for.
-		 * @return The enum constant for the given pact class.
-		 */
-		public static PactType getType(Class<? extends Contract> pactClass) {
-			PactType[] values = PactType.values();
-			for (int i = 0; i < values.length; i++) {
-				if (values[i].clazz.isAssignableFrom(pactClass)) {
-					return values[i];
-				}
-			}
-			return null;
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	//                              Members
 	// ------------------------------------------------------------------------
@@ -124,24 +57,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 
 	private List<InterestingProperties> intProps; // the interesting properties of this node
 
-	protected LocalProperties localProps; // local properties of the data produced by this node
-
-	protected GlobalProperties globalProps; // global properties of the data produced by this node
-
 	protected List<UnclosedBranchDescriptor> openBranches; // stack of branches in the sub-graph that are not joined
 	
 	protected Set<OptimizerNode> closedBranchingNodes; // stack of branching nodes which have already been closed
+
+	protected LocalStrategy localStrategy; // The local strategy, if it is fixed by a hint
 	
-	protected Map<OptimizerNode, OptimizerNode> branchPlan; // the actual plan alternative chosen at a branch point
-
-	protected OptimizerNode lastJoinedBranchNode; // the node with latest branch (node with multiple outputs)
-	                                          // that both children share and that is at least partially joined
-
-	protected LocalStrategy localStrategy; // The local strategy (sorting / hashing, ...)
-
-	protected Costs nodeCosts; // the costs incurred by this node
-
-	protected Costs cumulativeCosts; // the cumulative costs of all operators in the sub-tree of this node
+	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
+	
+	protected Set<FieldSet> uniqueFields = new HashSet<FieldSet>(); // set of attributes that will always be unique after this node
 
 	protected long estimatedOutputSize = -1; // the estimated size of the output (bytes)
 
@@ -150,20 +74,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	protected int stubOutCardLB; // The lower bound of the stubs output cardinality
 	
 	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
-	
-	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
-	
-	protected Set<FieldSet> uniqueFields = new HashSet<FieldSet>(); // the fields which are unique
 
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
 
 	protected int instancesPerMachine = -1; // the number of parallel instance that will run on the same machine
 
-	private int memoryPerTask; // the amount of memory dedicated to each task, in MiBytes
-
 	protected int id = -1; // the id for this node.
-
-	protected boolean pFlag = false; // flag for the internal pruning algorithm
 
 	// ------------------------------------------------------------------------
 	//                      Constructor / Setup
@@ -172,74 +88,67 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	/**
 	 * Creates a new node for the optimizer plan.
 	 * 
-	 * @param pactContract
-	 *        The PACT that the node represents.
+	 * @param pactContract The PACT that the node represents.
 	 */
-	public OptimizerNode(Contract pactContract) {
+	public OptimizerNode(Contract pactContract)
+	{
 		if (pactContract == null) {
 			throw new NullPointerException("The contract must not ne null.");
 		}
-
 		this.pactContract = pactContract;
-
-		this.outgoingConnections = null;
-
-		this.localProps = new LocalProperties();
-		this.globalProps = new GlobalProperties();
-
-		this.readStubAnnotations();
+		readStubAnnotations();
 	}
 
-	/**
-	 * This is an internal copy-constructor that is used to create copies of the nodes
-	 * for plan enumeration. This constructor copies all properties (deep, if objects)
-	 * except the outgoing connections and the costs. The connections are omitted,
-	 * because the copied nodes are used in different enumerated trees/graphs. The
-	 * costs are only computed for the actual alternative plan, so they are not
-	 * copied themselves.
-	 * 
-	 * @param toClone
-	 *        The node to clone.
-	 * @param globalProps
-	 *        The global properties of this copy.
-	 * @param localProps
-	 *        The local properties of this copy.
-	 */
-	protected OptimizerNode(OptimizerNode toClone, GlobalProperties globalProps, LocalProperties localProps) {
-		this.pactContract = toClone.pactContract;
-		this.localStrategy = toClone.localStrategy;
-
-		this.localProps = localProps;
-		this.globalProps = globalProps;
-
-		this.estimatedOutputSize = toClone.estimatedOutputSize;
-		
-		this.estimatedCardinality.putAll(toClone.estimatedCardinality);
-		this.estimatedNumRecords = toClone.estimatedNumRecords;
-
-		this.stubOutCardLB = toClone.stubOutCardLB;
-		this.stubOutCardUB = toClone.stubOutCardUB;
-		
-		this.id = toClone.id;
-		this.degreeOfParallelism = toClone.degreeOfParallelism;
-		this.instancesPerMachine = toClone.instancesPerMachine;
-		
-		if (toClone.uniqueFields != null && toClone.uniqueFields.size() > 0) {
-			for (FieldSet uniqueField : toClone.uniqueFields) {
-				this.uniqueFields.add((FieldSet)uniqueField.clone());
-			}
-		}
-		
-		// check, if this node branches. if yes, this candidate must be associated with
-		// the branching template node.
-		if (toClone.isBranching()) {
-			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(6);
-			this.branchPlan.put(toClone, this);
-		}
-
-		// remember the highest node in our sub-plan that branched.
-		this.lastJoinedBranchNode = toClone.lastJoinedBranchNode;
-}
+//	/**
+//	 * This is an internal copy-constructor that is used to create copies of the nodes
+//	 * for plan enumeration. This constructor copies all properties (deep, if objects)
+//	 * except the outgoing connections and the costs. The connections are omitted,
+//	 * because the copied nodes are used in different enumerated trees/graphs. The
+//	 * costs are only computed for the actual alternative plan, so they are not
+//	 * copied themselves.
+//	 * 
+//	 * @param toClone
+//	 *        The node to clone.
+//	 * @param globalProps
+//	 *        The global properties of this copy.
+//	 * @param localProps
+//	 *        The local properties of this copy.
+//	 */
+//	protected OptimizerNode(OptimizerNode toClone, GlobalProperties globalProps, LocalProperties localProps) {
+//		this.pactContract = toClone.pactContract;
+//		this.localStrategy = toClone.localStrategy;
+//
+//		this.localProps = localProps;
+//		this.globalProps = globalProps;
+//
+//		this.estimatedOutputSize = toClone.estimatedOutputSize;
+//		
+//		this.estimatedCardinality.putAll(toClone.estimatedCardinality);
+//		this.estimatedNumRecords = toClone.estimatedNumRecords;
+//
+//		this.stubOutCardLB = toClone.stubOutCardLB;
+//		this.stubOutCardUB = toClone.stubOutCardUB;
+//		
+//		this.id = toClone.id;
+//		this.degreeOfParallelism = toClone.degreeOfParallelism;
+//		this.instancesPerMachine = toClone.instancesPerMachine;
+//		
+//		if (toClone.uniqueFields != null && toClone.uniqueFields.size() > 0) {
+//			for (FieldSet uniqueField : toClone.uniqueFields) {
+//				this.uniqueFields.add((FieldSet)uniqueField.clone());
+//			}
+//		}
+//		
+//		// check, if this node branches. if yes, this candidate must be associated with
+//		// the branching template node.
+//		if (toClone.isBranching()) {
+//			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(6);
+//			this.branchPlan.put(toClone, this);
+//		}
+//
+//		// remember the highest node in our sub-plan that branched.
+//		this.lastJoinedBranchNode = toClone.lastJoinedBranchNode;
+//	}
 
 	// ------------------------------------------------------------------------
 	//      Abstract methods that implement node specific behavior
@@ -322,6 +231,21 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return True, if this node contains logic that requires memory usage, false otherwise.
 	 */
 	public abstract int getMemoryConsumerCount();
+	
+	/**
+	 * Reads all constant stub annotations. Constant stub annotations are defined per input.
+	 */
+	protected abstract void readConstantAnnotation();
+	
+	/**
+	 * Checks whether a field is modified by the user code or whether it is kept unchanged.
+	 * 
+	 * @param input The input number.
+	 * @param fieldNumber The position of the field.
+	 * 
+	 * @return True if the field is not changed by the user function, false otherwise.
+	 */
+	public abstract boolean isFieldConstant(int input, int fieldNumber);
 
 	// ------------------------------------------------------------------------
 	//                          Getters / Setters
@@ -352,7 +276,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @param pactConnection
 	 *        The connection to add.
 	 */
-	public void addOutConn(PactConnection pactConnection) {
+	public void addOutgoingConnection(PactConnection pactConnection) {
 		if (this.outgoingConnections == null) {
 			this.outgoingConnections = new ArrayList<PactConnection>();
 		} else {
@@ -369,11 +293,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * 
 	 * @return The list of outgoing connections.
 	 */
-	public List<PactConnection> getOutConns() {
-		
-		if(this.outgoingConnections == null) {
-			this.outgoingConnections = new ArrayList<PactConnection>();
-		}
+	public List<PactConnection> getOutgoingConnections() {
 		return this.outgoingConnections;
 	}
 
@@ -422,7 +342,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException();
 		}
-
 		this.degreeOfParallelism = degreeOfParallelism;
 	}
 
@@ -450,45 +369,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			throw new IllegalArgumentException();
 		}
 		this.instancesPerMachine = instancesPerMachine;
-	}
-
-	/**
-	 * Gets the memory dedicated to each task for this node.
-	 * 
-	 * @return The memory per task, in MiBytes.
-	 */
-	public int getMemoryPerTask() {
-		return this.memoryPerTask;
-	}
-
-	/**
-	 * Sets the memory dedicated to each task for this node.
-	 * 
-	 * @param memoryPerTask
-	 *        The memory per task.
-	 */
-	public void setMemoryPerTask(int memoryPerTask) {
-		this.memoryPerTask = memoryPerTask;
-	}
-
-	/**
-	 * Gets the costs incurred by this node. The costs reflect also the costs incurred by the shipping strategies
-	 * of the incoming connections.
-	 * 
-	 * @return The node-costs, or null, if not yet set.
-	 */
-	public Costs getNodeCosts() {
-		return this.nodeCosts;
-	}
-
-	/**
-	 * Gets the cumulative costs of this nose. The cumulative costs are the the sum of the costs
-	 * of this node and of all nodes in the subtree below this node.
-	 * 
-	 * @return The cumulative costs, or null, if not yet set.
-	 */
-	public Costs getCumulativeCosts() {
-		return this.cumulativeCosts;
 	}
 
 	/**
@@ -520,57 +400,38 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public List<InterestingProperties> getInterestingProperties() {
 		return this.intProps;
 	}
-
-	/**
-	 * Gets the local properties from this OptimizedNode.
-	 * 
-	 * @return The local properties.
-	 */
-	public LocalProperties getLocalProperties() {
-		return this.localProps;
-	}
-
-	/**
-	 * Gets the global properties from this OptimizedNode.
-	 * 
-	 * @return The global properties.
-	 */
-	public GlobalProperties getGlobalProperties() {
-		return this.globalProps;
-	}
 	
-
-	/**
-	 * Gets a copy of local properties from this OptimizedNode for the parent node.
-	 * If the parent node has a different DoP all local properties are lost.
-	 * 
-	 * @return The local properties.
-	 */
-	public LocalProperties getLocalPropertiesForParent(OptimizerNode parent) {
-		LocalProperties localPropsForParent = this.localProps.createCopy();
-		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
-			localPropsForParent.reset();
-		}
-		return localPropsForParent;
-	}
-
-	/**
-	 * Gets a copy of global properties from this OptimizedNode for the parent node.
-	 * If the parent node has a different DoP ordering is lost and partitioning is at 
-	 * most PartitionProperty.ANY
-	 * 
-	 * @return The global properties.
-	 */
-	public GlobalProperties getGlobalPropertiesForParent(OptimizerNode parent) {
-		GlobalProperties globalPropsForParent = this.globalProps.createCopy();
-		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
-			globalPropsForParent.setOrdering(null);
-			if (globalPropsForParent.getPartitioning() != PartitionProperty.NONE) {
-				globalPropsForParent.setPartitioning(PartitionProperty.ANY, globalPropsForParent.getPartitionedFields());
-			}
-		}
-		return globalPropsForParent;
-	}
+//	/**
+//	 * Gets a copy of local properties from this OptimizedNode for the parent node.
+//	 * If the parent node has a different DoP all local properties are lost.
+//	 * 
+//	 * @return The local properties.
+//	 */
+//	public LocalProperties getLocalPropertiesForParent(OptimizerNode parent) {
+//		LocalProperties localPropsForParent = this.localProps.createCopy();
+//		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
+//			localPropsForParent.reset();
+//		}
+//		return localPropsForParent;
+//	}
+//
+//	/**
+//	 * Gets a copy of global properties from this OptimizedNode for the parent node.
+//	 * If the parent node has a different DoP ordering is lost and partitioning is at 
+//	 * most PartitionProperty.ANY
+//	 * 
+//	 * @return The global properties.
+//	 */
+//	public GlobalProperties getGlobalPropertiesForParent(OptimizerNode parent) {
+//		GlobalProperties globalPropsForParent = this.globalProps.createCopy();
+//		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
+//			globalPropsForParent.setOrdering(null);
+//			if (globalPropsForParent.getPartitioning() != PartitionProperty.NONE) {
+//				globalPropsForParent.setPartitioning(PartitionProperty.ANY, globalPropsForParent.getPartitionedFields());
+//			}
+//		}
+//		return globalPropsForParent;
+//	}
 
 	/**
 	 * Gets the estimated output size from this node.
@@ -596,11 +457,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	}
 	
 	public long getEstimatedCardinality(FieldSet cP) {
-		Long estimate;
-		if ((estimate = estimatedCardinality.get(cP)) == null) {
-			estimate = -1L;
-		}
-		return estimate;
+		Long estimate = estimatedCardinality.get(cP);
+		return estimate == null ? -1L : estimate.longValue();
 	}
 
 	/**
@@ -610,28 +468,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return True, if the node's output branches. False otherwise.
 	 */
 	public boolean isBranching() {
-		return getOutConns() != null && getOutConns().size() > 1;
-	}
-
-	/**
-	 * Sets the basic cost for this {@code OptimizerNode}
-	 * 
-	 * @param nodeCosts		The already knows costs for this node
-	 * 						(this cost a produces by a concrete {@code OptimizerNode} subclass.
-	 */
-	public void setCosts(Costs nodeCosts) {
-		// set the node costs
-		this.nodeCosts = nodeCosts;
-
-		// the cumulative costs are the node costs plus the costs of all inputs
-		this.cumulativeCosts = new Costs(0, 0);
-		this.cumulativeCosts.addCosts(nodeCosts);
-
-		for(PactConnection c : getIncomingConnections()) {
-			Costs parentCosts = c.getSourcePact().cumulativeCosts;
-			if(parentCosts != null)
-				this.cumulativeCosts.addCosts(parentCosts);
-		}
+		return getOutgoingConnections() != null && getOutgoingConnections().size() > 1;
 	}
 
 	// ------------------------------------------------------------------------
@@ -644,11 +481,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return True, if on all outgoing connections, the interesting properties are set. False otherwise.
 	 */
 	public boolean haveAllOutputConnectionInterestingProperties() {
-		if (this.outgoingConnections == null) {
-			return true;
-		}
-
-		for (PactConnection conn : this.outgoingConnections) {
+		for (PactConnection conn : getOutgoingConnections()) {
 			if (conn.getInterestingProperties() == null) {
 				return false;
 			}
@@ -665,20 +498,24 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * This method returns copies of the original interesting properties objects and
 	 * leaves the original objects, contained by the connections, unchanged.
 	 */
-	public void computeInterestingProperties() {
-		List<InterestingProperties> props = new ArrayList<InterestingProperties>();
-
-		List<PactConnection> conns = getOutConns();
-		if (conns != null) {
-			for (PactConnection conn : conns) {
-				List<InterestingProperties> ips = conn.getInterestingProperties();
-				InterestingProperties.mergeUnionOfInterestingProperties(props, ips);
+	public void computeInterestingProperties()
+	{
+		List<PactConnection> conns = getOutgoingConnections();
+		
+		List<InterestingProperties> props = null;
+		for (PactConnection conn : conns) {
+			List<InterestingProperties> ips = conn.getInterestingProperties();
+			if (ips.size() > 0) {
+				if (props == null) {
+					props = new ArrayList<InterestingProperties>();
+					props.addAll(ips);
+				} else {
+					InterestingProperties.mergeUnionOfInterestingProperties(props, ips);
+				}
 			}
 		}
-
-		this.intProps = props.isEmpty() ? Collections.<InterestingProperties> emptyList() : props;
+		this.intProps = (props == null || props.isEmpty()) ? Collections.<InterestingProperties>emptyList() : props;
 	}
-	
 	
 	/**
 	 * Causes this node to compute its output estimates (such as number of rows, size in bytes)
@@ -690,369 +527,144 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 *        The statistics object which may be accessed to get statistical information.
 	 *        The parameter may be null, if no statistics are available.
 	 */
-	public void computeOutputEstimates(DataStatistics statistics) {
-		
-		boolean allPredsAvailable = true;
-		
+	public void computeOutputEstimates(DataStatistics statistics)
+	{
+		// sanity checking
 		for (PactConnection c : getIncomingConnections()) {
-			if (allPredsAvailable) {
-				if (c.getSourcePact() == null) {
-					allPredsAvailable = false;
-					break;
-				}
-			}
-			else {
-				break;
+			if (c.getSourcePact() == null) {
+				throw new CompilerException("Bug: Estimate computation called before inputs have been set.");
 			}
 		}
 		
+		// 
 		CompilerHints hints = getPactContract().getCompilerHints();
 
 		computeUniqueFields();
 		
-		// check if preceding nodes are available
-		if (!allPredsAvailable) {
-			// Preceding node is not available, we take hints as given
-			//this.estimatedKeyCardinality = hints.getKeyCardinality();
-			this.estimatedCardinality.putAll(hints.getDistinctCounts());
-			
-			this.estimatedNumRecords = 0;
-			int count = 0;
-			
-			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
-				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
-				if (avgNumValues != -1) {
-					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
-					count++;
-				}
-			}
-			
-			if (count > 0) {
-				this.estimatedNumRecords = (this.estimatedNumRecords /count) >= 1 ?
-						(this.estimatedNumRecords /count) : 1;
-			}
-			else {
-				this.estimatedNumRecords = -1;
-			}
-			
-			if (this.estimatedNumRecords != -1 && hints.getAvgBytesPerRecord() != -1) {
-				this.estimatedOutputSize = (this.estimatedNumRecords * hints.getAvgBytesPerRecord() >= 1) ? 
-						(long) (this.estimatedNumRecords * hints.getAvgBytesPerRecord()) : 1;
-			}
-			
-		} else {
-			// We have a preceding node
+		// ############# output cardinality estimation ##############
 		
-			// ############# output cardinality estimation ##############
+		boolean outputCardEstimated = true;
 			
-			boolean outputCardEstimated = true;
-				
-			this.estimatedNumRecords = 0;
-			int count = 0;
+		this.estimatedNumRecords = 0;
+		int count = 0;
 
-			//If we have cardinalities and avg num values available for some fields, calculate 
-			//the average of those
-			for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+		//If we have cardinalities and avg num values available for some fields, calculate 
+		//the average of those
+		for (Entry<FieldSet, Long> cardinality : hints.getDistinctCounts().entrySet()) {
+			float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
+			if (avgNumValues != -1) {
+				this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
+				count++;
+			}
+		}
+		
+		if (count > 0) {
+			this.estimatedNumRecords = (this.estimatedNumRecords /count) >= 1 ?
+					(this.estimatedNumRecords /count) : 1;
+		}
+		else {
+
+			// default output cardinality is equal to number of stub calls
+			this.estimatedNumRecords = this.computeNumberOfStubCalls();
+			
+			if(hints.getAvgRecordsEmittedPerStubCall() != -1.0 && this.computeNumberOfStubCalls() != -1) {
+				// we know how many records are in average emitted per stub call
+				this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
+						(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
+			} else {
+				outputCardEstimated = false;
+			}
+		}
+					
+		// ############# output key cardinality estimation ##########
+
+		this.estimatedCardinality.putAll(hints.getDistinctCounts());	
+
+		
+		if (this.getUniqueFields() != null) {
+			for (FieldSet uniqueFieldSet : this.uniqueFields) {
+				if (this.estimatedCardinality.get(uniqueFieldSet) == null) {
+					this.estimatedCardinality.put(uniqueFieldSet, this.estimatedNumRecords);
+				}
+			}
+		}
+		
+		
+		for (int input = 0; input < getIncomingConnections().size(); input++) {
+			int[] keyColumns;
+			if ((keyColumns = getConstantKeySet(input)) != null) {
+				long estimatedKeyCardinality; 
+				if(hints.getAvgRecordsEmittedPerStubCall() > 1.0) {
+					// in average less than one record is emitted per stub call
+					
+					// compute the probability that at least one stub call emits a record for a given key 
+					double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
+
+					estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
+							(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
+				} else {
+					// in average more than one record is emitted per stub call. We assume all keys are kept.
+					estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
+				}
+				
+				FieldSet fieldSet = new FieldSet(keyColumns);
+				if (estimatedCardinality.get(fieldSet) == null) {
+					estimatedCardinality.put(fieldSet, estimatedKeyCardinality);	
+				}
+			}
+		}
+		
+		if(this.estimatedNumRecords != -1) {
+			for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
+				if (estimatedCardinality.get(avgNumValues.getKey()) == null) {
+					long estimatedCard = (this.estimatedNumRecords / avgNumValues.getValue() >= 1) ? 
+							(long) (this.estimatedNumRecords / avgNumValues.getValue()) : 1;
+					estimatedCardinality.put(avgNumValues.getKey(), estimatedCard);
+				}
+			}
+		}
+		 
+		// try to reversely estimate output cardinality from key cardinality
+		if(!outputCardEstimated) { //this.estimatedKeyCardinality != -1 &&
+			// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
+			
+			long newEstimatedNumRecords = 0;
+			count = 0;
+			
+			for (Entry<FieldSet, Long> cardinality : estimatedCardinality.entrySet()) {
 				float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
 				if (avgNumValues != -1) {
-					this.estimatedNumRecords += cardinality.getValue() * avgNumValues;
+					// we have a hint for average values per key
+					newEstimatedNumRecords += cardinality.getValue() * avgNumValues;
 					count++;
 				}
 			}
 			
 			if (count > 0) {
-				this.estimatedNumRecords = (this.estimatedNumRecords /count) >= 1 ?
-						(this.estimatedNumRecords /count) : 1;
+				newEstimatedNumRecords = (newEstimatedNumRecords /count) >= 1 ?
+						(newEstimatedNumRecords /count) : 1;
 			}
-			else {
+		}
+		
+			
+		// ############# output size estimation #####################
 
-				// default output cardinality is equal to number of stub calls
-				this.estimatedNumRecords = this.computeNumberOfStubCalls();
-				
-				if(hints.getAvgRecordsEmittedPerStubCall() != -1.0 && this.computeNumberOfStubCalls() != -1) {
-					// we know how many records are in average emitted per stub call
-					this.estimatedNumRecords = (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall() >= 1) ?
-							(long) (this.computeNumberOfStubCalls() * hints.getAvgRecordsEmittedPerStubCall()) : 1;
-				} else {
-					outputCardEstimated = false;
-				}
-			}
-						
-			// ############# output key cardinality estimation ##########
+		double estAvgRecordWidth = this.computeAverageRecordWidth();
+		
+		if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
+			// we have a cardinality estimate and width estimate
 
-			this.estimatedCardinality.putAll(hints.getDistinctCounts());	
-
-			
-			if (this.getUniqueFields() != null) {
-				for (FieldSet uniqueFieldSet : this.uniqueFields) {
-					if (this.estimatedCardinality.get(uniqueFieldSet) == null) {
-						this.estimatedCardinality.put(uniqueFieldSet, this.estimatedNumRecords);
-					}
-				}
-			}
-			
-			
-			for (int input = 0; input < getIncomingConnections().size(); input++) {
-				int[] keyColumns;
-				if ((keyColumns = getConstantKeySet(input)) != null) {
-					long estimatedKeyCardinality; 
-					if(hints.getAvgRecordsEmittedPerStubCall() > 1.0) {
-						// in average less than one record is emitted per stub call
-						
-						// compute the probability that at least one stub call emits a record for a given key 
-						double probToKeepKey = 1.0 - Math.pow((1.0 - hints.getAvgRecordsEmittedPerStubCall()), this.computeStubCallsPerProcessedKey());
-
-						estimatedKeyCardinality = (this.computeNumberOfProcessedKeys() * probToKeepKey >= 1) ?
-								(long) (this.computeNumberOfProcessedKeys() * probToKeepKey) : 1;
-					} else {
-						// in average more than one record is emitted per stub call. We assume all keys are kept.
-						estimatedKeyCardinality = this.computeNumberOfProcessedKeys();
-					}
-					
-					FieldSet fieldSet = new FieldSet(keyColumns);
-					if (estimatedCardinality.get(fieldSet) == null) {
-						estimatedCardinality.put(fieldSet, estimatedKeyCardinality);	
-					}
-				}
-			}
-			
-			if(this.estimatedNumRecords != -1) {
-				for (Entry<FieldSet, Float> avgNumValues : hints.getAvgNumRecordsPerDistinctFields().entrySet()) {
-					if (estimatedCardinality.get(avgNumValues.getKey()) == null) {
-						long estimatedCard = (this.estimatedNumRecords / avgNumValues.getValue() >= 1) ? 
-								(long) (this.estimatedNumRecords / avgNumValues.getValue()) : 1;
-						estimatedCardinality.put(avgNumValues.getKey(), estimatedCard);
-					}
-				}
-			}
-			 
-			// try to reversely estimate output cardinality from key cardinality
-			if(!outputCardEstimated) { //this.estimatedKeyCardinality != -1 &&
-				// we could derive an estimate for key cardinality but could not derive an estimate for the output cardinality
-				
-				long newEstimatedNumRecords = 0;
-				count = 0;
-				
-				for (Entry<FieldSet, Long> cardinality : estimatedCardinality.entrySet()) {
-					float avgNumValues = hints.getAvgNumRecordsPerDistinctFields(cardinality.getKey());
-					if (avgNumValues != -1) {
-						// we have a hint for average values per key
-						newEstimatedNumRecords += cardinality.getValue() * avgNumValues;
-						count++;
-					}
-				}
-				
-				if (count > 0) {
-					newEstimatedNumRecords = (newEstimatedNumRecords /count) >= 1 ?
-							(newEstimatedNumRecords /count) : 1;
-				}
-			}
-			
-				
-			// ############# output size estimation #####################
-
-			double estAvgRecordWidth = this.computeAverageRecordWidth();
-			
-			if(this.estimatedNumRecords != -1 && estAvgRecordWidth != -1) {
-				// we have a cardinality estimate and width estimate
-
-				this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
-						(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
-			}
-			
-			// check that the key-card is maximally as large as the number of rows
-			for (Entry<FieldSet, Long> cardinality : this.estimatedCardinality.entrySet()) {
-				if (cardinality.getValue() > this.estimatedNumRecords) {
-					cardinality.setValue(this.estimatedNumRecords);
-				}
+			this.estimatedOutputSize = (this.estimatedNumRecords * estAvgRecordWidth) >= 1 ? 
+					(long)(this.estimatedNumRecords * estAvgRecordWidth) : 1;
+		}
+		
+		// check that the key-card is maximally as large as the number of rows
+		for (Entry<FieldSet, Long> cardinality : this.estimatedCardinality.entrySet()) {
+			if (cardinality.getValue() > this.estimatedNumRecords) {
+				cardinality.setValue(this.estimatedNumRecords);
 			}
 		}
 	}
-	
-
-	/**
-	 * Takes the given list of plans that are candidates for this node in the final plan and retains for each distinct
-	 * set of interesting properties only the cheapest plan.
-	 * 
-	 * @param plans
-	 *        The plans to prune.
-	 */
-	public <T extends OptimizerNode> void prunePlanAlternatives(List<T> plans) {
-		// shortcut for the case that there is only one plan
-		if (plans.size() == 1) {
-			return;
-		}
-
-		// if we have unjoined branches, split the list of plans such that only those
-		// with the same candidates at the branch points are compared
-		// otherwise, we may end up with the case that no compatible plans are found at
-		// nodes that join
-		if (this.openBranches == null) {
-			prunePlansWithCommonBranchAlternatives(plans);
-		} else {
-			// TODO brute force still
-			List<T> result = new ArrayList<T>();
-			List<T> turn = new ArrayList<T>();
-
-			while (!plans.isEmpty()) {
-				turn.clear();
-				T determiner = plans.remove(plans.size() - 1);
-				turn.add(determiner);
-
-				for (int k = plans.size() - 1; k >= 0; k--) {
-					boolean equal = true;
-					T toCheck = plans.get(k);
-
-					for (int b = 0; b < this.openBranches.size(); b++) {
-						OptimizerNode brancher = this.openBranches.get(b).branchingNode;
-						OptimizerNode cand1 = determiner.branchPlan.get(brancher);
-						OptimizerNode cand2 = toCheck.branchPlan.get(brancher);
-						if (cand1 != cand2) {
-							equal = false;
-							break;
-						}
-					}
-
-					if (equal) {
-						turn.add(plans.remove(k));
-					}
-				}
-
-				// now that we have only plans with the same branch alternatives, prune!
-				if (turn.size() > 1) {
-					prunePlansWithCommonBranchAlternatives(turn);
-				}
-				result.addAll(turn);
-			}
-
-			// after all turns are complete
-			plans.clear();
-			plans.addAll(result);
-		}
-	}
-
-	private final <T extends OptimizerNode> void prunePlansWithCommonBranchAlternatives(List<T> plans) {
-		List<List<T>> toKeep = new ArrayList<List<T>>(this.intProps.size()); // for each interesting property, which plans
-		// are cheapest
-		for (int i = 0; i < this.intProps.size(); i++) {
-			toKeep.add(null);
-		}
-
-		T cheapest = null; // the overall cheapest plan
-
-		// go over all plans from the list
-		for (T candidate : plans) {
-			// check if that plan is the overall cheapest
-			if (cheapest == null || (cheapest.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0)) {
-				cheapest = candidate;
-			}
-
-			// find the interesting properties that this plan matches
-			for (int i = 0; i < this.intProps.size(); i++) {
-				if (this.intProps.get(i).isMetBy(candidate)) {
-					// the candidate meets them
-					if (toKeep.get(i) == null) {
-						// first one to meet the interesting properties, so store it
-						List<T> l = new ArrayList<T>(2);
-						l.add(candidate);
-						toKeep.set(i, l);
-					} else {
-						// others met that one before
-						// see if that one is more expensive and not more general than
-						// one of the others. If so, drop it.
-						List<T> l = toKeep.get(i);
-						boolean met = false;
-						boolean replaced = false;
-
-						for (int k = 0; k < l.size(); k++) {
-							T other = l.get(k);
-
-							// check if the candidate is both cheaper and at least as general
-							if (other.getGlobalProperties().isMetBy(candidate.getGlobalProperties())
-								&& other.getLocalProperties().isMetBy(candidate.getLocalProperties())
-								&& other.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0) {
-								// replace that one with the candidate
-								l.set(k, replaced ? null : candidate);
-								replaced = true;
-								met = true;
-							} else {
-								// check if the previous plan is more general and not more expensive than the candidate
-								met |= (candidate.getGlobalProperties().isMetBy(other.getGlobalProperties())
-									&& candidate.getLocalProperties().isMetBy(other.getLocalProperties()) && candidate
-									.getCumulativeCosts().compareTo(other.getCumulativeCosts()) >= 0);
-							}
-						}
-
-						if (!met) {
-							l.add(candidate);
-						}
-					}
-				}
-			}
-		}
-
-		// all plans are set now
-		plans.clear();
-
-		// add the cheapest plan
-		if (cheapest != null) {
-			plans.add(cheapest);
-			cheapest.pFlag = true; // remember that that plan is in the set
-		}
-
-		Costs cheapestCosts = cheapest.cumulativeCosts;
-
-		// add all others, which are optimal for some interesting properties
-		for (int i = 0; i < toKeep.size(); i++) {
-			List<T> l = toKeep.get(i);
-
-			if (l != null) {
-				Costs maxDelta = this.intProps.get(i).getMaximalCosts();
-
-				for (T plan : l) {
-					if (plan != null && !plan.pFlag) {
-						plan.pFlag = true;
-
-						// check, if that plan is not more than the delta above the costs of the
-						if (!cheapestCosts.isOtherMoreThanDeltaAbove(plan.getCumulativeCosts(), maxDelta)) {
-							plans.add(plan);
-						}
-					}
-				}
-			}
-		}
-
-		// reset the flags
-		for (T p : plans) {
-			p.pFlag = false;
-		}
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
-	@Override
-	public String toString() {
-		StringBuilder bld = new StringBuilder();
-
-		bld.append(getName());
-		bld.append(" (").append(getPactType().name()).append(") ");
-
-		if (this.localStrategy != null) {
-			bld.append('(');
-			bld.append(getLocalStrategy().name());
-			bld.append(") ");
-		}
-
-		int i = 1; 
-		for(PactConnection conn : getIncomingConnections()) {
-			bld.append('(').append(i++).append(":").append(conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name()).append(')');
-		}
-
-		return bld.toString();
-	}
-
 	
 	/**
 	 * Computes the width of output records
@@ -1069,6 +681,24 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	 * @return the number of stub calls.
 	 */
 	protected long computeNumberOfStubCalls() {
+		return -1;
+	}
+	
+	/**
+	 * Computes the number of keys that are processed by the PACT.
+	 * 
+	 * @return the number of keys processed by the PACT.
+	 */
+	protected long computeNumberOfProcessedKeys() {
+		return -1;
+	}
+	
+	/**
+	 * Computes the number of stub calls for one processed key. 
+	 * 
+	 * @return the number of stub calls for one processed key.
+	 */
+	protected double computeStubCallsPerProcessedKey() {
 		return -1;
 	}
 	
@@ -1117,34 +747,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			throw new CompilerException(
 				"Error in compiler: Cannot get branch info for parent in a node woth no parents.");
 		}
-	}
-	
-	/**
-	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
-	 * alternative plans are comparable, if
-	 * a) There is no branch in the sub-plan of this node
-	 * b) Both candidates have the same candidate as the child at the last open branch. 
-	 * 
-	 * @param subPlan1
-	 * @param subPlan2
-	 * @return
-	 */
-	protected boolean areBranchCompatible(OptimizerNode subPlan1, OptimizerNode subPlan2)
-	{
-		if (subPlan1 == null || subPlan2 == null)
-			throw new CompilerException("SubPlans may not be null.");
-		
-		// if there is no open branch, the children are always compatible.
-		// in most plans, that will be the dominant case
-		if (this.lastJoinedBranchNode == null) {
-			return true;
-		}
-
-		final OptimizerNode nodeToCompare = subPlan1.branchPlan.get(this.lastJoinedBranchNode);
-		if(!(nodeToCompare == subPlan2.branchPlan.get(this.lastJoinedBranchNode)))
-			return false;
-		else
-			return true;
 	}
 
 	
@@ -1223,16 +825,16 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 				// if this is the latest common child, remember it
 				OptimizerNode currBanchingNode = child1open.get(index1).getBranchingNode();
 
-				if (this.lastJoinedBranchNode == null) {
-					this.lastJoinedBranchNode = currBanchingNode;
-				}
+//				if (this.lastJoinedBranchNode == null) {
+//					this.lastJoinedBranchNode = currBanchingNode;
+//				}
 
 				// see, if this node closes the branch
 				long joinedInputs = child1open.get(index1).getJoinedPathsVector()
 					| child2open.get(index2).getJoinedPathsVector();
 
 				// this is 2^size - 1, which is all bits set at positions 0..size-1
-				long allInputs = (0x1L << currBanchingNode.getOutConns().size()) - 1;
+				long allInputs = (0x1L << currBanchingNode.getOutgoingConnections().size()) - 1;
 
 				if (joinedInputs == allInputs) {
 					// closed - we can remove it from the stack
@@ -1259,12 +861,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * Reads all stub annotations
+	 * Reads all stub annotations, i.e. which fields remain constant, what cardinality bounds the
+	 * functions have, which fields remain unique.
 	 */
 	protected void readStubAnnotations() {
-		this.readConstantAnnotation();
-		this.readOutputCardBoundAnnotation();
-		this.readUniqueFieldsAnnotation();
+		readConstantAnnotation();
+		readOutputCardBoundAnnotation();
 	}
 
 	/**
@@ -1292,15 +894,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			if (uniqueFieldSets != null) {
 				this.uniqueFields.addAll(uniqueFieldSets);
 			}
-		}	
+		}
 	}
-
-	/**
-	 * Reads all constant stub annotations.
-	 * Constant stub annotations are defined per input.
-	 */
-	protected abstract void readConstantAnnotation();
-	
 	
 	// ------------------------------------------------------------------------
 	// Access of stub annotations
@@ -1323,6 +918,118 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 	public int getStubOutCardUpperBound() {
 		return this.stubOutCardUB;
 	}
+	
+	/**
+	 * Returns the key columns for the specific input, if all keys are preserved
+	 * by this node. Null, otherwise.
+	 * 
+	 * @param input
+	 * @return
+	 */
+	protected int[] getConstantKeySet(int input)
+	{
+		Contract contract = getPactContract();
+		if (contract instanceof AbstractPact<?>) {
+			AbstractPact<?> abstractPact = (AbstractPact<?>) contract;
+			int[] keyColumns = abstractPact.getKeyColumnNumbers(input);
+			if (keyColumns != null) {
+				if (keyColumns.length == 0) {
+					return null;
+				}
+				for (int keyColumn : keyColumns) {
+					if (!isFieldConstant(input, keyColumn)) {
+						return null;	
+					}
+				}
+				return keyColumns;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * 
+	 */
+	private void computeUniqueFields()
+	{
+		if (this.stubOutCardUB > 1 || this.stubOutCardUB < 0) {
+			return;
+		}
+		
+		//check which uniqueness properties are created by this node
+		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
+		if (uniqueFields != null ) {
+			this.uniqueFields.addAll(uniqueFields);
+		}
+	}
+	
+	/**
+	 * An optional method where nodes can describe which fields will be unique in their output.
+	 * @return
+	 */
+	public List<FieldSet> createUniqueFieldsForNode() {
+		return null;
+	}
+	
+	/**
+	 * Gets the FieldSets which are unique in the output of the node. 
+	 * 
+	 * @return
+	 */
+	public Set<FieldSet> getUniqueFields() {
+		return this.uniqueFields;
+	}
+	
+	
+//	/**
+//	 * Checks whether the FieldSet is unique in the input of the node
+//	 * 
+//	 * @param fieldSet
+//	 * @param input
+//	 * @return
+//	 */
+//	public boolean isFieldSetUnique(FieldSet fieldSet, int input) {
+//
+//		if (fieldSet == null || fieldSet.size() == 0) {
+//			return true;
+//		}
+//		
+//		for (FieldSet uniqueField : this.getUniqueFieldsForInput(input)) {
+//			if (fieldSet.containsAll(uniqueField)) {
+//				return true;
+//			}
+//		}
+//		return false;
+//	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/*
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		StringBuilder bld = new StringBuilder();
+
+		bld.append(getName());
+		bld.append(" (").append(getPactType().name()).append(") ");
+
+		if (this.localStrategy != null) {
+			bld.append('(');
+			bld.append(getLocalStrategy().name());
+			bld.append(") ");
+		}
+
+		int i = 1; 
+		for(PactConnection conn : getIncomingConnections()) {
+			bld.append('(').append(i++).append(":").append(conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name()).append(')');
+		}
+
+		return bld.toString();
+	}
+	
+	// ============================================================================================
 	
 	protected static final class UnclosedBranchDescriptor
 	{
@@ -1347,138 +1054,5 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 		public long getJoinedPathsVector() {
 			return this.joinedPathsVector;
 		}
-	}
-	
-	public abstract boolean isFieldKept(int input, int fieldNumber);
-	
-	/**
-	 * Computes the number of keys that are processed by the PACT.
-	 * 
-	 * @return the number of keys processed by the PACT.
-	 */
-	protected long computeNumberOfProcessedKeys() {
-		return -1;
-	}
-	
-	/**
-	 * Computes the number of stub calls for one processed key. 
-	 * 
-	 * @return the number of stub calls for one processed key.
-	 */
-	protected double computeStubCallsPerProcessedKey() {
-		return -1;
-	}
-	
-	
-	/**
-	 * Returns the key column numbers for the specific input if it
-	 * is preserved by this node. Null, otherwise.
-	 * 
-	 * @param input
-	 * @return
-	 */
-	protected int[] getConstantKeySet(int input) {
-		int[] keyColumns = null;
-		Contract contract = getPactContract();
-		if (contract instanceof AbstractPact<?>) {
-			AbstractPact<?> abstractPact = (AbstractPact<?>) contract;
-			keyColumns = abstractPact.getKeyColumnNumbers(input);
-			if (keyColumns != null) {
-				if (keyColumns.length == 0) {
-					return null;
-				}
-				
-				for (int keyColumn : keyColumns) {
-					if (isFieldKept(input, keyColumn) == false) {
-						return null;	
-					}
-				}
-			}
-		}
-		return keyColumns;
-	}
-	
-	public void computeUniqueFields() {
-		
-		if (stubOutCardUB > 1 || stubOutCardUB < 0) {
-			return;
-		}
-		
-		//check for inputs
-		for (int i = 0; i < getIncomingConnections().size(); i++) {
-		
-			Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(i);
-			for (FieldSet uniqueField : uniqueInChild) {
-				if (keepsUniqueProperty(uniqueField, i)) {
-					this.uniqueFields.add(uniqueField);
-				}
-			}
-		}
-		
-		//check which uniqueness properties are created by this node
-		List<FieldSet> uniqueFields = createUniqueFieldsForNode();
-		if (uniqueFields != null ) {
-			this.uniqueFields.addAll(uniqueFields);
-		}
-		
-	}
-	
-	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
-		for (Integer uniqueField : uniqueSet) {
-			if (isFieldKept(input, uniqueField) == false) {
-				return false;
-			}
-		}
-		return true;
-	}
-	
-	public List<FieldSet> createUniqueFieldsForNode() {
-		return null;
-	}
-	
-	/**
-	 * Gets the FieldSets which are unique in the output of the node 
-	 * 
-	 * @return
-	 */
-	public Set<FieldSet> getUniqueFields() {
-		return uniqueFields;
-	}
-	
-	
-	/**
-	 * Checks whether the FieldSet is unique in the input of the node
-	 * 
-	 * @param fieldSet
-	 * @param input
-	 * @return
-	 */
-	public boolean isFieldSetUnique(FieldSet fieldSet, int input) {
-
-		if (fieldSet == null || fieldSet.size() == 0) {
-			return true;
-		}
-		
-		for (FieldSet uniqueField : this.getUniqueFieldsForInput(input)) {
-			if (fieldSet.containsAll(uniqueField)) {
-				return true;
-			}
-		}
-		return false;
-	}
-	
-	/**
-	 * Get the unique FieldSets of the given input
-	 */
-	protected Set<FieldSet> getUniqueFieldsForInput(int input) {
-		
-		if (input < 0 || input >= getIncomingConnections().size()) {
-			return Collections.emptySet();
-		}
-		
-		PactConnection conn = getIncomingConnections().get(input);
-		
-		return conn.getSourcePact().getUniqueFields();
-		
 	}
 }

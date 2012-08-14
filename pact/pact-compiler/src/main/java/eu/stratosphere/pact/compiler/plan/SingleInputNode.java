@@ -27,38 +27,29 @@ import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 /**
  * A node in the optimizer plan that represents a PACT with a single input.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public abstract class SingleInputNode extends OptimizerNode {
 
 	// ------------- Node Connection
 	
-	protected PactConnection inConn = null; // the input of the node
-	
-	// ------------- Optimizer Cache
-	
-	private List<OptimizerNode> cachedPlans; // a cache for the computed alternative plans
+	protected PactConnection inConn; // the input of the node
 
 	// ------------- Stub Annotations
 	
 	protected FieldSet constantSet; // set of fields that are left unchanged by the stub
 	protected FieldSet notConstantSet; // set of fields that are changed by the stub
 	
-	protected FieldList keyList; // The set of key fields (order is relevant!)
+	protected final FieldSet keyList; // The set of key fields
 
 	// ------------------------------
 	
@@ -70,44 +61,44 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
-		this.keyList = new FieldList(pactContract.getKeyColumnNumbers(0));
+		this.keyList = new FieldSet(pactContract.getKeyColumnNumbers(0));
 	}
 
-	/**
-	 * Copy constructor to create a copy of a node with a different predecessor. The predecessor
-	 * is assumed to be of the same type and merely a copy with different strategies, as they
-	 * are created in the process of the plan enumeration.
-	 * 
-	 * @param template
-	 *        The node to create a copy of.
-	 * @param predNode
-	 *        The new predecessor.
-	 * @param inConn
-	 *        The old connection to copy properties from.
-	 * @param globalProps
-	 *        The global properties of this copy.
-	 * @param localProps
-	 *        The local properties of this copy.
-	 */
-	protected SingleInputNode(SingleInputNode template, OptimizerNode predNode, PactConnection inConn,
-			GlobalProperties globalProps, LocalProperties localProps) {
-		super(template, globalProps, localProps);
-
-		// copy annotations
-		this.constantSet = template.constantSet;
-		
-		// copy key set
-		this.keyList = template.keyList;
-		
-		// copy input connection
-		this.inConn = new PactConnection(inConn, predNode, this);
-		
-		if (this.branchPlan == null) {
-			this.branchPlan = predNode.branchPlan;
-		} else if (predNode.branchPlan != null) {
-			this.branchPlan.putAll(predNode.branchPlan);
-		}
-	}
+//	/**
+//	 * Copy constructor to create a copy of a node with a different predecessor. The predecessor
+//	 * is assumed to be of the same type and merely a copy with different strategies, as they
+//	 * are created in the process of the plan enumeration.
+//	 * 
+//	 * @param template
+//	 *        The node to create a copy of.
+//	 * @param predNode
+//	 *        The new predecessor.
+//	 * @param inConn
+//	 *        The old connection to copy properties from.
+//	 * @param globalProps
+//	 *        The global properties of this copy.
+//	 * @param localProps
+//	 *        The local properties of this copy.
+//	 */
+//	protected SingleInputNode(SingleInputNode template, OptimizerNode predNode, PactConnection inConn,
+//			GlobalProperties globalProps, LocalProperties localProps) {
+//		super(template, globalProps, localProps);
+//
+//		// copy annotations
+//		this.constantSet = template.constantSet;
+//		
+//		// copy key set
+//		this.keyList = template.keyList;
+//		
+//		// copy input connection
+//		this.inConn = new PactConnection(inConn, predNode, this);
+//		
+//		if (this.branchPlan == null) {
+//			this.branchPlan = predNode.branchPlan;
+//		} else if (predNode.branchPlan != null) {
+//			this.branchPlan.putAll(predNode.branchPlan);
+//		}
+//	}
 
 	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its input.
@@ -167,30 +158,53 @@ public abstract class SingleInputNode extends OptimizerNode {
 			pred.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred.SetId(this.id);
-			pred.setInstancesPerMachine(instancesPerMachine);
+			pred.setInstancesPerMachine(this.instancesPerMachine);
 			this.id++;
 		}
 		// create the connection and add it
 		PactConnection conn = new PactConnection(pred, this);
 		this.setInConn(conn);
-		pred.addOutConn(conn);
+		pred.addOutgoingConnection(conn);
 		
 		// see if an internal hint dictates the strategy to use
 		Configuration conf = getPactContract().getParameters();
+		
 		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
 		if (shipStrategy != null) {
-			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				conn.setShipStrategy(new ForwardSS());
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				conn.setShipStrategy(new PartitionHashSS(this.keyList));
-			} else {
-				throw new CompilerException("Invalid hint for the shipping strategy of a single input connection: "
-					+ shipStrategy);
+			if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+				conn.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_FORWARD)) {
+				conn.setShipStrategy(ShipStrategyType.FORWARD);
 			}
 		}
 	}
-
-	// ----------------- Recursive Optimization
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
+	 */
+	public boolean isFieldConstant(int input, int fieldNumber) {
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+		if (this.constantSet == null) {
+			return this.notConstantSet == null ? false : !this.notConstantSet.contains(fieldNumber);
+		} else {
+			return this.constantSet.contains(fieldNumber);
+		}
+	}
+		
+	/**
+	 * Gets the set of key fields for this optimizer node.
+	 * 
+	 * @return The key fields of this optimizer node.
+	 */
+	public FieldSet getKeySet() {
+		return this.keyList;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                   Recursive Optimization
+	// --------------------------------------------------------------------------------------------
 	
 	/*
 	 * (non-Javadoc)
@@ -198,25 +212,25 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	@Override
 	final public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
-		// check if we have a cached version
-		if (this.cachedPlans != null) {
-			return this.cachedPlans;
-		}
-
-		// calculate alternative subplans for predecessor
-		List<? extends OptimizerNode> subPlans = this.getPredNode().getAlternativePlans(estimator);  
+//		// check if we have a cached version
+//		if (this.cachedPlans != null) {
+//			return this.cachedPlans;
+//		}
+//
+//		// calculate alternative subplans for predecessor
+//		List<? extends OptimizerNode> subPlans = this.getPredNode().getAlternativePlans(estimator);  
 
 		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
-
-		computeValidPlanAlternatives(subPlans, estimator,  outputPlans);
-		
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (this.getOutConns() != null && this.getOutConns().size() > 1) {
-			this.cachedPlans = outputPlans;
-		}
+//
+//		computeValidPlanAlternatives(subPlans, estimator,  outputPlans);
+//		
+//		// prune the plans
+//		prunePlanAlternatives(outputPlans);
+//
+//		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
+//		if (this.getOutConns() != null && this.getOutConns().size() > 1) {
+//			this.cachedPlans = outputPlans;
+//		}
 
 		return outputPlans;
 	}
@@ -231,7 +245,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 	protected abstract void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans, 
 			CostEstimator estimator, List<OptimizerNode> outputPlans);
 	
-	// -------------------- Branch Handling
+	// --------------------------------------------------------------------------------------------
+	//                                     Branch Handling
+	// --------------------------------------------------------------------------------------------
 	
 	/*
 	 * (non-Javadoc)
@@ -251,49 +267,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 			
 		this.openBranches = result;
 	}
-
-	// ------------------------------------------------------------------------
-
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor
-	 * )
-	 */
-	@Override
-	public void accept(Visitor<OptimizerNode> visitor) {
-		boolean descend = visitor.preVisit(this);
-
-		if (descend) {
-			
-			if(this.getPredNode() != null) {
-				this.getPredNode().accept(visitor);
-			}
-			
-			visitor.postVisit(this);
-		}
-	}
 	
-	/**
-	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.pact.compiler.plan.OptimizerNode}.
-	 * 
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setCosts(eu.stratosphere.pact.compiler.Costs)
-	 */
-	@Override
-	public void setCosts(Costs nodeCosts) {
-		super.setCosts(nodeCosts);
-		
-		// check, if this node has no branch beneath it, no double-counted cost then
-		if (this.lastJoinedBranchNode == null) {
-			return;
-		} else {
-			// TODO: revisit branch handling
-			throw new CompilerException("SingleInputNode should not have a branch node");
-		}
-
-	}
-	
-	// ------------------------- Estimate Computation
+	// --------------------------------------------------------------------------------------------
+	//                                   Stub Annotation Handling
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Computes the width of output records.
@@ -305,7 +282,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		CompilerHints hints = getPactContract().getCompilerHints();
 		
 		// use hint if available
-		if(hints != null && hints.getAvgBytesPerRecord() != -1) {
+		if (hints != null && hints.getAvgBytesPerRecord() != -1) {
 			return hints.getAvgBytesPerRecord();
 		}
 
@@ -313,46 +290,26 @@ public abstract class SingleInputNode extends OptimizerNode {
 		final long numRecords = computeNumberOfStubCalls();
 		
 		long outputSize = 0;
-		if(this.getPredNode() != null) {
+		if (this.getPredNode() != null) {
 			outputSize = this.getPredNode().estimatedOutputSize;
 		}
 		
 		// compute width only if we have information
-		if(numRecords == -1 || outputSize == -1)
+		if (numRecords == -1 || outputSize == -1)
 			return -1;
 		
 		final double width = outputSize / (double)numRecords;
 
 		// a record must have at least one byte...
-		if(width < 1)
+		if (width < 1)
 			return 1;
 		else 
 			return width;
 	}
 	
-	// -------------------- Operator Properties
-	
-	public boolean isFieldKept(int input, int fieldNumber) {
-		
-		if (input != 0) {
-			throw new IndexOutOfBoundsException();
-		}
-		
-		if (this.constantSet == null) {
-			if (this.notConstantSet == null) {
-				return false;
-			}
-			return this.notConstantSet.contains(fieldNumber) == false;
-		}
-		
-		return this.constantSet.contains(fieldNumber);
-	}
-		
-	public FieldList getKeySet() {
-		return this.keyList;
-	}
-	
-	// --------------------------- Stub Annotation Handling
+	// --------------------------------------------------------------------------------------------
+	//                                   Stub Annotation Handling
+	// --------------------------------------------------------------------------------------------
 	
 	/*
 	 * (non-Javadoc)
@@ -387,5 +344,25 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 
-	
+	// --------------------------------------------------------------------------------------------
+	//                                     Miscellaneous
+	// --------------------------------------------------------------------------------------------
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.pact.compiler.plan.OptimizerNode#accept(eu.stratosphere.pact.common.plan.Visitor
+	 * )
+	 */
+	@Override
+	public void accept(Visitor<OptimizerNode> visitor) {
+		if (visitor.preVisit(this)) {
+			if (this.getPredNode() != null) {
+				this.getPredNode().accept(visitor);
+			} else {
+				throw new CompilerException();
+			}
+			visitor.postVisit(this);
+		}
+	}
 }

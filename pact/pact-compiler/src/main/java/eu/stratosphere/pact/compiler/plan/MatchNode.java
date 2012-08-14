@@ -1124,30 +1124,32 @@ public class MatchNode extends TwoInputNode {
 	
 	public boolean keepsUniqueProperty(FieldSet uniqueSet, int input) {
 		
-		FieldSet keyColumnsOtherInput;
+		return false;
 		
-		switch (input) {
-		case 0:
-			keyColumnsOtherInput = new FieldSet(keySet2);
-			break;
-		case 1:
-			keyColumnsOtherInput = new FieldSet(keySet1);
-			break;
-		default:
-			throw new RuntimeException("Input num out of bounds");
-		}
-		
-		Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(1-input);
-		
-		boolean otherKeyIsUnique = false;
-		for (FieldSet uniqueFields : uniqueInChild) {
-			if (keyColumnsOtherInput.containsAll(uniqueFields)) {
-				otherKeyIsUnique = true;
-				break;
-			}
-		}
-		
-		return otherKeyIsUnique;
+//		FieldSet keyColumnsOtherInput;
+//		
+//		switch (input) {
+//		case 0:
+//			keyColumnsOtherInput = new FieldSet(keySet2);
+//			break;
+//		case 1:
+//			keyColumnsOtherInput = new FieldSet(keySet1);
+//			break;
+//		default:
+//			throw new RuntimeException("Input num out of bounds");
+//		}
+//		
+//		Set<FieldSet> uniqueInChild = getUniqueFieldsForInput(1-input);
+//		
+//		boolean otherKeyIsUnique = false;
+//		for (FieldSet uniqueFields : uniqueInChild) {
+//			if (keyColumnsOtherInput.containsAll(uniqueFields)) {
+//				otherKeyIsUnique = true;
+//				break;
+//			}
+//		}
+//		
+//		return otherKeyIsUnique;
 	}
 	
 }

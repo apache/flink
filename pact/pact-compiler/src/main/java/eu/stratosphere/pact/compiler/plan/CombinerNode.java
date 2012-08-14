@@ -33,7 +33,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * 
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
-public class CombinerNode extends OptimizerNode {
+public class CombinerNode extends OptimizerNode
+{
 	private PactConnection input;
 
 	public CombinerNode(ReduceContract reducer, OptimizerNode predecessor, float reducingFactor) {

@@ -15,14 +15,12 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-//import java.util.ArrayList;
 import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
-//import eu.stratosphere.pact.compiler.OutputContract;
 
 /**
  * The interesting properties that a node in the optimizer plan hands to its predecessors. It has the
@@ -132,7 +130,8 @@ public class InterestingProperties implements Cloneable {
 	 * @return True, if the node meets the properties, false otherwise.
 	 */
 	public boolean isMetBy(OptimizerNode node) {
-		return globalProps.isMetBy(node.getGlobalProperties()) && localProps.isMetBy(node.getLocalProperties());
+//		return globalProps.isMetBy(node.getGlobalProperties()) && localProps.isMetBy(node.getLocalProperties());
+		return false;
 	}
 
 	// ------------------------------------------------------------------------
@@ -199,8 +198,9 @@ public class InterestingProperties implements Cloneable {
 	@Override
 	public InterestingProperties clone()
 	{
-		return new InterestingProperties(maximalCosts.createCopy(), 
-			globalProps.createCopy(), localProps.createCopy());
+//		return new InterestingProperties(maximalCosts.createCopy(), 
+//			globalProps.createCopy(), localProps.createCopy());
+		return null;
 	}
 
 	// ------------------------------------------------------------------------

@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.test.testPrograms.util.tests;
 
-import org.eclipse.jdt.internal.core.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -53,12 +53,8 @@ public class IntTupleDataInFormatTest
 			
 			inFormat.readRecord(rec, tupleBytes, 0, tupleBytes.length);
 			
-			Assert.isTrue(rec.getField(0, PactInteger.class).equals(new PactInteger(expectedKeys[i])) , "Expected Key: "+expectedKeys[i]+" != Returned Key: "+rec.getField(0, PactInteger.class));
-			Assert.isTrue(rec.getField(1, Tuple.class).getNumberOfColumns() == expectedAttrCnt[i], "Expected Attr Cnt: "+expectedAttrCnt[i]+" != Returned Attr Cnt: "+rec.getField(1, Tuple.class));
+			Assert.assertTrue("Expected Key: "+expectedKeys[i]+" != Returned Key: "+rec.getField(0, PactInteger.class), rec.getField(0, PactInteger.class).equals(new PactInteger(expectedKeys[i])));
+			Assert.assertTrue("Expected Attr Cnt: "+expectedAttrCnt[i]+" != Returned Attr Cnt: "+rec.getField(1, Tuple.class), rec.getField(1, Tuple.class).getNumberOfColumns() == expectedAttrCnt[i]);
 		}
-
 	}
-	
-	
-
 }
