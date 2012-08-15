@@ -168,12 +168,6 @@ public abstract class CostEstimator {
 		case HYBRIDHASH_SECOND:
 			getHybridHashCosts(n, secConn, primConn, locCost);
 			break;
-		case MMHASH_FIRST:
-			getMainMemHashCosts(n, primConn, secConn, locCost);
-			break;
-		case MMHASH_SECOND:
-			getMainMemHashCosts(n, secConn, primConn, locCost);
-			break;
 		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
 			getBlockNestedLoopsCosts(n, primConn, secConn, BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, locCost);
 			break;

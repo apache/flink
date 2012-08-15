@@ -508,10 +508,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>
 			if (ips.size() > 0) {
 				if (props == null) {
 					props = new ArrayList<InterestingProperties>();
-					props.addAll(ips);
-				} else {
-					InterestingProperties.mergeUnionOfInterestingProperties(props, ips);
 				}
+				InterestingProperties.mergeUnionOfInterestingProperties(props, ips);
 			}
 		}
 		this.intProps = (props == null || props.isEmpty()) ? Collections.<InterestingProperties>emptyList() : props;

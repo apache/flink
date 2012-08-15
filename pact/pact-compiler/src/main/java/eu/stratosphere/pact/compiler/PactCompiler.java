@@ -665,9 +665,11 @@ public class PactCompiler {
 		// 1) propagate the interesting properties top-down through the graph
 		// 2) Track information about nodes with multiple outputs that are later on reconnected in a node with
 		// multiple inputs.
-		InterestingPropertyAndBranchesVisitor propsVisitor = new InterestingPropertyAndBranchesVisitor(
-			this.costEstimator);
+		InterestingPropertyVisitor propsVisitor = new InterestingPropertyVisitor(this.costEstimator);
 		rootNode.accept(propsVisitor);
+		
+		BranchesVisitor branchingVisitor = new BranchesVisitor();
+		rootNode.accept(branchingVisitor);
 //
 //		// the final step is now to generate the actual plan alternatives
 //		List<? extends OptimizerNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
@@ -781,7 +783,7 @@ public class PactCompiler {
 				return false;
 			}
 
-			OptimizerNode n = null;
+			final OptimizerNode n;
 
 			// create a node for the pact (or sink or source) if we have not been here before
 			if (c instanceof GenericDataSink) {
@@ -845,7 +847,6 @@ public class PactCompiler {
 			if (n.getId() > 0) {
 				return;
 			}
-
 			n.SetId(this.id);
 
 			// first connect to the predecessors
@@ -864,17 +865,13 @@ public class PactCompiler {
 		public int getId() {
 			return this.id;
 		}
-
 	};
-
+	
 	/**
 	 * Visitor that computes the interesting properties for each node in the plan. On its recursive
-	 * depth-first descend, it propagates all interesting properties top-down. On its re-ascend,
-	 * it computes auxiliary maps that are needed to support plans that are not a minimally connected
-	 * DAG (Such plans are not trees, but at least one node feeds its output into more than one other
-	 * node).
+	 * depth-first descend, it propagates all interesting properties top-down.
 	 */
-	private static final class InterestingPropertyAndBranchesVisitor implements Visitor<OptimizerNode> {
+	private static final class InterestingPropertyVisitor implements Visitor<OptimizerNode> {
 
 		private CostEstimator estimator; // the cost estimator used to compute the
 
@@ -887,10 +884,10 @@ public class PactCompiler {
 		 * @param estimator
 		 *        The cost estimator to estimate the maximal costs for interesting properties.
 		 */
-		InterestingPropertyAndBranchesVisitor(CostEstimator estimator) {
+		InterestingPropertyVisitor(CostEstimator estimator) {
 			this.estimator = estimator;
 		}
-
+		
 		/*
 		 * (non-Javadoc)
 		 * @see
@@ -904,8 +901,36 @@ public class PactCompiler {
 			if (node.haveAllOutputConnectionInterestingProperties() && node.getInterestingProperties() == null) {
 				node.computeInterestingProperties();
 				node.computeInterestingPropertiesForInputs(this.estimator);
+				return true;
+			} else {
+				return false;
 			}
+		}
 
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public void postVisit(OptimizerNode visitable) {
+		}
+	}
+
+	/**
+	 * Visitor that computes the interesting properties for each node in the plan. On its recursive
+	 * depth-first descend, it propagates all interesting properties top-down. On its re-ascend,
+	 * it computes auxiliary maps that are needed to support plans that are not a minimally connected
+	 * DAG (Such plans are not trees, but at least one node feeds its output into more than one other
+	 * node).
+	 */
+	private static final class BranchesVisitor implements Visitor<OptimizerNode>
+	{
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public boolean preVisit(OptimizerNode node) {
 			// make sure we descend in any case (even if it causes redundant descends), because the branch propagation
 			// during the post visit needs to happen during the first re-ascend
 			return true;

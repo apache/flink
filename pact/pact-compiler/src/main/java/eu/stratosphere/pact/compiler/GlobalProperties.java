@@ -15,13 +15,9 @@
 
 package eu.stratosphere.pact.compiler;
 
-import java.util.ArrayList;
-
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
-import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.compiler.plan.UnionNode;
 
 /**
  * This class represents global properties of the data. Global properties are properties that
@@ -31,7 +27,7 @@ public final class GlobalProperties implements Cloneable
 {
 	private PartitionProperty partitioning;		// the type partitioning
 	
-	private FieldSet partitioningFields;
+	private OptimizerFieldSet partitioningFields;
 	
 	private Ordering ordering;					// order of the partitioned fields, if it is an ordered (range) range partitioning
 	
@@ -43,8 +39,6 @@ public final class GlobalProperties implements Cloneable
 	public GlobalProperties() {
 		this.partitioning = PartitionProperty.NONE;
 	}
-	
-//	public GlobalProperties(PartitionProperty partitioning, FieldSet partitionedFields
 
 	/**
 	 * @param partitioning
@@ -53,10 +47,29 @@ public final class GlobalProperties implements Cloneable
 	public GlobalProperties(PartitionProperty partitioning, Ordering ordering) {
 		this.partitioning = partitioning;
 		this.ordering = ordering;
+		this.partitioningFields = OptimizerFieldList.getFromOrdering(ordering);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Sets the partitioning property for the global properties.
+	 * 
+	 * @param partitioning
+	 *        The new partitioning to set.
+	 */
+	public void setPartitioning(PartitionProperty partitioning, OptimizerFieldSet partitionedFields) {
+		this.partitioning = partitioning;
+		this.partitioningFields = partitionedFields;
+	}
+	
+
+	public void setPartitioning(PartitionProperty partitioning, Ordering ordering) {
+		this.partitioning = partitioning;
+		this.ordering = ordering;
+		this.partitioningFields = OptimizerFieldList.getFromOrdering(ordering);
+	}
+
 	/**
 	 * Gets the partitioning property.
 	 * 
@@ -66,27 +79,10 @@ public final class GlobalProperties implements Cloneable
 		return partitioning;
 	}
 	
-	public FieldList getPartitionedFields() {
-		return this.partitioning == PartitionProperty.NONE ? null : this.ordering.getInvolvedIndexes();
-	}
-
-	/**
-	 * Sets the partitioning property for the global properties.
-	 * 
-	 * @param partitioning
-	 *        The new partitioning to set.
-	 */
-	public void setPartitioning(PartitionProperty partitioning, FieldList partitionedFields) {
-		this.partitioning = partitioning;
-//		this.partitionedFields = partitionedFields;
+	public OptimizerFieldSet getPartitionedFields() {
+		return this.partitioning == PartitionProperty.NONE ? null : this.partitioningFields;
 	}
 	
-
-	public void setPartitioning(PartitionProperty partitioning, Ordering ordering) {
-		this.partitioning = partitioning;
-		this.ordering = ordering;
-	}
-
 	/**
 	 * Gets the key order.
 	 * 
@@ -94,16 +90,6 @@ public final class GlobalProperties implements Cloneable
 	 */
 	public Ordering getOrdering() {
 		return this.ordering;
-	}
-
-	/**
-	 * Sets the key order for these global properties.
-	 * 
-	 * @param keyOrder
-	 *        The key order to set.
-	 */
-	public void setOrdering(Ordering ordering) {
-		this.ordering = ordering;
 	}
 
 	/**

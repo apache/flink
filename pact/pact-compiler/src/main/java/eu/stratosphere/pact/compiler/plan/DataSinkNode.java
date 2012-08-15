@@ -27,6 +27,7 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
+import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -217,20 +218,39 @@ public class DataSinkNode extends OptimizerNode {
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator)
 	{
 		// interesting properties that a data sink may generate are
-		// 1) an interest in globally sorted data
-		// 2) an interest in range-partitioned data
-		// 3) an interest in locally sorted data
-		Ordering partitioning = getPactContract().getPartitionOrdering();
+		// 1) an interest in globally sorted data (range partitioned and locally sorted)
+		// 2) an interest in range partitioned data
+		// 2) an interest in locally sorted data
+		final Ordering partitioning = getPactContract().getPartitionOrdering();
+		final Ordering localOrder = getPactContract().getLocalOrder();
+		
 		if (partitioning != null) {
+			// range partitioned only or global sort
+			// in both cases create a range partitioned only IP
 			InterestingProperties partitioningProps = new InterestingProperties();
-			partitioningProps.getGlobalProperties().setOrdering(partitioning);
-
-			// costs are a range partitioning and a local sort
+			partitioningProps.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, partitioning);
 			estimator.getRangePartitionCost(this.input, partitioningProps.getMaximalCosts());
-			Costs c = new Costs();
-			estimator.getLocalSortCost(this, this.input, c);
-			partitioningProps.getMaximalCosts().addCosts(c);
 			this.input.addInterestingProperties(partitioningProps);
+		}
+		
+		if (localOrder != null) {
+			if (partitioning != null && localOrder.equals(partitioning)) {
+				// global sort case: create IP for range partitioned and sorted
+				InterestingProperties globalSortProps = new InterestingProperties();
+				globalSortProps.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, partitioning);
+				estimator.getRangePartitionCost(this.input, globalSortProps.getMaximalCosts());
+				
+				
+				Costs sortCosts = new Costs();
+				estimator.getLocalSortCost(this, this.input, sortCosts);
+				globalSortProps.getMaximalCosts().addCosts(sortCosts);
+				this.input.addInterestingProperties(globalSortProps);
+			} else {
+				// local order only
+			}
+		} else {
+		
+
 			
 			Ordering localOrdering = getPactContract().getLocalOrder();
 			if (localOrdering != null && localOrdering.equals(partitioning)) {

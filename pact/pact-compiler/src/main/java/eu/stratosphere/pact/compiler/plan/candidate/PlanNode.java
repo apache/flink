@@ -31,7 +31,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  *
- *
  * @author Stephan Ewen
  */
 public abstract class PlanNode implements Visitable<PlanNode>
@@ -97,6 +96,24 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	 */
 	public LocalStrategy getLocalStrategy() {
 		return this.localStrategy;
+	}
+	
+	/**
+	 * Gets the local properties from this PlanNode.
+	 *
+	 * @return The local properties.
+	 */
+	public LocalProperties getLocalProperties() {
+		return localProps;
+	}
+	
+	/**
+	 * Gets the global properties from this PlanNode.
+	 *
+	 * @return The global properties.
+	 */
+	public GlobalProperties getGlobalProperties() {
+		return globalProps;
 	}
 	
 	/**

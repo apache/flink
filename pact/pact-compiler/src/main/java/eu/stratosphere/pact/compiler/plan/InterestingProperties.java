@@ -21,6 +21,7 @@ import java.util.List;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 
 /**
  * The interesting properties that a node in the optimizer plan hands to its predecessors. It has the
@@ -28,10 +29,10 @@ import eu.stratosphere.pact.compiler.LocalProperties;
  * let the node fulfill its pact cheaper. More on optimization with interesting properties can be found
  * in the works on the volcano- and cascades optimizer framework.
  */
-public class InterestingProperties implements Cloneable {
+public class InterestingProperties implements Cloneable
+{
 	private Costs maximalCosts; // the maximal costs that it may take to establish these
-
-	// interesting properties, before they become worthless
+	                            // interesting properties, before they become worthless
 
 	private GlobalProperties globalProps; // the global properties, i.e. properties across partitions
 
@@ -129,9 +130,8 @@ public class InterestingProperties implements Cloneable {
 	 *        The node to test.
 	 * @return True, if the node meets the properties, false otherwise.
 	 */
-	public boolean isMetBy(OptimizerNode node) {
-//		return globalProps.isMetBy(node.getGlobalProperties()) && localProps.isMetBy(node.getLocalProperties());
-		return false;
+	public boolean isMetBy(PlanNode node) {
+		return globalProps.isMetBy(node.getGlobalProperties()) && localProps.isMetBy(node.getLocalProperties());
 	}
 
 	// ------------------------------------------------------------------------

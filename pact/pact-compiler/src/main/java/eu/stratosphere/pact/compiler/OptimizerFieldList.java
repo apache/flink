@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import eu.stratosphere.pact.common.contract.Ordering;
+
 
 /**
  *
@@ -99,5 +101,15 @@ public class OptimizerFieldList extends OptimizerFieldSet
 
 	private List<ColumnWithType> get() {
 		return (List<ColumnWithType>) this.collection;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public static OptimizerFieldList getFromOrdering(Ordering ordering) {
+		final OptimizerFieldList list = new OptimizerFieldList();
+		for (int i = 0; i < ordering.getNumberOfFields(); i++) {
+			list.add(ordering.getFieldNumber(i), ordering.getType(i));
+		}
+		return list;
 	}
 }

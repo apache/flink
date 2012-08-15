@@ -19,6 +19,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 
+import eu.stratosphere.pact.common.type.Key;
+
 
 /**
  *
@@ -37,6 +39,10 @@ public class OptimizerFieldSet implements Iterable<ColumnWithType>
 	
 	public void add(ColumnWithType columnIndex) {
 		this.collection.add(columnIndex);
+	}
+	
+	public void add(int columnIndex, Class<? extends Key> columnType) {
+		add(new ColumnWithType(columnIndex, columnType));
 	}
 
 	public void addAll(Collection<ColumnWithType> columnIndexes) {
