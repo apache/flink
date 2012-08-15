@@ -126,7 +126,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 	/**
 	 * The config parameter for the opening timeout in milliseconds.
 	 */
-	private static final String INPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.input.file.timeout";
+	public static final String INPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.input.file.timeout";
 	
 	// --------------------------------------------------------------------------------------------
 	

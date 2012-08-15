@@ -49,7 +49,7 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 	/**
 	 * The config parameter for the opening timeout in milliseconds.
 	 */
-	private static final String OUTPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.output.file.timeout";
+	public static final String OUTPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.output.file.timeout";
 	
 	/**
 	 * The path of the file to be written.
