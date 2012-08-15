@@ -270,16 +270,11 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		FileDataSource docs = new FileDataSource(RecordInputFormat.class, docsInput, "Docs Input");
 		docs.setDegreeOfParallelism(noSubTasks);
 		docs.getCompilerHints().setUniqueField(new FieldSet(0));
-		
-		docs.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		docs.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		docs.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-		// url
-		docs.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, VarLengthStringParser.class);
-		docs.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// doctext
-		docs.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, VarLengthStringParser.class);
-		docs.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 1);
+		RecordInputFormat.configureRecordFormat(docs)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(VarLengthStringParser.class, 0)
+			.field(VarLengthStringParser.class, 1);
 		
 		/*
 		 * Output Format:
@@ -290,19 +285,12 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		// Create DataSourceContract for ranks relation
 		FileDataSource ranks = new FileDataSource(RecordInputFormat.class, ranksInput, "Ranks input");
 		ranks.setDegreeOfParallelism(noSubTasks);
-		
-		ranks.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		ranks.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		ranks.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
-		// url
-		ranks.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, VarLengthStringParser.class);
-		ranks.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 1);
-		// rank
-		ranks.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
-		ranks.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 0);
-		// avgDuration
-		ranks.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+2, DecimalTextIntParser.class);
-		ranks.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+2, 2);
+		RecordInputFormat.configureRecordFormat(ranks)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(VarLengthStringParser.class, 1)
+			.field(DecimalTextIntParser.class, 0)
+			.field(DecimalTextIntParser.class, 2);
 
 		/*
 		 * Output Format:
@@ -312,17 +300,11 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		// Create DataSourceContract for visits relation
 		FileDataSource visits = new FileDataSource(RecordInputFormat.class, visitsInput, "Visits input:q");
 		visits.setDegreeOfParallelism(noSubTasks);
-		
-		visits.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		visits.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		visits.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-		// url
-		visits.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, VarLengthStringParser.class);
-		visits.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 1);
-		// date
-		visits.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, VarLengthStringParser.class);
-		visits.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 2);
-		
+		RecordInputFormat.configureRecordFormat(visits)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(VarLengthStringParser.class, 1)
+			.field(VarLengthStringParser.class, 2);
 
 		// Create MapContract for filtering the entries from the documents
 		// relation
@@ -375,16 +357,13 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		// Create DataSinkContract for writing the result of the OLAP query
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, antiJoinVisits, "Result");
 		result.setDegreeOfParallelism(noSubTasks);
-		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		result.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 1);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 0);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactInteger.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 2);
+		RecordOutputFormat.configureRecordFormat(result)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.lenient(true)
+			.field(PactInteger.class, 1)
+			.field(PactString.class, 0)
+			.field(PactInteger.class, 2);
 
 		// Return the PACT plan
 		return new Plan(result, "Weblog Analysis");
