@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,7 +31,8 @@ public class ComparativeExpressionParameterizedTest {
 
 	private final EvaluationContext context = new EvaluationContext();
 
-	public ComparativeExpressionParameterizedTest(final IJsonNode expr1, final BinaryOperator op, final IJsonNode expr2,
+	public ComparativeExpressionParameterizedTest(final IJsonNode expr1, final BinaryOperator op,
+			final IJsonNode expr2,
 			final BooleanNode ExpectedResult) {
 		this.expr1 = expr1;
 		this.expr2 = expr2;

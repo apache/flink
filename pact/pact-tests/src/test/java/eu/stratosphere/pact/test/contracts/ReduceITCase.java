@@ -131,7 +131,8 @@ public class ReduceITCase extends TestBase
 
 		FileDataSource input = new FileDataSource(
 				ContractITCaseInputFormat.class, pathPrefix + "/reduceInput");
-		input.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input)
+			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
 		ReduceContract testReducer = new ReduceContract.Builder(TestReducer.class, PactString.class, 0)

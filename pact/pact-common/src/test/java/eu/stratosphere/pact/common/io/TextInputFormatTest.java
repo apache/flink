@@ -35,18 +35,15 @@ import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.fs.hdfs.DistributedDataInputStream;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(DistributedDataInputStream.class)
 @PowerMockIgnore("org.apache.log4j.*")
 public class TextInputFormatTest
 {

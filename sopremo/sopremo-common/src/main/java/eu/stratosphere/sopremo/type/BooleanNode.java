@@ -1,10 +1,14 @@
 package eu.stratosphere.sopremo.type;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
+ * This node represents a boolean value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -96,7 +100,7 @@ public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 
 	@Override
 	public void read(final DataInput in) throws IOException {
-		this.value = in.readBoolean();
+		this.value = in.readInt() == 1;
 	}
 
 	private Object readResolve() {
@@ -104,14 +108,14 @@ public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value = ((BooleanNode) otherNode).value;
 	}
 
 	@Override
 	public void write(final DataOutput out) throws IOException {
-		out.writeBoolean(this.value);
+		out.writeInt(this.value ? 1 : 0);
 	}
 
 	@Override
@@ -127,4 +131,26 @@ public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 	@Override
 	public void clear() {
 	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 1;
+	}
+
+	@Override
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+
+		if (len >= this.getMaxNormalizedKeyLen()) {
+			final ByteArrayOutputStream stream = new ByteArrayOutputStream();
+			try {
+				this.write(new DataOutputStream(stream));
+				final byte[] result = stream.toByteArray();
+				target[offset] = result[result.length - 1];
+				this.fillWithZero(target, offset + 1, offset + len);
+			} catch (final IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 }

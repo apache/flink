@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
-import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createObjectNode;
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -104,7 +104,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldReuseTargetIfWholeNodeIsAccessed() {
-		IJsonNode target = new ArrayNode();
+		final IJsonNode target = new ArrayNode();
 
 		final IJsonNode result = new ArrayAccess().evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),
@@ -120,7 +120,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldNotReuseTargetIfWrongType() {
-		IJsonNode target = new ObjectNode();
+		final IJsonNode target = new ObjectNode();
 
 		final IJsonNode result = new ArrayAccess().evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2)), target, this.context);
@@ -132,7 +132,7 @@ public class ArrayAccessTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldReuseTargetIfRangeIsAccessed() {
-		IJsonNode target = new ArrayNode();
+		final IJsonNode target = new ArrayNode();
 
 		final IJsonNode result = new ArrayAccess(2, 4).evaluate(
 			createArrayNode(createObjectNode("fieldName", 1), createObjectNode("fieldName", 2),

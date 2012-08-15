@@ -17,6 +17,8 @@ package eu.stratosphere.sopremo.type;
 import java.util.Collection;
 
 /**
+ * Interface for all array type nodes.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -112,6 +114,15 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 * @return Array of all saved nodes
 	 */
 	public abstract IJsonNode[] toArray();
+
+	/**
+	 * Transforms this node into a standard Java-Array containing all saved nodes.
+	 * 
+	 * @param array
+	 *        preallocated array that should be used, when the size matches
+	 * @return Array of all saved nodes
+	 */
+	public abstract IJsonNode[] toArray(IJsonNode[] array);
 
 	/**
 	 * Adds all {@link IJsonNode}s to the end of this array.

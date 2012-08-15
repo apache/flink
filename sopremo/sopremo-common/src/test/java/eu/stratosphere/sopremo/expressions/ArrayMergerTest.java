@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
-import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createObjectNode;
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -69,12 +69,13 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldReuseTarget() {
-		IJsonNode target = new ArrayNode();
+		final IJsonNode target = new ArrayNode();
 
-		IArrayNode firstArray = createArrayNode(null, IntNode.valueOf(2), IntNode.valueOf(3));
-		IArrayNode secondArray = createArrayNode(IntNode.valueOf(1));
+		final IArrayNode firstArray = createArrayNode(null, IntNode.valueOf(2), IntNode.valueOf(3));
+		final IArrayNode secondArray = createArrayNode(IntNode.valueOf(1));
 
-		IJsonNode result = new ArrayMerger().evaluate(createArrayNode(firstArray, secondArray), target, this.context);
+		final IJsonNode result = new ArrayMerger().evaluate(createArrayNode(firstArray, secondArray), target,
+			this.context);
 
 		Assert.assertEquals(createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3)), result);
 		Assert.assertSame(target, result);
@@ -82,12 +83,13 @@ public class ArrayMergerTest extends EvaluableExpressionTest<ArrayAccess> {
 
 	@Test
 	public void shouldNotReuseTargetIfWrongType() {
-		IJsonNode target = new ObjectNode();
+		final IJsonNode target = new ObjectNode();
 
-		IArrayNode firstArray = createArrayNode(null, IntNode.valueOf(2), IntNode.valueOf(3));
-		IArrayNode secondArray = createArrayNode(IntNode.valueOf(1));
+		final IArrayNode firstArray = createArrayNode(null, IntNode.valueOf(2), IntNode.valueOf(3));
+		final IArrayNode secondArray = createArrayNode(IntNode.valueOf(1));
 
-		IJsonNode result = new ArrayMerger().evaluate(createArrayNode(firstArray, secondArray), target, this.context);
+		final IJsonNode result = new ArrayMerger().evaluate(createArrayNode(firstArray, secondArray), target,
+			this.context);
 
 		Assert.assertEquals(createArrayNode(IntNode.valueOf(1), IntNode.valueOf(2), IntNode.valueOf(3)), result);
 		Assert.assertNotSame(target, result);

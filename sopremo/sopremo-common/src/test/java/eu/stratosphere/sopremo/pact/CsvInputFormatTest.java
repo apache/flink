@@ -1,65 +1,41 @@
 package eu.stratosphere.sopremo.pact;
 
-import java.io.File;
 import java.io.IOException;
 
-import junit.framework.Assert;
-
-import org.junit.Ignore;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.IdentityMap;
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
-import eu.stratosphere.pact.common.io.SequentialOutputFormat;
-import eu.stratosphere.pact.testing.TestPlan;
-import eu.stratosphere.sopremo.serialization.DirectSchema;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
-@Ignore
 public class CsvInputFormatTest {
-	/**
-	 * 
-	 */
-	private static final DirectSchema SCHEMA = new DirectSchema();
-
 	/**
 	 * Tests if a {@link TestPlan} can be executed.
 	 * 
 	 * @throws IOException
 	 */
 	@Test
-	public void completeTestPassesWithExpectedValues() throws IOException {
-		final FileDataSource read = new FileDataSource(
-			CsvInputFormat.class, this.getResource("SopremoTestPlan/restaurant_short.csv"), "Input");
+	public void shouldParseCsv() throws IOException {
+		final Source read =
+			new Source(CsvInputFormat.class, this.getResource("CsvInputFormat/restaurant_short.csv"));
 
-		final MapContract map = MapContract.builder(IdentityMap.class).name("Map").build();
-		map.setInput(read);
+		final SopremoTestPlan testPlan = new SopremoTestPlan(read); // write
 
-		final FileDataSink output = this.createOutput(map, SequentialOutputFormat.class);
+		testPlan.getExpectedOutput(0).
+			addObject("id", "1", "name", "arnie morton's of chicago",
+				"addr", "435 s. la cienega blv.", "city", "los angeles",
+				"phone", "310/246-1501", "type", "american", "class", "'0'").
+			addObject("id", "2", "name", "\"arnie morton's of chicago\"",
+				"addr", "435 s. la cienega blv.", "city", "los,angeles",
+				"phone", "310/246-1501", "type", "american", "class", "'0'").
+			addObject("id", "3", "name", "arnie morton's of chicago",
+				"addr", "435 s. la cienega blv.", "city", "los\nangeles", "phone", "310/246-1501",
+				"type", "american", "class", "'0'");
 
-		final TestPlan testPlan = new TestPlan(output); // write
-		testPlan.getExpectedOutput(output, SCHEMA.getPactSchema()).fromFile(JsonInputFormat.class,// write
-			this.getResource("SopremoTestPlan/restaurant_short.json"));
 		testPlan.run();
 	}
 
 	private String getResource(final String name) throws IOException {
 		return JsonInputFormatTest.class.getClassLoader().getResources(name)
 			.nextElement().toString();
-	}
-
-	private FileDataSink createOutput(final Contract input, final Class<? extends FileOutputFormat> outputFormatClass) {
-		try {
-			final FileDataSink out = new FileDataSink(outputFormatClass,
-				File.createTempFile("output", null).toURI().toString(), "Output");
-			out.setInput(input);
-			return out;
-		} catch (final IOException e) {
-			Assert.fail("cannot create temporary output file" + e);
-			return null;
-		}
 	}
 }

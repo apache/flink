@@ -21,6 +21,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.parser.FieldParser;
@@ -49,11 +50,14 @@ import eu.stratosphere.pact.common.type.base.parser.FieldParser;
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  *
  */
-public class RecordInputFormat extends DelimitedInputFormat implements OutputSchemaProvider {
-
-	public static final String FILE_PARAMETER_KEY = FileInputFormat.FILE_PARAMETER_KEY;
+public class RecordInputFormat extends DelimitedInputFormat implements OutputSchemaProvider
+{
+	// -------------------------------------- Constants -------------------------------------------
 	
-	public static final String RECORD_DELIMITER_PARAMETER = DelimitedInputFormat.RECORD_DELIMITER;
+	@SuppressWarnings("unused")
+	private static final Log LOG = LogFactory.getLog(RecordInputFormat.class);
+	
+	// ------------------------------------- Config Keys ------------------------------------------
 	
 	public static final String FIELD_DELIMITER_PARAMETER = "recordinformat.delimiter.field";
 	
@@ -65,8 +69,7 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 	
 	public static final String RECORD_POSITION_PARAMETER_PREFIX = "recordinformat.record.position_";
 	
-	@SuppressWarnings("unused")
-	private static final Log LOG = LogFactory.getLog(RecordInputFormat.class);
+	public static final String RECORD_DELIMITER_PARAMETER = DelimitedInputFormat.RECORD_DELIMITER;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -175,13 +178,12 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 			fieldValues[pos] = fieldParsers[pos].getValue();
 		}
 		
-		String fieldDelimStr = config.getString(FIELD_DELIMITER_PARAMETER, ",");
-		if(fieldDelimStr.length() != 1) {
+		final String fieldDelimStr = config.getString(FIELD_DELIMITER_PARAMETER, ",");
+		if (fieldDelimStr.length() != 1) {
 			throw new IllegalArgumentException("Invalid configuration for RecordInputFormat: " +
 					"Field delimiter must be a single character");
 		}
 		this.fieldDelim = fieldDelimStr.charAt(0);
-		
 	}
 	
 	/*
@@ -266,5 +268,75 @@ public class RecordInputFormat extends DelimitedInputFormat implements OutputSch
 		}
 		Arrays.sort(outputSchema);
 		return outputSchema;
+	}
+	
+	// ============================================================================================
+	
+	/**
+	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
+	 * fashion.
+	 * 
+	 * @return A config builder for setting parameters.
+	 */
+	public static ConfigBuilder configureRecordFormat(FileDataSource target) {
+		return new ConfigBuilder(target.getParameters());
+	}
+	
+	/**
+	 * An abstract builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	protected static class AbstractConfigBuilder<T> extends DelimitedInputFormat.AbstractConfigBuilder<T>
+	{
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected AbstractConfigBuilder(Configuration config) {
+			super(config);
+		}
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Sets the delimiter that delimits the individual fields in the records textual input representation.
+		 * 
+		 * @param delimiter The character to be used as a field delimiter.
+		 * @return The builder itself.
+		 */
+		public T fieldDelimiter(char delimiter) {
+			this.config.setString(FIELD_DELIMITER_PARAMETER, String.valueOf(delimiter));
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		public T field(Class<? extends FieldParser<?>> parser, int textPosition) {
+			final int numYet = this.config.getInteger(NUM_FIELDS_PARAMETER, 0);
+			this.config.setClass(FIELD_PARSER_PARAMETER_PREFIX + numYet, parser);
+			this.config.setInteger(TEXT_POSITION_PARAMETER_PREFIX + numYet, textPosition);
+			this.config.setInteger(NUM_FIELDS_PARAMETER, numYet + 1);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+	}
+	
+	/**
+	 * A builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
+	{
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected ConfigBuilder(Configuration targetConfig) {
+			super(targetConfig);
+		}
+		
 	}
 }

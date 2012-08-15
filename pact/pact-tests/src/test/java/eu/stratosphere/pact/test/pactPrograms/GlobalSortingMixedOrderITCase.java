@@ -197,27 +197,21 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 			final String output      = (args.length > 2 ? args[2] : "");
 			
 			FileDataSource source = new FileDataSource(RecordInputFormat.class, recordsPath);
-			source.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-			source.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, ",");
-			source.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
-			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
-			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
-			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
-			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 0);
-			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 1, 1);
-			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 2, 2);
+			RecordInputFormat.configureRecordFormat(source)
+				.recordDelimiter('\n')
+				.fieldDelimiter(',')
+				.field(DecimalTextIntParser.class, 0)
+				.field(DecimalTextIntParser.class, 1)
+				.field(DecimalTextIntParser.class, 2);
 			
 			FileDataSink sink = new FileDataSink(RecordOutputFormat.class, output);
-			sink.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			sink.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, ",");
-			sink.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-			sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
-			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
-			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactInteger.class);
-			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
-			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 2);
+			RecordOutputFormat.configureRecordFormat(sink)
+				.recordDelimiter('\n')
+				.fieldDelimiter(',')
+				.lenient(true)
+				.field(PactInteger.class, 0)
+				.field(PactInteger.class, 1)
+				.field(PactInteger.class, 2);
 			
 			sink.setGlobalOrder(
 				new Ordering(0, PactInteger.class, Order.DESCENDING)

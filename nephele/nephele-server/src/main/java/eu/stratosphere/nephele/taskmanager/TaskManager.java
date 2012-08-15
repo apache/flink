@@ -83,6 +83,7 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.InsufficientResourcesException;
 import eu.stratosphere.nephele.taskmanager.runtime.EnvelopeConsumptionLog;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.SerializableArrayList;
@@ -125,7 +126,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	private final static int FAILURERETURNCODE = -1;
 
-	private final static int DEFAULTPERIODICTASKSINTERVAL = 1000;
+	private final static int DEFAULTPERIODICTASKSINTERVAL = 2000;
 
 	/**
 	 * The instance of the {@link ByteBufferedChannelManager} which is responsible for
@@ -212,8 +213,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub for the job manager
 		JobManagerProtocol jobManager = null;
 		try {
-			jobManager = (JobManagerProtocol) RPC.getProxy(JobManagerProtocol.class, jobManagerAddress, NetUtils
-				.getSocketFactory());
+			jobManager = RPC.getProxy(JobManagerProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize connection to JobManager: " + e.getMessage(), e);
@@ -223,8 +223,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub of the global input split provider
 		InputSplitProviderProtocol globalInputSplitProvider = null;
 		try {
-			globalInputSplitProvider = (InputSplitProviderProtocol) RPC.getProxy(InputSplitProviderProtocol.class,
-				jobManagerAddress, NetUtils.getSocketFactory());
+			globalInputSplitProvider = RPC.getProxy(InputSplitProviderProtocol.class, jobManagerAddress, 
+				NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize connection to global input split provider: " + e.getMessage(), e);
@@ -234,8 +234,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub for the lookup service
 		ChannelLookupProtocol lookupService = null;
 		try {
-			lookupService = (ChannelLookupProtocol) RPC.getProxy(ChannelLookupProtocol.class, jobManagerAddress,
-				NetUtils.getSocketFactory());
+			lookupService = RPC.getProxy(ChannelLookupProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize channel lookup protocol. " + e.getMessage(), e);
@@ -245,8 +244,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub for the plugin communication service
 		PluginCommunicationProtocol pluginCommunicationService = null;
 		try {
-			pluginCommunicationService = (PluginCommunicationProtocol) RPC.getProxy(PluginCommunicationProtocol.class,
-				jobManagerAddress, NetUtils.getSocketFactory());
+			pluginCommunicationService = RPC.getProxy(PluginCommunicationProtocol.class, jobManagerAddress, 
+				NetUtils.getSocketFactory());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize plugin communication protocol. " + e.getMessage(), e);
@@ -540,18 +539,30 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			final Set<ChannelID> activeOutputChannels = null; // TODO: Fix me
 
 			// Register the task
-			final Task task = createAndRegisterTask(vertexID, jobConfiguration, re, initialCheckpointState,
-				activeOutputChannels);
+			Task task;
+			try {
+				task = createAndRegisterTask(vertexID, jobConfiguration, re, initialCheckpointState,
+					activeOutputChannels);
+			} catch (InsufficientResourcesException e) {
+				final TaskSubmissionResult result = new TaskSubmissionResult(vertexID,
+					AbstractTaskResult.ReturnCode.INSUFFICIENT_RESOURCES);
+				result.setDescription(e.getMessage());
+				LOG.error(result.getDescription());
+				submissionResultList.add(result);
+				continue;
+			}
+
 			if (task == null) {
 				final TaskSubmissionResult result = new TaskSubmissionResult(vertexID,
 					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
 				result.setDescription("Task " + re.getTaskNameWithIndex() + " (" + vertexID + ") was already running");
 				LOG.error(result.getDescription());
 				submissionResultList.add(result);
-			} else {
-				submissionResultList.add(new TaskSubmissionResult(vertexID, AbstractTaskResult.ReturnCode.SUCCESS));
-				tasksToStart.add(task);
+				continue;
 			}
+
+			submissionResultList.add(new TaskSubmissionResult(vertexID, AbstractTaskResult.ReturnCode.SUCCESS));
+			tasksToStart.add(task);
 		}
 
 		// Now start the tasks
@@ -579,7 +590,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	 */
 	private Task createAndRegisterTask(final ExecutionVertexID id, final Configuration jobConfiguration,
 			final RuntimeEnvironment environment, final CheckpointState initialCheckpointState,
-			final Set<ChannelID> activeOutputChannels) throws IOException {
+			final Set<ChannelID> activeOutputChannels) throws InsufficientResourcesException, IOException {
 
 		if (id == null) {
 			throw new IllegalArgumentException("Argument id is null");

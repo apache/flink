@@ -62,8 +62,8 @@ public abstract class WrappingIterable<I, O> extends AbstractIterable<O> {
 	}
 
 	@Override
-	public String toString(int numberOfElements) {
-		StringBuilder builder = new StringBuilder(this.getClass().getName()).append(' ');
+	public String toString(final int numberOfElements) {
+		final StringBuilder builder = new StringBuilder(this.getClass().getName()).append(' ');
 		this.appendElements(builder, this.originalIterable, numberOfElements);
 		builder.append(" -> ");
 		this.appendElements(builder, this, numberOfElements);

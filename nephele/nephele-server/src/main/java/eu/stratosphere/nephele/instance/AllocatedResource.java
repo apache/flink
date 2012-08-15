@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.instance;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -166,6 +167,16 @@ public final class AllocatedResource {
 		if (!this.assignedVertices.add(vertex)) {
 			throw new IllegalStateException("The vertex " + vertex + " has already been assigned to resource " + this);
 		}
+	}
+
+	/**
+	 * Returns an iterator over all execution vertices currently assigned to this allocated resource.
+	 * 
+	 * @return an iterator over all execution vertices currently assigned to this allocated resource
+	 */
+	public Iterator<ExecutionVertex> assignedVertices() {
+
+		return this.assignedVertices.iterator();
 	}
 
 	/**

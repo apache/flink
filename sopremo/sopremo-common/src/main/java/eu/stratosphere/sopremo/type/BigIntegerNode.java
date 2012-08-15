@@ -9,6 +9,8 @@ import java.math.BigInteger;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents a {@link BigInteger}.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -44,7 +46,7 @@ public class BigIntegerNode extends AbstractNumericNode implements INumericNode 
 		return this.value;
 	}
 
-	public void setValue(BigInteger value) {
+	public void setValue(final BigInteger value) {
 		this.value = value;
 	}
 
@@ -145,7 +147,7 @@ public class BigIntegerNode extends AbstractNumericNode implements INumericNode 
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value = ((BigIntegerNode) otherNode).value;
 	}
@@ -160,4 +162,5 @@ public class BigIntegerNode extends AbstractNumericNode implements INumericNode 
 		if (SopremoUtil.DEBUG)
 			this.value = BigInteger.ZERO;
 	}
+
 }

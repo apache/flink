@@ -281,7 +281,7 @@ public class RPC {
 	 * @throws IOException
 	 *         if the far end through a RemoteException
 	 */
-	static VersionedProtocol waitForProxy(Class<? extends VersionedProtocol> protocol, InetSocketAddress addr,
+	static <V extends VersionedProtocol> V waitForProxy(Class<V> protocol, InetSocketAddress addr,
 			long timeout) throws IOException {
 		long startTime = System.currentTimeMillis();
 		IOException ioe;
@@ -313,11 +313,10 @@ public class RPC {
 	 * Construct a client-side proxy object that implements the named protocol,
 	 * talking to a server at the named address.
 	 */
-	public static VersionedProtocol getProxy(Class<? extends VersionedProtocol> protocol, InetSocketAddress addr,
+	public static <V extends VersionedProtocol> V getProxy(Class<V> protocol, InetSocketAddress addr,
 			SocketFactory factory) throws IOException {
 
-		VersionedProtocol proxy = (VersionedProtocol) Proxy.newProxyInstance(protocol.getClassLoader(),
-			new Class[] { protocol }, new Invoker(addr, factory));
+		V proxy = (V) Proxy.newProxyInstance(protocol.getClassLoader(), new Class[] { protocol }, new Invoker(addr, factory));
 
 		return proxy;
 	}
@@ -330,7 +329,7 @@ public class RPC {
 	 * @return
 	 * @throws IOException
 	 */
-	public static VersionedProtocol getProxy(Class<? extends VersionedProtocol> protocol, InetSocketAddress addr)
+	public static <V extends VersionedProtocol> V getProxy(Class<V> protocol, InetSocketAddress addr)
 			throws IOException {
 
 		return getProxy(protocol, addr, NetUtils.getDefaultSocketFactory());

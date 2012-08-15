@@ -12,6 +12,8 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents a long value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -47,7 +49,7 @@ public class LongNode extends AbstractNumericNode implements INumericNode {
 		return this.value.getValue();
 	}
 
-	public void setValue(long value) {
+	public void setValue(final long value) {
 		this.value.setValue(value);
 	}
 
@@ -148,7 +150,7 @@ public class LongNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value.setValue(((LongNode) otherNode).getLongValue());
 	}
@@ -162,5 +164,15 @@ public class LongNode extends AbstractNumericNode implements INumericNode {
 	public void clear() {
 		if (SopremoUtil.DEBUG)
 			this.value.setValue(0);
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return this.value.getMaxNormalizedKeyLen();
+	}
+
+	@Override
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+		this.value.copyNormalizedKey(target, offset, len);
 	}
 }

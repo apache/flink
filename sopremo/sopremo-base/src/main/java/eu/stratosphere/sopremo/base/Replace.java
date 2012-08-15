@@ -1,14 +1,7 @@
 package eu.stratosphere.sopremo.base;
 
-import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.ElementarySopremoModule;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.Name;
-import eu.stratosphere.sopremo.OutputCardinality;
-import eu.stratosphere.sopremo.Property;
-import eu.stratosphere.sopremo.SopremoModule;
 import eu.stratosphere.sopremo.base.replace.AssembleArray;
 import eu.stratosphere.sopremo.base.replace.ReplaceBase;
 import eu.stratosphere.sopremo.base.replace.ReplaceWithDefaultValue;
@@ -19,6 +12,13 @@ import eu.stratosphere.sopremo.expressions.JsonStreamExpression;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.SingletonExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
+import eu.stratosphere.sopremo.operator.CompositeOperator;
+import eu.stratosphere.sopremo.operator.ElementarySopremoModule;
+import eu.stratosphere.sopremo.operator.InputCardinality;
+import eu.stratosphere.sopremo.operator.Name;
+import eu.stratosphere.sopremo.operator.OutputCardinality;
+import eu.stratosphere.sopremo.operator.Property;
+import eu.stratosphere.sopremo.operator.SopremoModule;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 @InputCardinality(min = 2, max = 2)
@@ -93,7 +93,7 @@ public class Replace extends CompositeOperator<Replace> {
 	}
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
 
 		if (this.arrayElementsReplacement) {
@@ -155,7 +155,7 @@ public class Replace extends CompositeOperator<Replace> {
 				replaceAtom.withInputs(sopremoModule.getInput(0), sopremoModule.getInput(1)));
 		}
 
-		return sopremoModule.asElementary();
+		return sopremoModule.asElementary(context);
 	}
 
 	@Override

@@ -10,10 +10,10 @@ public class QueryUtil {
 	protected static final Log LOG = LogFactory.getLog(AbstractQueryParser.class);
 
 	public static void trace() {
-		(((Log4JLogger) LOG).getLogger()).setLevel(Level.TRACE);
+		((Log4JLogger) LOG).getLogger().setLevel(Level.TRACE);
 	}
 
 	public static void untrace() {
-		(((Log4JLogger) LOG).getLogger()).setLevel((((Log4JLogger) LOG).getLogger()).getParent().getLevel());
+		((Log4JLogger) LOG).getLogger().setLevel(((Log4JLogger) LOG).getLogger().getParent().getLevel());
 	}
 }

@@ -1,12 +1,15 @@
 package eu.stratosphere.sopremo.base;
 
-import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.Name;
-import eu.stratosphere.sopremo.Property;
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.UnaryExpression;
+import eu.stratosphere.sopremo.operator.ElementaryOperator;
+import eu.stratosphere.sopremo.operator.InputCardinality;
+import eu.stratosphere.sopremo.operator.Name;
+import eu.stratosphere.sopremo.operator.Property;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.type.BooleanNode;
@@ -20,7 +23,7 @@ public class Selection extends ElementaryOperator<Selection> {
 	 */
 	private static final long serialVersionUID = -7687925343684319311L;
 
-	private EvaluationExpression condition = new ConstantExpression(true);
+	private BooleanExpression condition = new UnaryExpression(new ConstantExpression(true));
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -51,10 +54,11 @@ public class Selection extends ElementaryOperator<Selection> {
 		if (condition == null)
 			throw new NullPointerException("condition must not be null");
 
-		this.condition = condition;
+		this.condition = (BooleanExpression) BooleanExpression.ensureBooleanExpression(condition).clone();
+		this.condition.remove(new InputSelection(0));
 	}
 
-	public Selection withCondition(EvaluationExpression condition) {
+	public Selection withCondition(BooleanExpression condition) {
 		this.setCondition(condition);
 		return this;
 	}
@@ -68,6 +72,15 @@ public class Selection extends ElementaryOperator<Selection> {
 
 	public static class Implementation extends SopremoMap {
 		private BooleanExpression condition;
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.pact.SopremoMap#open(eu.stratosphere.nephele.configuration.Configuration)
+		 */
+		@Override
+		public void open(Configuration parameters) {
+			super.open(parameters);
+		}
 
 		@Override
 		protected void map(final IJsonNode value, final JsonCollector out) {

@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -17,7 +17,8 @@ public class InputSelectionTest extends EvaluableExpressionTest<InputSelection> 
 
 	@Test
 	public void shouldSelectCorrectInput() {
-		final IJsonNode result = new InputSelection(1).evaluate(createArrayNode(IntNode.valueOf(0), IntNode.valueOf(1)),
+		final IJsonNode result = new InputSelection(1).evaluate(
+			createArrayNode(IntNode.valueOf(0), IntNode.valueOf(1)),
 			null, this.context);
 
 		Assert.assertEquals(IntNode.valueOf(1), result);

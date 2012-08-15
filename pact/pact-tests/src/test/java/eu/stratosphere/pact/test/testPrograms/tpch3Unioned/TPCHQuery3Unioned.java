@@ -210,25 +210,15 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		// create DataSourceContract for Orders input
 		FileDataSource orders1 = new FileDataSource(RecordInputFormat.class, orders1Path, "Orders 1");
 		orders1.setDegreeOfParallelism(noSubtasks);
+		RecordInputFormat.configureRecordFormat(orders1)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextLongParser.class, 0)
+			.field(DecimalTextIntParser.class, 7)
+			.field(VarLengthStringParser.class, 2)
+			.field(VarLengthStringParser.class, 4)
+			.field(VarLengthStringParser.class, 5);
 			
-		orders1.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		orders1.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		orders1.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
-		// order id
-		orders1.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
-		orders1.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// ship prio
-		orders1.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
-		orders1.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 7);
-		// order status
-		orders1.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+2, VarLengthStringParser.class);
-		orders1.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+2, 2);
-		// order date
-		orders1.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+3, VarLengthStringParser.class);
-		orders1.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+3, 4);
-		// order prio
-		orders1.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+4, VarLengthStringParser.class);
-		orders1.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+4, 5);
 		// compiler hints
 		orders1.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		orders1.getCompilerHints().setAvgBytesPerRecord(16);
@@ -237,25 +227,15 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		
 		FileDataSource orders2 = new FileDataSource(RecordInputFormat.class, orders2Path, "Orders 2");
 		orders2.setDegreeOfParallelism(noSubtasks);
-
-		orders2.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		orders2.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		orders2.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
-		// order id
-		orders2.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
-		orders2.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// ship prio
-		orders2.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
-		orders2.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 7);
-		// order status
-		orders2.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+2, VarLengthStringParser.class);
-		orders2.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+2, 2);
-		// order date
-		orders2.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+3, VarLengthStringParser.class);
-		orders2.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+3, 4);
-		// order prio
-		orders2.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+4, VarLengthStringParser.class);
-		orders2.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+4, 5);
+		RecordInputFormat.configureRecordFormat(orders2)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextLongParser.class, 0)
+			.field(DecimalTextIntParser.class, 7)
+			.field(VarLengthStringParser.class, 2)
+			.field(VarLengthStringParser.class, 4)
+			.field(VarLengthStringParser.class, 5);
+		
 		// compiler hints
 		orders2.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		orders2.getCompilerHints().setAvgBytesPerRecord(16);
@@ -265,16 +245,12 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
 		lineitems.setDegreeOfParallelism(noSubtasks);
-
-		lineitems.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		lineitems.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		lineitems.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-		// order id
-		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
-		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// extended price
-		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextDoubleParser.class);
-		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 5);
+		RecordInputFormat.configureRecordFormat(lineitems)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextLongParser.class, 0)
+			.field(DecimalTextDoubleParser.class, 5);
+		
 		// compiler hints	
 		lineitems.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 4);
 		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
@@ -322,36 +298,21 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		
 		FileDataSource partJoin1 = new FileDataSource(RecordInputFormat.class, partJoin1Path, "Part Join 1");
 		partJoin1.setDegreeOfParallelism(noSubtasks);
-		
-		partJoin1.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		partJoin1.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		partJoin1.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
-		// order id
-		partJoin1.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
-		partJoin1.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// ship prio
-		partJoin1.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
-		partJoin1.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 1);
-		// order status
-		partJoin1.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+2, DecimalTextDoubleParser.class);
-		partJoin1.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+2, 2);
-		
+		RecordInputFormat.configureRecordFormat(partJoin1)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextLongParser.class, 0)
+			.field(DecimalTextIntParser.class, 1)
+			.field(DecimalTextDoubleParser.class, 2);
 		
 		FileDataSource partJoin2 = new FileDataSource(RecordInputFormat.class, partJoin2Path, "Part Join 2");
 		partJoin2.setDegreeOfParallelism(noSubtasks);
-		
-		partJoin2.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		partJoin2.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		partJoin2.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
-		// order id
-		partJoin2.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
-		partJoin2.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// ship prio
-		partJoin2.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
-		partJoin2.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 1);
-		// order status
-		partJoin2.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+2, DecimalTextDoubleParser.class);
-		partJoin2.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+2, 2);
+		RecordInputFormat.configureRecordFormat(partJoin2)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextLongParser.class, 0)
+			.field(DecimalTextIntParser.class, 1)
+			.field(DecimalTextDoubleParser.class, 2);
 		
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
@@ -372,16 +333,13 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
 		result.setDegreeOfParallelism(noSubtasks);
-		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		result.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactLong.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactDouble.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 2);
+		RecordOutputFormat.configureRecordFormat(result)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.lenient(true)
+			.field(PactLong.class, 0)
+			.field(PactInteger.class, 1)
+			.field(PactDouble.class, 2);
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "TPCH Q3 Unioned");

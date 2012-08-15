@@ -1,27 +1,37 @@
 package eu.stratosphere.sopremo.base;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.ElementarySopremoModule;
-import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.Name;
-import eu.stratosphere.sopremo.OutputCardinality;
-import eu.stratosphere.sopremo.Property;
-import eu.stratosphere.sopremo.SopremoModule;
-import eu.stratosphere.sopremo.Source;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.AndExpression;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
+import eu.stratosphere.sopremo.expressions.ArrayCreation;
 import eu.stratosphere.sopremo.expressions.BinaryBooleanExpression;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
+import eu.stratosphere.sopremo.io.Source;
+import eu.stratosphere.sopremo.operator.CompositeOperator;
+import eu.stratosphere.sopremo.operator.ElementarySopremoModule;
+import eu.stratosphere.sopremo.operator.InputCardinality;
+import eu.stratosphere.sopremo.operator.JsonStream;
+import eu.stratosphere.sopremo.operator.Name;
+import eu.stratosphere.sopremo.operator.OutputCardinality;
+import eu.stratosphere.sopremo.operator.Property;
+import eu.stratosphere.sopremo.operator.SopremoModule;
+import eu.stratosphere.sopremo.rewrite.ReplaceInputSelectionWithArray;
 import eu.stratosphere.util.IsInstancePredicate;
 
 @InputCardinality(min = 2)
@@ -39,56 +49,10 @@ public class Join extends CompositeOperator<Join> {
 
 	private EvaluationExpression resultProjection = ObjectCreation.CONCATENATION;
 
-	public EvaluationExpression getResultProjection() {
-		return this.resultProjection;
-	}
-
-	@Property
-	@Name(preposition = "into")
-	public void setResultProjection(EvaluationExpression resultProjection) {
-		if (resultProjection == null)
-			throw new NullPointerException("resultProjection must not be null");
-
-		this.resultProjection = resultProjection;
-	}
-
-	@Property
-	@Name(preposition = "where")
-	public void setJoinCondition(BooleanExpression joinCondition) {
-		if (joinCondition == null)
-			throw new NullPointerException("joinCondition must not be null");
-
-		final ArrayList<BinaryBooleanExpression> expressions = new ArrayList<BinaryBooleanExpression>();
-		addBinaryExpressions(joinCondition, expressions);
-		if (expressions.size() == 0)
-			throw new IllegalArgumentException("No join condition given");
-
-		this.joinCondition = joinCondition;
-		this.binaryConditions = expressions;
-	}
-
-	public Join withResultProjection(EvaluationExpression resultProjection) {
-		this.setResultProjection(resultProjection);
-		return this;
-	}
-
-	public Join withJoinCondition(BooleanExpression joinCondition) {
-		this.setJoinCondition(joinCondition);
-		return this;
-	}
-
-	private void addBinaryExpressions(BooleanExpression joinCondition, List<BinaryBooleanExpression> expressions) {
-		if (joinCondition instanceof BinaryBooleanExpression)
-			expressions.add((BinaryBooleanExpression) joinCondition);
-		else if (joinCondition instanceof AndExpression)
-			for (BooleanExpression expression : ((AndExpression) joinCondition).getExpressions())
-				addBinaryExpressions(expression, expressions);
-		else
-			throw new IllegalArgumentException("Cannot handle expression " + joinCondition);
-	}
+	private IntSet outerJoinSources = new IntOpenHashSet();
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final int numInputs = this.getInputs().size();
 
 		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
@@ -99,6 +63,7 @@ public class Join extends CompositeOperator<Join> {
 		case 1:
 			// only two way join
 			final TwoSourceJoin join = new TwoSourceJoin().
+				withOuterJoinIndices(this.outerJoinSources.toIntArray()).
 				withInputs(module.getInputs()).
 				withCondition(this.binaryConditions.get(0)).
 				withResultProjection(getResultProjection());
@@ -135,11 +100,13 @@ public class Join extends CompositeOperator<Join> {
 			}
 
 			final TwoSourceJoin lastJoin = joins.get(joins.size() - 1);
+			EvaluationExpression resultProjection = getResultProjection();
+			resultProjection.replace(new IsInstancePredicate(InputSelection.class), new ReplaceInputSelectionWithArray());
 			module.getOutput(0).setInput(0,
-				new Projection().withInputs(lastJoin).withResultProjection(getResultProjection()));
+				new Projection().withInputs(lastJoin).withResultProjection(resultProjection));
 		}
 
-		return module.asElementary();
+		return module.asElementary(context);
 	}
 
 	@Override
@@ -151,7 +118,91 @@ public class Join extends CompositeOperator<Join> {
 		if (this.getClass() != obj.getClass())
 			return false;
 		return super.equals(obj) && this.joinCondition.equals(((Join) obj).joinCondition)
+			&& this.outerJoinSources.equals(((Join) obj).outerJoinSources)
 			&& this.resultProjection.equals(((Join) obj).resultProjection);
+	}
+
+	public BooleanExpression getJoinCondition() {
+		return this.joinCondition;
+	}
+
+	public int[] getOuterJoinIndices() {
+		return this.outerJoinSources.toIntArray();
+	}
+
+	public EvaluationExpression getOuterJoinSources() {
+		EvaluationExpression[] expressions = new EvaluationExpression[this.outerJoinSources.size()];
+		final IntIterator iterator = this.outerJoinSources.iterator();
+		for (int index = 0; iterator.hasNext(); index++) {
+			final int inputIndex = iterator.nextInt();
+			expressions[index] = new InputSelection(inputIndex);
+		}
+		return new ArrayCreation(expressions);
+	}
+
+	public EvaluationExpression getResultProjection() {
+		return this.resultProjection;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 37;
+		int result = super.hashCode();
+		result = prime * result + this.joinCondition.hashCode();
+		result = prime * result + this.outerJoinSources.hashCode();
+		result = prime * result + this.resultProjection.hashCode();
+		return result;
+	}
+
+	@Property
+	@Name(preposition = "where")
+	public void setJoinCondition(BooleanExpression joinCondition) {
+		if (joinCondition == null)
+			throw new NullPointerException("joinCondition must not be null");
+
+		final ArrayList<BinaryBooleanExpression> expressions = new ArrayList<BinaryBooleanExpression>();
+		addBinaryExpressions(joinCondition, expressions);
+		if (expressions.size() == 0)
+			throw new IllegalArgumentException("No join condition given");
+
+		this.joinCondition = joinCondition;
+		this.binaryConditions = expressions;
+	}
+
+	public void setOuterJoinIndices(int... outerJoinIndices) {
+		if (outerJoinIndices == null)
+			throw new NullPointerException("outerJoinIndices must not be null");
+
+		this.outerJoinSources.clear();
+		for (int index : outerJoinIndices)
+			this.outerJoinSources.add(index);
+	}
+
+	@Property
+	@Name(verb = "preserve")
+	public void setOuterJoinSources(EvaluationExpression outerJoinSources) {
+		if (outerJoinSources == null)
+			throw new NullPointerException("outerJoinSources must not be null");
+		final Iterable<? extends EvaluationExpression> expressions;
+		if (outerJoinSources instanceof InputSelection)
+			expressions = Collections.singleton(outerJoinSources);
+		else if (outerJoinSources instanceof ArrayCreation)
+			expressions = ((ArrayCreation) outerJoinSources).getChildren();
+		else
+			throw new IllegalArgumentException(String.format("Cannot interpret %s", outerJoinSources));
+
+		this.outerJoinSources.clear();
+		for (EvaluationExpression expression : expressions)
+			this.outerJoinSources.add(((InputSelection) expression).getIndex());
+	}
+
+	@Property
+	@Name(preposition = "into")
+	public void setResultProjection(EvaluationExpression resultProjection) {
+		if (resultProjection == null)
+			throw new NullPointerException("resultProjection must not be null");
+
+		this.resultProjection = resultProjection;
 	}
 
 	@Override
@@ -163,8 +214,34 @@ public class Join extends CompositeOperator<Join> {
 		return builder.toString();
 	}
 
-	public BooleanExpression getJoinCondition() {
-		return this.joinCondition;
+	public Join withJoinCondition(BooleanExpression joinCondition) {
+		this.setJoinCondition(joinCondition);
+		return this;
+	}
+
+	public Join withOuterJoinIndices(int... outerJoinIndices) {
+		this.setOuterJoinIndices(outerJoinIndices);
+		return this;
+	}
+
+	public Join withOuterJoinSources(EvaluationExpression outerJoinSources) {
+		this.setOuterJoinSources(outerJoinSources);
+		return this;
+	}
+
+	public Join withResultProjection(EvaluationExpression resultProjection) {
+		this.setResultProjection(resultProjection);
+		return this;
+	}
+
+	private void addBinaryExpressions(BooleanExpression joinCondition, List<BinaryBooleanExpression> expressions) {
+		if (joinCondition instanceof BinaryBooleanExpression)
+			expressions.add((BinaryBooleanExpression) joinCondition);
+		else if (joinCondition instanceof AndExpression)
+			for (BooleanExpression expression : ((AndExpression) joinCondition).getExpressions())
+				addBinaryExpressions(expression, expressions);
+		else
+			throw new IllegalArgumentException("Cannot handle expression " + joinCondition);
 	}
 
 	private List<TwoSourceJoin> getInitialJoinOrder(SopremoModule module) {
@@ -178,7 +255,8 @@ public class Join extends CompositeOperator<Join> {
 
 	private TwoSourceJoin getTwoSourceJoinForExpression(final BinaryBooleanExpression binaryCondition,
 			SopremoModule module) {
-		List<EvaluationExpression> inputSelections = binaryCondition.findAll(new IsInstancePredicate(InputSelection.class));
+		List<EvaluationExpression> inputSelections =
+			binaryCondition.findAll(new IsInstancePredicate(InputSelection.class));
 		if (inputSelections.size() != 2)
 			throw new IllegalArgumentException(String.format("Condition must refer to two source: %s", binaryCondition));
 
@@ -189,18 +267,15 @@ public class Join extends CompositeOperator<Join> {
 			firstIndex)));
 		adjustedExpression.replace(inputSelections.get(1), new PathExpression(new InputSelection(1), new ArrayAccess(
 			secondIndex)));
-		return new TwoSourceJoin().
+
+		IntList outerJoinIndices = new IntArrayList();
+		if (this.outerJoinSources.contains(firstIndex))
+			outerJoinIndices.add(0);
+		if (this.outerJoinSources.contains(secondIndex))
+			outerJoinIndices.add(1);
+		return new TwoSourceJoin().withOuterJoinIndices(outerJoinIndices.toIntArray()).
 			withInputs(module.getInput(firstIndex), module.getInput(secondIndex)).
 			withCondition(adjustedExpression);
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 37;
-		int result = super.hashCode();
-		result = prime * result + this.joinCondition.hashCode();
-		result = prime * result + this.resultProjection.hashCode();
-		return result;
 	}
 
 }

@@ -126,12 +126,14 @@ public class UnionITCase extends TestBase
 		
 		FileDataSource input1 = new FileDataSource(
 			ContractITCaseInputFormat.class, pathPrefix + config.getString("UnionTest#Input1Path", ""));
-		input1.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input1)
+			.recordDelimiter('\n');
 		input1.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 		
 		FileDataSource input2 = new FileDataSource(
 				ContractITCaseInputFormat.class, pathPrefix + config.getString("UnionTest#Input2Path", ""));
-		input2.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input2)
+			.recordDelimiter('\n');
 		input2.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 		
 		MapContract testMapper = MapContract.builder(TestMapper.class).build();

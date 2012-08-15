@@ -265,7 +265,7 @@ public class NepheleMiniCluster {
 		ExtendedManagementProtocol jobManagerConnection = null;
 		
 		try {
-			jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
+			jobManagerConnection = RPC.getProxy(ExtendedManagementProtocol.class,
 				address, NetUtils.getSocketFactory());
 			
 			Map<InstanceType, InstanceTypeDescription> map = null;

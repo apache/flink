@@ -71,8 +71,7 @@ public class ObjectAccess extends EvaluationExpression {
 	 * {@link NullNode} if no such value exists.
 	 */
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		// TODO Reuse target
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		if (!node.isObject()) {
 			if (node.isNull() && this.safeDereference)
 				return node;
