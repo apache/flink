@@ -181,11 +181,13 @@ public class CoGroupITCase extends TestBase
 		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
 
 		FileDataSource input_left =  new FileDataSource(CoGroupTestInFormat.class, pathPrefix + "/cogroup_left");
-		input_left.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input_left)
+			.recordDelimiter('\n');
 		input_left.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
 		FileDataSource input_right =  new FileDataSource(CoGroupTestInFormat.class, pathPrefix + "/cogroup_right");
-		input_right.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input_right)
+			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
 		CoGroupContract testCoGrouper = CoGroupContract.builder(TestCoGrouper.class, PactString.class, 0, 0)

@@ -205,16 +205,13 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 				.field(DecimalTextIntParser.class, 2);
 			
 			FileDataSink sink = new FileDataSink(RecordOutputFormat.class, output);
-			sink.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			sink.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, ",");
-			sink.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-			sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
-			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
-			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactInteger.class);
-			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
-			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 2);
+			RecordOutputFormat.configureRecordFormat(sink)
+				.recordDelimiter('\n')
+				.fieldDelimiter(',')
+				.lenient(true)
+				.field(PactInteger.class, 0)
+				.field(PactInteger.class, 1)
+				.field(PactInteger.class, 2);
 			
 			sink.setGlobalOrder(
 				new Ordering(0, PactInteger.class, Order.DESCENDING)
