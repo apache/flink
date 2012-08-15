@@ -818,9 +818,9 @@ public class TestPlan implements Closeable {
 	 */
 	private void configureSinksAndSources() {
 		for (FileDataSink sink : this.sinks)
-			sink.getParameters().setLong(FileOutputFormat.OUTPUT_STREAM_OPEN_TIMEOUT, 0);
+			sink.getParameters().setLong(FileOutputFormat.OUTPUT_STREAM_OPEN_TIMEOUT_KEY, 0);
 		for (FileDataSource source : this.sources)
-			source.getParameters().setLong(FileInputFormat.INPUT_STREAM_OPEN_TIMEOUT, 0);
+			source.getParameters().setLong(FileInputFormat.INPUT_STREAM_OPEN_TIMEOUT_KEY, 0);
 	}
 
 	/**

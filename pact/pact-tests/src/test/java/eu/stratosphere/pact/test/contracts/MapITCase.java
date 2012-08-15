@@ -109,7 +109,8 @@ public class MapITCase extends TestBase
 		
 		FileDataSource input = new FileDataSource(
 				ContractITCaseInputFormat.class, pathPrefix+"/mapInput");
-		input.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input)
+			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		MapContract testMapper = MapContract.builder(TestMapper.class).build();

@@ -170,24 +170,21 @@ public class GlobalSortingITCase extends TestBase {
 			String recordsPath    = (args.length > 1 ? args[1] : "");
 			String output        = (args.length > 2 ? args[2] : "");
 			
-			FileDataSource source =
-				new FileDataSource(RecordInputFormat.class, recordsPath);
+			FileDataSource source = new FileDataSource(RecordInputFormat.class, recordsPath);
 			source.setDegreeOfParallelism(noSubtasks);
-			source.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-			source.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			source.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 1);
-			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextIntParser.class);
-			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
+			RecordInputFormat.configureRecordFormat(source)
+				.recordDelimiter('\n')
+				.fieldDelimiter('|')
+				.field(DecimalTextIntParser.class, 0);
 			
 			FileDataSink sink =
 				new FileDataSink(RecordOutputFormat.class, output);
 			sink.setDegreeOfParallelism(noSubtasks);
-			sink.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			sink.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			sink.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-			sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 1);
-			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
-			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
+			RecordOutputFormat.configureRecordFormat(sink)
+				.recordDelimiter('\n')
+				.fieldDelimiter('|')
+				.lenient(true)
+				.field(PactInteger.class, 0);
 			
 			sink.setGlobalOrder(new Ordering(0, PactInteger.class, Order.ASCENDING), new UniformDistribution());
 			sink.setInput(source);

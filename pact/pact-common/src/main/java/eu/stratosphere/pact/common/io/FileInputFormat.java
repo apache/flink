@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -74,6 +75,8 @@ import eu.stratosphere.pact.common.util.PactConfigConstants;
  */
 public abstract class FileInputFormat implements InputFormat<PactRecord, FileInputSplit>
 {
+	// -------------------------------------- Constants -------------------------------------------
+	
 	/**
 	 * The LOG for logging messages in this class.
 	 */
@@ -98,7 +101,12 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 		}
 	}
 	
-	// --------------------------------------------------------------------------------------------
+	/**
+	 * The fraction that the last split may be larger than the others.
+	 */
+	private static final float MAX_SPLIT_SIZE_DISCREPANCY = 1.1f;
+	
+	// ------------------------------------- Config Keys ------------------------------------------
 	
 	/**
 	 * The config parameter which defines the input file path.
@@ -108,22 +116,17 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 	/**
 	 * The config parameter which defines the number of desired splits.
 	 */
-	public static final String DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY = "pact.input.file.numsplits";
+	private static final String DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY = "pact.input.file.numsplits";
 	
 	/**
 	 * The config parameter for the minimal split size.
 	 */
-	public static final String MINIMAL_SPLIT_SIZE_PARAMETER_KEY = "pact.input.file.minsplitsize";
+	private static final String MINIMAL_SPLIT_SIZE_PARAMETER_KEY = "pact.input.file.minsplitsize";
 
 	/**
 	 * The config parameter for the opening timeout in milliseconds.
 	 */
-	public static final String INPUT_STREAM_OPEN_TIMEOUT = "pact.input.file.timeout";
-	
-	/**
-	 * The fraction that the last split may be larger than the others.
-	 */
-	private static final float MAX_SPLIT_SIZE_DISCREPANCY = 1.1f;
+	public static final String INPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.input.file.timeout";
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -173,7 +176,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 	public void configure(Configuration parameters)
 	{
 		// get the file path
-		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
+		final String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
 		if (filePath == null) {
 			throw new IllegalArgumentException("Configuration file FileInputFormat does not contain the file path.");
 		}
@@ -201,7 +204,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 				LOG.warn("Ignoring invalid parameter for minimal split size (requires a positive value): " + this.numSplits);
 		}
 		
-		this.openTimeout = parameters.getLong(INPUT_STREAM_OPEN_TIMEOUT, DEFAULT_OPENING_TIMEOUT);
+		this.openTimeout = parameters.getLong(INPUT_STREAM_OPEN_TIMEOUT_KEY, DEFAULT_OPENING_TIMEOUT);
 		if (this.openTimeout < 0) {
 			this.openTimeout = DEFAULT_OPENING_TIMEOUT;
 			if (LOG.isWarnEnabled())
@@ -427,7 +430,7 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 			"File Input (" + this.filePath.toString() + ')';
 	}
 	
-// ============================================================================================
+	// ============================================================================================
 	
 	/**
 	 * Encapsulation of the basic statistics the optimizer obtains about a file. Contained are the size of the file
@@ -638,5 +641,99 @@ public abstract class FileInputFormat implements InputFormat<PactRecord, FileInp
 				} catch (Throwable t) {}
 			}
 		}
+	}
+	
+	// ============================================================================================
+	
+	/**
+	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
+	 * fashion.
+	 * 
+	 * @return A config builder for setting parameters.
+	 */
+	public static ConfigBuilder configureFileFormat(FileDataSource target) {
+		return new ConfigBuilder(target.getParameters());
+	}
+	
+	/**
+	 * Abstract builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	protected static abstract class AbstractConfigBuilder<T>
+	{
+		/**
+		 * The configuration into which the parameters will be written.
+		 */
+		protected final Configuration config;
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected AbstractConfigBuilder(Configuration targetConfig) {
+			this.config = targetConfig;
+		}
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Sets the desired number of splits for this input format. This value is only a hint. The format
+		 * may create more splits, if there are for example more distributed file blocks (one split is at most
+		 * one block) or less splits, if the minimal split size allows only for fewer splits.
+		 * 
+		 * @param numDesiredSplits The desired number of input splits.
+		 * @return The builder itself.
+		 */
+		public T desiredSplits(int numDesiredSplits) {
+			this.config.setInteger(DESIRED_NUMBER_OF_SPLITS_PARAMETER_KEY, numDesiredSplits);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		/**
+		 * Sets the minimal size for the splits generated by this input format.
+		 * 
+		 * @param minSplitSize The minimal split size, in bytes.
+		 * @return The builder itself.
+		 */
+		public T minimumSplitSize(int minSplitSize) {
+			this.config.setInteger(MINIMAL_SPLIT_SIZE_PARAMETER_KEY,  minSplitSize);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		/**
+		 * Sets the timeout after which the input format will abort the opening of the input stream,
+		 * if the stream has not responded until then.
+		 * 
+		 * @param timeoutInMillies The timeout, in milliseconds, or <code>0</code> for infinite.
+		 * @return The builder itself.
+		 */
+		public T openingTimeout(int timeoutInMillies) {
+			this.config.setLong(INPUT_STREAM_OPEN_TIMEOUT_KEY, timeoutInMillies);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+	}
+	
+	/**
+	 * A builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
+	{
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected ConfigBuilder(Configuration targetConfig) {
+			super(targetConfig);
+		}
+		
 	}
 }

@@ -86,13 +86,11 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 		String output = (args.length > 2 ? args[2] : "");
 
 		FileDataSource input = new FileDataSource(RecordInputFormat.class, dataInput, "Input");
-		input.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		input.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, " ");
-		input.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-		input.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextIntParser.class);
-		input.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		input.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
-		input.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 1);
+		RecordInputFormat.configureRecordFormat(input)
+			.recordDelimiter('\n')
+			.fieldDelimiter(' ')
+			.field(DecimalTextIntParser.class, 0)
+			.field(DecimalTextIntParser.class, 1);
 		
 		// create the reduce contract and sets the key to the first field
 		ReduceContract sorter = new ReduceContract.Builder(IdentityReducer.class, PactInteger.class, 0)
@@ -104,14 +102,11 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 
 		// create and configure the output format
 		FileDataSink out = new FileDataSink(RecordOutputFormat.class, output, sorter, "Sorted Output");
-		out.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-		out.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, " ");
-		out.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-		out.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		out.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
-		out.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-		out.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-		out.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
+		RecordOutputFormat.configureRecordFormat(out)
+			.recordDelimiter('\n')
+			.fieldDelimiter(' ')
+			.field(PactInteger.class, 0)
+			.field(PactInteger.class, 1);
 		
 		Plan plan = new Plan(out, "SecondarySort Example");
 		plan.setDefaultParallelism(noSubTasks);
