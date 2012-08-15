@@ -31,7 +31,7 @@ import eu.stratosphere.sopremo.packages.IFunctionRegistry;
 public class PackageManager implements ParsingScope {
 	private Map<String, PackageInfo> packages = new HashMap<String, PackageInfo>();
 
-	private String defaultJarPath;
+	private String defaultJarPath = ".";
 
 	public final static IOperatorRegistry IORegistry = new DefaultOperatorRegistry();
 
