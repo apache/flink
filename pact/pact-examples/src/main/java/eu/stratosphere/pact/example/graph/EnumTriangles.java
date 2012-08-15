@@ -272,12 +272,12 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 		closeTriads.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_SECOND");
 
 		FileDataSink triangles = new FileDataSink(RecordOutputFormat.class, output, "Output");
-		triangles.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-		triangles.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, " ");
-		triangles.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
-		triangles.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		triangles.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
-		triangles.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactString.class);
+		RecordOutputFormat.configureRecordFormat(triangles)
+			.recordDelimiter('\n')
+			.fieldDelimiter(' ')
+			.field(PactString.class, 0)
+			.field(PactString.class, 1)
+			.field(PactString.class, 2);
 
 		triangles.setInput(closeTriads);
 		closeTriads.setSecondInput(edges);
