@@ -163,6 +163,8 @@ public class TaskConfig
 
   private static final String CONVERGENCE_CRITERION = "pact.iterative.terminationCriterion";
 
+  private static final String USES_WORKSET = "pact.iterative.usesWorkset";
+
   // --------------------------------------------------------------------------------------------
 
 	protected final Configuration config;			// the actual configuration holding the values
@@ -685,6 +687,14 @@ public class TaskConfig
 
   public boolean usesConvergenceCriterion() {
     return config.getClass(CONVERGENCE_CRITERION, null) != null;
+  }
+
+  public boolean usesWorkset() {
+    return config.getBoolean(USES_WORKSET, false);
+  }
+
+  public void enableWorkset() {
+    config.setBoolean(USES_WORKSET, true);
   }
 	
 	// --------------------------------------------------------------------------------------------

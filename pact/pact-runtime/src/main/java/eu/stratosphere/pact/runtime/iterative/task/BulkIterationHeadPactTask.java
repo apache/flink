@@ -20,27 +20,33 @@ import com.google.common.collect.Lists;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.Writer;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.nephele.types.Record;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -72,12 +78,10 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
    **/
   private BlockingBackChannel initBackChannel() throws Exception {
 
-    TaskConfig taskConfig = getTaskConfig();
-
     // compute the size of the memory available to the backchannel
-    long completeMemorySize = taskConfig.getMemorySize();
-    long backChannelMemorySize = (long) (completeMemorySize * taskConfig.getBackChannelMemoryFraction());
-    taskConfig.setMemorySize(completeMemorySize - backChannelMemorySize);
+    long completeMemorySize = config.getMemorySize();
+    long backChannelMemorySize = (long) (completeMemorySize * config.getBackChannelMemoryFraction());
+    config.setMemorySize(completeMemorySize - backChannelMemorySize);
 
     // allocate the memory available to the backchannel
     List<MemorySegment> segments = Lists.newArrayList();
@@ -93,6 +97,57 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     broker.handIn(brokerKey(), backChannel);
 
     return backChannel;
+  }
+
+  //TODO type safety
+  private <IT1, IT2> MutableHashTable initHashJoin() throws Exception {
+
+    /* steal some memory */
+    long completeMemorySize = config.getMemorySize();
+    //TODO make configurable
+    long backChannelMemorySize = (long) (completeMemorySize * 0.5);
+    config.setMemorySize(completeMemorySize - backChannelMemorySize);
+
+    final List<MemorySegment> memorySegments = getMemoryManager().allocatePages(getOwningNepheleTask(),
+        config.getMemorySize());
+
+    //TODO make configurable
+    final TypeSerializer<IT1> serializer1 = (TypeSerializer<IT1>) PactRecordSerializer.get();
+    final TypeSerializer<IT2> serializer2 = (TypeSerializer<IT2>) PactRecordSerializer.get();
+    final TypeComparator<IT1> comparator1 = (TypeComparator<IT1>) new PactRecordComparator(new int[] { 0 },
+        new Class[] { PactLong.class });
+    final TypeComparator<IT2> comparator2 = (TypeComparator<IT2>) new PactRecordComparator(new int[] { 0 },
+        new Class[] { PactLong.class });
+
+    final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
+    try {
+      final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
+          config.getPairComparatorFactory(getUserCodeClassLoader());
+
+      if (factoryClass == null) {
+        @SuppressWarnings("unchecked")
+        TypePairComparatorFactory<IT1, IT2> pactRecordFactory =
+            (TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
+        pairComparatorFactory = pactRecordFactory;
+      } else {
+        @SuppressWarnings("unchecked")
+        final Class<TypePairComparatorFactory<IT1, IT2>> clazz =
+            (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
+        pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
+      }
+    } catch (ClassNotFoundException e) {
+      throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", e);
+    }
+
+    MutableHashTable hashJoin = new MutableHashTable(serializer2, serializer1, comparator2, comparator1,
+        pairComparatorFactory.createComparator12(comparator1, comparator2), memorySegments, getIOManager());
+
+    Broker<MutableHashTable> solutionsetBroker = SolutionSetBroker.instance();
+
+    System.out.println("HANDING IN JOIN: " + brokerKey());
+    solutionsetBroker.handIn(brokerKey(), hashJoin);
+
+    return hashJoin;
   }
 
   private SuperstepBarrier initSuperstepBarrier() {
@@ -118,6 +173,7 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     return 0;
   }
 
+  //TODO type safety
   @Override
   public void invoke() throws Exception {
 
@@ -126,8 +182,9 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
 
     SuperstepBarrier barrier = initSuperstepBarrier();
 
+    MutableHashTable hashJoin = config.usesWorkset() ? initHashJoin() : null;
+
     TypeSerializer serializer = getInputSerializer(getIterationInputIndex());
-    //TODO type safety
     output = (Collector<OT>) iterationCollector();
 
     while (!terminationRequested()) {
@@ -179,7 +236,12 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     if (log.isInfoEnabled()) {
       log.info(formatLogString("streaming out final result after [" + currentIteration() + "] iterations"));
     }
-    streamOutFinalOutput();
+
+    if (config.usesWorkset()) {
+      streamOutFinalOutputWorkset(hashJoin);
+    } else {
+      streamOutFinalOutputBulk();
+    }
   }
 
   // send output to all but the last two connected tasks while iterating
@@ -195,10 +257,10 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
     return new PactRecordOutputCollector(writers);
   }
 
-  //TODO we can avoid this if we can detect that we are in the last iteration
-  private void streamOutFinalOutput() throws IOException, InterruptedException {
+  private void streamOutFinalOutputBulk() throws IOException, InterruptedException {
     //TODO type safety
     Writer<PactRecord> writer = (Writer<PactRecord>) getFinalOutput();
+
     MutableObjectIterator<PactRecord> results = (MutableObjectIterator<PactRecord>) inputs[getIterationInputIndex()];
 
     int recordsPut = 0;
@@ -207,7 +269,27 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
       writer.emit(record);
       recordsPut++;
     }
+
     System.out.println("Records to final out: " + recordsPut);
+  }
+
+  private void streamOutFinalOutputWorkset(MutableHashTable hashJoin) throws IOException, InterruptedException {
+    //TODO type safety
+    Writer<PactRecord> writer = (Writer<PactRecord>) getFinalOutput();
+
+    //TODO implement an iterator over MutableHashTable.partitionsBeingBuilt
+    MutableObjectIterator<PactRecord> results = hashJoin.getPartitionEntryIterator();
+
+    int recordsPut = 0;
+    PactRecord record = new PactRecord();
+    while (results.next(record)) {
+      writer.emit(record);
+      recordsPut++;
+    }
+
+    hashJoin.close();
+
+    System.out.println("Records to final out (workset): " + recordsPut);
   }
 
   private void feedBackSuperstepResult(DataInputView superstepResult, TypeSerializer serializer) {

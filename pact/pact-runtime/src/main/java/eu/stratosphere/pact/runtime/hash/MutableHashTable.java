@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import eu.stratosphere.pact.runtime.io.HashPartitionIterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -417,7 +418,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	{
 		// sanity checks
 		if (!this.closed) {
-			throw new IllegalStateException("Hash Join cannot be opened, because it is currently closed.");
+			throw new IllegalStateException("Hash Join cannot be opened, because it is currently not closed.");
 		}
 		this.closed = false;
 		
@@ -593,6 +594,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	{
 		return this.bucketIterator;
 	}
+
+  public MutableObjectIterator<BT> getPartitionEntryIterator()
+  {
+    return new HashPartitionIterator<BT, PT>(this.partitionsBeingBuilt.iterator(), this.buildSideSerializer);
+  }
 	
 	/**
 	 * Closes the hash table. This effectively releases all internal structures and closes all
@@ -1290,7 +1296,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	/**
 	 *
 	 */
-	public static class HashBucketIterator<BT, PT>
+	public static class HashBucketIterator<BT, PT> implements MutableObjectIterator<BT>
 	{
 		private final TypeSerializer<BT> accessor;
 		

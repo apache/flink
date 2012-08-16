@@ -15,9 +15,12 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import org.apache.commons.logging.Log;
@@ -25,25 +28,29 @@ import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 
-/**
- * A task which participates in an iteration and runs a {@link eu.stratosphere.pact.runtime.task.PactDriver} inside. It will propagate
- * {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to it's connected tasks.
- */
-public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
+public class WorksetIterationSolutionSetJoinTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
-  private static final Log log = LogFactory.getLog(BulkIterationIntermediatePactTask.class);
+  private static final Log log = LogFactory.getLog(WorksetIterationSolutionSetJoinTask.class);
+
+  private SolutionSetMatchDriver solutionSetMatchDriver;
 
   @Override
   public void invoke() throws Exception {
+
+    Preconditions.checkState(SolutionSetMatchDriver.class.equals(driver.getClass()));
+
+    //TODO type safety
+    solutionSetMatchDriver = (SolutionSetMatchDriver) driver;
+
+    /* retrieve hashJoin from the head */
+    MutableHashTable hashJoin = SolutionSetBroker.instance().get(brokerKey());
+
+    solutionSetMatchDriver.setHashJoin(hashJoin);
 
     while (!terminationRequested() && currentIteration() < 6) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
-      }
-
-      if (!inFirstIteration()) {
-        reinstantiateDriver();
       }
 
       super.invoke();
@@ -69,5 +76,4 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
       eventualOutput.publishEvent(event);
     }
   }
-
 }

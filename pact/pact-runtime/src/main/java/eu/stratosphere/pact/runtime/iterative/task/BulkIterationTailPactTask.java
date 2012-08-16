@@ -72,7 +72,7 @@ public class BulkIterationTailPactTask<S extends Stub, OT> extends AbstractItera
     //TODO type safety
     output = new DataOutputCollector(backChannel.getWriteEnd(), createOutputTypeSerializer(), validOutputs);
 
-    while (!terminationRequested()) {
+    while (!terminationRequested() && currentIteration() < 6) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
