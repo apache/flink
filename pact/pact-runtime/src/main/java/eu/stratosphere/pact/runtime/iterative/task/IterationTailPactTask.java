@@ -15,28 +15,64 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
+import com.google.common.collect.Lists;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
+import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
+import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
+import java.util.List;
 
+//TODO could this be an output???
 /**
- * A task which participates in an iteration and runs a {@link eu.stratosphere.pact.runtime.task.PactDriver} inside. It will propagate
- * {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to it's connected tasks.
+ * The tail of an iteration, which is able to run a {@link eu.stratosphere.pact.runtime.task.PactDriver} inside. It will send back its output to
+ * the iteration's head via a {@link BlockingBackChannel}. Therefore this task must be scheduled on the same instance as the head.
  */
-public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
+public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
+    implements PactTaskContext<S, OT> {
 
-  private static final Log log = LogFactory.getLog(BulkIterationIntermediatePactTask.class);
+  private List<AbstractRecordWriter> validOutputs;
+
+  private static final Log log = LogFactory.getLog(IterationTailPactTask.class);
+
+  private BlockingBackChannel retrieveBackChannel() throws Exception {
+    // blocking call to retrieve the backchannel from the iteration head
+    Broker<BlockingBackChannel> broker = BlockingBackChannelBroker.instance();
+    return broker.get(brokerKey());
+  }
+
+  @Override
+  protected void initOutputs() throws Exception {
+    super.initOutputs();
+    //TODO remove implicit order assumption
+    //TODO type safety
+    validOutputs = Lists.newArrayListWithCapacity(eventualOutputs.size() - 1);
+
+    for (int n = 0; n < eventualOutputs.size() - 1; n++) {
+      validOutputs.add(eventualOutputs.get(n));
+    }
+  }
 
   @Override
   public void invoke() throws Exception {
 
-    while (!terminationRequested() && currentIteration() < 6) {
+    // Initially retreive the backchannel from the iteration head
+    final BlockingBackChannel backChannel = retrieveBackChannel();
+
+    // redirect output to the backchannel
+    //TODO type safety
+    output = new DataOutputCollector(backChannel.getWriteEnd(), createOutputTypeSerializer(), validOutputs);
+
+    while (!terminationRequested()) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
@@ -53,6 +89,7 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
       }
 
       if (!terminationRequested()) {
+        backChannel.notifyOfEndOfSuperstep();
         propagateEvent(new EndOfSuperstepEvent());
         incrementIterationCounter();
       } else {
@@ -65,9 +102,8 @@ public class BulkIterationIntermediatePactTask<S extends Stub, OT> extends Abstr
     if (log.isInfoEnabled()) {
       log.info(formatLogString("propagating " + event.getClass().getSimpleName()));
     }
-    for (AbstractRecordWriter<?> eventualOutput : eventualOutputs) {
-      eventualOutput.publishEvent(event);
+    for (AbstractRecordWriter<?> validOutput : validOutputs) {
+      validOutput.publishEvent(event);
     }
   }
-
 }

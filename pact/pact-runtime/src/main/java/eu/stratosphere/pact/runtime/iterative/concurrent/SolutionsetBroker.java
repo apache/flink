@@ -13,17 +13,21 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.convergence;
+package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-/** Used to check for convergence */
-public interface ConvergenceCriterion<T> {
+import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 
-  /** Prepare for the start of an iteration */
-  void prepareForNextIteration();
+/** Used to hand over the hash-join from the iteration head to the solutionset match */
+public class SolutionsetBroker extends Broker<MutableHashTable> {
 
-  /** Called for each record sent to the synchronization task on the convergence criterion gate */
-  void analyze(T record);
+  /** single instance */
+  private static final SolutionsetBroker INSTANCE = new SolutionsetBroker();
 
-  /** Decide whether the iterative algorithm has converged */
-  boolean isConverged();
+  private SolutionsetBroker() {}
+
+  /** retrieve singleton instance */
+  public static Broker<MutableHashTable> instance() {
+    return INSTANCE;
+  }
+
 }

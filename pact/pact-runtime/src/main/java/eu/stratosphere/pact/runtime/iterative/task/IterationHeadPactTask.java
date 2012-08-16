@@ -23,12 +23,13 @@ import eu.stratosphere.nephele.io.Writer;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
@@ -36,15 +37,15 @@ import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
-import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import org.apache.commons.logging.Log;
@@ -67,10 +68,10 @@ import java.util.List;
  *
  * The input for the iteration must arrive in the first gate
  */
-public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
+public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT>
     implements PactTaskContext<S, OT> {
 
-  private static final Log log = LogFactory.getLog(BulkIterationHeadPactTask.class);
+  private static final Log log = LogFactory.getLog(IterationHeadPactTask.class);
 
   /**
    * the iteration head prepares the backchannel: it allocates memory, instantiates a {@link BlockingBackChannel} and
@@ -78,25 +79,71 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
    **/
   private BlockingBackChannel initBackChannel() throws Exception {
 
-    // compute the size of the memory available to the backchannel
+    /* compute the size of the memory available to the backchannel */
     long completeMemorySize = config.getMemorySize();
     long backChannelMemorySize = (long) (completeMemorySize * config.getBackChannelMemoryFraction());
     config.setMemorySize(completeMemorySize - backChannelMemorySize);
 
-    // allocate the memory available to the backchannel
+    /* allocate the memory available to the backchannel */
     List<MemorySegment> segments = Lists.newArrayList();
     int segmentSize = getMemoryManager().getPageSize();
     getMemoryManager().allocatePages(this, segments, backChannelMemorySize);
 
-    // instantiate the backchannel
+    /* instantiate the backchannel */
     BlockingBackChannel backChannel = new BlockingBackChannel(new SerializedUpdateBuffer(segments, segmentSize,
         getIOManager()));
 
-    // hand the backchannel over to the iteration tail
+    /* hand the backchannel over to the iteration tail */
     Broker<BlockingBackChannel> broker = BlockingBackChannelBroker.instance();
     broker.handIn(brokerKey(), backChannel);
 
     return backChannel;
+  }
+
+  //TODO refactor up into RegularPactTask
+  private <T> TypeSerializer<T> instantiateTypeSerializer(
+      Class<? extends TypeSerializerFactory<?>> serializerFactoryClass) {
+    final TypeSerializerFactory<?> serializerFactory;
+    if (serializerFactoryClass == null) {
+      // fall back to PactRecord
+      serializerFactory = PactRecordSerializerFactory.get();
+    } else {
+      serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
+    }
+    return (TypeSerializer<T>) serializerFactory.getSerializer();
+  }
+
+  //TODO refactor up into RegularPactTask
+  private <T> TypeComparator<T> instantiateTypeComparator(
+      Class<? extends TypeComparatorFactory<?>> comparatorFactoryClass, String keyPrefix)
+      throws ClassNotFoundException {
+    final TypeComparatorFactory<?> comparatorFactory;
+    if (comparatorFactoryClass == null) {
+      // fall back to PactRecord
+      comparatorFactory = PactRecordComparatorFactory.get();
+    } else {
+      comparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
+    }
+    return (TypeComparator<T>) comparatorFactory.createComparator(getEnvironment().getTaskConfiguration(), keyPrefix,
+        userCodeClassLoader);
+  }
+
+  private <T1, T2> TypePairComparatorFactory<T1, T2> instantiateTypePairComparator(
+      Class<? extends TypePairComparatorFactory<T1, T2>> comparatorFactoryClass) throws ClassNotFoundException {
+
+    TypePairComparatorFactory<T1, T2> pairComparatorFactory;
+    if (comparatorFactoryClass == null) {
+      @SuppressWarnings("unchecked")
+      TypePairComparatorFactory<T1, T2> pactRecordFactory =
+          (TypePairComparatorFactory<T1, T2>) PactRecordPairComparatorFactory.get();
+      pairComparatorFactory = pactRecordFactory;
+    } else {
+      @SuppressWarnings("unchecked")
+      final Class<TypePairComparatorFactory<T1, T2>> clazz =
+          (Class<TypePairComparatorFactory<T1, T2>>) (Class<?>) TypePairComparatorFactory.class;
+      pairComparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, clazz);
+    }
+    return pairComparatorFactory;
   }
 
   //TODO type safety
@@ -104,47 +151,53 @@ public class BulkIterationHeadPactTask<S extends Stub, OT> extends AbstractItera
 
     /* steal some memory */
     long completeMemorySize = config.getMemorySize();
-    //TODO make configurable
-    long backChannelMemorySize = (long) (completeMemorySize * 0.5);
-    config.setMemorySize(completeMemorySize - backChannelMemorySize);
+    long hashjoinMemorySize = (long) (completeMemorySize * config.getWorksetHashjoinMemoryFraction());
+    config.setMemorySize(completeMemorySize - hashjoinMemorySize);
 
-    final List<MemorySegment> memorySegments = getMemoryManager().allocatePages(getOwningNepheleTask(),
-        config.getMemorySize());
 
-    //TODO make configurable
-    final TypeSerializer<IT1> serializer1 = (TypeSerializer<IT1>) PactRecordSerializer.get();
-    final TypeSerializer<IT2> serializer2 = (TypeSerializer<IT2>) PactRecordSerializer.get();
-    final TypeComparator<IT1> comparator1 = (TypeComparator<IT1>) new PactRecordComparator(new int[] { 0 },
-        new Class[] { PactLong.class });
-    final TypeComparator<IT2> comparator2 = (TypeComparator<IT2>) new PactRecordComparator(new int[] { 0 },
-        new Class[] { PactLong.class });
+    TypeSerializer<IT1> probesideSerializer = instantiateTypeSerializer(
+        config.getWorksetHashjoinProbesideSerializerFactoryClass(userCodeClassLoader));
+    TypeSerializer<IT2> buildsideSerializer = instantiateTypeSerializer(
+        config.getWorksetHashjoinBuildsideSerializerFactoryClass(userCodeClassLoader));
 
-    final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
-    try {
-      final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
-          config.getPairComparatorFactory(getUserCodeClassLoader());
+    TypeComparator<IT1> probesideComparator = instantiateTypeComparator(
+        config.getWorksetHashJoinProbeSideComparatorFactoryClass(userCodeClassLoader),
+        config.getWorksetHashjoinBuildsideComparatorPrefix());
+    //(TypeComparator<IT1>) new PactRecordComparator(new int[] { 0 }, new Class[] { PactLong.class });
+    TypeComparator<IT2> buildSideComparator = instantiateTypeComparator(
+        config.getWorksetHashJoinBuildSideComparatorFactoryClass(userCodeClassLoader),
+        config.getWorksetHashjoinProbesideComparatorPrefix());
+    //new PactRecordComparator(new int[] { 0 },  new Class[] { PactLong.class });
 
-      if (factoryClass == null) {
-        @SuppressWarnings("unchecked")
-        TypePairComparatorFactory<IT1, IT2> pactRecordFactory =
-            (TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
-        pairComparatorFactory = pactRecordFactory;
-      } else {
-        @SuppressWarnings("unchecked")
-        final Class<TypePairComparatorFactory<IT1, IT2>> clazz =
-            (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
-        pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
-      }
-    } catch (ClassNotFoundException e) {
-      throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", e);
-    }
+    TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = (TypePairComparatorFactory<IT1, IT2>)
+        instantiateTypePairComparator(config.getWorksetHashJoinTypePairComparatorFactoryClass(userCodeClassLoader));
+//    TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
+//    try {
+//      final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
+//          config.getPairComparatorFactory(getUserCodeClassLoader());
+//
+//      if (factoryClass == null) {
+//        @SuppressWarnings("unchecked")
+//        TypePairComparatorFactory<IT1, IT2> pactRecordFactory =
+//            (TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
+//        pairComparatorFactory = pactRecordFactory;
+//      } else {
+//        @SuppressWarnings("unchecked")
+//        final Class<TypePairComparatorFactory<IT1, IT2>> clazz =
+//            (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
+//        pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
+//      }
+//    } catch (ClassNotFoundException e) {
+//      throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", e);
+//    }
 
-    MutableHashTable hashJoin = new MutableHashTable(serializer2, serializer1, comparator2, comparator1,
-        pairComparatorFactory.createComparator12(comparator1, comparator2), memorySegments, getIOManager());
+    List<MemorySegment> memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), config.getMemorySize());
 
-    Broker<MutableHashTable> solutionsetBroker = SolutionSetBroker.instance();
+    MutableHashTable hashJoin = new MutableHashTable(buildsideSerializer, probesideSerializer, buildSideComparator,
+        probesideComparator, pairComparatorFactory.createComparator12(probesideComparator, buildSideComparator),
+        memSegments, getIOManager());
 
-    System.out.println("HANDING IN JOIN: " + brokerKey());
+    Broker<MutableHashTable> solutionsetBroker = SolutionsetBroker.instance();
     solutionsetBroker.handIn(brokerKey(), hashJoin);
 
     return hashJoin;

@@ -33,4 +33,8 @@ public class CorruptConfigurationException extends RuntimeException
 	public CorruptConfigurationException(String message) {
 		super(message);
 	}
+
+  public CorruptConfigurationException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

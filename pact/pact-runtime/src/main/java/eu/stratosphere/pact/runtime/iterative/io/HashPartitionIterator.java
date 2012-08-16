@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.io;
+package eu.stratosphere.pact.runtime.iterative.io;
 
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
@@ -23,7 +23,12 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.util.Iterator;
 
-public class HashPartitionIterator<BT,PT> implements MutableObjectIterator<BT> {
+/**
+ * {@link Iterator} over the buildside entries of a {@link HashPartition}
+ *
+ * @param <BT>
+ */
+public class HashPartitionIterator<BT, PT> implements MutableObjectIterator<BT> {
 
   private final Iterator<HashPartition<BT, PT>> partitions;
   private final TypeSerializer<BT> serializer;
@@ -38,7 +43,6 @@ public class HashPartitionIterator<BT,PT> implements MutableObjectIterator<BT> {
 
   @Override
   public boolean next(BT record) throws IOException {
-
     if (currentPartition == null) {
       if (!partitions.hasNext()) {
         return false;
@@ -56,6 +60,7 @@ public class HashPartitionIterator<BT,PT> implements MutableObjectIterator<BT> {
     return true;
   }
 
+  /* jump to the next partition and continue reading from that */
   private boolean advanceAndRead(BT record) throws IOException {
     if (!partitions.hasNext()) {
       return false;

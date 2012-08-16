@@ -165,6 +165,29 @@ public class TaskConfig
 
   private static final String USES_WORKSET = "pact.iterative.usesWorkset";
 
+  private static final String WORKSET_HASHJOIN_MEMORY_FRACTION = "pact.iterative.worksetHashjoinMemoryFraction";
+
+  private static final String WORKSET_HASHJOIN_BUILDSIDE_SERIALIZER_FACTORY_CLASS =
+      "pact.iterative.worksetHashjoinBuildsideSerializerFactoryClass";
+
+  private static final String WORKSET_HASHJOIN_BUILDSIDE_COMPARATOR_FACTORY_CLASS =
+      "pact.iterative.worksetHashjoinBuildsideComparatorFactoryClass";
+
+  private static final String WORKSET_HASHJOIN_BUILDSIDE_COMPARATOR_PREFIX =
+      "pact.iterative.worksetHashjoinBuildsideComparator";
+
+  private static final String WORKSET_HASHJOIN_PROBESIDE_SERIALIZER_FACTORY_CLASS =
+      "pact.iterative.worksetHashjoinProbesideSerializerFactoryClass";
+
+  private static final String WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS =
+      "pact.iterative.worksetHashjoinProbesideComparatorFactoryClass";
+
+  private static final String WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX =
+      "pact.iterative.worksetHashjoinProbesideComparator";
+
+  private static final String WORKSET_HASHJOIN_PAIRCOMPARATOR_FACTORY_CLASS =
+      "pact.iterative.worksetHashjoinPairComparatorFactoryClass";
+
   // --------------------------------------------------------------------------------------------
 
 	protected final Configuration config;			// the actual configuration holding the values
@@ -289,56 +312,76 @@ public class TaskConfig
 	public <T> Class<? extends TypeSerializerFactory<T>> getSerializerFactoryForInput(int inputNum, ClassLoader cl)
 	throws ClassNotFoundException
 	{
-		final String className = this.config.getString(INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum, null);
-		if (className == null) {
-			return null;
-		} else {
-			@SuppressWarnings("unchecked")
-			final Class<TypeSerializerFactory<T>> superClass = (Class<TypeSerializerFactory<T>>) (Class<?>) TypeSerializerFactory.class;
-			try {
-				return Class.forName(className, true, cl).asSubclass(superClass);
-			} catch (ClassCastException ccex) {
-				throw new CorruptConfigurationException("The class noted in the configuration as the serializer factory " +
-						"is no subclass of TypeSerializerFactory.");
-			}
-		}
+    return getSerializerFactoryClass(INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum, cl);
 	}
+
+  private <T> Class<? extends TypeSerializerFactory<T>> getSerializerFactoryClass(String configParam, ClassLoader cl)
+      throws ClassNotFoundException
+  {
+    final String className = this.config.getString(configParam, null);
+    if (className == null) {
+      return null;
+    } else {
+      @SuppressWarnings("unchecked")
+      final Class<TypeSerializerFactory<T>> superClass = (Class<TypeSerializerFactory<T>>)
+          (Class<?>) TypeSerializerFactory.class;
+      try {
+        return Class.forName(className, true, cl).asSubclass(superClass);
+      } catch (ClassCastException ccex) {
+        throw new CorruptConfigurationException("The class noted in the configuration as the serializer factory " +
+            "is no subclass of TypeSerializerFactory.");
+      }
+    }
+  }
 	
 	public <T> Class<? extends TypeComparatorFactory<T>> getComparatorFactoryForInput(int inputNum, ClassLoader cl)
 	throws ClassNotFoundException
 	{
-		final String className = this.config.getString(INPUT_TYPE_COMPARATOR_FACTORY_PREFIX + inputNum, null);
-		if (className == null) {
-			return null;
-		} else {
-			@SuppressWarnings("unchecked")
-			final Class<TypeComparatorFactory<T>> superClass = (Class<TypeComparatorFactory<T>>) (Class<?>) TypeComparatorFactory.class;
-			try {
-				return Class.forName(className, true, cl).asSubclass(superClass);
-			} catch (ClassCastException ccex) {
-				throw new CorruptConfigurationException("The class noted in the configuration as the comparator factory " +
-						"is no subclass of TypeComparatorFactory.");
-			}
-		}
+    return getComparatorFactoryClass(INPUT_TYPE_COMPARATOR_FACTORY_PREFIX + inputNum, cl);
 	}
+
+  private <T> Class<? extends TypeComparatorFactory<T>> getComparatorFactoryClass(String configParam, ClassLoader cl)
+      throws ClassNotFoundException {
+    final String className = this.config.getString(configParam, null);
+    if (className == null) {
+      return null;
+    } else {
+      @SuppressWarnings("unchecked")
+      final Class<TypeComparatorFactory<T>> superClass = (Class<TypeComparatorFactory<T>>)
+          (Class<?>) TypeComparatorFactory.class;
+      try {
+        return Class.forName(className, true, cl).asSubclass(superClass);
+      } catch (ClassCastException e) {
+        throw new CorruptConfigurationException("The class noted in the configuration as the comparator factory " +
+            "is no subclass of TypeComparatorFactory.", e);
+      }
+    }
+  }
 	
 	public <T1, T2> Class<? extends TypePairComparatorFactory<T1, T2>> getPairComparatorFactory(ClassLoader cl)
 		throws ClassNotFoundException
 		{
-			final String className = this.config.getString(INPUT_PAIR_COMPARATOR_FACTORY, null);
-			if (className == null) {
-				return null;
-			} else {
-				@SuppressWarnings("unchecked")
-				final Class<TypePairComparatorFactory<T1, T2>> superClass = (Class<TypePairComparatorFactory<T1, T2>>) (Class<?>) TypePairComparatorFactory.class;
-				try {
-					return Class.forName(className, true, cl).asSubclass(superClass);
-				} catch (ClassCastException ccex) {
-					throw new CorruptConfigurationException("The class noted in the configuration as the pair comparator factory " +
-							"is no subclass of TypePairComparatorFactory.");
-				}
-			}
+      return doGetPairComparatorFactory(INPUT_PAIR_COMPARATOR_FACTORY, cl);
 		}
+
+  private <T1, T2> Class<? extends TypePairComparatorFactory<T1, T2>> doGetPairComparatorFactory(String configParam,
+      ClassLoader cl) throws ClassNotFoundException
+  {
+    final String className = this.config.getString(configParam, null);
+    if (className == null) {
+      return null;
+    } else {
+      @SuppressWarnings("unchecked")
+      final Class<TypePairComparatorFactory<T1, T2>> superClass = (Class<TypePairComparatorFactory<T1, T2>>)
+          (Class<?>) TypePairComparatorFactory.class;
+      try {
+        return Class.forName(className, true, cl).asSubclass(superClass);
+      } catch (ClassCastException e) {
+        throw new CorruptConfigurationException("The class noted in the configuration as the pair comparator factory " +
+            "is no subclass of TypePairComparatorFactory.", e);
+      }
+    }
+  }
 	
 	public String getPrefixForInputParameters(int inputNum)
 	{
@@ -696,8 +739,76 @@ public class TaskConfig
   public void enableWorkset() {
     config.setBoolean(USES_WORKSET, true);
   }
-	
-	// --------------------------------------------------------------------------------------------
+
+  public float getWorksetHashjoinMemoryFraction() {
+    float memoryFraction = config.getFloat(WORKSET_HASHJOIN_MEMORY_FRACTION, 0);
+    Preconditions.checkState(memoryFraction > 0);
+    return memoryFraction;
+  }
+
+  public void setWorksetHashjoinMemoryFraction(float memoryFraction) {
+    config.setFloat(WORKSET_HASHJOIN_MEMORY_FRACTION, memoryFraction);
+  }
+
+  public <T> Class<? extends TypeSerializerFactory<T>> getWorksetHashjoinBuildsideSerializerFactoryClass(ClassLoader
+      classLoader) throws ClassNotFoundException {
+    return getSerializerFactoryClass(WORKSET_HASHJOIN_BUILDSIDE_SERIALIZER_FACTORY_CLASS, classLoader);
+  }
+
+  public <T> void setWorksetHashjoinBuildsideSerializerFactoryClass(Class<? extends TypeSerializerFactory<T>>
+      serializerFactoryClass) {
+    config.setClass(WORKSET_HASHJOIN_BUILDSIDE_SERIALIZER_FACTORY_CLASS, serializerFactoryClass);
+  }
+
+  public <T> Class<? extends TypeComparatorFactory<T>> getWorksetHashJoinBuildSideComparatorFactoryClass(ClassLoader
+      classLoader) throws ClassNotFoundException {
+    return getComparatorFactoryClass(WORKSET_HASHJOIN_BUILDSIDE_COMPARATOR_FACTORY_CLASS, classLoader);
+  }
+
+  public <T> void setWorksetHashjoinBuildsideComparatorFactoryClass(Class<? extends TypeComparatorFactory<T>>
+      comparatorFactoryClass) {
+    config.setClass(WORKSET_HASHJOIN_BUILDSIDE_COMPARATOR_FACTORY_CLASS, comparatorFactoryClass);
+  }
+
+  public String getWorksetHashjoinBuildsideComparatorPrefix() {
+    return WORKSET_HASHJOIN_BUILDSIDE_COMPARATOR_PREFIX;
+  }
+
+  public <T> Class<? extends TypeSerializerFactory<T>> getWorksetHashjoinProbesideSerializerFactoryClass(ClassLoader
+      classLoader) throws ClassNotFoundException {
+    return getSerializerFactoryClass(WORKSET_HASHJOIN_PROBESIDE_SERIALIZER_FACTORY_CLASS, classLoader);
+  }
+
+  public <T> void setWorksetHashjoinProbesideSerializerFactoryClass(Class<? extends TypeSerializerFactory<T>>
+      serializerFactoryClass) {
+    config.setClass(WORKSET_HASHJOIN_PROBESIDE_SERIALIZER_FACTORY_CLASS, serializerFactoryClass);
+  }
+
+  public <T> Class<? extends TypeComparatorFactory<T>> getWorksetHashJoinProbeSideComparatorFactoryClass(ClassLoader
+      classLoader) throws ClassNotFoundException {
+    return getComparatorFactoryClass(WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS, classLoader);
+  }
+
+  public <T> void setWorksetHashjoinProbesideComparatorFactoryClass(Class<? extends TypeComparatorFactory<T>>
+      comparatorFactoryClass) {
+    config.setClass(WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS, comparatorFactoryClass);
+  }
+
+  public String getWorksetHashjoinProbesideComparatorPrefix() {
+    return WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX;
+  }
+
+  public <T1, T2> Class<? extends TypePairComparatorFactory<T1, T2>>
+      getWorksetHashJoinTypePairComparatorFactoryClass(ClassLoader classLoader) throws ClassNotFoundException {
+    return doGetPairComparatorFactory(WORKSET_HASHJOIN_PAIRCOMPARATOR_FACTORY_CLASS, classLoader);
+  }
+
+  public <T1, T2> void setWorksetHashJoinTypePairComparatorFactoryClass(
+      Class<? extends TypePairComparatorFactory<T1, T2>> comparatorFactoryClass) {
+    config.setClass(WORKSET_HASHJOIN_PAIRCOMPARATOR_FACTORY_CLASS, comparatorFactoryClass);
+  }
+
+  // --------------------------------------------------------------------------------------------
 	//                              Utility class for nested Configurations
 	// --------------------------------------------------------------------------------------------
 	

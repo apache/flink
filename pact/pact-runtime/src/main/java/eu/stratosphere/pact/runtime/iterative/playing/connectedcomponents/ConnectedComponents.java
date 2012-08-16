@@ -25,14 +25,15 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.IdentityMap;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationIntermediatePactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.SolutionSetMatchDriver;
-import eu.stratosphere.pact.runtime.iterative.task.WorksetIterationSolutionSetJoinTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.SolutionsetMatchDriver;
+import eu.stratosphere.pact.runtime.iterative.task.WorksetIterationSolutionsetJoinTask;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -67,7 +68,7 @@ public class ConnectedComponents {
     PactRecordComparatorFactory.writeComparatorSetupToConfig(graph.getConfiguration(),
         graphConfig.getPrefixForOutputParameters(0), new int[] { 0 }, new Class[] { PactLong.class });
 
-    JobTaskVertex head = JobGraphUtils.createTask(BulkIterationHeadPactTask.class, "Head-Repartition", jobGraph,
+    JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Head-Repartition", jobGraph,
         degreeOfParallelism);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
@@ -77,10 +78,15 @@ public class ConnectedComponents {
     headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(),
         headConfig.getPrefixForOutputParameters(0), new int[] { 0 }, new Class[] { PactLong.class });
+
     headConfig.enableWorkset();
+    headConfig.setWorksetHashjoinMemoryFraction(0.5f);
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(),
+        headConfig.getWorksetHashjoinBuildsideComparatorPrefix(), new int[]{ 0 }, new Class[]{ PactLong.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(),
+        headConfig.getWorksetHashjoinProbesideComparatorPrefix(), new int[] { 0 }, new Class[]{ PactLong.class });
 
-
-    JobTaskVertex intermediateMinimumComponentID = JobGraphUtils.createTask(BulkIterationIntermediatePactTask.class,
+    JobTaskVertex intermediateMinimumComponentID = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "Intermediate-MinimumComponentID", jobGraph, degreeOfParallelism);
     TaskConfig intermediateMinimumComponentIDConfig = new TaskConfig(intermediateMinimumComponentID.getConfiguration());
     intermediateMinimumComponentIDConfig.setDriver(ReduceDriver.class);
@@ -91,19 +97,19 @@ public class ConnectedComponents {
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateMinimumComponentID.getConfiguration(),
         "pact.in.param.0.", new int[] { 0 }, new Class[] { PactLong.class });
 
-    JobTaskVertex intermediateSolutionSetUpdate = JobGraphUtils.createTask(WorksetIterationSolutionSetJoinTask.class,
+    JobTaskVertex intermediateSolutionSetUpdate = JobGraphUtils.createTask(WorksetIterationSolutionsetJoinTask.class,
         "Intermediate-UpdateComponentID", jobGraph, degreeOfParallelism);
     TaskConfig intermediateSolutionSetUpdateConfig = new TaskConfig(intermediateSolutionSetUpdate.getConfiguration());
-    intermediateSolutionSetUpdateConfig.setDriver(SolutionSetMatchDriver.class);
+    intermediateSolutionSetUpdateConfig.setDriver(SolutionsetMatchDriver.class);
     intermediateSolutionSetUpdateConfig.setStubClass(UpdateCompontentIDMatch.class);
     intermediateSolutionSetUpdateConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_SECOND);
+    //TODO we should not have to configure this, as the head sets up the hash-join for us
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateSolutionSetUpdateConfig.getConfiguration(),
         "pact.in.param.0.", new int[] { 0 }, new Class[] { PactLong.class });
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateSolutionSetUpdateConfig.getConfiguration(),
         "pact.in.param.1.", new int[] { 0 }, new Class[]{ PactLong.class });
-    intermediateSolutionSetUpdateConfig.setMemorySize(20 * JobGraphUtils.MEGABYTE);
 
-    JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class,
+    JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class,
         "Tail-NeighborComponentIDToWorkset", jobGraph, degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setDriver(MatchDriver.class);

@@ -28,9 +28,9 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationIntermediatePactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -45,7 +45,7 @@ public class Simple {
     JobInputVertex input = JobGraphUtils.createInput(TextInputFormat.class,
         "file://" + PlayConstants.PLAY_DIR + "test-inputs/simple", "FileInput", jobGraph, degreeOfParallelism) ;
 
-    JobTaskVertex head = JobGraphUtils.createTask(BulkIterationHeadPactTask.class, "BulkIterationHead", jobGraph,
+    JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "BulkIterationHead", jobGraph,
         degreeOfParallelism);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
@@ -53,14 +53,14 @@ public class Simple {
     headConfig.setMemorySize(10 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
 
-    JobTaskVertex intermediate = JobGraphUtils.createTask(BulkIterationIntermediatePactTask.class, "BulkIntermediate",
+    JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class, "BulkIntermediate",
         jobGraph, degreeOfParallelism);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
     intermediateConfig.setDriver(MapDriver.class);
     intermediateConfig.setStubClass(AppendMapper.AppendIntermediateMapper.class);
     intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-    JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph,
+    JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setDriver(MapDriver.class);

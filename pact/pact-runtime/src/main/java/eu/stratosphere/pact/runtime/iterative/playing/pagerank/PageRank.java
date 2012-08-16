@@ -27,9 +27,9 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationIntermediatePactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -56,7 +56,7 @@ public class PageRank {
     PactRecordComparatorFactory.writeComparatorSetupToConfig(transitionMatrixInput.getConfiguration(),
         "pact.out.param.0.", new int[] { 1 }, new Class[] { PactLong.class });
 
-    JobTaskVertex head = JobGraphUtils.createTask(BulkIterationHeadPactTask.class, "BulkIterationHead", jobGraph,
+    JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "BulkIterationHead", jobGraph,
         degreeOfParallelism);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
@@ -64,7 +64,7 @@ public class PageRank {
     headConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
 
-    JobTaskVertex intermediate = JobGraphUtils.createTask(BulkIterationIntermediatePactTask.class,
+    JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "BulkIterationIntermediate", jobGraph, degreeOfParallelism);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
     intermediateConfig.setDriver(MatchDriver.class);
@@ -78,7 +78,7 @@ public class PageRank {
     intermediateConfig.setGateCached(1);
     intermediateConfig.setInputGateCacheMemoryFraction(0.5f);
 
-    JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph,
+    JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT);

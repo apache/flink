@@ -13,20 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.concurrent;
+package eu.stratosphere.pact.runtime.iterative.convergence;
 
-import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+/** A workset iteration is by definition converged if no records have been inserted into the workset */
+public class WorksetEmptyConvergenceCriterion<T> implements ConvergenceCriterion<T> {
 
-public class SolutionSetBroker extends Broker<MutableHashTable> {
+  private boolean worksetEmpty;
 
-  /** single instance */
-  private static final SolutionSetBroker INSTANCE = new SolutionSetBroker();
-
-  private SolutionSetBroker() {}
-
-  /** retrieve singleton instance */
-  public static Broker<MutableHashTable> instance() {
-    return INSTANCE;
+  @Override
+  public void prepareForNextIteration() {
+    worksetEmpty = true;
   }
 
+  @Override
+  public void analyze(T record) {
+    worksetEmpty = false;
+  }
+
+  @Override
+  public boolean isConverged() {
+    return worksetEmpty;
+  }
 }

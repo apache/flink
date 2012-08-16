@@ -18,10 +18,11 @@ package eu.stratosphere.pact.runtime.hash;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import eu.stratosphere.pact.runtime.io.HashPartitionIterator;
+import eu.stratosphere.pact.runtime.iterative.io.HashPartitionIterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 

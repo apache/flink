@@ -41,13 +41,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *  In each superstep, it simply waits until it has receiced an {@link EndOfSuperstepEvent} from each head and will send back an
  *  {@link AllWorkersDoneEvent} to signal that the next superstep can begin.
  */
-public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask implements Terminable {
+public class IterationSynchronizationSinkTask extends AbstractOutputTask implements Terminable {
 
   private TaskConfig taskConfig;
 
   private InterruptingMutableObjectIterator<PactRecord> headEventRecordIterator;
   private MutableRecordReader<PactRecord> headEventReader;
 
+  //TODO typesafety
   private ConvergenceCriterion convergenceCriterion;
 
   private InterruptingMutableObjectIterator<PactRecord> convergenceRecordIterator;
@@ -60,7 +61,7 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
   private final PactRecord headEventRecord = new PactRecord();
   private final PactRecord convergenceRecord = new PactRecord();
 
-  private static final Log log = LogFactory.getLog(BulkIterationSynchronizationSinkTask.class);
+  private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
 
   //TODO this duplicates code from AbstractIterativePactTask
   @Override
@@ -138,7 +139,8 @@ public class BulkIterationSynchronizationSinkTask extends AbstractOutputTask imp
       if (checkForConvergence()) {
 
         if (log.isInfoEnabled()) {
-          log.info(formatLogString("signaling that all workers are to terminate in iteration [" + currentIteration + "]"));
+          log.info(formatLogString("signaling that all workers are to terminate in iteration [" + currentIteration +
+              "]"));
         }
 
         requestTermination();

@@ -18,21 +18,14 @@ package eu.stratosphere.pact.runtime.iterative.task;
 import com.google.common.base.Preconditions;
 import eu.stratosphere.pact.common.generic.GenericMatcher;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.io.UpdateSolutionsetOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
-public class SolutionSetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
-
-  private static final Log log = LogFactory.getLog(SolutionSetMatchDriver.class);
-
+public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
 
   protected PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
 
@@ -45,7 +38,7 @@ public class SolutionSetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
 
   private volatile boolean running;
 
-  void setHashJoin(MutableHashTable hashJoin) {
+  void injectHashJoin(MutableHashTable hashJoin) {
     this.hashJoin = hashJoin;
   }
 
@@ -102,10 +95,6 @@ public class SolutionSetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
     final IT2 buildSideRecord = taskContext.<IT2>getInputSerializer(1).createInstance();
 
     while (running && probeSide.next(probeSideRecord)) {
-
-      PactRecord debug = (PactRecord) probeSideRecord;
-      System.out.println("Probing (" + debug.getField(0, PactLong.class).getValue() + ", " + debug.getField(1, PactLong.class).getValue() + ")");
-
       MutableHashTable.HashBucketIterator<IT2, IT1> bucket = hashJoin.getMatchesFor(probeSideRecord);
 
       boolean matched = bucket.next(buildSideRecord);

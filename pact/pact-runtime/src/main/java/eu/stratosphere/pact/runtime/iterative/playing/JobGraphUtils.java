@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationSynchronizationSinkTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationSynchronizationSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
@@ -79,7 +79,7 @@ public class JobGraphUtils {
 
   public static JobOutputVertex createSync(JobGraph jobGraph, int degreeOfParallelism) {
     JobOutputVertex sync = new JobOutputVertex("BulkIterationSync", jobGraph);
-    sync.setOutputClass(BulkIterationSynchronizationSinkTask.class);
+    sync.setOutputClass(IterationSynchronizationSinkTask.class);
     sync.setNumberOfSubtasks(1);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);

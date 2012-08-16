@@ -21,7 +21,7 @@ import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-public class L1NormConvergenceCriterion implements ConvergenceCriterion {
+public class L1NormConvergenceCriterion implements ConvergenceCriterion<PactRecord> {
 
   private double sum;
   private double numRecordsSeen;

@@ -27,8 +27,8 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.BulkIterationTailPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -46,7 +46,7 @@ public class IterativeMapReduce {
         "file://" + PlayConstants.PLAY_DIR + "test-inputs/iterative-mapreduce/", "FileInput", jobGraph,
         degreeOfParallelism);
 
-    JobTaskVertex head = JobGraphUtils.createTask(BulkIterationHeadPactTask.class, "BulkIterationHead", jobGraph,
+    JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "BulkIterationHead", jobGraph,
         degreeOfParallelism);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
@@ -57,7 +57,7 @@ public class IterativeMapReduce {
     PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(),
         headConfig.getPrefixForOutputParameters(0), new int[] { 0 }, new Class[] { PactString.class });
 
-    JobTaskVertex tail = JobGraphUtils.createTask(BulkIterationTailPactTask.class, "BulkIterationTail", jobGraph,
+    JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT);

@@ -20,7 +20,7 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
-import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import org.apache.commons.logging.Log;
@@ -28,26 +28,36 @@ import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 
-public class WorksetIterationSolutionSetJoinTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
+/**
+ * A specialized {@link IterationIntermediatePactTask} for workset iterations that receives a hash-join (a {@link MutableHashTable}) from the
+ * iteration head. This hash-join will hold the solution set of the workset iteration and all output emitted from the
+ * {@link eu.stratosphere.pact.common.stubs.MatchStub} that runs inside this task will be inserted into the build-side of the hash-join, which
+ * will form the final output of the workset iteration.
+ *
+ * This implementation is only allowed to run a {@link SolutionsetMatchDriver} inside!
+ *
+ * @param <S>
+ * @param <OT>
+ */
+public class WorksetIterationSolutionsetJoinTask<S extends Stub, OT> extends AbstractIterativePactTask<S, OT> {
 
-  private static final Log log = LogFactory.getLog(WorksetIterationSolutionSetJoinTask.class);
+  private static final Log log = LogFactory.getLog(WorksetIterationSolutionsetJoinTask.class);
 
-  private SolutionSetMatchDriver solutionSetMatchDriver;
+  private SolutionsetMatchDriver solutionsetMatchDriver;
 
   @Override
   public void invoke() throws Exception {
 
-    Preconditions.checkState(SolutionSetMatchDriver.class.equals(driver.getClass()));
+    Preconditions.checkState(SolutionsetMatchDriver.class == driver.getClass());
+    solutionsetMatchDriver = (SolutionsetMatchDriver) driver;
 
     //TODO type safety
-    solutionSetMatchDriver = (SolutionSetMatchDriver) driver;
+    /* retrieve hashJoin instantiated by the iteration head */
+    MutableHashTable hashJoin = SolutionsetBroker.instance().get(brokerKey());
 
-    /* retrieve hashJoin from the head */
-    MutableHashTable hashJoin = SolutionSetBroker.instance().get(brokerKey());
+    solutionsetMatchDriver.injectHashJoin(hashJoin);
 
-    solutionSetMatchDriver.setHashJoin(hashJoin);
-
-    while (!terminationRequested() && currentIteration() < 6) {
+    while (!terminationRequested()) {
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
