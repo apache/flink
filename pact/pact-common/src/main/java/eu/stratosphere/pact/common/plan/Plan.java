@@ -71,7 +71,7 @@ public class Plan implements Visitable<Contract>
 	 */
 	public Plan(Collection<GenericDataSink> sinks, String jobName)
 	{
-		this.sinks = sinks;
+		this.sinks = new ArrayList<GenericDataSink>(sinks);
 		this.jobName = jobName;
 		this.planConfiguration = new PlanConfiguration();
 	}
