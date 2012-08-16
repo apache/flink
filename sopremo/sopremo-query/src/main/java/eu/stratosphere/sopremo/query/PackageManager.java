@@ -128,6 +128,27 @@ public class PackageManager implements ParsingScope {
 		throw new IllegalArgumentException(String.format("no package %s found", packageName));
 	}
 
+	/**
+	 * Sets the defaultJarPath to the specified value.
+	 *
+	 * @param defaultJarPath the defaultJarPath to set
+	 */
+	public void setDefaultJarPath(String defaultJarPath) {
+		if (defaultJarPath == null)
+			throw new NullPointerException("defaultJarPath must not be null");
+
+		this.defaultJarPath = defaultJarPath;
+	}
+	
+	/**
+	 * Returns the defaultJarPath.
+	 * 
+	 * @return the defaultJarPath
+	 */
+	public String getDefaultJarPath() {
+		return this.defaultJarPath;
+	}
+	
 	public void importPackage(String packageName) {
 		this.importPackage(this.getPackageInfo(packageName));
 	}
