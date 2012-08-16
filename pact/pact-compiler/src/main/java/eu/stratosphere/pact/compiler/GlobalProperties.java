@@ -15,19 +15,22 @@
 
 package eu.stratosphere.pact.compiler;
 
+import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 
 /**
  * This class represents global properties of the data. Global properties are properties that
  * describe data across different partitions.
+ * <p>
+ * Currently, the properties are the following: A partitioning type (ANY, HASH, RANGE), and EITHER an ordering (for range partitioning)
+ * or an FieldSet with the hash partitioning columns.
  */
 public final class GlobalProperties implements Cloneable
 {
 	private PartitionProperty partitioning;		// the type partitioning
 	
-	private OptimizerFieldSet partitioningFields;
+	private OptimizerFieldSet partitioningFields;	// the fields which are partitioned
 	
 	private Ordering ordering;					// order of the partitioned fields, if it is an ordered (range) range partitioning
 	
@@ -47,7 +50,15 @@ public final class GlobalProperties implements Cloneable
 	public GlobalProperties(PartitionProperty partitioning, Ordering ordering) {
 		this.partitioning = partitioning;
 		this.ordering = ordering;
-		this.partitioningFields = OptimizerFieldList.getFromOrdering(ordering);
+	}
+	
+	/**
+	 * @param partitioning
+	 * @param partitioningFields
+	 */
+	public GlobalProperties(PartitionProperty partitioning, OptimizerFieldSet partitioningFields) {
+		this.partitioning = partitioning;
+		this.partitioningFields = partitioningFields;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -67,7 +78,6 @@ public final class GlobalProperties implements Cloneable
 	public void setPartitioning(PartitionProperty partitioning, Ordering ordering) {
 		this.partitioning = partitioning;
 		this.ordering = ordering;
-		this.partitioningFields = OptimizerFieldList.getFromOrdering(ordering);
 	}
 
 	/**
@@ -79,8 +89,13 @@ public final class GlobalProperties implements Cloneable
 		return partitioning;
 	}
 	
+	/**
+	 * Gets the fields on which the data is partitioned.
+	 * 
+	 * @return The partitioning fields.
+	 */
 	public OptimizerFieldSet getPartitionedFields() {
-		return this.partitioning == PartitionProperty.NONE ? null : this.partitioningFields;
+		return this.partitioningFields;
 	}
 	
 	/**
@@ -105,6 +120,7 @@ public final class GlobalProperties implements Cloneable
 	public void reset() {
 		this.partitioning = PartitionProperty.NONE;
 		this.ordering = null;
+		this.partitioningFields = null;
 	}
 
 	/**
@@ -114,85 +130,60 @@ public final class GlobalProperties implements Cloneable
 	 *        The output contract.
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
-	public boolean filterByNodesConstantSet(OptimizerNode node, int input) {
-
-//		// check if partitioning survives
-//		if (partitionedFields != null) {
-//			for (Integer index : partitionedFields) {
-//				if (node.isFieldKept(input, index) == false) {
-//					partitionedFields = null;
-//					partitioning = PartitionProperty.NONE;
-//				}
-//			}
-//		}
-//
-//		// check, whether the global order is preserved
-//		if (ordering != null) {
-//			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
-//			for (int i = 0; i < involvedIndexes.size(); i++) {
-//				if (node.isFieldKept(input, i) == false) {
-//					ordering = ordering.createNewOrderingUpToIndex(i);
-//					break;
-//				}
-//			}
-//		}
-//
-//		return !isTrivial();
-		return false;
+	public GlobalProperties filterByNodesConstantSet(OptimizerNode node, int input)
+	{
+		// check if partitioning survives
+		if (this.ordering != null) {
+			for (int col : this.ordering.getInvolvedIndexes()) {
+				if (!node.isFieldConstant(input, col)) {
+					return null;
+				}
+			}
+		} else if (this.partitioningFields != null) {
+			for (ColumnWithType col : this.partitioningFields) {
+				if (!node.isFieldConstant(input, col.getColumnIndex())) {
+					return null;
+				}
+			}
+		}
+		return this;
 	}
 
-	public GlobalProperties createInterestingGlobalProperties(OptimizerNode node, int input) {
-//		// check if partitioning survives
-//		ArrayList<Integer> newPartitionedFields = null;
-//		PartitionProperty newPartitioning = PartitionProperty.NONE;
-//		Ordering newOrdering = null;
-//		
-//		if (node instanceof UnionNode) {
-//			//only HashPartitioning is interesting for union nodes
-//			if (partitioning == PartitionProperty.HASH_PARTITIONED) {
-//				// fields are kept as there is no user code involved
-//				newPartitioning = PartitionProperty.HASH_PARTITIONED;
-//				newPartitionedFields = partitionedFields;
-//			}
-//		}
-//		else {
-//			if (partitionedFields != null) {
-//				for (Integer index : partitionedFields) {
-//					if (node.isFieldKept(input, index) == true) {
-//						if (newPartitionedFields == null) {
-//							newPartitioning = this.partitioning;
-//							newPartitionedFields = new ArrayList<Integer>();
-//						}
-//						newPartitionedFields.add(index);
-//					}
-//				}
-//			}
-//	
-//			// check, whether the global order is preserved
-//			if (ordering != null) {
-//				boolean orderingPreserved = true;
-//				ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
-//				for (int i = 0; i < involvedIndexes.size(); i++) {
-//					if (node.isFieldKept(input, i) == false) {
-//						orderingPreserved = false;
-//						break;
-//					}
-//				}
-//	
-//				if (orderingPreserved) {
-//					newOrdering = ordering.clone();
-//				}
-//			}
-//		}
-//
-//		if (newPartitioning == PartitionProperty.NONE && newOrdering == null) {
-			return null;
-//		} else {
-//			FieldList partitionFields = new FieldList();
-//			partitionFields.addAll(newPartitionedFields);
-//			return new GlobalProperties(newPartitioning, newOrdering, partitionFields);
-//		}
-
+	public GlobalProperties createInterestingGlobalPropertiesTopDownSubset(OptimizerNode node, int input)
+	{
+		// check, whether the global order is preserved
+		if (this.ordering != null) {
+			for (int i : this.ordering.getInvolvedIndexes()) {
+				if (!node.isFieldConstant(input, i)) {
+					return null;
+				}
+			}
+			return this;
+		}
+		else if (partitioningFields != null) {
+			boolean allIn = true;
+			boolean atLeasOneIn = false;
+			for (ColumnWithType col : this.partitioningFields) {
+				boolean res = node.isFieldConstant(input, col.getColumnIndex());
+				allIn &= res;
+				atLeasOneIn |= res;
+			}
+			if (allIn) {
+				return this;
+			} else if (atLeasOneIn) {
+				OptimizerFieldSet newFields = new OptimizerFieldSet();
+				for (ColumnWithType nc : this.partitioningFields) {
+					if (node.isFieldConstant(input, nc.getColumnIndex())) {
+						newFields.add(nc);
+					}
+				}
+				return new GlobalProperties(this.partitioning, newFields);
+			} else {
+				return null;
+			}
+		} else {
+			return this;
+		}
 	}
 
 	/**
@@ -203,33 +194,44 @@ public final class GlobalProperties implements Cloneable
 	 *        The properties for which to check whether they meet these properties.
 	 * @return True, if the properties are met, false otherwise.
 	 */
-	public boolean isMetBy(GlobalProperties other) {
-//		if (this.partitioning != PartitionProperty.NONE) {
-//			if (this.partitioning == PartitionProperty.ANY) {
-//				if (other.partitioning == PartitionProperty.NONE) {
-//					return false;
-//				}
-//			} else if (other.partitioning != this.partitioning) {
-//				return false;
-//			}
-//		}
-//
-//		FieldList otherPartitionedFields = other.getPartitionedFields();
-//		if (this.partitionedFields != null) {
-//			if (other.partitionedFields == null) {
-//				return false;
-//			}
-//			if(!otherPartitionedFields.containsAll(this.partitionedFields)) {
-//				return false;
-//			}
-//		}
-//
-//		if (this.ordering != null && this.ordering.isMetBy(other.getOrdering()) == false) {
-//			return false;
-//		}
-//
-//		return true;
-		return false;
+	public boolean isMetBy(GlobalProperties other)
+	{
+		if (this.partitioning == PartitionProperty.NONE) {
+			return true;
+		}
+		
+		if (this.partitioning == PartitionProperty.ANY) {
+			if (other.partitioning == PartitionProperty.NONE) {
+				return false;
+			}
+		} else if (other.partitioning != this.partitioning) {
+			return false;
+		}
+
+		if (this.ordering != null) {
+			if (other.ordering == null)
+				throw new CompilerException("BUG: Equal partitioning property, ordering not equally set.");
+			if (this.ordering.getInvolvedIndexes().isValidSubset(other.ordering.getInvolvedIndexes())) {
+				// check if the directions match
+				for (int i = 0; i < other.ordering.getNumberOfFields(); i++) {
+					Order to = this.ordering.getOrder(i);
+					Order oo = other.ordering.getOrder(i);
+					if (to == Order.NONE)
+						continue;
+					if (oo == Order.NONE)
+						return false;
+					if (to != Order.ANY && to != oo)
+						return false;
+				}
+				return true;
+			} else {
+				return false;
+			}
+		} else if (this.partitioningFields != null) {
+			return this.partitioningFields.isValidSubset(other.partitioningFields);
+		} else {
+			throw new RuntimeException("Found a partitioning property, but no fields.");
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -242,9 +244,9 @@ public final class GlobalProperties implements Cloneable
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-//		result = prime * result + ((partitioning == null) ? 0 : partitioning.hashCode());
-//		result = prime * result + ((partitionedFields == null) ? 0 : partitionedFields.hashCode());
-//		result = prime * result + ((ordering == null) ? 0 : ordering.hashCode());
+		result = prime * result + ((partitioning == null) ? 0 : partitioning.hashCode());
+		result = prime * result + ((partitioningFields == null) ? 0 : partitioningFields.hashCode());
+		result = prime * result + ((ordering == null) ? 0 : ordering.hashCode());
 		return result;
 	}
 
@@ -254,22 +256,15 @@ public final class GlobalProperties implements Cloneable
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		} else if (obj == null) {
-			return false;
-		} else if (getClass() != obj.getClass()) {
+		if (obj != null && obj instanceof GlobalProperties) {
+			GlobalProperties other = (GlobalProperties) obj;
+			return (ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
+					&& (partitioning == other.getPartitioning())
+					&& (partitioningFields == other.partitioningFields || 
+							(partitioningFields != null && partitioningFields.equals(other.getPartitionedFields())));
+		} else {
 			return false;
 		}
-
-//		GlobalProperties other = (GlobalProperties) obj;
-//		if ((ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
-//			&& partitioning == other.getPartitioning() && partitionedFields != null
-//			&& partitionedFields.equals(other.getPartitionedFields())) {
-//			return true;
-//		} else {
-			return false;
-//		}
 	}
 
 	/*
@@ -278,31 +273,18 @@ public final class GlobalProperties implements Cloneable
 	 */
 	@Override
 	public String toString() {
-		return "GlobalProperties [partitioning=" + partitioning + " on fields=" // + partitionedFields + ", ordering="
-			+ ordering + "]";
+		return "GlobalProperties [partitioning=" + partitioning + 
+			(this.partitioningFields == null ? "" : ", on fields " + this.partitioningFields) + 
+			(this.ordering == null ? "" : ", with ordering " + this.ordering) + "]";
 	}
 
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Object#clone()
 	 */
-	public GlobalProperties clone() throws CloneNotSupportedException {
-		GlobalProperties newProps = (GlobalProperties) super.clone();
-		if (this.ordering != null) {
-			newProps.ordering = this.ordering.clone();
-		}
-
-		return newProps;
-	}
-
-	/**
-	 * Convenience method to create copies without the cloning exception.
-	 * 
-	 * @return A perfect deep copy of this object.
-	 */
-	public final GlobalProperties createCopy() {
+	public GlobalProperties clone() {
 		try {
-			return this.clone();
+			return (GlobalProperties) super.clone();
 		} catch (CloneNotSupportedException cnse) {
 			// should never happen, but propagate just in case
 			throw new RuntimeException(cnse);

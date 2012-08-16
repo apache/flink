@@ -41,7 +41,7 @@ import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.util.DummyCoGroupStub;
@@ -83,7 +83,7 @@ public class BranchingPlansCompilerTest {
 			
 			// prepare the statistics
 			DataStatistics dataStats = new DataStatistics();
-			this.compiler = new PactCompiler(dataStats, new FixedSizeClusterCostEstimator(), dummyAddress);
+			this.compiler = new PactCompiler(dataStats, new DefaultCostEstimator(), dummyAddress);
 		}
 		catch (Exception ex) {
 			ex.printStackTrace();

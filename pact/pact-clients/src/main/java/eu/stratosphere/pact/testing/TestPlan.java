@@ -77,7 +77,7 @@ import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
@@ -1075,7 +1075,7 @@ public class TestPlan implements Closeable {
 		}
 	}
 
-	private static final class CostEstimator extends FixedSizeClusterCostEstimator {
+	private static final class CostEstimator extends DefaultCostEstimator {
 		private CostEstimator() {
 			super();
 		}

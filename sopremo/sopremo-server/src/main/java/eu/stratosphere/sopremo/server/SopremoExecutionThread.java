@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState;
@@ -154,7 +154,7 @@ public class SopremoExecutionThread implements Runnable {
 
 	JobGraph getJobGraph(final Plan pactPlan) {
 		PactCompiler compiler =
-			new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator(), this.jobManagerAddress);
+			new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), this.jobManagerAddress);
 
 		final OptimizedPlan optPlan = compiler.compile(pactPlan);
 		JobGraphGenerator gen = new JobGraphGenerator();

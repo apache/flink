@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
 import eu.stratosphere.pact.compiler.jobgen.JobGraphGenerator;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
@@ -63,7 +63,7 @@ public class Client {
 		nepheleConfig.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		nepheleConfig.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
-		this.compiler = new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator(), jobManagerAddress);
+		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
 	}
 
 	/**
@@ -87,7 +87,7 @@ public class Client {
 		}
 
 		final InetSocketAddress jobManagerAddress = new InetSocketAddress(address, port);
-		this.compiler = new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator(), jobManagerAddress);
+		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
 	}
 
 	

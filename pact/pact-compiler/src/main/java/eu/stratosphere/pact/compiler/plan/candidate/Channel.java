@@ -15,13 +15,16 @@
 
 package eu.stratosphere.pact.compiler.plan.candidate;
 
+import eu.stratosphere.pact.compiler.plan.EstimateProvider;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
+
 
 /**
  *
  *
  * @author Stephan Ewen
  */
-public class Channel
+public class Channel implements EstimateProvider
 {
 	/**
 	 * Enumeration to indicate the mode of temporarily materializing the data that flows across a connection.
@@ -38,6 +41,8 @@ public class Channel
 	
 	private final PlanNode target = null;
 	
+	private ShipStrategyType shipStrategy;
+	
 	private TempMode tempMode;
 	
 	private int replicationFactor;
@@ -50,7 +55,7 @@ public class Channel
 	 * @return The source.
 	 */
 	public PlanNode getSource() {
-		return source;
+		return this.source;
 	}
 	
 	/**
@@ -59,7 +64,11 @@ public class Channel
 	 * @return The target.
 	 */
 	public PlanNode getTarget() {
-		return target;
+		return this.target;
+	}
+	
+	public ShipStrategyType getShipStrategy() {
+		return this.shipStrategy;
 	}
 	
 	/**

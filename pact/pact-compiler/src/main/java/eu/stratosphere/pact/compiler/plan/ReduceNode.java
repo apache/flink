@@ -166,39 +166,25 @@ public class ReduceNode extends SingleInputNode {
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// check, if there is an output contract that tells us that certain properties are preserved.
 		// if so, propagate to the child.
-		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
-			this, 0);
+		List<InterestingProperties> inheritedIntProps = getInterestingProperties();
+		List<InterestingProperties> props = 
+			InterestingProperties.filterInterestingPropertiesForInput(inheritedIntProps, this, 0);
 
 		// add the first interesting properties: partitioned and grouped
 		InterestingProperties ip1 = new InterestingProperties();
-		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, (FieldList)this.keyList.clone());
-		ip1.getLocalProperties().setGroupedFields(new FieldSet(this.keyList));
-		
-		ip1.getMaximalCosts().setNetworkCost(0);
-		ip1.getMaximalCosts().setSecondaryStorageCost(0);
-		
-		Costs cost = new Costs();
-		estimator.getHashPartitioningCost(this.inConn, cost);
-		ip1.getMaximalCosts().addCosts(cost);
-		cost = new Costs();
-		estimator.getLocalSortCost(this, this.inConn, cost);
-		ip1.getMaximalCosts().addCosts(cost);
+		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, this.keys);
+		ip1.getLocalProperties().setGroupedFields(this.keys);
+		estimator.addHashPartitioningCost(this.inConn, ip1.getMaximalCosts());
+		estimator.addLocalSortCost(this.inConn, -1, ip1.getMaximalCosts());
 		
 		// add the second interesting properties: partitioned only
 		InterestingProperties ip2 = new InterestingProperties();
-		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, (FieldList)this.keyList.clone());
-		
-		ip2.getMaximalCosts().setNetworkCost(0);
-		ip2.getMaximalCosts().setSecondaryStorageCost(0);
-		
-		estimator.getHashPartitioningCost(this.inConn, cost);
-		ip2.getMaximalCosts().addCosts(cost);
+		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, this.keys);
+		estimator.addHashPartitioningCost(this.inConn, ip2.getMaximalCosts());
 
 		InterestingProperties.mergeUnionOfInterestingProperties(props, ip1);
 		InterestingProperties.mergeUnionOfInterestingProperties(props, ip2);
-
-		inConn.addAllInterestingProperties(props);
+		this.inConn.addAllInterestingProperties(props);
 	}
 
 	@Override

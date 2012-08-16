@@ -24,7 +24,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 /**
  * The Optimizer representation of a <i>Map</i> contract node.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public class MapNode extends SingleInputNode {
 
@@ -100,13 +100,12 @@ public class MapNode extends SingleInputNode {
 		// if so, propagate to the child.
 		
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
-			this, 0);
+		List<InterestingProperties> props = InterestingProperties.filterInterestingPropertiesForInput(thisNodesIntProps, this, 0);
 		
-		if (!props.isEmpty()) {
-			this.inConn.addAllInterestingProperties(props);
-		} else {
+		if (props.isEmpty()) {
 			this.inConn.setNoInterestingProperties();
+		} else {
+			this.inConn.addAllInterestingProperties(props);
 		} 
 	}
 

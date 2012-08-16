@@ -27,8 +27,11 @@ import eu.stratosphere.pact.common.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.ColumnWithType;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.OptimizerFieldSet;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
@@ -49,7 +52,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	protected FieldSet constantSet; // set of fields that are left unchanged by the stub
 	protected FieldSet notConstantSet; // set of fields that are changed by the stub
 	
-	protected final FieldSet keyList; // The set of key fields
+	protected final OptimizerFieldSet keys; // The set of key fields
 
 	// ------------------------------
 	
@@ -61,7 +64,15 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 */
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
-		this.keyList = new FieldSet(pactContract.getKeyColumnNumbers(0));
+		
+		this.keys = new OptimizerFieldSet();
+		int[] keyPos = pactContract.getKeyColumnNumbers(0);
+		Class<? extends Key>[] keyTypes = pactContract.getKeyClasses();
+		if (keyPos != null) {
+			for (int i = 0; i < keyPos.length; i++) {
+				this.keys.add(new ColumnWithType(keyPos[i], keyTypes[i]));
+			}
+		}
 	}
 
 //	/**
@@ -198,8 +209,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * 
 	 * @return The key fields of this optimizer node.
 	 */
-	public FieldSet getKeySet() {
-		return this.keyList;
+	public OptimizerFieldSet getKeySet() {
+		return this.keys;
 	}
 	
 	// --------------------------------------------------------------------------------------------

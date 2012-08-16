@@ -45,7 +45,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public abstract class OptimizerNode implements Visitable<OptimizerNode>
+public abstract class OptimizerNode implements Visitable<OptimizerNode>, EstimateProvider
 {
 	// ------------------------------------------------------------------------
 	//                              Members

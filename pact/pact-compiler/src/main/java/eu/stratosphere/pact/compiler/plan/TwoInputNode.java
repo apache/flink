@@ -35,6 +35,7 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.OptimizerFieldSet;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
@@ -45,19 +46,19 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
  * A node in the optimizer plan that represents a PACT with a two different inputs, such as MATCH or CROSS.
  * The two inputs are not substitutable in their sides.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public abstract class TwoInputNode extends OptimizerNode
 {
 	private List<OptimizerNode> cachedPlans; // a cache for the computed alternative plans
 
-	protected PactConnection input1 = null; // The first input edge
+	protected PactConnection input1; // The first input edge
 
-	protected PactConnection input2 = null; // The second input edge
+	protected PactConnection input2; // The second input edge
 
-	protected FieldList keySet1; // The set of key fields for the first input (order is relevant!)
+	protected OptimizerFieldSet keySet1; // The set of key fields for the first input
 	
-	protected FieldList keySet2; // The set of key fields for the second input (order is relevant!)
+	protected OptimizerFieldSet keySet2; // The set of key fields for the second input
 	
 	// ------------- Stub Annotations
 	
@@ -78,83 +79,83 @@ public abstract class TwoInputNode extends OptimizerNode
 	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
-		this.keySet1 = new FieldList(pactContract.getKeyColumnNumbers(0));
-		this.keySet2 = new FieldList(pactContract.getKeyColumnNumbers(1));
+		this.keySet1 = new OptimizerFieldSet();
+		this.keySet2 = new OptimizerFieldSet();
 		
 	}
 
-	/**
-	 * Copy constructor to create a copy of a node with different predecessors. The predecessors
-	 * is assumed to be of the same type as in the template node and merely copies with different
-	 * strategies, as they are created in the process of the plan enumeration.
-	 * 
-	 * @param template
-	 *        The node to create a copy of.
-	 * @param pred1
-	 *        The new predecessor for the first input.
-	 * @param pred2
-	 *        The new predecessor for the second input.
-	 * @param conn1
-	 *        The old connection of the first input to copy properties from.
-	 * @param conn2
-	 *        The old connection of the second input to copy properties from.
-	 * @param globalProps
-	 *        The global properties of this copy.
-	 * @param localProps
-	 *        The local properties of this copy.
-	 */
-	protected TwoInputNode(TwoInputNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps)
-	{
-		super(template, globalProps, localProps);
-		
-		this.constant1 = template.constant1;
-		this.constant2 = template.constant2;
-		this.keySet1 = template.keySet1;
-		this.keySet2 = template.keySet2;
-
-		if(pred1 != null) {
-			this.input1 = new PactConnection(conn1, pred1, this);
-		}
-		
-		if(pred2 != null) {
-			this.input2 = new PactConnection(conn2, pred2, this);
-		}
-
-		// merge the branchPlan maps according the the template's uncloseBranchesStack
-		if (template.openBranches != null)
-		{
-			if (this.branchPlan == null) {
-				this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(8);
-			}
-
-			for (UnclosedBranchDescriptor uc : template.openBranches) {
-				OptimizerNode brancher = uc.branchingNode;
-				OptimizerNode selectedCandidate = null;
-
-				if(pred1 != null) {
-					if(pred1.branchPlan != null) {
-						// predecessor 1 has branching children, see if it got the branch we are looking for
-						selectedCandidate = pred1.branchPlan.get(brancher);
-						this.branchPlan.put(brancher, selectedCandidate);
-					}
-				}
-				
-				if(selectedCandidate == null && pred2 != null) {
-					if(pred2.branchPlan != null) {
-						// predecessor 2 has branching children, see if it got the branch we are looking for
-						selectedCandidate = pred2.branchPlan.get(brancher);
-						this.branchPlan.put(brancher, selectedCandidate);
-					}
-				}
-
-				if (selectedCandidate == null) {
-					throw new CompilerException(
-						"Candidates for a node with open branches are missing information about the selected candidate ");
-				}
-			}
-		}
-	}
+//	/**
+//	 * Copy constructor to create a copy of a node with different predecessors. The predecessors
+//	 * is assumed to be of the same type as in the template node and merely copies with different
+//	 * strategies, as they are created in the process of the plan enumeration.
+//	 * 
+//	 * @param template
+//	 *        The node to create a copy of.
+//	 * @param pred1
+//	 *        The new predecessor for the first input.
+//	 * @param pred2
+//	 *        The new predecessor for the second input.
+//	 * @param conn1
+//	 *        The old connection of the first input to copy properties from.
+//	 * @param conn2
+//	 *        The old connection of the second input to copy properties from.
+//	 * @param globalProps
+//	 *        The global properties of this copy.
+//	 * @param localProps
+//	 *        The local properties of this copy.
+//	 */
+//	protected TwoInputNode(TwoInputNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
+//			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps)
+//	{
+//		super(template, globalProps, localProps);
+//		
+//		this.constant1 = template.constant1;
+//		this.constant2 = template.constant2;
+//		this.keySet1 = template.keySet1;
+//		this.keySet2 = template.keySet2;
+//
+//		if(pred1 != null) {
+//			this.input1 = new PactConnection(conn1, pred1, this);
+//		}
+//		
+//		if(pred2 != null) {
+//			this.input2 = new PactConnection(conn2, pred2, this);
+//		}
+//
+//		// merge the branchPlan maps according the the template's uncloseBranchesStack
+//		if (template.openBranches != null)
+//		{
+//			if (this.branchPlan == null) {
+//				this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(8);
+//			}
+//
+//			for (UnclosedBranchDescriptor uc : template.openBranches) {
+//				OptimizerNode brancher = uc.branchingNode;
+//				OptimizerNode selectedCandidate = null;
+//
+//				if(pred1 != null) {
+//					if(pred1.branchPlan != null) {
+//						// predecessor 1 has branching children, see if it got the branch we are looking for
+//						selectedCandidate = pred1.branchPlan.get(brancher);
+//						this.branchPlan.put(brancher, selectedCandidate);
+//					}
+//				}
+//				
+//				if(selectedCandidate == null && pred2 != null) {
+//					if(pred2.branchPlan != null) {
+//						// predecessor 2 has branching children, see if it got the branch we are looking for
+//						selectedCandidate = pred2.branchPlan.get(brancher);
+//						this.branchPlan.put(brancher, selectedCandidate);
+//					}
+//				}
+//
+//				if (selectedCandidate == null) {
+//					throw new CompilerException(
+//						"Candidates for a node with open branches are missing information about the selected candidate ");
+//				}
+//			}
+//		}
+//	}
 
 	// ------------------------------------------------------------------------
 	
@@ -175,26 +176,6 @@ public abstract class TwoInputNode extends OptimizerNode
 	 */
 	public PactConnection getSecondInConn() {
 		return this.input2;
-	}
-
-	/**
-	 * Sets the <tt>PactConnection</tt> through which this node receives its <i>first</i> input.
-	 * 
-	 * @param conn
-	 *        The first input connection.
-	 */
-	public void setFirstInConn(PactConnection conn) {
-		this.input1 = conn;
-	}
-
-	/**
-	 * Sets the <tt>PactConnection</tt> through which this node receives its <i>second</i> input.
-	 * 
-	 * @param conn
-	 *        The second input connection.
-	 */
-	public void setSecondInConn(PactConnection conn) {
-		this.input2 = conn;
 	}
 	
 	/**
@@ -326,27 +307,27 @@ public abstract class TwoInputNode extends OptimizerNode
 	 */
 	@Override
 	final public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
-		// check if we have a cached version
-		if (this.cachedPlans != null) {
-			return this.cachedPlans;
-		}
-
-		// step down to all producer nodes for first input and calculate alternative plans
-		List<? extends OptimizerNode> subPlans1 = this.getFirstPredNode().getAlternativePlans(estimator);
-		
-		// step down to all producer nodes for second input and calculate alternative plans
-		List<? extends OptimizerNode> subPlans2 = this.getSecondPredNode().getAlternativePlans(estimator);
+//		// check if we have a cached version
+//		if (this.cachedPlans != null) {
+//			return this.cachedPlans;
+//		}
+//
+//		// step down to all producer nodes for first input and calculate alternative plans
+//		List<? extends OptimizerNode> subPlans1 = this.getFirstPredNode().getAlternativePlans(estimator);
+//		
+//		// step down to all producer nodes for second input and calculate alternative plans
+//		List<? extends OptimizerNode> subPlans2 = this.getSecondPredNode().getAlternativePlans(estimator);
 
 		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
-		computeValidPlanAlternatives(subPlans1, subPlans2, estimator,  outputPlans);
-		
-		// prune the plans
-		prunePlanAlternatives(outputPlans);
-
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (this.getOutConns() != null && this.getOutConns().size() > 1) {
-			this.cachedPlans = outputPlans;
-		}
+//		computeValidPlanAlternatives(subPlans1, subPlans2, estimator,  outputPlans);
+//		
+//		// prune the plans
+//		prunePlanAlternatives(outputPlans);
+//
+//		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
+//		if (this.getOutConns() != null && this.getOutConns().size() > 1) {
+//			this.cachedPlans = outputPlans;
+//		}
 
 		return outputPlans;
 	}
@@ -371,11 +352,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @return	{@code true} if all values are valid, {@code false} otherwise
 	 */
 	protected boolean haveValidOutputEstimates(OptimizerNode subPlan) {
-	
-		if(subPlan.getEstimatedOutputSize() == -1)
-			return false;
-		else
-			return true;
+		return subPlan.getEstimatedOutputSize() != -1;
 	}
 
 	/*
@@ -504,35 +481,40 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @param input The input for which key fields must be returned.
 	 * @return the key fields of the given input.
 	 */
-	public FieldList getInputKeySet(int input) {
+	public OptimizerFieldSet getInputKeySet(int input) {
 		switch(input) {
-		case 0: return keySet1;
-		case 1: return keySet2;
-		default: throw new IndexOutOfBoundsException();
+			case 0: return keySet1;
+			case 1: return keySet2;
+			default: throw new IndexOutOfBoundsException();
 		}
 	}
 	
-	public boolean isFieldKept(int input, int fieldNumber) {
-		
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
+	 */
+	@Override
+	public boolean isFieldConstant(int input, int fieldNumber) {
 		switch(input) {
 		case 0:
 			if (this.constant1 == null) {
 				if (this.notConstant1 == null) {
 					return false;
+				} else {
+					return !this.notConstant1.contains(fieldNumber);
 				}
-				return this.notConstant1.contains(fieldNumber) == false;
+			} else {
+				return this.constant1.contains(fieldNumber);
 			}
-			
-			return this.constant1.contains(fieldNumber);
 		case 1:
 			if (this.constant2 == null) {
 				if (this.notConstant2 == null) {
 					return false;
+				} else {
+					return !this.notConstant2.contains(fieldNumber);
 				}
-				return this.notConstant2.contains(fieldNumber) == false;
+			} else {
+				return this.constant2.contains(fieldNumber);
 			}
-			
-			return this.constant2.contains(fieldNumber);
 		default:
 			throw new IndexOutOfBoundsException();
 		}

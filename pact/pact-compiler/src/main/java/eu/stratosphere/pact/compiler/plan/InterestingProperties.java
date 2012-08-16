@@ -99,17 +99,6 @@ public class InterestingProperties implements Cloneable
 	}
 
 	/**
-	 * Copies the maximal costs from the given costs object.
-	 * 
-	 * @param c
-	 *        The costs object to copy.
-	 */
-	public void copyMaximalCosts(Costs c) {
-		this.maximalCosts.setNetworkCost(c.getNetworkCost());
-		this.maximalCosts.setSecondaryStorageCost(c.getSecondaryStorageCost());
-	}
-
-	/**
 	 * Checks, if the given <tt>InterestingProperties</tt> object has the same properties as this one.
 	 * This method is a lesser version of the <code>equals(...)</code> method, as it does not take the
 	 * costs into account.
@@ -132,6 +121,22 @@ public class InterestingProperties implements Cloneable
 	 */
 	public boolean isMetBy(PlanNode node) {
 		return globalProps.isMetBy(node.getGlobalProperties()) && localProps.isMetBy(node.getLocalProperties());
+	}
+	
+	public InterestingProperties filterByCodeAnnotations(OptimizerNode node, int input) {
+		GlobalProperties gp = this.globalProps.filterByNodesConstantSet(node, input);
+		LocalProperties lp = this.localProps.filterByNodesConstantSet(node, input);
+		
+		if (gp != this.globalProps || lp != this.localProps) {
+			if (gp == null && lp == null) {
+				return null;
+			} else {
+				return new InterestingProperties(this.maximalCosts,
+						gp == null ? new GlobalProperties() : gp, lp == null ? new LocalProperties() : lp);
+			}
+		} else {
+			return this;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -156,29 +161,14 @@ public class InterestingProperties implements Cloneable
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
+		if (obj != null && obj instanceof InterestingProperties) {
+			InterestingProperties other = (InterestingProperties) obj;
+			return this.globalProps.equals(other.globalProps) &&
+					this.localProps.equals(other.localProps) &&
+					this.maximalCosts.equals(other.maximalCosts);
+		} else {
 			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		InterestingProperties other = (InterestingProperties) obj;
-		if (globalProps == null) {
-			if (other.globalProps != null)
-				return false;
-		} else if (!globalProps.equals(other.globalProps))
-			return false;
-		if (localProps == null) {
-			if (other.localProps != null)
-				return false;
-		} else if (!localProps.equals(other.localProps))
-			return false;
-		if (maximalCosts == null) {
-			if (other.maximalCosts != null)
-				return false;
-		} else if (!maximalCosts.equals(other.maximalCosts))
-			return false;
-		return true;
+		}
 	}
 
 	/*
@@ -196,11 +186,9 @@ public class InterestingProperties implements Cloneable
 	 * @see java.lang.Object#clone()
 	 */
 	@Override
-	public InterestingProperties clone()
-	{
-//		return new InterestingProperties(maximalCosts.createCopy(), 
-//			globalProps.createCopy(), localProps.createCopy());
-		return null;
+	public InterestingProperties clone() {
+		return new InterestingProperties(this.maximalCosts.clone(), 
+			this.globalProps.clone(), this.localProps.createCopy());
 	}
 
 	// ------------------------------------------------------------------------
@@ -219,28 +207,23 @@ public class InterestingProperties implements Cloneable
 	 * @param toMerge
 	 *        The properties that is added / merged into the previous collection.
 	 */
-	public static void mergeUnionOfInterestingProperties(List<InterestingProperties> properties,
-			InterestingProperties toMerge) {
-		boolean subsumed = false;
-
+	public static void mergeUnionOfInterestingProperties(
+			List<InterestingProperties> properties, InterestingProperties toMerge)
+	{
 		// go through all existing property sets
-		for (InterestingProperties toCheck : properties) {
+		for (int i = 0; i < properties.size(); i++) {
+			InterestingProperties toCheck = properties.get(i);
 			if (toCheck.hasEqualProperties(toMerge)) {
-				subsumed = true;
 				// the properties are equal. keep the one with the higher maximal cost,
 				// because it indicates, that the properties are worth more.
 				if (toMerge.getMaximalCosts().compareTo(toCheck.getMaximalCosts()) > 0) {
-					toCheck.copyMaximalCosts(toMerge.getMaximalCosts());
+					properties.set(i, toMerge);
 				}
-
-				break;
+				return;
 			}
 		}
-
-		// if it was not subsumes, add it
-		if (!subsumed) {
-			properties.add(toMerge.clone());
-		}
+		// if it was not subsumed, add it
+		properties.add(toMerge.clone());
 	}
 
 	/**
@@ -264,74 +247,31 @@ public class InterestingProperties implements Cloneable
 			mergeUnionOfInterestingProperties(properties, candidate);
 		}
 	}
-
-//	/**
-//	 * Utility method that checks, how the given interesting properties that a node receives from its
-//	 * successors, are relevant to its predecessors. That depends, of course, on the output contract,
-//	 * as that determines which properties can be inferred to be preserved by the node. The returned
-//	 * set will not contain interesting properties objects that are reduced to trivial properties,
-//	 * i.e. where all properties have the default value, such as for example <i>none</i> for the
-//	 * partitioning.
-//	 * 
-//	 * @param props
-//	 *        The collection of interesting properties that a node receives from its successors.
-//	 * @param contract
-//	 *        The output contract.
-//	 * @return A collection with the interesting properties that are relevant with respect to the given output
-//	 *         contract. Contains the same objects as in the input set, with properties accordingly restricted.
-//	 *         Returns always a modifiable collection, even if no properties are preserved.
-//	 */
-//	public static final List<InterestingProperties> filterByOutputContract(List<InterestingProperties> props,
-//			OutputContract contract) {
-//		// if the output contract is NONE, it basically destroys all properties,
-//		// as they always refer to the key, and the key is potentially switched
-//		if (contract == OutputContract.None) {
-//			return new ArrayList<InterestingProperties>();
-//		} else {
-//			List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
-//
-//			// process all interesting properties
-//			for (InterestingProperties p : props) {
-//				boolean nonTrivial = p.getGlobalProperties().filterByOutputContract(contract);
-//				nonTrivial |= p.getLocalProperties().filterByOutputContract(contract);
-//
-//				if (nonTrivial) {
-//					preserved.add(p);
-//				}
-//			}
-//
-//			return preserved;
-//		}
-//	}
 	
 	
-	public static final List<InterestingProperties> createInterestingPropertiesForInput(List<InterestingProperties> props,
-			OptimizerNode node, int input) {
-		List<InterestingProperties> preserved = new ArrayList<InterestingProperties>();
+	public static final List<InterestingProperties> filterInterestingPropertiesForInput(
+		List<InterestingProperties> props, OptimizerNode node, int input)
+	{
+		List<InterestingProperties> preserved = null;
 		
 		for (InterestingProperties p : props) {
-//			GlobalProperties preservedGp = p.getGlobalProperties().createCopy();
-//			LocalProperties preservedLp = p.getLocalProperties().createCopy();
-//			boolean nonTrivial = preservedGp.filterByNodesConstantSet(node, input);
-//			nonTrivial |= preservedLp.filterByNodesConstantSet(node, input);
-			
-			GlobalProperties preservedGp =
-					p.getGlobalProperties().createInterestingGlobalProperties(node, input);
-			LocalProperties preservedLp = 
-					p.getLocalProperties().createInterestingLocalProperties(node, input);
-
-			if (preservedGp != null || preservedLp != null) {
-				if (preservedGp == null) {
-					preservedGp = new GlobalProperties();
-				}
-				if (preservedLp == null) {
-					preservedLp = new LocalProperties();
-				}
-				InterestingProperties newIp = new InterestingProperties(p.getMaximalCosts().clone(), preservedGp, preservedLp);
-				mergeUnionOfInterestingProperties(preserved, newIp);
+			final InterestingProperties filteredProps = p.filterByCodeAnnotations(node, input);
+			if (filteredProps == null) {
+				continue;
 			}
+			
+			final GlobalProperties topDownAdjustedGP = filteredProps.globalProps.createInterestingGlobalPropertiesTopDownSubset(node, input);
+			if (topDownAdjustedGP == null && filteredProps.localProps.isTrivial()) 
+				continue;
+			
+			if (preserved == null) {
+				preserved = new ArrayList<InterestingProperties>();
+			}
+			
+			final InterestingProperties toAdd = topDownAdjustedGP == filteredProps.getGlobalProperties() ? filteredProps :
+				new InterestingProperties(filteredProps.getMaximalCosts(), topDownAdjustedGP, filteredProps.localProps);
+			mergeUnionOfInterestingProperties(preserved, toAdd);
 		}
-
 		return preserved;
 	}
 }

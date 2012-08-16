@@ -30,7 +30,7 @@ public final class LocalProperties implements Cloneable
 {
 	private Ordering ordering;					// order inside a partition, null if not ordered
 
-	private FieldSet groupedFields;	// fields by which the stream is grouped. null if not grouped.
+	private OptimizerFieldSet groupedFields;	// fields by which the stream is grouped. null if not grouped.
 	
 	private FieldSet uniqueFields;		// fields whose value combination is unique in the stream
 
@@ -42,26 +42,17 @@ public final class LocalProperties implements Cloneable
 	public LocalProperties() {}
 	
 	/**
-	 * Creates a new instance of local properties that have only the given ordering as property.
-	 * The ordering does automatically imply a grouping, though.
-	 * 
-	 * @param ordering The ordering represented by these local properties.
-	 */
-	public LocalProperties(Ordering ordering) {
-		this.ordering = ordering;
-		this.groupedFields = ordering.getInvolvedIndexes();
-	}
-	
-	/**
 	 * Creates a new instance of local properties that have the given ordering as property,
 	 * field grouping and field uniqueness. Any of the given parameters may be null. Beware, though,
 	 * that a null grouping is inconsistent with a non-null ordering.
+	 * <p>
+	 * This constructor is used only for internal copy creation.
 	 * 
 	 * @param ordering The ordering represented by these local properties.
 	 * @param groupedFields The grouped fields for these local properties.
 	 * @param uniqueFields The unique fields for these local properties.
 	 */
-	public LocalProperties(Ordering ordering, FieldSet groupedFields, FieldSet uniqueFields) {
+	private LocalProperties(Ordering ordering, OptimizerFieldSet groupedFields, FieldSet uniqueFields) {
 		this.ordering = ordering;
 		this.groupedFields = groupedFields;
 		this.uniqueFields = uniqueFields;
@@ -93,7 +84,7 @@ public final class LocalProperties implements Cloneable
 	 * 
 	 * @return The grouped fields, or <code>null</code> if nothing is grouped.
 	 */
-	public FieldSet getGroupedFields() {
+	public OptimizerFieldSet getGroupedFields() {
 		return this.groupedFields;
 	}
 	
@@ -102,7 +93,7 @@ public final class LocalProperties implements Cloneable
 	 * 
 	 * @param groupedFields The fields that are grouped in these data properties.
 	 */
-	public void setGroupedFields(FieldSet groupedFields) {
+	public void setGroupedFields(OptimizerFieldSet groupedFields) {
 		this.groupedFields = groupedFields;	
 	}
 
@@ -155,24 +146,32 @@ public final class LocalProperties implements Cloneable
 	 * 
 	 * @return True, if the resulting properties are non trivial.
 	 */
-	public boolean filterByNodesConstantSet(OptimizerNode node, int input) {
+	public LocalProperties filterByNodesConstantSet(OptimizerNode node, int input)
+	{
 		// check, whether the local order is preserved
+		Ordering no = this.ordering;
+		FieldSet ngf = this.groupedFields;
+		FieldSet nuf = this.uniqueFields;
+		
 		if (this.ordering != null) {
 			FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
 				if (!node.isFieldConstant(input, involvedIndexes.get(i))) {
-					this.ordering = this.ordering.createNewOrderingUpToIndex(i);
+					if (i == 0) {
+						no = null;
+						ngf = null;
+					} else {
+						no = this.ordering.createNewOrderingUpToIndex(i);
+						ngf = no.getInvolvedIndexes();
+					}
 					break;
 				}
 			}
-		}
-		
-		// check, whether the local key grouping is preserved
-		if (this.groupedFields != null) {
+		} else if (this.groupedFields != null) {
+			// check, whether the local key grouping is preserved
 			for (Integer index : this.groupedFields) {
 				if (!node.isFieldConstant(input, index)) {
-					this.groupedFields = null;
-					break;
+					ngf = null;
 				}
 			}
 		}
@@ -181,65 +180,15 @@ public final class LocalProperties implements Cloneable
 		if (this.uniqueFields != null) {
 			for (Integer index : this.uniqueFields) {
 				if (!node.isFieldConstant(input, index)) {
-					this.uniqueFields = null;
+					nuf = null;
 					break;
 				}
 			}
 		}
 		
-		return !isTrivial();
-	}
-	
-	public LocalProperties createInterestingLocalProperties(OptimizerNode node, int input)
-	{
-//		// check, whether the local order is preserved
-//		boolean newGrouped = false;
-//		Ordering newOrdering = null;
-//		FieldSet newGroupedFields = null;
-//		
-//		
-//		// no interesting LocalProperties for input of Unions
-//		if (node instanceof UnionNode) return null;
-//		
-//		
-//		// check, whether the local key grouping is preserved
-//		if (this.groupedFields != null) {
-//			boolean groupingPreserved = true;
-//			for (Integer index : this.groupedFields) {
-//				if (node.isFieldKept(input, index) == false) {
-//					groupingPreserved = false;
-//					break;
-//				}
-//			}
-//			
-//			if (groupingPreserved) {
-//				newGroupedFields = (FieldSet) this.groupedFields.clone();
-//				newGrouped = true;
-//			}
-//		}
-//		
-//		// check, whether the global order is preserved
-//		if (ordering != null) {
-//			boolean orderingPreserved = true;
-//			ArrayList<Integer> involvedIndexes = ordering.getInvolvedIndexes();
-//			for (int i = 0; i < involvedIndexes.size(); i++) {
-//				if (node.isFieldKept(input, i) == false) {
-//					orderingPreserved = false;
-//					break;
-//				}
-//			}
-//			
-//			if (orderingPreserved) {
-//				newOrdering = ordering.clone();
-//			}
-//		}
-//		
-//		if (newGrouped == false && newOrdering == null) {
-			return null;	
-//		}
-//		else {
-//			return new LocalProperties(newGrouped, newGroupedFields, newOrdering);
-//		}
+		return (no == this.ordering && ngf == this.groupedFields && nuf == this.uniqueFields) ? this :
+			   (no == null && ngf == null && nuf == null) ? null :
+					new LocalProperties(no, ngf, nuf);
 	}
 
 	/**

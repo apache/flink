@@ -27,7 +27,7 @@ import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
  * <p>
  * This class is thread safe.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public class DataStatistics
 {
@@ -38,8 +38,7 @@ public class DataStatistics
 	/**
 	 * Creates a new statistics object, with an empty cache. 
 	 */
-	public DataStatistics()
-	{
+	public DataStatistics() {
 		this.baseStatisticsCache = new HashMap<String, BaseStatistics>();
 	}
 	

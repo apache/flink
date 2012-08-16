@@ -154,9 +154,19 @@ public abstract class PlanNode implements Visitable<PlanNode>
 		}
 	}
 	
+	public int getDegreeOfParallelism() {
+		return 1;
+	}
+	
+	public long getTotalAvailableMemory() {
+		return 3 * 1024 * 1024 * getDegreeOfParallelism();	// mock: 3 MiBytes per task
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	// 
 	// --------------------------------------------------------------------------------------------
+	
+	public abstract Iterator<Channel> getInputs();
 	
 	public abstract Iterator<PlanNode> getPredecessors();
 	

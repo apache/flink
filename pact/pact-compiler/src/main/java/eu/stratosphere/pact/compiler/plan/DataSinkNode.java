@@ -25,7 +25,6 @@ import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PartitionProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -228,45 +227,36 @@ public class DataSinkNode extends OptimizerNode {
 			// range partitioned only or global sort
 			// in both cases create a range partitioned only IP
 			InterestingProperties partitioningProps = new InterestingProperties();
+			
 			partitioningProps.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, partitioning);
-			estimator.getRangePartitionCost(this.input, partitioningProps.getMaximalCosts());
+			estimator.addRangePartitionCost(this.input, partitioningProps.getMaximalCosts());
+			
 			this.input.addInterestingProperties(partitioningProps);
+		} else if (localOrder == null) {
+			this.input.setNoInterestingProperties();
 		}
 		
 		if (localOrder != null) {
 			if (partitioning != null && localOrder.equals(partitioning)) {
 				// global sort case: create IP for range partitioned and sorted
 				InterestingProperties globalSortProps = new InterestingProperties();
+				
 				globalSortProps.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, partitioning);
-				estimator.getRangePartitionCost(this.input, globalSortProps.getMaximalCosts());
+				estimator.addRangePartitionCost(this.input, globalSortProps.getMaximalCosts());
 				
+				globalSortProps.getLocalProperties().setOrdering(partitioning);
+				estimator.addLocalSortCost(this.input, -1, globalSortProps.getMaximalCosts());
 				
-				Costs sortCosts = new Costs();
-				estimator.getLocalSortCost(this, this.input, sortCosts);
-				globalSortProps.getMaximalCosts().addCosts(sortCosts);
 				this.input.addInterestingProperties(globalSortProps);
 			} else {
 				// local order only
+				InterestingProperties localSortProps = new InterestingProperties();
+				
+				localSortProps.getLocalProperties().setOrdering(partitioning);
+				estimator.addLocalSortCost(this.input, -1, localSortProps.getMaximalCosts());
+				
+				this.input.addInterestingProperties(localSortProps);
 			}
-		} else {
-		
-
-			
-			Ordering localOrdering = getPactContract().getLocalOrder();
-			if (localOrdering != null && localOrdering.equals(partitioning)) {
-				InterestingProperties i = partitioningProps.clone();
-				i.getLocalProperties().setOrdering(partitioning);
-				this.input.addInterestingProperties(i);
-			}
-		}
-		else if (getPactContract().getLocalOrder() != null) {
-			InterestingProperties i = new InterestingProperties();
-			i.getLocalProperties().setOrdering(getPactContract().getLocalOrder());
-			estimator.getLocalSortCost(this, this.input, i.getMaximalCosts());
-			this.input.addInterestingProperties(i);
-			
-		} else {
-			this.input.setNoInterestingProperties();
 		}
 	}
 	

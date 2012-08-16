@@ -68,6 +68,18 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	public void setNetworkCost(long bytes) {
 		this.networkCost = bytes;
 	}
+	
+	/**
+	 * Adds the costs for network to the current network costs
+	 * for this Costs object.
+	 * 
+	 * @param bytes
+	 *        The network cost to add, in bytes to be transferred.
+	 */
+	public void addNetworkCost(long bytes) {
+		this.networkCost = 
+			(this.networkCost < 0 || bytes < 0) ? -1 : this.networkCost + bytes;
+	}
 
 	/**
 	 * Gets the costs for secondary storage.
@@ -86,6 +98,18 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	 */
 	public void setSecondaryStorageCost(long bytes) {
 		this.secondaryStorageCost = bytes;
+	}
+	
+	/**
+	 * Adds the costs for secondary storage to the current secondary storage costs
+	 * for this Costs object.
+	 * 
+	 * @param bytes
+	 *        The secondary storage cost to add, in bytes to be written and read.
+	 */
+	public void addSecondaryStorageCost(long bytes) {
+		this.secondaryStorageCost = 
+			(this.secondaryStorageCost < 0 || bytes < 0) ? -1 : this.secondaryStorageCost + bytes;
 	}
 
 	/**

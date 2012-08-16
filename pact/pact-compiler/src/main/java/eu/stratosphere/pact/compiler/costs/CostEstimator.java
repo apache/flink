@@ -15,53 +15,39 @@
 
 package eu.stratosphere.pact.compiler.costs;
 
-import java.util.List;
+import java.util.Iterator;
 
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
-import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.compiler.plan.PactConnection;
-import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
+import eu.stratosphere.pact.compiler.plan.EstimateProvider;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+
 
 /**
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public abstract class CostEstimator {
 
-	public abstract void getRangePartitionCost(PactConnection conn, Costs costs);
+	public abstract void addRangePartitionCost(EstimateProvider estimates, Costs costs);
 
-	public abstract void getHashPartitioningCost(PactConnection conn, Costs costs);
+	public abstract void addHashPartitioningCost(EstimateProvider estimates, Costs costs);
 
-	public abstract void getBroadcastCost(PactConnection conn, Costs costs);
+	public abstract void addBroadcastCost(EstimateProvider estimates, int replicationFactor, Costs costs);
 
 	// ------------------------------------------------------------------------
 
-	public abstract void getLocalSortCost(OptimizerNode node, PactConnection input, Costs costs);
-
-	public abstract void getLocalDoubleSortMergeCost(OptimizerNode node, PactConnection input1, PactConnection input2,
-			Costs costs);
-
-	public abstract void getLocalSingleSortMergeCost(OptimizerNode node, PactConnection input1, PactConnection input2,
-			Costs costs);
+	public abstract void addLocalSortCost(EstimateProvider estimates, long memorySize, Costs costs);
 	
-	public abstract void getLocalMergeCost(OptimizerNode node, PactConnection input1, PactConnection input2,
-			Costs costs);
+	public abstract void addLocalMergeCost(EstimateProvider estimates1, EstimateProvider estimates2, long memorySize, Costs costs);
 	
-	public abstract void getLocalSortSelfNestedLoopCost(OptimizerNode node, PactConnection input, int bufferSize, Costs costs);
-
-	public abstract void getLocalSelfNestedLoopCost(OptimizerNode node, PactConnection input, int bufferSize, Costs costs);
+	public abstract void addLocalSelfNestedLoopCost(EstimateProvider estimates, long bufferSize, Costs costs);
 	
-	public abstract void getHybridHashCosts(OptimizerNode node, PactConnection buildSideInput,
-			PactConnection probeSideInput, Costs costs);
+	public abstract void addHybridHashCosts(EstimateProvider buildSide, EstimateProvider probeSide, long memorySize, Costs costs);
 
-	public abstract void getMainMemHashCosts(OptimizerNode node, PactConnection buildSideInput,
-			PactConnection probeSideInput, Costs costs);
+	public abstract void addStreamedNestedLoopsCosts(EstimateProvider outerSide, EstimateProvider innerSide, long bufferSize, Costs costs);
 
-	public abstract void getStreamedNestedLoopsCosts(OptimizerNode node, PactConnection outerSide,
-			PactConnection innerSide, int bufferSize, Costs costs);
-
-	public abstract void getBlockNestedLoopsCosts(OptimizerNode node, PactConnection outerSide, PactConnection innerSide, 
-			int blockSize, Costs costs);
+	public abstract void addBlockNestedLoopsCosts(EstimateProvider outerSide, EstimateProvider innerSide, long blockSize, Costs costs);
 
 	// ------------------------------------------------------------------------
 
@@ -69,126 +55,106 @@ public abstract class CostEstimator {
 	 * This method computes the costs for an operator. It requires that all inputs are set and have a proper
 	 * <tt>ShipStrategy</tt> set, which is not equal to <tt>NONE</tt>.
 	 * 
-	 * @param n
-	 *        The node to compute the costs for.
+	 * @param n The node to compute the costs for.
 	 */
-	public void costOperator(OptimizerNode n) {
-		if (n.getIncomingConnections() == null) {
-			throw new CompilerException("Cannot compute costs on operator before incoming connections are set.");
-		}
-
+	public void costOperator(PlanNode n)
+	{
 		// initialize costs objects with currently unknown costs
-		Costs globCost = new Costs();
-		Costs locCost = new Costs();
+		final Costs costs = new Costs();
+		final long availableMemory = n.getTotalAvailableMemory();
 		
-		globCost.setNetworkCost(0);
-		globCost.setSecondaryStorageCost(0);
-		
-		List<PactConnection> incomingConnections = n.getIncomingConnections();
-		
-		for (int i = 0; i < incomingConnections.size(); i++) {
-
-			PactConnection connection = incomingConnections.get(i);
+		// add the shipping strategy costs
+		for (Iterator<Channel> channels = n.getInputs(); channels.hasNext(); ) {
+			final Channel channel = channels.next();
 			
-			Costs tempGlobalCost = new Costs();
-			
-			switch (connection.getShipStrategy().type()) {
+			switch (channel.getShipStrategy()) {
 			case NONE:
 				throw new CompilerException(
 					"Cannot determine costs: Shipping strategy has not been set for an input.");
 			case FORWARD:
 			case PARTITION_LOCAL_HASH:
-				tempGlobalCost.setNetworkCost(0);
-				tempGlobalCost.setSecondaryStorageCost(0);
 				break;
 			case PARTITION_HASH:
-				getHashPartitioningCost(connection, tempGlobalCost);
+				addHashPartitioningCost(channel, costs);
 				break;
 			case PARTITION_RANGE:
-				getRangePartitionCost(connection, tempGlobalCost);
+				addRangePartitionCost(channel, costs);
 				break;
 			case BROADCAST:
-				getBroadcastCost(connection, tempGlobalCost);
+				addBroadcastCost(channel, channel.getReplicationFactor(), costs);
 				break;
 			case SFR:
 				throw new CompilerException("Symmetric-Fragment-And-Replicate Strategy currently not supported.");
 			default:
-				throw new CompilerException("Unknown shipping strategy for input: " + connection.getShipStrategy().name());
+				throw new CompilerException("Unknown shipping strategy for input: " + channel.getShipStrategy());
 			}
-			
-			globCost.addCosts(tempGlobalCost);
 		} 
 		
-		
-		PactConnection primConn = null;
-		PactConnection secConn = null;
+		Channel firstInput = null;
+		Channel secondInput = null;
 		
 		// get the inputs, if we have some
 		{
-			if (incomingConnections.size() > 0) {
-				primConn = incomingConnections.get(0);
-			}
-			if (incomingConnections.size() > 1) {
-				secConn = incomingConnections.get(1);
-			}
+			Iterator<Channel> channels = n.getInputs();
+			if (channels.hasNext())
+				firstInput = channels.next();
+			if (channels.hasNext())
+				secondInput = channels.next();
 		}
 
 		// determine the local costs
-		locCost.setNetworkCost(0);
 		switch (n.getLocalStrategy()) {
 		case NONE:
-			locCost.setNetworkCost(0);
-			locCost.setSecondaryStorageCost(0);
 			break;
 		case COMBININGSORT:
 		case SORT:
-			getLocalSortCost(n, primConn, locCost);
+			addLocalSortCost(firstInput, availableMemory, costs);
 			break;
 		case SORT_BOTH_MERGE:
-			getLocalDoubleSortMergeCost(n, primConn, secConn, locCost);
+			addLocalSortCost(firstInput, availableMemory / 2, costs);
+			addLocalSortCost(secondInput, availableMemory / 2, costs);
+			addLocalMergeCost(firstInput, secondInput, 0, costs);
 			break;
 		case SORT_FIRST_MERGE:
-			getLocalSingleSortMergeCost(n, primConn, secConn, locCost);
+			addLocalSortCost(firstInput, availableMemory, costs);
+			addLocalMergeCost(firstInput, secondInput, 0, costs);
 			break;
 		case SORT_SECOND_MERGE:
-			getLocalSingleSortMergeCost(n, secConn, primConn, locCost);
+			addLocalSortCost(secondInput, availableMemory, costs);
+			addLocalMergeCost(firstInput, secondInput, 0, costs);
 			break;
 		case MERGE:
-			getLocalMergeCost(n, primConn, secConn, locCost);
+			addLocalMergeCost(firstInput, secondInput, 0, costs);
 			break;
 		case SORT_SELF_NESTEDLOOP:
-			getLocalSortSelfNestedLoopCost(n, primConn, 10, locCost);
+			addLocalSortCost(firstInput, availableMemory, costs);
+			addLocalSelfNestedLoopCost(firstInput, 10, costs);
 			break;
 		case SELF_NESTEDLOOP:
-			getLocalSelfNestedLoopCost(n, primConn, 10, locCost);
+			addLocalSelfNestedLoopCost(firstInput, 10, costs);
 			break;
 		case HYBRIDHASH_FIRST:
-			getHybridHashCosts(n, primConn, secConn, locCost);
+			addHybridHashCosts(firstInput, secondInput, availableMemory, costs);
 			break;
 		case HYBRIDHASH_SECOND:
-			getHybridHashCosts(n, secConn, primConn, locCost);
+			addHybridHashCosts(secondInput, firstInput, availableMemory, costs);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-			getBlockNestedLoopsCosts(n, primConn, secConn, BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, locCost);
+			addBlockNestedLoopsCosts(firstInput, secondInput, availableMemory, costs);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-			getBlockNestedLoopsCosts(n, secConn, primConn, BlockResettableMutableObjectIterator.MIN_BUFFER_SIZE, locCost);
+			addBlockNestedLoopsCosts(secondInput, firstInput, availableMemory, costs);
 			break;
 		case NESTEDLOOP_STREAMED_OUTER_FIRST:
-			getStreamedNestedLoopsCosts(n, primConn, secConn,
-				128 * 1024, locCost);
+			addStreamedNestedLoopsCosts(firstInput, secondInput, availableMemory, costs);
 			break;
 		case NESTEDLOOP_STREAMED_OUTER_SECOND:
-			getStreamedNestedLoopsCosts(n, secConn, primConn,
-				128 * 1024, locCost);
+			addStreamedNestedLoopsCosts(secondInput, firstInput, availableMemory, costs);
 			break;
 		default:
 			throw new CompilerException("Unknown local strategy: " + n.getLocalStrategy().name());
 		}
 
-		// add the costs and set them
-		globCost.addCosts(locCost);
-		n.setCosts(globCost);
+		n.setCosts(costs);
 	}
-
 }

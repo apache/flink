@@ -46,7 +46,7 @@ import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.costs.FixedSizeClusterCostEstimator;
+import eu.stratosphere.pact.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.pact.compiler.plan.CoGroupNode;
 import eu.stratosphere.pact.compiler.plan.CrossNode;
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
@@ -363,7 +363,7 @@ public class PactCompiler {
 	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
 	 */
 	public PactCompiler() {
-		this(null, new FixedSizeClusterCostEstimator());
+		this(null, new DefaultCostEstimator());
 	}
 
 	/**
@@ -378,7 +378,7 @@ public class PactCompiler {
 	 *        The statistics to be used to determine the input properties.
 	 */
 	public PactCompiler(DataStatistics stats) {
-		this(stats, new FixedSizeClusterCostEstimator());
+		this(stats, new DefaultCostEstimator());
 	}
 
 	/**

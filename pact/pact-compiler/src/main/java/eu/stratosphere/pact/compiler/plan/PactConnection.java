@@ -19,7 +19,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
@@ -33,7 +35,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
  * The connections are also used by the optimization algorithm to propagate interesting properties from the sinks in the
  * direction of the sources.
  */
-public class PactConnection
+public class PactConnection implements EstimateProvider
 {
 	private final OptimizerNode sourcePact; // The source node of the connection
 
@@ -223,6 +225,42 @@ public class PactConnection
 		return PactConnection.getLocalPropertiesAfterConnection(this.sourcePact, this.targetPact, this.shipStrategy);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedOutputSize()
+	 */
+	@Override
+	public long getEstimatedOutputSize() {
+		return this.sourcePact.getEstimatedOutputSize();
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedNumRecords()
+	 */
+	@Override
+	public long getEstimatedNumRecords() {
+		return this.sourcePact.getEstimatedNumRecords();
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinalities()
+	 */
+	@Override
+	public Map<FieldSet, Long> getEstimatedCardinalities() {
+		return this.sourcePact.getEstimatedCardinalities();
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedCardinality(eu.stratosphere.pact.common.util.FieldSet)
+	 */
+	@Override
+	public long getEstimatedCardinality(FieldSet cP) {
+		return this.sourcePact.getEstimatedCardinality(cP);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
@@ -348,5 +386,4 @@ public class PactConnection
 //		return lp;
 		return null;
 	}
-
 }
