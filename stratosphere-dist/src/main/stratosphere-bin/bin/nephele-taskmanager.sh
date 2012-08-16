@@ -55,8 +55,6 @@ constructTaskManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'pact-runtime' ]]; then
 			add=1
-		elif [[ "$jarfile" =~ 'jackson' ]]; then
-			add=1
 		elif [[ "$jarfile" =~ 'commons-cli' ]]; then
 			add=1
 		elif [[ "$jarfile" =~ 'commons-logging' ]]; then
