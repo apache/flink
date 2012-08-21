@@ -26,6 +26,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
@@ -83,6 +85,12 @@ public class ExecutionGraph implements ExecutionListener {
 	private final String jobName;
 
 	/**
+	 * Mapping of vertex IDs to vertices.
+	 */
+	private final ConcurrentMap<ExecutionVertexID, ExecutionVertex> vertexMap = new ConcurrentHashMap<ExecutionVertexID, ExecutionVertex>(
+		1024);
+
+	/**
 	 * Mapping of channel IDs to edges.
 	 */
 	private final ConcurrentMap<ChannelID, ExecutionEdge> edgeMap = new ConcurrentHashMap<ChannelID, ExecutionEdge>(
@@ -92,6 +100,11 @@ public class ExecutionGraph implements ExecutionListener {
 	 * List of stages in the graph.
 	 */
 	private final CopyOnWriteArrayList<ExecutionStage> stages = new CopyOnWriteArrayList<ExecutionStage>();
+
+	/**
+	 * The executor service to asynchronously perform update operations to this graph.
+	 */
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 	/**
 	 * Index to the current execution stage.
@@ -563,8 +576,7 @@ public class ExecutionGraph implements ExecutionListener {
 						+ ": " + StringUtils.stringifyException(e));
 				}
 			} else {
-				throw new GraphConversionException(
-					"BUG: JobInputVertex contained a task class which was not an input task.");
+				throw new GraphConversionException("JobInputVertex contained a task class which was not an input task.");
 			}
 
 			if (inputSplits == null) {
@@ -785,49 +797,30 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	/**
-	 * Returns a (possibly empty) list of execution vertices which are currently assigned to the
-	 * given allocated resource. The vertices in that list may have an arbitrary execution state.
+	 * Registers an execution vertex with the execution graph.
 	 * 
-	 * @param allocatedResource
-	 *        the allocated resource to check the assignment for
-	 * @return a (possibly empty) list of execution vertices which are currently assigned to the given instance
+	 * @param vertex
+	 *        the execution vertex to register
 	 */
-	public List<ExecutionVertex> getVerticesAssignedToResource(final AllocatedResource allocatedResource) {
+	void registerExecutionVertex(final ExecutionVertex vertex) {
 
-		final List<ExecutionVertex> list = new ArrayList<ExecutionVertex>();
-
-		if (allocatedResource == null) {
-			return list;
+		if (this.vertexMap.put(vertex.getID(), vertex) != null) {
+			throw new IllegalStateException("There is already an execution vertex with ID " + vertex.getID()
+				+ " registered");
 		}
-
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
-		while (it.hasNext()) {
-			final ExecutionVertex vertex = it.next();
-			if (allocatedResource.equals(vertex.getAllocatedResource())) {
-				list.add(vertex);
-			}
-		}
-
-		return list;
 	}
 
+	/**
+	 * Returns the execution vertex with the given vertex ID.
+	 * 
+	 * @param id
+	 *        the vertex ID to retrieve the execution vertex
+	 * @return the execution vertex matching the provided vertex ID or <code>null</code> if no such vertex could be
+	 *         found
+	 */
 	public ExecutionVertex getVertexByID(final ExecutionVertexID id) {
 
-		if (id == null) {
-			return null;
-		}
-
-		final ExecutionGraphIterator it = new ExecutionGraphIterator(this, true);
-
-		while (it.hasNext()) {
-
-			final ExecutionVertex vertex = it.next();
-			if (vertex.getID().equals(id)) {
-				return vertex;
-			}
-		}
-
-		return null;
+		return this.vertexMap.get(id);
 	}
 
 	/**
@@ -1234,6 +1227,7 @@ public class ExecutionGraph implements ExecutionListener {
 		final ExecutionVertex vertex = getVertexByID(vertexID);
 		if (vertex == null) {
 			LOG.error("Cannot find execution vertex with the ID " + vertexID);
+			return;
 		}
 
 		final ExecutionState actualExecutionState = vertex.getExecutionState();
@@ -1431,5 +1425,16 @@ public class ExecutionGraph implements ExecutionListener {
 	public int getPriority() {
 
 		return 1;
+	}
+
+	/**
+	 * Performs an asynchronous update operation to this execution graph.
+	 * 
+	 * @param command
+	 *        the update command to be asynchronously executed on this graph
+	 */
+	public void executeCommand(final Runnable command) {
+
+		this.executorService.execute(command);
 	}
 }

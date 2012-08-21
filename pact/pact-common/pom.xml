@@ -23,11 +23,6 @@
     </dependency>
 
 
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>nephele-hdfs</artifactId>
-      <version>${version}</version>
-    </dependency>
   </dependencies>
 
   <reporting>

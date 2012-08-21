@@ -7,6 +7,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 /**
+ * This node represents a missing value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -98,12 +100,12 @@ public class MissingNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 	}
 
 	@SuppressWarnings("unused")
-	private void writeObject(ObjectOutputStream oos) throws IOException {
+	private void writeObject(final ObjectOutputStream oos) throws IOException {
 	}
 
 	@SuppressWarnings("unused")
@@ -119,4 +121,15 @@ public class MissingNode extends AbstractJsonNode implements IPrimitiveNode {
 	public void clear() {
 		throw new UnsupportedOperationException("MissingNode");
 	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 0;
+	}
+
+	@Override
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+		this.fillWithZero(target, offset, offset + len);
+	}
+
 }

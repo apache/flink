@@ -6,6 +6,10 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * Iterator that allows to iterate over {@link PactRecord}s. Each record is converted to a {@link IJsonNode} before
+ * returning it.
+ */
 public class RecordToJsonIterator implements Iterator<IJsonNode> {
 
 	private final Schema schema;

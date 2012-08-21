@@ -17,13 +17,16 @@ package eu.stratosphere.pact.testing;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
+import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceException;
@@ -97,6 +100,16 @@ class MockInstanceManager implements InstanceManager {
 	public void releaseAllocatedResource(final JobID jobID,
 			final Configuration conf, final AllocatedResource allocatedResource)
 			throws InstanceException {
+
+		final DummyInstance dummyInstance =
+			DummyInstance.createDummyInstance(allocatedResource.getInstance().getType());
+		final AllocatedResource dummyResource = new AllocatedResource(dummyInstance,
+			allocatedResource.getInstanceType(), new AllocationID());
+		final Iterator<ExecutionVertex> assignedVertices = allocatedResource.assignedVertices();
+		while (assignedVertices.hasNext()) {
+			ExecutionVertex executionVertex = assignedVertices.next();
+			executionVertex.setAllocatedResource(dummyResource);
+		}
 	}
 
 	@Override

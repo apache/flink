@@ -48,7 +48,15 @@ public final class PactConfigConstants {
 	 * The key for the config parameter defining the instance that are booked for pact tasks.
 	 */
 	public static final String DEFAULT_INSTANCE_TYPE_KEY = "pact.parallelization.default-instance-type";
-
+	
+	// ------------------------------- Runtime --------------------------------
+	
+	/**
+	 * The key for the config parameter defining the timeout for filesystem stream opening.
+	 * A value of 0 indicates infinite waiting.
+	 */
+	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "pact.runtime.fs_timeout";
+	
 	// ----------------------------- Web Frontend -----------------------------
 
 	/**
@@ -87,7 +95,7 @@ public final class PactConfigConstants {
 	public static final String WEB_ACCESS_FILE_KEY = "pact.web.access";
 
 	// ------------------------------------------------------------------------
-	// Default Values
+	//                             Default Values
 	// ------------------------------------------------------------------------
 
 	// ------------------------------ Parallelism -----------------------------
@@ -113,6 +121,13 @@ public final class PactConfigConstants {
 	 */
 	public static final String DEFAULT_INSTANCE_TYPE_DESCRIPTION = "standard,2,1,300,10,0";
 
+	// ------------------------------- Runtime --------------------------------
+	
+	/**
+	 * The default timeout for filesystem stream opening: 10 seconds.
+	 */
+	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 10000;
+	
 	// ----------------------------- Web Frontend -----------------------------
 
 	/**

@@ -18,6 +18,8 @@ import java.util.Iterator;
 import java.util.Map.Entry;
 
 /**
+ * Interface for all object type nodes.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

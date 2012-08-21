@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.example.relational;
 
-import java.io.IOException;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
@@ -23,8 +22,8 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.RecordInputFormat;
+import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
 import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
@@ -32,7 +31,6 @@ import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExcept;
@@ -85,43 +83,25 @@ import eu.stratosphere.pact.common.util.FieldSet;
  */
 public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 {
-	// TODO JAVADOC !!!
-	public static class WebLogAnalysisOutFormat extends FileOutputFormat {
-		
-		private final StringBuilder buffer = new StringBuilder();
-
-		@Override
-		public void writeRecord(PactRecord record) throws IOException {
-			buffer.setLength(0);
-			buffer.append(record.getField(1, PactInteger.class).toString());
-			buffer.append('|');
-			buffer.append(record.getField(0, PactString.class).toString());
-			buffer.append('|');
-			buffer.append(record.getField(2, PactInteger.class).toString());
-			buffer.append('|');
-			buffer.append('\n');
-			byte[] bytes = this.buffer.toString().getBytes();
-			this.stream.write(bytes);
-		}
-	}
-
+	
 	/**
 	 * MapStub that filters for documents that contain a certain set of
 	 * keywords. 
-	 * SameKey is annotated because the key is not changed 
-	 * (key of the input set is equal to the key of the output set).
 	 * 
 	 * @author Fabian Hueske
 	 * @author Christoph Bruecke
 	 */
-	@ConstantFields(fields={0})
+	@ConstantFieldsExcept(fields={1})
 	@OutCardBounds(lowerBound=0, upperBound=1)
 	public static class FilterDocs extends MapStub {
 		
 		private static final String[] KEYWORDS = { " editors ", " oscillations ", " convection " };
 		
 		/**
-		 * Filters for documents that contain all of the given keywords and emit their keys.
+		 * Filters for documents that contain all of the given keywords and projects the records on the URL field.
+		 * 
+		 * Output Format:
+		 * 0: URL
 		 */
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
@@ -138,7 +118,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			}
 
 			if (allContained) {
-				record.setNumFields(1);
+				record.setNull(1);
 				out.collect(record);
 			}
 		}
@@ -151,20 +131,26 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * @author Christoph Bruecke
 	 */
 	@ConstantFieldsExcept(fields={})
+	@OutCardBounds(lowerBound=0, upperBound=1)
 	public static class FilterRanks extends MapStub {
 		
 		private static final int RANKFILTER = 50;
 		
 		/**
 		 * Filters for records of the rank relation where the rank is greater
-		 * than the given threshold. The key is set to the URL of the record.
+		 * than the given threshold.
+		 * 
+		 * Output Format:
+		 * 0: URL
+		 * 1: RANK
+		 * 2: AVG_DURATION
 		 */
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
 			
 			if (record.getField(1, PactInteger.class).getValue() > RANKFILTER) {
 				out.collect(record);
-			}			
+			}
 		}
 	}
 
@@ -175,7 +161,8 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * @author Fabian Hueske
 	 * @author Christoph Bruecke
 	 */
-	@ConstantFields(fields={0})
+	@ConstantFieldsExcept(fields={1})
+	@OutCardBounds(lowerBound=0, upperBound=1)
 	public static class FilterVisits extends MapStub {
 
 		private static final int YEARFILTER = 2010;
@@ -184,6 +171,9 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		/**
 		 * Filters for records of the visits relation where the year of visit is equal to a
 		 * specified value. The URL of all visit records passing the filter is emitted.
+		 * 
+		 * Output Format:
+		 * 0: URL
 		 */
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
@@ -193,7 +183,7 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 			int year = Integer.parseInt(dateString.substring(0,4)); 
 			
 			if (year == YEARFILTER) {
-				record.setNumFields(1);
+				record.setNull(1);
 				out.collect(record);
 				
 			}
@@ -202,19 +192,22 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 
 	/**
 	 * MatchStub that joins the filtered entries from the documents and the
-	 * ranks relation. SameKey is annotated because the key of both inputs and
-	 * the output is the same (URL).
+	 * ranks relation.
 	 * 
 	 * @author Fabian Hueske
 	 * @author Christoph Bruecke
 	 */
 	@ConstantFieldsSecondExcept(fields={})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinDocRanks extends MatchStub {
 
 		/**
-		 * Collects all entries from the documents and ranks relation where the
-		 * key (URL) is identical. The output consists of the old key (URL) and
-		 * the attributes of the ranks relation.
+		 * Joins entries from the documents and ranks relation on their URL.
+		 * 
+		 * Output Format:
+		 * 0: URL
+		 * 1: RANK
+		 * 2: AVG_DURATION
 		 */
 		@Override
 		public void match(PactRecord document, PactRecord rank, Collector<PactRecord> out) throws Exception {
@@ -231,11 +224,17 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 	 * @author Christoph Bruecke
 	 */
 	@ConstantFieldsFirstExcept(fields={})
+	@OutCardBounds(lowerBound=0, upperBound=OutCardBounds.FIRSTINPUTCARD)
 	public static class AntiJoinVisits extends CoGroupStub {
 
 		/**
 		 * If the visit iterator is empty, all pairs of the rank iterator are emitted.
 		 * Otherwise, no pair is emitted. 
+		 * 
+		 * Output Format:
+		 * 0: URL
+		 * 1: RANK
+		 * 2: AVG_DURATION
 		 */
 		@Override
 		public void coGroup(Iterator<PactRecord> ranks, Iterator<PactRecord> visits, Collector<PactRecord> out) {
@@ -262,90 +261,109 @@ public class WebLogAnalysis implements PlanAssembler, PlanAssemblerDescription
 		String visitsInput = (args.length > 3 ? args[3] : "");
 		String output      = (args.length > 4 ? args[4] : "");
 
+		/*
+		 * Output Format:
+		 * 0: URL
+		 * 1: DOCUMENT_TEXT
+		 */
 		// Create DataSourceContract for documents relation
 		FileDataSource docs = new FileDataSource(RecordInputFormat.class, docsInput, "Docs Input");
 		docs.setDegreeOfParallelism(noSubTasks);
 		docs.getCompilerHints().setUniqueField(new FieldSet(0));
+		RecordInputFormat.configureRecordFormat(docs)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(VarLengthStringParser.class, 0)
+			.field(VarLengthStringParser.class, 1);
 		
-		docs.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		docs.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		docs.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-		// url
-		docs.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, VarLengthStringParser.class);
-		docs.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// doctext
-		docs.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, VarLengthStringParser.class);
-		docs.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 1);
-		
-
+		/*
+		 * Output Format:
+		 * 0: URL
+		 * 1: RANK
+		 * 2: AVG_DURATION
+		 */
 		// Create DataSourceContract for ranks relation
 		FileDataSource ranks = new FileDataSource(RecordInputFormat.class, ranksInput, "Ranks input");
 		ranks.setDegreeOfParallelism(noSubTasks);
-		
-		ranks.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		ranks.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		ranks.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
-		// url
-		ranks.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, VarLengthStringParser.class);
-		ranks.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 1);
-		// rank
-		ranks.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
-		ranks.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 0);
-		// avgDuration
-		ranks.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+2, DecimalTextIntParser.class);
-		ranks.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+2, 2);
+		RecordInputFormat.configureRecordFormat(ranks)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(VarLengthStringParser.class, 1)
+			.field(DecimalTextIntParser.class, 0)
+			.field(DecimalTextIntParser.class, 2);
 
+		/*
+		 * Output Format:
+		 * 0: URL
+		 * 1: DATE
+		 */
 		// Create DataSourceContract for visits relation
 		FileDataSource visits = new FileDataSource(RecordInputFormat.class, visitsInput, "Visits input:q");
 		visits.setDegreeOfParallelism(noSubTasks);
-		
-		visits.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		visits.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		visits.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-		// url
-		visits.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, VarLengthStringParser.class);
-		visits.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 1);
-		// date
-		visits.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, VarLengthStringParser.class);
-		visits.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 2);
-		
+		RecordInputFormat.configureRecordFormat(visits)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(VarLengthStringParser.class, 1)
+			.field(VarLengthStringParser.class, 2);
 
 		// Create MapContract for filtering the entries from the documents
 		// relation
-		MapContract filterDocs = new MapContract(FilterDocs.class, docs, "Filter Docs");
+		MapContract filterDocs = MapContract.builder(FilterDocs.class)
+			.input(docs)
+			.name("Filter Docs")
+			.build();
 		filterDocs.setDegreeOfParallelism(noSubTasks);
 		filterDocs.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.15f);
 		filterDocs.getCompilerHints().setAvgBytesPerRecord(60);
 		filterDocs.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the ranks relation
-		MapContract filterRanks = new MapContract(FilterRanks.class, ranks, "Filter Ranks");
+		MapContract filterRanks = MapContract.builder(FilterRanks.class)
+			.input(ranks)
+			.name("Filter Ranks")
+			.build();
 		filterRanks.setDegreeOfParallelism(noSubTasks);
 		filterRanks.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.25f);
 		filterRanks.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 
 		// Create MapContract for filtering the entries from the visits relation
-		MapContract filterVisits = new MapContract(FilterVisits.class, visits, "Filter Visits");
+		MapContract filterVisits = MapContract.builder(FilterVisits.class)
+			.input(visits)
+			.name("Filter Visits")
+			.build();
 		filterVisits.setDegreeOfParallelism(noSubTasks);
 		filterVisits.getCompilerHints().setAvgBytesPerRecord(60);
 		filterVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.2f);
 
 		// Create MatchContract to join the filtered documents and ranks
 		// relation
-		MatchContract joinDocsRanks = new MatchContract(JoinDocRanks.class, PactString.class, 0, 0, filterDocs,
-				filterRanks, "Join Docs Ranks");
+		MatchContract joinDocsRanks = MatchContract.builder(JoinDocRanks.class, PactString.class, 0, 0)
+			.input1(filterDocs)
+			.input2(filterRanks)
+			.name("Join Docs Ranks")
+			.build();
 		joinDocsRanks.setDegreeOfParallelism(noSubTasks);
 
 		// Create CoGroupContract to realize a anti join between the joined
 		// documents and ranks relation and the filtered visits relation
-		CoGroupContract antiJoinVisits = new CoGroupContract(AntiJoinVisits.class, PactString.class, 0, 0, joinDocsRanks, 
-				filterVisits, "Antijoin DocsVisits");
+		CoGroupContract antiJoinVisits = CoGroupContract.builder(AntiJoinVisits.class, PactString.class, 0, 0)
+			.input1(joinDocsRanks)
+			.input2(filterVisits)
+			.name("Antijoin DocsVisits")
+			.build();
 		antiJoinVisits.setDegreeOfParallelism(noSubTasks);
 		antiJoinVisits.getCompilerHints().setAvgRecordsEmittedPerStubCall(0.8f);
 
 		// Create DataSinkContract for writing the result of the OLAP query
-		FileDataSink result = new FileDataSink(WebLogAnalysisOutFormat.class, output, antiJoinVisits, "Result");
+		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, antiJoinVisits, "Result");
 		result.setDegreeOfParallelism(noSubTasks);
+		RecordOutputFormat.configureRecordFormat(result)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.lenient(true)
+			.field(PactInteger.class, 1)
+			.field(PactString.class, 0)
+			.field(PactInteger.class, 2);
 
 		// Return the PACT plan
 		return new Plan(result, "Weblog Analysis");

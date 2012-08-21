@@ -14,8 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -24,12 +25,15 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
+ * A {@link Schema} that handles {@link PactRecord}s with the structure: { &#60head nodes&#62, [other nodes] }.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class HeadArraySchema implements Schema {
+public class HeadArraySchema extends AbstractSchema {
 
 	// [ head, ArrayNode(others) ]
 
@@ -38,9 +42,10 @@ public class HeadArraySchema implements Schema {
 	 */
 	private static final long serialVersionUID = 4772055788210326536L;
 
-	private int headSize;
+	private final int headSize;
 
-	public void setHeadSize(int headSize) {
+	public HeadArraySchema(final int headSize) {
+		super(headSize + 1, CollectionUtil.setRangeFrom(0, headSize));
 		this.headSize = headSize;
 	}
 
@@ -50,52 +55,31 @@ public class HeadArraySchema implements Schema {
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.serialization.Schema#getPactSchema()
-	 */
-	@Override
-	public Class<? extends Value>[] getPactSchema() {
-		@SuppressWarnings("unchecked")
-		Class<? extends Value>[] schema = new Class[this.getHeadSize() + 1];
-
-		for (int i = 0; i <= this.getHeadSize(); i++)
-			schema[i] = JsonNodeWrapper.class;
-
-		return schema;
-	}
-
-	/*
-	 * (non-Javadoc)
 	 * @see
 	 * eu.stratosphere.sopremo.serialization.Schema#indicesOf(eu.stratosphere.sopremo.expressions.EvaluationExpression)
 	 */
 	@Override
-	public int[] indicesOf(EvaluationExpression expression) {
-		ArrayAccess arrayExpression = (ArrayAccess) expression;
+	public IntSet indicesOf(final EvaluationExpression expression) {
+		final ArrayAccess arrayExpression = (ArrayAccess) expression;
 
-		if (arrayExpression.isSelectingAll()) {
-			int[] indices = new int[this.headSize + 1];
-			for (int index = 0; index < indices.length; index++)
-				indices[index] = index;
-			return indices;
-		} else if (arrayExpression.isSelectingRange()) {
-			int startIndex = arrayExpression.getStartIndex();
-			int endIndex = arrayExpression.getEndIndex();
+		if (arrayExpression.isSelectingAll())
+			return CollectionUtil.setRangeFrom(0, this.headSize + 1);
+		else if (arrayExpression.isSelectingRange()) {
+			final int startIndex = arrayExpression.getStartIndex();
+			final int endIndex = arrayExpression.getEndIndex();
 			if (startIndex < 0 || endIndex < 0)
 				throw new UnsupportedOperationException("Tail indices are not supported yet");
 			if (endIndex >= this.headSize)
 				throw new IllegalArgumentException("Target index is not in head");
 
-			int[] indices = new int[endIndex - startIndex];
-			for (int index = 0; index < indices.length; index++)
-				indices[index] = startIndex + index;
-			return indices;
+			return CollectionUtil.setRangeFrom(startIndex, endIndex);
 		}
-		int index = arrayExpression.getStartIndex();
+		final int index = arrayExpression.getStartIndex();
 		if (index >= this.headSize)
 			throw new IllegalArgumentException("Target index is not in head");
 		else if (index < 0)
 			throw new UnsupportedOperationException("Tail indices are not supported yet");
-		return new int[] { index };
+		return IntSets.singleton(index);
 	}
 
 	/*
@@ -104,7 +88,7 @@ public class HeadArraySchema implements Schema {
 	 * eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
+	public PactRecord jsonToRecord(final IJsonNode value, PactRecord target, final EvaluationContext context) {
 		IArrayNode others;
 		if (target == null) {
 
@@ -143,7 +127,7 @@ public class HeadArraySchema implements Schema {
 	 * eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
+	public IJsonNode recordToJson(final PactRecord record, IJsonNode target) {
 		if (this.getHeadSize() + 1 != record.getNumFields())
 			throw new IllegalStateException("Schema does not match to record!");
 		if (target == null)

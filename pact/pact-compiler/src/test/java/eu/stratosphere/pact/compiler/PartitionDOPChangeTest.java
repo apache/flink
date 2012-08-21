@@ -46,7 +46,7 @@ import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 /**
  */
@@ -96,10 +96,17 @@ public class PartitionDOPChangeTest {
 		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		
-		ReduceContract redA = new ReduceContract(IdentityReduce.class, PactInteger.class, 0, sourceA);
-		ReduceContract redB = new ReduceContract(IdentityReduce.class, PactInteger.class, 0, sourceB);
+		ReduceContract redA = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			.input(sourceA)
+			.build();
+		ReduceContract redB = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			.input(sourceB)
+			.build();
 		
-		MatchContract mat = new MatchContract(DummyMatchStub.class, PactInteger.class, 0, 0, redA, redB);
+		MatchContract mat = MatchContract.builder(DummyMatchStub.class, PactInteger.class, 0, 0)
+			.input1(redA)
+			.input2(redB)
+			.build();
 		
 		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, mat);
 		
@@ -130,7 +137,7 @@ public class PartitionDOPChangeTest {
 				if (visitable instanceof MatchNode) {
 					int forwardedConnections = 0;
 					for (PactConnection inConn : visitable.getIncomingConnections()) {
-						if (inConn.getShipStrategy() == ShipStrategy.FORWARD) {
+						if (inConn.getShipStrategy().type() == ShipStrategyType.FORWARD) {
 							forwardedConnections++;
 						}
 					}

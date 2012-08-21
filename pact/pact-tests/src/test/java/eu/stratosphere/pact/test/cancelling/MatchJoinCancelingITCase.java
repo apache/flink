@@ -1,17 +1,17 @@
 /***********************************************************************************************************************
-*
-* Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
-*
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-* the License. You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-* an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
-* specific language governing permissions and limitations under the License.
-*
-**********************************************************************************************************************/
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
 
 package eu.stratosphere.pact.test.cancelling;
 
@@ -43,7 +43,11 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		GenericDataSource<InfiniteIntegerInputFormatWithDelay> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(InfiniteIntegerInputFormatWithDelay.class, "Source 2");
 		
-		MatchContract matcher = new MatchContract(SimpleMatcher.class, PactInteger.class, 0, 0, source1, source2, "Sort Join");
+		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+			.input1(source1)
+			.input2(source2)
+			.name("Sort Join")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
 		
 		Plan p = new Plan(sink);
@@ -61,7 +65,11 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 2");
 		
-		MatchContract matcher = new MatchContract(SimpleMatcher.class, PactInteger.class, 0, 0, source1, source2, "Sort Join");
+		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+			.input1(source1)
+			.input2(source2)
+			.name("Sort Join")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
 		
 		Plan p = new Plan(sink);
@@ -79,7 +87,11 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 2");
 		
-		MatchContract matcher = new MatchContract(StuckInOpenMatcher.class, PactInteger.class, 0, 0, source1, source2, "Stuc-In-Open Match");
+		MatchContract matcher = MatchContract.builder(StuckInOpenMatcher.class, PactInteger.class, 0, 0)
+			.input1(source1)
+			.input2(source2)
+			.name("Stuc-In-Open Match")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
 		
 		Plan p = new Plan(sink);
@@ -103,7 +115,11 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 50000);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 100);
 		
-		MatchContract matcher = new MatchContract(SimpleMatcher.class, PactInteger.class, 0, 0, source1, source2, "Long Cancelling Sort Join");
+		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+			.input1(source1)
+			.input2(source2)
+			.name("Long Cancelling Sort Join")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
 		
 		Plan p = new Plan(sink);
@@ -128,7 +144,11 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 		
-		MatchContract matcher = new MatchContract(DelayingMatcher.class, PactInteger.class, 0, 0, source1, source2, "Long Cancelling Sort Join");
+		MatchContract matcher = MatchContract.builder(DelayingMatcher.class, PactInteger.class, 0, 0)
+			.input1(source1)
+			.input2(source2)
+			.name("Long Cancelling Sort Join")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
 		
 		Plan p = new Plan(sink);
@@ -150,7 +170,11 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
 		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
 		
-		MatchContract matcher = new MatchContract(LongCancelTimeMatcher.class, PactInteger.class, 0, 0, source1, source2, "Long Cancelling Sort Join");
+		MatchContract matcher = MatchContract.builder(LongCancelTimeMatcher.class, PactInteger.class, 0, 0)
+			.input1(source1)
+			.input2(source2)
+			.name("Long Cancelling Sort Join")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
 		
 		Plan p = new Plan(sink);
@@ -170,7 +194,11 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		GenericDataSource<InfiniteIntegerInputFormat> source2 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(InfiniteIntegerInputFormat.class, "Source 2");
 		
-		MatchContract matcher = new MatchContract(SimpleMatcher.class, PactInteger.class, 0, 0, source1, source2, "Sort Join");
+		MatchContract matcher = MatchContract.builder(SimpleMatcher.class, PactInteger.class, 0, 0)
+			.input1(source1)
+			.input2(source2)
+			.name("Sort Join")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, matcher, "Sink");
 		
 		Plan p = new Plan(sink);

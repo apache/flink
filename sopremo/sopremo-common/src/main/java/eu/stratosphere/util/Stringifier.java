@@ -26,7 +26,7 @@ public interface Stringifier<T> {
 		 * @see eu.stratosphere.util.Stringifier#stringify(java.lang.Object)
 		 */
 		@Override
-		public String stringify(Object object) {
+		public String stringify(final Object object) {
 			return object.toString();
 		}
 	}

@@ -359,7 +359,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			initializeCompressionComponents();
 
 			// Activate input channels
-			activateInputChannels();
+			// activateInputChannels();
 
 			this.invokable.invoke();
 
@@ -437,6 +437,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * @throws InterruptedException
 	 *         throws if the task is interrupted while waiting for the activation process to complete
 	 */
+	@SuppressWarnings("unused")
 	private void activateInputChannels() throws IOException, InterruptedException {
 
 		for (int i = 0; i < getNumberOfInputGates(); ++i) {
@@ -508,6 +509,34 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	@Override
 	public int getNumberOfInputGates() {
 		return this.inputGates.size();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getNumberOfOutputChannels() {
+
+		int numberOfOutputChannels = 0;
+		for (int i = 0; i < this.outputGates.size(); ++i) {
+			numberOfOutputChannels += this.outputGates.get(i).getNumberOfOutputChannels();
+		}
+
+		return numberOfOutputChannels;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getNumberOfInputChannels() {
+
+		int numberOfInputChannels = 0;
+		for (int i = 0; i < this.inputGates.size(); ++i) {
+			numberOfInputChannels += this.inputGates.get(i).getNumberOfInputChannels();
+		}
+
+		return numberOfInputChannels;
 	}
 
 	/**

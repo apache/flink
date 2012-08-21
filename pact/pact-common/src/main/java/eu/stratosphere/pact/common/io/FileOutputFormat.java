@@ -18,10 +18,14 @@ package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -33,9 +37,19 @@ import eu.stratosphere.pact.common.type.PactRecord;
 public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 {
 	/**
+	 * The LOG for logging messages in this class.
+	 */
+	private static final Log LOG = LogFactory.getLog(FileOutputFormat.class);
+	
+	/**
 	 * The key under which the name of the target path is stored in the configuration. 
 	 */
 	public static final String FILE_PARAMETER_KEY = "pact.output.file";
+	
+	/**
+	 * The config parameter for the opening timeout in milliseconds.
+	 */
+	public static final String OUTPUT_STREAM_OPEN_TIMEOUT_KEY = "pact.output.file.timeout";
 	
 	/**
 	 * The path of the file to be written.
@@ -46,6 +60,11 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 	 * The stream to which the data is written;
 	 */
 	protected FSDataOutputStream stream;
+	
+	/**
+	 * Stream opening timeout.
+	 */
+	private long openTimeout;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -55,6 +74,7 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 	@Override
 	public void configure(Configuration parameters)
 	{
+		// get the file parameter
 		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
 		if (filePath == null) {
 			throw new IllegalArgumentException("Configuration file FileOutputFormat does not contain the file path.");
@@ -66,6 +86,16 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 		catch (RuntimeException rex) {
 			throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
 		}
+		
+		// get timeout for stream opening
+		this.openTimeout = parameters.getLong(OUTPUT_STREAM_OPEN_TIMEOUT_KEY, FileInputFormat.DEFAULT_OPENING_TIMEOUT);
+		if (this.openTimeout < 0) {
+			this.openTimeout = FileInputFormat.DEFAULT_OPENING_TIMEOUT;
+			if (LOG.isWarnEnabled())
+				LOG.warn("Ignoring invalid parameter for stream opening timeout (requires a positive value or zero=infinite): " + this.openTimeout);
+		} else if (this.openTimeout == 0) {
+			this.openTimeout = Long.MAX_VALUE;
+		}
 	}
 
 
@@ -76,7 +106,7 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 	public void open(int taskNumber) throws IOException
 	{
 		// obtain FSDataOutputStream asynchronously, since HDFS client can not handle InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, taskNumber, 10000);
+		OutputPathOpenThread opot = new OutputPathOpenThread(this.outputFilePath, taskNumber, this.openTimeout);
 		opot.start();
 		
 		try {
@@ -164,7 +194,11 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 			do {
 				try {
 					this.join(remaining);
-				} catch (InterruptedException iex) {}
+				} catch (InterruptedException iex) {
+					// we were canceled, so abort the procedure
+					abortWait();
+					throw iex;
+				}
 			}
 			while (this.error == null && this.fdos == null &&
 					(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
@@ -177,20 +211,100 @@ public abstract class FileOutputFormat implements OutputFormat<PactRecord>
 			if (this.fdos != null) {
 				return this.fdos;
 			} else {
-				this.aborted = true;
 				// double-check that the stream has not been set by now. we don't know here whether
 				// a) the opener thread recognized the canceling and closed the stream
 				// b) the flag was set such that the stream did not see it and we have a valid stream
 				// In any case, close the stream and throw an exception.
-				final FSDataOutputStream outStream = this.fdos;
-				this.fdos = null;
-				if (outStream != null) {
-					try {
-						outStream.close();
-					} catch (Throwable t) {}
+				abortWait();
+				
+				final boolean stillAlive = this.isAlive();
+				final StringBuilder bld = new StringBuilder(256);
+				for (StackTraceElement e : this.getStackTrace()) {
+					bld.append("\tat ").append(e.toString()).append('\n');
 				}
-				throw new IOException("Opening request timed out.");
+				throw new IOException("Output opening request timed out. Opener was " + (stillAlive ? "" : "NOT ") + 
+					" alive. Stack:\n" + bld.toString());
 			}
 		}
+		
+		/**
+		 * Double checked procedure setting the abort flag and closing the stream.
+		 */
+		private final void abortWait() {
+			this.aborted = true;
+			final FSDataOutputStream outStream = this.fdos;
+			this.fdos = null;
+			if (outStream != null) {
+				try {
+					outStream.close();
+				} catch (Throwable t) {}
+			}
+		}
+	}
+	
+	// ============================================================================================
+	
+	/**
+	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
+	 * fashion.
+	 * 
+	 * @return A config builder for setting parameters.
+	 */
+	public static ConfigBuilder configureFileFormat(FileDataSink target) {
+		return new ConfigBuilder(target.getParameters());
+	}
+	
+	/**
+	 * A builder used to set parameters to the output format's configuration in a fluent way.
+	 */
+	public static abstract class AbstractConfigBuilder<T>
+	{
+		/**
+		 * The configuration into which the parameters will be written.
+		 */
+		protected final Configuration config;
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected AbstractConfigBuilder(Configuration targetConfig) {
+			this.config = targetConfig;
+		}
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Sets the timeout after which the output format will abort the opening of the output stream,
+		 * if the stream has not responded until then.
+		 * 
+		 * @param timeoutInMillies The timeout, in milliseconds, or <code>0</code> for infinite.
+		 * @return The builder itself.
+		 */
+		public T openingTimeout(int timeoutInMillies) {
+			this.config.setLong(OUTPUT_STREAM_OPEN_TIMEOUT_KEY, timeoutInMillies);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+	}
+	
+	/**
+	 * A builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
+	{
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected ConfigBuilder(Configuration targetConfig) {
+			super(targetConfig);
+		}
+		
 	}
 }

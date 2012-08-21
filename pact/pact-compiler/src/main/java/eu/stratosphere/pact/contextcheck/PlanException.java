@@ -17,4 +17,12 @@ package eu.stratosphere.pact.contextcheck;
 
 public class PlanException extends RuntimeException {
 	private static final long serialVersionUID = 3119881934024032887L;
+	
+	public PlanException() {
+		super();
+	}
+	
+	public PlanException(String message) {
+		super(message);
+	}
 }

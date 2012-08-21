@@ -19,11 +19,37 @@ import java.util.Random;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 
-
 /**
  * @author Stephan Ewen
  */
 public interface SerializationTestType extends IOReadableWritable
 {
 	public SerializationTestType getRandom(Random rnd);
+
+	// public static final String REST1_PATH = "src/test/resources/clustering/rest1.json";
+	// public static final String SAMPLE1_PATH = "src/test/resources/clustering/sample1.json";
+	//
+	// public static IJsonNode asJson(final String... values) {
+	// return new Point(String.valueOf(pointCount++), values).write(null);
+	// }
+	//
+	// public static List<IJsonNode> loadPoints(final String filePath)
+	// throws IOException {
+	// BufferedReader reader = null;
+	// try {
+	// final File pointFile = new File(filePath);
+	// reader = new BufferedReader(new FileReader(pointFile));
+	// final JsonParser parser = new JsonParser(reader);
+	// final List<IJsonNode> pointNodes = new LinkedList<IJsonNode>();
+	// while (!parser.checkEnd())
+	// pointNodes.add(parser.readValueAsTree());
+	// return pointNodes;
+	// } finally {
+	// try {
+	// reader.close();
+	// } catch (final Exception e) {
+	// e.printStackTrace();
+	// }
+	// }
+	// }
 }

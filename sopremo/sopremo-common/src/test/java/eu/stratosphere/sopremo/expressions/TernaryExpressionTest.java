@@ -1,6 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -9,7 +9,6 @@ import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.MissingNode;
-import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
 public class TernaryExpressionTest extends EvaluableExpressionTest<TernaryExpression> {

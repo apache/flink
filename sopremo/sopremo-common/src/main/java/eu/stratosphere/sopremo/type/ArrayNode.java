@@ -8,6 +8,9 @@ import java.util.List;
 import eu.stratosphere.util.CollectionUtil;
 
 /**
+ * This node represents an array and can store all types of {@link IJsonNode}s. In addition, the size of the array
+ * increases when needed.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -17,7 +20,7 @@ public class ArrayNode extends AbstractArrayNode {
 	 */
 	private static final long serialVersionUID = 898220542834090837L;
 
-	private List<IJsonNode> children = new ArrayList<IJsonNode>();
+	private final List<IJsonNode> children = new ArrayList<IJsonNode>();
 
 	/**
 	 * Initializes an empty ArrayNode.
@@ -200,14 +203,16 @@ public class ArrayNode extends AbstractArrayNode {
 		return array;
 	}
 
-	/**
-	 * Creates a standard java array which contains all {@link IJsonNode}s saved in this ArrayNode.
-	 * 
-	 * @return the created IJsonNode[]
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.AbstractArrayNode#fillArray(eu.stratosphere.sopremo.type.IJsonNode[])
 	 */
 	@Override
-	public IJsonNode[] toArray() {
-		return this.children.toArray(new IJsonNode[this.children.size()]);
+	protected void fillArray(IJsonNode[] result) {
+		IJsonNode[] array = this.children.toArray(new IJsonNode[this.children.size()]);
+		for (int i = 0; i < this.children.size(); i++) {
+			result[i] = array[i];
+		}
 	}
 
 	@Override

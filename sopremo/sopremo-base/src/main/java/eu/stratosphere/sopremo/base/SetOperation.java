@@ -1,11 +1,12 @@
 package eu.stratosphere.sopremo.base;
 
-import eu.stratosphere.sopremo.CompositeOperator;
-import eu.stratosphere.sopremo.ElementaryOperator;
-import eu.stratosphere.sopremo.ElementarySopremoModule;
-import eu.stratosphere.sopremo.InputCardinality;
-import eu.stratosphere.sopremo.JsonStream;
-import eu.stratosphere.sopremo.OutputCardinality;
+import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.operator.CompositeOperator;
+import eu.stratosphere.sopremo.operator.ElementaryOperator;
+import eu.stratosphere.sopremo.operator.ElementarySopremoModule;
+import eu.stratosphere.sopremo.operator.InputCardinality;
+import eu.stratosphere.sopremo.operator.JsonStream;
+import eu.stratosphere.sopremo.operator.OutputCardinality;
 
 @InputCardinality(min = 1)
 @OutputCardinality(1)
@@ -19,7 +20,7 @@ public abstract class SetOperation<Op extends SetOperation<Op>> extends Composit
 	}
 
 	@Override
-	public ElementarySopremoModule asElementaryOperators() {
+	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
 		final int numInputs = this.getInputOperators().size();
 		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), numInputs, 1);
 

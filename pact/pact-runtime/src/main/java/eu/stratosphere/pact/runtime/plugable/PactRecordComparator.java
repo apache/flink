@@ -41,6 +41,8 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	
 	private final PactRecord temp1, temp2;
 	
+	private final boolean[] ascending;
+	
 	private final int[] normalizedKeyLengths;
 	
 	private final int numLeadingNormalizableKeys;
@@ -50,12 +52,26 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 
 	/**
 	 * Creates a new comparator that compares Pact Records by the subset of fields as described
-	 * by the given key positions and types.
+	 * by the given key positions and types. All order comparisons will assume ascending order on all fields.
 	 * 
 	 * @param keyFields The positions of the key fields.
 	 * @param keyTypes The types (classes) of the key fields.
 	 */
-	public PactRecordComparator(int[] keyFields, Class<? extends Key>[] keyTypes)
+	public PactRecordComparator(int[] keyFields, Class<? extends Key>[] keyTypes) {
+		this(keyFields, keyTypes, null);
+	}
+	
+	/**
+	 * Creates a new comparator that compares Pact Records by the subset of fields as described
+	 * by the given key positions and types.
+	 * 
+	 * @param keyFields The positions of the key fields.
+	 * @param keyTypes The types (classes) of the key fields.
+	 * @param sortOrder The direction for sorting. A value of <i>true</i> indicates ascending for an attribute,
+	 *                  a value of <i>false</i> indicated descending. If the parameter is <i>null</i>, then
+	 *                  all order comparisons will assume ascending order on all fields.
+	 */
+	public PactRecordComparator(int[] keyFields, Class<? extends Key>[] keyTypes, boolean[] sortDirection)
 	{
 		this.keyFields = keyFields;
 		
@@ -74,9 +90,17 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		this.normalizedKeyLengths = new int[keyFields.length];
 		int nKeys = 0;
 		int nKeyLen = 0;
+		boolean inverted = false;
 		for (int i = 0; i < this.keyHolders.length; i++) {
 			Key k = this.keyHolders[i];
 			if (k instanceof NormalizableKey) {
+				if (sortDirection != null) {
+					if (sortDirection[i] && inverted) {
+						break;
+					} else if (i == 0 && !sortDirection[0]) {
+						inverted = true;
+					}
+				}
 				nKeys++;
 				final int len = ((NormalizableKey) k).getMaxNormalizedKeyLen();
 				if (len < 0) {
@@ -87,6 +111,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 				nKeyLen += this.normalizedKeyLengths[i];
 				if (nKeyLen < 0) {
 					nKeyLen = Integer.MAX_VALUE;
+					break;
 				}
 			}
 			else break;
@@ -94,31 +119,48 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		this.numLeadingNormalizableKeys = nKeys;
 		this.normalizableKeyPrefixLen = nKeyLen;
 		
-		temp1 = new PactRecord();
-		temp2 = new PactRecord();
+		this.temp1 = new PactRecord();
+		this.temp2 = new PactRecord();
+		
+		if (sortDirection != null) {
+			this.ascending = sortDirection;
+		} else {
+			this.ascending = new boolean[keyFields.length];
+			for (int i = 0; i < this.ascending.length; i++) {
+				this.ascending[i] = true;
+			}
+		}
 	}
 	
-	private PactRecordComparator(int[] keyFields, Key[] keys, int[] normalKeyLengths,
-							int leadingNormalKeys, int normalKeyPrefixLen)
+	/**
+	 * Copy constructor.
+	 * 
+	 * @param keyFields
+	 * @param keys
+	 * @param normalKeyLengths
+	 * @param leadingNormalKeys
+	 * @param normalKeyPrefixLen
+	 */
+	private PactRecordComparator(PactRecordComparator toCopy)
 	{
-		this.keyFields = keyFields;
-		
-		this.keyHolders = new Key[keys.length];
-		this.transientKeyHolders = new Key[keys.length];
+		this.keyFields = toCopy.keyFields;
+		this.keyHolders = new Key[toCopy.keyHolders.length];
+		this.transientKeyHolders = new Key[toCopy.keyHolders.length];
 		
 		try {
-			for (int i = 0; i < keys.length; i++) {
-				this.keyHolders[i] = keys[i].getClass().newInstance();
-				this.transientKeyHolders[i] = keys[i].getClass().newInstance();
+			for (int i = 0; i < this.keyHolders.length; i++) {
+				this.keyHolders[i] = toCopy.keyHolders[i].getClass().newInstance();
+				this.transientKeyHolders[i] = toCopy.keyHolders[i].getClass().newInstance();
 			}
 		} catch (Exception ex) {
 			// this should never happen, because the classes have been instantiated before. Report for debugging.
 			throw new RuntimeException("Could not instantiate key classes when duplicating PactRecordComparator.", ex);
 		}
 		
-		this.normalizedKeyLengths = normalKeyLengths;
-		this.numLeadingNormalizableKeys = leadingNormalKeys;
-		this.normalizableKeyPrefixLen = normalKeyPrefixLen;
+		this.normalizedKeyLengths = toCopy.normalizedKeyLengths;
+		this.numLeadingNormalizableKeys = toCopy.numLeadingNormalizableKeys;
+		this.normalizableKeyPrefixLen = toCopy.normalizableKeyPrefixLen;
+		this.ascending = toCopy.ascending;
 		
 		this.temp1 = new PactRecord();
 		this.temp2 = new PactRecord();
@@ -185,11 +227,10 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	{
 		final PactRecordComparator pra = (PactRecordComparator) referencedAccessors;
 		
-		for (int i = 0; i < this.keyFields.length; i++)
-		{
+		for (int i = 0; i < this.keyFields.length; i++) {
 			final int comp = pra.keyHolders[i].compareTo(this.keyHolders[i]);
 			if (comp != 0)
-				return comp;
+				return this.ascending[i] ? comp : -comp;
 		}
 		return 0;
 	}
@@ -212,7 +253,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 			
 			final int comp = k1.compareTo(k2);
 			if (comp != 0)
-				return comp;
+				return this.ascending[i] ? comp : -comp;
 		}
 		return 0;
 	}
@@ -244,7 +285,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes)
 	{
 		return this.numLeadingNormalizableKeys < this.keyFields.length ||
-		        this.normalizableKeyPrefixLen == Integer.MAX_VALUE ||
+				this.normalizableKeyPrefixLen == Integer.MAX_VALUE ||
 				this.normalizableKeyPrefixLen > keyBytes;
 	}
 
@@ -273,13 +314,19 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 	// --------------------------------------------------------------------------------------------
 
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.generic.types.TypeComparator#invertNormalizedKey()
+	 */
+	@Override
+	public boolean invertNormalizedKey() {
+		return !this.ascending[0];
+	}
+
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#duplicate()
 	 */
 	@Override
-	public PactRecordComparator duplicate()
-	{
-		return new PactRecordComparator(this.keyFields, this.keyHolders, this.normalizedKeyLengths,
-											this.numLeadingNormalizableKeys, this.normalizableKeyPrefixLen);
+	public PactRecordComparator duplicate() {
+		return new PactRecordComparator(this);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -322,7 +369,7 @@ public final class PactRecordComparator implements TypeComparator<PactRecord>
 		{
 			final int comp = keys[i].compareTo(this.keyHolders[i]);
 			if (comp != 0)
-				return comp;
+				return this.ascending[i] ? comp : -comp;
 		}
 		return 0;
 	}

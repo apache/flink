@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,14 +12,20 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+
 package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.google.common.base.Preconditions;
 
+import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.nephele.io.BroadcastRecordWriter;
 import eu.stratosphere.nephele.io.ChannelSelector;
@@ -27,16 +33,6 @@ import eu.stratosphere.nephele.io.MutableReader;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.pact.runtime.shipping.OutputCollector;
-import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
-import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
-import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
@@ -58,6 +54,11 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.pact.runtime.shipping.OutputCollector;
+import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
+import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
@@ -411,10 +412,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				}
 
 				try {
-					inputComparators[i] = comparatorFactory.createComparator(getTaskConfiguration(),
-						this.config.getPrefixForInputParameters(i), this.userCodeClassLoader);
-					secondarySortComparators[i] = comparatorFactory.createSecondarySortComparator(getTaskConfiguration(), 
-						this.config.getPrefixForInputParameters(i), this.userCodeClassLoader);
+					inputComparators[i] = comparatorFactory.createComparator(this.config.getConfigForInputParameters(i), this.userCodeClassLoader);
+					secondarySortComparators[i] = comparatorFactory.createSecondarySortComparator(this.config.getConfigForInputParameters(i), this.userCodeClassLoader);
 				} catch (ClassNotFoundException cnfex) {
 					throw new Exception("The instantiation of the type comparator from factory '" +
 						comparatorFactory.getClass().getName() +
@@ -706,7 +705,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			for (int i = 0; i < numOutputs; i++)
 			{
 				// create the OutputEmitter from output ship strategy
-				final ShipStrategy strategy = config.getOutputShipStrategy(i);
+				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
 				final Class<? extends TypeComparatorFactory<PactRecord>> comparatorFactoryClass;
 				try {
 					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
@@ -721,7 +720,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				} else {
 					try {
 						final PactRecordComparator comparator = PactRecordComparatorFactory.get().createComparator(
-												config.getConfiguration(), config.getPrefixForOutputParameters(i), cl);
+												config.getConfigForOutputParameters(i), cl);
 						final DataDistribution distribution = config.getOutputDataDistribution(cl);
 						oe = new PactRecordOutputEmitter(strategy, comparator, distribution);
 					} catch (ClassNotFoundException cnfex) {
@@ -731,7 +730,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 
 				}
 
-				if (strategy == ShipStrategy.BROADCAST) {
+				if (strategy == ShipStrategyType.BROADCAST) {
 					if (task instanceof AbstractTask) {
 						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
 					} else if (task instanceof AbstractInputTask<?>) {
@@ -763,7 +762,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			for (int i = 0; i < numOutputs; i++)
 			{
 				// create the OutputEmitter from output ship strategy
-				final ShipStrategy strategy = config.getOutputShipStrategy(i);
+				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
 				final Class<? extends TypeComparatorFactory<T>> comparatorFactoryClass;
 				try {
 					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
@@ -778,8 +777,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				} else {
 					final TypeComparatorFactory<T> compFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
 					try {
-						final TypeComparator<T> comparator = compFactory.createComparator(config.getConfiguration(),
-																				config.getPrefixForOutputParameters(i), cl);
+						final TypeComparator<T> comparator = compFactory.createComparator(config.getConfigForOutputParameters(i), cl);
 
 						oe = new OutputEmitter<T>(strategy, comparator);
 					} catch (ClassNotFoundException cnfex) {
@@ -788,7 +786,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					}
 				}
 
-				if (strategy == ShipStrategy.BROADCAST) {
+				if (strategy == ShipStrategyType.BROADCAST) {
 					if (task instanceof AbstractTask) {
 						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
 					} else if (task instanceof AbstractInputTask<?>) {
@@ -825,7 +823,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		if (numChained > 0)
 		{
 			// got chained stubs. that means that this one may only have a single forward connection
-			if (numOutputs != 1 || config.getOutputShipStrategy(0) != ShipStrategy.FORWARD) {
+			if (numOutputs != 1 || config.getOutputShipStrategy(0) != ShipStrategyType.FORWARD) {
 				throw new RuntimeException("Plan Generation Bug: Found a chained stub that is not connected via an only forward connection.");
 			}
 

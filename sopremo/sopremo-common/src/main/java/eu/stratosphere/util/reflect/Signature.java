@@ -59,10 +59,13 @@ public class Signature implements Serializable {
 
 		int distance = 0;
 		for (int index = 0; index < this.parameterTypes.length; index++) {
-			final int actualDistance = ReflectUtil.getDistance(this.parameterTypes[index], actualParamTypes[index]);
-			if (actualDistance < 0)
-				return INCOMPATIBLE;
-			distance += actualDistance;
+			final Class<?> paramType = actualParamTypes[index];
+			if (paramType != null) {
+				final int actualDistance = ReflectUtil.getDistance(this.parameterTypes[index], paramType);
+				if (actualDistance < 0)
+					return INCOMPATIBLE;
+				distance += actualDistance;
+			}
 		}
 
 		return distance;

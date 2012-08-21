@@ -5,7 +5,6 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -55,7 +54,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		CollectionUtil.ensureSize(this.fragmentTargets, this.fragments.size());
 	}
 
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
 		this.fragmentTargets = new ArrayList<IJsonNode>();
 		CollectionUtil.ensureSize(this.fragmentTargets, this.fragments.size());
@@ -77,7 +76,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		final PathExpression klone = (PathExpression) super.clone();
 		klone.fragments = new LinkedList<EvaluationExpression>(this.fragments);
 		final ListIterator<EvaluationExpression> cloneIterator = klone.fragments.listIterator();
-		while(cloneIterator.hasNext())
+		while (cloneIterator.hasNext())
 			cloneIterator.set(cloneIterator.next().clone());
 		return klone;
 	}
@@ -91,7 +90,7 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		IJsonNode fragmentNode = node;
 		for (int index = 0; index < this.fragments.size(); index++)
 			this.fragmentTargets.set(index,
@@ -138,19 +137,6 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		return this.fragments;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
-	 */
-	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
-		for (int index = 0; index < this.fragments.size(); index++)
-			this.fragments.set(index, this.fragments.get(index).transformRecursively(function));
-		return function.call(this);
-	}
-
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -170,11 +156,6 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 		if (this.fragments.size() < prefix.getDepth())
 			return false;
 		return this.fragments.subList(0, prefix.getDepth()).equals(prefix.fragments);
-	}
-
-	@Override
-	public Iterator<EvaluationExpression> iterator() {
-		return this.fragments.iterator();
 	}
 
 	/*

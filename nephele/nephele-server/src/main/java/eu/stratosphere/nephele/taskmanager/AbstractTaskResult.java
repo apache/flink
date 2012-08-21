@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
 public abstract class AbstractTaskResult implements IOReadableWritable {
 
 	public enum ReturnCode {
-		SUCCESS, DEPLOYMENT_ERROR, IPC_ERROR, NO_INSTANCE, ILLEGAL_STATE, TASK_NOT_FOUND
+		SUCCESS, DEPLOYMENT_ERROR, IPC_ERROR, NO_INSTANCE, ILLEGAL_STATE, TASK_NOT_FOUND, INSUFFICIENT_RESOURCES
 	};
 
 	private ExecutionVertexID vertexID;

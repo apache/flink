@@ -44,7 +44,7 @@ import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 /**
  */
@@ -94,10 +94,14 @@ public class UnionPropertyPropagationTest {
 		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		
-		ReduceContract redA = new ReduceContract(IdentityReduce.class, PactInteger.class, 0, sourceA);
-		ReduceContract redB = new ReduceContract(IdentityReduce.class, PactInteger.class, 0, sourceB);
+		ReduceContract redA = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			.input(sourceA)
+			.build();
+		ReduceContract redB = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			.input(sourceB)
+			.build();
 		
-		ReduceContract globalRed = new ReduceContract(IdentityReduce.class, PactInteger.class, 0);
+		ReduceContract globalRed = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0).build();
 		globalRed.addInput(redA);
 		globalRed.addInput(redB);
 		
@@ -120,7 +124,7 @@ public class UnionPropertyPropagationTest {
 				if (visitable instanceof ReduceNode) {
 					for (PactConnection inConn : visitable.getIncomingConnections()) {
 						Assert.assertTrue("Reduce should just forward the input if it is already partitioned",
-								inConn.getShipStrategy() == ShipStrategy.FORWARD); 
+								inConn.getShipStrategy().type() == ShipStrategyType.FORWARD); 
 					}
 					//just check latest ReduceNode
 					return false;

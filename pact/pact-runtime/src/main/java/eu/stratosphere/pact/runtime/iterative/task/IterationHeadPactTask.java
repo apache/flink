@@ -48,6 +48,8 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -124,7 +126,7 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     } else {
       comparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
     }
-    return (TypeComparator<T>) comparatorFactory.createComparator(getEnvironment().getTaskConfiguration(), keyPrefix,
+    return (TypeComparator<T>) comparatorFactory.createComparator(new TaskConfig.DelegatingConfiguration(getTaskConfiguration(), keyPrefix),
         userCodeClassLoader);
   }
 

@@ -39,9 +39,12 @@ import eu.stratosphere.util.dag.OneTimeTraverser;
  * inputs and outputs of the
  * PactModule.
  */
-public class PactModule extends
-		GraphModule<Contract, FileDataSource, FileDataSink> implements
-		Visitable<Contract> {
+public class PactModule extends GraphModule<Contract, FileDataSource, FileDataSink> implements Visitable<Contract> {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3942891957375333697L;
+
 	/**
 	 * Initializes a PactModule having the given name, number of inputs, and
 	 * number of outputs.

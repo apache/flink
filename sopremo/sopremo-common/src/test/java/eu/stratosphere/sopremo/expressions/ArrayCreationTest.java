@@ -1,12 +1,13 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
 
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
 
 import junit.framework.Assert;
+import nl.jqno.equalsverifier.EqualsVerifier;
 
 import org.junit.Test;
 
@@ -22,51 +23,44 @@ public class ArrayCreationTest extends EvaluableExpressionTest<ArrayCreation> {
 		return new ArrayCreation(new ConstantExpression(IntNode.valueOf(index)));
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.OrExpressionTest#initVerifier(nl.jqno.equalsverifier.EqualsVerifier)
+	 */
+	@Override
+	protected void initVerifier(final EqualsVerifier<ArrayCreation> equalVerifier) {
+		super.initVerifier(equalVerifier);
+		equalVerifier.withPrefabValues(List.class, new ArrayList<Object>(), new ArrayList<EvaluationExpression>(
+			Collections.singleton(EvaluationExpression.VALUE)));
+	}
+
 	@Test
 	public void shouldCreateArrayWithListAsParam() {
 		final List<EvaluationExpression> list = new ArrayList<EvaluationExpression>();
 		list.add(new ConstantExpression(IntNode.valueOf(0)));
-		list.add(new ConstantExpression(IntNode.valueOf(1)));
+		list.add(EvaluationExpression.VALUE);
 
 		final IJsonNode result = new ArrayCreation(list).evaluate(IntNode.valueOf(42), null, this.context);
 
-		Assert.assertEquals(createArrayNode(IntNode.valueOf(0), IntNode.valueOf(1)), result);
-	}
-
-	@Test
-	public void shouldCreateIteratorCorrectly() {
-		int index = 0;
-		final Iterator<EvaluationExpression> it = new ArrayCreation(new ConstantExpression(
-			IntNode.valueOf(0)), new ConstantExpression(
-			IntNode.valueOf(1)), new ConstantExpression(IntNode.valueOf(2)),
-			new ConstantExpression(IntNode.valueOf(3)), new ConstantExpression(IntNode.valueOf(4))).iterator();
-
-		while (it.hasNext())
-			Assert.assertEquals(new ConstantExpression(IntNode.valueOf(index++)), it.next());
-	}
-
-	@Test
-	public void shouldReturnFalseIfEqualsUsesNull() {
-		final boolean result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(0)), new ConstantExpression(
-			IntNode.valueOf(1))).equals(null);
-
-		Assert.assertFalse(result);
+		Assert.assertEquals(createArrayNode(IntNode.valueOf(0), IntNode.valueOf(42)), result);
 	}
 
 	@Test
 	public void shouldReuseTarget() {
-		IJsonNode target = new ArrayNode();
-		IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(IntNode.valueOf(42),
+		final IJsonNode target = new ArrayNode();
+		final IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(
+			IntNode.valueOf(42),
 			target, this.context);
 
 		Assert.assertEquals(new ArrayNode(IntNode.valueOf(42)), result);
 		Assert.assertSame(target, result);
 	}
-	
+
 	@Test
 	public void shouldNotReuseTargetIfWrongType() {
-		IJsonNode target = new ObjectNode();
-		IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(IntNode.valueOf(42),
+		final IJsonNode target = new ObjectNode();
+		final IJsonNode result = new ArrayCreation(new ConstantExpression(IntNode.valueOf(42))).evaluate(
+			IntNode.valueOf(42),
 			target, this.context);
 
 		Assert.assertEquals(new ArrayNode(IntNode.valueOf(42)), result);

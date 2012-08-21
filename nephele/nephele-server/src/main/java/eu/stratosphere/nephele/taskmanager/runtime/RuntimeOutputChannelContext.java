@@ -79,8 +79,12 @@ public final class RuntimeOutputChannelContext extends AbstractOutputChannelCont
 		return this.byteBufferedOutputChannel.getType();
 	}
 
-  @Override
-  protected void processEventAsynchronously(final AbstractEvent event) {
-    this.byteBufferedOutputChannel.processEvent(event);
-  }
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	protected void processEventAsynchronously(final AbstractEvent event) {
+
+		this.byteBufferedOutputChannel.processEvent(event);
+	}
 }

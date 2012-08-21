@@ -322,4 +322,21 @@ public class MockEnvironment implements Environment
 		return (InputGate<T>) this.inputs.remove(0);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getNumberOfOutputChannels() {
+		
+		return this.outputs.size();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getNumberOfInputChannels() {
+		
+		return this.inputs.size();
+	}
 }

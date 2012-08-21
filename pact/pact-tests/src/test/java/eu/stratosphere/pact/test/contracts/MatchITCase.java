@@ -135,15 +135,18 @@ public class MatchITCase extends TestBase
 
 		FileDataSource input_left = new FileDataSource(
 				ContractITCaseInputFormat.class, pathPrefix + "/match_left");
-		input_left.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input_left)
+			.recordDelimiter('\n');
 		input_left.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
 		FileDataSource input_right = new FileDataSource(
 				ContractITCaseInputFormat.class, pathPrefix + "/match_right");
-		input_right.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input_right)
+			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
-		MatchContract testMatcher = new MatchContract(TestMatcher.class, PactString.class, 0, 0);
+		MatchContract testMatcher = MatchContract.builder(TestMatcher.class, PactString.class, 0, 0)
+			.build();
 		testMatcher.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 		testMatcher.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("MatchTest#LocalStrategy", ""));

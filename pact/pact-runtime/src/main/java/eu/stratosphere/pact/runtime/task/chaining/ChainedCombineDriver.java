@@ -151,8 +151,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 			
 			serializer = serializerFactory.getSerializer();
 			try {
-				comparator = comparatorFactory.createComparator(this.config.getConfiguration(), 
-											this.config.getPrefixForInputParameters(0), this.userCodeClassLoader);
+				comparator = comparatorFactory.createComparator(this.config.getConfigForInputParameters(0), this.userCodeClassLoader);
 			}  catch (ClassNotFoundException cnfex) {
 				throw new Exception("The comparator could not be created, because it cannot load dependent data types.", cnfex);
 			}

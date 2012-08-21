@@ -9,6 +9,8 @@ import java.io.ObjectOutputStream;
 import eu.stratosphere.pact.common.type.base.PactNull;
 
 /**
+ * This node represents the value 'null'.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -44,7 +46,8 @@ public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 
 	@Override
 	public boolean equals(final Object o) {
-		return o instanceof NullNode ? true : false;
+		return o == Instance;
+		// return o instanceof NullNode ? true : false;
 	}
 
 	@Override
@@ -87,7 +90,7 @@ public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 	}
 
@@ -111,5 +114,15 @@ public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 
 	@Override
 	public void clear() {
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return PactNull.getInstance().getMaxNormalizedKeyLen();
+	}
+
+	@Override
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+		PactNull.getInstance().copyNormalizedKey(target, offset, len);
 	}
 }

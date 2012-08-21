@@ -107,9 +107,9 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		if (this.taskManager == null) {
 
-			this.taskManager = (TaskOperationProtocol) RPC.getProxy(TaskOperationProtocol.class, new InetSocketAddress(
-				getInstanceConnectionInfo().getAddress(), getInstanceConnectionInfo().getIPCPort()), NetUtils
-				.getSocketFactory());
+			this.taskManager = RPC.getProxy(TaskOperationProtocol.class,
+				new InetSocketAddress(getInstanceConnectionInfo().getAddress(),
+					getInstanceConnectionInfo().getIPCPort()), NetUtils.getSocketFactory());
 		}
 
 		return this.taskManager;
@@ -137,10 +137,9 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		if (this.taskManagerPluginComponent == null) {
 
-			this.taskManagerPluginComponent = (PluginCommunicationProtocol) RPC.getProxy(
-				PluginCommunicationProtocol.class, new InetSocketAddress(
-					getInstanceConnectionInfo().getAddress(), getInstanceConnectionInfo().getIPCPort()), NetUtils
-					.getSocketFactory());
+			this.taskManagerPluginComponent = RPC.getProxy(PluginCommunicationProtocol.class, 
+				new InetSocketAddress(getInstanceConnectionInfo().getAddress(), 
+					getInstanceConnectionInfo().getIPCPort()), NetUtils.getSocketFactory());
 		}
 
 		return this.taskManagerPluginComponent;

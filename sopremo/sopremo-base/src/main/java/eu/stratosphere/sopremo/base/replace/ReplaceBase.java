@@ -14,9 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.base.replace;
 
-import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.operator.ElementaryOperator;
 
 public abstract class ReplaceBase<Self extends ReplaceBase<Self>> extends ElementaryOperator<Self> {
 

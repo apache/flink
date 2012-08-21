@@ -34,7 +34,6 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.util.StringUtils;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -56,6 +55,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.SerializableHashMap;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * Instance Manager for a static cluster.

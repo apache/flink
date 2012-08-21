@@ -33,7 +33,7 @@ public class InputSelection extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// TODO Reuse target (problem: result could be any kind of JsonNode)
 		if (!node.isArray())
 			throw new EvaluationException("Cannot access index of non-array " + node.getClass().getSimpleName());

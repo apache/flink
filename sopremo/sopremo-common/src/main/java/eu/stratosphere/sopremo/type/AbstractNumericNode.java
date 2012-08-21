@@ -3,6 +3,8 @@ package eu.stratosphere.sopremo.type;
 import eu.stratosphere.pact.common.type.Key;
 
 /**
+ * Abstract class to provide basic implementations for numeric type nodes.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */

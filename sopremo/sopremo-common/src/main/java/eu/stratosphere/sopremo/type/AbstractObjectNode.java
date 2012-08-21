@@ -22,6 +22,8 @@ import java.util.Map.Entry;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * Abstract class to provide basic implementations for object type nodes.
+ * 
  * @author Arvid Heise
  */
 public abstract class AbstractObjectNode extends AbstractJsonNode implements IObjectNode {
@@ -60,7 +62,28 @@ public abstract class AbstractObjectNode extends AbstractJsonNode implements IOb
 			out.writeUTF(entry.getKey());
 			SopremoUtil.serializeNode(out, entry.getValue());
 		}
+	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 47;
+		int result = 1;
+		for(Entry<String, IJsonNode> entry : this)
+			result = prime * result + entry.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+
+		final AbstractObjectNode other = (AbstractObjectNode) obj;
+		return this.compareToSameType(other) == 0;
 	}
 
 	@Override
@@ -69,9 +92,10 @@ public abstract class AbstractObjectNode extends AbstractJsonNode implements IOb
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
+		this.checkForSameType(otherNode);
 		this.clear();
-		for (Entry<String, IJsonNode> child : this)
+		for (final Entry<String, IJsonNode> child : (IObjectNode) otherNode)
 			this.put(child.getKey(), child.getValue());
 	}
 

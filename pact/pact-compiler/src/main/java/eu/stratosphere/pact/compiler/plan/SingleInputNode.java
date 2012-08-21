@@ -35,7 +35,8 @@ import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
 
 /**
  * A node in the optimizer plan that represents a PACT with a single input.
@@ -179,9 +180,9 @@ public abstract class SingleInputNode extends OptimizerNode {
 		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				conn.setShipStrategy(ShipStrategy.FORWARD);
+				conn.setShipStrategy(new ForwardSS());
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				conn.setShipStrategy(ShipStrategy.PARTITION_HASH);
+				conn.setShipStrategy(new PartitionHashSS(this.keyList));
 			} else {
 				throw new CompilerException("Invalid hint for the shipping strategy of a single input connection: "
 					+ shipStrategy);

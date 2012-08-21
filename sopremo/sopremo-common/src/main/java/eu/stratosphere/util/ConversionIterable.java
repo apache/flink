@@ -33,7 +33,7 @@ public abstract class ConversionIterable<From, To> extends WrappingIterable<From
 	 * 
 	 * @param originalIterable
 	 */
-	public ConversionIterable(Iterable<? extends From> originalIterable) {
+	public ConversionIterable(final Iterable<? extends From> originalIterable) {
 		super(originalIterable);
 	}
 
@@ -51,10 +51,10 @@ public abstract class ConversionIterable<From, To> extends WrappingIterable<From
 	 * @see eu.stratosphere.util.WrappingIterable#wrap(java.util.Iterator)
 	 */
 	@Override
-	protected Iterator<To> wrap(Iterator<? extends From> iterator) {
+	protected Iterator<To> wrap(final Iterator<? extends From> iterator) {
 		return new ConversionIterator<From, To>(iterator) {
 			@Override
-			protected To convert(From inputObject) {
+			protected To convert(final From inputObject) {
 				return ConversionIterable.this.convert(inputObject);
 			};
 		};

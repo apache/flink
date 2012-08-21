@@ -46,22 +46,38 @@ public abstract class AbstractOutputChannelContext implements OutputChannelConte
 		final Iterator<AbstractEvent> it = transferEnvelope.getEventList().iterator();
 		while (it.hasNext()) {
 
-      final AbstractEvent event = it.next();
-      if (event instanceof AbstractTaskEvent) {
-        processEventAsynchronously(event);
-      } else {
-        processEventSynchronously(event);
-      }
+			final AbstractEvent event = it.next();
+			if (event instanceof AbstractTaskEvent) {
+				processEventAsynchronously(event);
+			} else {
+				processEventSynchronously(event);
+			}
 		}
 	}
 
-  protected void processEventSynchronously(final AbstractEvent event) {
-    this.forwardingChain.offerEvent(event);
-  }
+	/**
+	 * Processes an event received from the framework in a synchronous fashion, i.e. the event processing is done by the
+	 * thread the event is destined for (usually the task thread).
+	 * 
+	 * @param event
+	 *        the event to be processed
+	 */
+	protected void processEventSynchronously(final AbstractEvent event) {
 
-  protected void processEventAsynchronously(final AbstractEvent event) {
-    // The default implementation does nothing
-  }
+		this.forwardingChain.offerEvent(event);
+	}
+
+	/**
+	 * Processes an event received from the framework in an asynchronous fashion, i.e. the event processing is done by
+	 * the thread which delivers the event.
+	 * 
+	 * @param event
+	 *        the event to be processed
+	 */
+	protected void processEventAsynchronously(final AbstractEvent event) {
+
+		// The default implementation does nothing
+	}
 
 	/**
 	 * {@inheritDoc}

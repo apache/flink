@@ -1,5 +1,9 @@
 package eu.stratosphere.sopremo.expressions;
 
+/**
+ * Enumeration of all scopes that can be used
+ */
+
 public enum Scope {
 	ANY,
 
