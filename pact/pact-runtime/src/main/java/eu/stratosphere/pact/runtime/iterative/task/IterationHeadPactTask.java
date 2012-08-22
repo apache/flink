@@ -163,33 +163,13 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     TypeComparator<IT1> probesideComparator = instantiateTypeComparator(
         config.getWorksetHashJoinProbeSideComparatorFactoryClass(userCodeClassLoader),
         config.getWorksetHashjoinBuildsideComparatorPrefix());
-    //(TypeComparator<IT1>) new PactRecordComparator(new int[] { 0 }, new Class[] { PactLong.class });
+
     TypeComparator<IT2> buildSideComparator = instantiateTypeComparator(
         config.getWorksetHashJoinBuildSideComparatorFactoryClass(userCodeClassLoader),
         config.getWorksetHashjoinProbesideComparatorPrefix());
-    //new PactRecordComparator(new int[] { 0 },  new Class[] { PactLong.class });
 
     TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = (TypePairComparatorFactory<IT1, IT2>)
         instantiateTypePairComparator(config.getWorksetHashJoinTypePairComparatorFactoryClass(userCodeClassLoader));
-//    TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
-//    try {
-//      final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
-//          config.getPairComparatorFactory(getUserCodeClassLoader());
-//
-//      if (factoryClass == null) {
-//        @SuppressWarnings("unchecked")
-//        TypePairComparatorFactory<IT1, IT2> pactRecordFactory =
-//            (TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
-//        pairComparatorFactory = pactRecordFactory;
-//      } else {
-//        @SuppressWarnings("unchecked")
-//        final Class<TypePairComparatorFactory<IT1, IT2>> clazz =
-//            (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
-//        pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
-//      }
-//    } catch (ClassNotFoundException e) {
-//      throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", e);
-//    }
 
     List<MemorySegment> memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), config.getMemorySize());
 
@@ -256,10 +236,10 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
 
       EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
 
-      // signal to connected tasks that we are done with the superstep
+      /* Signal to connected tasks that we are done with the superstep */
       sendEventToAllIterationOutputs(endOfSuperstepEvent);
 
-      // blocking call to wait for the result
+      /* Blocking call to wait for the result */
       DataInputView superstepResult = backChannel.getReadEndAfterSuperstepEnded();
       if (log.isInfoEnabled()) {
         log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
@@ -297,7 +277,7 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     }
   }
 
-  // send output to all but the last two connected tasks while iterating
+  /* Send output to all but the last two connected tasks while iterating */
   private Collector<PactRecord> iterationCollector() {
     int numOutputs = eventualOutputs.size();
     Preconditions.checkState(numOutputs > 2);
