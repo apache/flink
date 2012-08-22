@@ -29,11 +29,11 @@ public class DataOutputCollector<T extends Record> implements Collector<T> {
 
   /** {@link DataOutputView} to write to */
   private final DataOutputView outputView;
+  /** serializer to use */
   private final TypeSerializer<T> typeSerializer;
-  private final Iterable<AbstractRecordWriter<T>> writers;
+  private final List<AbstractRecordWriter<T>> writers;
 
-  public DataOutputCollector(DataOutputView outputView, TypeSerializer<T> typeSerializer,
-      Iterable<AbstractRecordWriter<T>> writers) {
+  public DataOutputCollector(DataOutputView outputView, TypeSerializer<T> typeSerializer, List<AbstractRecordWriter<T>> writers) {
     this.outputView = outputView;
     this.typeSerializer = typeSerializer;
     this.writers = writers;

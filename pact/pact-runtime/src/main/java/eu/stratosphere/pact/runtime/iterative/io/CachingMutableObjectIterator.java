@@ -64,7 +64,7 @@ public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T>
 
 //  private int recordsRead = 0;
 
-  /** Read records from original input and write them to the cache */
+  /** read records from original input and write them to the cache */
   private boolean readFromDelegateAndCache(T record) throws IOException {
 
 //    log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +")");
@@ -80,7 +80,7 @@ public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T>
     return recordFound;
   }
 
-  /** Must be called prior to reading cached data */
+  /** must be called prior to reading cached data */
   public void enableReading() throws IOException {
     if (log.isInfoEnabled()) {
       log.info("CachingIterator of " + name + " enables cache reading");
@@ -88,7 +88,7 @@ public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T>
     cache = spillingBuffer.flip();
   }
 
-  /** Reread input from the cache */
+  /** reread input from the cache */
   private boolean readFromCache(T record) throws IOException {
 
 //    log.info("CachingIterator of " + name + " waiting for record("+ (recordsRead) +") in cache mode");
