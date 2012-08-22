@@ -126,8 +126,8 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     } else {
       comparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
     }
-    return (TypeComparator<T>) comparatorFactory.createComparator(new TaskConfig.DelegatingConfiguration(getTaskConfiguration(), keyPrefix),
-        userCodeClassLoader);
+    return (TypeComparator<T>) comparatorFactory.createComparator(
+        new TaskConfig.DelegatingConfiguration(getTaskConfiguration(), keyPrefix), userCodeClassLoader);
   }
 
   private <T1, T2> TypePairComparatorFactory<T1, T2> instantiateTypePairComparator(
@@ -164,11 +164,11 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
 
     TypeComparator<IT1> probesideComparator = instantiateTypeComparator(
         config.getWorksetHashJoinProbeSideComparatorFactoryClass(userCodeClassLoader),
-        config.getWorksetHashjoinBuildsideComparatorPrefix());
+        config.getWorksetHashjoinProbesideComparatorPrefix());
     //(TypeComparator<IT1>) new PactRecordComparator(new int[] { 0 }, new Class[] { PactLong.class });
     TypeComparator<IT2> buildSideComparator = instantiateTypeComparator(
         config.getWorksetHashJoinBuildSideComparatorFactoryClass(userCodeClassLoader),
-        config.getWorksetHashjoinProbesideComparatorPrefix());
+        config.getWorksetHashjoinBuildsideComparatorPrefix());
     //new PactRecordComparator(new int[] { 0 },  new Class[] { PactLong.class });
 
     TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = (TypePairComparatorFactory<IT1, IT2>)

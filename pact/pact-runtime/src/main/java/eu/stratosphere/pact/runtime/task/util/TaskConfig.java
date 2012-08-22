@@ -174,7 +174,7 @@ public class TaskConfig
       "pact.iterative.worksetHashjoinBuildsideComparatorFactoryClass";
 
   private static final String WORKSET_HASHJOIN_BUILDSIDE_COMPARATOR_PREFIX =
-      "pact.iterative.worksetHashjoinBuildsideComparator";
+      "pact.iterative.worksetHashjoinBuildsideComparator.";
 
   private static final String WORKSET_HASHJOIN_PROBESIDE_SERIALIZER_FACTORY_CLASS =
       "pact.iterative.worksetHashjoinProbesideSerializerFactoryClass";
@@ -183,7 +183,7 @@ public class TaskConfig
       "pact.iterative.worksetHashjoinProbesideComparatorFactoryClass";
 
   private static final String WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX =
-      "pact.iterative.worksetHashjoinProbesideComparator";
+      "pact.iterative.worksetHashjoinProbesideComparator.";
 
   private static final String WORKSET_HASHJOIN_PAIRCOMPARATOR_FACTORY_CLASS =
       "pact.iterative.worksetHashjoinPairComparatorFactoryClass";
@@ -474,6 +474,14 @@ public class TaskConfig
 			}
 		}
 	}
+
+  public Configuration getConfigurationForWorksetHashjoinBuildside() {
+    return new DelegatingConfiguration(this.config, WORKSET_HASHJOIN_BUILDSIDE_COMPARATOR_PREFIX);
+  }
+
+  public Configuration getConfigurationForWorksetHashjoinProbeside() {
+    return new DelegatingConfiguration(this.config, WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX);
+  }
 	
 	public Configuration getConfigForOutputParameters(int outputNum)
 	{
@@ -671,10 +679,6 @@ public class TaskConfig
 	// Parameters for iterations
 	// --------------------------------------------------------------------------------------------
 
-	public Configuration getDelegatingConfig(String keyPrefix) {
-		return new DelegatingConfiguration(this.config, keyPrefix);
-	}
-	
   public void setBackChannelMemoryFraction(float fraction) {
     Preconditions.checkArgument(fraction > 0 && fraction < 1);
     config.setFloat(BACKCHANNEL_MEMORY_FRACTION, fraction);

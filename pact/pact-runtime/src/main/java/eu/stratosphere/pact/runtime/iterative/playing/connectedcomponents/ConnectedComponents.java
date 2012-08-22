@@ -76,15 +76,17 @@ public class ConnectedComponents {
     headConfig.setMemorySize(25 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.5f);
     headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(
-        headConfig.getConfigForOutputParameters(0), new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] {true});
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(headConfig.getConfigForOutputParameters(0), new int[] { 0 },
+        new Class[] { PactLong.class }, new boolean[] { true });
 
     headConfig.enableWorkset();
     headConfig.setWorksetHashjoinMemoryFraction(0.5f);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(),
-        headConfig.getWorksetHashjoinBuildsideComparatorPrefix(), new int[]{ 0 }, new Class[]{ PactLong.class });
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(),
-        headConfig.getWorksetHashjoinProbesideComparatorPrefix(), new int[] { 0 }, new Class[]{ PactLong.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(
+        headConfig.getConfigurationForWorksetHashjoinBuildside(), new int[] { 0 }, new Class[] { PactLong.class },
+        new boolean[] { true });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(
+        headConfig.getConfigurationForWorksetHashjoinProbeside(), new int[] { 0 }, new Class[] { PactLong.class },
+        new boolean[] { true });
 
     JobTaskVertex intermediateMinimumComponentID = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "Intermediate-MinimumComponentID", jobGraph, degreeOfParallelism);
@@ -94,8 +96,9 @@ public class ConnectedComponents {
     intermediateMinimumComponentIDConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT);
     intermediateMinimumComponentIDConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     intermediateMinimumComponentIDConfig.setNumFilehandles(2);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateMinimumComponentID.getConfiguration(),
-        "pact.in.param.0.", new int[] { 0 }, new Class[] { PactLong.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(
+        intermediateMinimumComponentIDConfig.getConfigForInputParameters(0), new int[] { 0 },
+        new Class[] { PactLong.class }, new boolean[] { true });
 
     JobTaskVertex intermediateSolutionSetUpdate = JobGraphUtils.createTask(WorksetIterationSolutionsetJoinTask.class,
         "Intermediate-UpdateComponentID", jobGraph, degreeOfParallelism);
@@ -104,10 +107,12 @@ public class ConnectedComponents {
     intermediateSolutionSetUpdateConfig.setStubClass(UpdateCompontentIDMatch.class);
     intermediateSolutionSetUpdateConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_SECOND);
     //TODO we should not have to configure this, as the head sets up the hash-join for us
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateSolutionSetUpdateConfig.getConfiguration(),
-        "pact.in.param.0.", new int[] { 0 }, new Class[] { PactLong.class });
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateSolutionSetUpdateConfig.getConfiguration(),
-        "pact.in.param.1.", new int[] { 0 }, new Class[]{ PactLong.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(
+        intermediateSolutionSetUpdateConfig.getConfigForInputParameters(0), new int[] { 0 },
+        new Class[] { PactLong.class }, new boolean[] { true });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(
+        intermediateSolutionSetUpdateConfig.getConfigForInputParameters(1), new int[] { 0 },
+        new Class[] { PactLong.class }, new boolean[] { true });
 
     JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class,
         "Tail-NeighborComponentIDToWorkset", jobGraph, degreeOfParallelism);
@@ -115,10 +120,10 @@ public class ConnectedComponents {
     tailConfig.setDriver(MatchDriver.class);
     tailConfig.setStubClass(NeighborComponentIDToWorksetMatch.class);
     tailConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_SECOND);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfiguration(),
-        "pact.in.param.0.", new int[]{0}, new Class[]{PactLong.class});
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfiguration(),
-        "pact.in.param.1.", new int[]{0}, new Class[]{PactLong.class});
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(0),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(1),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     tailConfig.setMemorySize(20 * JobGraphUtils.MEGABYTE);
     tailConfig.setGateCached(0);
     tailConfig.setInputGateCacheMemoryFraction(0.5f);
@@ -157,11 +162,14 @@ public class ConnectedComponents {
     tailConfig.setInputGateCacheMemoryFraction(0.5f);
     tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(1, 1);
 
-    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
-    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
     syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
-    JobGraphUtils.connect(tail, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(tail, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
     JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
         ShipStrategyType.FORWARD);
     syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(1, degreeOfParallelism);

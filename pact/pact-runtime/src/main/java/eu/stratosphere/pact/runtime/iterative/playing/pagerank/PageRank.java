@@ -53,8 +53,8 @@ public class PageRank {
         jobGraph, degreeOfParallelism);
     TaskConfig transitionMatrixInputConfig = new TaskConfig(transitionMatrixInput.getConfiguration());
     transitionMatrixInputConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(
-    	new TaskConfig(transitionMatrixInput.getConfiguration()).getConfigForOutputParameters(0), new int[] { 1 }, new Class[] { PactLong.class }, new boolean[] {true});
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(transitionMatrixInputConfig.getConfigForOutputParameters(0),
+        new int[] { 1 }, new Class[] { PactLong.class }, new boolean[] { true });
 
     JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "BulkIterationHead", jobGraph,
         degreeOfParallelism);
@@ -70,10 +70,10 @@ public class PageRank {
     intermediateConfig.setDriver(MatchDriver.class);
     intermediateConfig.setStubClass(DotProductMatch.class);
     intermediateConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(new TaskConfig(intermediateConfig.getConfiguration()).getConfigForInputParameters(0),
-        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] {true});
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(new TaskConfig(intermediateConfig.getConfiguration()).getConfigForInputParameters(1),
-        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] {true});
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(1),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     intermediateConfig.setMemorySize(20 * JobGraphUtils.MEGABYTE);
     intermediateConfig.setGateCached(1);
     intermediateConfig.setInputGateCacheMemoryFraction(0.5f);
@@ -84,8 +84,8 @@ public class PageRank {
     tailConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT);
     tailConfig.setDriver(ReduceDriver.class);
     tailConfig.setStubClass(DotProductReducer.class);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(new TaskConfig(tail.getConfiguration()).getConfigForInputParameters(0), new int[] { 0 },
-        new Class[] { PactLong.class }, new boolean[] {true});
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(0), new int[] { 0 },
+        new Class[] { PactLong.class }, new boolean[] { true });
     tailConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     tailConfig.setNumFilehandles(2);
 
@@ -110,8 +110,10 @@ public class PageRank {
         ShipStrategyType.PARTITION_HASH);
     intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
-    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
-    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
     JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
         ShipStrategyType.FORWARD);
 

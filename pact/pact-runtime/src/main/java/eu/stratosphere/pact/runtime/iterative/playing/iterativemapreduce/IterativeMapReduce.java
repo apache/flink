@@ -30,7 +30,6 @@ import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
@@ -55,8 +54,8 @@ public class IterativeMapReduce {
     headConfig.setMemorySize(10 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
     headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(head.getConfiguration(),
-        headConfig.getPrefixForOutputParameters(0), new int[] { 0 }, new Class[] { PactString.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(headConfig.getConfigForOutputParameters(0),
+        new int[] { 0 }, new Class[] { PactString.class }, new boolean[] { true });
 
     JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism);
@@ -64,8 +63,8 @@ public class IterativeMapReduce {
     tailConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT);
     tailConfig.setDriver(ReduceDriver.class);
     tailConfig.setStubClass(AppendTokenReducer.class);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(tail.getConfiguration(),
-        tailConfig.getPrefixForInputParameters(0), new int[] { 0 }, new Class[] { PactString.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(0),
+        new int[] { 0 }, new Class[] { PactString.class }, new boolean[] { true });
     tailConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     tailConfig.setNumFilehandles(2);
     tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
@@ -82,11 +81,14 @@ public class IterativeMapReduce {
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
 
     //TODO implicit order should be documented/configured somehow
-    JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
     JobGraphUtils.connect(head, tail, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
         ShipStrategyType.PARTITION_HASH);
-    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE, ShipStrategyType.FORWARD);
-    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
+        ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
     JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
         ShipStrategyType.FORWARD);
 

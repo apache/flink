@@ -79,15 +79,18 @@ public class Simple {
     //TODO implicit order should be documented/configured somehow
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
 
-    JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategy.ShipStrategyType.FORWARD);
     JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE,
-        ShipStrategy.FORWARD);
-    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE, ShipStrategy.FORWARD);
-    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+        ShipStrategy.ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
+        ShipStrategy.ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategy.ShipStrategyType.FORWARD);
     JobGraphUtils.connect(intermediate, tail, ChannelType.NETWORK, DistributionPattern.POINTWISE,
-        ShipStrategy.FORWARD);
+        ShipStrategy.ShipStrategyType.FORWARD);
     JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
-        ShipStrategy.FORWARD);
+        ShipStrategy.ShipStrategyType.FORWARD);
 
     input.setVertexToShareInstancesWith(head);
     intermediate.setVertexToShareInstancesWith(head);
