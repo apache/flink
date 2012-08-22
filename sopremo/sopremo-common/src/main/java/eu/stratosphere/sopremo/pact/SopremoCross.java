@@ -8,6 +8,11 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * An abstract implementation of the {@link CrossStub}. SopremoCross provides the functionality to convert the
+ * standard input of the CrossStub to a more manageable representation (both inputs are converted to an
+ * {@link IJsonNode}).
+ */
 public abstract class SopremoCross extends CrossStub {
 	private EvaluationContext context;
 
@@ -33,6 +38,16 @@ public abstract class SopremoCross extends CrossStub {
 		SopremoUtil.configureStub(this, parameters);
 	}
 
+	/**
+	 * This method must be implemented to provide a user implementation of a cross.
+	 * 
+	 * @param values1
+	 *        an {@link IJsonNode} from the first input
+	 * @param values2
+	 *        an {@link IJsonNode} from the second input
+	 * @param out
+	 *        a collector that collects all output pairs
+	 */
 	protected abstract void cross(IJsonNode value1, IJsonNode value2, JsonCollector out);
 
 	/*

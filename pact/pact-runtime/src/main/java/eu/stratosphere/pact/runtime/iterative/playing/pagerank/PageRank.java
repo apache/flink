@@ -31,7 +31,7 @@ import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.MatchDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
@@ -53,8 +53,8 @@ public class PageRank {
         jobGraph, degreeOfParallelism);
     TaskConfig transitionMatrixInputConfig = new TaskConfig(transitionMatrixInput.getConfiguration());
     transitionMatrixInputConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(transitionMatrixInput.getConfiguration(),
-        "pact.out.param.0.", new int[] { 1 }, new Class[] { PactLong.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(
+    	new TaskConfig(transitionMatrixInput.getConfiguration()).getConfigForOutputParameters(0), new int[] { 1 }, new Class[] { PactLong.class }, new boolean[] {true});
 
     JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "BulkIterationHead", jobGraph,
         degreeOfParallelism);
@@ -70,10 +70,10 @@ public class PageRank {
     intermediateConfig.setDriver(MatchDriver.class);
     intermediateConfig.setStubClass(DotProductMatch.class);
     intermediateConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfiguration(),
-        "pact.in.param.0.", new int[] { 0 }, new Class[] { PactLong.class });
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfiguration(),
-        "pact.in.param.1.", new int[] { 0 }, new Class[] { PactLong.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(new TaskConfig(intermediateConfig.getConfiguration()).getConfigForInputParameters(0),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] {true});
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(new TaskConfig(intermediateConfig.getConfiguration()).getConfigForInputParameters(1),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] {true});
     intermediateConfig.setMemorySize(20 * JobGraphUtils.MEGABYTE);
     intermediateConfig.setGateCached(1);
     intermediateConfig.setInputGateCacheMemoryFraction(0.5f);
@@ -84,8 +84,8 @@ public class PageRank {
     tailConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT);
     tailConfig.setDriver(ReduceDriver.class);
     tailConfig.setStubClass(DotProductReducer.class);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(tail.getConfiguration(), "pact.in.param.0.", new int[] { 0 },
-        new Class[] { PactLong.class });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(new TaskConfig(tail.getConfiguration()).getConfigForInputParameters(0), new int[] { 0 },
+        new Class[] { PactLong.class }, new boolean[] {true});
     tailConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
     tailConfig.setNumFilehandles(2);
 
@@ -103,20 +103,20 @@ public class PageRank {
 
     //TODO implicit order should be documented/configured somehow
     JobGraphUtils.connect(pageWithRankInput, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
-        ShipStrategy.FORWARD);
+        ShipStrategyType.FORWARD);
     JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategy.BROADCAST);
+        ShipStrategyType.BROADCAST);
     JobGraphUtils.connect(transitionMatrixInput, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategy.PARTITION_HASH);
+        ShipStrategyType.PARTITION_HASH);
     intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 
-    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
-    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
     JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
-        ShipStrategy.FORWARD);
+        ShipStrategyType.FORWARD);
 
     JobGraphUtils.connect(intermediate, tail, ChannelType.NETWORK, DistributionPattern.POINTWISE,
-        ShipStrategy.FORWARD);
+        ShipStrategyType.FORWARD);
     tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
     fakeTailOutput.setVertexToShareInstancesWith(tail);

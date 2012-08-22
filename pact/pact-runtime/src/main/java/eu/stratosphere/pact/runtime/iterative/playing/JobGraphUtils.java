@@ -35,6 +35,7 @@ import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 import java.io.IOException;
@@ -64,7 +65,7 @@ public class JobGraphUtils {
   }
 
   public static void connect(AbstractJobVertex source, AbstractJobVertex target, ChannelType channelType,
-      DistributionPattern distributionPattern, ShipStrategy shipStrategy) throws JobGraphDefinitionException {
+      DistributionPattern distributionPattern, ShipStrategyType shipStrategy) throws JobGraphDefinitionException {
     source.connectTo(target, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
     new TaskConfig(source.getConfiguration()).addOutputShipStrategy(shipStrategy);
   }

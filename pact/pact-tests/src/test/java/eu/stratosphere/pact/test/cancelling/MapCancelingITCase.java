@@ -1,17 +1,17 @@
 /***********************************************************************************************************************
-*
-* Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
-*
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-* the License. You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-* an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
-* specific language governing permissions and limitations under the License.
-*
-**********************************************************************************************************************/
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
 
 package eu.stratosphere.pact.test.cancelling;
 
@@ -35,7 +35,10 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract(IdentityMapper.class, source, "Identity Mapper");
+		MapContract mapper = MapContract.builder(IdentityMapper.class)
+			.input(source)
+			.name("Identity Mapper")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
 		
 		
@@ -50,7 +53,10 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract(DelayingIdentityMapper.class, source, "Delay Mapper");
+		MapContract mapper = MapContract.builder(DelayingIdentityMapper.class)
+			.input(source)
+			.name("Delay Mapper")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
 		
 		
@@ -65,7 +71,10 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract(LongCancelTimeIdentityMapper.class, source, "Long Cancelling Time Mapper");
+		MapContract mapper = MapContract.builder(LongCancelTimeIdentityMapper.class)
+			.input(source)
+			.name("Long Cancelling Time Mapper")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
 		
 		
@@ -80,7 +89,10 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract(StuckInOpenIdentityMapper.class, source, "Stuck-In-Open Mapper");
+		MapContract mapper = MapContract.builder(StuckInOpenIdentityMapper.class)
+			.input(source)
+			.name("Stuck-In-Open Mapper")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
 		
 		

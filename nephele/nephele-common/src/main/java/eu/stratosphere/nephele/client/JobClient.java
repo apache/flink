@@ -156,8 +156,7 @@ public class JobClient {
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
-		this.jobSubmitClient = (JobManagementProtocol) RPC.getProxy(JobManagementProtocol.class, inetaddr, NetUtils
-			.getSocketFactory());
+		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, inetaddr, NetUtils.getSocketFactory());
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
@@ -180,9 +179,7 @@ public class JobClient {
 			final InetSocketAddress jobManagerAddress)
 			throws IOException {
 
-		this.jobSubmitClient = (JobManagementProtocol) RPC.getProxy(JobManagementProtocol.class, jobManagerAddress,
-			NetUtils
-				.getSocketFactory());
+		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, jobManagerAddress,	NetUtils.getSocketFactory());
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);

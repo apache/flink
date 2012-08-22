@@ -1,7 +1,7 @@
 package eu.stratosphere.sopremo.expressions;
 
-import static eu.stratosphere.sopremo.JsonUtil.createArrayNode;
-import static eu.stratosphere.sopremo.JsonUtil.createObjectNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createArrayNode;
+import static eu.stratosphere.sopremo.type.JsonUtil.createObjectNode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,36 +67,36 @@ public class ObjectCreationTest extends EvaluableExpressionTest<ObjectCreation> 
 			new InputSelection(0));
 		final ObjectNode result = createObjectNode("fieldname", "test");
 
-		mapping.evaluate(result, createArrayNode("1", "2"), this.context);
-		mapping.evaluate(result, createArrayNode("3", "4"), this.context);
+		mapping.evaluate(createArrayNode("1", "2"), result, this.context);
+		mapping.evaluate(createArrayNode("3", "4"), result, this.context);
 
 		Assert.assertEquals(createObjectNode("fieldname", "test", "testname", "3"), result);
 	}
 
 	@Test
 	public void shouldReuseTargetIfCorrectType() {
-		ObjectNode target = new ObjectNode();
+		final ObjectNode target = new ObjectNode();
 
 		final ObjectCreation object = new ObjectCreation(new ObjectCreation.FieldAssignment("name",
 			new ConstantExpression(
 				TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
 			IntNode.valueOf(30))));
 
-		IJsonNode result = object.evaluate(IntNode.valueOf(0), target, this.context);
+		final IJsonNode result = object.evaluate(IntNode.valueOf(0), target, this.context);
 
 		Assert.assertSame(target, result);
 	}
-	
+
 	@Test
 	public void shouldNotReuseTargetWithWrongType() {
-		ArrayNode target = new ArrayNode();
+		final ArrayNode target = new ArrayNode();
 
 		final ObjectCreation object = new ObjectCreation(new ObjectCreation.FieldAssignment("name",
 			new ConstantExpression(
 				TextNode.valueOf("testperson"))), new ObjectCreation.FieldAssignment("age", new ConstantExpression(
 			IntNode.valueOf(30))));
 
-		IJsonNode result = object.evaluate(IntNode.valueOf(0), target, this.context);
+		final IJsonNode result = object.evaluate(IntNode.valueOf(0), target, this.context);
 
 		Assert.assertNotSame(target, result);
 	}

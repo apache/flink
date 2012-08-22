@@ -32,7 +32,6 @@ import java.util.Iterator;
 import java.util.List;
 
 import junit.framework.Assert;
-import junit.framework.AssertionFailedError;
 
 import org.junit.internal.ArrayComparisonFailure;
 
@@ -45,7 +44,6 @@ import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FormatUtil;
 import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.type.Key;
-import eu.stratosphere.pact.common.type.KeyValuePair;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
@@ -121,10 +119,10 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 
 	private boolean empty;
 
-	private static class SortInfo implements Cloneable {
-		private IntList sortKeys = new IntArrayList();
+	static class SortInfo implements Cloneable {
+		IntList sortKeys = new IntArrayList();
 
-		private List<Class<? extends Key>> keyClasses = new ArrayList<Class<? extends Key>>();
+		List<Class<? extends Key>> keyClasses = new ArrayList<Class<? extends Key>>();
 
 		private List<Comparator<Key>> comparators = new ArrayList<Comparator<Key>>();
 
@@ -158,7 +156,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		}
 	}
 
-	private SortInfo sortInfo;
+	SortInfo sortInfo;
 
 	private Class<? extends Value>[] schema;
 
@@ -359,7 +357,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 			new Int2ObjectOpenHashMap<List<ValueSimilarity<?>>>());
 	}
 
-	private static <T> T firstNonNull(T... elements) {
+	static <T> T firstNonNull(T... elements) {
 		for (int index = 0; index < elements.length; index++)
 			if (elements[index] != null)
 				return elements[index];
@@ -382,60 +380,11 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 	 */
 	public void assertEquals(final TestRecords expectedValues, FuzzyValueMatcher fuzzyMatcher,
 			Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap) throws ArrayComparisonFailure {
-		try {
-			@SuppressWarnings("unchecked")
-			Class<? extends Value>[] schema = firstNonNull(expectedValues.schema, this.schema);
-			similarityMap = this.canonalizeSimilarityMap(similarityMap, schema);
-			SortInfo sortInfo = this.getSortInfoForAssertion(similarityMap,
-				firstNonNull(expectedValues.sortInfo, this.sortInfo));
-			if (sortInfo == null)
-				throw new IllegalStateException("Expected value does not have schema specified");
-			final Iterator<PactRecord> actualIterator = this.iterator(sortInfo);
-			final Iterator<PactRecord> expectedIterator = expectedValues.iterator(sortInfo);
-
-			// initialize with null
-			List<Key> currentKeys = new ArrayList<Key>(Arrays.asList(new Key[sortInfo.sortKeys.size()])), nextKeys =
-				new ArrayList<Key>(currentKeys);
-			int itemIndex = 0;
-			List<PactRecord> expectedValuesWithCurrentKey = new ArrayList<PactRecord>();
-			List<PactRecord> actualValuesWithCurrentKey = new ArrayList<PactRecord>();
-			if (expectedIterator.hasNext()) {
-				PactRecord expected = expectedIterator.next();
-				setKeys(currentKeys, expected, sortInfo);
-				expectedValuesWithCurrentKey.add(expected);
-
-				// take chunks of values with the same keys and match them
-				while (actualIterator.hasNext() && expectedIterator.hasNext()) {
-					expected = expectedIterator.next().createCopy();
-					setKeys(nextKeys, expected, sortInfo);
-					if (!currentKeys.equals(nextKeys)) {
-						this.matchValues(actualIterator, currentKeys, sortInfo, schema, itemIndex,
-							expectedValuesWithCurrentKey, actualValuesWithCurrentKey, fuzzyMatcher, similarityMap);
-						setKeys(currentKeys, expected, sortInfo);
-					}
-					expectedValuesWithCurrentKey.add(expected);
-
-					itemIndex++;
-				}
-
-				// remaining values
-				if (!expectedValuesWithCurrentKey.isEmpty())
-					this.matchValues(actualIterator, currentKeys, sortInfo, schema, itemIndex,
-						expectedValuesWithCurrentKey, actualValuesWithCurrentKey, fuzzyMatcher, similarityMap);
-			}
-
-			if (!expectedValuesWithCurrentKey.isEmpty() || expectedIterator.hasNext())
-				Assert.fail("More elements expected: " + expectedValuesWithCurrentKey
-					+ toString(expectedIterator, schema));
-			if (!actualValuesWithCurrentKey.isEmpty() || actualIterator.hasNext())
-				Assert.fail("Less elements expected: " + actualValuesWithCurrentKey + toString(actualIterator, schema));
-		} finally {
-			this.close();
-			expectedValues.close();
-		}
+		@SuppressWarnings("unchecked")
+		Class<? extends Value>[] schema = firstNonNull(expectedValues.schema, this.schema);
+		new TestRecordsAssertor(schema, fuzzyMatcher, this.canonalizeSimilarityMap(similarityMap, schema),
+			firstNonNull(expectedValues.sortInfo, this.sortInfo), expectedValues, this).assertEquals();
 	}
-
-	public final static int ALL_VALUES = -1;
 
 	/**
 	 * Removes all values column and adds similarities where applicable
@@ -467,74 +416,7 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 		return similarityMap;
 	}
 
-	protected SortInfo getSortInfoForAssertion(Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap, SortInfo sortInfo) {
-		if (similarityMap.isEmpty())
-			return sortInfo;
-		sortInfo = sortInfo.copy();
-		// remove all keys that have a fuzzy similarity measure
-		for (Entry<List<ValueSimilarity<?>>> similarityEntry : similarityMap.int2ObjectEntrySet())
-			if (similarityEntry.getIntKey() != ALL_VALUES && !similarityEntry.getValue().isEmpty())
-				sortInfo.remove(similarityEntry.getIntKey());
-		return sortInfo;
-	}
-
-	private static void setKeys(List<Key> keyList, PactRecord expected, SortInfo sortInfo) {
-		for (int index = 0; index < sortInfo.sortKeys.size(); index++)
-			keyList.set(index, expected.getField(sortInfo.sortKeys.getInt(index), sortInfo.keyClasses.get(index)));
-	}
-
-	private void matchValues(final Iterator<PactRecord> actualIterator, List<Key> currentKeys, SortInfo sortInfo,
-			Class<? extends Value>[] schema, int itemIndex, List<PactRecord> expectedValuesWithCurrentKey,
-			List<PactRecord> actualValuesWithCurrentKey, FuzzyValueMatcher fuzzyMatcher,
-			Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap) throws ArrayComparisonFailure {
-
-		List<Key> actualKeys = new ArrayList<Key>(currentKeys);
-
-		PactRecord actualRecord = null;
-		while (actualIterator.hasNext()) {
-			actualRecord = actualIterator.next();
-			setKeys(actualKeys, actualRecord, sortInfo);
-
-			if (!currentKeys.equals(actualKeys))
-				break;
-			actualValuesWithCurrentKey.add(actualRecord);
-			actualRecord = null;
-		}
-
-		if (actualValuesWithCurrentKey.isEmpty())
-			throw new ArrayComparisonFailure("Unexpected value for key " + currentKeys, new AssertionFailedError(
-				Assert.format(" ", toString(expectedValuesWithCurrentKey.iterator(), schema), toString(actualRecord,
-					schema))), itemIndex
-				+ expectedValuesWithCurrentKey.size() - 1);
-
-		fuzzyMatcher.removeMatchingValues(similarityMap, schema, expectedValuesWithCurrentKey,
-			actualValuesWithCurrentKey);
-
-		if (!expectedValuesWithCurrentKey.isEmpty() || !actualValuesWithCurrentKey.isEmpty())
-			throw new ArrayComparisonFailure("Unexpected values for key " + currentKeys + ": ",
-				new AssertionFailedError(Assert.format(" ", toString(expectedValuesWithCurrentKey.iterator(), schema),
-					toString(actualValuesWithCurrentKey.iterator(), schema))),
-				itemIndex - expectedValuesWithCurrentKey.size());
-
-		if (actualRecord != null)
-			actualValuesWithCurrentKey.add(actualRecord);
-	}
-
-	private static Object toString(Iterator<PactRecord> iterator, Class<? extends Value>[] schema) {
-		return toString(iterator, schema, 20);
-	}
-
-	private static Object toString(Iterator<PactRecord> iterator, Class<? extends Value>[] schema, int maxNum) {
-		StringBuilder builder = new StringBuilder();
-		for (int index = 0; index < maxNum && iterator.hasNext(); index++) {
-			builder.append(toString(iterator.next(), schema));
-			if (iterator.hasNext())
-				builder.append(", ");
-		}
-		if (iterator.hasNext())
-			builder.append("...");
-		return builder.toString();
-	}
+	public final static int ALL_VALUES = -1;
 
 	/*
 	 * (non-Javadoc)
@@ -742,25 +624,13 @@ public class TestRecords implements Closeable, Iterable<PactRecord> {
 			if (index > 0)
 				stringBuilder.append("; ");
 			if (this.schema.length > 0)
-				stringBuilder.append(toString(iterator.next(), this.schema));
+				stringBuilder.append(PactRecordUtil.stringify(iterator.next(), this.schema));
 			else
 				stringBuilder.append(iterator.next());
 		}
 		if (iterator.hasNext())
 			stringBuilder.append("...");
 		return stringBuilder.toString();
-	}
-
-	public static String toString(PactRecord record, Class<? extends Value>[] schema) {
-		if (record == null)
-			return "null";
-		StringBuilder builder = new StringBuilder("(");
-		for (int index = 0; index < record.getNumFields(); index++) {
-			if (index > 0)
-				builder.append(", ");
-			builder.append(record.getField(index, schema[index]));
-		}
-		return builder.append(")").toString();
 	}
 
 	private static final int DEFAUTL_MERGE_FACTOR = 64; // the number of streams to merge at once

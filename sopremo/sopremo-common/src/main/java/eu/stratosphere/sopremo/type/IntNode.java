@@ -12,6 +12,8 @@ import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents an integer value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -23,6 +25,8 @@ public class IntNode extends AbstractNumericNode implements INumericNode {
 	private static final long serialVersionUID = -4250062919293345310L;
 
 	private transient PactInteger value;
+
+	public static final IntNode ZERO = new IntNode(0), ONE = new IntNode(1);
 
 	/**
 	 * Initializes an IntNode which represents 0
@@ -59,7 +63,7 @@ public class IntNode extends AbstractNumericNode implements INumericNode {
 	 * @param value
 	 *        the value to set
 	 */
-	public void setValue(int value) {
+	public void setValue(final int value) {
 		this.value.setValue(value);
 	}
 
@@ -155,7 +159,7 @@ public class IntNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value.setValue(((IntNode) otherNode).getIntValue());
 	}
@@ -169,6 +173,16 @@ public class IntNode extends AbstractNumericNode implements INumericNode {
 	public void clear() {
 		if (SopremoUtil.DEBUG)
 			this.value.setValue(0);
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return this.value.getMaxNormalizedKeyLen();
+	}
+
+	@Override
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+		this.value.copyNormalizedKey(target, offset, len);
 	}
 
 	public void increment() {

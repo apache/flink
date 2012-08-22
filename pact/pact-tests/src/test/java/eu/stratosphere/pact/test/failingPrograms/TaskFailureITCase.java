@@ -103,11 +103,12 @@ public class TaskFailureITCase extends FailingTestBase {
 		// init data source 
 		FileDataSource input = new FileDataSource(
 			ContractITCaseInputFormat.class, pathPrefix+"/mapInput");
-		input.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input)
+			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init failing map task
-		MapContract testMapper = new MapContract(FailingMapper.class);
+		MapContract testMapper = MapContract.builder(FailingMapper.class).build();
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init data sink
@@ -143,11 +144,12 @@ public class TaskFailureITCase extends FailingTestBase {
 		// init data source 
 		FileDataSource input = new FileDataSource(
 			ContractITCaseInputFormat.class, pathPrefix+"/mapInput");
-		input.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(input)
+			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init (working) map task
-		MapContract testMapper = new MapContract(TestMapper.class);
+		MapContract testMapper = MapContract.builder(TestMapper.class).build();
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		// init data sink

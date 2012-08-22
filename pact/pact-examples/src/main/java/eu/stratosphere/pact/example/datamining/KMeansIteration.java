@@ -38,7 +38,8 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
-import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
@@ -208,12 +209,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * Reads key-value pairs with N_Integer as key type and CoordVector as value
-	 * type. The input format is line-based, i.e. one pair is written to a line
-	 * and terminated with '\n'. Within a line the first '|' character separates
-	 * the key from the value. The value consists of a vector of decimals. The
-	 * decimals are separated by '|'. The key is the id of a data point or
-	 * cluster center and the value the corresponding position (coordinate
+	 * Generates records with an id and a and CoordVector.
+	 * The input format is line-based, i.e. one record is read from one line
+	 * which is terminated by '\n'. Within a line the first '|' character separates
+	 * the id from the the CoordVector. The vector consists of a vector of decimals. 
+	 * The decimals are separated by '|' as well. The id is the id of a data point or
+	 * cluster center and the CoordVector the corresponding position (coordinate
 	 * vector) of the data point or cluster center. Example line:
 	 * "42|23.23|52.57|74.43| Id: 42 Coordinate vector: (23.23, 52.57, 74.43)
 	 * 
@@ -285,12 +286,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	}
 
 	/**
-	 * Writes key-value pairs with N_Integer as key type and CoordVector as
-	 * value type. The output format is line-based, i.e. one pair is written to
+	 * Writes records that contain an id and a CoordVector.
+	 * The output format is line-based, i.e. one record is written to
 	 * a line and terminated with '\n'. Within a line the first '|' character
-	 * separates the key from the value. The value consists of a vector of
-	 * decimals. The decimals are separated by '|'. The key is the id of a data
-	 * point or cluster center and the value the corresponding position
+	 * separates the id from the CoordVector. The vector consists of a vector of
+	 * decimals. The decimals are separated by '|'. The is is the id of a data
+	 * point or cluster center and the vector the corresponding position
 	 * (coordinate vector) of the data point or cluster center. Example line:
 	 * "42|23.23|52.57|74.43| Id: 42 Coordinate vector: (23.23, 52.57, 74.43)
 	 * 
@@ -344,15 +345,20 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
-	@ConstantFieldsFirst(fields={0,1})
+	@ConstantFieldsFirstExcept(fields={2,3})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class ComputeDistance extends	CrossStub
 	{
 		private final PactDouble distance = new PactDouble();
 		
 		/**
-		 * Computes the distance of one data point to one cluster center and
-		 * emits a key-value-pair where the id of the data point is the key and
-		 * a Distance object is the value.
+		 * Computes the distance of one data point to one cluster center.
+		 * 
+		 * Output Format:
+		 * 0: pointID
+		 * 1: pointVector
+		 * 2: clusterID
+		 * 3: distance
 		 */
 		@Override
 		public void cross(PactRecord dataPointRecord, PactRecord clusterCenterRecord, Collector<PactRecord> out)
@@ -378,6 +384,8 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	 * 
 	 * @author Fabian Hueske
 	 */
+	@ConstantFields(fields={1})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class FindNearestCenter extends ReduceStub
 	{
@@ -389,10 +397,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 		
 		/**
 		 * Computes a minimum aggregation on the distance of a data point to
-		 * cluster centers. Emits a key-value-pair where the key is the id of
-		 * the closest cluster center and the value is the coordinate vector of
-		 * the data point. The CoordVectorCountSum data type is used to enable
-		 * the use of a Combiner for the second Reduce PACT.
+		 * cluster centers. 
+		 * 
+		 * Output Format:
+		 * 0: centerID
+		 * 1: pointVector
+		 * 2: constant(1) (to enable combinable average computation in the following reducer)
 		 */
 		@Override
 		public void reduce(Iterator<PactRecord> pointsWithDistance, Collector<PactRecord> out)
@@ -406,13 +416,12 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 				PactRecord res = pointsWithDistance.next();
 				
 				double distance = res.getField(3, PactDouble.class).getValue();
-				int currentId = res.getField(2, PactInteger.class).getValue();
 
 				// compare distances
 				if (distance < nearestDistance) {
 					// if distance is smaller than smallest till now, update nearest cluster
 					nearestDistance = distance;
-					nearestClusterId = currentId;
+					nearestClusterId = res.getField(2, PactInteger.class).getValue();
 					res.getFieldInto(1, this.position);
 				}
 			}
@@ -460,13 +469,17 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 	/**
 	 * Reduce PACT computes the new position (coordinate vector) of a cluster
 	 * center. This is an average computation. Hence, Combinable is annotated
-	 * and the combine method implemented. SameKey is annotated because the
-	 * PACT's output key is identical to its input key.
+	 * and the combine method implemented. 
+	 * 
+	 * Output Format:
+	 * 0: clusterID
+	 * 1: clusterVector
 	 * 
 	 * @author Fabian Hueske
 	 */
 	
 	@ConstantFields(fields={0})
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	@Combinable
 	public static class RecomputeClusterCenter extends ReduceStub
 	{
@@ -602,25 +615,37 @@ public class KMeansIteration implements PlanAssembler, PlanAssemblerDescription
 
 		// create DataSourceContract for data point input
 		FileDataSource dataPoints = new FileDataSource(PointInFormat.class, dataPointInput, "Data Points");
-		dataPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(dataPoints)
+			.recordDelimiter('\n');
 		dataPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create DataSourceContract for cluster center input
 		FileDataSource clusterPoints = new FileDataSource(PointInFormat.class, clusterInput, "Centers");
-		clusterPoints.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
+		DelimitedInputFormat.configureDelimitedFormat(clusterPoints)
+			.recordDelimiter('\n');
 		clusterPoints.setDegreeOfParallelism(1);
 		clusterPoints.getCompilerHints().setUniqueField(new FieldSet(0));
 
 		// create CrossContract for distance computation
-		CrossContract computeDistance = new CrossContract(ComputeDistance.class, dataPoints, clusterPoints, "Compute Distances");
+		CrossContract computeDistance = CrossContract.builder(ComputeDistance.class)
+			.input1(dataPoints)
+			.input2(clusterPoints)
+			.name("Compute Distances")
+			.build();
 		computeDistance.getCompilerHints().setAvgBytesPerRecord(48);
 
 		// create ReduceContract for finding the nearest cluster centers
-		ReduceContract findNearestClusterCenters = new ReduceContract(FindNearestCenter.class, PactInteger.class, 0, computeDistance, "Find Nearest Centers");
+		ReduceContract findNearestClusterCenters = new ReduceContract.Builder(FindNearestCenter.class, PactInteger.class, 0)
+			.input(computeDistance)
+			.name("Find Nearest Centers")
+			.build();
 		findNearestClusterCenters.getCompilerHints().setAvgBytesPerRecord(48);
 
 		// create ReduceContract for computing new cluster positions
-		ReduceContract recomputeClusterCenter = new ReduceContract(RecomputeClusterCenter.class, PactInteger.class, 0, findNearestClusterCenters, "Recompute Center Positions");
+		ReduceContract recomputeClusterCenter = new ReduceContract.Builder(RecomputeClusterCenter.class, PactInteger.class, 0)
+			.input(findNearestClusterCenters)
+			.name("Recompute Center Positions")
+			.build();
 		recomputeClusterCenter.getCompilerHints().setAvgBytesPerRecord(36);
 
 		// create DataSinkContract for writing the new cluster positions

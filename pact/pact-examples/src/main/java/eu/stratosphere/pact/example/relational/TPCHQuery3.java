@@ -34,6 +34,7 @@ import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -52,7 +53,7 @@ import eu.stratosphere.pact.common.util.FieldSet;
  * Its documentation and the data generator (DBGEN) can be found
  * on http://www.tpc.org/tpch/ .This implementation is tested with
  * the DB2 data format.  
- * THe PACT program implements a modified version of the query 3 of 
+ * The PACT program implements a modified version of the query 3 of 
  * the TPC-H benchmark including one join, some filtering and an
  * aggregation.
  * 
@@ -72,14 +73,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	/**
 	 * Map PACT implements the selection and projection on the orders table.
 	 */
-	@ConstantFields(fields={0,1})
+	@ConstantFieldsExcept(fields={2,3,4})
 	@OutCardBounds(upperBound=1, lowerBound=0)
 	public static class FilterO extends MapStub
 	{
 		private String prioFilter;		// filter literal for the order priority
 		private int yearFilter;			// filter literal for the year
 		
-		// reusable variables for the fields touched in the mapper
+		// reusable objects for the fields touched in the mapper
 		private PactString orderStatus;
 		private PactString orderDate;
 		private PactString orderPrio;
@@ -102,7 +103,9 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		 *  AND YEAR(o_orderdate) > Y
 		 *  AND o_orderpriority LIKE "Z"
 	 	 *  
-	 	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY
+	 	 * Output Schema: 
+	 	 *   0:ORDERKEY, 
+	 	 *   1:SHIPPRIORITY
 		 */
 		@Override
 		public void map(final PactRecord record, final Collector<PactRecord> out)
@@ -129,19 +132,20 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	}
 
 	/**
-	 * Match PACT realizes the join between LineItem and Order table. The 
-	 * SuperKey OutputContract is annotated because the new key is
-	 * built of the keys of the inputs.
+	 * Match PACT realizes the join between LineItem and Order table.
 	 *
 	 */
 	@ConstantFieldsFirstExcept(fields={5})
-	@OutCardBounds(upperBound=1, lowerBound=1)
+	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class JoinLiO extends MatchStub
 	{
 		/**
 		 * Implements the join between LineItem and Order table on the order key.
 		 * 
-		 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 5:EXTENDEDPRICE
+		 * Output Schema:
+		 *   0:ORDERKEY
+		 *   1:SHIPPRIORITY
+		 *   5:EXTENDEDPRICE
 		 */
 		@Override
 		public void match(PactRecord order, PactRecord lineitem, Collector<PactRecord> out)
@@ -156,7 +160,6 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * The Combinable annotation is set as the partial sums can be calculated
 	 * already in the combiner
 	 *
-	 * Output Schema - 0:ORDERKEY, 1:SHIPPRIORITY, 5:SUM(EXTENDEDPRICE)
 	 */
 	@Combinable
 	@ConstantFields(fields={0,1})
@@ -165,6 +168,14 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	{
 		private final PactDouble extendedPrice = new PactDouble();
 		
+		/**
+		 * Implements the sum aggregation.
+		 * 
+		 * Output Schema:
+		 *   0:ORDERKEY
+		 *   1:SHIPPRIORITY
+		 *   5:SUM(EXTENDEDPRICE)
+		 */
 		@Override
 		public void reduce(Iterator<PactRecord> values, Collector<PactRecord> out)
 		{
@@ -198,33 +209,21 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	public Plan getPlan(final String... args) 
 	{
 		// parse program parameters
-		int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
-		String ordersPath    = (args.length > 1 ? args[1] : "");
-		String lineitemsPath = (args.length > 2 ? args[2] : "");
-		String output        = (args.length > 3 ? args[3] : "");
+		final int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		final String ordersPath    = (args.length > 1 ? args[1] : "");
+		final String lineitemsPath = (args.length > 2 ? args[2] : "");
+		final String output        = (args.length > 3 ? args[3] : "");
 
 		// create DataSourceContract for Orders input
 		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
-		orders.setDegreeOfParallelism(noSubtasks);
-		
-		orders.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		orders.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		orders.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 5);
-		// order id
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// ship prio
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextIntParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 7);
-		// order status
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+2, VarLengthStringParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+2, 2);
-		// order date
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+3, VarLengthStringParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+3, 4);
-		// order prio
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+4, VarLengthStringParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+4, 5);
+		RecordInputFormat.configureRecordFormat(orders)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextLongParser.class, 0)		// order id
+			.field(DecimalTextIntParser.class, 7) 		// ship prio
+			.field(VarLengthStringParser.class, 2)		// order status
+			.field(VarLengthStringParser.class, 4)		// order date
+			.field(VarLengthStringParser.class, 5);		// order prio
 		// compiler hints
 		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		orders.getCompilerHints().setAvgBytesPerRecord(16);
@@ -232,24 +231,20 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create DataSourceContract for LineItems input
 		FileDataSource lineitems = new FileDataSource(RecordInputFormat.class, lineitemsPath, "LineItems");
-		lineitems.setDegreeOfParallelism(noSubtasks);
-
-		lineitems.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		lineitems.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		lineitems.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-		// order id
-		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextLongParser.class);
-		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// extended price
-		lineitems.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, DecimalTextDoubleParser.class);
-		lineitems.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 5);
+		RecordInputFormat.configureRecordFormat(lineitems)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextLongParser.class, 0)		// order id
+			.field(DecimalTextDoubleParser.class, 5);	// extended price
 		// compiler hints	
 		lineitems.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 4);
 		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
 
 		// create MapContract for filtering Orders tuples
-		MapContract filterO = new MapContract(FilterO.class, orders, "FilterO");
-		filterO.setDegreeOfParallelism(noSubtasks);
+		MapContract filterO = MapContract.builder(FilterO.class)
+			.input(orders)
+			.name("FilterO")
+			.build();
 		// filter configuration
 		filterO.setParameter(YEAR_FILTER, 1993);
 		filterO.setParameter(PRIO_FILTER, "5");
@@ -259,17 +254,23 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 		filterO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinLiO = new MatchContract(JoinLiO.class, PactLong.class, 0, 0, filterO, lineitems, "JoinLiO");
-		joinLiO.setDegreeOfParallelism(noSubtasks);
+		MatchContract joinLiO = MatchContract.builder(JoinLiO.class, PactLong.class, 0, 0)
+			.input1(filterO)
+			.input2(lineitems)
+			.name("JoinLiO")
+			.build();
 		// compiler hints
 		joinLiO.getCompilerHints().setAvgBytesPerRecord(24);
 		joinLiO.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0, 1}), 4);
 
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
-		@SuppressWarnings("unchecked")
-		ReduceContract aggLiO = new ReduceContract(AggLiO.class, new Class[] {PactLong.class, PactString.class}, new int[] {0, 1}, joinLiO, "AggLio");
-		aggLiO.setDegreeOfParallelism(noSubtasks);
+		ReduceContract aggLiO = ReduceContract.builder(AggLiO.class)
+			.keyField(PactLong.class, 0)
+			.keyField(PactString.class, 1)
+			.input(joinLiO)
+			.name("AggLio")
+			.build();
 		// compiler hints
 		aggLiO.getCompilerHints().setAvgBytesPerRecord(30);
 		aggLiO.getCompilerHints().setAvgRecordsEmittedPerStubCall(1.0f);
@@ -277,17 +278,13 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, aggLiO, "Output");
-		result.setDegreeOfParallelism(noSubtasks);
-		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		result.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactLong.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactDouble.class);
-		result.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 5);
+		RecordOutputFormat.configureRecordFormat(result)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.lenient(true)
+			.field(PactLong.class, 0)
+			.field(PactInteger.class, 1)
+			.field(PactDouble.class, 5);
 		
 		// assemble the PACT plan
 		Plan plan = new Plan(result, "TPCH Q3");

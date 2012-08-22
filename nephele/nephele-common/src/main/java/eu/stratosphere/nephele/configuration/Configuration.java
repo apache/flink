@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -347,6 +348,48 @@ public class Configuration implements IOReadableWritable {
 
 		synchronized (this.confData) {
 			this.confData.put(key, Float.toString(value));
+		}
+	}
+	
+
+	/**
+	 * Returns the value associated with the given key as a byte array.
+	 * 
+	 * @param key
+	 *        The key pointing to the associated value.
+	 * @param defaultValue
+	 *        The default value which is returned in case there is no value associated with the given key.
+	 * @return the (default) value associated with the given key.
+	 */
+	public byte[] getBytes(final String key, final byte[] defaultValue) {
+		final String encoded;
+		synchronized (this.confData) {
+			encoded = this.confData.get(key);
+		}
+		if (encoded == null) {
+			return defaultValue;
+		}
+		
+		return Base64.decodeBase64(encoded.getBytes());
+	}
+	
+	/**
+	 * Adds the given byte array to the configuration object. If key is <code>null</code> then nothing is added.
+	 * 
+	 * @param key
+	 *        The key under which the bytes are added.
+	 * @param bytes
+	 *        The bytes to be added.
+	 */
+	public void setBytes(final String key, final byte[] bytes) {
+		if (key == null) {
+			LOG.warn("Cannot set boolean: Given key is null!");
+			return;
+		}
+		
+		final String encoded = new String(Base64.encodeBase64(bytes));
+		synchronized (this.confData) {
+			this.confData.put(key, encoded);
 		}
 	}
 

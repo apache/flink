@@ -122,7 +122,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 		} else if (event instanceof ReceiverNotFoundEvent) {
 			this.lastSequenceNumberWithReceiverNotFound = ((ReceiverNotFoundEvent) event).getSequenceNumber();
 		} else if (event instanceof AbstractTaskEvent) {
-      throw new IllegalStateException("Received synchronous task event " + event);
+			throw new IllegalStateException("Received synchronous task event " + event);
 		}
 
 		getNext().processEvent(event);

@@ -21,7 +21,7 @@ import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.generic.AbstractStub;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 
@@ -43,8 +43,8 @@ public class SinkJoiner extends TwoInputNode
 		PactConnection conn1 = new PactConnection(input1, this);
 		PactConnection conn2 = new PactConnection(input2, this);
 		
-		conn1.setShipStrategy(ShipStrategy.FORWARD);
-		conn2.setShipStrategy(ShipStrategy.FORWARD);
+		conn1.setShipStrategy(new ForwardSS());
+		conn2.setShipStrategy(new ForwardSS());
 		
 		setFirstInConn(conn1);
 		setSecondInConn(conn2);

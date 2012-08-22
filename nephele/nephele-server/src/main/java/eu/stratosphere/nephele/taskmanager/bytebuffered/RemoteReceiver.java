@@ -144,7 +144,7 @@ public final class RemoteReceiver implements IOReadableWritable {
 	public void read(final DataInput in) throws IOException {
 
 		final int addr_length = in.readInt();
-		byte[] address = new byte[addr_length];
+		final byte[] address = new byte[addr_length];
 		in.readFully(address);
 
 		InetAddress ia = null;

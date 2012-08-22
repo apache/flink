@@ -28,6 +28,10 @@ import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.SFRSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -144,21 +148,21 @@ public class CrossNode extends TwoInputNode {
 		PactConnection fixed = null;
 		PactConnection toAdjust = null;
 
-		if (firstSS != ShipStrategy.NONE) {
-			if (secondSS == ShipStrategy.NONE) {
+		if (firstSS.type() != ShipStrategyType.NONE) {
+			if (secondSS.type() == ShipStrategyType.NONE) {
 				// first is fixed, second variable
 				fixed = this.input1;
 				toAdjust = this.input2;
 			} else {
 				// both are fixed. check if in a valid way
-				if (!((firstSS == ShipStrategy.BROADCAST && secondSS == ShipStrategy.FORWARD)
-					|| (firstSS == ShipStrategy.FORWARD && secondSS == ShipStrategy.BROADCAST)
-					|| (firstSS == ShipStrategy.SFR && secondSS == ShipStrategy.SFR))) {
+				if (!((firstSS.type() == ShipStrategyType.BROADCAST && secondSS.type() == ShipStrategyType.FORWARD)
+					|| (firstSS.type() == ShipStrategyType.FORWARD && secondSS.type() == ShipStrategyType.BROADCAST)
+					|| (firstSS.type() == ShipStrategyType.SFR && secondSS.type() == ShipStrategyType.SFR))) {
 					throw new CompilerException("Invalid combination of fixed shipping strategies for Cross contract '"
 						+ getPactContract().getName() + "'.");
 				}
 			}
-		} else if (secondSS != ShipStrategy.NONE) {
+		} else if (secondSS.type() != ShipStrategyType.NONE) {
 			//firstSS == NONE
 			
 			// second is fixed, first is variable
@@ -168,12 +172,12 @@ public class CrossNode extends TwoInputNode {
 
 		if (toAdjust != null) {
 			// fixed can't be null here
-			if (fixed.getShipStrategy() == ShipStrategy.BROADCAST) {
-				toAdjust.setShipStrategy(ShipStrategy.FORWARD);
-			} else if (fixed.getShipStrategy() == ShipStrategy.FORWARD) {
-				toAdjust.setShipStrategy(ShipStrategy.BROADCAST);
-			} else if (fixed.getShipStrategy() == ShipStrategy.SFR) {
-				toAdjust.setShipStrategy(ShipStrategy.SFR);
+			if (fixed.getShipStrategy().type() == ShipStrategyType.BROADCAST) {
+				toAdjust.setShipStrategy(new ForwardSS());
+			} else if (fixed.getShipStrategy().type() == ShipStrategyType.FORWARD) {
+				toAdjust.setShipStrategy(new BroadcastSS());
+			} else if (fixed.getShipStrategy().type() == ShipStrategyType.SFR) {
+				toAdjust.setShipStrategy(new SFRSS());
 			} else {
 				throw new CompilerException("Invalid shipping strategy for Cross contract '"
 					+ getPactContract().getName() + "': " + fixed.getShipStrategy());
@@ -230,15 +234,15 @@ public class CrossNode extends TwoInputNode {
 				ShipStrategy ss1 = this.input1.getShipStrategy();
 				ShipStrategy ss2 = this.input2.getShipStrategy();
 
-				if (ss1 != ShipStrategy.NONE) {
-					if(ss2 == ShipStrategy.NONE)
+				if (ss1.type() != ShipStrategyType.NONE) {
+					if(ss2.type() == ShipStrategyType.NONE)
 						throw new CompilerException("ShipStrategy was not set for both inputs!");
 					// if one is fixed, the other is also
 					createLocalAlternatives(outputPlans, subPlan1, subPlan2, ss1, ss2, estimator);
 				} else {
 					// create all alternatives
-					createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.BROADCAST, ShipStrategy.FORWARD, estimator);
-					createLocalAlternatives(outputPlans, subPlan1, subPlan2, ShipStrategy.FORWARD, ShipStrategy.BROADCAST, estimator);
+					createLocalAlternatives(outputPlans, subPlan1, subPlan2, new BroadcastSS(), new ForwardSS(), estimator);
+					createLocalAlternatives(outputPlans, subPlan1, subPlan2, new ForwardSS(), new BroadcastSS(), estimator);
 				}
 			}
 		}
@@ -338,7 +342,7 @@ public class CrossNode extends TwoInputNode {
 		GlobalProperties gp;
 		LocalProperties lp;
 		
-		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, ss1);
+		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
 		lp = PactConnection.getLocalPropertiesAfterConnection(subPlan1, this, ss1);
 				
 		if (keepFirstOrder == false) {
@@ -362,7 +366,7 @@ public class CrossNode extends TwoInputNode {
 
 		target.add(n);
 
-		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, ss2);
+		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 		lp = PactConnection.getLocalPropertiesAfterConnection(subPlan2, this, ss2);
 		
 		if (keepSecondOrder == false) {

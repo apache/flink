@@ -58,12 +58,12 @@ import eu.stratosphere.pact.compiler.plan.MatchNode;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
+import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
-import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 
 /**
  * The optimizer that takes the user specified pact plan and creates an optimized plan that contains
@@ -1070,7 +1070,7 @@ public class PactCompiler {
 			}
 			
 			for (PactConnection conn : visitable.getOutConns()) {
-				if(conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE) {
+				if(conn.getShipStrategy().type() == ShipStrategyType.PARTITION_RANGE) {
 					// One memory consumer for the histogram
 					this.memoryConsumers += visitable.getInstancesPerMachine();
 					//Reduce available memory because of temp task to avoid spilling
@@ -1201,10 +1201,10 @@ public class PactCompiler {
 			
 			if (this.spillingActivated &&
 					(
-					conn.getShipStrategy() == ShipStrategy.BROADCAST ||
-					conn.getShipStrategy() == ShipStrategy.PARTITION_HASH || 
-					conn.getShipStrategy() == ShipStrategy.PARTITION_RANGE || 
-					conn.getShipStrategy() == ShipStrategy.SFR
+					conn.getShipStrategy().type() == ShipStrategyType.BROADCAST ||
+					conn.getShipStrategy().type() == ShipStrategyType.PARTITION_HASH || 
+					conn.getShipStrategy().type() == ShipStrategyType.PARTITION_RANGE || 
+					conn.getShipStrategy().type() == ShipStrategyType.SFR
 					)
 				) {
 				// network spilling is activated and shipping strategy will use network channels
@@ -1667,7 +1667,7 @@ public class PactCompiler {
 			ExtendedManagementProtocol jobManagerConnection = null;
 
 			try {
-				jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
+				jobManagerConnection = RPC.getProxy(ExtendedManagementProtocol.class,
 					this.jobManagerAddress, NetUtils.getSocketFactory());
 
 				this.instances = jobManagerConnection.getMapOfAvailableInstanceTypes();

@@ -50,8 +50,7 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 	@Override
 	public void getRangePartitionCost(PactConnection conn, Costs costs) {
 
-		Class<? extends DataDistribution> distribution =
-			conn.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass();
+		Class<? extends DataDistribution> distribution = null;
 		
 		if(distribution == null) {
 						
@@ -68,17 +67,18 @@ public class FixedSizeClusterCostEstimator extends CostEstimator {
 				costs.setSecondaryStorageCost(-1);
 			}
 			
-		} else {
-			// If data distribution is given, no extra sampling has to be done => same cost as HashPartitioning
-						
-			if(conn.getSourcePact().getEstimatedOutputSize() != -1) {
-				long estOutShipSize = (long) conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize();
-				costs.setNetworkCost(estOutShipSize);
-			} else {
-				// no costs known
-				costs.setNetworkCost(-1);	
-			}
-			costs.setSecondaryStorageCost(0);
+		// TODO: reactivate if data distribution becomes available
+//		} else {
+//			// If data distribution is given, no extra sampling has to be done => same cost as HashPartitioning
+//						
+//			if(conn.getSourcePact().getEstimatedOutputSize() != -1) {
+//				long estOutShipSize = (long) conn.getReplicationFactor() * conn.getSourcePact().getEstimatedOutputSize();
+//				costs.setNetworkCost(estOutShipSize);
+//			} else {
+//				// no costs known
+//				costs.setNetworkCost(-1);	
+//			}
+//			costs.setSecondaryStorageCost(0);
 						
 		}
 	}

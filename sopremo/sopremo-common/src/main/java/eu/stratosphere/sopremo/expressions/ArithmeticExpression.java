@@ -7,17 +7,17 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.NumberCoercer;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.AbstractJsonNode;
-import eu.stratosphere.sopremo.type.AbstractJsonNode.Type;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IJsonNode.Type;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.NumberCoercer;
 
 /**
  * Represents all basic arithmetic expressions covering the addition, subtraction, division, and multiplication for
@@ -107,7 +107,6 @@ public class ArithmeticExpression extends EvaluationExpression {
 		this.operator = operator;
 		this.firstOperand = op1;
 		this.secondOperand = op2;
-		this.expectedTarget = INumericNode.class;
 	}
 
 	@Override
@@ -121,7 +120,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// TODO Reuse target (problem: result could be any kind of NumericNode)
 		this.lastFirstValue = this.firstOperand.evaluate(node, this.lastFirstValue, context);
 		this.lastSecondValue = this.secondOperand.evaluate(node, this.lastSecondValue, context);
@@ -135,7 +134,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.firstOperand = this.firstOperand.transformRecursively(function);
 		this.secondOperand = this.secondOperand.transformRecursively(function);
 		return function.call(this);
@@ -290,11 +289,11 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 *        the right operand
 		 * @return the result of the operation
 		 */
-		public INumericNode evaluate(final INumericNode left, final INumericNode right, IJsonNode target) {
+		public INumericNode evaluate(final INumericNode left, final INumericNode right, final IJsonNode target) {
 			final Type widerType = NumberCoercer.INSTANCE.getWiderType(left, right);
 			final NumberEvaluator<INumericNode> evaluator = this.typeEvaluators.get(widerType);
 			final Class<? extends INumericNode> implementationType = evaluator.getReturnType();
-			INumericNode numericTarget = SopremoUtil.ensureType(target, implementationType);
+			final INumericNode numericTarget = SopremoUtil.ensureType(target, implementationType);
 			evaluator.evaluate(left, right, numericTarget);
 			return numericTarget;
 		}
@@ -309,7 +308,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract BigDecimal evaluate(BigDecimal left, BigDecimal right);
 
 		@Override
-		public void evaluate(INumericNode left, INumericNode right, DecimalNode numericTarget) {
+		public void evaluate(final INumericNode left, final INumericNode right, final DecimalNode numericTarget) {
 			numericTarget.setValue(this.evaluate(left.getDecimalValue(), right.getDecimalValue()));
 		}
 
@@ -329,7 +328,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 * .type.INumericNode, eu.stratosphere.sopremo.type.INumericNode, eu.stratosphere.sopremo.type.NumericNode)
 		 */
 		@Override
-		public void evaluate(INumericNode left, INumericNode right, BigIntegerNode numericTarget) {
+		public void evaluate(final INumericNode left, final INumericNode right, final BigIntegerNode numericTarget) {
 			numericTarget.setValue(this.evaluate(left.getBigIntegerValue(), right.getBigIntegerValue()));
 		}
 
@@ -362,7 +361,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		 * .type.INumericNode, eu.stratosphere.sopremo.type.INumericNode, eu.stratosphere.sopremo.type.NumericNode)
 		 */
 		@Override
-		public void evaluate(INumericNode left, INumericNode right, DecimalNode numericTarget) {
+		public void evaluate(final INumericNode left, final INumericNode right, final DecimalNode numericTarget) {
 			numericTarget.setValue(divideImpl(left.getDecimalValue(), right.getDecimalValue()));
 		}
 
@@ -390,7 +389,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract double evaluate(double left, double right);
 
 		@Override
-		public void evaluate(final INumericNode left, final INumericNode right, DoubleNode numericTarget) {
+		public void evaluate(final INumericNode left, final INumericNode right, final DoubleNode numericTarget) {
 			numericTarget.setValue(this.evaluate(left.getDoubleValue(), right.getDoubleValue()));
 		}
 
@@ -404,7 +403,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract int evaluate(int left, int right);
 
 		@Override
-		public void evaluate(final INumericNode left, final INumericNode right, IntNode numericTarget) {
+		public void evaluate(final INumericNode left, final INumericNode right, final IntNode numericTarget) {
 			numericTarget.setValue(this.evaluate(left.getIntValue(), right.getIntValue()));
 		}
 
@@ -418,7 +417,7 @@ public class ArithmeticExpression extends EvaluationExpression {
 		protected abstract long evaluate(long left, long right);
 
 		@Override
-		public void evaluate(final INumericNode left, final INumericNode right, LongNode numericTarget) {
+		public void evaluate(final INumericNode left, final INumericNode right, final LongNode numericTarget) {
 			numericTarget.setValue(this.evaluate(left.getLongValue(), right.getLongValue()));
 		}
 

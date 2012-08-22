@@ -127,7 +127,6 @@
               <includes>
                 <include>**/relational/TPCHQuery3.class</include>
                 <include>**/relational/TPCHQuery3$*.class</include>
-                <include>**/relational/util/*.class</include>
               </includes>
             </configuration>
           </execution>
@@ -150,7 +149,6 @@
               <includes>
                 <include>**/relational/TPCHQueryAsterix.class</include>
                 <include>**/relational/TPCHQueryAsterix$*.class</include>
-                <include>**/relational/util/*.class</include>
               </includes>
             </configuration>
           </execution>
@@ -174,7 +172,6 @@
               <includes>
                 <include>**/relational/WebLogAnalysis.class</include>
                 <include>**/relational/WebLogAnalysis$*.class</include>
-                <include>**/relational/util/*.class</include>
               </includes>
             </configuration>
           </execution>
@@ -201,51 +198,53 @@
               </includes>
             </configuration>
           </execution>
-
-      <!-- ReduceSecondarySort -->
+          
+      <!-- TeraSort -->
           <execution>
-            <id>ReduceSecondarySort</id>
+            <id>TeraSort</id>
             <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
             <configuration>
-              <classifier>ReduceSecondarySort</classifier>
+              <classifier>TeraSort</classifier>
 
               <archive>
                 <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact.example.secondarysort.ReduceSecondarySort</Pact-Assembler-Class>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.sort.TeraSort</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
 
               <includes>
-                <include>**/secondarysort/*.class</include>
+                <include>**/sort/TeraSort.class</include>
+                <include>**/sort/terasort/Tera*.class</include>
+              </includes>
+            </configuration>
+          </execution>
+
+      <!-- ReduceGroupSort -->
+          <execution>
+            <id>ReduceGroupSort</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>ReduceGroupSort</classifier>
+
+              <archive>
+                <manifestEntries>
+                  <Pact-Assembler-Class>eu.stratosphere.pact.example.sort.ReduceGroupSort</Pact-Assembler-Class>
+                </manifestEntries>
+              </archive>
+
+              <includes>
+                <include>**/sort/ReduceGroupSort.class</include>
+                <include>**/sort/ReduceGroupSort$*.class</include>
               </includes>
             </configuration>
           </execution>
           
-      <!-- CoGroupSecondarySort -->
-          <execution>
-            <id>CoGroupSecondarySort</id>
-            <phase>package</phase>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <classifier>CoGroupSecondarySort</classifier>
-
-              <archive>
-                <manifestEntries>
-                  <Pact-Assembler-Class>eu.stratosphere.pact.example.secondarysort.CoGroupSecondarySort</Pact-Assembler-Class>
-                </manifestEntries>
-              </archive>
-
-              <includes>
-                <include>**/secondarysort/*.class</include>
-              </includes>
-            </configuration>
-          </execution>
-
         </executions>
       </plugin>
       

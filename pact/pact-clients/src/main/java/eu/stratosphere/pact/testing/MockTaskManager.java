@@ -51,7 +51,6 @@ import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
-import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.util.SerializableArrayList;
@@ -255,7 +254,7 @@ class MockTaskManager implements TaskOperationProtocol {
 			final ExecutionVertexID vertexID = tdd.getVertexID();
 			RuntimeEnvironment environment;
 			try {
-				final ExecutionGraph executionGraph = jobGraphs.get(tdd.getJobID());
+				final ExecutionGraph executionGraph = this.jobGraphs.get(tdd.getJobID());
 				final ExecutionVertex vertex = executionGraph.getVertexByID(vertexID);
 				environment =
 					new RuntimeEnvironment(tdd, this.memoryManager, this.ioManager, new MockInputSplitProvider(

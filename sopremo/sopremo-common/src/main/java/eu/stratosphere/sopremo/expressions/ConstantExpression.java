@@ -1,10 +1,10 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
-import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.MissingNode;
+import eu.stratosphere.sopremo.type.NullNode;
 
 /**
  * Represents all constants.
@@ -30,15 +30,26 @@ public class ConstantExpression extends EvaluationExpression {
 		}
 	};
 
+	public static final EvaluationExpression NULL = new ConstantExpression(NullNode.getInstance()) {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -2375203649638430872L;
+
+		private Object readResolve() {
+			return ConstantExpression.NULL;
+		}
+	};
+
 	/**
 	 * Initializes a ConstantExpression with the given JsonNode.
 	 * 
 	 * @param constant
 	 *        the node that should be represented by this ConstantExpression
 	 */
-	public ConstantExpression(final AbstractJsonNode constant) {
+	public ConstantExpression(final IJsonNode constant) {
 		this.constant = constant;
-		this.expectedTarget = constant.getClass();
 	}
 
 	/**
@@ -70,7 +81,7 @@ public class ConstantExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// we can ignore 'target' because no new Object is created
 		return this.constant;
 	}

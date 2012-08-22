@@ -29,7 +29,7 @@ public class Reference<T> {
 	/**
 	 * Initializes Reference with the given value.
 	 */
-	public Reference(T value) {
+	public Reference(final T value) {
 		this.value = value;
 	}
 
@@ -37,7 +37,7 @@ public class Reference<T> {
 		return this.value;
 	}
 
-	public void setValue(T value) {
+	public void setValue(final T value) {
 		this.value = value;
 	}
 }

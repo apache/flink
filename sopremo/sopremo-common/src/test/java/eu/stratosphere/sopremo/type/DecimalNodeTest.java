@@ -12,4 +12,14 @@ public class DecimalNodeTest extends JsonNodeTest<DecimalNode> {
 		Assert.assertEquals(BigDecimal.valueOf(42), decimalnode.getDecimalValue());
 	}
 
+	@Override
+	protected IJsonNode lowerNode() {
+		return DecimalNode.valueOf(BigDecimal.valueOf(10042, 2));
+	}
+
+	@Override
+	protected IJsonNode higherNode() {
+		return DecimalNode.valueOf(BigDecimal.valueOf(10042, -1));
+	}
+
 }

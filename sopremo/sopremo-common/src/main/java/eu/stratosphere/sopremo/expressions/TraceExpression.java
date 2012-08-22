@@ -33,7 +33,7 @@ public class TraceExpression extends EvaluationExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		SopremoUtil.LOG.info(this.expression.evaluate(node, target, context));
 		return node;
 	}
@@ -45,7 +45,7 @@ public class TraceExpression extends EvaluationExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.expression = this.expression.transformRecursively(function);
 		return function.call(this);
 	}

@@ -1,0 +1,5 @@
+"id","name","addr","city","phone","type","class"
+1,"arnie morton's of chicago","435 s. la cienega blv.","los angeles","310/246-1501","american",'0'
+2,"\"arnie morton's of chicago\"","435 s. la cienega blv.","los,angeles","310/246-1501","american",'0'
+3,"arnie morton's of chicago","435 s. la cienega blv.","los
+angeles","310/246-1501","american",'0'

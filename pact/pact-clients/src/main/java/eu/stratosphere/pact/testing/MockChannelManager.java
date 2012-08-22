@@ -88,8 +88,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 		}
 	}
 
-	private synchronized void processEnvelope(final TransferEnvelope transferEnvelope,
-			final boolean freeSourceBuffer) {
+	private synchronized void processEnvelope(final TransferEnvelope transferEnvelope) {
 		try {
 			AbstractChannel sourceChannel = this.registeredChannels.get(transferEnvelope.getSource()).getChannel();
 
@@ -112,7 +111,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 	 */
 	@Override
 	public void processEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) {
-		this.processEnvelope(transferEnvelope, true);
+		this.processEnvelope(transferEnvelope);
 	}
 
 	/**
@@ -120,7 +119,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 	 */
 	@Override
 	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) {
-		this.processEnvelope(transferEnvelope, false);
+		this.processEnvelope(transferEnvelope);
 	}
 
 	/**
@@ -128,7 +127,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 	 */
 	@Override
 	public void processEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer) {
-		this.processEnvelope(transferEnvelope, freeSourceBuffer);
+		this.processEnvelope(transferEnvelope);
 	}
 
 	/**

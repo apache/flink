@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import java.io.Serializable;
 
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -23,6 +25,9 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
+ * The schema-interface can be implemented to provide the functionality to convert between {@link PactRecord}s and
+ * {@link IJsonNode}s.
+ * 
  * @author Arvid Heise
  */
 public interface Schema extends Serializable {
@@ -30,29 +35,28 @@ public interface Schema extends Serializable {
 	// public static Schema Default = new Default();
 
 	/**
+	 * Returns the indices of all values that are especially separated to be used as keys.<br>
+	 * The index of the payload should not be returned.
+	 * 
+	 * @return the indices
+	 */
+	public IntSet getKeyIndices();
+
+	/**
+	 * Specifies the expected classes of the fields of the {@link PactRecord}.
+	 * 
 	 * @return the classes of the {@link PactRecord}
 	 */
 	public Class<? extends Value>[] getPactSchema();
 
 	/**
-	 * @param value
-	 *        the {@link IJsonNode}, which shall be transformed into a {@link PactRecord} using this Schema
-	 * @param target
-	 *        the target {@link PactRecord} or <code>null</code>, when it shall be created
-	 * @param context
-	 *        TODO
-	 * @return the converted {@link IJsonNode}
+	 * Determines the index of the given expression within this schema.
+	 * 
+	 * @param expression
+	 *        the expressionthat should be used
+	 * @return the index
 	 */
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context);
-
-	/**
-	 * @param record
-	 *        which shall be transformed to a matching {@link IJsonNode} using this Schema
-	 * @param target
-	 *        in which the record shall be transformed into or <code>null</code>, when target shall be created
-	 * @return transfomed Record
-	 */
-	public IJsonNode recordToJson(PactRecord record, IJsonNode target);
+	public IntSet indicesOf(EvaluationExpression expression);
 
 	// public static class Default implements Schema {
 	// /**
@@ -125,8 +129,27 @@ public interface Schema extends Serializable {
 	// }
 
 	/**
-	 * @param expression
-	 * @return
+	 * Converts the given {@link IJsonNode} to a {@link PactRecord}. If possible the given target-record will be reused.
+	 * 
+	 * @param value
+	 *        the {@link IJsonNode}, which shall be transformed into a {@link PactRecord} using this Schema
+	 * @param target
+	 *        the target {@link PactRecord} or <code>null</code>, when it shall be created
+	 * @param context
+	 *        TODO
+	 * @return the converted {@link IJsonNode}
 	 */
-	public int[] indicesOf(EvaluationExpression expression);
+	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context);
+
+	/**
+	 * Converts the given {@link PactRecord} to an appropriate {@link IJsonNode}. If possible the given target-node will
+	 * be reused.
+	 * 
+	 * @param record
+	 *        which shall be transformed to a matching {@link IJsonNode} using this Schema
+	 * @param target
+	 *        in which the record shall be transformed into or <code>null</code>, when target shall be created
+	 * @return transfomed Record
+	 */
+	public IJsonNode recordToJson(PactRecord record, IJsonNode target);
 }

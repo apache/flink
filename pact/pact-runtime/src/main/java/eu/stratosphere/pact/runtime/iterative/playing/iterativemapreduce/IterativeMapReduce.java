@@ -31,6 +31,7 @@ import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -81,13 +82,13 @@ public class IterativeMapReduce {
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
 
     //TODO implicit order should be documented/configured somehow
-    JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+    JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
     JobGraphUtils.connect(head, tail, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategy.PARTITION_HASH);
-    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE, ShipStrategy.FORWARD);
-    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategy.FORWARD);
+        ShipStrategyType.PARTITION_HASH);
+    JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE, ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE, ShipStrategyType.FORWARD);
     JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
-        ShipStrategy.FORWARD);
+        ShipStrategyType.FORWARD);
 
     input.setVertexToShareInstancesWith(head);
     tail.setVertexToShareInstancesWith(head);

@@ -140,95 +140,96 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 				if (LOG.isDebugEnabled())
 					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
 				
-				// ======= special-case the PactRecord, to help the JIT and avoid some casts ======
-				if (record.getClass() == PactRecord.class) {
-					final PactRecord pactRecord = (PactRecord) record;
-					@SuppressWarnings("unchecked")
-					final InputFormat<PactRecord, InputSplit> inFormat = (InputFormat<PactRecord, InputSplit>) format;
-					
-					if (this.output instanceof PactRecordOutputCollector)
-					{
-						// PactRecord going directly into network channels
-						final PactRecordOutputCollector output = (PactRecordOutputCollector) this.output;
-						while (!this.taskCanceled && !inFormat.reachedEnd()) {
-							// build next pair and ship pair if it is valid
-							pactRecord.clear();
-							if (inFormat.nextRecord(pactRecord)) {
-								output.collect(pactRecord);
-							}
-						}
-					} else if (this.output instanceof ChainedMapDriver) {
-						// PactRecord going to a chained map task
+				try {
+					// ======= special-case the PactRecord, to help the JIT and avoid some casts ======
+					if (record.getClass() == PactRecord.class) {
+						final PactRecord pactRecord = (PactRecord) record;
 						@SuppressWarnings("unchecked")
-						final ChainedMapDriver<PactRecord, ?> output = (ChainedMapDriver<PactRecord, ?>) this.output;
+						final InputFormat<PactRecord, InputSplit> inFormat = (InputFormat<PactRecord, InputSplit>) format;
 						
-						// as long as there is data to read
-						while (!this.taskCanceled && !inFormat.reachedEnd()) {
-							// build next pair and ship pair if it is valid
-							pactRecord.clear();
-							if (inFormat.nextRecord(pactRecord)) {
-								output.collect(pactRecord);
+						if (this.output instanceof PactRecordOutputCollector)
+						{
+							// PactRecord going directly into network channels
+							final PactRecordOutputCollector output = (PactRecordOutputCollector) this.output;
+							while (!this.taskCanceled && !inFormat.reachedEnd()) {
+								// build next pair and ship pair if it is valid
+								pactRecord.clear();
+								if (inFormat.nextRecord(pactRecord)) {
+									output.collect(pactRecord);
+								}
+							}
+						} else if (this.output instanceof ChainedMapDriver) {
+							// PactRecord going to a chained map task
+							@SuppressWarnings("unchecked")
+							final ChainedMapDriver<PactRecord, ?> output = (ChainedMapDriver<PactRecord, ?>) this.output;
+							
+							// as long as there is data to read
+							while (!this.taskCanceled && !inFormat.reachedEnd()) {
+								// build next pair and ship pair if it is valid
+								pactRecord.clear();
+								if (inFormat.nextRecord(pactRecord)) {
+									output.collect(pactRecord);
+								}
+							}
+						} else {
+							// PactRecord going to some other chained task
+							@SuppressWarnings("unchecked")
+							final Collector<PactRecord> output = (Collector<PactRecord>) this.output;
+							// as long as there is data to read
+							while (!this.taskCanceled && !inFormat.reachedEnd()) {
+								// build next pair and ship pair if it is valid
+								pactRecord.clear();
+								if (inFormat.nextRecord(pactRecord)) {
+									output.collect(pactRecord);
+								}
 							}
 						}
 					} else {
-						// PactRecord going to some other chained task
-						@SuppressWarnings("unchecked")
-						final Collector<PactRecord> output = (Collector<PactRecord>) this.output;
-						// as long as there is data to read
-						while (!this.taskCanceled && !inFormat.reachedEnd()) {
-							// build next pair and ship pair if it is valid
-							pactRecord.clear();
-							if (inFormat.nextRecord(pactRecord)) {
-								output.collect(pactRecord);
+						// general types. we make a case distinction here for the common cases, in order to help
+						// JIT method inlining
+						if (this.output instanceof OutputCollector)
+						{
+							final OutputCollector<OT> output = (OutputCollector<OT>) this.output;
+							
+							// as long as there is data to read
+							while (!this.taskCanceled && !format.reachedEnd()) {
+								// build next pair and ship pair if it is valid
+								if (format.nextRecord(record)) {
+									output.collect(record);
+								}
+							}
+						}
+						else if (this.output instanceof ChainedMapDriver)
+						{
+							@SuppressWarnings("unchecked")
+							final ChainedMapDriver<OT, ?> output = (ChainedMapDriver<OT, ?>) this.output;
+							
+							// as long as there is data to read
+							while (!this.taskCanceled && !format.reachedEnd()) {
+								// build next pair and ship pair if it is valid
+								if (format.nextRecord(record)) {
+									output.collect(record);
+								}
+							}
+						}
+						else {
+							final Collector<OT> output = this.output;
+							
+							// as long as there is data to read
+							while (!this.taskCanceled && !format.reachedEnd()) {
+								// build next pair and ship pair if it is valid
+								if (format.nextRecord(record)) {
+									output.collect(record);
+								}
 							}
 						}
 					}
-				} else {
-					// general types. we make a case distinction here for the common cases, in order to help
-					// JIT method inlining
-					if (this.output instanceof OutputCollector)
-					{
-						final OutputCollector<OT> output = (OutputCollector<OT>) this.output;
-						
-						// as long as there is data to read
-						while (!this.taskCanceled && !format.reachedEnd()) {
-							// build next pair and ship pair if it is valid
-							if (format.nextRecord(record)) {
-								output.collect(record);
-							}
-						}
-					}
-					else if (this.output instanceof ChainedMapDriver)
-					{
-						@SuppressWarnings("unchecked")
-						final ChainedMapDriver<OT, ?> output = (ChainedMapDriver<OT, ?>) this.output;
-						
-						// as long as there is data to read
-						while (!this.taskCanceled && !format.reachedEnd()) {
-							// build next pair and ship pair if it is valid
-							if (format.nextRecord(record)) {
-								output.collect(record);
-							}
-						}
-					}
-					else {
-						final Collector<OT> output = this.output;
-						
-						// as long as there is data to read
-						while (!this.taskCanceled && !format.reachedEnd()) {
-							// build next pair and ship pair if it is valid
-							if (format.nextRecord(record)) {
-								output.collect(record);
-							}
-						}
-					}
-				}
-
-				// close. We close here such that a regular close throwing an exception marks a task as failed.
-				if (!this.taskCanceled) {
-					if (LOG.isDebugEnabled())
-						LOG.debug(getLogString("Closing input split " + split.toString()));
 					
+					if (LOG.isDebugEnabled() && !this.taskCanceled) {
+						LOG.debug(getLogString("Closing input split " + split.toString()));
+					}
+				} finally {
+					// close. We close here such that a regular close throwing an exception marks a task as failed.
 					format.close();
 				}
 			} // end for all input splits

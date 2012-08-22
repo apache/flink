@@ -1,8 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.TypeCoercer;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.TypeCoercer;
 
 /**
  * Converts the result of an evaluation to a various number of node types.
@@ -14,9 +14,9 @@ public class CoerceExpression extends EvaluationExpression {
 	 */
 	private static final long serialVersionUID = 1954495592440005318L;
 
-	private final Class<? extends IJsonNode> targetType;
+	private final Class<IJsonNode> targetType;
 
-	private EvaluationExpression valueExpression;
+	private CachingExpression<IJsonNode> valueExpression;
 
 	/**
 	 * Initializes a CoerceExpression with the given value and the given type.
@@ -26,10 +26,10 @@ public class CoerceExpression extends EvaluationExpression {
 	 * @param value
 	 *        the expression which evaluates to the result
 	 */
+	@SuppressWarnings("unchecked")
 	public CoerceExpression(final Class<? extends IJsonNode> targetType, final EvaluationExpression value) {
-		this.targetType = targetType;
-		this.valueExpression = value;
-		this.expectedTarget = targetType;
+		this.targetType = (Class<IJsonNode>) targetType;
+		this.valueExpression = CachingExpression.ofSubclass(value, IJsonNode.class);
 	}
 
 	/**
@@ -61,13 +61,12 @@ public class CoerceExpression extends EvaluationExpression {
 		if (valueExpression == null)
 			throw new NullPointerException("valueExpression must not be null");
 
-		this.valueExpression = valueExpression;
+		this.valueExpression = CachingExpression.ofSubclass(valueExpression, IJsonNode.class);
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-		// TODO Reuse target
-		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, target, context), this.targetType);
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, context), target, this.targetType);
 	}
 
 	/*
@@ -76,9 +75,10 @@ public class CoerceExpression extends EvaluationExpression {
 	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
 	 * .TransformFunction)
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
-		this.valueExpression = this.valueExpression.transformRecursively(function);
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
+		this.valueExpression = (CachingExpression<IJsonNode>) this.valueExpression.transformRecursively(function);
 		return function.call(this);
 	}
 
