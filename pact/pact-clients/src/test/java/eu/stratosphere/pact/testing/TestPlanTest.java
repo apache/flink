@@ -207,13 +207,15 @@ public class TestPlanTest {
 			return super.reachedEnd();
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.common.io.TextInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord, byte[], int, int)
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.pact.common.io.TextInputFormat#readRecord(eu.stratosphere.pact.common.type.PactRecord,
+		 * byte[], int, int)
 		 */
 		@Override
 		public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
 			target.setField(0, new PactInteger(Integer.valueOf(new String(bytes, offset, numBytes))));
-			return true;//super.readRecord(target, bytes, offset, numBytes);
+			return true;
 		}
 	}
 
@@ -222,7 +224,7 @@ public class TestPlanTest {
 	 */
 	public static class IntegerOutFormat extends FileOutputFormat {
 		private PrintWriter writer;
-		
+
 		/*
 		 * (non-Javadoc)
 		 * @see eu.stratosphere.pact.common.io.FileOutputFormat#open(int)
@@ -248,12 +250,9 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void completeTestPasses() {
-		final FileDataSource read = createInput(IntegerInFormat.class,
-			"TestPlan/test.txt");
+		final FileDataSource source = createInput(IntegerInFormat.class, "TestPlan/test.txt");
 
-		final MapContract map =
-			MapContract.builder(IdentityMap.class).name("Map").build();
-		map.setInput(read);
+		final MapContract map = MapContract.builder(IdentityMap.class).name("Map").input(source).build();
 
 		FileDataSink output = createOutput(map, SequentialOutputFormat.class);
 
@@ -270,9 +269,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void adhocInputAndOutputShouldTransparentlyWork() {
-		final MapContract map = MapContract.builder(IdentityMap.class)
-			.name("Map")
-			.build();
+		final MapContract map = MapContract.builder(IdentityMap.class).name("Map").build();
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactString("test1")).
@@ -337,9 +334,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void expectedValuesShouldAlsoWorkWithAdhocInputAndOutput() {
-		final MapContract map = MapContract.builder(IdentityMap.class)
-			.name("Map")
-			.build();
+		final MapContract map = MapContract.builder(IdentityMap.class).name("Map").build();
 		TestPlan testPlan = new TestPlan(map);
 		testPlan.getInput().
 			add(new PactInteger(1), new PactString("test1")).

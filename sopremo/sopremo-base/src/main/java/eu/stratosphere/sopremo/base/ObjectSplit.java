@@ -73,7 +73,7 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 	public static class Implementation extends SopremoMap {
 		private CachingExpression<IObjectNode> objectPath;
 
-		private EvaluationExpression valueProjection;
+		private CachingExpression<?> valueProjection;
 
 		@Override
 		protected void map(IJsonNode value, JsonCollector out) {
@@ -88,7 +88,7 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 			while (fieldNames.hasNext()) {
 				String field = fieldNames.next();
 				fieldNode.setValue(field);
-				out.collect(this.valueProjection.evaluate(contextNode, null, context));
+				out.collect(this.valueProjection.evaluate(contextNode, context));
 			}
 		}
 	}
