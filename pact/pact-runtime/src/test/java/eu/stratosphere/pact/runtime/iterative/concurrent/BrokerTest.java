@@ -15,59 +15,58 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import com.google.common.collect.Maps;
-import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import org.junit.Test;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 
 public class BrokerTest {
 
   @Test
-  public void mediation() throws InterruptedException {
+  public void mediation() throws Exception {
     Random random = new Random();
     for (int n = 0; n < 20; n++) {
       mediate(random.nextInt(10) + 1);
     }
   }
 
-  void mediate(int subtasks) throws InterruptedException {
+  void mediate(int subtasks) throws InterruptedException, ExecutionException {
 
+    ExecutorService executorService = Executors.newFixedThreadPool(subtasks * 2);
+
+    List<Callable<StringPair>> tasks = Lists.newArrayList();
     Broker<String> broker = new Broker<String>();
-    ConcurrentMap<String, String> results = Maps.newConcurrentMap();
-
-    Thread[] heads = new Thread[subtasks];
-    for (int subtask = 0; subtask < subtasks; subtask++) {
-      heads[subtask] = new Thread(new IterationHead(broker, subtask, "value" + subtask));
-    }
-
-    Thread[] tails = new Thread[subtasks];
-    for (int subtask = 0; subtask < subtasks; subtask++) {
-      tails[subtask] = new Thread(new IterationTail(broker, subtask, results));
-    }
 
     for (int subtask = 0; subtask < subtasks; subtask++) {
-      heads[subtask].start();
-      tails[subtask].start();
+      tasks.add(new IterationHead(broker, subtask, "value" + subtask));
+      tasks.add(new IterationTail(broker, subtask));
     }
 
-    for (int subtask = 0; subtask < subtasks; subtask++) {
-      heads[subtask].join();
-      tails[subtask].join();
+    Collections.shuffle(tasks);
+
+    int numSuccessfulHandovers = 0;
+    for (Future<StringPair> future : executorService.invokeAll(tasks)) {
+      StringPair stringPair = future.get();
+      if (stringPair != null) {
+        assertEquals("value" + stringPair.getFirst(), stringPair.getSecond());
+        numSuccessfulHandovers++;
+      }
     }
 
-    // every tail must have gotten its handover value
-    assertEquals(subtasks, results.size());
-    for (int subtask = 0; subtask < subtasks; subtask++) {
-      // every tail must have gotten its correct handover value
-      assertEquals("value" + subtask, results.get(subtask));
-    }
+    assertEquals(subtasks, numSuccessfulHandovers);
   }
 
-  class IterationHead implements Runnable {
+  class IterationHead implements Callable<StringPair> {
 
     private final Random random;
     private final Broker<String> broker;
@@ -82,44 +81,39 @@ public class BrokerTest {
     }
 
     @Override
-    public void run() {
-      try {
-        Thread.sleep(random.nextInt(10));
-        System.out.println("Head " + key + " hands in " + value);
-        broker.handIn(key, value);
-        Thread.sleep(random.nextInt(10));
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+    public StringPair call() throws Exception {
+      Thread.sleep(random.nextInt(10));
+      System.out.println("Head " + key + " hands in " + value);
+      broker.handIn(key, value);
+      Thread.sleep(random.nextInt(10));
+      return null;
     }
+
   }
 
-  class IterationTail implements Runnable {
+  class IterationTail implements Callable<StringPair> {
 
     private final Random random;
     private final Broker<String> broker;
     private final String key;
-    private final ConcurrentMap<String, String> results;
 
-    IterationTail(Broker<String> broker, Integer key, ConcurrentMap<String, String> results) {
+    IterationTail(Broker<String> broker, Integer key) {
       this.broker = broker;
       this.key = String.valueOf(key);
-      this.results = results;
       random = new Random();
     }
 
     @Override
-    public void run() {
-      try {
-        Thread.sleep(random.nextInt(10));
-        System.out.println("Tail " + key + " asks for handover");
-        String value = broker.get(key);
+    public StringPair call() throws Exception {
 
-        System.out.println("Tail " + key + " received " + value);
-        results.put(key, value);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+      Thread.sleep(random.nextInt(10));
+      System.out.println("Tail " + key + " asks for handover");
+      String value = broker.get(key);
+
+      System.out.println("Tail " + key + " received " + value);
+      Preconditions.checkNotNull(value);
+
+      return new StringPair(key, value);
     }
   }
 
