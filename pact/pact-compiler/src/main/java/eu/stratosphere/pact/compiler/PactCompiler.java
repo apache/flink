@@ -695,8 +695,8 @@ public class PactCompiler {
 		new NodeConnector().connectNodes(bestPlanSinks);
 
 		// insert temporary dams, as they may be necessary in non-tree graphs to prevent deadlocks
-		Configuration config = GlobalConfiguration.getConfiguration();
-		new DeadlockResolver(config.getBoolean("channel.network.allowSpilling",true)).resolveDeadlocks(bestPlanSinks);
+		// Configuration config = GlobalConfiguration.getConfiguration();
+		new DeadlockResolver(false).resolveDeadlocks(bestPlanSinks);
 
 		// finalize the plan
 		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryMegabytes);
