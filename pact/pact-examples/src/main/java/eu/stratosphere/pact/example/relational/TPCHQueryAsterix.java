@@ -148,12 +148,10 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		// create DataSourceContract for Orders input
 		FileDataSource orders = new FileDataSource(RecordInputFormat.class, ordersPath, "Orders");
 		orders.setDegreeOfParallelism(noSubtasks);
-		orders.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		orders.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		orders.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 1);
-		// cust id
-		orders.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextIntParser.class);
-		orders.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 1);
+		RecordInputFormat.configureRecordFormat(orders)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextIntParser.class, 1);
 		// compiler hints
 		orders.getCompilerHints().setAvgBytesPerRecord(5);
 		orders.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 10);
@@ -166,27 +164,27 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		// create DataSourceContract for Customer input
 		FileDataSource customers = new FileDataSource(RecordInputFormat.class, customerPath, "Customers");
 		customers.setDegreeOfParallelism(noSubtasks);
-		customers.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-		customers.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		customers.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
-		// cust id
-		customers.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextIntParser.class);
-		customers.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
-		// market segment
-		customers.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+1, VarLengthStringParser.class);
-		customers.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 6);
+		RecordInputFormat.configureRecordFormat(customers)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(DecimalTextIntParser.class, 0)
+			.field(VarLengthStringParser.class, 6);
 		// compiler hints
 		customers.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(new int[]{0}), 1);
 		customers.getCompilerHints().setAvgBytesPerRecord(20);
 		
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinCO = new MatchContract(JoinCO.class, PactInteger.class, 0, 0, "JoinCO");
+		MatchContract joinCO = MatchContract.builder(JoinCO.class, PactInteger.class, 0, 0)
+			.name("JoinCO")
+			.build();
 		joinCO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		joinCO.getCompilerHints().setAvgBytesPerRecord(17);
 
 		// create ReduceContract for aggregating the result
-		ReduceContract aggCO = new ReduceContract(AggCO.class, PactString.class, 1, "AggCo");
+		ReduceContract aggCO = new ReduceContract.Builder(AggCO.class, PactString.class, 1)
+			.name("AggCo")
+			.build();
 		aggCO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
 		aggCO.getCompilerHints().setAvgBytesPerRecord(17);
@@ -195,11 +193,14 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(RecordOutputFormat.class, output, "Output");
 		result.setDegreeOfParallelism(noSubtasks);
-		result.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-		result.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
-		result.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
-		result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
+		RecordOutputFormat.configureRecordFormat(result)
+			.recordDelimiter('\n')
+			.fieldDelimiter('|')
+			.field(PactInteger.class, 0)
+			.field(PactString.class, 1);
+		// TODO positions are missing here from original code, assume 0 and 1
+		//result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
+		//result.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
 
 		// assemble the PACT plan
 		result.addInput(aggCO);

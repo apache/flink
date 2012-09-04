@@ -10,6 +10,8 @@ import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents a string value.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -71,7 +73,7 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode {
 		return this.getJavaValue();
 	}
 
-	public void setValue(String value) {
+	public void setValue(final String value) {
 		this.value.setValue(value);
 	}
 
@@ -152,7 +154,7 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value.setValue(((TextNode) otherNode).getTextValue());
 	}
@@ -161,6 +163,16 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode {
 	public void clear() {
 		if (SopremoUtil.DEBUG)
 			this.value.setValue("");
+	}
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return this.value.getMaxNormalizedKeyLen();
+	}
+
+	@Override
+	public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+		this.value.copyNormalizedKey(target, offset, len);
 	}
 
 }

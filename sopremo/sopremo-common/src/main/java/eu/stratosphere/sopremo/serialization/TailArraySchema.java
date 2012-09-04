@@ -14,8 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.serialization;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -24,12 +25,15 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.util.CollectionUtil;
 
 /**
+ * A {@link Schema} that handles {@link PactRecord}s with the structure: { [other nodes], &#60tail nodes&#62 }.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public class TailArraySchema implements Schema {
+public class TailArraySchema extends AbstractSchema {
 
 	// [ head, ArrayNode(others), tail ]
 
@@ -40,6 +44,11 @@ public class TailArraySchema implements Schema {
 
 	private int tailSize = 0;
 
+	public TailArraySchema(final int tailSize) {
+		super(tailSize + 1, CollectionUtil.setRangeFrom(1, tailSize + 1));
+		this.tailSize = tailSize;
+	}
+
 	/**
 	 * Returns the tailSize.
 	 * 
@@ -49,64 +58,38 @@ public class TailArraySchema implements Schema {
 		return this.tailSize;
 	}
 
-	/**
-	 * Sets the tailSize to the specified value.
-	 * 
-	 * @param tailSize
-	 *        the tailSize to set
-	 */
-	public void setTailSize(int tailSize) {
-		this.tailSize = tailSize;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.serialization.Schema#getPactSchema()
-	 */
-	@Override
-	public Class<? extends Value>[] getPactSchema() {
-		Class<? extends Value>[] schema = new Class[this.getTailSize() + 1];
-
-		for (int i = 0; i <= this.getTailSize(); i++)
-			schema[i] = JsonNodeWrapper.class;
-
-		return schema;
-	}
-
 	/*
 	 * (non-Javadoc)
 	 * @see
 	 * eu.stratosphere.sopremo.serialization.Schema#indicesOf(eu.stratosphere.sopremo.expressions.EvaluationExpression)
 	 */
 	@Override
-	public int[] indicesOf(EvaluationExpression expression) {
+	public IntSet indicesOf(final EvaluationExpression expression) {
 		// TODO check correctness
-		ArrayAccess arrayExpression = (ArrayAccess) expression;
+		final ArrayAccess arrayExpression = (ArrayAccess) expression;
 
-		if (arrayExpression.isSelectingAll()) {
-			int[] indices = new int[this.getTailSize() + 1];
-			for (int index = 0; index < indices.length; index++)
-				indices[index] = index;
-			return indices;
-		} else if (arrayExpression.isSelectingRange()) {
+		if (arrayExpression.isSelectingAll())
+			return CollectionUtil.setRangeFrom(0, this.tailSize + 1);
+		else if (arrayExpression.isSelectingRange()) {
 			int startIndex = arrayExpression.getStartIndex();
 			int endIndex = arrayExpression.getEndIndex();
-			if (startIndex < 0 || endIndex < 0)
-				throw new UnsupportedOperationException("Tail indices are not supported yet");
+			if (startIndex >= 0 || endIndex >= 0)
+				throw new UnsupportedOperationException("Head indices are not supported yet");
+			endIndex += this.tailSize;
+			startIndex += this.tailSize;
 			if (endIndex >= this.getTailSize())
 				throw new IllegalArgumentException("Target index is not in tail");
 
-			int[] indices = new int[endIndex - startIndex];
-			for (int index = 0; index < indices.length; index++)
-				indices[index] = startIndex + index;
-			return indices;
+			return CollectionUtil.setRangeFrom(startIndex + 1, endIndex + 1);
 		}
 		int index = arrayExpression.getStartIndex();
-		if (index >= this.getTailSize())
+		if (index >= 0)
+			throw new UnsupportedOperationException("Head indices are not supported yet");
+		index += this.tailSize;
+		if (index < 0)
 			throw new IllegalArgumentException("Target index is not in tail");
-		else if (index < 0)
-			throw new UnsupportedOperationException("Tail indices are not supported yet");
-		return new int[] { index };
+
+		return IntSets.singleton(index + 1);
 	}
 
 	/*
@@ -115,7 +98,7 @@ public class TailArraySchema implements Schema {
 	 * eu.stratosphere.pact.common.type.PactRecord)
 	 */
 	@Override
-	public PactRecord jsonToRecord(IJsonNode value, PactRecord target, EvaluationContext context) {
+	public PactRecord jsonToRecord(final IJsonNode value, PactRecord target, final EvaluationContext context) {
 		IArrayNode others;
 		if (target == null || target.getNumFields() != 1) {
 
@@ -130,7 +113,7 @@ public class TailArraySchema implements Schema {
 		}
 
 		IJsonNode arrayElement;
-		int arraySize = ((IArrayNode) value).size();
+		final int arraySize = ((IArrayNode) value).size();
 
 		// fill the last tailSize elements of the arraynode into the record
 		for (int i = 1; i <= this.getTailSize(); i++) {
@@ -184,7 +167,7 @@ public class TailArraySchema implements Schema {
 	 * eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
-	public IJsonNode recordToJson(PactRecord record, IJsonNode target) {
+	public IJsonNode recordToJson(final PactRecord record, IJsonNode target) {
 		if (this.getTailSize() + 1 != record.getNumFields())
 			throw new IllegalStateException("Schema does not match to record!");
 		if (target == null)

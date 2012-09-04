@@ -9,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
@@ -20,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -36,11 +36,15 @@ import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
+/**
+ * Creates a JsonNode-representation of the provided data. The input-data must be provided in a valid json-format.
+ */
 public class JsonParser {
+	// TODO: rewrite to a state-based parser, that supports escaping	
 
 	private final BufferedReader reader;
 
-	private final Stack<AbstractJsonNode> state = new ObjectArrayList<AbstractJsonNode>();
+	private final Stack<IJsonNode> state = new ObjectArrayList<IJsonNode>();
 
 	ContainerNode root = new ContainerNode();
 
@@ -58,24 +62,49 @@ public class JsonParser {
 			new CloseHandler(), new KeyValueSeperatorHandler(), new StringHandler(),
 			new CommaHandler(), new WhiteSpaceHandler() });
 
-	public JsonParser(final FSDataInputStream stream) {
+	/**
+	 * Initializes a JsonParser that reads the input-data from a {@link FSDataInputStream}.
+	 * 
+	 * @param stream
+	 *        the stream that provides the data
+	 */
+	public JsonParser(final InputStream stream) {
 		this(new InputStreamReader(stream, Charset.forName("utf-8")));
 	}
 
+	/**
+	 * Initializes a JsonParser that reads the input-data from a {@link Reader}.
+	 * 
+	 * @param inputStreamReader
+	 *        the reader that provides the data
+	 */
 	public JsonParser(final Reader inputStreamReader) {
 		this.reader = new BufferedReader(inputStreamReader);
 		this.handler.defaultReturnValue(new DefaultHandler());
 	}
 
+	/**
+	 * Initializes a JsonParser that reads the input-data from an {@link URL}.
+	 * 
+	 * @param url
+	 *        the url that provides the data
+	 * @throws IOException
+	 */
 	public JsonParser(final URL url) throws IOException {
 		this(new BufferedReader(new InputStreamReader(url.openStream())));
 	}
 
+	/**
+	 * Initializes a JsonParser directly with the input-data.
+	 * 
+	 * @param value
+	 *        the data that should be parsed
+	 */
 	public JsonParser(final String value) {
 		this(new BufferedReader(new StringReader(value)));
 	}
 
-	public AbstractJsonNode readValueAsTree() throws IOException {
+	public IJsonNode readValueAsTree() throws IOException {
 
 		this.state.push(this.root);
 
@@ -118,15 +147,25 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * Returns either the parsing of the input-data is finished or not.
+	 * 
+	 * @return the parsing is completed
+	 */
 	public boolean checkEnd() {
 		return this.reachedEnd;
 	}
 
+	/**
+	 * Closes the connection to the data source.
+	 * 
+	 * @throws IOException
+	 */
 	public void close() throws IOException {
 		this.reader.close();
 	}
 
-	private static AbstractJsonNode parsePrimitive(final String value) {
+	private static IJsonNode parsePrimitive(final String value) {
 		if (value.equals("null"))
 			return NullNode.getInstance();
 		if (value.equals("true"))
@@ -149,10 +188,22 @@ public class JsonParser {
 		return TextNode.valueOf(value);
 	}
 
+	/**
+	 * Interface for all character handler. These handlers are responsible for processing special characters in the
+	 * json-format.
+	 */
 	private interface CharacterHandler {
+		/**
+		 * Implementation of this method specifies how this handler should behave.
+		 * 
+		 * @throws JsonParseException
+		 */
 		public void handleCharacter(StringBuilder sb, char character) throws JsonParseException;
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles the begin of an array.
+	 */
 	private class OpenArrayHandler implements CharacterHandler {
 
 		@Override
@@ -165,6 +216,9 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles the begin of an object.
+	 */
 	private class OpenObjectHandler implements CharacterHandler {
 
 		@Override
@@ -176,6 +230,9 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles the end of arrays and objects.
+	 */
 	private class CloseHandler implements CharacterHandler {
 
 		@Override
@@ -205,6 +262,9 @@ public class JsonParser {
 		}
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles begin and end of strings.
+	 */
 	private class StringHandler implements CharacterHandler {
 
 		@Override
@@ -219,6 +279,9 @@ public class JsonParser {
 		}
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles commas.
+	 */
 	private class CommaHandler implements CharacterHandler {
 
 		@Override
@@ -236,6 +299,9 @@ public class JsonParser {
 		}
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles a whitespace.
+	 */
 	private class WhiteSpaceHandler implements CharacterHandler {
 
 		@Override
@@ -246,6 +312,9 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles the separation of key-value-pairs.
+	 */
 	private class KeyValueSeperatorHandler implements CharacterHandler {
 
 		@Override
@@ -260,6 +329,9 @@ public class JsonParser {
 
 	}
 
+	/**
+	 * {@link CharacterHandler} that handles unknown characters.
+	 */
 	private class DefaultHandler implements CharacterHandler {
 
 		@Override
@@ -273,38 +345,44 @@ public class JsonParser {
 		}
 	}
 
+	/**
+	 * {@link JsonNode} that represents an unfinished complex-node in the parsing-process.
+	 */
 	private class ContainerNode extends AbstractJsonNode {
 
-		/**
-		 * 
-		 */
 		private static final long serialVersionUID = -7285733826083281420L;
 
 		private final List<String> keys = new ArrayList<String>();
 
-		private final List<AbstractJsonNode> values = new ArrayList<AbstractJsonNode>();
+		private final List<IJsonNode> values = new ArrayList<IJsonNode>();
 
+		/**
+		 * Adds the data contained in the given {@link StringBuilder} as a key.
+		 * 
+		 * @param sb
+		 *        the string builder that contains the data
+		 */
 		public void addKey(final StringBuilder sb) {
 			this.keys.add(sb.toString());
 		}
 
-		public void addValue(final AbstractJsonNode node) {
+		public void addValue(final IJsonNode node) {
 			this.values.add(node);
 		}
 
-		public AbstractJsonNode remove(final int index) throws JsonParseException {
+		public IJsonNode remove(final int index) throws JsonParseException {
 			if (this.keys.isEmpty())
 				return this.values.remove(index);
 			throw new JsonParseException();
 		}
 
-		public AbstractJsonNode build() throws JsonParseException {
-			AbstractJsonNode node;
+		public IJsonNode build() throws JsonParseException {
+			IJsonNode node;
 
 			if (this.keys.size() == 0) {
 				// this ContainerNode represents an ArrayNode
 				node = new ArrayNode();
-				for (final AbstractJsonNode value : this.values)
+				for (final IJsonNode value : this.values)
 					((IArrayNode) node).add(value);
 
 			} else {
@@ -359,7 +437,25 @@ public class JsonParser {
 		}
 
 		@Override
-		public void copyValueFrom(IJsonNode otherNode) {
+		public int getMaxNormalizedKeyLen() {
+			return 0;
+		}
+
+		@Override
+		public void copyNormalizedKey(final byte[] target, final int offset, final int len) {
+		}
+
+		@Override
+		public void copyValueFrom(final IJsonNode otherNode) {
+
+		}
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.type.AbstractJsonNode#hashCode()
+		 */
+		@Override
+		public int hashCode() {
+			return 0;
 		}
 	}
 }

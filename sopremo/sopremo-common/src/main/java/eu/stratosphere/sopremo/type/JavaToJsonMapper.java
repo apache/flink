@@ -36,6 +36,13 @@ public class JavaToJsonMapper {
 		}
 	}
 
+	/**
+	 * Converts a given java-class to a matching class of a {@link IJsonNode}
+	 * 
+	 * @param javaClass
+	 *        the java class that should be converted to a class of a {@link IJsonNode}
+	 * @return the class of the {@link IJsonNode}
+	 */
 	@SuppressWarnings("unchecked")
 	public Class<? extends IJsonNode> classToJsonType(final Class<?> javaClass) {
 		if (IJsonNode.class.isAssignableFrom(javaClass))
@@ -59,7 +66,7 @@ public class JavaToJsonMapper {
 		return this.typeDict.get(ReflectUtil.getClassForPrimtive(javaClass)).getDeclaringClass();
 	}
 
-	public AbstractJsonNode valueToTree(final Object value) {
+	public IJsonNode valueToTree(final Object value) {
 		if (value == null)
 			return NullNode.getInstance();
 

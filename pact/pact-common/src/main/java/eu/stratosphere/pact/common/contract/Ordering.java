@@ -21,27 +21,61 @@ import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 
+/**
+ *
+ *
+ */
 public class Ordering
 {	
 	protected final FieldList indexes = new FieldList();
+	
 	protected final ArrayList<Class<? extends Key>> types = new ArrayList<Class<? extends Key>>();
+	
 	protected final ArrayList<Order> orders = new ArrayList<Order>();
 
+	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * 
+	 */
 	public Ordering() {
 	}
 	
+	/**
+	 * @param index
+	 * @param type
+	 * @param order
+	 */
 	public Ordering(int index, Class<? extends Key> type, Order order) {
 		appendOrdering(index, type, order);
 	}
 	
 	
-	public void appendOrdering(int index, Class<? extends Key> type, Order order)
+	/**
+	 * @param index
+	 * @param type
+	 * @param order
+	 * @return
+	 */
+	public Ordering appendOrdering(int index, Class<? extends Key> type, Order order)
 	{
+		if (index < 0) {
+			throw new IllegalArgumentException("The key index must not be negative.");
+		}
+		if (order == null) {
+			throw new NullPointerException();
+		}
+		if (order == Order.NONE) {
+			throw new IllegalArgumentException("An ordering must not be created with a NONE order.");
+		}
+		
 		this.indexes.add(index);
 		this.types.add(type);
 		this.orders.add(order);
+		return this;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public FieldList getInvolvedIndexes() {
 		return this.indexes;
@@ -75,6 +109,8 @@ public class Ordering
 		return orders.get(index);
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
 	@SuppressWarnings("unchecked")
 	public Class<? extends Key>[] getTypes()
 	{
@@ -88,6 +124,16 @@ public class Ordering
 		}
 		return ia;
 	}
+	
+	public boolean[] getFieldSortDirections() {
+		final boolean[] directions = new boolean[this.orders.size()];
+		for (int i = 0; i < directions.length; i++) {
+			directions[i] = this.orders.get(i) != Order.DESCENDING; 
+		}
+		return directions;
+	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public boolean isMetBy(Ordering otherOrdering)
 	{
@@ -150,6 +196,8 @@ public class Ordering
 		}
 		return newOrdering;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
 	 * @see java.lang.Object#clone()

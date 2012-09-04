@@ -76,8 +76,7 @@ public class ChainTaskTest extends TaskTestBase
 			combineConfig.setMemorySize(3 * 1024 * 1024);
 			combineConfig.setNumFilehandles(2);
 			
-			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(), 
-				combineConfig.getPrefixForInputParameters(0), new int[]{0}, new Class[]{ PactInteger.class });
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfigForInputParameters(0), new int[]{0}, new Class[]{PactInteger.class}, new boolean[] {true});
 			
 			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}
@@ -132,8 +131,8 @@ public class ChainTaskTest extends TaskTestBase
 			combineConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
 			combineConfig.setMemorySize(3 * 1024 * 1024);
 			combineConfig.setNumFilehandles(2);
-			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfiguration(), 
-				combineConfig.getPrefixForInputParameters(0), new int[]{0}, new Class[]{ PactInteger.class });
+			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfigForInputParameters(0),
+					new int[]{0}, new Class[]{PactInteger.class}, new boolean[]{true});
 			
 			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}

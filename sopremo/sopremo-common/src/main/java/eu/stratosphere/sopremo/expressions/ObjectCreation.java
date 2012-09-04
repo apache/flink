@@ -8,19 +8,18 @@ import java.util.List;
 import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.SerializableSopremoType;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
-import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
-import eu.stratosphere.util.ConversionIterator;
 
 /**
  * Creates an object with the given {@link Mapping}s.
  */
 @OptimizerHints(scope = Scope.ANY)
-public class ObjectCreation extends ContainerExpression {
+public class ObjectCreation extends EvaluationExpression {
 	/**
 	 * 
 	 */
@@ -36,21 +35,16 @@ public class ObjectCreation extends ContainerExpression {
 		private static final long serialVersionUID = 5274811723343043990L;
 
 		@Override
-		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-
-			target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
-
-			final Iterator<IJsonNode> elements = ((ArrayNode) node).iterator();
-			while (elements.hasNext()) {
-				final IJsonNode jsonNode = elements.next();
+		public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+			final ObjectNode targetObject = SopremoUtil.reinitializeTarget(target, ObjectNode.class);
+			for (final IJsonNode jsonNode : (IArrayNode) node)
 				if (!jsonNode.isNull())
-					((IObjectNode) target).putAll((IObjectNode) jsonNode);
-			}
-			return target;
+					targetObject.putAll((IObjectNode) jsonNode);
+			return targetObject;
 		}
 	};
 
-	private final List<Mapping<?>> mappings;
+	private List<Mapping<?>> mappings;
 
 	/**
 	 * Initializes an ObjectCreation with empty mappings.
@@ -67,7 +61,6 @@ public class ObjectCreation extends ContainerExpression {
 	 */
 	public ObjectCreation(final List<Mapping<?>> mappings) {
 		this.mappings = mappings;
-		this.expectedTarget = ObjectNode.class;
 	}
 
 	/**
@@ -78,7 +71,6 @@ public class ObjectCreation extends ContainerExpression {
 	 */
 	public ObjectCreation(final FieldAssignment... mappings) {
 		this.mappings = new ArrayList<Mapping<?>>(Arrays.asList(mappings));
-		this.expectedTarget = ObjectNode.class;
 	}
 
 	/**
@@ -103,6 +95,18 @@ public class ObjectCreation extends ContainerExpression {
 		this.mappings.add(new FieldAssignment(target, expression));
 	}
 
+	/**
+	 * Creates a new {@link ExpressionAssignment} and adds it to this expressions mappings.
+	 * 
+	 * @param target
+	 *        the expression that specifies the target location
+	 * @param expression
+	 *        the expression that should be used for the created FieldAssignemt
+	 */
+	public void addMapping(final EvaluationExpression target, final EvaluationExpression expression) {
+		this.mappings.add(new ExpressionAssignment(target, expression));
+	}
+
 	@Override
 	public boolean equals(final Object obj) {
 		if (!super.equals(obj))
@@ -112,15 +116,25 @@ public class ObjectCreation extends ContainerExpression {
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-
-		target = SopremoUtil.reinitializeTarget(target, this.expectedTarget);
-
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
+		final ObjectNode targetObject = SopremoUtil.reinitializeTarget(target, ObjectNode.class);
 		for (final Mapping<?> mapping : this.mappings)
-			mapping.evaluate((IObjectNode) target, node, context);
-		return target;
+			mapping.evaluate(node, targetObject, context);
+		return targetObject;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#clone()
+	 */
+	@Override
+	public ObjectCreation clone() {
+		final ObjectCreation clone = (ObjectCreation) super.clone();
+		clone.mappings = new ArrayList<ObjectCreation.Mapping<?>>(this.mappings.size());
+		for (Mapping<?> mapping : this.mappings) 
+			clone.mappings.add(mapping.clone());
+		return clone;
+	}
+	
 	/*
 	 * (non-Javadoc)
 	 * @see
@@ -129,9 +143,9 @@ public class ObjectCreation extends ContainerExpression {
 	 */
 	@Override
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		for (final Mapping mapping : this.mappings) {
-			mapping.expression.transformRecursively(function);
+			mapping.expression = mapping.expression.transformRecursively(function);
 			if (mapping.target instanceof EvaluationExpression)
 				mapping.target = ((EvaluationExpression) mapping.target).transformRecursively(function);
 		}
@@ -175,48 +189,6 @@ public class ObjectCreation extends ContainerExpression {
 		return result;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
-	 */
-	@Override
-	public List<? extends EvaluationExpression> getChildren() {
-		final ArrayList<EvaluationExpression> list = new ArrayList<EvaluationExpression>();
-		for (final Mapping<?> mapping : this.mappings)
-			list.add(mapping.getExpression());
-		return list;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
-	 */
-	@Override
-	public void setChildren(final List<? extends EvaluationExpression> children) {
-		if (this.mappings.size() != children.size())
-			throw new IllegalArgumentException();
-
-		for (int index = 0; index < children.size(); index++)
-			this.mappings.get(index).setExpression(children.get(index));
-	}
-
-	@Override
-	public Iterator<EvaluationExpression> iterator() {
-		return new ConversionIterator<Mapping<?>, EvaluationExpression>(this.mappings.iterator()) {
-			@Override
-			protected EvaluationExpression convert(final Mapping<?> inputObject) {
-				return inputObject.getExpression();
-			}
-		};
-	}
-
-	// @Override
-	// public void replace(final EvaluationExpression toReplace, final EvaluationExpression replaceFragment) {
-	// for (final Mapping<?> mapping : this.mappings)
-	// if (mapping.getExpression() instanceof ContainerExpression)
-	// ((ContainerExpression) mapping.getExpression()).replace(toReplace, replaceFragment);
-	// }
-
 	@Override
 	public void toString(final StringBuilder builder) {
 		builder.append("{");
@@ -244,9 +216,9 @@ public class ObjectCreation extends ContainerExpression {
 		}
 
 		@Override
-		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
+		protected void evaluate(final IJsonNode node, final IObjectNode target, final EvaluationContext context) {
 			final IJsonNode exprNode = this.getExpression().evaluate(node, null, context);
-			transformedNode.putAll((IObjectNode) exprNode);
+			target.putAll((IObjectNode) exprNode);
 		}
 
 		@Override
@@ -275,10 +247,10 @@ public class ObjectCreation extends ContainerExpression {
 		private static final long serialVersionUID = -4873817871983692783L;
 
 		@Override
-		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
-			final IJsonNode value = this.expression.evaluate(node, transformedNode.get(this.target), context);
+		protected void evaluate(final IJsonNode node, final IObjectNode target, final EvaluationContext context) {
+			final IJsonNode value = this.expression.evaluate(node, target.get(this.target), context);
 			// if (!value.isNull())
-			transformedNode.put(this.target, value);
+			target.put(this.target, value);
 		}
 	}
 
@@ -305,12 +277,42 @@ public class ObjectCreation extends ContainerExpression {
 		 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.EvaluationContext)
 		 */
 		@Override
-		protected void evaluate(final IObjectNode transformedNode, final IJsonNode node, final EvaluationContext context) {
+		protected void evaluate(final IJsonNode node, final IObjectNode target, final EvaluationContext context) {
 			throw new EvaluationException("Only tag mapping");
 		}
 	}
 
-	public abstract static class Mapping<Target> extends AbstractSopremoType implements SerializableSopremoType {
+	public static class ExpressionAssignment extends Mapping<EvaluationExpression> {
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 3767842798206835622L;
+
+		public ExpressionAssignment(final EvaluationExpression target, final EvaluationExpression expression) {
+			super(target, expression);
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping#clone()
+		 */
+		@Override
+		protected ExpressionAssignment clone() {
+			final ExpressionAssignment clone = (ExpressionAssignment) super.clone();
+			clone.target = clone.target.clone();
+			return clone;
+		}
+		
+		private IJsonNode lastResult;
+
+		@Override
+		protected void evaluate(final IJsonNode node, final IObjectNode target, final EvaluationContext context) {
+			this.lastResult = this.expression.evaluate(node, this.lastResult, context);
+			this.target.set(target, this.lastResult, context);
+		}
+	}
+
+	public abstract static class Mapping<Target> extends AbstractSopremoType implements ISerializableSopremoType, Cloneable {
 		/**
 		 * 
 		 */
@@ -345,6 +347,21 @@ public class ObjectCreation extends ContainerExpression {
 
 			this.expression = expression;
 		}
+		
+		/* (non-Javadoc)
+		 * @see java.lang.Object#clone()
+		 */
+		@SuppressWarnings("unchecked")
+		@Override
+		protected Mapping<Target> clone() {
+			try {
+				final Mapping<Target> clone = (Mapping<Target>) super.clone();
+				clone.expression = this.expression.clone();
+				return clone;
+			} catch (CloneNotSupportedException e) {
+				return null;
+			}
+		}
 
 		@Override
 		public boolean equals(final Object obj) {
@@ -358,7 +375,7 @@ public class ObjectCreation extends ContainerExpression {
 			return this.target.equals(other.target) && this.expression.equals(other.expression);
 		}
 
-		protected abstract void evaluate(final IObjectNode transformedNode, final IJsonNode node,
+		protected abstract void evaluate(IJsonNode node, IObjectNode target,
 				final EvaluationContext context);
 
 		/**

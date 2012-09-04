@@ -21,11 +21,12 @@ import eu.stratosphere.pact.common.type.PactRecord;
 /**
  * This class is responsible for converting a line from the input file to a two field record. 
  * Lines which do not match the expected length are skipped.
- * 
- * @author warneke
  */
 public final class TeraInputFormat extends DelimitedInputFormat
 {
+	private final TeraKey key = new TeraKey();
+	private final TeraValue value = new TeraValue();
+	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -36,13 +37,11 @@ public final class TeraInputFormat extends DelimitedInputFormat
 			return false;
 		}
 
-		final TeraKey key = new TeraKey(record, offset);
-		final TeraValue value = new TeraValue(record, offset + TeraKey.KEY_SIZE);
+		this.key.setValue(record, offset);
+		this.value.setValue(record, offset + TeraKey.KEY_SIZE);
 		
-		target.setField(0, key);
-		target.setField(1, value);
-
+		target.setField(0, this.key);
+		target.setField(1, this.value);
 		return true;
 	}
-
 }

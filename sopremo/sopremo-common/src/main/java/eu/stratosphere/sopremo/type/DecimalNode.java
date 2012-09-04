@@ -9,6 +9,8 @@ import java.math.BigInteger;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * This node represents a {@link BigDecimal}.
+ * 
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
@@ -52,7 +54,7 @@ public class DecimalNode extends AbstractNumericNode implements INumericNode {
 		return new DecimalNode(v);
 	}
 
-	public void setValue(BigDecimal value) {
+	public void setValue(final BigDecimal value) {
 		this.value = value;
 	}
 
@@ -91,19 +93,33 @@ public class DecimalNode extends AbstractNumericNode implements INumericNode {
 
 	@Override
 	public void read(final DataInput in) throws IOException {
-		final byte[] unscaledValue = new byte[in.readInt()];
+		// final byte[] unscaledValue = new byte[in.readInt()];
+		// in.readFully(unscaledValue);
+		//
+		// this.value = new BigDecimal(new BigInteger(unscaledValue), in.readInt());
+
+		final int unscaledMinusScale = in.readInt();
+		final int unscaledLenght = in.readInt();
+		final byte[] unscaledValue = new byte[unscaledLenght];
 		in.readFully(unscaledValue);
 
-		this.value = new BigDecimal(new BigInteger(unscaledValue), in.readInt());
+		this.value = new BigDecimal(new BigInteger(unscaledValue), unscaledLenght - unscaledMinusScale);
 	}
 
 	@Override
 	public void write(final DataOutput out) throws IOException {
-		final byte[] unscaledValue = this.value.unscaledValue().toByteArray();
-		out.writeInt(unscaledValue.length);
-		out.write(unscaledValue);
+		// final byte[] unscaledValue = this.value.unscaledValue().toByteArray();
+		// out.writeInt(unscaledValue.length);
+		// out.write(unscaledValue);
+		//
+		// out.writeInt(this.value.scale());
 
-		out.writeInt(this.value.scale());
+		final byte[] unscaledValue = this.value.unscaledValue().toByteArray();
+		final int unscaledValueLenght = unscaledValue.length;
+
+		out.writeInt(unscaledValueLenght - this.value.scale());
+		out.writeInt(unscaledValueLenght);
+		out.write(unscaledValue);
 	}
 
 	@Override
@@ -157,7 +173,7 @@ public class DecimalNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value = ((DecimalNode) otherNode).value;
 	}

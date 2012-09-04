@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.common.io;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +31,7 @@ import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.LineReader;
 import eu.stratosphere.nephele.fs.Path;
+import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -43,15 +45,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
  */
 public abstract class DelimitedInputFormat extends FileInputFormat
 {
-	/**
-	 * The configuration key to set the record delimiter.
-	 */
-	public static final String RECORD_DELIMITER = "delimited-format.delimiter";
-	
-	/**
-	 * The configuration key to set the number of samples to take for the statistics.
-	 */
-	public static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
+	// -------------------------------------- Constants -------------------------------------------
 	
 	/**
 	 * The log.
@@ -68,6 +62,23 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	 */
 	private static final int DEFAULT_NUM_SAMPLES = 10;
 	
+	// ------------------------------------- Config Keys ------------------------------------------
+	
+	/**
+	 * The configuration key to set the record delimiter.
+	 */
+	public static final String RECORD_DELIMITER = "delimited-format.delimiter";
+	
+	/**
+	 * The configuration key to set the record delimiter encoding.
+	 */
+	private static final String RECORD_DELIMITER_ENCODING = "delimited-format.delimiter-encoding";
+	
+	/**
+	 * The configuration key to set the number of samples to take for the statistics.
+	 */
+	private static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
+	
 	// --------------------------------------------------------------------------------------------
 	
 	protected byte[] readBuffer;
@@ -78,7 +89,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 
 	protected int limit;
 
-	protected byte[] delimiter = new byte[] { '\n' };
+	protected byte[] delimiter = new byte[] {'\n'};
 	
 	private byte[] currBuffer;
 	private int currOffset;
@@ -151,12 +162,18 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	{
 		super.configure(parameters);
 		
-		String delimString = parameters.getString(RECORD_DELIMITER, "\n");
+		final String delimString = parameters.getString(RECORD_DELIMITER, AbstractConfigBuilder.NEWLINE_DELIMITER);
 		if (delimString == null) {
 			throw new IllegalArgumentException("The delimiter not be null.");
 		}
+		final String charsetName = parameters.getString(RECORD_DELIMITER_ENCODING, null);
 
-		this.delimiter = delimString.getBytes();
+		try {
+			this.delimiter = charsetName == null ? delimString.getBytes() : delimString.getBytes(charsetName);
+		} catch (UnsupportedEncodingException useex) {
+			throw new IllegalArgumentException("The charset with the name '" + charsetName + 
+				"' is not supported on this TaskManager instance.", useex);
+		}
 		
 		// set the number of samples
 		this.numLineSamples = DEFAULT_NUM_SAMPLES;
@@ -374,6 +391,9 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 		return this.end;
 	}
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#nextRecord(java.lang.Object)
+	 */
 	@Override
 	public boolean nextRecord(PactRecord record) throws IOException
 	{
@@ -500,5 +520,118 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 			this.limit = read;
 			return true;
 		}
+	}
+	
+	// ============================================================================================
+	
+	/**
+	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
+	 * fashion.
+	 * 
+	 * @return A config builder for setting parameters.
+	 */
+	public static ConfigBuilder configureDelimitedFormat(FileDataSource target) {
+		return new ConfigBuilder(target.getParameters());
+	}
+	
+	/**
+	 * Abstract builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	protected static class AbstractConfigBuilder<T> extends FileInputFormat.AbstractConfigBuilder<T>
+	{
+		private static final String NEWLINE_DELIMITER = "\n";
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected AbstractConfigBuilder(Configuration config) {
+			super(config);
+		}
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Sets the delimiter to be a single character, namely the given one. The character must be within
+		 * the value range <code>0</code> to <code>127</code>.
+		 * 
+		 * @param delimiter The delimiter character.
+		 * @return The builder itself.
+		 */
+		public T recordDelimiter(char delimiter) {
+			if (delimiter == '\n') {
+				this.config.setString(RECORD_DELIMITER, NEWLINE_DELIMITER);
+			} else {
+				this.config.setString(RECORD_DELIMITER, String.valueOf(delimiter));
+			}
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		/**
+		 * Sets the delimiter to be the given string. The string will be converted to bytes for more efficient
+		 * comparison during input parsing. The conversion will be done using the platforms default charset.
+		 * 
+		 * @param delimiter The delimiter string.
+		 * @return The builder itself.
+		 */
+		public T recordDelimiter(String delimiter) {
+			this.config.setString(RECORD_DELIMITER, delimiter);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		/**
+		 * Sets the delimiter to be the given string. The string will be converted to bytes for more efficient
+		 * comparison during input parsing. The conversion will be done using the charset with the given name.
+		 * The charset must be available on the processing nodes, otherwise an exception will be raised at
+		 * runtime.
+		 * 
+		 * @param delimiter The delimiter string.
+		 * @param charsetName The name of the encoding character set.
+		 * @return The builder itself.
+		 */
+		public T recordDelimiter(String delimiter, String charsetName) {
+			this.config.setString(RECORD_DELIMITER, delimiter);
+			this.config.setString(RECORD_DELIMITER_ENCODING, charsetName);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		/**
+		 * Sets the number of line samples to take in order to estimate the base statistics for the
+		 * input format.
+		 * 
+		 * @param numSamples The number of line samples to take.
+		 * @return The builder itself.
+		 */
+		public T numSamplesForStatistics(int numSamples) {
+			this.config.setInteger(NUM_STATISTICS_SAMPLES, numSamples);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+	}
+	
+	/**
+	 * A builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
+	{
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected ConfigBuilder(Configuration targetConfig) {
+			super(targetConfig);
+		}
+		
 	}
 }

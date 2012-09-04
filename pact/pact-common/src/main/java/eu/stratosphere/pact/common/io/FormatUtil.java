@@ -60,6 +60,7 @@ public class FormatUtil {
 		final T inputFormat = ReflectionUtil.newInstance(inputFormatClass);
 
 		configuration.setString(FileInputFormat.FILE_PARAMETER_KEY, path);
+		configuration.setLong(FileInputFormat.INPUT_STREAM_OPEN_TIMEOUT_KEY, 0);
 		inputFormat.configure(configuration);
 
 		final FileSystem fs = FileSystem.get(normalizedPath.toUri());
@@ -124,6 +125,7 @@ public class FormatUtil {
 		configuration = configuration == null ? new Configuration() : configuration;
 
 		configuration.setString(FileOutputFormat.FILE_PARAMETER_KEY, path);
+		configuration.setLong(FileOutputFormat.OUTPUT_STREAM_OPEN_TIMEOUT_KEY, 0);
 		outputFormat.configure(configuration);
 		outputFormat.open(1);
 		return outputFormat;

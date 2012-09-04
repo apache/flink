@@ -19,10 +19,13 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 
 /**
+ * Abstract class to provide basic implementations for array type nodes.
+ * 
  * @author Arvid Heise
  */
 public abstract class AbstractArrayNode extends AbstractJsonNode implements IArrayNode {
@@ -40,9 +43,9 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 	}
 
 	@Override
-	public void copyValueFrom(IJsonNode otherNode) {
+	public void copyValueFrom(final IJsonNode otherNode) {
 		this.clear();
-		for (IJsonNode child : (IArrayNode) otherNode)
+		for (final IJsonNode child : (IArrayNode) otherNode)
 			this.add(child);
 	}
 
@@ -59,14 +62,14 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 	}
 
 	@Override
-	public IArrayNode addAll(IArrayNode node) {
-		for (IJsonNode n : node)
+	public IArrayNode addAll(final IArrayNode node) {
+		for (final IJsonNode n : node)
 			this.add(n);
 		return this;
 	}
 
 	@Override
-	public IArrayNode addAll(IJsonNode[] nodes) {
+	public IArrayNode addAll(final IJsonNode[] nodes) {
 		this.addAll(Arrays.asList(nodes));
 		return this;
 	}
@@ -98,19 +101,65 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 	 * @see eu.stratosphere.sopremo.type.IArrayNode#setAll(eu.stratosphere.sopremo.type.IJsonNode[])
 	 */
 	@Override
-	public void setAll(IJsonNode[] nodes) {
+	public void setAll(final IJsonNode[] nodes) {
 		this.clear();
-		for (IJsonNode node : nodes)
+		for (final IJsonNode node : nodes)
 			this.add(node);
 	}
 
 	@Override
 	public IJsonNode[] toArray() {
 		IJsonNode[] result = new IJsonNode[this.size()];
-		int i = 0;
-		for (IJsonNode node : this)
-			result[i++] = node;
-
+		fillArray(result);
 		return result;
+	}
+
+	protected void fillArray(IJsonNode[] result) {
+		int i = 0;
+		for (final IJsonNode node : this)
+			result[i++] = node;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.AbstractJsonNode#hashCode()
+	 */
+	@Override
+	public int hashCode() {
+		final int prime = 41;
+		int hashCode = prime;
+		for (IJsonNode node : this)
+			hashCode = (hashCode + node.hashCode()) * prime;
+		return prime;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (this.getClass() != obj.getClass())
+			return false;
+
+		final Iterator<IJsonNode> thisIter = iterator(), thatIter = ((Iterable<IJsonNode>) obj).iterator();
+		while (thisIter.hasNext() && thatIter.hasNext())
+			if (!thisIter.next().equals(thatIter.next()))
+				return false;
+		return thisIter.hasNext() == thatIter.hasNext();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IArrayNode#toArray(eu.stratosphere.sopremo.type.IJsonNode[])
+	 */
+	@Override
+	public IJsonNode[] toArray(IJsonNode[] array) {
+		final int size = this.size();
+		if (array.length != size)
+			array = new IJsonNode[size];
+		fillArray(array);
+		return array;
 	}
 }

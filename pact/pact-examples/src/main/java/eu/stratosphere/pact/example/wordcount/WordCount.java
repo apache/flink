@@ -136,20 +136,21 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 
 		FileDataSource source = new FileDataSource(TextInputFormat.class, dataInput, "Input Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");		// comment out this line for UTF-8 inputs
-		
-		MapContract mapper = new MapContract(TokenizeLine.class, source, "Tokenize Lines");
-		
-		ReduceContract reducer = new ReduceContract(CountWords.class, PactString.class, 0, mapper, "Count Words");
-		
+		MapContract mapper = MapContract.builder(TokenizeLine.class)
+			.input(source)
+			.name("Tokenize Lines")
+			.build();
+		ReduceContract reducer = new ReduceContract.Builder(CountWords.class, PactString.class, 0)
+			.input(mapper)
+			.name("Count Words")
+			.build();
 		FileDataSink out = new FileDataSink(RecordOutputFormat.class, output, reducer, "Word Counts");
-		out.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-		out.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, " ");
-		out.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-		out.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 2);
-		out.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		out.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
-		out.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
-		out.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
+		RecordOutputFormat.configureRecordFormat(out)
+			.recordDelimiter('\n')
+			.fieldDelimiter(' ')
+			.lenient(true)
+			.field(PactString.class, 0)
+			.field(PactInteger.class, 1);
 		
 		Plan plan = new Plan(out, "WordCount Example");
 		plan.setDefaultParallelism(noSubTasks);

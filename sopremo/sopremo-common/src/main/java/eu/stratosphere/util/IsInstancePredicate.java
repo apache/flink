@@ -20,7 +20,7 @@ package eu.stratosphere.util;
 public class IsInstancePredicate implements Predicate<Object> {
 	private final Class<?> clazz;
 
-	public IsInstancePredicate(Class<?> clazz) {
+	public IsInstancePredicate(final Class<?> clazz) {
 		this.clazz = clazz;
 	}
 
@@ -29,7 +29,7 @@ public class IsInstancePredicate implements Predicate<Object> {
 	 * @see eu.stratosphere.util.Predicate#isTrue(java.lang.Object)
 	 */
 	@Override
-	public boolean isTrue(Object param) {
+	public boolean isTrue(final Object param) {
 		return this.clazz.isInstance(param);
 	}
 }

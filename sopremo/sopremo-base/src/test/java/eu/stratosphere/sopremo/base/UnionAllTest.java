@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.base;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.SopremoTest;
@@ -8,7 +7,6 @@ import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 
 public class UnionAllTest extends SopremoTest<UnionAll> {
 	@Test
-	@Ignore
 	public void shouldPerformThreeWayBagUnion() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(3, 1);
 
@@ -37,7 +35,6 @@ public class UnionAllTest extends SopremoTest<UnionAll> {
 			addValue(7).
 			addValue(8);
 
-		sopremoPlan.trace();
 		sopremoPlan.run();
 	}
 
@@ -60,7 +57,6 @@ public class UnionAllTest extends SopremoTest<UnionAll> {
 	}
 
 	@Test
-	@Ignore
 	public void shouldPerformTwoWayBagUnion() {
 		final SopremoTestPlan sopremoPlan = new SopremoTestPlan(2, 1);
 

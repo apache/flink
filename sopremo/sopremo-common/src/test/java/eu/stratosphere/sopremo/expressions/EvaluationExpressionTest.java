@@ -26,10 +26,10 @@ import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperat
 public class EvaluationExpressionTest {
 	@Test
 	public void shouldFindValues() {
-		InputSelection inputSelection = new InputSelection(1);
-		ObjectAccess objectAccess = new ObjectAccess("test");
-		PathExpression pathExpression = new PathExpression(inputSelection, objectAccess);
-		EvaluationExpression expression =
+		final InputSelection inputSelection = new InputSelection(1);
+		final ObjectAccess objectAccess = new ObjectAccess("test");
+		final PathExpression pathExpression = new PathExpression(inputSelection, objectAccess);
+		final EvaluationExpression expression =
 			new ArithmeticExpression(pathExpression, ArithmeticOperator.ADDITION, ConstantExpression.MISSING);
 
 		Assert.assertSame(inputSelection, expression.find(InputSelection.class));
@@ -38,12 +38,12 @@ public class EvaluationExpressionTest {
 
 	@Test
 	public void shouldRemoveValues() {
-		InputSelection inputSelection = new InputSelection(1);
-		ObjectAccess objectAccess = new ObjectAccess("test");
-		PathExpression pathExpression = new PathExpression(inputSelection, objectAccess);
-		EvaluationExpression expression =
+		final InputSelection inputSelection = new InputSelection(1);
+		final ObjectAccess objectAccess = new ObjectAccess("test");
+		final PathExpression pathExpression = new PathExpression(inputSelection, objectAccess);
+		final EvaluationExpression expression =
 			new ArithmeticExpression(pathExpression, ArithmeticOperator.ADDITION, ConstantExpression.MISSING);
-		EvaluationExpression referenceExpression = expression.clone();
+		final EvaluationExpression referenceExpression = expression.clone();
 
 		Assert.assertEquals(expression, referenceExpression);
 
@@ -51,9 +51,10 @@ public class EvaluationExpressionTest {
 		Assert.assertSame(expression, expression.remove(ObjectAccess.class));
 
 		Assert.assertTrue(expression.equals(referenceExpression));
-		
-		EvaluationExpression expected =
-			new ArithmeticExpression(new PathExpression(inputSelection), ArithmeticOperator.ADDITION, ConstantExpression.MISSING);
+
+		final EvaluationExpression expected =
+			new ArithmeticExpression(new PathExpression(inputSelection), ArithmeticOperator.ADDITION,
+				ConstantExpression.MISSING);
 
 		Assert.assertEquals(expression, expected);
 		Assert.assertSame(inputSelection, expression.find(InputSelection.class));

@@ -67,6 +67,8 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
+import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.SequentialInputFormat;
 import eu.stratosphere.pact.common.io.SequentialOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -133,72 +135,6 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 
 public class TestPlan implements Closeable {
 
-	private static final class CostEstimator extends FixedSizeClusterCostEstimator {
-		private CostEstimator() {
-			super();
-		}
-		//
-		// @Override
-		// public void getBroadcastCost(OptimizerNode target, OptimizerNode
-		// source, Costs costs) {
-		// costs.setNetworkCost(Long.MAX_VALUE);
-		// }
-	}
-
-	private final class ExecutionExceptionHandler implements ExecutionListener {
-		private String executionError;
-
-		public ExecutionVertex executionVertex;
-
-		public ExecutionExceptionHandler(ExecutionVertex executionVertex) {
-			this.executionVertex = executionVertex;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.nephele.execution.ExecutionListener#executionStateChanged(eu.stratosphere.nephele.jobgraph
-		 * .JobID, eu.stratosphere.nephele.executiongraph.ExecutionVertexID,
-		 * eu.stratosphere.nephele.execution.ExecutionState, java.lang.String)
-		 */
-		@Override
-		public void executionStateChanged(JobID jobID, ExecutionVertexID vertexID, ExecutionState newExecutionState,
-				String optionalMessage) {
-			if (newExecutionState == ExecutionState.FAILED && this.executionError == null)
-				this.executionError = optionalMessage == null ? "FAILED" : optionalMessage;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.nephele.execution.ExecutionListener#userThreadStarted(eu.stratosphere.nephele.jobgraph.JobID,
-		 * eu.stratosphere.nephele.executiongraph.ExecutionVertexID, java.lang.Thread)
-		 */
-		@Override
-		public void userThreadStarted(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.nephele.execution.ExecutionListener#userThreadFinished(eu.stratosphere.nephele.jobgraph.JobID
-		 * , eu.stratosphere.nephele.executiongraph.ExecutionVertexID, java.lang.Thread)
-		 */
-		@Override
-		public void userThreadFinished(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see eu.stratosphere.nephele.execution.ExecutionListener#getPriority()
-		 */
-		@Override
-		public int getPriority() {
-			return 13;
-		}
-
-	}
-
 	private static final InstanceTypeDescription MOCK_INSTANCE_DESCRIPTION =
 		InstanceTypeDescriptionFactory.construct(
 			MockInstanceManager.DEFAULT_INSTANCE_TYPE, MockInstance.DESCRIPTION, 1);
@@ -227,6 +163,23 @@ public class TestPlan implements Closeable {
 	private final Map<GenericDataSink, FuzzyValueMatcher> fuzzyMatchers =
 		new HashMap<GenericDataSink, FuzzyValueMatcher>();
 
+	private LocalScheduler localScheduler;
+
+	List<ExecutionExceptionHandler> errorHandlers = new ArrayList<TestPlan.ExecutionExceptionHandler>();
+
+	/**
+	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
+	 * {@link GenericDataSink}s. However, it
+	 * is also possible to add arbitrary Contracts, to which FileDataSinkContracts
+	 * are automatically added.
+	 * 
+	 * @param contracts
+	 *        a list of Contracts with at least one element.
+	 */
+	public TestPlan(final Collection<? extends Contract> contracts) {
+		this(contracts.toArray(new Contract[contracts.size()]));
+	}
+
 	/**
 	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
 	 * {@link GenericDataSink}s. However, it
@@ -249,59 +202,7 @@ public class TestPlan implements Closeable {
 		this.contracts = new InputOutputAdder().process(contracts);
 
 		this.findSinksAndSources();
-	}
-
-	/**
-	 * Initializes TestPlan with the given {@link Contract}s. Like the original {@link Plan}, the contracts may be
-	 * {@link GenericDataSink}s. However, it
-	 * is also possible to add arbitrary Contracts, to which FileDataSinkContracts
-	 * are automatically added.
-	 * 
-	 * @param contracts
-	 *        a list of Contracts with at least one element.
-	 */
-	public TestPlan(final Collection<? extends Contract> contracts) {
-		this(contracts.toArray(new Contract[contracts.size()]));
-	}
-
-	/**
-	 * Returns all {@link GenericDataSink}s of this test plan.
-	 * 
-	 * @return the sinks
-	 */
-	public List<FileDataSink> getSinks() {
-		return this.sinks;
-	}
-
-	/**
-	 * Returns the sources.
-	 * 
-	 * @return the sources
-	 */
-	public List<FileDataSource> getSources() {
-		return this.sources;
-	}
-
-	/**
-	 * Set the allowed delta for PactDouble values to match expected and actual values that differ due to inaccuracies
-	 * in the floating point calculation.
-	 * 
-	 * @param delta
-	 *        the delta that the actual value is allowed to differ from the expected value.
-	 */
-	public void setAllowedPactDoubleDelta(double delta) {
-		ListIterator<ValueSimilarity<?>> simIter =
-			this.getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES).listIterator();
-		// replace existing
-		while (simIter.hasNext()) {
-			ValueSimilarity<?> sim = simIter.next();
-			if (sim instanceof DoubleValueSimilarity) {
-				simIter.set(new DoubleValueSimilarity(delta));
-				return;
-			}
-		}
-		// or add new
-		this.addFuzzyValueSimilarity(new DoubleValueSimilarity(delta));
+		this.configureSinksAndSources();
 	}
 
 	/**
@@ -319,16 +220,6 @@ public class TestPlan implements Closeable {
 	}
 
 	/**
-	 * Sets a fuzzy similarity measure for the values of all data sinks.
-	 * 
-	 * @param similarity
-	 *        the similarity measure to use
-	 */
-	public void addFuzzyValueSimilarity(ValueSimilarity<?> similarity) {
-		this.addFuzzyValueSimilarity(ALL_SINKS, similarity);
-	}
-
-	/**
 	 * Sets a fuzzy similarity measure for the values of the given data sink.
 	 * 
 	 * @param <V>
@@ -343,228 +234,27 @@ public class TestPlan implements Closeable {
 	}
 
 	/**
-	 * Removes the fuzzy similarity measure of the given data sink.
+	 * Sets a fuzzy similarity measure for the values of all data sinks.
 	 * 
-	 * @param sink
-	 *        the data sink
+	 * @param similarity
+	 *        the similarity measure to use
 	 */
-	public void removeFuzzyValueSimilarity(GenericDataSink sink) {
-		this.fuzzySimilarity.remove(sink);
+	public void addFuzzyValueSimilarity(ValueSimilarity<?> similarity) {
+		this.addFuzzyValueSimilarity(ALL_SINKS, similarity);
 	}
 
-	/**
-	 * Returns the fuzzy similarity measure of the given data sink. If no measure has been explicitly set for this sink,
-	 * the measure for all sinks is returned if set.
-	 * 
-	 * @param sink
-	 *        the data sink
-	 * @param <V>
-	 *        the value type
-	 * @return the similarity measure
-	 */
-	public List<ValueSimilarity<?>> getFuzzySimilarities(GenericDataSink sink, int valueIndex) {
-		Int2ObjectMap<List<ValueSimilarity<?>>> indexMap = this.getFuzzySimilarityIndexMap(sink);
-		List<ValueSimilarity<?>> list = indexMap.get(valueIndex);
-		if (list == null)
-			indexMap.put(valueIndex, list = new ArrayList<ValueSimilarity<?>>());
-		return list;
-	}
+	@Override
+	public void close() throws IOException {
+		ClosableManager closableManager = new ClosableManager();
 
-	protected Int2ObjectMap<List<ValueSimilarity<?>>> getFuzzySimilarityIndexMap(GenericDataSink sink) {
-		Int2ObjectMap<List<ValueSimilarity<?>>> indexMap = this.fuzzySimilarity.get(sink);
-		if (indexMap == null)
-			this.fuzzySimilarity.put(sink, indexMap = new Int2ObjectArrayMap<List<ValueSimilarity<?>>>());
-		return indexMap;
-	}
+		for (TestRecords pairs : this.inputs.values())
+			closableManager.add(pairs);
+		for (TestRecords pairs : this.actualOutputs.values())
+			closableManager.add(pairs);
+		for (TestRecords pairs : this.expectedOutputs.values())
+			closableManager.add(pairs);
 
-	/**
-	 * Returns the default fuzzy similarity measure of all data sinks.
-	 * 
-	 * @return the similarity measure
-	 */
-	public List<ValueSimilarity<?>> getFuzzySimilarities() {
-		return this.getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES);
-	}
-
-	/**
-	 * Sets a fuzzy global matcher for the values of the given data sink.
-	 * 
-	 * @param <V>
-	 *        the value type
-	 * @param sink
-	 *        the data sink
-	 * @param matcher
-	 *        the global matcher to use
-	 */
-	public void setFuzzyValueMatcher(GenericDataSink sink, FuzzyValueMatcher matcher) {
-		this.fuzzyMatchers.put(sink, matcher);
-	}
-
-	/**
-	 * Sets a fuzzy global matcher for the values of all data sinks.
-	 * 
-	 * @param matcher
-	 *        the global matcher to use
-	 */
-	public void setFuzzyValueMatcher(FuzzyValueMatcher matcher) {
-		this.fuzzyMatchers.put(ALL_SINKS, matcher);
-	}
-
-	/**
-	 * Removes the fuzzy global matcher of the given data sink.
-	 * 
-	 * @param sink
-	 *        the data sink
-	 */
-	public void removeFuzzyValueMatcher(GenericDataSink sink) {
-		this.fuzzyMatchers.remove(sink);
-	}
-
-	/**
-	 * Returns the global matcher of the given data sink. If no measure has been explicitly set for this sink,
-	 * the matcher for all sinks is returned if set.
-	 * 
-	 * @param sink
-	 *        the data sink
-	 * @param <V>
-	 *        the value type
-	 * @return the global matcher
-	 */
-	public FuzzyValueMatcher getFuzzyMatcher(GenericDataSink sink) {
-		FuzzyValueMatcher matcher = this.fuzzyMatchers.get(sink);
-		if (matcher == null)
-			matcher = this.fuzzyMatchers.get(ALL_SINKS);
-		return matcher;
-	}
-
-	/**
-	 * Returns the default fuzzy global matcher of all data sinks.
-	 * 
-	 * @return the global matcher
-	 */
-	public FuzzyValueMatcher getFuzzyMatcher() {
-		return this.fuzzyMatchers.get(ALL_SINKS);
-	}
-
-	/**
-	 * Allowed delta for PactDouble values, default value is 0.
-	 * 
-	 * @return the allowed delta
-	 */
-	public double getAllowedPactDoubleDelta() {
-		for (ValueSimilarity<?> sim : this.getFuzzySimilarities())
-			if (sim instanceof DoubleValueSimilarity)
-				return ((DoubleValueSimilarity) sim).getDelta();
-		return 0;
-	}
-
-	/**
-	 * Locally executes the {@link ExecutionGraph}.
-	 */
-	private void execute(final ExecutionGraph eg) {
-		while (!eg.isExecutionFinished() && eg.getJobStatus() != InternalJobStatus.FAILED)
-			try {
-				Thread.sleep(10);
-			} catch (final InterruptedException e) {
-			}
-	}
-
-	/**
-	 * Traverses the plan for all sinks and sources.
-	 */
-	private void findSinksAndSources() {
-		for (final Contract contract : this.contracts)
-			contract.accept(new Visitor<Contract>() {
-				@Override
-				public void postVisit(final Contract visitable) {
-				}
-
-				@Override
-				public boolean preVisit(final Contract visitable) {
-					if (visitable instanceof FileDataSink && !TestPlan.this.sinks.contains(visitable))
-						TestPlan.this.sinks.add((FileDataSink) visitable);
-					if (visitable instanceof FileDataSource && !TestPlan.this.sources.contains(visitable))
-						TestPlan.this.sources.add((FileDataSource) visitable);
-					return true;
-				}
-			});
-
-		for (FileDataSource source : this.sources)
-			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath(), source.getParameters());
-	}
-
-	/**
-	 * Actually builds the plan but guarantees that the output can be read
-	 * without additional knowledge. Currently the {@link SequentialOutputFormat} is used for a guaranteed
-	 * deserializable
-	 * output.<br>
-	 * If a data source is not {@link SequentialOutputFormat}, it is replaced by
-	 * a {@link SplittingOutputFormat}, with two outputs: the original one and
-	 * one {@link SequentialOutputFormat}.
-	 */
-	private Plan buildPlanWithReadableSinks() {
-		final Collection<FileDataSink> existingSinks = this.getDataSinks();
-		final Collection<GenericDataSink> wrappedSinks = new ArrayList<GenericDataSink>();
-		for (final FileDataSink fileSink : existingSinks)
-			// need a format which is deserializable without configuration
-			if (!fileSink.getFormatClass().equals(SequentialOutputFormat.class)) {
-				TestRecords expectedValues = this.expectedOutputs.get(fileSink);
-
-				final FileDataSink safeSink = createDefaultSink(fileSink.getName());
-
-				safeSink.setInputs(fileSink.getInputs());
-
-				wrappedSinks.add(fileSink);
-				wrappedSinks.add(safeSink);
-
-				// only add to expected outputs if we need to check for values
-				if (expectedValues != null)
-					this.expectedOutputs.put(safeSink, expectedValues);
-				this.actualOutputs.put(safeSink, this.getActualOutput(fileSink));
-				this.getActualOutput(fileSink).fromFile(SequentialInputFormat.class, safeSink.getFilePath());
-
-			} else {
-				wrappedSinks.add(fileSink);
-				this.getActualOutput(fileSink).fromFile(SequentialInputFormat.class, fileSink.getFilePath());
-			}
-
-		return new Plan(wrappedSinks);
-	}
-
-	/**
-	 * Sets the degree of parallelism for every node in the plan.
-	 */
-	private void syncDegreeOfParallelism(final Plan plan) {
-		plan.accept(new Visitor<Contract>() {
-
-			@Override
-			public void postVisit(final Contract visitable) {
-			}
-
-			@Override
-			public boolean preVisit(final Contract visitable) {
-				int degree = TestPlan.this.getDegreeOfParallelism();
-				if (visitable instanceof GenericDataSource<?>)
-					degree = 1;
-				else if (degree > 1 && visitable instanceof FileDataSink)
-					try {
-						Path path = new Path(((FileDataSink) visitable).getFilePath());
-
-						final FileSystem fs = path.getFileSystem();
-
-						final FileStatus f = fs.getFileStatus(path);
-
-						if (!f.isDir()) {
-							fs.delete(path, false);
-							fs.mkdirs(path);
-						}
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				visitable.setDegreeOfParallelism(degree);
-				return true;
-			}
-		});
+		closableManager.close();
 	}
 
 	/**
@@ -618,12 +308,16 @@ public class TestPlan implements Closeable {
 		return this.getActualOutput(this.getDataSinks().get(number));
 	}
 
-	private List<FileDataSink> getDataSinks() {
-		return this.sinks;
-	}
-
-	private List<? extends GenericDataSource<?>> getDataSources() {
-		return this.sources;
+	/**
+	 * Allowed delta for PactDouble values, default value is 0.
+	 * 
+	 * @return the allowed delta
+	 */
+	public double getAllowedPactDoubleDelta() {
+		for (ValueSimilarity<?> sim : this.getFuzzySimilarities())
+			if (sim instanceof DoubleValueSimilarity)
+				return ((DoubleValueSimilarity) sim).getDelta();
+		return 0;
 	}
 
 	/**
@@ -633,93 +327,6 @@ public class TestPlan implements Closeable {
 	 */
 	public int getDegreeOfParallelism() {
 		return this.degreeOfParallelism;
-	}
-
-	private ExecutionGraph getExecutionGraph() throws IOException, GraphConversionException {
-		final Plan plan = this.buildPlanWithReadableSinks();
-		this.syncDegreeOfParallelism(plan);
-		this.initAdhocInputs();
-
-		final OptimizedPlan optimizedPlan = this.compile(plan);
-		this.replaceShippingStrategy(optimizedPlan);
-		final JobGraph jobGraph = new JobGraphGenerator().compileJobGraph(optimizedPlan);
-		for (AbstractJobVertex vertex : jobGraph.getAllJobVertices())
-			vertex.setNumberOfExecutionRetries(0);
-		LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
-		return new ExecutionGraph(jobGraph, MockInstanceManager.INSTANCE);
-	}
-
-	private OptimizedPlan compile(final Plan plan) {
-		final OptimizedPlan optimizedPlan =
-			new PactCompiler(null, new CostEstimator(), new InetSocketAddress(0)).compile(
-				plan, MOCK_INSTANCE_DESCRIPTION);
-		return optimizedPlan;
-	}
-
-	private void replaceShippingStrategy(final OptimizedPlan optimizedPlan) {
-		// final Field declaredField =
-		// PactConnection.class.getDeclaredField("shipStrategy");
-		// declaredField.setAccessible(true);
-		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
-			for (final PactConnection pactConnection : node.getIncomingConnections())
-				pactConnection.setShipStrategy(new ForwardSS());
-			for (final PactConnection pactConnection : node.getOutConns())
-				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
-				pactConnection.setShipStrategy(new ForwardSS());
-		}
-	}
-
-	private void initAdhocInputs() throws IOException {
-		for (final FileDataSource source : this.sources) {
-			final TestRecords input = this.getInput(source);
-			if (input.isAdhoc())
-				input.saveToFile(source.getFilePath());
-		}
-	}
-
-	/**
-	 * Traverses the test plan and returns the first contracts that process the
-	 * data of the given contract.
-	 * 
-	 * @param contract
-	 *        the contract of which one preceding contracts should be
-	 *        returned
-	 * @return returns the first contract that process the data of the given
-	 *         contract
-	 */
-	public Contract getOutputOfContract(Contract contract) {
-		return this.getOutputsOfContract(contract)[0];
-	}
-
-	/**
-	 * Traverses the test plan and returns all contracts that process the data
-	 * of the given contract.
-	 * 
-	 * @param contract
-	 *        the contract of which preceding contracts should be returned
-	 * @return returns all contracts that process the data of the given contract
-	 */
-	public Contract[] getOutputsOfContract(final Contract contract) {
-		final ArrayList<Contract> outputs = new ArrayList<Contract>();
-
-		for (final Contract sink : this.sinks)
-			sink.accept(new Visitor<Contract>() {
-				LinkedList<Contract> outputStack = new LinkedList<Contract>();
-
-				@Override
-				public void postVisit(final Contract visitable) {
-				}
-
-				@Override
-				public boolean preVisit(final Contract visitable) {
-					if (visitable == contract)
-						outputs.add(this.outputStack.peek());
-					this.outputStack.push(visitable);
-					return true;
-				}
-			});
-
-		return outputs.toArray(new Contract[outputs.size()]);
 	}
 
 	/**
@@ -823,6 +430,59 @@ public class TestPlan implements Closeable {
 	}
 
 	/**
+	 * Returns the default fuzzy global matcher of all data sinks.
+	 * 
+	 * @return the global matcher
+	 */
+	public FuzzyValueMatcher getFuzzyMatcher() {
+		return this.fuzzyMatchers.get(ALL_SINKS);
+	}
+
+	/**
+	 * Returns the global matcher of the given data sink. If no measure has been explicitly set for this sink,
+	 * the matcher for all sinks is returned if set.
+	 * 
+	 * @param sink
+	 *        the data sink
+	 * @param <V>
+	 *        the value type
+	 * @return the global matcher
+	 */
+	public FuzzyValueMatcher getFuzzyMatcher(GenericDataSink sink) {
+		FuzzyValueMatcher matcher = this.fuzzyMatchers.get(sink);
+		if (matcher == null)
+			matcher = this.fuzzyMatchers.get(ALL_SINKS);
+		return matcher;
+	}
+
+	/**
+	 * Returns the default fuzzy similarity measure of all data sinks.
+	 * 
+	 * @return the similarity measure
+	 */
+	public List<ValueSimilarity<?>> getFuzzySimilarities() {
+		return this.getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES);
+	}
+
+	/**
+	 * Returns the fuzzy similarity measure of the given data sink. If no measure has been explicitly set for this sink,
+	 * the measure for all sinks is returned if set.
+	 * 
+	 * @param sink
+	 *        the data sink
+	 * @param <V>
+	 *        the value type
+	 * @return the similarity measure
+	 */
+	public List<ValueSimilarity<?>> getFuzzySimilarities(GenericDataSink sink, int valueIndex) {
+		Int2ObjectMap<List<ValueSimilarity<?>>> indexMap = this.getFuzzySimilarityIndexMap(sink);
+		List<ValueSimilarity<?>> list = indexMap.get(valueIndex);
+		if (list == null)
+			indexMap.put(valueIndex, list = new ArrayList<ValueSimilarity<?>>());
+		return list;
+	}
+
+	/**
 	 * Returns the first input {@link TestPairs} of the TestPlan. If multiple
 	 * contracts are tested in the TestPlan, it is recommended to use the {@link #getInput(GenericDataSource<?>)} method
 	 * to unambiguously set the
@@ -870,7 +530,88 @@ public class TestPlan implements Closeable {
 		return this.getInput(this.getDataSources().get(number));
 	}
 
-	private LocalScheduler localScheduler;
+	/**
+	 * Traverses the test plan and returns the first contracts that process the
+	 * data of the given contract.
+	 * 
+	 * @param contract
+	 *        the contract of which one preceding contracts should be
+	 *        returned
+	 * @return returns the first contract that process the data of the given
+	 *         contract
+	 */
+	public Contract getOutputOfContract(Contract contract) {
+		return this.getOutputsOfContract(contract)[0];
+	}
+
+	/**
+	 * Traverses the test plan and returns all contracts that process the data
+	 * of the given contract.
+	 * 
+	 * @param contract
+	 *        the contract of which preceding contracts should be returned
+	 * @return returns all contracts that process the data of the given contract
+	 */
+	public Contract[] getOutputsOfContract(final Contract contract) {
+		final ArrayList<Contract> outputs = new ArrayList<Contract>();
+
+		for (final Contract sink : this.sinks)
+			sink.accept(new Visitor<Contract>() {
+				LinkedList<Contract> outputStack = new LinkedList<Contract>();
+
+				@Override
+				public void postVisit(final Contract visitable) {
+				}
+
+				@Override
+				public boolean preVisit(final Contract visitable) {
+					if (visitable == contract)
+						outputs.add(this.outputStack.peek());
+					this.outputStack.push(visitable);
+					return true;
+				}
+			});
+
+		return outputs.toArray(new Contract[outputs.size()]);
+	}
+
+	/**
+	 * Returns all {@link GenericDataSink}s of this test plan.
+	 * 
+	 * @return the sinks
+	 */
+	public List<FileDataSink> getSinks() {
+		return this.sinks;
+	}
+
+	/**
+	 * Returns the sources.
+	 * 
+	 * @return the sources
+	 */
+	public List<FileDataSource> getSources() {
+		return this.sources;
+	}
+
+	/**
+	 * Removes the fuzzy global matcher of the given data sink.
+	 * 
+	 * @param sink
+	 *        the data sink
+	 */
+	public void removeFuzzyValueMatcher(GenericDataSink sink) {
+		this.fuzzyMatchers.remove(sink);
+	}
+
+	/**
+	 * Removes the fuzzy similarity measure of the given data sink.
+	 * 
+	 * @param sink
+	 *        the data sink
+	 */
+	public void removeFuzzyValueSimilarity(GenericDataSink sink) {
+		this.fuzzySimilarity.remove(sink);
+	}
 
 	/**
 	 * Compiles the plan to an {@link ExecutionGraph} and executes it. If
@@ -900,6 +641,7 @@ public class TestPlan implements Closeable {
 		try {
 			this.validateResults();
 		} finally {
+			this.errorHandlers.clear();
 			try {
 				this.close();
 			} catch (IOException e) {
@@ -951,6 +693,191 @@ public class TestPlan implements Closeable {
 			} catch (IOException e) {
 			}
 		}
+	}
+
+	/**
+	 * Set the allowed delta for PactDouble values to match expected and actual values that differ due to inaccuracies
+	 * in the floating point calculation.
+	 * 
+	 * @param delta
+	 *        the delta that the actual value is allowed to differ from the expected value.
+	 */
+	public void setAllowedPactDoubleDelta(double delta) {
+		ListIterator<ValueSimilarity<?>> simIter =
+			this.getFuzzySimilarities(ALL_SINKS, TestRecords.ALL_VALUES).listIterator();
+		// replace existing
+		while (simIter.hasNext()) {
+			ValueSimilarity<?> sim = simIter.next();
+			if (sim instanceof DoubleValueSimilarity) {
+				simIter.set(new DoubleValueSimilarity(delta));
+				return;
+			}
+		}
+		// or add new
+		this.addFuzzyValueSimilarity(new DoubleValueSimilarity(delta));
+	}
+
+	/**
+	 * Sets the degreeOfParallelism to the specified value.
+	 * 
+	 * @param degreeOfParallelism
+	 *        the degreeOfParallelism to set
+	 */
+	public void setDegreeOfParallelism(final int degreeOfParallelism) {
+		this.degreeOfParallelism = degreeOfParallelism;
+	}
+
+	/**
+	 * Sets a fuzzy global matcher for the values of all data sinks.
+	 * 
+	 * @param matcher
+	 *        the global matcher to use
+	 */
+	public void setFuzzyValueMatcher(FuzzyValueMatcher matcher) {
+		this.fuzzyMatchers.put(ALL_SINKS, matcher);
+	}
+
+	/**
+	 * Sets a fuzzy global matcher for the values of the given data sink.
+	 * 
+	 * @param <V>
+	 *        the value type
+	 * @param sink
+	 *        the data sink
+	 * @param matcher
+	 *        the global matcher to use
+	 */
+	public void setFuzzyValueMatcher(GenericDataSink sink, FuzzyValueMatcher matcher) {
+		this.fuzzyMatchers.put(sink, matcher);
+	}
+
+	protected void addErrorHandler(ExecutionGraph eg) {
+		ExecutionGraphIterator executionGraphIterator = new ExecutionGraphIterator(eg, true);
+		while (executionGraphIterator.hasNext()) {
+			ExecutionVertex executionVertex = executionGraphIterator.next();
+			ExecutionExceptionHandler errorHandler = new ExecutionExceptionHandler(executionVertex);
+			executionVertex.registerExecutionListener(errorHandler);
+			this.errorHandlers.add(errorHandler);
+		}
+	}
+
+	protected Int2ObjectMap<List<ValueSimilarity<?>>> getFuzzySimilarityIndexMap(GenericDataSink sink) {
+		Int2ObjectMap<List<ValueSimilarity<?>>> indexMap = this.fuzzySimilarity.get(sink);
+		if (indexMap == null)
+			this.fuzzySimilarity.put(sink, indexMap = new Int2ObjectArrayMap<List<ValueSimilarity<?>>>());
+		return indexMap;
+	}
+
+	/**
+	 * Actually builds the plan but guarantees that the output can be read
+	 * without additional knowledge. Currently the {@link SequentialOutputFormat} is used for a guaranteed
+	 * deserializable
+	 * output.<br>
+	 * If a data source is not {@link SequentialOutputFormat}, it is replaced by
+	 * a {@link SplittingOutputFormat}, with two outputs: the original one and
+	 * one {@link SequentialOutputFormat}.
+	 */
+	private Plan buildPlanWithReadableSinks() {
+		final Collection<FileDataSink> existingSinks = this.getDataSinks();
+		final Collection<GenericDataSink> wrappedSinks = new ArrayList<GenericDataSink>();
+		for (final FileDataSink fileSink : existingSinks)
+			// need a format which is deserializable without configuration
+			if (!fileSink.getFormatClass().equals(SequentialOutputFormat.class)) {
+				TestRecords expectedValues = this.expectedOutputs.get(fileSink);
+
+				final FileDataSink safeSink = createDefaultSink(fileSink.getName());
+
+				safeSink.setInputs(fileSink.getInputs());
+
+				wrappedSinks.add(fileSink);
+				wrappedSinks.add(safeSink);
+
+				// only add to expected outputs if we need to check for values
+				if (expectedValues != null)
+					this.expectedOutputs.put(safeSink, expectedValues);
+				this.actualOutputs.put(safeSink, this.getActualOutput(fileSink));
+				this.getActualOutput(fileSink).fromFile(SequentialInputFormat.class, safeSink.getFilePath());
+
+			} else {
+				wrappedSinks.add(fileSink);
+				this.getActualOutput(fileSink).fromFile(SequentialInputFormat.class, fileSink.getFilePath());
+			}
+
+		return new Plan(wrappedSinks);
+	}
+
+	private OptimizedPlan compile(final Plan plan) {
+		final OptimizedPlan optimizedPlan =
+			new PactCompiler(null, new CostEstimator(), new InetSocketAddress(0)).compile(
+				plan, MOCK_INSTANCE_DESCRIPTION);
+		return optimizedPlan;
+	}
+
+	/**
+	 * 
+	 */
+	private void configureSinksAndSources() {
+		for (FileDataSink sink : this.sinks)
+			sink.getParameters().setLong(FileOutputFormat.OUTPUT_STREAM_OPEN_TIMEOUT_KEY, 0);
+		for (FileDataSource source : this.sources)
+			source.getParameters().setLong(FileInputFormat.INPUT_STREAM_OPEN_TIMEOUT_KEY, 0);
+	}
+
+	/**
+	 * Locally executes the {@link ExecutionGraph}.
+	 */
+	private void execute(final ExecutionGraph eg) {
+		while (!eg.isExecutionFinished() && eg.getJobStatus() != InternalJobStatus.FAILED)
+			try {
+				Thread.sleep(10);
+			} catch (final InterruptedException e) {
+			}
+	}
+
+	/**
+	 * Traverses the plan for all sinks and sources.
+	 */
+	private void findSinksAndSources() {
+		for (final Contract contract : this.contracts)
+			contract.accept(new Visitor<Contract>() {
+				@Override
+				public void postVisit(final Contract visitable) {
+				}
+
+				@Override
+				public boolean preVisit(final Contract visitable) {
+					if (visitable instanceof FileDataSink && !TestPlan.this.sinks.contains(visitable))
+						TestPlan.this.sinks.add((FileDataSink) visitable);
+					if (visitable instanceof FileDataSource && !TestPlan.this.sources.contains(visitable))
+						TestPlan.this.sources.add((FileDataSource) visitable);
+					return true;
+				}
+			});
+
+		for (FileDataSource source : this.sources)
+			this.getInput(source).fromFile(source.getFormatClass(), source.getFilePath(), source.getParameters());
+	}
+
+	private List<FileDataSink> getDataSinks() {
+		return this.sinks;
+	}
+
+	private List<? extends GenericDataSource<?>> getDataSources() {
+		return this.sources;
+	}
+
+	private ExecutionGraph getExecutionGraph() throws IOException, GraphConversionException {
+		final Plan plan = this.buildPlanWithReadableSinks();
+		this.syncDegreeOfParallelism(plan);
+		this.initAdhocInputs();
+
+		final OptimizedPlan optimizedPlan = this.compile(plan);
+		this.replaceShippingStrategy(optimizedPlan);
+		final JobGraph jobGraph = new JobGraphGenerator().compileJobGraph(optimizedPlan);
+		for (AbstractJobVertex vertex : jobGraph.getAllJobVertices())
+			vertex.setNumberOfExecutionRetries(0);
+		LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
+		return new ExecutionGraph(jobGraph, MockInstanceManager.INSTANCE);
 	}
 
 	/**
@@ -1011,24 +938,76 @@ public class TestPlan implements Closeable {
 		return nepheleConfigDirJob;
 	}
 
-	protected void addErrorHandler(ExecutionGraph eg) {
-		ExecutionGraphIterator executionGraphIterator = new ExecutionGraphIterator(eg, true);
-		while (executionGraphIterator.hasNext()) {
-			ExecutionVertex executionVertex = executionGraphIterator.next();
-			ExecutionExceptionHandler errorHandler = new ExecutionExceptionHandler(executionVertex);
-			executionVertex.registerExecutionListener(errorHandler);
-			this.errorHandlers.add(errorHandler);
+	private void initAdhocInputs() throws IOException {
+		for (final FileDataSource source : this.sources) {
+			final TestRecords input = this.getInput(source);
+			if (input.isAdhoc())
+				input.saveToFile(source.getFilePath());
+		}
+	}
+
+	private Int2ObjectMap<List<ValueSimilarity<?>>> mergeSimilarityIndices(
+			Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap) {
+		similarityMap = new Int2ObjectOpenHashMap<List<ValueSimilarity<?>>>(similarityMap);
+		for (Entry<List<ValueSimilarity<?>>> entry : this.getFuzzySimilarityIndexMap(ALL_SINKS).int2ObjectEntrySet())
+			if (!entry.getValue().isEmpty()) {
+				List<ValueSimilarity<?>> existingList = similarityMap.get(entry.getKey());
+				if (existingList == null)
+					similarityMap.put(entry.getKey(), entry.getValue());
+				else
+					existingList.addAll(entry.getValue());
+			}
+		return similarityMap;
+	}
+
+	private void replaceShippingStrategy(final OptimizedPlan optimizedPlan) {
+		// final Field declaredField =
+		// PactConnection.class.getDeclaredField("shipStrategy");
+		// declaredField.setAccessible(true);
+		for (final OptimizerNode node : optimizedPlan.getAllNodes()) {
+			for (final PactConnection pactConnection : node.getIncomingConnections())
+				pactConnection.setShipStrategy(new ForwardSS());
+			for (final PactConnection pactConnection : node.getOutConns())
+				// declaredField.set(pactConnection, ShipStrategy.FORWARD);
+				pactConnection.setShipStrategy(new ForwardSS());
 		}
 	}
 
 	/**
-	 * Sets the degreeOfParallelism to the specified value.
-	 * 
-	 * @param degreeOfParallelism
-	 *        the degreeOfParallelism to set
+	 * Sets the degree of parallelism for every node in the plan.
 	 */
-	public void setDegreeOfParallelism(final int degreeOfParallelism) {
-		this.degreeOfParallelism = degreeOfParallelism;
+	private void syncDegreeOfParallelism(final Plan plan) {
+		plan.accept(new Visitor<Contract>() {
+
+			@Override
+			public void postVisit(final Contract visitable) {
+			}
+
+			@Override
+			public boolean preVisit(final Contract visitable) {
+				int degree = TestPlan.this.getDegreeOfParallelism();
+				if (visitable instanceof GenericDataSource<?>)
+					degree = 1;
+				else if (degree > 1 && visitable instanceof FileDataSink)
+					try {
+						Path path = new Path(((FileDataSink) visitable).getFilePath());
+
+						final FileSystem fs = path.getFileSystem();
+
+						final FileStatus f = fs.getFileStatus(path);
+
+						if (!f.isDir()) {
+							fs.delete(path, false);
+							fs.mkdirs(path);
+						}
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				if (visitable.getDegreeOfParallelism() == -1)
+					visitable.setDegreeOfParallelism(degree);
+				return true;
+			}
+		});
 	}
 
 	@SuppressWarnings("unchecked")
@@ -1056,20 +1035,6 @@ public class TestPlan implements Closeable {
 				}
 			}
 		}
-	}
-
-	private Int2ObjectMap<List<ValueSimilarity<?>>> mergeSimilarityIndices(
-			Int2ObjectMap<List<ValueSimilarity<?>>> similarityMap) {
-		similarityMap = new Int2ObjectOpenHashMap<List<ValueSimilarity<?>>>(similarityMap);
-		for (Entry<List<ValueSimilarity<?>>> entry : this.getFuzzySimilarityIndexMap(ALL_SINKS).int2ObjectEntrySet())
-			if (!entry.getValue().isEmpty()) {
-				List<ValueSimilarity<?>> existingList = similarityMap.get(entry.getKey());
-				if (existingList == null)
-					similarityMap.put(entry.getKey(), entry.getValue());
-				else
-					existingList.addAll(entry.getValue());
-			}
-		return similarityMap;
 	}
 
 	/**
@@ -1110,20 +1075,70 @@ public class TestPlan implements Closeable {
 		}
 	}
 
-	@Override
-	public void close() throws IOException {
-		ClosableManager closableManager = new ClosableManager();
-
-		for (TestRecords pairs : this.inputs.values())
-			closableManager.add(pairs);
-		for (TestRecords pairs : this.actualOutputs.values())
-			closableManager.add(pairs);
-		for (TestRecords pairs : this.expectedOutputs.values())
-			closableManager.add(pairs);
-
-		closableManager.close();
+	private static final class CostEstimator extends FixedSizeClusterCostEstimator {
+		private CostEstimator() {
+			super();
+		}
+		//
+		// @Override
+		// public void getBroadcastCost(OptimizerNode target, OptimizerNode
+		// source, Costs costs) {
+		// costs.setNetworkCost(Long.MAX_VALUE);
+		// }
 	}
 
-	List<ExecutionExceptionHandler> errorHandlers = new ArrayList<TestPlan.ExecutionExceptionHandler>();
+	private final class ExecutionExceptionHandler implements ExecutionListener {
+		private String executionError;
+
+		public ExecutionVertex executionVertex;
+
+		public ExecutionExceptionHandler(ExecutionVertex executionVertex) {
+			this.executionVertex = executionVertex;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.nephele.execution.ExecutionListener#executionStateChanged(eu.stratosphere.nephele.jobgraph
+		 * .JobID, eu.stratosphere.nephele.executiongraph.ExecutionVertexID,
+		 * eu.stratosphere.nephele.execution.ExecutionState, java.lang.String)
+		 */
+		@Override
+		public void executionStateChanged(JobID jobID, ExecutionVertexID vertexID, ExecutionState newExecutionState,
+				String optionalMessage) {
+			if (newExecutionState == ExecutionState.FAILED && this.executionError == null)
+				this.executionError = optionalMessage == null ? "FAILED" : optionalMessage;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.nephele.execution.ExecutionListener#getPriority()
+		 */
+		@Override
+		public int getPriority() {
+			return 13;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.nephele.execution.ExecutionListener#userThreadFinished(eu.stratosphere.nephele.jobgraph.JobID
+		 * , eu.stratosphere.nephele.executiongraph.ExecutionVertexID, java.lang.Thread)
+		 */
+		@Override
+		public void userThreadFinished(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.nephele.execution.ExecutionListener#userThreadStarted(eu.stratosphere.nephele.jobgraph.JobID,
+		 * eu.stratosphere.nephele.executiongraph.ExecutionVertexID, java.lang.Thread)
+		 */
+		@Override
+		public void userThreadStarted(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
+		}
+
+	}
 
 }

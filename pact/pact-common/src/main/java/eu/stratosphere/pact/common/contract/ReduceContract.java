@@ -19,6 +19,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.common.stubs.ReduceStub;
@@ -47,165 +48,33 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation
-	 * and a default name.
+	 * Creates a Builder with the provided {@link ReduceStub} implementation.
 	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClass The class of the key's type.
-	 * @param keyColumn The position of the key in the input records.
+	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn) {
-		this(c, keyClass, keyColumn, DEFAULT_NAME);
+	public static Builder builder(Class<? extends ReduceStub> udf) {
+		return new Builder(udf);
 	}
 	
 	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation
-	 * and a default name. The reducer has a composite key on which it groups.
+	 * Creates a Builder with the provided {@link ReduceStub} implementation.
 	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClasses The classes of the data types of the key fields.
-	 * @param keyColumns The positions of the key fields in the input records.
+	 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+	 * @param keyClass The class of the key data type.
+	 * @param keyColumn The position of the key.
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns) {
-		this(c, keyClasses, keyColumns, DEFAULT_NAME);
+	public static Builder builder(Class<? extends ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
+		return new Builder(udf, keyClass, keyColumn);
 	}
 	
 	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation 
-	 * and the given name. 
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClass The class of the key's type.
-	 * @param keyColumn The position of the key in the input records.
-	 * @param name The name of PACT.
+	 * The private constructor that only gets invoked from the Builder.
+	 * @param builder
 	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass,  int keyColumn, String name) {
-		this(c, asArray(keyClass), new int[] {keyColumn}, name);
-	}
-	
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation 
-	 * and the given name. The reducer has a composite key on which it groups.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClasses The classes of the data types of the key fields.
-	 * @param keyColumns The positions of the key fields in the input records.
-	 * @param name The name of PACT.
-	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, String name) {
-		super(c, keyClasses, keyColumns, name);
-	}
-
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
-	 * It uses the given contract as its input.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClass The class of the key's type.
-	 * @param keyColumn The position of the key in the input records.
-	 * @param input The contract to use as the input.
-	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn, Contract input) {
-		this(c, keyClass, keyColumn, input, DEFAULT_NAME);
-	}
-	
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
-	 * It uses the given contracts as its input.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClass The class of the key's type.
-	 * @param keyColumn The position of the key in the input records.
-	 * @param inputs The contracts to use as the input.
-	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn, List<Contract> inputs) {
-		this(c, keyClass, keyColumn, inputs, DEFAULT_NAME);
-	}
-
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
-	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClasses The classes of the data types of the key fields.
-	 * @param keyColumns The positions of the key fields in the input records.
-	 * @param input The contract to use as the input.
-	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, Contract input) {
-		this(c, keyClasses, keyColumns, input, DEFAULT_NAME);
-	}
-	
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation the default name.
-	 * It uses the given contracts as its input. The reducer has a composite key on which it groups.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClasses The classes of the data types of the key fields.
-	 * @param keyColumns The positions of the key fields in the input records.
-	 * @param inputs The contracts to use as the input.
-	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, List<Contract> inputs) {
-		this(c, keyClasses, keyColumns, inputs, DEFAULT_NAME);
-	}
-
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
-	 * It uses the given contract as its input.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClass The class of the key's type.
-	 * @param keyColumn The position of the key in the input records.
-	 * @param input The contract to use as the input.
-	 * @param name The name of PACT.
-	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn, Contract input, String name) {
-		this(c, keyClass, keyColumn, name);
-		setInput(input);
-	}
-	
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
-	 * It uses the given contracts as its input.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClass The class of the key's type.
-	 * @param keyColumn The position of the key in the input records.
-	 * @param inputs The contracts to use as the input.
-	 * @param name The name of PACT.
-	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key> keyClass, int keyColumn, List<Contract> inputs, String name) {
-		this(c, keyClass, keyColumn, name);
-		setInputs(inputs);
-	}
-
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
-	 * It uses the given contract as its input. The reducer has a composite key on which it groups.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClasses The classes of the data types of the key fields.
-	 * @param keyColumns The positions of the key fields in the input records.
-	 * @param input The contract to use as the input.
-	 * @param name The name of PACT.
-	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, Contract input, String name) {
-		this(c, keyClasses, keyColumns, name);
-		setInput(input);
-	}
-	
-	/**
-	 * Creates a ReduceContract with the provided {@link ReduceStub} implementation and the given name.
-	 * It uses the given contracts as its input. The reducer has a composite key on which it groups.
-	 * 
-	 * @param c The {@link ReduceStub} implementation for this Reduce InputContract.
-	 * @param keyClasses The classes of the data types of the key fields.
-	 * @param keyColumns The positions of the key fields in the input records.
-	 * @param inputs The contracts to use as the input.
-	 * @param name The name of PACT.
-	 */
-	public ReduceContract(Class<? extends ReduceStub> c, Class<? extends Key>[] keyClasses, int[] keyColumns, List<Contract> inputs, String name) {
-		this(c, keyClasses, keyColumns, name);
-		setInputs(inputs);
+	private ReduceContract(Builder builder) {
+		super(builder.udf, builder.getKeyClassesArray(), builder.getKeyColumnsArray(), builder.name);
+		setInputs(builder.inputs);
+		setGroupOrder(builder.secondaryOrder);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -283,4 +152,130 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
 	public @interface Combinable {};
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Builder pattern, straight from Joshua Bloch's Effective Java (2nd Edition).
+	 * 
+	 * @author Aljoscha Krettek
+	 */
+	public static class Builder {
+		
+		/* The required parameters */
+		private final Class<? extends ReduceStub> udf;
+		private final List<Class<? extends Key>> keyClasses;
+		private final List<Integer> keyColumns;
+		
+		/* The optional parameters */
+		private Ordering secondaryOrder = null;
+		private List<Contract> inputs;
+		private String name = DEFAULT_NAME;
+		
+		/**
+		 * Creates a Builder with the provided {@link ReduceStub} implementation.
+		 * 
+		 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+		 */
+		private Builder(Class<? extends ReduceStub> udf) {
+			this.udf = udf;
+			this.keyClasses = new ArrayList<Class<? extends Key>>();
+			this.keyColumns = new ArrayList<Integer>();
+			this.inputs = new ArrayList<Contract>();
+		}
+		
+		/**
+		 * Creates a Builder with the provided {@link ReduceStub} implementation.
+		 * 
+		 * @param udf The {@link ReduceStub} implementation for this Reduce contract.
+		 * @param keyClass The class of the key data type.
+		 * @param keyColumn The position of the key.
+		 */
+		public Builder(Class<? extends ReduceStub> udf, Class<? extends Key> keyClass, int keyColumn) {
+			this.udf = udf;
+			this.keyClasses = new ArrayList<Class<? extends Key>>();
+			this.keyClasses.add(keyClass);
+			this.keyColumns = new ArrayList<Integer>();
+			this.keyColumns.add(keyColumn);
+			this.inputs = new ArrayList<Contract>();
+		}
+		
+		private int[] getKeyColumnsArray() {
+			int[] result = new int[keyColumns.size()];
+			for (int i = 0; i < keyColumns.size(); ++i) {
+				result[i] = keyColumns.get(i);
+			}
+			return result;
+		}
+		
+		@SuppressWarnings("unchecked")
+		private Class<? extends Key>[] getKeyClassesArray() {
+			return keyClasses.toArray(new Class[keyClasses.size()]);
+		}
+
+		/**
+		 * Adds additional key field.
+		 * 
+		 * @param keyClass The class of the key data type.
+		 * @param keyColumn The position of the key.
+		 */
+		public Builder keyField(Class<? extends Key> keyClass, int keyColumn) {
+			keyClasses.add(keyClass);
+			keyColumns.add(keyColumn);
+			return this;
+		}
+		
+		/**
+		 * Sets the order of the elements within a group.
+		 * 
+		 * @param order The order for the elements in a group.
+		 */
+		public Builder secondaryOrder(Ordering order) {
+			this.secondaryOrder = order;
+			return this;
+		}
+		
+		/**
+		 * Sets one or several inputs (union).
+		 * 
+		 * @param input
+		 */
+		public Builder input(Contract ...inputs) {
+			this.inputs.clear();
+			for (Contract c : inputs) {
+				this.inputs.add(c);
+			}
+			return this;
+		}
+		
+		/**
+		 * Sets the inputs.
+		 * 
+		 * @param input
+		 */
+		public Builder inputs(List<Contract> inputs) {
+			this.inputs = inputs;
+			return this;
+		}
+		
+		/**
+		 * Sets the name of this contract.
+		 * 
+		 * @param name
+		 */
+		public Builder name(String name) {
+			this.name = name;
+			return this;
+		}
+		
+		/**
+		 * Creates and returns a ReduceContract from using the values given 
+		 * to the builder.
+		 * 
+		 * @return The created contract
+		 */
+		public ReduceContract build() {
+			return new ReduceContract(this);
+		}
+	}
 }

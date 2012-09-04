@@ -578,8 +578,8 @@ public class CliFrontend {
 			handleError(new Exception("JobManager port could not be determined."));
 		}
 		
-		return (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
-				new InetSocketAddress(jmHost, Integer.parseInt(jmPort)), NetUtils.getSocketFactory());
+		return RPC.getProxy(ExtendedManagementProtocol.class, 
+			new InetSocketAddress(jmHost, Integer.parseInt(jmPort)), NetUtils.getSocketFactory());
 	}
 	
 

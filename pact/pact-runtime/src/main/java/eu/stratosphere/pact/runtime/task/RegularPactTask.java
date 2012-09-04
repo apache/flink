@@ -412,10 +412,8 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				}
 
 				try {
-					inputComparators[i] = comparatorFactory.createComparator(getTaskConfiguration(),
-						this.config.getPrefixForInputParameters(i), this.userCodeClassLoader);
-					secondarySortComparators[i] = comparatorFactory.createSecondarySortComparator(getTaskConfiguration(), 
-						this.config.getPrefixForInputParameters(i), this.userCodeClassLoader);
+					inputComparators[i] = comparatorFactory.createComparator(this.config.getConfigForInputParameters(i), this.userCodeClassLoader);
+					secondarySortComparators[i] = comparatorFactory.createSecondarySortComparator(this.config.getConfigForInputParameters(i), this.userCodeClassLoader);
 				} catch (ClassNotFoundException cnfex) {
 					throw new Exception("The instantiation of the type comparator from factory '" +
 						comparatorFactory.getClass().getName() +
@@ -720,7 +718,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				} else {
 					try {
 						final PactRecordComparator comparator = PactRecordComparatorFactory.get().createComparator(
-												config.getConfiguration(), config.getPrefixForOutputParameters(i), cl);
+												config.getConfigForOutputParameters(i), cl);
 						final DataDistribution distribution = config.getOutputDataDistribution(cl);
 						oe = new PactRecordOutputEmitter(strategy, comparator, distribution);
 					} catch (ClassNotFoundException cnfex) {
@@ -777,8 +775,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				} else {
 					final TypeComparatorFactory<T> compFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
 					try {
-						final TypeComparator<T> comparator = compFactory.createComparator(config.getConfiguration(),
-																				config.getPrefixForOutputParameters(i), cl);
+						final TypeComparator<T> comparator = compFactory.createComparator(config.getConfigForOutputParameters(i), cl);
 
 						oe = new OutputEmitter<T>(strategy, comparator);
 					} catch (ClassNotFoundException cnfex) {

@@ -8,6 +8,10 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
+/**
+ * An abstract implementation of the {@link MapStub}. SopremoMap provides the functionality to convert the
+ * standard input of the MapStub to a more manageable representation (the input is converted to an {@link IJsonNode}).
+ */
 public abstract class SopremoMap extends MapStub {
 	private EvaluationContext context;
 
@@ -25,6 +29,7 @@ public abstract class SopremoMap extends MapStub {
 			EvaluationContext.class, this.getClass().getClassLoader());
 		this.inputSchema = this.context.getInputSchema(0);
 		if (this.inputSchema == null)
+
 			throw new IllegalStateException(
 				"Could not deserialize input schema");
 		final Schema outputSchema = this.context.getOutputSchema(0);
@@ -39,6 +44,14 @@ public abstract class SopremoMap extends MapStub {
 		return this.context;
 	}
 
+	/**
+	 * This method must be implemented to provide a user implementation of a map.
+	 * 
+	 * @param value
+	 *        the {IJsonNode} to be mapped
+	 * @param out
+	 *        a collector that collects all output nodes
+	 */
 	protected abstract void map(IJsonNode value, JsonCollector out);
 
 	/*

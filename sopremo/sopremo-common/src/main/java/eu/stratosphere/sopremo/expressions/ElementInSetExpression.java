@@ -39,11 +39,10 @@ public class ElementInSetExpression extends BinaryBooleanExpression {
 		this.elementExpr = elementExpr;
 		this.setExpr = setExpr;
 		this.quantor = quantor;
-		this.expectedTarget = BooleanNode.class;
 	}
 
 	@Override
-	public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
+	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// we can ignore 'target' because no new Object is created
 		return this.quantor.evaluate(this.elementExpr.evaluate(node, null, context),
 			ElementInSetExpression.asIterator(this.setExpr.evaluate(node, null, context)));
@@ -56,7 +55,7 @@ public class ElementInSetExpression extends BinaryBooleanExpression {
 	 * .TransformFunction)
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(TransformFunction function) {
+	public EvaluationExpression transformRecursively(final TransformFunction function) {
 		this.elementExpr = this.elementExpr.transformRecursively(function);
 		this.setExpr = this.setExpr.transformRecursively(function);
 		return function.call(this);

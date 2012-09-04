@@ -259,22 +259,25 @@ public class EnumTriangles implements PlanAssembler, PlanAssemblerDescription {
 
 		FileDataSource edges = new FileDataSource(EdgeInFormat.class, edgeInput, "BTC Edges");
 		
-		ReduceContract buildTriads = new ReduceContract(BuildTriads.class, PactString.class, 0, "Build Triads");
-		
-		@SuppressWarnings("unchecked")
-		MatchContract closeTriads = new MatchContract(CloseTriads.class, new Class[] {PactString.class, PactString.class}, new int[] {1, 2}, new int[] {0, 1}, "Close Triads");
-		// fix execution strategy of match
+		ReduceContract buildTriads = new ReduceContract.Builder(BuildTriads.class, PactString.class, 0)
+			.name("Build Triads")
+			.build();
+
+		MatchContract closeTriads = MatchContract.builder(CloseTriads.class, PactString.class, 1, 0)
+			.keyField(PactString.class, 2, 1)
+			.name("Close Triads")
+			.build();
 		closeTriads.setParameter("INPUT_LEFT_SHIP_STRATEGY", "SHIP_REPARTITION");
 		closeTriads.setParameter("INPUT_RIGHT_SHIP_STRATEGY", "SHIP_REPARTITION");
 		closeTriads.setParameter("LOCAL_STRATEGY", "LOCAL_STRATEGY_HASH_BUILD_SECOND");
 
 		FileDataSink triangles = new FileDataSink(RecordOutputFormat.class, output, "Output");
-		triangles.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-		triangles.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, " ");
-		triangles.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
-		triangles.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactString.class);
-		triangles.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactString.class);
-		triangles.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactString.class);
+		RecordOutputFormat.configureRecordFormat(triangles)
+			.recordDelimiter('\n')
+			.fieldDelimiter(' ')
+			.field(PactString.class, 0)
+			.field(PactString.class, 1)
+			.field(PactString.class, 2);
 
 		triangles.setInput(closeTriads);
 		closeTriads.setSecondInput(edges);

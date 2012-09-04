@@ -1667,7 +1667,7 @@ public class PactCompiler {
 			ExtendedManagementProtocol jobManagerConnection = null;
 
 			try {
-				jobManagerConnection = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class,
+				jobManagerConnection = RPC.getProxy(ExtendedManagementProtocol.class,
 					this.jobManagerAddress, NetUtils.getSocketFactory());
 
 				this.instances = jobManagerConnection.getMapOfAvailableInstanceTypes();

@@ -17,13 +17,15 @@ package eu.stratosphere.pact.common.io;
 
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
+import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 
 /**
- * 
+ * The base class for output formats that serialize their records into a delimited sequence.
  */
 public abstract class DelimitedOutputFormat extends FileOutputFormat
 {
@@ -33,14 +35,19 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat
 	public static final String RECORD_DELIMITER = "pact.output.delimited.delimiter";
 
 	/**
+	 * The configuration key to set the record delimiter encoding.
+	 */
+	private static final String RECORD_DELIMITER_ENCODING = "pact.output.delimited.delimiter-encoding";
+	
+	/**
 	 * The configuration key for the entry that defines the write-buffer size.
 	 */
 	public static final String WRITE_BUFFER_SIZE = "pact.output.delimited.buffersize";
 	
 	/**
-	 * The default write-buffer size. 1 MiByte. 
+	 * The default write-buffer size. 64 KiByte. 
 	 */
-	private static final int DEFAULT_WRITE_BUFFER_SIZE = 1024;
+	private static final int DEFAULT_WRITE_BUFFER_SIZE = 64 * 1024;
 	
 	/**
 	 * The minimal write-buffer size, 1 KiByte.
@@ -74,11 +81,17 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat
 	{
 		super.configure(config);
 		
-		String delim = config.getString(RECORD_DELIMITER, "\n");
+		final String delim = config.getString(RECORD_DELIMITER, "\n");
+		final String charsetName = config.getString(RECORD_DELIMITER_ENCODING, null);		
 		if (delim == null) {
 			throw new IllegalArgumentException("The delimiter in the DelimitedOutputFormat must not be null.");
 		}
-		this.delimiter = delim.getBytes();
+		try {
+			this.delimiter = charsetName == null ? delim.getBytes() : delim.getBytes(charsetName);
+		} catch (UnsupportedEncodingException useex) {
+			throw new IllegalArgumentException("The charset with the name '" + charsetName + 
+				"' is not supported on this TaskManager instance.", useex);
+		}
 		
 		this.bufferSize = config.getInteger(WRITE_BUFFER_SIZE, DEFAULT_WRITE_BUFFER_SIZE);
 		if (this.bufferSize < MIN_WRITE_BUFFER_SIZE) {
@@ -193,4 +206,115 @@ public abstract class DelimitedOutputFormat extends FileOutputFormat
 		}
 	}
 
+	// ============================================================================================
+	
+	/**
+	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
+	 * fashion.
+	 * 
+	 * @return A config builder for setting parameters.
+	 */
+	public static ConfigBuilder configureDelimitedFormat(FileDataSink target) {
+		return new ConfigBuilder(target.getParameters());
+	}
+	
+	/**
+	 * A builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	protected static abstract class AbstractConfigBuilder<T> extends FileOutputFormat.AbstractConfigBuilder<T>
+	{
+		private static final String NEWLINE_DELIMITER = "\n";
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected AbstractConfigBuilder(Configuration config) {
+			super(config);
+		}
+		
+		// --------------------------------------------------------------------
+		
+		/**
+		 * Sets the delimiter to be a single character, namely the given one. The character must be within
+		 * the value range <code>0</code> to <code>127</code>.
+		 * 
+		 * @param delimiter The delimiter character.
+		 * @return The builder itself.
+		 */
+		public T recordDelimiter(char delimiter) {
+			if (delimiter == '\n') {
+				this.config.setString(RECORD_DELIMITER, NEWLINE_DELIMITER);
+			} else {
+				this.config.setString(RECORD_DELIMITER, String.valueOf(delimiter));
+			}
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		/**
+		 * Sets the delimiter to be the given string. The string will be converted to bytes for more efficient
+		 * comparison during input parsing. The conversion will be done using the platforms default charset.
+		 * 
+		 * @param delimiter The delimiter string.
+		 * @return The builder itself.
+		 */
+		public T recordDelimiter(String delimiter) {
+			this.config.setString(RECORD_DELIMITER, delimiter);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		/**
+		 * Sets the delimiter to be the given string. The string will be converted to bytes for more efficient
+		 * comparison during input parsing. The conversion will be done using the charset with the given name.
+		 * The charset must be available on the processing nodes, otherwise an exception will be raised at
+		 * runtime.
+		 * 
+		 * @param delimiter The delimiter string.
+		 * @param charsetName The name of the encoding character set.
+		 * @return The builder itself.
+		 */
+		public T recordDelimiter(String delimiter, String charsetName) {
+			this.config.setString(RECORD_DELIMITER, delimiter);
+			this.config.setString(RECORD_DELIMITER_ENCODING, charsetName);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+		
+		/**
+		 * Sets the size of the write buffer.
+		 * 
+		 * @param sizeInBytes The size of the write buffer in bytes.
+		 * @return The builder itself.
+		 */
+		public T writeBufferSize(int sizeInBytes) {
+			this.config.setInteger(WRITE_BUFFER_SIZE, sizeInBytes);
+			@SuppressWarnings("unchecked")
+			T ret = (T) this;
+			return ret;
+		}
+	}
+	
+	/**
+	 * A builder used to set parameters to the input format's configuration in a fluent way.
+	 */
+	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder>
+	{
+		/**
+		 * Creates a new builder for the given configuration.
+		 * 
+		 * @param targetConfig The configuration into which the parameters will be written.
+		 */
+		protected ConfigBuilder(Configuration targetConfig) {
+			super(targetConfig);
+		}
+		
+	}
 }

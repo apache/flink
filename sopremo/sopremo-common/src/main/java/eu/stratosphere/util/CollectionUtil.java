@@ -1,5 +1,8 @@
 package eu.stratosphere.util;
 
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -33,11 +36,11 @@ public class CollectionUtil {
 			 * @see eu.stratosphere.util.WrappingIterable#wrap(java.util.Iterator)
 			 */
 			@Override
-			protected Iterator<T> wrap(Iterator<? extends T> iterator) {
+			protected Iterator<T> wrap(final Iterator<? extends T> iterator) {
 				final Set<T> alreadySeen = new HashSet<T>();
 				return new FilteringIterator<T>(iterator, new Predicate<T>() {
 					@Override
-					public boolean isTrue(T param) {
+					public boolean isTrue(final T param) {
 						return alreadySeen.add(param);
 					};
 				});
@@ -55,8 +58,24 @@ public class CollectionUtil {
 	 * @param defaultValue
 	 *        the default value
 	 */
-	public static <T> void ensureSize(Collection<T> collection, int size, T defaultValue) {
+	public static <T> void ensureSize(final Collection<T> collection, final int size, final T defaultValue) {
 		while (collection.size() < size)
 			collection.add(defaultValue);
+	}
+
+	/**
+	 * Creates a set containing all ints in the given range.
+	 * 
+	 * @param start
+	 *        the start of the range
+	 * @param exclusiveEnd
+	 *        the end of the range (exclusive)
+	 * @return a set containing all ints in the given range.
+	 */
+	public static IntSet setRangeFrom(final int start, final int exclusiveEnd) {
+		final IntOpenHashSet range = new IntOpenHashSet(exclusiveEnd - start);
+		for (int index = start; index < exclusiveEnd; index++)
+			range.add(index);
+		return range;
 	}
 }

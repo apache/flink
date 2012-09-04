@@ -8,11 +8,16 @@ import eu.stratosphere.pact.common.stubs.CoGroupStub;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 
+/**
+ * An abstract implementation of the {@link CoGroupStub}. SopremoCoGroup provides the functionality to convert the
+ * standard input of the CoGroupStub to a more manageable representation (both inputs are converted to an
+ * {@link IArrayNode}).
+ */
 public abstract class SopremoCoGroup extends CoGroupStub {
 	private EvaluationContext context;
 
@@ -20,6 +25,16 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 
 	private RecordToJsonIterator cachedIterator1, cachedIterator2;
 
+	/**
+	 * This method must be implemented to provide a user implementation of a CoGroup.
+	 * 
+	 * @param values1
+	 *        an {@link IArrayNode} that holds all elements of the first input which were paired with the key
+	 * @param values2
+	 *        an {@link IArrayNode} that holds all elements of the second input which were paired with the key
+	 * @param out
+	 *        a collector that collects all output pairs
+	 */
 	protected abstract void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out);
 
 	/*
@@ -28,7 +43,8 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 	 * eu.stratosphere.pact.common.stubs.Collector)
 	 */
 	@Override
-	public void coGroup(final Iterator<PactRecord> records1, final Iterator<PactRecord> records2, final Collector<PactRecord> out) {
+	public void coGroup(final Iterator<PactRecord> records1, final Iterator<PactRecord> records2,
+			final Collector<PactRecord> out) {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);
 		this.cachedIterator1.setIterator(records1);

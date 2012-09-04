@@ -205,6 +205,15 @@ public interface TypeComparator<T>
 	 */
 	public void putNormalizedKey(T record, byte[] target, int offset, int numBytes);
 	
+	/**
+	 * Flag whether normalized key comparisons should be inverted key should be interpreted
+	 * inverted, i.e. descending.
+	 * 
+	 * @return True, if all normalized key comparisons should invert the sign of the comparison result,
+	 *         false if the normalized key should be used as is.
+	 */
+	public boolean invertNormalizedKey();
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**

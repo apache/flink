@@ -16,7 +16,6 @@
 package eu.stratosphere.sopremo.pact;
 
 import static eu.stratosphere.sopremo.pact.IOConstants.ENCODING;
-import static eu.stratosphere.sopremo.pact.IOConstants.SCHEMA;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -25,6 +24,7 @@ import java.nio.charset.Charset;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.io.JsonGenerator;
 import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -41,6 +41,8 @@ public class JsonOutputFormat extends FileOutputFormat {
 	private IJsonNode node;
 
 	private Schema schema;
+	
+	private EvaluationContext context;
 
 	private Charset encoding;
 
@@ -59,7 +61,8 @@ public class JsonOutputFormat extends FileOutputFormat {
 	@Override
 	public void configure(final Configuration parameters) {
 		super.configure(parameters);
-		this.schema = SopremoUtil.deserialize(parameters, SCHEMA, Schema.class);
+		this.context = SopremoUtil.deserialize(parameters, SopremoUtil.CONTEXT, EvaluationContext.class);
+		this.schema = this.context.getInputSchema(0);
 		if (this.schema == null)
 			throw new IllegalStateException("Could not deserialize input schema");
 		this.encoding = Charset.forName(parameters.getString(ENCODING, "utf-8"));

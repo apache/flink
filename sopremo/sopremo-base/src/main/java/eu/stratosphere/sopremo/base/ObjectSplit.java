@@ -2,18 +2,18 @@ package eu.stratosphere.sopremo.base;
 
 import java.util.Iterator;
 
-import eu.stratosphere.sopremo.ElementaryOperator;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
-import eu.stratosphere.sopremo.JsonUtil;
 import eu.stratosphere.sopremo.expressions.ArrayAccess;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.operator.ElementaryOperator;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.NullNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
@@ -84,7 +84,7 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 			final Iterator<String> fieldNames = object.getFieldNames();
 			final EvaluationContext context = this.getContext();
 			final TextNode fieldNode = TextNode.valueOf("");
-			ArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), fieldNode, object, value);
+			IArrayNode contextNode = JsonUtil.asArray(NullNode.getInstance(), fieldNode, object, value);
 			while (fieldNames.hasNext()) {
 				String field = fieldNames.next();
 				fieldNode.setValue(field);

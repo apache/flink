@@ -17,4 +17,12 @@ package eu.stratosphere.pact.contextcheck;
 
 public class MissingChildException extends PlanException {
 	private static final long serialVersionUID = 4206417538759568484L;
+	
+	public MissingChildException(String message) {
+		super(message);
+	}
+	
+	public MissingChildException() {
+		super();
+	}
 }

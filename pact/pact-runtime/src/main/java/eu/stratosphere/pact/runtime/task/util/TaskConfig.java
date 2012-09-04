@@ -321,9 +321,9 @@ public class TaskConfig
 			}
 		}
 	
-	public String getPrefixForInputParameters(int inputNum)
+	public Configuration getConfigForInputParameters(int inputNum)
 	{
-		return INPUT_PARAMETERS_PREFIX + inputNum + '.';
+		return new DelegatingConfiguration(this.config, INPUT_PARAMETERS_PREFIX + inputNum + '.');
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -413,6 +413,11 @@ public class TaskConfig
 		}
 	}
 	
+	public Configuration getConfigForOutputParameters(int outputNum)
+	{
+		return new DelegatingConfiguration(this.config, OUTPUT_PARAMETERS_PREFIX + outputNum + '.');
+	}
+	
 	public String getPrefixForOutputParameters(int outputNum)
 	{
 		return OUTPUT_PARAMETERS_PREFIX + outputNum + '.';
@@ -429,8 +434,8 @@ public class TaskConfig
 		} catch (IOException e) {
 			throw new RuntimeException("Error serializing the DataDistribution: " + e.getMessage(), e);
 		}
-		final String stateEncoded = baos.toString();
-		this.config.setString(OUTPUT_DATA_DISTRIBUTION_STATE, stateEncoded);
+
+		this.config.setBytes(OUTPUT_DATA_DISTRIBUTION_STATE, baos.toByteArray());
 	}
 	
 	public DataDistribution getOutputDataDistribution(final ClassLoader cl) throws ClassNotFoundException
@@ -450,13 +455,13 @@ public class TaskConfig
 		
 		final DataDistribution distribution = InstantiationUtil.instantiate(clazz, DataDistribution.class);
 		
-		final String stateEncoded = this.config.getString(OUTPUT_DATA_DISTRIBUTION_STATE, null);
+		final byte[] stateEncoded = this.config.getBytes(OUTPUT_DATA_DISTRIBUTION_STATE, null);
 		if (stateEncoded == null) {
 			throw new CorruptConfigurationException(
 						"The configuration contained the data distribution type, but no serialized state.");
 		}
 		
-		final ByteArrayInputStream bais = new ByteArrayInputStream(stateEncoded.getBytes());
+		final ByteArrayInputStream bais = new ByteArrayInputStream(stateEncoded);
 		final DataInputStream in = new DataInputStream(bais);
 		
 		try {
