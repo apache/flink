@@ -13,7 +13,6 @@ import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.expressions.SingletonExpression;
 import eu.stratosphere.sopremo.expressions.UnaryExpression;
 import eu.stratosphere.sopremo.operator.CompositeOperator;
-import eu.stratosphere.sopremo.operator.ElementarySopremoModule;
 import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.operator.OutputCardinality;
@@ -92,8 +91,11 @@ public class Replace extends CompositeOperator<Replace> {
 		this.setInput(1, dictionary.getStream());
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
+	 */
 	@Override
-	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
+	public SopremoModule asModule(EvaluationContext context) {
 		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
 
 		if (this.arrayElementsReplacement) {
@@ -155,7 +157,7 @@ public class Replace extends CompositeOperator<Replace> {
 				replaceAtom.withInputs(sopremoModule.getInput(0), sopremoModule.getInput(1)));
 		}
 
-		return sopremoModule.asElementary(context);
+		return sopremoModule;
 	}
 
 	@Override

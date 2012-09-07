@@ -18,6 +18,7 @@ import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.operator.Operator;
 import eu.stratosphere.sopremo.operator.OutputCardinality;
 import eu.stratosphere.sopremo.operator.Property;
+import eu.stratosphere.sopremo.operator.SopremoModule;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
@@ -44,8 +45,11 @@ public class Grouping extends CompositeOperator<Grouping> {
 
 	private EvaluationExpression defaultGroupingKey = GROUP_ALL;
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
+	 */
 	@Override
-	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
+	public SopremoModule asModule(EvaluationContext context) {
 		final int numInputs = this.getInputOperators().size();
 		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), numInputs, 1);
 

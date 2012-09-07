@@ -162,11 +162,11 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> implem
 
 		/*
 		 * (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.Operator#toElementaryOperators()
+		 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
 		 */
 		@Override
-		public ElementarySopremoModule asElementaryOperators(final EvaluationContext context) {
-			return SopremoModule.this.asElementary(context);
+		public SopremoModule asModule(EvaluationContext context) {
+			return SopremoModule.this;
 		}
 	}
 

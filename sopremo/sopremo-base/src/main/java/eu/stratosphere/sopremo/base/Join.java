@@ -24,7 +24,6 @@ import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.expressions.PathExpression;
 import eu.stratosphere.sopremo.io.Source;
 import eu.stratosphere.sopremo.operator.CompositeOperator;
-import eu.stratosphere.sopremo.operator.ElementarySopremoModule;
 import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.operator.JsonStream;
 import eu.stratosphere.sopremo.operator.Name;
@@ -51,8 +50,12 @@ public class Join extends CompositeOperator<Join> {
 
 	private IntSet outerJoinSources = new IntOpenHashSet();
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
+	 */
 	@Override
-	public ElementarySopremoModule asElementaryOperators(EvaluationContext context) {
+	public SopremoModule asModule(EvaluationContext context) {
 		final int numInputs = this.getInputs().size();
 
 		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
@@ -101,12 +104,13 @@ public class Join extends CompositeOperator<Join> {
 
 			final TwoSourceJoin lastJoin = joins.get(joins.size() - 1);
 			EvaluationExpression resultProjection = getResultProjection();
-			resultProjection.replace(new IsInstancePredicate(InputSelection.class), new ReplaceInputSelectionWithArray());
+			resultProjection.replace(new IsInstancePredicate(InputSelection.class),
+				new ReplaceInputSelectionWithArray());
 			module.getOutput(0).setInput(0,
 				new Projection().withInputs(lastJoin).withResultProjection(resultProjection));
 		}
 
-		return module.asElementary(context);
+		return module;
 	}
 
 	@Override

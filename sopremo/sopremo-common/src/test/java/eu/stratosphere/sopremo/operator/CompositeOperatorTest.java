@@ -79,9 +79,12 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 			this.index = index;
 		}
 
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
+		 */
 		@Override
-		public ElementarySopremoModule asElementaryOperators(final EvaluationContext context) {
-			return ElementarySopremoModule.valueOf(this.getName(),
+		public SopremoModule asModule(EvaluationContext context) {
+			return SopremoModule.valueOf(this.getName(),
 				new ElementaryOperatorImpl().withInputs(this.getInput(0),
 					new ElementaryOperatorImpl().withInputs(this.getInput(1), this.getInput(2))));
 		}
