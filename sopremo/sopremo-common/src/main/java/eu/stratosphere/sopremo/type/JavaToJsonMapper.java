@@ -71,8 +71,8 @@ public class JavaToJsonMapper {
 			return NullNode.getInstance();
 
 		final Class<? extends Object> valueClass = value.getClass();
-		if (value instanceof AbstractJsonNode)
-			return (AbstractJsonNode) value;
+		if (value instanceof IJsonNode)
+			return (IJsonNode) value;
 
 		if (value instanceof CharSequence)
 			return TextNode.valueOf(value.toString());

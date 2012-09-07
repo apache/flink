@@ -42,35 +42,35 @@ public final class NumberCoercer {
 		// this.typeCoerceMatrix[leftIndex][rightIndex] = widestTypes.get(coerceIndex);
 		// }
 
-		this.coercers.put(AbstractJsonNode.Type.IntNode, new Coercer<INumericNode, IntNode>() {
+		this.coercers.put(AbstractJsonNode.Type.IntNode, new Coercer<INumericNode, IntNode>(IntNode.class) {
 			@Override
 			public IntNode coerce(final INumericNode from, final IntNode target) {
 				target.setValue(from.getIntValue());
 				return target;
 			}
 		});
-		this.coercers.put(AbstractJsonNode.Type.LongNode, new Coercer<INumericNode, LongNode>() {
+		this.coercers.put(AbstractJsonNode.Type.LongNode, new Coercer<INumericNode, LongNode>(LongNode.class) {
 			@Override
 			public LongNode coerce(final INumericNode from, final LongNode target) {
 				target.setValue(from.getLongValue());
 				return target;
 			}
 		});
-		this.coercers.put(AbstractJsonNode.Type.DoubleNode, new Coercer<INumericNode, DoubleNode>() {
+		this.coercers.put(AbstractJsonNode.Type.DoubleNode, new Coercer<INumericNode, DoubleNode>(DoubleNode.class) {
 			@Override
 			public DoubleNode coerce(final INumericNode from, final DoubleNode target) {
 				target.setValue(from.getDoubleValue());
 				return target;
 			}
 		});
-		this.coercers.put(AbstractJsonNode.Type.DecimalNode, new Coercer<INumericNode, DecimalNode>() {
+		this.coercers.put(AbstractJsonNode.Type.DecimalNode, new Coercer<INumericNode, DecimalNode>(DecimalNode.class) {
 			@Override
 			public DecimalNode coerce(final INumericNode from, final DecimalNode target) {
 				target.setValue(from.getDecimalValue());
 				return target;
 			}
 		});
-		this.coercers.put(AbstractJsonNode.Type.BigIntegerNode, new Coercer<INumericNode, BigIntegerNode>() {
+		this.coercers.put(AbstractJsonNode.Type.BigIntegerNode, new Coercer<INumericNode, BigIntegerNode>(BigIntegerNode.class) {
 			@Override
 			public BigIntegerNode coerce(final INumericNode from, final BigIntegerNode target) {
 				target.setValue(from.getBigIntegerValue());
