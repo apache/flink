@@ -17,6 +17,7 @@ package eu.stratosphere.sopremo.type;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.AbstractCollection;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -72,6 +73,35 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 	public IArrayNode addAll(final IJsonNode[] nodes) {
 		this.addAll(Arrays.asList(nodes));
 		return this;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IArrayNode#contains(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
+	@Override
+	public boolean contains(IJsonNode node) {
+		for (final IJsonNode element : this)
+			if(node.equals(element))
+				return true;
+		return false;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IArrayNode#asCollection()
+	 */
+	@Override
+	public Collection<IJsonNode> asCollection() {
+		return new AbstractCollection<IJsonNode>() {
+			@Override
+			public Iterator<IJsonNode> iterator() {
+				return this.iterator();
+			}
+
+			@Override
+			public int size() {
+				return AbstractArrayNode.this.size();
+			}			
+		};
 	}
 
 	@Override

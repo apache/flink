@@ -49,6 +49,14 @@ public class ArrayNode extends AbstractArrayNode {
 		for (final IJsonNode node : nodes)
 			this.children.add(node);
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IArrayNode#asCollection()
+	 */
+	@Override
+	public Collection<IJsonNode> asCollection() {
+		return this.children;
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -88,6 +96,14 @@ public class ArrayNode extends AbstractArrayNode {
 		this.children.add(index, element);
 
 		return this;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.AbstractArrayNode#contains(eu.stratosphere.sopremo.type.IJsonNode)
+	 */
+	@Override
+	public boolean contains(IJsonNode node) {
+		return this.children.contains(node);
 	}
 
 	/*

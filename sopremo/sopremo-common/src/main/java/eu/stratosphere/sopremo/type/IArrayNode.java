@@ -142,4 +142,12 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 * @param nodes
 	 */
 	public abstract void setAll(IJsonNode[] nodes);
+	
+	public abstract Collection<IJsonNode> asCollection();
+
+	/**
+	 * @param node
+	 * @return
+	 */
+	public abstract boolean contains(IJsonNode node);
 }
