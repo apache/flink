@@ -3,7 +3,6 @@ package eu.stratosphere.sopremo.base;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.operator.CompositeOperator;
 import eu.stratosphere.sopremo.operator.ElementaryOperator;
-import eu.stratosphere.sopremo.operator.ElementarySopremoModule;
 import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.operator.JsonStream;
 import eu.stratosphere.sopremo.operator.OutputCardinality;
@@ -24,10 +23,9 @@ public abstract class SetOperation<Op extends SetOperation<Op>> extends Composit
 	 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public SopremoModule asModule(EvaluationContext context) {
-		final int numInputs = this.getInputOperators().size();
-		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), numInputs, 1);
-
+	public void addImplementation(SopremoModule module, EvaluationContext context) {
+		final int numInputs = getNumInputs();
+		
 		// successively connect binary operators
 		// connect the result of one binary operator with each new input
 		ElementaryOperator<?> leftInput = module.getInput(0);
@@ -38,8 +36,6 @@ public abstract class SetOperation<Op extends SetOperation<Op>> extends Composit
 		}
 
 		module.getOutput(0).setInput(0, leftInput);
-
-		return module;
 	}
 
 	/**

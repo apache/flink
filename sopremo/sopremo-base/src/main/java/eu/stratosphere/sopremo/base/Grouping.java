@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.base;
 
-import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
@@ -11,7 +10,6 @@ import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.operator.CompositeOperator;
 import eu.stratosphere.sopremo.operator.ElementaryOperator;
-import eu.stratosphere.sopremo.operator.ElementarySopremoModule;
 import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.operator.JsonStream;
 import eu.stratosphere.sopremo.operator.Name;
@@ -45,28 +43,23 @@ public class Grouping extends CompositeOperator<Grouping> {
 
 	private EvaluationExpression defaultGroupingKey = GROUP_ALL;
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
-	 */
-	@Override
-	public SopremoModule asModule(EvaluationContext context) {
-		final int numInputs = this.getInputOperators().size();
-		final ElementarySopremoModule module = new ElementarySopremoModule(this.getName(), numInputs, 1);
 
+	@Override
+	public void addImplementation(SopremoModule module, EvaluationContext context) {
 		Operator<?> output;
-		switch (numInputs) {
+		switch (this.getNumInputs()) {
 		case 0:
 			throw new IllegalStateException("No input given for grouping");
 		case 1:
 			output = new GroupProjection(this.resultProjection.remove(InputSelection.class)).
 				withKeyExpression(0, getGroupingKey(0)).
-				withInputs(Arrays.asList(module.getInputs()));
+				withInputs(module.getInputs());
 			break;
 		case 2:
 			output = new CoGroupProjection(this.resultProjection).
 				withKeyExpression(0, getGroupingKey(0)).
 				withKeyExpression(1, getGroupingKey(1)).
-				withInputs(Arrays.asList(module.getInputs()));
+				withInputs(module.getInputs());
 			break;
 		default:
 			throw new IllegalStateException("More than two sources are not supported");
@@ -86,7 +79,6 @@ public class Grouping extends CompositeOperator<Grouping> {
 		}
 
 		module.getOutput(0).setInput(0, output);
-		return module;
 	}
 
 	@Override

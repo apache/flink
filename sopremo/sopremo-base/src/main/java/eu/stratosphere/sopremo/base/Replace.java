@@ -95,16 +95,14 @@ public class Replace extends CompositeOperator<Replace> {
 	 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public SopremoModule asModule(EvaluationContext context) {
-		final SopremoModule sopremoModule = new SopremoModule(this.getName(), 2, 1);
-
+	public void addImplementation(SopremoModule module, EvaluationContext context) {
 		if (this.arrayElementsReplacement) {
 			final ArraySplit arraySplit =
 				new ArraySplit().
 					withArrayPath(this.replaceExpression).
 					withSplitProjection(ArraySplit.ResultField.Element, ArraySplit.ResultField.Index,
 						ArraySplit.ResultField.Array).
-					withInputs(sopremoModule.getInput(0));
+					withInputs(module.getInput(0));
 
 			EvaluationExpression defaultExpression;
 			if (this.defaultExpression == KEEP_VALUE)
@@ -115,7 +113,7 @@ public class Replace extends CompositeOperator<Replace> {
 				defaultExpression = new PathExpression(new ArrayAccess(0), this.defaultExpression);
 			Replace replacedElements = new Replace().
 				withName(String.format("%s element", getName())).
-				withInputs(arraySplit, sopremoModule.getInput(1)).
+				withInputs(arraySplit, module.getInput(1)).
 				withDefaultExpression(defaultExpression).
 				withDictionaryValueExtraction(this.dictionaryValueExtraction).
 				withDictionaryKeyExtraction(this.dictionaryKeyExtraction).
@@ -131,14 +129,14 @@ public class Replace extends CompositeOperator<Replace> {
 
 			final Replace arrayLookup = new Replace().
 				withName(String.format("%s array", getName())).
-				withInputs(sopremoModule.getInput(0), arrayDictionary).
+				withInputs(module.getInput(0), arrayDictionary).
 				withReplaceExpression(this.replaceExpression).
 				withDefaultExpression(FILTER_RECORDS);
 			// empty arrays will not be replaced
 			Selection emptyArrays = new Selection().
 				withCondition(new UnaryExpression(this.replaceExpression, true)).
-				withInputs(sopremoModule.getInput(0));
-			sopremoModule.getOutput(0).setInput(0, new UnionAll().withInputs(arrayLookup, emptyArrays));
+				withInputs(module.getInput(0));
+			module.getOutput(0).setInput(0, new UnionAll().withInputs(arrayLookup, emptyArrays));
 		} else {
 			EvaluationExpression defaultExpression =
 				this.defaultExpression == KEEP_VALUE ? this.replaceExpression : this.defaultExpression;
@@ -148,16 +146,14 @@ public class Replace extends CompositeOperator<Replace> {
 			else
 				replaceAtom = new ReplaceWithDefaultValue().withDefaultExpression(defaultExpression);
 
-			replaceAtom.withInputs(sopremoModule.getInputs()).
+			replaceAtom.withInputs(module.getInputs()).
 				withReplaceExpression(this.replaceExpression).
 				withDictionaryValueExtraction(this.dictionaryValueExtraction).
 				withKeyExpression(0, getReplaceExpression()).
 				withKeyExpression(1, getDictionaryKeyExtraction());
-			sopremoModule.getOutput(0).setInput(0,
-				replaceAtom.withInputs(sopremoModule.getInput(0), sopremoModule.getInput(1)));
+			module.getOutput(0).setInput(0,
+				replaceAtom.withInputs(module.getInput(0), module.getInput(1)));
 		}
-
-		return sopremoModule;
 	}
 
 	@Override

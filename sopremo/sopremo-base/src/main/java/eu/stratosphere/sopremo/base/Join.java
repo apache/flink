@@ -7,7 +7,6 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -48,18 +47,14 @@ public class Join extends CompositeOperator<Join> {
 
 	private EvaluationExpression resultProjection = ObjectCreation.CONCATENATION;
 
-	private IntSet outerJoinSources = new IntOpenHashSet();
+	private final IntSet outerJoinSources = new IntOpenHashSet();
 
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
-	public SopremoModule asModule(EvaluationContext context) {
-		final int numInputs = this.getInputs().size();
-
-		final SopremoModule module = new SopremoModule(this.toString(), numInputs, 1);
-
+	public void addImplementation(SopremoModule module, EvaluationContext context) {
 		switch (this.binaryConditions.size()) {
 		case 0:
 			throw new IllegalStateException("No join condition specified");
@@ -81,7 +76,8 @@ public class Join extends CompositeOperator<Join> {
 			// asElementaryOperators();
 
 			final List<JsonStream> inputs = new ArrayList<JsonStream>();
-			for (int index = 0; index < numInputs; index++) {
+			int numInputs = getNumInputs();
+			for (int index = 0; index < numInputs ; index++) {
 				inputs.add(OperatorUtil.positionEncode(module.getInput(index), index, numInputs));
 			}
 
@@ -89,7 +85,7 @@ public class Join extends CompositeOperator<Join> {
 				List<JsonStream> operatorInputs = twoSourceJoin.getInputs();
 
 				final List<JsonStream> actualInputs = new ArrayList<JsonStream>(operatorInputs.size());
-				List<Source> moduleInput = Arrays.asList(module.getInputs());
+				List<Source> moduleInput = module.getInputs();
 				for (int index = 0; index < operatorInputs.size(); index++) {
 					final int inputIndex = moduleInput.indexOf(operatorInputs.get(index).getSource().getOperator());
 					actualInputs.add(inputs.get(inputIndex).getSource());
@@ -109,8 +105,6 @@ public class Join extends CompositeOperator<Join> {
 			module.getOutput(0).setInput(0,
 				new Projection().withInputs(lastJoin).withResultProjection(resultProjection));
 		}
-
-		return module;
 	}
 
 	@Override

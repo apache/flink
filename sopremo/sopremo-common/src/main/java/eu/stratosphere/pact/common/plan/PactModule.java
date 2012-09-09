@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
@@ -57,14 +58,13 @@ public class PactModule extends GraphModule<Contract, FileDataSource, FileDataSi
 	 *        the number of outputs.
 	 */
 	public PactModule(final String name, final int numberOfInputs, final int numberOfOutputs) {
-		super(name, new FileDataSource[numberOfInputs], new FileDataSink[numberOfOutputs],
-			ContractNavigator.INSTANCE);
-		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] =
-				new FileDataSource(SequentialInputFormat.class, String.format("%s %d", name, index));
-		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] =
-				new FileDataSink(SequentialOutputFormat.class, String.format("%s %d", name, index));
+		super(name, numberOfInputs, numberOfOutputs, ContractNavigator.INSTANCE);
+		for (int index = 0; index < numberOfInputs; index++)
+			setInput(index, 
+				new FileDataSource(SequentialInputFormat.class, String.format("%s %d", name, index)));
+		for (int index = 0; index < numberOfOutputs; index++)
+			setOutput(index, 
+				new FileDataSink(SequentialOutputFormat.class, String.format("%s %d", name, index)));
 	}
 
 	/**
@@ -86,10 +86,10 @@ public class PactModule extends GraphModule<Contract, FileDataSource, FileDataSi
 		dagPrinter.setNodePrinter(new NodePrinter<Contract>() {
 			@Override
 			public String toString(final Contract node) {
-				final int inputIndex = Arrays.asList(PactModule.this.inputNodes).indexOf(node);
+				final int inputIndex = PactModule.this.inputNodes.indexOf(node);
 				if (inputIndex != -1)
 					return String.format("Input %d", inputIndex);
-				final int outputIndex = Arrays.asList(PactModule.this.outputNodes).indexOf(node);
+				final int outputIndex = PactModule.this.outputNodes.indexOf(node);
 				if (outputIndex != -1)
 					return String.format("Output %d", outputIndex);
 				return String.format("%s [%s]", node.getClass().getSimpleName(), node.getName());
@@ -130,7 +130,7 @@ public class PactModule extends GraphModule<Contract, FileDataSource, FileDataSi
 		int sinkIndex = 0;
 		for (final Contract sink : sinks) {
 			if (sink instanceof FileDataSink)
-				module.outputNodes[sinkIndex] = (FileDataSink) sink;
+				module.setOutput(sinkIndex, (FileDataSink) sink);
 			else
 				module.getOutput(sinkIndex).addInput(sink);
 			sinkIndex++;
@@ -140,7 +140,7 @@ public class PactModule extends GraphModule<Contract, FileDataSource, FileDataSi
 			final Contract node = inputs.get(index);
 			final List<List<Contract>> contractInputs = ContractUtil.getInputs(node);
 			if (contractInputs.isEmpty())
-				module.inputNodes[index++] = (FileDataSource) node;
+				module.setInput(index++, (FileDataSource) node);
 			else {
 				for (int unconnectedIndex = 0; unconnectedIndex < contractInputs.size(); unconnectedIndex++)
 					if (contractInputs.get(unconnectedIndex).isEmpty())

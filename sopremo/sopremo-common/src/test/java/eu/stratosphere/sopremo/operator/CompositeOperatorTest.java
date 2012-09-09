@@ -3,19 +3,14 @@ package eu.stratosphere.sopremo.operator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.FileDataSink;
-import eu.stratosphere.pact.common.contract.FileDataSource;
-import eu.stratosphere.pact.common.plan.ContractNavigator;
-import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.SopremoTest;
+import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.io.Source;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCross;
@@ -24,7 +19,8 @@ import eu.stratosphere.util.dag.GraphLevelPartitioner;
 import eu.stratosphere.util.dag.GraphLevelPartitioner.Level;
 
 /**
- * The class <code>CompositeOperatorTest</code> contains tests for the class <code>{@link CompositeOperator<?>}</code>.
+ * The class <code>CompositeOperatorTest</code> contains tests for the class
+ * <code>{@link CompositeOperator<?>}</code>.
  * 
  * @author Arvid Heise
  */
@@ -38,7 +34,7 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 	 * Run the PactModule asPactModule(EvaluationContext) method test.
 	 */
 	@Test
-	public void testAsPactModule() throws Exception {
+	public void testAsElementaryOperators() throws Exception {
 		final Operator<?> input1 = new Source("file://1");
 		final Operator<?> input2 = new Source("file://2");
 		final Operator<?> input3 = new Source("file://3");
@@ -46,24 +42,23 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		fixture.setInputs(input1, input2, input3);
 		final EvaluationContext context = new EvaluationContext();
 
-		final PactModule result = fixture.asPactModule(context);
+		final ElementarySopremoModule module = fixture.asElementaryOperators(context);
 
-		assertNotNull(result);
-		final List<Level<Contract>> reachableNodes = GraphLevelPartitioner.getLevels(
-			result.getAllOutputs(), ContractNavigator.INSTANCE);
+		assertNotNull(module);
+		final List<Level<Operator<?>>> reachableNodes = GraphLevelPartitioner.getLevels(
+				module.getAllOutputs(), OperatorNavigator.INSTANCE);
 		assertEquals(3, reachableNodes.get(0).getLevelNodes().size());
 		assertEquals(1, reachableNodes.get(1).getLevelNodes().size());
 		assertEquals(1, reachableNodes.get(2).getLevelNodes().size());
 		assertEquals(1, reachableNodes.get(3).getLevelNodes().size());
 
 		for (int index = 0; index < 3; index++)
-			assertTrue(FileDataSource.class.isInstance(reachableNodes.get(0).getLevelNodes()
-				.get(index)));
-		assertSame(ElementaryOperatorImpl.Implementation.class, reachableNodes.get(1)
-			.getLevelNodes().get(0).getUserCodeClass());
-		assertSame(ElementaryOperatorImpl.Implementation.class, reachableNodes.get(2)
-			.getLevelNodes().get(0).getUserCodeClass());
-		assertTrue(FileDataSink.class.isInstance(reachableNodes.get(3).getLevelNodes().get(0)));
+			assertSame(Source.class, reachableNodes.get(0).getLevelNodes().get(index).getClass());
+		assertSame(ElementaryOperatorImpl.class, reachableNodes.get(1)
+				.getLevelNodes().get(0).getClass());
+		assertSame(ElementaryOperatorImpl.class, reachableNodes.get(2)
+				.getLevelNodes().get(0).getClass());
+		assertSame(Sink.class, reachableNodes.get(3).getLevelNodes().get(0).getClass());
 	}
 
 	static class CompositeOperatorImpl extends CompositeOperator<CompositeOperatorImpl> {
@@ -79,14 +74,16 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 			this.index = index;
 		}
 
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.
+		 * stratosphere.sopremo.EvaluationContext)
 		 */
 		@Override
-		public SopremoModule asModule(EvaluationContext context) {
-			return SopremoModule.valueOf(this.getName(),
-				new ElementaryOperatorImpl().withInputs(this.getInput(0),
-					new ElementaryOperatorImpl().withInputs(this.getInput(1), this.getInput(2))));
+		public void addImplementation(SopremoModule module, EvaluationContext context) {
+			module.embed(new ElementaryOperatorImpl().withInputs(null,
+					new ElementaryOperatorImpl().withInputs(null, null)));
 		}
 
 		@Override
@@ -120,8 +117,11 @@ public class CompositeOperatorTest extends SopremoTest<CompositeOperatorTest.Com
 		static class Implementation extends SopremoCross {
 			/*
 			 * (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.pact.SopremoCross#cross(eu.stratosphere.sopremo.type.IJsonNode,
-			 * eu.stratosphere.sopremo.type.IJsonNode, eu.stratosphere.sopremo.pact.JsonCollector)
+			 * 
+			 * @see
+			 * eu.stratosphere.sopremo.pact.SopremoCross#cross(eu.stratosphere
+			 * .sopremo.type.IJsonNode, eu.stratosphere.sopremo.type.IJsonNode,
+			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
 			protected void cross(final IJsonNode value1, final IJsonNode value2, final JsonCollector out) {

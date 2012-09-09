@@ -219,6 +219,24 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		return new ArrayList<JsonStream>(this.inputs);
 	}
 
+	/**
+	 * Returns the number of inputs.
+	 * 
+	 * @return the number of inputs
+	 */
+	public int getNumInputs() {
+		return this.inputs.size();
+	}
+
+	/**
+	 * Returns the number of outputs.
+	 * 
+	 * @return the number of outputs
+	 */
+	public int getNumOutputs() {
+		return this.outputs.size();
+	}
+
 	public int getMaxInputs() {
 		return this.maxInputs;
 	}
