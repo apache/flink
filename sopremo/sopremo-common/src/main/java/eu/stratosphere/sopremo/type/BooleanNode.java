@@ -15,13 +15,46 @@ import java.io.IOException;
 public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 
 	/**
+	 * @author Arvid Heise
+	 *
+	 */
+	private static final class UnmodifiableBoolean extends BooleanNode {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 3900238822834808773L;
+
+		/**
+		 * Initializes UnmodifiableBoolean.
+		 *
+		 * @param v
+		 */
+		private UnmodifiableBoolean(boolean v) {
+			super(v);
+		}
+
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.type.BooleanNode#copyValueFrom(eu.stratosphere.sopremo.type.IJsonNode)
+		 */
+		@Override
+		public void copyValueFrom(IJsonNode otherNode) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void read(DataInput in) throws IOException {	
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 9185727528566635632L;
 
-	public final static BooleanNode TRUE = new BooleanNode(true);
+	public final static BooleanNode TRUE = new UnmodifiableBoolean(true);
 
-	public final static BooleanNode FALSE = new BooleanNode(false);
+	public final static BooleanNode FALSE = new UnmodifiableBoolean(false);
 
 	private boolean value;
 

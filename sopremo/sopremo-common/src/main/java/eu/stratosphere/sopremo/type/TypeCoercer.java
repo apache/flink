@@ -175,10 +175,13 @@ public class TypeCoercer {
 	private void addSelfCoercers() {		
 		for (final Entry<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer<?, ?>>> toCoercers : this.coercers.entrySet()) {
 			final Class<? extends IJsonNode> targetClass = toCoercers.getKey();
+			Map<Class<? extends IJsonNode>, Coercer<?, ?>> coercers = toCoercers.getValue();
+			if(coercers.containsKey(targetClass))
+				continue;
 			if(targetClass.isInterface())
-				toCoercers.getValue().put(targetClass, new CopyCoercer());
+				coercers.put(targetClass, new CopyCoercer());
 			else
-				toCoercers.getValue().put(targetClass, new SelfCoercer(targetClass));
+				coercers.put(targetClass, new SelfCoercer(targetClass));
 		}
 	}
 
@@ -299,6 +302,12 @@ public class TypeCoercer {
 	private Map<Class<? extends IJsonNode>, Coercer<?, BooleanNode>> getToBooleanCoercers() {
 		final Map<Class<? extends IJsonNode>, Coercer<?, BooleanNode>> toBooleanCoercers =
 			new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, BooleanNode>>();
+		toBooleanCoercers.put(BooleanNode.class, new Coercer<BooleanNode, BooleanNode>(BooleanNode.class) {
+			@Override
+			public BooleanNode coerce(final BooleanNode from, final BooleanNode target) {
+				return from;
+			}
+		});
 		toBooleanCoercers.put(INumericNode.class, new Coercer<INumericNode, BooleanNode>(BooleanNode.class) {
 			@Override
 			public BooleanNode coerce(final INumericNode from, final BooleanNode target) {
