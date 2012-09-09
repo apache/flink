@@ -257,6 +257,8 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			}
 			// Do nothing here
 		}
+
+		sopremoServer.close();
 	}
 
 }
