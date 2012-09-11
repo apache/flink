@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.base;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -70,17 +69,9 @@ public class Selection extends ElementaryOperator<Selection> {
 		return builder.toString();
 	}
 
+
 	public static class Implementation extends SopremoMap {
 		private BooleanExpression condition;
-
-		/*
-		 * (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.pact.SopremoMap#open(eu.stratosphere.nephele.configuration.Configuration)
-		 */
-		@Override
-		public void open(Configuration parameters) {
-			super.open(parameters);
-		}
 
 		@Override
 		protected void map(final IJsonNode value, final JsonCollector out) {
