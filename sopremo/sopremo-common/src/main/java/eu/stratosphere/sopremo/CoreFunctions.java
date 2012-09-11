@@ -273,13 +273,12 @@ public class CoreFunctions implements BuiltinProvider {
 		return arrayResult;
 	}
 
-	public static IJsonNode filter(final ArrayNode result, final IArrayNode input, final IJsonNode... elementsToFilter) {
+	public static void filter(final ArrayNode result, final IArrayNode input, final IJsonNode... elementsToFilter) {
 		final HashSet<IJsonNode> filterSet = new HashSet<IJsonNode>(Arrays.asList(elementsToFilter));
 		result.clear();
 		for (int index = 0; index < input.size(); index++)
 			if (!filterSet.contains(input.get(index)))
 				result.add(input.get(index));
-		return result;
 	}
 
 	public static void format(final TextNode result, final TextNode format, final IJsonNode... params) {
