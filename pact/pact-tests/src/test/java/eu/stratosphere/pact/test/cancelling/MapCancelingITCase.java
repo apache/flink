@@ -35,7 +35,10 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract(IdentityMapper.class, source, "Identity Mapper");
+		MapContract mapper = MapContract.builder(IdentityMapper.class)
+			.input(source)
+			.name("Identity Mapper")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
 		
 		
@@ -50,7 +53,10 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract(DelayingIdentityMapper.class, source, "Delay Mapper");
+		MapContract mapper = MapContract.builder(DelayingIdentityMapper.class)
+			.input(source)
+			.name("Delay Mapper")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
 		
 		
@@ -65,7 +71,10 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract(LongCancelTimeIdentityMapper.class, source, "Long Cancelling Time Mapper");
+		MapContract mapper = MapContract.builder(LongCancelTimeIdentityMapper.class)
+			.input(source)
+			.name("Long Cancelling Time Mapper")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
 		
 		
@@ -80,7 +89,10 @@ public class MapCancelingITCase extends CancellingTestBase
 	{
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		InfiniteIntegerInputFormat.class, "Source");
-		MapContract mapper = new MapContract(StuckInOpenIdentityMapper.class, source, "Stuck-In-Open Mapper");
+		MapContract mapper = MapContract.builder(StuckInOpenIdentityMapper.class)
+			.input(source)
+			.name("Stuck-In-Open Mapper")
+			.build();
 		GenericDataSink sink = new GenericDataSink(DiscardingOutputFormat.class, mapper, "Sink");
 		
 		

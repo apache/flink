@@ -50,39 +50,44 @@ import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.test.util.TestBase;
 
 @RunWith(Parameterized.class)
-public class GlobalSortingITCase extends TestBase {
+public class GlobalSortingMixedOrderITCase extends TestBase {
 
-	private static final Log LOG = LogFactory.getLog(GlobalSortingITCase.class);
+	private static final Log LOG = LogFactory.getLog(GlobalSortingMixedOrderITCase.class);
+	
+	private static final int RANGE_I1 = 100;
+	private static final int RANGE_I2 = 20;
+	private static final int RANGE_I3 = 20;
 	
 	private String recordsPath = null;
 	private String resultPath = null;
 
-	private ArrayList<Integer> records;
+	private ArrayList<TripleInt> records;
 
-	public GlobalSortingITCase(Configuration config) {
+	public GlobalSortingMixedOrderITCase(Configuration config) {
 		super(config);
 	}
 
 	@Override
 	protected void preSubmit() throws Exception {
 		
-		recordsPath = getFilesystemProvider().getTempDirPath() + "/records";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
+		this.recordsPath = getFilesystemProvider().getTempDirPath() + "/records";
+		this.resultPath = getFilesystemProvider().getTempDirPath() + "/result";
 		
-		records = new ArrayList<Integer>();
+		this.records = new ArrayList<TripleInt>();
 		
 		//Generate records
-		Random rnd = new Random(1988);
-		int numRecordsPerSplit = 1000;
+		final Random rnd = new Random(1988);
+		final int numRecordsPerSplit = 1000;
 		
-		getFilesystemProvider().createDir(recordsPath);
-		int numSplits = 4;
+		getFilesystemProvider().createDir(this.recordsPath);
+		
+		final int numSplits = 4;
 		for (int i = 0; i < numSplits; i++) {
 			StringBuilder sb = new StringBuilder(numSplits*2);
 			for (int j = 0; j < numRecordsPerSplit; j++) {
-				int number = rnd.nextInt();
-				records.add(number);
-				sb.append(number);
+				final TripleInt val = new TripleInt(rnd.nextInt(RANGE_I1), rnd.nextInt(RANGE_I2), rnd.nextInt(RANGE_I3));
+				this.records.add(val);
+				sb.append(val);
 				sb.append('\n');
 			}
 			getFilesystemProvider().createFile(recordsPath + "/part_" + i + ".txt", sb.toString());
@@ -116,7 +121,6 @@ public class GlobalSortingITCase extends TestBase {
 		
 		// Test results
 		compareResultsByLinesInMemoryStrictOrder(this.records, this.resultPath);
-
 	}
 	
 	@Override
@@ -139,23 +143,45 @@ public class GlobalSortingITCase extends TestBase {
 		return toParameterList(tConfigs);
 	}
 	
-	public static class UniformDistribution implements DataDistribution {
-
-		public UniformDistribution() { 	}
+	public static class TripleIntDistribution implements DataDistribution
+	{
+		private boolean ascendingI1, ascendingI2, ascendingI3;
+		
+		public TripleIntDistribution(Order orderI1, Order orderI2, Order orderI3) {
+			this.ascendingI1 = orderI1 != Order.DESCENDING;
+			this.ascendingI2 = orderI2 != Order.DESCENDING;
+			this.ascendingI3 = orderI3 != Order.DESCENDING;
+		}
+		
+		public TripleIntDistribution() {}
 		
 		@Override
 		public void write(DataOutput out) throws IOException {
+			out.writeBoolean(this.ascendingI1);
+			out.writeBoolean(this.ascendingI2);
+			out.writeBoolean(this.ascendingI3);
 		}
 
 		@Override
 		public void read(DataInput in) throws IOException {
+			this.ascendingI1 = in.readBoolean();
+			this.ascendingI2 = in.readBoolean();
+			this.ascendingI3 = in.readBoolean();
 		}
 
 		@Override
-		public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets) {
-			int boundVal = Integer.MIN_VALUE+((Integer.MAX_VALUE/totalNumBuckets)*2*bucketNum);
-			PactRecord bound = new PactRecord(1);
+		public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets)
+		{
+			final float bucketWidth = ((float) RANGE_I1) / totalNumBuckets;
+			int boundVal = (int) ((bucketNum + 1) * bucketWidth);
+			if (!this.ascendingI1) {
+				boundVal = RANGE_I1 - boundVal;
+			}
+			
+			final PactRecord bound = new PactRecord(3);
 			bound.setField(0, new PactInteger(boundVal));
+			bound.setField(1, new PactInteger(RANGE_I2));
+			bound.setField(2, new PactInteger(RANGE_I3));
 			return bound;
 		}
 		
@@ -166,34 +192,89 @@ public class GlobalSortingITCase extends TestBase {
 		@Override
 		public Plan getPlan(String... args) throws IllegalArgumentException {
 			// parse program parameters
-			int noSubtasks       = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
-			String recordsPath    = (args.length > 1 ? args[1] : "");
-			String output        = (args.length > 2 ? args[2] : "");
+			final int noSubtasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+			final String recordsPath = (args.length > 1 ? args[1] : "");
+			final String output      = (args.length > 2 ? args[2] : "");
 			
-			FileDataSource source =
-				new FileDataSource(RecordInputFormat.class, recordsPath);
-			source.setDegreeOfParallelism(noSubtasks);
+			FileDataSource source = new FileDataSource(RecordInputFormat.class, recordsPath);
 			source.setParameter(RecordInputFormat.RECORD_DELIMITER, "\n");
-			source.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
-			source.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 1);
-			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX+0, DecimalTextIntParser.class);
-			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+0, 0);
+			source.setParameter(RecordInputFormat.FIELD_DELIMITER_PARAMETER, ",");
+			source.setParameter(RecordInputFormat.NUM_FIELDS_PARAMETER, 3);
+			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, DecimalTextIntParser.class);
+			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, DecimalTextIntParser.class);
+			source.getParameters().setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 2, DecimalTextIntParser.class);
+			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 0);
+			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 1, 1);
+			source.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 2, 2);
 			
-			FileDataSink sink =
-				new FileDataSink(RecordOutputFormat.class, output);
-			sink.setDegreeOfParallelism(noSubtasks);
+			FileDataSink sink = new FileDataSink(RecordOutputFormat.class, output);
 			sink.getParameters().setString(RecordOutputFormat.RECORD_DELIMITER_PARAMETER, "\n");
-			sink.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			sink.getParameters().setString(RecordOutputFormat.FIELD_DELIMITER_PARAMETER, ",");
 			sink.getParameters().setBoolean(RecordOutputFormat.LENIENT_PARSING, true);
-			sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 1);
+			sink.getParameters().setInteger(RecordOutputFormat.NUM_FIELDS_PARAMETER, 3);
 			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 0, PactInteger.class);
+			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 1, PactInteger.class);
+			sink.getParameters().setClass(RecordOutputFormat.FIELD_TYPE_PARAMETER_PREFIX + 2, PactInteger.class);
 			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
+			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
+			sink.getParameters().setInteger(RecordOutputFormat.RECORD_POSITION_PARAMETER_PREFIX + 2, 2);
 			
-			sink.setGlobalOrder(new Ordering(0, PactInteger.class, Order.ASCENDING), new UniformDistribution());
+			sink.setGlobalOrder(
+				new Ordering(0, PactInteger.class, Order.DESCENDING)
+					.appendOrdering(1, PactInteger.class, Order.ASCENDING)
+					.appendOrdering(2, PactInteger.class, Order.DESCENDING),
+				new TripleIntDistribution(Order.DESCENDING, Order.ASCENDING, Order.DESCENDING));
 			sink.setInput(source);
 			
-			return new Plan(sink);
+			Plan p = new Plan(sink);
+			p.setDefaultParallelism(noSubtasks);
+			return p;
+		}
+	}
+	
+	/**
+	 * Three integers sorting descending, ascending, descending.
+	 */
+	static final class TripleInt implements Comparable<TripleInt>
+	{
+		private final int i1, i2, i3;
+
+		
+		TripleInt(int i1, int i2, int i3) {
+			this.i1 = i1;
+			this.i2 = i2;
+			this.i3 = i3;
+		}
+
+		public int getI1() {
+			return i1;
+		}
+
+		public int getI2() {
+			return i2;
+		}
+
+		public int getI3() {
+			return i3;
 		}
 		
+		@Override
+		public String toString() {
+			StringBuilder bld = new StringBuilder(32);
+			bld.append(this.i1);
+			bld.append(',');
+			bld.append(this.i2);
+			bld.append(',');
+			bld.append(this.i3);
+			return bld.toString();
+		}
+
+		@Override
+		public int compareTo(TripleInt o) {
+			return this.i1 < o.i1 ? 1 : this.i1 > o.i1 ? -1 :
+				this.i2 < o.i2 ? -1 : this.i2 > o.i2 ? 1 :
+				this.i3 < o.i3 ? 1 : this.i3 > o.i3 ? -1 : 0;
+			
+		}
 	}
 }

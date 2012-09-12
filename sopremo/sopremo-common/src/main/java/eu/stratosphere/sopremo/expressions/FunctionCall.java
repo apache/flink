@@ -1,5 +1,6 @@
 package eu.stratosphere.sopremo.expressions;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -93,6 +94,18 @@ public class FunctionCall extends ContainerExpression {
 	public FunctionCall(final String functionName, final EvaluationScope scope,
 			final List<EvaluationExpression> params) {
 		this(functionName, (SopremoFunction) scope.getFunctionRegistry().get(functionName), params);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#clone()
+	 */
+	@Override
+	public FunctionCall clone() {
+		final FunctionCall clone = (FunctionCall) super.clone();
+		clone.paramExprs = new ArrayList<CachingExpression<IJsonNode>>(this.paramExprs.size());
+		for (CachingExpression<IJsonNode> paramExpr : this.paramExprs) 
+			clone.paramExprs.add(paramExpr.clone());
+		return clone;
 	}
 
 	@Override

@@ -134,7 +134,8 @@ public class ReduceITCase extends TestBase
 		input.setParameter(DelimitedInputFormat.RECORD_DELIMITER, "\n");
 		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
-		ReduceContract testReducer = new ReduceContract(TestReducer.class, PactString.class, 0);
+		ReduceContract testReducer = new ReduceContract.Builder(TestReducer.class, PactString.class, 0)
+			.build();
 		testReducer.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 		testReducer.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
 				config.getString("ReduceTest#LocalStrategy", ""));

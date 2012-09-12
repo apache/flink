@@ -121,6 +121,50 @@ public final class GlobalConfiguration {
 			return this.confData.get(key);
 		}
 	}
+	
+	/**
+	 * Returns the value associated with the given key as a long integer.
+	 * 
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 */
+	public static long getLong(final String key, final long defaultValue) {
+
+		return get().getLongInternal(key, defaultValue);
+	}
+
+	/**
+	 * Returns the value associated with the given key as a long integer.
+	 * 
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 */
+	private long getLongInternal(final String key, final long defaultValue) {
+
+		long retVal = defaultValue;
+
+		try {
+			synchronized (this.confData) {
+
+				if (this.confData.containsKey(key)) {
+					retVal = Long.parseLong(this.confData.get(key));
+				}
+			}
+		} catch (NumberFormatException e) {
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(StringUtils.stringifyException(e));
+			}
+		}
+
+		return retVal;
+	}
 
 	/**
 	 * Returns the value associated with the given key as an integer.

@@ -153,52 +153,74 @@ public class TPCHQuery9 implements PlanAssembler, PlanAssemblerDescription {
 //		nationInput.getCompilerHints().setAvgNumValuesPerKey(1);
 
 		/* Filter on part's name, project values to NULL: */
-		MapContract filterPart = new MapContract(PartFilter.class, "filterParts");
+		MapContract filterPart = MapContract.builder(PartFilter.class)
+			.name("filterParts")
+			.build();
 		filterPart.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Map to change the key element of partsupp, project value to (supplycost, suppkey): */
-		MapContract mapPartsupp = new MapContract(PartsuppMap.class, "mapPartsupp");
+		MapContract mapPartsupp = MapContract.builder(PartsuppMap.class)
+			.name("mapPartsupp")
+			.build();
 		mapPartsupp.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Map to extract the year from order: */
-		MapContract mapOrder = new MapContract(OrderMap.class, "mapOrder");
+		MapContract mapOrder = MapContract.builder(OrderMap.class)
+			.name("mapOrder")
+			.build();
 		mapOrder.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Project value to (partkey, suppkey, quantity, price = extendedprice*(1-discount)): */
-		MapContract mapLineItem = new MapContract(LineItemMap.class, "proj.Partsupp");
+		MapContract mapLineItem = MapContract.builder(LineItemMap.class)
+			.name("proj.Partsupp")
+			.build();
 		mapLineItem.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* - change the key of supplier to nationkey, project value to suppkey */
-		MapContract mapSupplier = new MapContract(SupplierMap.class, "proj.Partsupp");
+		MapContract mapSupplier = MapContract.builder(SupplierMap.class)
+			.name("proj.Partsupp")
+			.build();
 		mapSupplier.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on partkey of part and partsupp: */
-		MatchContract partsJoin = new MatchContract(PartJoin.class, PactInteger.class, 0, 0, "partsJoin");
+		MatchContract partsJoin = MatchContract.builder(PartJoin.class, PactInteger.class, 0, 0)
+			.name("partsJoin")
+			.build();
 		partsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on orderkey of orders and lineitem: */
 		MatchContract orderedPartsJoin =
-			new MatchContract(OrderedPartsJoin.class, PactInteger.class, 0, 0,"orderedPartsJoin");
+			MatchContract.builder(OrderedPartsJoin.class, PactInteger.class, 0, 0)
+			.name("orderedPartsJoin")
+			.build();
 		orderedPartsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on nationkey of supplier and nation: */
 		MatchContract suppliersJoin =
-			new MatchContract(SuppliersJoin.class, PactInteger.class, 0, 0, "suppliersJoin");
+			MatchContract.builder(SuppliersJoin.class, PactInteger.class, 0, 0)
+			.name("suppliersJoin")
+			.build();
 		suppliersJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on (partkey,suppkey) of parts and orderedParts: */
 		MatchContract filteredPartsJoin =
-			new MatchContract(FilteredPartsJoin.class, IntPair.class, 0, 0, "filteredPartsJoin");
+			MatchContract.builder(FilteredPartsJoin.class, IntPair.class, 0, 0)
+			.name("filteredPartsJoin")
+			.build();
 		filteredPartsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Equijoin on suppkey of filteredParts and suppliers: */
 		MatchContract partListJoin =
-			new MatchContract(PartListJoin.class, PactInteger.class , 0, 0, "partlistJoin");
+			MatchContract.builder(PartListJoin.class, PactInteger.class , 0, 0)
+			.name("partlistJoin")
+			.build();
 		filteredPartsJoin.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Aggregate sum(amount) by (nation,year): */
 		ReduceContract sumAmountAggregate =
-			new ReduceContract(AmountAggregate.class, StringIntPair.class, 0, "groupyBy");
+			ReduceContract.builder(AmountAggregate.class, StringIntPair.class, 0)
+			.name("groupyBy")
+			.build();
 		sumAmountAggregate.setDegreeOfParallelism(this.degreeOfParallelism);
 
 		/* Connect input filters: */

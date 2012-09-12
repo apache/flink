@@ -324,6 +324,10 @@ public abstract class AbstractQueryParser extends Parser implements ParsingScope
 			throw new QueryParserException("Cannot parse script", e);
 		}
 		this.currentPlan.setSinks(this.sinks);
+		
+		for(PackageInfo info : this.packageManager.getImportedPackages())
+			this.currentPlan.addRequiredPackage(info.getPackagePath().getAbsolutePath());
+		
 		return this.currentPlan;
 	}
 

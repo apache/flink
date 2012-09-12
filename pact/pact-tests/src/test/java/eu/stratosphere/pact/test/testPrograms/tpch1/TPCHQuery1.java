@@ -69,11 +69,15 @@ public class TPCHQuery1 implements PlanAssembler, PlanAssemblerDescription {
 		result.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		MapContract lineItemFilter = 
-			new MapContract(LineItemFilter.class, "LineItem Filter");
+			MapContract.builder(LineItemFilter.class)
+			.name("LineItem Filter")
+			.build();
 		lineItemFilter.setDegreeOfParallelism(this.degreeOfParallelism);
 		
 		ReduceContract groupByReturnFlag = 
-			new ReduceContract(GroupByReturnFlag.class, PactString.class, 0, "groupyBy");
+			new ReduceContract.Builder(GroupByReturnFlag.class, PactString.class, 0)
+			.name("groupyBy")
+			.build();
 		
 		lineItemFilter.addInput(lineItems);
 		groupByReturnFlag.addInput(lineItemFilter);

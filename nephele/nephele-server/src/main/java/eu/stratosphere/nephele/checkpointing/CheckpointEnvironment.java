@@ -34,8 +34,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.Record;
 
-final class CheckpointEnvironment implements Environment
-{
+final class CheckpointEnvironment implements Environment {
 	private final ExecutionVertexID vertexID;
 
 	private final Environment environment;
@@ -213,9 +212,27 @@ final class CheckpointEnvironment implements Environment
 	 * {@inheritDoc}
 	 */
 	@Override
+	public int getNumberOfOutputChannels() {
+
+		return this.environment.getNumberOfOutputChannels();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getNumberOfInputChannels() {
+
+		return this.environment.getNumberOfInputChannels();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID,
-			final Class<T> outputClass, final ChannelSelector<T> selector, final boolean isBroadcast)
-	{
+			final Class<T> outputClass, final ChannelSelector<T> selector, final boolean isBroadcast) {
+
 		throw new IllegalStateException("Checkpoint replay task called createOutputGate");
 	}
 
@@ -224,8 +241,8 @@ final class CheckpointEnvironment implements Environment
 	 */
 	@Override
 	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
-														final RecordDeserializerFactory<T> deserializer)
-	{
+			final RecordDeserializerFactory<T> deserializer) {
+
 		throw new IllegalStateException("Checkpoint replay task called createInputGate");
 	}
 

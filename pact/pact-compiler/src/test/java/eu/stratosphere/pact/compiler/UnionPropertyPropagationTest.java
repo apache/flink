@@ -94,10 +94,14 @@ public class UnionPropertyPropagationTest {
 		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
 		
-		ReduceContract redA = new ReduceContract(IdentityReduce.class, PactInteger.class, 0, sourceA);
-		ReduceContract redB = new ReduceContract(IdentityReduce.class, PactInteger.class, 0, sourceB);
+		ReduceContract redA = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			.input(sourceA)
+			.build();
+		ReduceContract redB = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0)
+			.input(sourceB)
+			.build();
 		
-		ReduceContract globalRed = new ReduceContract(IdentityReduce.class, PactInteger.class, 0);
+		ReduceContract globalRed = new ReduceContract.Builder(IdentityReduce.class, PactInteger.class, 0).build();
 		globalRed.addInput(redA);
 		globalRed.addInput(redB);
 		

@@ -31,6 +31,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.junit.Ignore;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
@@ -77,7 +80,8 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 		verifyJvmOptions();
 
 		this.server = new SopremoServer();
-		this.server.setJobManagerAddress(new InetSocketAddress(ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT));
+		this.server.setJobManagerAddress(
+			new InetSocketAddress("localhost", ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT));
 		try {
 			this.cluster = ClusterProviderPool.getInstance(this.configName);
 		} catch (Exception e) {
@@ -86,9 +90,10 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 
 		if (rpc) {
 			try {
-				this.server.setServerAddress(new InetSocketAddress(SopremoConstants.DEFAULT_SOPREMO_SERVER_IPC_PORT));
+				this.server.setServerAddress(
+					new InetSocketAddress("localhost", SopremoConstants.DEFAULT_SOPREMO_SERVER_IPC_PORT));
 				this.server.start();
-				this.executor = (SopremoExecutionProtocol) RPC.getProxy(SopremoExecutionProtocol.class, this.server.getServerAddress());
+				this.executor = RPC.getProxy(SopremoExecutionProtocol.class, this.server.getServerAddress());
 			} catch (IOException e) {
 				fail(e, "Cannot start rpc sopremo server");
 			}
@@ -98,6 +103,34 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 
 		this.tempDir = this.cluster.getFilesystemProvider().getTempDirPath() + "/";
 		this.protocol = this.cluster.getFilesystemProvider().getURIPrefix();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.execution.LibraryTransferProtocol#getLibraryCacheProfile(eu.stratosphere.nephele.execution
+	 * .librarycache.LibraryCacheProfileRequest)
+	 */
+	@Override
+	public LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException {
+		LibraryCacheProfileResponse response = new LibraryCacheProfileResponse(request);
+		String[] requiredLibraries = request.getRequiredLibraries();
+
+		// since the test server is executed locally, all libraries are available
+		for (int i = 0; i < requiredLibraries.length; i++)
+			response.setCached(i, true);
+
+		return response;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * eu.stratosphere.sopremo.execution.LibraryTransferProtocol#updateLibraryCache(eu.stratosphere.nephele.execution
+	 * .librarycache.LibraryCacheUpdate)
+	 */
+	@Override
+	public void updateLibraryCache(LibraryCacheUpdate update) throws IOException {
 	}
 
 	public void checkContentsOf(String fileName, IJsonNode... expected) throws IOException {
@@ -217,7 +250,7 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 
 	public static ExecutionResponse waitForStateToFinish(SopremoExecutionProtocol server, ExecutionResponse response,
 			ExecutionState status) {
-		for (int waits = 0; response.getState() == status && waits < 100; waits++) {
+		for (int waits = 0; response.getState() == status && waits < 1000; waits++) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {

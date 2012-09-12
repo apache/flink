@@ -13,35 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.example.sort.terasort;
-
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
-import eu.stratosphere.pact.common.type.PactRecord;
+package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 /**
- * This class is responsible for converting a line from the input file to a two field record. 
- * Lines which do not match the expected length are skipped.
+ * This exception is thrown by the {@link ByteBufferedChannelManager} to indicate that a task cannot be accepted because
+ * there are not enough resources available to safely execute it.
+ * 
+ * @author warneke
  */
-public final class TeraInputFormat extends DelimitedInputFormat
-{
-	private final TeraKey key = new TeraKey();
-	private final TeraValue value = new TeraValue();
-	
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean readRecord(PactRecord target, byte[] record, int offset, int numBytes)
-	{
-		if (numBytes != (TeraKey.KEY_SIZE + TeraValue.VALUE_SIZE)) {
-			return false;
-		}
+public final class InsufficientResourcesException extends Exception {
 
-		this.key.setValue(record, offset);
-		this.value.setValue(record, offset + TeraKey.KEY_SIZE);
-		
-		target.setField(0, this.key);
-		target.setField(1, this.value);
-		return true;
+	/**
+	 * The generated serial version UID.
+	 */
+	private static final long serialVersionUID = -8977049569413215169L;
+
+	/**
+	 * Constructs a new insufficient resources exception.
+	 * 
+	 * @param msg
+	 *        the message describing the exception
+	 */
+	InsufficientResourcesException(final String msg) {
+		super(msg);
 	}
 }

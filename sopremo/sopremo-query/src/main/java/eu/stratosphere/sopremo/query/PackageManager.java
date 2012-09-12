@@ -16,6 +16,7 @@ package eu.stratosphere.sopremo.query;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -73,6 +74,15 @@ public class PackageManager implements ParsingScope {
 			this.packages.put(packageName, packageInfo);
 		}
 		return packageInfo;
+	}
+	
+	/**
+	 * Returns the names of the imported packages.
+	 * 
+	 * @return the packages
+	 */
+	public Collection<PackageInfo> getImportedPackages() {
+		return this.packages.values();
 	}
 
 	/**

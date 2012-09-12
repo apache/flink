@@ -29,9 +29,7 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
-import eu.stratosphere.sopremo.expressions.ContainerExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.DecimalNode;
@@ -218,39 +216,6 @@ public class SopremoUtil {
 		}
 
 		return object;
-	}
-
-	/**
-	 * Returns the index from an {@link InputSelection} that is stored in a {@link ContainerExpression}. This index is
-	 * not the position of the InputSelection within the ContainerNode, it is the index of the input that will be
-	 * selected by the InputSelection.
-	 * 
-	 * @param expr
-	 *        the ContainerExpression that should be used
-	 * @return the index from the first InputSelection or 0 if no InputSelection exists
-	 */
-	public static int getInputIndex(final ContainerExpression expr) {
-		final InputSelection fragment = expr.find(InputSelection.class);
-		if (fragment == null)
-			return 0;
-		return fragment.getIndex();
-	}
-
-	/**
-	 * Returns the index from an {@link InputSelection}. The given {@link EvaluationExpression} must be either an
-	 * InputSelection itself or a {@link ContainerExpression} that have stored an InputSelection. In all other cases 0
-	 * is returned.
-	 * 
-	 * @param expr
-	 *        the EvaluationExpression that should be used
-	 * @return the index from the InputSelection or 0 in the described cases
-	 */
-	public static int getInputIndex(final EvaluationExpression expr) {
-		if (expr instanceof ContainerExpression)
-			return getInputIndex((ContainerExpression) expr);
-		else if (expr instanceof InputSelection)
-			return ((InputSelection) expr).getIndex();
-		return 0;
 	}
 
 	/**
@@ -524,13 +489,32 @@ public class SopremoUtil {
 	 * Deserializes an {@link Serializable} from a {@link DataInput}.<br>
 	 * Please note that this method is not very efficient.
 	 */
-	@SuppressWarnings("unchecked")
-	public static <T extends Serializable> T deserializeObject(DataInput in, @SuppressWarnings("unused") Class<T> clazz)
+	public static <T extends Serializable> T deserializeObject(DataInput in, Class<T> clazz)
 			throws IOException {
 		byte[] buffer = new byte[in.readInt()];
 		in.readFully(buffer);
 
-		final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(buffer));
+		return byteArrayToSerializable(buffer, clazz, clazz.getClassLoader());
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends Serializable> T byteArrayToSerializable(byte[] buffer, Class<T> clazz, final ClassLoader classLoader)
+			throws IOException {
+		final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(buffer)) {
+			/*
+			 * (non-Javadoc)
+			 * @see java.io.ObjectInputStream#resolveClass(java.io.ObjectStreamClass)
+			 */
+			@Override
+			protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+				try {
+					return classLoader.loadClass(desc.getName());
+				} catch (ClassNotFoundException e) {
+					return super.resolveClass(desc);
+				}
+			}
+		};
+
 		try {
 			return (T) ois.readObject();
 		} catch (ClassNotFoundException e) {
@@ -543,13 +527,21 @@ public class SopremoUtil {
 	 * Please note that this method is not very efficient.
 	 */
 	public static void serializeObject(DataOutput out, Serializable serializable) throws IOException {
-		final ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-		final ObjectOutputStream oos = new ObjectOutputStream(byteOutStream);
-		oos.writeObject(serializable);
-		oos.close();
-		final byte[] byteArray = byteOutStream.toByteArray();
+		final byte[] byteArray = serializableToByteArray(serializable);
 		out.writeInt(byteArray.length);
 		out.write(byteArray);
+	}
+
+	public static byte[] serializableToByteArray(Serializable serializable) {
+		try {
+			final ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
+			final ObjectOutputStream oos = new ObjectOutputStream(byteOutStream);
+			oos.writeObject(serializable);
+			oos.close();
+			return byteOutStream.toByteArray();
+		} catch (IOException e) {
+			throw new IllegalStateException("IO exceptions should not occur locally", e);
+		}
 	}
 
 }

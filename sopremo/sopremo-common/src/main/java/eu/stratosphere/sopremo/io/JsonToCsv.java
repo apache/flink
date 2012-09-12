@@ -98,7 +98,7 @@ public class JsonToCsv {
 		final PactModule sourceModule = new Source(sourceFile).asPactModule(jsonToCsv.getContext());
 		final Contract source = sourceModule.getOutput(0).getInputs().get(0);
 
-		final MapContract jsonToString = new MapContract(JsonToString.class);
+		final MapContract jsonToString = MapContract.builder(JsonToString.class).build();
 		jsonToString.getParameters().setString("separator", jsonToCsv.getSeparator());
 		SopremoUtil.serialize(jsonToString.getParameters(), SopremoUtil.CONTEXT, jsonToCsv.getContext());
 		SopremoUtil.serialize(jsonToString.getParameters(), "extractionExpressions",

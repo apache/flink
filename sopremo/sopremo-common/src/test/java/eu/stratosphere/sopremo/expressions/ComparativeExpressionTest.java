@@ -23,9 +23,12 @@ public class ComparativeExpressionTest extends EvaluableExpressionTest<Comparati
 
 	}
 
-	@Test(expected = EvaluationException.class)
-	public void shouldThrowExceptionWhenComparingNumericNodeWithTextNode() {
-		this.evaluate(IntNode.valueOf(42), BinaryOperator.EQUAL, TextNode.valueOf("42"));
-
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluableExpressionTest#shouldComplyEqualsContract()
+	 */
+	@Override
+	@Test
+	public void shouldComplyEqualsContract() {
+		super.shouldComplyEqualsContract();
 	}
 }

@@ -105,6 +105,7 @@ public class Client {
 	 * @throws ErrorInPlanAssemblerException Thrown, if the plan assembler function causes an exception.
 	 */
 	public OptimizedPlan getOptimizedPlan(PactProgram prog) throws CompilerException, ProgramInvocationException, ErrorInPlanAssemblerException {
+		prog.checkPlan();
 		return compiler.compile(prog.getPlan());
 	}
 	

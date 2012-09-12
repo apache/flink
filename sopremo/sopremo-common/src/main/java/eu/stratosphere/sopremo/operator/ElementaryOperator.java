@@ -17,12 +17,15 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.IdentityMap;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
+import eu.stratosphere.pact.common.stubs.CrossStub;
+import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.stubs.Stub;
@@ -244,7 +247,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 		for (final List<Contract> inputs : inputLists) {
 			// assume at least one input for each contract input slot
 			if (inputs.isEmpty())
-				inputs.add(new MapContract(IdentityMap.class));
+				inputs.add(MapContract.builder(IdentityMap.class).build());
 			for (final Contract input : inputs)
 				if (!distinctInputs.contains(input))
 					distinctInputs.add(input);
@@ -353,35 +356,41 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 
 		try {
 			if (contractClass == ReduceContract.class) {
-				final int[] keyIndices = this.getKeyIndices(globalSchema,
-					this.getKeyExpressions(0));
-				return new ReduceContract(
-					(Class<? extends ReduceStub>) stubClass,
-					this.getKeyClasses(globalSchema, keyIndices),
-					keyIndices, this.toString());
-			} else if (contractClass == CoGroupContract.class) {
-				final int[] keyIndices1 = this.getKeyIndices(globalSchema,
-					this.getKeyExpressions(0));
-				final int[] keyIndices2 = this.getKeyIndices(globalSchema,
-					this.getKeyExpressions(1));
-				return new CoGroupContract(
-					(Class<? extends CoGroupStub>) stubClass,
-					this.getCommonKeyClasses(globalSchema, keyIndices1,
-						keyIndices2), keyIndices1, keyIndices2,
-					this.toString());
-			} else if (contractClass == MatchContract.class) {
-				final int[] keyIndices1 = this.getKeyIndices(globalSchema,
-					this.getKeyExpressions(0));
-				final int[] keyIndices2 = this.getKeyIndices(globalSchema,
-					this.getKeyExpressions(1));
-				return new MatchContract(
-					(Class<? extends MatchStub>) stubClass,
-					this.getCommonKeyClasses(globalSchema, keyIndices1,
-						keyIndices2), keyIndices1, keyIndices2,
-					this.toString());
+				int[] keyIndices = this.getKeyIndices(globalSchema, this.getKeyExpressions(0));
+				ReduceContract.Builder builder = ReduceContract.builder((Class<? extends ReduceStub>) stubClass);
+				builder.name(this.toString());
+				PactBuilderUtil.addKeys(builder, this.getKeyClasses(globalSchema, keyIndices), keyIndices);
+				return builder.build();
 			}
-			return ReflectUtil.newInstance(contractClass, stubClass,
-				this.toString());
+			else if (contractClass == CoGroupContract.class) {
+				int[] keyIndices1 = this.getKeyIndices(globalSchema, this.getKeyExpressions(0));
+				int[] keyIndices2 = this.getKeyIndices(globalSchema, this.getKeyExpressions(1));
+				Class<? extends Key>[] keyTypes = this.getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2);
+				
+				CoGroupContract.Builder builder = CoGroupContract.builder((Class<? extends CoGroupStub>) stubClass,
+					keyTypes[0], keyIndices1[0], keyIndices2[0]);
+				builder.name(this.toString());
+				PactBuilderUtil.addKeysExceptFirst(builder, keyTypes, keyIndices1, keyIndices2);
+				return builder.build();
+			}
+			else if (contractClass == MatchContract.class) {
+				int[] keyIndices1 = this.getKeyIndices(globalSchema, this.getKeyExpressions(0));
+				int[] keyIndices2 = this.getKeyIndices(globalSchema, this.getKeyExpressions(1));
+				Class<? extends Key>[] keyTypes = this.getCommonKeyClasses(globalSchema, keyIndices1, keyIndices2);
+				
+				MatchContract.Builder builder = MatchContract.builder((Class<? extends MatchStub>) stubClass,
+					keyTypes[0], keyIndices1[0], keyIndices2[0]);
+				builder.name(this.toString());
+				PactBuilderUtil.addKeysExceptFirst(builder, keyTypes, keyIndices1, keyIndices2);
+				return builder.build();
+			} else if(contractClass == MapContract.class) 
+				return MapContract.builder((Class<? extends MapStub>) stubClass).
+						name(this.toString()).build();
+			else if(contractClass == CrossContract.class) 
+				return CrossContract.builder((Class<? extends CrossStub>) stubClass).
+						name(this.toString()).build();
+			else throw new UnsupportedOperationException("Unknown contract type");
+				
 		} catch (final Exception e) {
 			throw new IllegalStateException("Cannot create contract from stub "
 				+ stubClass, e);

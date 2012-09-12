@@ -280,7 +280,9 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		lineitems.getCompilerHints().setAvgBytesPerRecord(20);
 
 		// create MapContract for filtering Orders tuples
-		MapContract filterO1 = new MapContract(FilterO.class, "FilterO");
+		MapContract filterO1 = MapContract.builder(FilterO.class)
+			.name("FilterO")
+			.build();
 		filterO1.addInput(orders1);
 		filterO1.setDegreeOfParallelism(noSubtasks);
 		// filter configuration
@@ -292,7 +294,9 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		filterO1.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 		
 		// create MapContract for filtering Orders tuples
-		MapContract filterO2 = new MapContract(FilterO.class, "FilterO");
+		MapContract filterO2 = MapContract.builder(FilterO.class)
+			.name("FilterO")
+			.build();
 		filterO2.addInput(orders2);
 		filterO2.setDegreeOfParallelism(noSubtasks);
 		// filter configuration
@@ -304,7 +308,11 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		filterO2.getCompilerHints().setAvgNumRecordsPerDistinctFields(new FieldSet(0), 1);
 
 		// create MatchContract for joining Orders and LineItems
-		MatchContract joinLiO = new MatchContract(JoinLiO.class, PactLong.class, 0, 0, filterO2, lineitems, "JoinLiO");
+		MatchContract joinLiO = MatchContract.builder(JoinLiO.class, PactLong.class, 0, 0)
+			.input1(filterO2)
+			.input2(lineitems)
+			.name("JoinLiO")
+			.build();
 		joinLiO.addFirstInput(filterO1);
 		joinLiO.setDegreeOfParallelism(noSubtasks);
 		// compiler hints
@@ -347,8 +355,12 @@ public class TPCHQuery3Unioned implements PlanAssembler, PlanAssemblerDescriptio
 		
 		// create ReduceContract for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
-		@SuppressWarnings("unchecked")
-		ReduceContract aggLiO = new ReduceContract(AggLiO.class, new Class[] {PactLong.class, PactString.class}, new int[] {0, 1}, joinLiO, "AggLio");
+		ReduceContract aggLiO = ReduceContract.builder(AggLiO.class)
+			.keyField(PactLong.class, 0)
+			.keyField(PactString.class, 1)
+			.input(joinLiO)
+			.name("AggLio")
+			.build();
 		aggLiO.addInput(partJoin2);
 		aggLiO.addInput(partJoin1);
 		aggLiO.setDegreeOfParallelism(noSubtasks);

@@ -129,8 +129,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 
 			TypeComparator<IT> comparator;
 			try {
-				comparator = comparatorFactory.createComparator(getTaskConfiguration(), 
-					this.config.getPrefixForInputParameters(0), this.userCodeClassLoader);
+				comparator = comparatorFactory.createComparator(this.config.getConfigForInputParameters(0), this.userCodeClassLoader);
 			} catch (ClassNotFoundException cnfex) {
 				throw new Exception("The instantiation of the type comparator from factory '" +	
 					comparatorFactory.getClass().getName() + 

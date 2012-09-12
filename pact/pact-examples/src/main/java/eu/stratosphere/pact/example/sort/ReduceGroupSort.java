@@ -95,7 +95,10 @@ public class ReduceGroupSort implements PlanAssembler, PlanAssemblerDescription 
 		input.setParameter(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX+1, 1);
 		
 		// create the reduce contract and sets the key to the first field
-		ReduceContract sorter = new ReduceContract(IdentityReducer.class, PactInteger.class, 0, input, "Reducer");
+		ReduceContract sorter = new ReduceContract.Builder(IdentityReducer.class, PactInteger.class, 0)
+			.input(input)
+			.name("Reducer")
+			.build();
 		// sets the group sorting to the second field
 		sorter.setGroupOrder(new Ordering(1, PactInteger.class, Order.ASCENDING));
 

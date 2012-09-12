@@ -66,7 +66,7 @@ public class SopremoServerTest {
 		this.mockThread = mock(SopremoExecutionThread.class);
 		whenNew(SopremoExecutionThread.class).withArguments(any(), any()).thenReturn(this.mockThread);
 		this.mockInfo = mock(SopremoJobInfo.class);
-		whenNew(SopremoJobInfo.class).withArguments(any(), any()).thenReturn(this.mockInfo);
+		whenNew(SopremoJobInfo.class).withArguments(any(), any(), any()).thenReturn(this.mockInfo);
 	}
 
 	@After

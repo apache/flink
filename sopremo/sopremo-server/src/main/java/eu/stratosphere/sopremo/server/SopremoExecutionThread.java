@@ -21,6 +21,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.client.JobClient;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -60,24 +61,25 @@ public class SopremoExecutionThread implements Runnable {
 	 */
 	@Override
 	public void run() {
-		processPlan(this.jobInfo.getInitialRequest().getQuery());
+		processPlan();
 	}
 
-	private void processPlan(SopremoPlan plan) {
+	private void processPlan() {
 		try {
 			LOG.info("Starting job " + this.jobInfo.getJobId());
+			SopremoPlan plan = this.jobInfo.getInitialRequest().getQuery();
 			final long runtime = executePlan(plan);
-			switch (this.jobInfo.getInitialRequest().getMode()) {
-			case RUN:
-				if (runtime != -1)
+			if (runtime != -1) {
+				switch (this.jobInfo.getInitialRequest().getMode()) {
+				case RUN:
 					this.jobInfo.setStatusAndDetail(ExecutionState.FINISHED, "");
-				break;
-			case RUN_WITH_STATISTICS:
-				if (runtime != -1)
+					break;
+				case RUN_WITH_STATISTICS:
 					gatherStatistics(plan, runtime);
-				break;
+					break;
+				}
+				LOG.info(String.format("Finished job %s in %s ms", this.jobInfo.getJobId(), runtime));
 			}
-			LOG.info(String.format("Finished job %s in %s ms", this.jobInfo.getJobId(), runtime));
 		} catch (Throwable ex) {
 			LOG.error("Cannot process plan " + this.jobInfo.getJobId(), ex);
 			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR,
@@ -96,7 +98,7 @@ public class SopremoExecutionThread implements Runnable {
 				try {
 					final String path = ((Sink) op).getOutputPath();
 					final long length = FileSystem.get(new URI(path)).getFileStatus(new Path(path)).getLen();
-					statistics.append("\n").append(path).append(": ").append(length).append(" B");
+					statistics.append("\n").append("Sink ").append(path).append(": ").append(length).append(" B");
 				} catch (Exception e) {
 					LOG.warn("While gathering statistics", e);
 				}
@@ -112,7 +114,18 @@ public class SopremoExecutionThread implements Runnable {
 			jobGraph = getJobGraph(pactPlan);
 		} catch (Exception e) {
 			LOG.error("Could not generate job graph " + this.jobInfo.getJobId(), e);
-			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not generate job graph: " + StringUtils.stringifyException(e));
+			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not generate job graph: "
+				+ StringUtils.stringifyException(e));
+			return -1;
+		}
+
+		try {
+			for (String requiredPackage : this.jobInfo.getInitialRequest().getQuery().getRequiredPackages())
+				jobGraph.addJar(LibraryCacheManager.contains(requiredPackage));
+		} catch (Exception e) {
+			LOG.error("Could not find associated packages " + this.jobInfo.getJobId(), e);
+			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not find associated packages: "
+				+ StringUtils.stringifyException(e));
 			return -1;
 		}
 
@@ -121,7 +134,8 @@ public class SopremoExecutionThread implements Runnable {
 			client = new JobClient(jobGraph, this.jobInfo.getConfiguration(), this.jobManagerAddress);
 		} catch (Exception e) {
 			LOG.error("Could not open job manager " + this.jobInfo.getJobId(), e);
-			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not open job manager: " + StringUtils.stringifyException(e));
+			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR, "Could not open job manager: "
+				+ StringUtils.stringifyException(e));
 			return -1;
 		}
 
@@ -130,9 +144,9 @@ public class SopremoExecutionThread implements Runnable {
 			this.jobInfo.setStatusAndDetail(ExecutionState.RUNNING, "");
 			return client.submitJobAndWait();
 		} catch (Exception e) {
-			LOG.error("The job was not successfully submitted to the nephele job manager " + this.jobInfo.getJobId(), e);
+			LOG.error("The job was not successfully executed " + this.jobInfo.getJobId(), e);
 			this.jobInfo.setStatusAndDetail(ExecutionState.ERROR,
-				"The job was not successfully submitted to the nephele job manager: "
+				"The job was not successfully executed: "
 					+ StringUtils.stringifyException(e));
 			return -1;
 		}
