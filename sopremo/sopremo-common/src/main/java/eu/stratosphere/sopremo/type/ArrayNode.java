@@ -20,12 +20,20 @@ public class ArrayNode extends AbstractArrayNode {
 	 */
 	private static final long serialVersionUID = 898220542834090837L;
 
-	private final List<IJsonNode> children = new ArrayList<IJsonNode>();
+	private final List<IJsonNode> children;
 
 	/**
 	 * Initializes an empty ArrayNode.
 	 */
 	public ArrayNode() {
+		this(new ArrayList<IJsonNode>());
+	}
+
+	/**
+	 * Initializes an empty ArrayNode directly with the given list.
+	 */
+	protected ArrayNode(List<IJsonNode> children) {
+		this.children = children;
 	}
 
 	/**
@@ -35,6 +43,7 @@ public class ArrayNode extends AbstractArrayNode {
 	 *        the nodes that should be added to this ArrayNode
 	 */
 	public ArrayNode(final IJsonNode... nodes) {
+		this();
 		for (final IJsonNode node : nodes)
 			this.children.add(node);
 	}
@@ -46,11 +55,13 @@ public class ArrayNode extends AbstractArrayNode {
 	 *        a Collection of nodes that should be added to this ArrayNode
 	 */
 	public ArrayNode(final Collection<? extends IJsonNode> nodes) {
+		this();
 		for (final IJsonNode node : nodes)
 			this.children.add(node);
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IArrayNode#asCollection()
 	 */
 	@Override
@@ -84,6 +95,15 @@ public class ArrayNode extends AbstractArrayNode {
 		return this;
 	}
 
+	/**
+	 * Returns the children.
+	 * 
+	 * @return the children
+	 */
+	protected List<IJsonNode> getChildren() {
+		return this.children;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.JsonArray#add(int, eu.stratosphere.sopremo.type.IJsonNode)
@@ -97,8 +117,9 @@ public class ArrayNode extends AbstractArrayNode {
 
 		return this;
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.AbstractArrayNode#contains(eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override

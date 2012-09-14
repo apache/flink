@@ -175,4 +175,8 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode {
 		this.value.copyNormalizedKey(target, offset, len);
 	}
 
+	public void setValue(CharSequence text, int tokenStart, int tokenEnd) {
+		setValue(text.subSequence(tokenStart, tokenEnd).toString());
+	}
+
 }
