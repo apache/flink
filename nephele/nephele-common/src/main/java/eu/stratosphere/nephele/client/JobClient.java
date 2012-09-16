@@ -151,7 +151,8 @@ public class JobClient {
 	 */
 	public JobClient(final JobGraph jobGraph, final Configuration configuration) throws IOException {
 
-		final String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		final String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
+			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_ADDRESS);
 		final int port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
@@ -179,7 +180,8 @@ public class JobClient {
 			final InetSocketAddress jobManagerAddress)
 			throws IOException {
 
-		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, jobManagerAddress,	NetUtils.getSocketFactory());
+		this.jobSubmitClient = RPC
+			.getProxy(JobManagementProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
