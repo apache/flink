@@ -167,7 +167,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				if (LOG.isDebugEnabled())
 					LOG.debug("Registering byte buffered output channel " + outputChannelContext.getChannelID() + " ("
-							+ (isActive ? "active" : "inactive") + ")");
+						+ (isActive ? "active" : "inactive") + ")");
 
 				this.registeredChannels.put(outputChannelContext.getChannelID(), outputChannelContext);
 			}
@@ -397,20 +397,11 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 					final InputChannelContext inputChannelContext = (InputChannelContext) cc;
 
-					Buffer destBuffer = null;
+					final Buffer destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
 					try {
-						destBuffer = inputChannelContext.requestEmptyBufferBlocking(srcBuffer.size());
 						srcBuffer.copyToBuffer(destBuffer);
-					} catch (InterruptedException e) {
-						// Free buffer and re-throw exception
-						if (destBuffer != null) {
-							destBuffer.recycleBuffer();
-						}
-						throw e;
 					} catch (IOException e) {
-						if (destBuffer != null) {
-							destBuffer.recycleBuffer();
-						}
+						destBuffer.recycleBuffer();
 						throw e;
 					}
 					// TODO: See if we can save one duplicate step here
@@ -431,21 +422,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				for (final RemoteReceiver remoteReceiver : remoteReceivers) {
 
-					TransferEnvelope dup = null;
-					try {
-						dup = transferEnvelope.duplicate();
-					} catch (InterruptedException e) {
-						if (dup != null) {
-							recycleBuffer(dup);
-						}
-						throw e;
-					} catch (IOException e) {
-						if (dup != null) {
-							recycleBuffer(dup);
-						}
-						throw e;
-					}
-
+					final TransferEnvelope dup = transferEnvelope.duplicate();
 					this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, dup);
 				}
 			}
@@ -691,7 +668,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		System.out.println("\tIncoming connections:");
 
 		final Iterator<Map.Entry<ChannelID, ChannelContext>> it2 = this.registeredChannels.entrySet()
-				.iterator();
+			.iterator();
 
 		while (it2.hasNext()) {
 
@@ -735,7 +712,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				if (!cc.isInputChannel()) {
 					throw new IOException("Channel context for local receiver " + localReceiver
-							+ " is not an input channel context");
+						+ " is not an input channel context");
 				}
 
 				final InputChannelContext icc = (InputChannelContext) cc;
