@@ -45,7 +45,7 @@ public class Difference extends SetOperation<Difference> {
 			@Override
 			protected void coGroup(final IArrayNode values1, final IArrayNode values2,
 					final JsonCollector out) {
-				if (!values1.isEmpty() && values2.isEmpty())
+				if (values2.isEmpty())
 					out.collect(values1.get(0));
 			}
 		}
