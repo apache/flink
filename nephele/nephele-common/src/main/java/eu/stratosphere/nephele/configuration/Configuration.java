@@ -86,11 +86,12 @@ public class Configuration implements IOReadableWritable {
 
 		synchronized (this.confData) {
 
-			if (!this.confData.containsKey(key)) {
+			final String retVal = this.confData.get(key);
+			if (retVal == null) {
 				return defaultValue;
 			}
 
-			return this.confData.get(key);
+			return retVal;
 		}
 	}
 
@@ -350,7 +351,6 @@ public class Configuration implements IOReadableWritable {
 			this.confData.put(key, Float.toString(value));
 		}
 	}
-	
 
 	/**
 	 * Returns the value associated with the given key as a byte array.
@@ -369,10 +369,10 @@ public class Configuration implements IOReadableWritable {
 		if (encoded == null) {
 			return defaultValue;
 		}
-		
+
 		return Base64.decodeBase64(encoded.getBytes());
 	}
-	
+
 	/**
 	 * Adds the given byte array to the configuration object. If key is <code>null</code> then nothing is added.
 	 * 
@@ -386,7 +386,7 @@ public class Configuration implements IOReadableWritable {
 			LOG.warn("Cannot set boolean: Given key is null!");
 			return;
 		}
-		
+
 		final String encoded = new String(Base64.encodeBase64(bytes));
 		synchronized (this.confData) {
 			this.confData.put(key, encoded);

@@ -87,7 +87,7 @@ public class ClientTest {
 	{
 		initMocks(this);
 		
-		when(configMock.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)).thenReturn("localhost");
+		when(configMock.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_ADDRESS)).thenReturn("localhost");
 		when(configMock.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)).thenReturn(6123);
 		
 		when(planMock.getJobName()).thenReturn("MockPlan");
