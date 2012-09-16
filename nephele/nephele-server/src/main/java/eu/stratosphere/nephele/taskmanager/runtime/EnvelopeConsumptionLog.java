@@ -47,8 +47,8 @@ public final class EnvelopeConsumptionLog {
 	private static final int SIZE_OF_INTEGER = 4;
 
 	private static final AtomicEnumerator<String> TEMP_PATHS = AtomicEnumerator.get(
-			GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-				System.getProperty("java.io.tmpdir")).split(File.pathSeparator));
+		GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			System.getProperty("java.io.tmpdir")).split(File.pathSeparator));
 
 	private final File logFile;
 
@@ -240,7 +240,8 @@ public final class EnvelopeConsumptionLog {
 			LOG.debug("Initial log entries: " + this.numberOfInitialLogEntries + ", announced "
 				+ this.numberOfAnnouncedEnvelopes);
 			LOG.debug("Outstanding buffer: " + this.outstandingEnvelopesAsIntBuffer.remaining());
-			showOustandingEnvelopeLog();
+			// TODO: Re-enable the following debug method when the log4j configuration is fixed
+			// showOustandingEnvelopeLog();
 		}
 
 		if (!this.outstandingEnvelopesAsIntBuffer.hasRemaining()) {
