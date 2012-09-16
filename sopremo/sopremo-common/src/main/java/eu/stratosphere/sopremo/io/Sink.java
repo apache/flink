@@ -127,6 +127,20 @@ public class Sink extends ElementaryOperator<Sink> {
 		this.outputPath = outputPath;
 	}
 
+	/**
+	 * Sets the outputPath to the specified value.
+	 * 
+	 * @param outputPath
+	 *        the outputPath to set
+	 * @return 
+	 */
+	public Sink withOutputPath(String outputPath) {
+		setOutputPath(outputPath);
+		return this;
+	}
+
+	
+	
 	@Override
 	public String toString() {
 		return "Sink [" + this.outputPath + "]";

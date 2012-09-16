@@ -114,11 +114,22 @@ public class SopremoTestPlan {
 	 *        the Operators that should be executed
 	 */
 	public SopremoTestPlan(final Operator<?>... sinks) {
+		this(Arrays.asList(sinks));
+	}
+
+	/**
+	 * Initializes a SopremoTestPlan with the given {@link Operator}s. For each Operator that has no source or no sink,
+	 * {@link MockupSource}s and {@link MockupSink}s are automatically set.
+	 * 
+	 * @param sinks
+	 *        the Operators that should be executed
+	 */
+	public SopremoTestPlan(final List<Operator<?>> sinks) {
 		final List<JsonStream> unconnectedOutputs = new ArrayList<JsonStream>();
 		final List<Operator<?>> unconnectedInputs = new ArrayList<Operator<?>>();
 		for (final Operator<?> operator : sinks) {
 			unconnectedOutputs.addAll(operator.getOutputs());
-			if (operator instanceof Sink)
+			if (operator.getNumOutputs() == 0)
 				unconnectedOutputs.add(operator);
 		}
 
@@ -470,7 +481,7 @@ public class SopremoTestPlan {
 
 		private boolean empty = false;
 
-		private SopremoTestPlan testPlan;
+		private final SopremoTestPlan testPlan;
 
 		public ModifiableChannel(final SopremoTestPlan testPlan, final O operator, final int index) {
 			super(operator, index);
