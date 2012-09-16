@@ -313,10 +313,12 @@ public class RPC {
 	 * Construct a client-side proxy object that implements the named protocol,
 	 * talking to a server at the named address.
 	 */
-	public static <V extends VersionedProtocol> V getProxy(Class<V> protocol, InetSocketAddress addr,
-			SocketFactory factory) throws IOException {
+	public static <V extends VersionedProtocol> V getProxy(final Class<V> protocol, final InetSocketAddress addr,
+			final SocketFactory factory) throws IOException {
 
-		V proxy = (V) Proxy.newProxyInstance(protocol.getClassLoader(), new Class[] { protocol }, new Invoker(addr, factory));
+		@SuppressWarnings("unchecked")
+		final V proxy = (V) Proxy.newProxyInstance(protocol.getClassLoader(), new Class[] { protocol }, new Invoker(
+			addr, factory));
 
 		return proxy;
 	}
@@ -373,7 +375,7 @@ public class RPC {
 		 *        the port to listen for connections on
 		 */
 		public Server(Object instance, String bindAddress, int port)
-																	throws IOException {
+				throws IOException {
 			this(instance, bindAddress, port, 1);
 		}
 
@@ -406,11 +408,11 @@ public class RPC {
 
 		public IOReadableWritable call(Class<?> protocol, IOReadableWritable param, long receivedTime)
 				throws IOException {
-			
+
 			try {
-				
+
 				final Invocation call = (Invocation) param;
-				
+
 				final Method method = protocol.getMethod(call.getMethodName(), call.getParameterClasses());
 				method.setAccessible(true);
 
@@ -419,7 +421,7 @@ public class RPC {
 				return (IOReadableWritable) value;
 
 			} catch (InvocationTargetException e) {
-				
+
 				final Throwable target = e.getTargetException();
 				if (target instanceof IOException) {
 					throw (IOException) target;
