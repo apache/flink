@@ -21,7 +21,10 @@ import java.util.List;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  * The interesting properties that a node in the optimizer plan hands to its predecessors. It has the
@@ -46,7 +49,7 @@ public class InterestingProperties implements Cloneable
 	 */
 	public InterestingProperties() {
 		// instantiate the maximal costs to the possible maximum
-		this.maximalCosts = new Costs(Long.MAX_VALUE, Long.MAX_VALUE);
+		this.maximalCosts = new Costs(0, 0);
 
 		this.globalProps = new GlobalProperties();
 		this.localProps = new LocalProperties();
@@ -123,12 +126,15 @@ public class InterestingProperties implements Cloneable
 		return globalProps.isMetBy(node.getGlobalProperties()) && localProps.isMetBy(node.getLocalProperties());
 	}
 	
-	public InterestingProperties filterByCodeAnnotations(OptimizerNode node, int input) {
-		GlobalProperties gp = this.globalProps.filterByNodesConstantSet(node, input);
-		LocalProperties lp = this.localProps.filterByNodesConstantSet(node, input);
+	
+	
+	public InterestingProperties filterByCodeAnnotations(OptimizerNode node, int input)
+	{
+		final GlobalProperties gp = this.globalProps.filterByNodesConstantSet(node, input);
+		final LocalProperties lp = this.localProps.filterByNodesConstantSet(node, input);
 		
 		if (gp != this.globalProps || lp != this.localProps) {
-			if (gp == null && lp == null) {
+			if ((gp == null || gp.isTrivial()) && (lp == null || lp.isTrivial())) {
 				return null;
 			} else {
 				return new InterestingProperties(this.maximalCosts,
@@ -137,6 +143,24 @@ public class InterestingProperties implements Cloneable
 		} else {
 			return this;
 		}
+	}
+	
+	public Channel createChannelRealizingProperties(PlanNode inputNode) {
+		final Channel c = new Channel(inputNode);
+		
+		if (this.globalProps.isMetBy(inputNode.getGlobalProperties())) {
+			c.setShipStrategy(ShipStrategyType.FORWARD);
+		} else {
+			this.globalProps.parameterizeChannel(c);
+		}
+		
+		final LocalProperties lps = c.getLocalPropertiesAfterShippingOnly();
+		if (this.localProps.isMetBy(lps)) {
+			c.setLocalStrategy(LocalStrategy.NONE);
+		} else {
+			this.localProps.parameterizeChannel(c);
+		}
+		return c;
 	}
 
 	// ------------------------------------------------------------------------
@@ -188,7 +212,7 @@ public class InterestingProperties implements Cloneable
 	@Override
 	public InterestingProperties clone() {
 		return new InterestingProperties(this.maximalCosts.clone(), 
-			this.globalProps.clone(), this.localProps.createCopy());
+			this.globalProps.clone(), this.localProps.clone());
 	}
 
 	// ------------------------------------------------------------------------
@@ -223,7 +247,7 @@ public class InterestingProperties implements Cloneable
 			}
 		}
 		// if it was not subsumed, add it
-		properties.add(toMerge.clone());
+		properties.add(toMerge);
 	}
 
 	/**
@@ -249,6 +273,12 @@ public class InterestingProperties implements Cloneable
 	}
 	
 	
+	/**
+	 * @param props
+	 * @param node
+	 * @param input
+	 * @return
+	 */
 	public static final List<InterestingProperties> filterInterestingPropertiesForInput(
 		List<InterestingProperties> props, OptimizerNode node, int input)
 	{
@@ -272,6 +302,6 @@ public class InterestingProperties implements Cloneable
 				new InterestingProperties(filteredProps.getMaximalCosts(), topDownAdjustedGP, filteredProps.localProps);
 			mergeUnionOfInterestingProperties(preserved, toAdd);
 		}
-		return preserved;
+		return preserved == null ? new ArrayList<InterestingProperties>() : preserved;
 	}
 }

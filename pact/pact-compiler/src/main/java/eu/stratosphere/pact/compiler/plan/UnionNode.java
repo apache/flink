@@ -32,7 +32,7 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.PartitionProperty;
+import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
@@ -232,10 +232,10 @@ public class UnionNode extends OptimizerNode {
 				
 				// only property which would survive is a hash partitioning on every input
 				GlobalProperties gpForInput = alternative.getGlobalPropertiesForParent(this);
-				if (index == 0 && gpForInput.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+				if (index == 0 && gpForInput.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
 					newPartitionedFieldsInCommon = gpForInput.getPartitionedFields();
 				}
-				else if (gpForInput.getPartitioning() != PartitionProperty.HASH_PARTITIONED
+				else if (gpForInput.getPartitioning() != PartitioningProperty.HASH_PARTITIONED
 						|| gpForInput.getPartitionedFields().equals(partitionedFieldsInCommon) == false) {
 					newPartitionedFieldsInCommon = null;
 				}
@@ -250,7 +250,7 @@ public class UnionNode extends OptimizerNode {
 					GlobalProperties gp = new GlobalProperties();
 					
 					if (newPartitionedFieldsInCommon != null) {
-						gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, newPartitionedFieldsInCommon);
+						gp.setPartitioning(PartitioningProperty.HASH_PARTITIONED, newPartitionedFieldsInCommon);
 					}
 					UnionNode unionNode = new UnionNode(this, subplanStack, gp, new LocalProperties());
 					unionNode.branchPlan = newBranchPlan;

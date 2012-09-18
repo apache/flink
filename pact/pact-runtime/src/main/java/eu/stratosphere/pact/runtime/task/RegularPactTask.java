@@ -58,7 +58,7 @@ import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputEmitter;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;

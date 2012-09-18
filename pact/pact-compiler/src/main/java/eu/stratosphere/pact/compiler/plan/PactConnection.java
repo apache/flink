@@ -25,7 +25,7 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * A connection between to PACTs. Represents a channel together with a data shipping
@@ -77,29 +77,6 @@ public class PactConnection implements EstimateProvider
 		this.targetPact = target;
 		this.shipStrategy = shipStrategy;
 	}
-
-//	/**
-//	 * Creates a copy of the given connection, but sets as source and target the given nodes.
-//	 * This constructor is intended as a partial-copy constructor for the enumeration of
-//	 * plans in the optimization phase.
-//	 * 
-//	 * @param template
-//	 *        The connection to copy the properties from.
-//	 * @param source
-//	 *        The reference to the source node.
-//	 * @param target
-//	 *        The reference to the target node.
-//	 */
-//	public PactConnection(PactConnection template, OptimizerNode source, OptimizerNode target) {
-//		this.sourcePact = source;
-//		this.targetPact = target;
-//
-//		this.shipStrategy = template.shipStrategy;
-//		this.replicationFactor = template.replicationFactor;
-//		this.tempMode = template.tempMode;
-//
-//		this.interestingProps = template.interestingProps;
-//	}
 
 	/**
 	 * Gets the source of the connection.
@@ -292,62 +269,6 @@ public class PactConnection implements EstimateProvider
 		}
 
 		return buf.toString();
-	}
-
-	/**
-	 * Gets the global properties of the source's output after it crossed a pact connection with
-	 * the given shipping strategy.
-	 * Global properties are maintained on <tt>FORWARD</tt> connections.
-	 * If a partitioning happens, then a partitioning property exists afterwards.
-	 * A <tt>BROADCAST</tt> connection destroys the key uniqueness.
-	 * <p>
-	 * If the shipping strategy has not yet been determined, the properties of the connections source are returned.
-	 * 
-	 * @return The properties of the data after this channel.
-	 */
-	public static GlobalProperties getGlobalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, int targetInputNum, ShipStrategyType shipMode) {
-//		GlobalProperties gp = source.getGlobalPropertiesForParent(target);
-//
-//		switch (shipMode.type()) {
-//		case BROADCAST:
-//			gp.reset();
-//			break;
-//		case PARTITION_RANGE:
-//			gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, ((PartitionShipStrategy)shipMode).getPartitionFields());
-//			gp.setOrdering(null);
-//			break;
-//		case PARTITION_HASH:
-//			gp.setPartitioning(PartitionProperty.HASH_PARTITIONED, ((PartitionShipStrategy)shipMode).getPartitionFields());
-//			gp.setOrdering(null);
-//			break;
-//		case FORWARD:
-//			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
-//				gp.setOrdering(null);
-//			}
-//			
-//			if (gp.getPartitioning() == PartitionProperty.NONE) {
-//				if (source.getUniqueFields().size() > 0) {
-//					FieldList partitionedFields = new FieldList();
-//					//TODO maintain a list of partitioned fields in global properties
-//					//Up to now: only add first unique fieldset
-//					for (Integer field : source.getUniqueFields().iterator().next()) {
-//						partitionedFields.add(field);
-//					}
-//					gp.setPartitioning(PartitionProperty.ANY, partitionedFields);
-//				}
-//			}
-//			
-//			// nothing else changes
-//			break;
-//		case NONE:
-//			throw new CompilerException(
-//				"Cannot determine properties after connection, id shipping strategy is not set.");
-//		case SFR:
-//		default:
-			throw new CompilerException("Unsupported shipping strategy: " + shipMode.name());
-//		}
-//
-//		return gp;
 	}
 
 	/**

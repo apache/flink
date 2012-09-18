@@ -21,15 +21,14 @@ import java.util.List;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.PartitionProperty;
+import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -172,14 +171,14 @@ public class ReduceNode extends SingleInputNode {
 
 		// add the first interesting properties: partitioned and grouped
 		InterestingProperties ip1 = new InterestingProperties();
-		ip1.getGlobalProperties().setPartitioning(PartitionProperty.ANY, this.keys);
+		ip1.getGlobalProperties().setPartitioning(PartitioningProperty.ANY, this.keys);
 		ip1.getLocalProperties().setGroupedFields(this.keys);
 		estimator.addHashPartitioningCost(this.inConn, ip1.getMaximalCosts());
 		estimator.addLocalSortCost(this.inConn, -1, ip1.getMaximalCosts());
 		
 		// add the second interesting properties: partitioned only
 		InterestingProperties ip2 = new InterestingProperties();
-		ip2.getGlobalProperties().setPartitioning(PartitionProperty.ANY, this.keys);
+		ip2.getGlobalProperties().setPartitioning(PartitioningProperty.ANY, this.keys);
 		estimator.addHashPartitioningCost(this.inConn, ip2.getMaximalCosts());
 
 		InterestingProperties.mergeUnionOfInterestingProperties(props, ip1);
@@ -188,8 +187,8 @@ public class ReduceNode extends SingleInputNode {
 	}
 
 	@Override
-	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans,
-			CostEstimator estimator, List<OptimizerNode> outputPlans)
+	protected void computeValidPlanAlternatives(List<? extends PlanNode> altSubPlans,
+			CostEstimator estimator, List<PlanNode> outputPlans)
 	{
 //
 //		FieldSet keySet = new FieldSet(getPactContract().getKeyColumnNumbers(0));
@@ -319,7 +318,7 @@ public class ReduceNode extends SingleInputNode {
 
 		if(this.getPredNode() != null) {
 			// return key count of predecessor
-			return this.getPredNode().getEstimatedCardinality(new FieldSet(this.keyList));
+			return this.getPredNode().getEstimatedCardinality(this.keys);
 		} else
 			return -1;
 	}
@@ -420,15 +419,14 @@ public class ReduceNode extends SingleInputNode {
 	@Override
 	public List<FieldSet> createUniqueFieldsForNode()
 	{
-		if (this.keyList != null) {
-			for (int keyField : this.keyList) {
+		if (this.keys != null) {
+			for (int keyField : this.keys) {
 				if (!isFieldConstant(0, keyField)) {
 					return null;
 				}
 			}
-			return Collections.singletonList(new FieldSet(keyList));
+			return Collections.singletonList(this.keys);
 		}
 		return null;
 	}
-
 }

@@ -21,6 +21,8 @@ import java.util.NoSuchElementException;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
+import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 
 /**
@@ -28,13 +30,16 @@ import eu.stratosphere.pact.compiler.Costs;
  *
  * @author Stephan Ewen
  */
-public abstract class SingleInputPlanNode extends PlanNode
+public class SingleInputPlanNode extends PlanNode
 {
 	protected final Channel input;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected SingleInputPlanNode(Channel input) {
+	
+	public SingleInputPlanNode(OptimizerNode template, Channel input, LocalStrategy localStrategy)
+	{
+		super(template, localStrategy);
 		this.input = input;
 	}
 
@@ -84,6 +89,32 @@ public abstract class SingleInputPlanNode extends PlanNode
 				if (this.hasLeft) {
 					this.hasLeft = false;
 					return SingleInputPlanNode.this.input.getSource();
+				} else 
+					throw new NoSuchElementException();
+			}
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+		};
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getInputs()
+	 */
+	@Override
+	public Iterator<Channel> getInputs() {
+		return new Iterator<Channel>() {
+			private boolean hasLeft = true;
+			@Override
+			public boolean hasNext() {
+				return this.hasLeft;
+			}
+			@Override
+			public Channel next() {
+				if (this.hasLeft) {
+					this.hasLeft = false;
+					return SingleInputPlanNode.this.input;
 				} else 
 					throw new NoSuchElementException();
 			}

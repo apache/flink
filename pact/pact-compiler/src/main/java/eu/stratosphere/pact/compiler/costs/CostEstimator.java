@@ -83,8 +83,6 @@ public abstract class CostEstimator {
 			case BROADCAST:
 				addBroadcastCost(channel, channel.getReplicationFactor(), costs);
 				break;
-			case SFR:
-				throw new CompilerException("Symmetric-Fragment-And-Replicate Strategy currently not supported.");
 			default:
 				throw new CompilerException("Unknown shipping strategy for input: " + channel.getShipStrategy());
 			}

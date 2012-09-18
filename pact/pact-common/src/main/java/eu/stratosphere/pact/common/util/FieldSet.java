@@ -97,6 +97,15 @@ public class FieldSet implements Iterable<Integer>
 		return this.collection.iterator();
 	}
 	
+	public int[] toArray() {
+		int[] a = new int[this.collection.size()];
+		int i = 0;
+		for (int col : this.collection) {
+			a[i++] = col;
+		}
+		return a;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**

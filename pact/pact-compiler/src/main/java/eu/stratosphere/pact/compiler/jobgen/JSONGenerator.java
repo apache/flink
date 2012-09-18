@@ -30,7 +30,7 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.PartitionProperty;
+import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
@@ -345,7 +345,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 			this.jsonString.append(",\n\t\t\"global_properties\": [\n");
 
 			addProperty(jsonString, "Partitioning", gp.getPartitioning().name(), true);
-			if (gp.getPartitioning() != PartitionProperty.NONE) {
+			if (gp.getPartitioning() != PartitioningProperty.NONE) {
 				addProperty(jsonString, "Partitioned on", gp.getPartitionedFields().toString(), false);
 			}
 			if (gp.getOrdering() != null) {

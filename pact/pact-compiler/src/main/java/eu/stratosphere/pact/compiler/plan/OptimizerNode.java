@@ -35,6 +35,7 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.util.PactType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -211,7 +212,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 *        The cost estimator used to estimate the costs of each plan alternative.
 	 * @return A list containing all plan alternatives.
 	 */
-	public abstract List<? extends OptimizerNode> getAlternativePlans(CostEstimator estimator);
+	public abstract List<? extends PlanNode> getAlternativePlans(CostEstimator estimator);
 
 	/**
 	 * This method implements the visit of a depth-first graph traversing visitor. Implementors must first
@@ -498,21 +499,32 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * This method returns copies of the original interesting properties objects and
 	 * leaves the original objects, contained by the connections, unchanged.
 	 */
-	public void computeInterestingProperties()
+	public void computeUnionOfInterestingPropertiesFromSuccessors()
 	{
 		List<PactConnection> conns = getOutgoingConnections();
-		
-		List<InterestingProperties> props = null;
-		for (PactConnection conn : conns) {
-			List<InterestingProperties> ips = conn.getInterestingProperties();
-			if (ips.size() > 0) {
-				if (props == null) {
-					props = new ArrayList<InterestingProperties>();
+		if (conns.size() == 0) {
+			// no incoming, we have none ourselves
+			this.intProps = Collections.<InterestingProperties>emptyList();
+		} else if (conns.size() == 1) {
+			// one incoming, no need to make a union, just take them
+			List<InterestingProperties> ips = conns.get(0).getInterestingProperties();
+			this.intProps = ips.isEmpty() ?
+				Collections.<InterestingProperties>emptyList() :
+				new ArrayList<InterestingProperties>(ips);
+		} else {
+			// union them
+			List<InterestingProperties> props = null;
+			for (PactConnection conn : conns) {
+				List<InterestingProperties> ips = conn.getInterestingProperties();
+				if (ips.size() > 0) {
+					if (props == null) {
+						props = new ArrayList<InterestingProperties>();
+					}
+					InterestingProperties.mergeUnionOfInterestingProperties(props, ips);
 				}
-				InterestingProperties.mergeUnionOfInterestingProperties(props, ips);
 			}
+			this.intProps = (props == null || props.isEmpty()) ? Collections.<InterestingProperties>emptyList() : props;
 		}
-		this.intProps = (props == null || props.isEmpty()) ? Collections.<InterestingProperties>emptyList() : props;
 	}
 	
 	/**
@@ -714,8 +726,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	{
 		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
-			if (this.openBranches == null) return null;
-			return new ArrayList<UnclosedBranchDescriptor>(this.openBranches);
+			if (this.openBranches == null)
+				return null;
+			else
+				return new ArrayList<UnclosedBranchDescriptor>(this.openBranches);
 		}
 		else if (this.outgoingConnections.size() > 1) {
 			// we branch add a branch info to the stack
@@ -749,11 +763,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	
 	protected void removeClosedBranches(List<UnclosedBranchDescriptor> openList) {
-		if (openList == null || openList.isEmpty() || closedBranchingNodes == null || closedBranchingNodes.isEmpty()) return;
+		if (openList == null || openList.isEmpty() || this.closedBranchingNodes == null || this.closedBranchingNodes.isEmpty())
+			return;
 		
 		Iterator<UnclosedBranchDescriptor> it = openList.iterator();
 		while (it.hasNext()) {
-			if (closedBranchingNodes.contains(it.next().getBranchingNode())) {
+			if (this.closedBranchingNodes.contains(it.next().getBranchingNode())) {
 				//this branch was already closed --> remove it from the list
 				it.remove();
 			}
@@ -761,7 +776,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 	
 	protected void addClosedBranches(Set<OptimizerNode> alreadyClosed) {
-		if (alreadyClosed == null || alreadyClosed.isEmpty()) return;
+		if (alreadyClosed == null || alreadyClosed.isEmpty()) 
+			return;
 		if (this.closedBranchingNodes == null) 
 			this.closedBranchingNodes = new HashSet<OptimizerNode>(alreadyClosed);
 		else 

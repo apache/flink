@@ -16,15 +16,16 @@
 package eu.stratosphere.pact.compiler;
 
 /**
- * An enumeration tracking the different types of partitioning.
+ * An enumeration tracking the different types of sharding strategies.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
-public enum PartitionProperty {
+public enum PartitioningProperty {
+	
 	/**
-	 * Constant indicating no partitioning.
+	 * Constant indicating no particular partitioning (i.e. random)
 	 */
-	NONE,
+	RANDOM,
 
 	/**
 	 * Constant indicating a hash partitioning.
@@ -39,17 +40,41 @@ public enum PartitionProperty {
 	/**
 	 * Constant indicating any not further specified partitioning.
 	 */
-	ANY;
+	ANY_PARTITIONING,
+	
+	/**
+	 * Constant indicating full replication of the data.
+	 */
+	FULL_REPLICATION;
 
 	/**
 	 * Checks, if this property represents in fact a partitioning. That is,
-	 * whether this property is not equal to <tt>PartitionProperty.NONE</tt>.
+	 * whether this property is not equal to <tt>PartitionProperty.FULL_REPLICATION</tt>.
 	 * 
-	 * @return True, if this enum constant is unequal to <tt>PartitionProperty.NONE</tt>,
+	 * @return True, if this enum constant is unequal to <tt>PartitionProperty.FULL_REPLICATION</tt>,
 	 *         false otherwise.
 	 */
 	public boolean isPartitioned() {
-		return this != PartitionProperty.NONE;
+		return this != FULL_REPLICATION;
+	}
+	
+	/**
+	 * Checks, if this property represents a full replication.
+	 * 
+	 * @return True, if this enum constant is equal to <tt>PartitionProperty.FULL_REPLICATION</tt>,
+	 *         false otherwise.
+	 */
+	public boolean isReplication() {
+		return this == FULL_REPLICATION;
+	}
+	
+	/**
+	 * Checks if this property presents a partitioning that is not random, but on a partitioning key.
+	 * 
+	 * @return True, if the data is partitioned on a key.
+	 */
+	public boolean isPartitionedOnKey() {
+		return isPartitioned() && this != RANDOM;
 	}
 
 	/**
@@ -63,17 +88,6 @@ public enum PartitionProperty {
 	 * @return True, if this enum constant is a re-computable partitioning.
 	 */
 	public boolean isComputablyPartitioned() {
-		return this == HASH_PARTITIONED || this == PartitionProperty.RANGE_PARTITIONED;
-	}
-
-	/**
-	 * Checks whether this partition property is compatible with another one.
-	 * 
-	 * @param other
-	 *        The other partition property to check against.
-	 * @return True, if this partition property is compatible with the other, false if not.
-	 */
-	public boolean isCompatibleWith(PartitionProperty other) {
-		return other == this && this != ANY && this != NONE;
+		return this == HASH_PARTITIONED || this == RANGE_PARTITIONED;
 	}
 }

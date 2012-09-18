@@ -19,15 +19,18 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
- * The Optimizer representation of a <i>Map</i> contract node.
+ * The optimizer's internal representation of a <i>Map</i> contract node.
  * 
  * @author Stephan Ewen
  */
-public class MapNode extends SingleInputNode {
-
+public class MapNode extends SingleInputNode
+{
 	/**
 	 * Creates a new MapNode for the given contract.
 	 * 
@@ -38,28 +41,6 @@ public class MapNode extends SingleInputNode {
 		super(pactContract);
 		setLocalStrategy(LocalStrategy.NONE);
 	}
-
-//	/**
-//	 * Copy constructor to create a copy a MapNode with a different predecessor. The predecessor
-//	 * is assumed to be of the same type and merely a copy with different strategies, as they
-//	 * are created in the process of the plan enumeration.
-//	 * 
-//	 * @param template
-//	 *        The node to create a copy of.
-//	 * @param pred
-//	 *        The new predecessor.
-//	 * @param conn
-//	 *        The old connection to copy properties from.
-//	 * @param globalProps
-//	 *        The global properties of this copy.
-//	 * @param localProps
-//	 *        The local properties of this copy.
-//	 */
-//	protected MapNode(MapNode template, OptimizerNode pred, PactConnection conn, GlobalProperties globalProps,
-//			LocalProperties localProps) {
-//		super(template, pred, conn, globalProps, localProps);
-//		setLocalStrategy(LocalStrategy.NONE);
-//	}
 
 	/**
 	 * Gets the contract object for this map node.
@@ -109,60 +90,26 @@ public class MapNode extends SingleInputNode {
 		} 
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#computeValidPlanAlternatives(java.util.List, eu.stratosphere.pact.compiler.costs.CostEstimator, java.util.List)
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#createPlanAlternatives(java.util.List, java.util.List)
 	 */
 	@Override
-	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans, CostEstimator estimator, List<OptimizerNode> outputPlans) {
-//		
-//		// we have to check if all input ShipStrategies are the same or at least compatible
-//		ShipStrategy ss = new NoneSS();
-//
-//		// check hint shipping strategy
-//		ShipStrategy hintSS = this.inConn.getShipStrategy();
-//		if(hintSS.type() == ShipStrategyType.BROADCAST || hintSS.type() == ShipStrategyType.SFR)
-//			// invalid strategy: we do not produce an alternative node
-//			return;
-//		else
-//			ss = hintSS;
-//	
-//		// if no hint for a strategy was provided, we use the default
-//		if(ss.type() == ShipStrategyType.NONE)
-//			ss = new ForwardSS();
-//		
-//		for(OptimizerNode subPlan : altSubPlans) {
-//		
-//			GlobalProperties gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan, this, 0, ss);
-//			LocalProperties lp = PactConnection.getLocalPropertiesAfterConnection(subPlan, this, ss);
-//			
-//			MapNode nMap = new MapNode(this, subPlan, this.inConn, gp, lp);
-//			nMap.inConn.setShipStrategy(ss);
-//					
-//			// now, the properties (copied from the inputs) are filtered by the output contracts
-//			nMap.getGlobalProperties().filterByNodesConstantSet(this, 0);
-//			nMap.getLocalProperties().filterByNodesConstantSet(this, 0);
-//	
-//			// copy the cumulative costs and set the costs of the map itself to zero
-//			estimator.costOperator(nMap);
-//		
-//			outputPlans.add(nMap);
-//		}
+	protected void createPlanAlternatives(List<Channel> inputs, List<PlanNode> outputPlans)
+	{
+		for (Channel c : inputs) {
+			outputPlans.add(new SingleInputPlanNode(this, c, this.localStrategy));
+		}
 	}
 
-	
 	/**
 	 * Computes the number of stub calls.
 	 * 
 	 * @return the number of stub calls.
 	 */
 	protected long computeNumberOfStubCalls() {
-				
-		if(this.getPredNode() != null)
-			return this.getPredNode().estimatedNumRecords;
+		if (getPredecessorNode() != null)
+			return getPredecessorNode().estimatedNumRecords;
 		else
 			return -1;
-		
 	}
-
 }

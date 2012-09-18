@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -27,19 +28,24 @@ import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
- * The Optimizer representation of a data source.
+ * The optimizer's internal representation of a data source.
  * 
  * @author Stephan Ewen
  */
 public class DataSourceNode extends OptimizerNode
 {
-	private long inputSize; //the size of the input in bytes
+	private List<PlanNode> candidate;		// the candidate (there can only be one) for this node
+	
+	private long inputSize;			//the size of the input in bytes
 
 	/**
 	 * Creates a new DataSourceNode for the given contract.
@@ -249,38 +255,23 @@ public class DataSourceNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeAlternativePlans()
 	 */
 	@Override
-	public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
-//		if (this.cachedPlans != null) {
-//			return this.cachedPlans;
-//		}
-//
-//		GlobalProperties gp = new GlobalProperties();
-//		LocalProperties lp = new LocalProperties();
-//
-//		// first, compute the properties of the output
-////		if (getOutputContract() == OutputContract.UniqueKey) {
-////			gp.setKeyUnique(true);
-////			gp.setPartitioning(PartitionProperty.ANY);
-////
-////			lp.setKeyUnique(true);
-////			lp.setKeysGrouped(true);
-////		}
-//
-//		DataSourceNode candidate = new DataSourceNode(this, gp, lp);
-//
-//		// compute the costs
-//		candidate.setCosts(new Costs(0, this.inputSize));
-//
-//		// since there is only a single plan for the data-source, return a list with that element only
-//		List<OptimizerNode> plans = new ArrayList<OptimizerNode>(1);
-//		plans.add(candidate);
-//
-//		if (isBranching()) {
-//			this.cachedPlans = plans;
-//		}
-//
-//		return plans;
-		return null;
+	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
+		if (this.candidate != null) {
+			return this.candidate;
+		}
+		
+		SourcePlanNode candidate = new SourcePlanNode(this);
+		candidate.updatePropertiesWithUniqueSets(getUniqueFields());
+		candidate.setCosts(new Costs(0, this.inputSize));
+
+		// since there is only a single plan for the data-source, return a list with that element only
+		List<PlanNode> plans = new ArrayList<PlanNode>(1);
+		plans.add(candidate);
+
+		if (isBranching()) {
+			this.candidate = plans;
+		}
+		return plans;
 	}
 
 

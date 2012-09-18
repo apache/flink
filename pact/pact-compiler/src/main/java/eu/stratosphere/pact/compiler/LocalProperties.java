@@ -19,6 +19,8 @@ import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
@@ -28,9 +30,9 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
  */
 public final class LocalProperties implements Cloneable
 {
-	private Ordering ordering;					// order inside a partition, null if not ordered
+	private Ordering ordering;			// order inside a partition, null if not ordered
 
-	private OptimizerFieldSet groupedFields;	// fields by which the stream is grouped. null if not grouped.
+	private FieldSet groupedFields;		// fields by which the stream is grouped. null if not grouped.
 	
 	private FieldSet uniqueFields;		// fields whose value combination is unique in the stream
 
@@ -52,7 +54,7 @@ public final class LocalProperties implements Cloneable
 	 * @param groupedFields The grouped fields for these local properties.
 	 * @param uniqueFields The unique fields for these local properties.
 	 */
-	private LocalProperties(Ordering ordering, OptimizerFieldSet groupedFields, FieldSet uniqueFields) {
+	private LocalProperties(Ordering ordering, FieldSet groupedFields, FieldSet uniqueFields) {
 		this.ordering = ordering;
 		this.groupedFields = groupedFields;
 		this.uniqueFields = uniqueFields;
@@ -84,7 +86,7 @@ public final class LocalProperties implements Cloneable
 	 * 
 	 * @return The grouped fields, or <code>null</code> if nothing is grouped.
 	 */
-	public OptimizerFieldSet getGroupedFields() {
+	public FieldSet getGroupedFields() {
 		return this.groupedFields;
 	}
 	
@@ -93,7 +95,7 @@ public final class LocalProperties implements Cloneable
 	 * 
 	 * @param groupedFields The fields that are grouped in these data properties.
 	 */
-	public void setGroupedFields(OptimizerFieldSet groupedFields) {
+	public void setGroupedFields(FieldSet groupedFields) {
 		this.groupedFields = groupedFields;	
 	}
 
@@ -226,10 +228,28 @@ public final class LocalProperties implements Cloneable
 		
 		if (this.uniqueFields != null) {
 			// we demand field uniqueness
-			throw new RuntimeException("Uniqueness as a required property is not supported.");
+			throw new CompilerException("Uniqueness as a required property is not supported.");
 		}
 		
 		return true;
+	}
+	
+	/**
+	 * Parameterizes the local strategy fields of a channel such that the channel produces the desired local properties.
+	 * 
+	 * @param channel The channel to parameterize.
+	 */
+	public void parameterizeChannel(Channel channel)
+	{
+		if (this.uniqueFields != null) {
+			throw new CompilerException("Uniqueness as a required property is not supported.");
+		}
+		
+		if (this.ordering != null) {
+			channel.setLocalStrategy(LocalStrategy.SORT, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
+		} else if (this.groupedFields != null) {
+			channel.setLocalStrategy(LocalStrategy.SORT, Utils.createOrderedFromSet(this.groupedFields));
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -286,23 +306,14 @@ public final class LocalProperties implements Cloneable
 	public LocalProperties clone() {
 		LocalProperties newProps = new LocalProperties();
 		if (this.ordering != null) {
-			newProps.ordering = this.ordering.clone();	
+			newProps.ordering = this.ordering.clone();
 		}
 		if (this.groupedFields != null) {
-			newProps.groupedFields = this.groupedFields.clone();	
+			newProps.groupedFields = this.groupedFields.clone();
 		}
 		if (this.uniqueFields != null) {
-			newProps.uniqueFields = this.uniqueFields.clone();	
+			newProps.uniqueFields = this.uniqueFields.clone();
 		}
 		return newProps;
-	}
-
-	/**
-	 * Convenience method to create copies without the cloning exception.
-	 * 
-	 * @return A perfect deep copy of this object.
-	 */
-	public final LocalProperties createCopy() {
-		return this.clone();
 	}
 }

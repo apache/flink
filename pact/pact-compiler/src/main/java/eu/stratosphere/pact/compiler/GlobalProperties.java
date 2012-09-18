@@ -17,7 +17,10 @@ package eu.stratosphere.pact.compiler;
 
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
+import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * This class represents global properties of the data. Global properties are properties that
@@ -28,9 +31,9 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
  */
 public final class GlobalProperties implements Cloneable
 {
-	private PartitionProperty partitioning;		// the type partitioning
+	private PartitioningProperty partitioning;	// the type partitioning
 	
-	private OptimizerFieldSet partitioningFields;	// the fields which are partitioned
+	private FieldSet partitioningFields;		// the fields which are partitioned
 	
 	private Ordering ordering;					// order of the partitioned fields, if it is an ordered (range) range partitioning
 	
@@ -40,52 +43,65 @@ public final class GlobalProperties implements Cloneable
 	 * Initializes the global properties with no partitioning.
 	 */
 	public GlobalProperties() {
-		this.partitioning = PartitionProperty.NONE;
-	}
-
-	/**
-	 * @param partitioning
-	 * @param ordering
-	 */
-	public GlobalProperties(PartitionProperty partitioning, Ordering ordering) {
-		this.partitioning = partitioning;
-		this.ordering = ordering;
+		this.partitioning = PartitioningProperty.RANDOM;
 	}
 	
 	/**
-	 * @param partitioning
-	 * @param partitioningFields
+	 * @param partitioning2
+	 * @param newFields
 	 */
-	public GlobalProperties(PartitionProperty partitioning, OptimizerFieldSet partitioningFields) {
+	private GlobalProperties(PartitioningProperty partitioning, FieldSet fields) {
 		this.partitioning = partitioning;
-		this.partitioningFields = partitioningFields;
+		this.partitioningFields = fields;
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Sets the partitioning property for the global properties.
 	 * 
-	 * @param partitioning
-	 *        The new partitioning to set.
+	 * @param partitioning The new partitioning to set.
+	 * @param partitionedFields 
 	 */
-	public void setPartitioning(PartitionProperty partitioning, OptimizerFieldSet partitionedFields) {
-		this.partitioning = partitioning;
+	public void setHashPartitioned(FieldSet partitionedFields) {
+		this.partitioning = PartitioningProperty.HASH_PARTITIONED;
 		this.partitioningFields = partitionedFields;
+		this.ordering = null;
 	}
 	
 
-	public void setPartitioning(PartitionProperty partitioning, Ordering ordering) {
-		this.partitioning = partitioning;
+	public void setRangePartitioned(Ordering ordering) {
+		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 		this.ordering = ordering;
+		this.partitioningFields = null;
 	}
+	
+	public void setAnyPartitioning(FieldSet partitionedFields) {
+		this.partitioning = PartitioningProperty.ANY_PARTITIONING;
+		this.partitioningFields = partitionedFields;
+		this.ordering = null;
+	}
+	
+	public void setRandomDistribution() {
+		this.partitioning = PartitioningProperty.RANDOM;
+		this.partitioningFields = null;
+		this.ordering = null;
+	}
+	
+	public void setFullyReplicated() {
+		this.partitioning = PartitioningProperty.FULL_REPLICATION;
+		this.partitioningFields = null;
+		this.ordering = null;
+	}
+	
+
 
 	/**
 	 * Gets the partitioning property.
 	 * 
 	 * @return The partitioning property.
 	 */
-	public PartitionProperty getPartitioning() {
+	public PartitioningProperty getPartitioning() {
 		return partitioning;
 	}
 	
@@ -94,7 +110,7 @@ public final class GlobalProperties implements Cloneable
 	 * 
 	 * @return The partitioning fields.
 	 */
-	public OptimizerFieldSet getPartitionedFields() {
+	public FieldSet getPartitionedFields() {
 		return this.partitioningFields;
 	}
 	
@@ -111,14 +127,14 @@ public final class GlobalProperties implements Cloneable
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
 	 */
 	public boolean isTrivial() {
-		return partitioning == PartitionProperty.NONE;
+		return partitioning == PartitioningProperty.RANDOM;
 	}
 
 	/**
 	 * This method resets the properties to a state where no properties are given.
 	 */
 	public void reset() {
-		this.partitioning = PartitionProperty.NONE;
+		this.partitioning = PartitioningProperty.RANDOM;
 		this.ordering = null;
 		this.partitioningFields = null;
 	}
@@ -140,8 +156,8 @@ public final class GlobalProperties implements Cloneable
 				}
 			}
 		} else if (this.partitioningFields != null) {
-			for (ColumnWithType col : this.partitioningFields) {
-				if (!node.isFieldConstant(input, col.getColumnIndex())) {
+			for (int colIndex : this.partitioningFields) {
+				if (!node.isFieldConstant(input, colIndex)) {
 					return null;
 				}
 			}
@@ -163,17 +179,17 @@ public final class GlobalProperties implements Cloneable
 		else if (partitioningFields != null) {
 			boolean allIn = true;
 			boolean atLeasOneIn = false;
-			for (ColumnWithType col : this.partitioningFields) {
-				boolean res = node.isFieldConstant(input, col.getColumnIndex());
+			for (int col : this.partitioningFields) {
+				boolean res = node.isFieldConstant(input, col);
 				allIn &= res;
 				atLeasOneIn |= res;
 			}
 			if (allIn) {
 				return this;
 			} else if (atLeasOneIn) {
-				OptimizerFieldSet newFields = new OptimizerFieldSet();
-				for (ColumnWithType nc : this.partitioningFields) {
-					if (node.isFieldConstant(input, nc.getColumnIndex())) {
+				FieldSet newFields = new FieldSet();
+				for (Integer nc : this.partitioningFields) {
+					if (node.isFieldConstant(input, nc)) {
 						newFields.add(nc);
 					}
 				}
@@ -196,12 +212,16 @@ public final class GlobalProperties implements Cloneable
 	 */
 	public boolean isMetBy(GlobalProperties other)
 	{
-		if (this.partitioning == PartitionProperty.NONE) {
+		if (this.partitioning == PartitioningProperty.FULL_REPLICATION || other.partitioning == PartitioningProperty.FULL_REPLICATION) {
+			return other.partitioning == this.partitioning;
+		}
+		
+		if (this.partitioning == PartitioningProperty.RANDOM) {
 			return true;
 		}
 		
-		if (this.partitioning == PartitionProperty.ANY) {
-			if (other.partitioning == PartitionProperty.NONE) {
+		if (this.partitioning == PartitioningProperty.ANY_PARTITIONING) {
+			if (other.partitioning == PartitioningProperty.RANDOM) {
 				return false;
 			}
 		} else if (other.partitioning != this.partitioning) {
@@ -231,6 +251,30 @@ public final class GlobalProperties implements Cloneable
 			return this.partitioningFields.isValidSubset(other.partitioningFields);
 		} else {
 			throw new RuntimeException("Found a partitioning property, but no fields.");
+		}
+	}
+	
+	/**
+	 * Parameterizes the ship strategy fields of a channel such that the channel produces the desired global properties.
+	 * 
+	 * @param channel The channel to parameterize.
+	 */
+	public void parameterizeChannel(Channel channel)
+	{
+		if (this.partitioning == null || this.partitioning == PartitioningProperty.RANDOM) {
+			channel.setShipStrategy(ShipStrategyType.FORWARD);
+		} else switch (this.partitioning) {
+			case FULL_REPLICATION:
+				channel.setShipStrategy(ShipStrategyType.BROADCAST);
+			case ANY_PARTITIONING:
+			case HASH_PARTITIONED:
+				channel.setShipStrategy(ShipStrategyType.PARTITION_HASH, Utils.createOrderedFromSet(this.partitioningFields));
+				break;
+			case RANGE_PARTITIONED:
+				channel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
+				break;
+			default:
+				throw new CompilerException();
 		}
 	}
 

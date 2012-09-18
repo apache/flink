@@ -57,6 +57,7 @@ import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 
 /**
  * The optimizer that takes the user specified pact plan and creates an optimized plan that contains
@@ -670,13 +671,13 @@ public class PactCompiler {
 		
 		BranchesVisitor branchingVisitor = new BranchesVisitor();
 		rootNode.accept(branchingVisitor);
-//
-//		// the final step is now to generate the actual plan alternatives
-//		List<? extends OptimizerNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
-//
-//		if (bestPlan.size() != 1) {
-//			throw new CompilerException("Error in compiler: more than one best plan was created!");
-//		}
+
+		// the final step is now to generate the actual plan alternatives
+		List<? extends PlanNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
+
+		if (bestPlan.size() != 1) {
+			throw new CompilerException("Error in compiler: more than one best plan was created!");
+		}
 //
 //		// check if the best plan's root is a data sink (single sink plan)
 //		// if so, directly take it. if it is a sink joiner node, get its contained sinks
@@ -899,7 +900,7 @@ public class PactCompiler {
 			// that computation must happen during the last descend.
 
 			if (node.haveAllOutputConnectionInterestingProperties() && node.getInterestingProperties() == null) {
-				node.computeInterestingProperties();
+				node.computeUnionOfInterestingPropertiesFromSuccessors();
 				node.computeInterestingPropertiesForInputs(this.estimator);
 				return true;
 			} else {

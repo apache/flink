@@ -26,7 +26,7 @@ import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PartitionProperty;
+import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
@@ -228,7 +228,7 @@ public class DataSinkNode extends OptimizerNode {
 			// in both cases create a range partitioned only IP
 			InterestingProperties partitioningProps = new InterestingProperties();
 			
-			partitioningProps.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, partitioning);
+			partitioningProps.getGlobalProperties().setPartitioning(PartitioningProperty.RANGE_PARTITIONED, partitioning);
 			estimator.addRangePartitionCost(this.input, partitioningProps.getMaximalCosts());
 			
 			this.input.addInterestingProperties(partitioningProps);
@@ -241,7 +241,7 @@ public class DataSinkNode extends OptimizerNode {
 				// global sort case: create IP for range partitioned and sorted
 				InterestingProperties globalSortProps = new InterestingProperties();
 				
-				globalSortProps.getGlobalProperties().setPartitioning(PartitionProperty.RANGE_PARTITIONED, partitioning);
+				globalSortProps.getGlobalProperties().setPartitioning(PartitioningProperty.RANGE_PARTITIONED, partitioning);
 				estimator.addRangePartitionCost(this.input, globalSortProps.getMaximalCosts());
 				
 				globalSortProps.getLocalProperties().setOrdering(partitioning);

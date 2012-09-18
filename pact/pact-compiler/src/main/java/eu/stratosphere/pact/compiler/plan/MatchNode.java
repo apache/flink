@@ -32,7 +32,7 @@ import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.PartitionProperty;
+import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
@@ -75,10 +75,6 @@ public class MatchNode extends TwoInputNode {
 				setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
 				setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_INMEM_HASH_BUILD_FIRST.equals(localStrategy)) {
-				setLocalStrategy(LocalStrategy.MMHASH_FIRST);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_INMEM_HASH_BUILD_SECOND.equals(localStrategy)) {
-				setLocalStrategy(LocalStrategy.MMHASH_SECOND);
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_SELF_NESTEDLOOP.equals(localStrategy)) {
 				setLocalStrategy(LocalStrategy.SORT_SELF_NESTEDLOOP);
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SELF_NESTEDLOOP.equals(localStrategy)) {
@@ -91,30 +87,30 @@ public class MatchNode extends TwoInputNode {
 		}
 	}
 
-	/**
-	 * Copy constructor to create a copy of a node with different predecessors. The predecessors
-	 * is assumed to be of the same type as in the template node and merely copies with different
-	 * strategies, as they are created in the process of the plan enumeration.
-	 * 
-	 * @param template
-	 *        The node to create a copy of.
-	 * @param pred1
-	 *        The new predecessor for the first input.
-	 * @param pred2
-	 *        The new predecessor for the second input.
-	 * @param conn1
-	 *        The old connection of the first input to copy properties from.
-	 * @param conn2
-	 *        The old connection of the second input to copy properties from.
-	 * @param globalProps
-	 *        The global properties of this copy.
-	 * @param localProps
-	 *        The local properties of this copy.
-	 */
-	protected MatchNode(MatchNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
-		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
-	}
+//	/**
+//	 * Copy constructor to create a copy of a node with different predecessors. The predecessors
+//	 * is assumed to be of the same type as in the template node and merely copies with different
+//	 * strategies, as they are created in the process of the plan enumeration.
+//	 * 
+//	 * @param template
+//	 *        The node to create a copy of.
+//	 * @param pred1
+//	 *        The new predecessor for the first input.
+//	 * @param pred2
+//	 *        The new predecessor for the second input.
+//	 * @param conn1
+//	 *        The old connection of the first input to copy properties from.
+//	 * @param conn2
+//	 *        The old connection of the second input to copy properties from.
+//	 * @param globalProps
+//	 *        The global properties of this copy.
+//	 * @param localProps
+//	 *        The local properties of this copy.
+//	 */
+//	protected MatchNode(MatchNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
+//			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
+//		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
+//	}
 
 	// ------------------------------------------------------------------------
 
@@ -150,8 +146,6 @@ public class MatchNode extends TwoInputNode {
 			case MERGE:                return 1;
 			case HYBRIDHASH_FIRST:     return 1;
 			case HYBRIDHASH_SECOND:    return 1;
-			case MMHASH_FIRST:         return 1;
-			case MMHASH_SECOND:        return 1;
 			case SORT_SELF_NESTEDLOOP: return 2;
 			case SELF_NESTEDLOOP:      return 1;
 			default:                   return 0;
@@ -237,7 +231,7 @@ public class MatchNode extends TwoInputNode {
 		}
 		
 		// partition and any order
-		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, (FieldList)keys.clone());
+		p.getGlobalProperties().setPartitioning(PartitioningProperty.ANY, (FieldList)keys.clone());
 		
 		Ordering ordering = new Ordering();
 		for (Integer index : getPactContract().getKeyColumnNumbers(inputNum)) {
@@ -254,7 +248,7 @@ public class MatchNode extends TwoInputNode {
 
 		// partition only
 		p = new InterestingProperties();
-		p.getGlobalProperties().setPartitioning(PartitionProperty.ANY, (FieldList)keys.clone());
+		p.getGlobalProperties().setPartitioning(PartitioningProperty.ANY, (FieldList)keys.clone());
 		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
 		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
 	}
@@ -353,17 +347,17 @@ public class MatchNode extends TwoInputNode {
 									// 1) re-partition 2 the same way as 1
 									// 2) re-partition 1 the same way as 2
 	
-									if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+									if (gp1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
 										createLocalAlternatives(outputPlans, subPlan1, subPlan2, new ForwardSS(),
 											new PartitionHashSS(this.keySet2), estimator);
-									} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+									} else if (gp1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
 										createLocalAlternatives(outputPlans, subPlan1, subPlan2, new ForwardSS(),
 											new PartitionRangeSS(this.keySet2), estimator);
 									}
-									if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+									if (gp2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
 										createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
 												new ForwardSS(), estimator);
-									} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+									} else if (gp2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
 										createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionRangeSS(this.keySet1),
 												new ForwardSS(), estimator);
 									}
@@ -384,7 +378,7 @@ public class MatchNode extends TwoInputNode {
 
 								// we create an additional plan with a range partitioning
 								// if this is not already a range partitioning
-								if (gp1.getPartitioning() != PartitionProperty.RANGE_PARTITIONED) {
+								if (gp1.getPartitioning() != PartitioningProperty.RANGE_PARTITIONED) {
 									createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionRangeSS(this.keySet1),
 										new PartitionRangeSS(this.keySet2), estimator);
 								}
@@ -394,12 +388,12 @@ public class MatchNode extends TwoInputNode {
 								// add two plans:
 								// 1) make input 2 the same partitioning as input 1
 								// 2) partition both inputs with a different partitioning function (hash <-> range)
-								if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+								if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
 									createLocalAlternatives(outputPlans, subPlan1, subPlan2, ss1,
 										new PartitionHashSS(this.keySet2), estimator);
 									// createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 									// ShipStrategy.PARTITION_RANGE, estimator);
-								} else if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+								} else if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
 									createLocalAlternatives(outputPlans, subPlan1, subPlan2, ss1,
 										new PartitionRangeSS(this.keySet2), estimator);
 									createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
@@ -415,12 +409,12 @@ public class MatchNode extends TwoInputNode {
 							// add two plans:
 							// 1) make input 1 the same partitioning as input 2
 							// 2) partition both inputs with a different partitioning function (hash <-> range)
-							if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+							if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
 								createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1), ss2,
 									estimator);
 								// createLocalAlternatives(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
 								// ShipStrategy.PARTITION_RANGE, estimator);
-							} else if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+							} else if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
 								createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionRangeSS(this.keySet1), ss2,
 									estimator);
 								createLocalAlternatives(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
@@ -465,9 +459,9 @@ public class MatchNode extends TwoInputNode {
 						case FORWARD:
 							if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning().isPartitioned()) {
 								// adapt to the partitioning
-								if (gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+								if (gp2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
 									ss1 = new PartitionHashSS(this.keySet1);
-								} else if (gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+								} else if (gp2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
 									ss1 = new PartitionRangeSS(this.keySet1);
 								} else {
 									throw new CompilerException();
@@ -478,11 +472,11 @@ public class MatchNode extends TwoInputNode {
 							}
 							break;
 						case PARTITION_HASH:
-							ss1 = (partitioningIsOnSameSubkey(gp1.getPartitionedFields(), this.keySet2) && gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? new ForwardSS()
+							ss1 = (partitioningIsOnSameSubkey(gp1.getPartitionedFields(), this.keySet2) && gp1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) ? new ForwardSS()
 								: new PartitionHashSS(this.keySet1);
 							break;
 						case PARTITION_RANGE:
-							ss1 = (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? new ForwardSS()
+							ss1 = (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) ? new ForwardSS()
 								: new PartitionRangeSS(this.keySet1);
 							break;
 						default:
@@ -510,9 +504,9 @@ public class MatchNode extends TwoInputNode {
 					case FORWARD:
 						if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning().isPartitioned()) {
 							// adapt to the partitioning
-							if (gp1.getPartitioning() == PartitionProperty.HASH_PARTITIONED) {
+							if (gp1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
 								ss2 = new PartitionHashSS(this.keySet2);
-							} else if (gp1.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+							} else if (gp1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
 								ss2 = new PartitionRangeSS(this.keySet2);
 							} else {
 								throw new CompilerException();
@@ -523,11 +517,11 @@ public class MatchNode extends TwoInputNode {
 						}
 						break;
 					case PARTITION_HASH:
-						ss2 = (partitioningIsOnSameSubkey(this.keySet1, gp2.getPartitionedFields()) && partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.HASH_PARTITIONED) ? new ForwardSS()
+						ss2 = (partitioningIsOnSameSubkey(this.keySet1, gp2.getPartitionedFields()) && partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) ? new ForwardSS()
 							: new PartitionHashSS(this.keySet2);
 						break;
 					case PARTITION_RANGE:
-						ss2 = (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) ? new ForwardSS()
+						ss2 = (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) ? new ForwardSS()
 							: new PartitionRangeSS(this.keySet2);
 						break;
 					default:
@@ -1037,7 +1031,7 @@ public class MatchNode extends TwoInputNode {
 		default:
 			throw new CompilerException("Invalid input number "+inputNum+" for Match.");
 		}
-		if (gp.getPartitioning() == PartitionProperty.RANGE_PARTITIONED) {
+		if (gp.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
 			return keyFields.equals(partitionedFields);	
 		}
 		
