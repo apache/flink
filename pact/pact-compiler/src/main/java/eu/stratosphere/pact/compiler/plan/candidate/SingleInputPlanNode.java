@@ -22,6 +22,7 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 
@@ -41,6 +42,10 @@ public class SingleInputPlanNode extends PlanNode
 	{
 		super(template, localStrategy);
 		this.input = input;
+		
+		if (this.input.getShipStrategy() == ShipStrategyType.BROADCAST) {
+			this.input.setReplicationFactor(getDegreeOfParallelism());
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

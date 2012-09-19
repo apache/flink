@@ -25,6 +25,7 @@ import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.generic.io.InputFormat;
+import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
@@ -262,7 +263,12 @@ public class DataSourceNode extends OptimizerNode
 		
 		SourcePlanNode candidate = new SourcePlanNode(this);
 		candidate.updatePropertiesWithUniqueSets(getUniqueFields());
-		candidate.setCosts(new Costs(0, this.inputSize));
+		
+		final Costs costs = new Costs(0, 0);
+		if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatClass())) {
+			costs.addSecondaryStorageCost(this.inputSize);
+		}
+		candidate.setCosts(costs);
 
 		// since there is only a single plan for the data-source, return a list with that element only
 		List<PlanNode> plans = new ArrayList<PlanNode>(1);

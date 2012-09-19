@@ -21,7 +21,6 @@ import eu.stratosphere.pact.common.contract.DualInputContract;
 import eu.stratosphere.pact.common.generic.AbstractStub;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 
@@ -30,7 +29,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * transform it into a plan with a single root node. That way, the code that makes sure no costs are double-counted and that 
  * candidate selection works correctly with nodes that have multiple outputs is transparently reused.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
 public class SinkJoiner extends TwoInputNode
 {	

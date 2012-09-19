@@ -26,7 +26,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import eu.stratosphere.pact.client.nephele.api.PactProgram;
 import eu.stratosphere.pact.compiler.jobgen.JSONGenerator;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 
 /**
  * @author Stephan Ewen (stephan.ewen@tu-berlin.com)

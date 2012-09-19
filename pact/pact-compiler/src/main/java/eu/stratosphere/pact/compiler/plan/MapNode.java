@@ -61,28 +61,24 @@ public class MapNode extends SingleInputNode
 		return "Map";
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getMemoryConsumerCount()
 	 */
 	@Override
 	public int getMemoryConsumerCount() {
 		return 0;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingProperties()
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// the map itself has no interesting properties.
 		// check, if there is an output contract that tells us that certain properties are preserved.
 		// if so, propagate to the child.
-		
 		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
 		List<InterestingProperties> props = InterestingProperties.filterInterestingPropertiesForInput(thisNodesIntProps, this, 0);
-		
 		if (props.isEmpty()) {
 			this.inConn.setNoInterestingProperties();
 		} else {

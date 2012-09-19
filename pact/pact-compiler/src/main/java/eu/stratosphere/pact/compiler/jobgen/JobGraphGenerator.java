@@ -59,11 +59,11 @@ import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.MapNode;
 import eu.stratosphere.pact.compiler.plan.MatchNode;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.UnionNode;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionShipStrategy;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
@@ -121,7 +121,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 	}
 
 	/**
-	 * Translates a {@link eu.stratosphere.pact.compiler.plan.OptimizedPlan} into a
+	 * Translates a {@link eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan} into a
 	 * {@link eu.stratosphere.nephele.jobgraph.JobGraph}.
 	 * This is an 1-to-1 mapping. No optimization whatsoever is applied.
 	 * 

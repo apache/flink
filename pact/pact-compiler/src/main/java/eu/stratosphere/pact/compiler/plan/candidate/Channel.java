@@ -68,7 +68,7 @@ public class Channel implements EstimateProvider
 	
 	private TempMode tempMode;
 	
-	private int replicationFactor;
+	private int replicationFactor = 1;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -110,6 +110,21 @@ public class Channel implements EstimateProvider
 		this.shipSortOrder = sortDirection;
 	}
 	
+	
+	public ShipStrategyType getShipStrategy() {
+		return this.shipStrategy;
+	}
+	
+	public FieldList getShipStrategyKeys() {
+		return this.shipKeys;
+	}
+	
+	public boolean[] getShipStrategySortOrder() {
+		return this.shipSortOrder;
+	}
+	
+	
+	
 	public void setLocalStrategy(LocalStrategy strategy) {
 		setLocalStrategy(strategy, null, null);
 	}
@@ -124,12 +139,16 @@ public class Channel implements EstimateProvider
 		this.localSortOrder = sortDirection;
 	}
 	
-	public ShipStrategyType getShipStrategy() {
-		return this.shipStrategy;
+	public LocalStrategy getLocalStrategy() {
+		return this.localStrategy;
 	}
 	
-	public FieldList getShipStrategyKeys() {
-		return this.shipKeys;
+	public FieldList getLocalStrategyKeys() {
+		return this.localKeys;
+	}
+	
+	public boolean[] getLocalStrategySortOrder() {
+		return this.localSortOrder;
 	}
 	
 	
@@ -152,6 +171,15 @@ public class Channel implements EstimateProvider
 	 */
 	public void setTempMode(TempMode tempMode) {
 		this.tempMode = tempMode;
+	}
+	
+	/**
+	 * Sets the replication factor of the connection.
+	 * 
+	 * @param factor The replication factor of the connection.
+	 */
+	public void setReplicationFactor(int factor) {
+		this.replicationFactor = factor;
 	}
 	
 	/**

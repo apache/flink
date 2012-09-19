@@ -60,7 +60,7 @@ public abstract class CostEstimator {
 	public void costOperator(PlanNode n)
 	{
 		// initialize costs objects with currently unknown costs
-		final Costs costs = new Costs();
+		final Costs costs = new Costs(0, 0);
 		final long availableMemory = n.getTotalAvailableMemory();
 		
 		// add the shipping strategy costs
@@ -85,6 +85,17 @@ public abstract class CostEstimator {
 				break;
 			default:
 				throw new CompilerException("Unknown shipping strategy for input: " + channel.getShipStrategy());
+			}
+			
+			switch (channel.getLocalStrategy()) {
+			case NONE:
+				break;
+			case SORT:
+			case COMBININGSORT:
+				addLocalSortCost(channel, availableMemory, costs);
+				break;
+			default:
+				throw new CompilerException("Unsupported local strategy for input: " + channel.getLocalStrategy());
 			}
 		} 
 		

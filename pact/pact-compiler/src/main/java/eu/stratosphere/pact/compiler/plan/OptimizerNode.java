@@ -33,6 +33,7 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
@@ -79,6 +80,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
 
 	protected int instancesPerMachine = -1; // the number of parallel instance that will run on the same machine
+	
+	private long minimalGuaranteedMemory;
 
 	protected int id = -1; // the id for this node.
 
@@ -212,7 +215,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 *        The cost estimator used to estimate the costs of each plan alternative.
 	 * @return A list containing all plan alternatives.
 	 */
-	public abstract List<? extends PlanNode> getAlternativePlans(CostEstimator estimator);
+	public abstract List<PlanNode> getAlternativePlans(CostEstimator estimator);
 
 	/**
 	 * This method implements the visit of a depth-first graph traversing visitor. Implementors must first
@@ -1043,8 +1046,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		return bld.toString();
 	}
 	
-	// ============================================================================================
+	// --------------------------------------------------------------------------------------------
+	//                                Branching and Pruning
+	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 *
+	 */
 	protected static final class UnclosedBranchDescriptor
 	{
 		protected OptimizerNode branchingNode;
@@ -1067,6 +1075,55 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 		public long getJoinedPathsVector() {
 			return this.joinedPathsVector;
+		}
+	}
+	
+	protected void prunePlanAlternatives(List<PlanNode> plans)
+	{
+		// for each interesting property, which plans are cheapest
+		final PlanNode[] toKeep = new PlanNode[this.intProps.size()]; 
+		PlanNode cheapest = null; // the overall cheapest plan
+
+		// go over all plans from the list
+		for (PlanNode candidate : plans) {
+			// check if that plan is the overall cheapest
+			if (cheapest == null || (cheapest.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0)) {
+				cheapest = candidate;
+			}
+
+			// find the interesting properties that this plan matches
+			for (int i = 0; i < this.intProps.size(); i++) {
+				if (this.intProps.get(i).isMetBy(candidate)) {
+					final PlanNode previous = toKeep[i];
+					// the candidate meets them. if it is the first one to meet the interesting properties,
+					// or the previous one was more expensive, keep it
+					if (previous == null || previous.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0) {
+						toKeep[i] = candidate;
+					}
+				}
+			}
+		}
+
+		// all plans are set now
+		plans.clear();
+
+		// add the cheapest plan
+		if (cheapest != null) {
+			plans.add(cheapest);
+			cheapest.setPruningMarker(); // remember that that plan is in the set
+		}
+		final Costs cheapestCosts = cheapest.getCumulativeCosts();
+
+		// add all others, which are optimal for some interesting properties
+		for (int i = 0; i < toKeep.length; i++) {
+			final PlanNode n = toKeep[i];
+			if (n != null && !n.isPruneMarkerSet()) {
+				final Costs maxDelta = this.intProps.get(i).getMaximalCosts();
+				if (!cheapestCosts.isOtherMoreThanDeltaAbove(n.getCumulativeCosts(), maxDelta)) {
+					n.setPruningMarker();
+					plans.add(n);
+				}
+			}
 		}
 	}
 }

@@ -19,9 +19,11 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -53,11 +55,14 @@ import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.DataSourceNode;
 import eu.stratosphere.pact.compiler.plan.MapNode;
 import eu.stratosphere.pact.compiler.plan.MatchNode;
-import eu.stratosphere.pact.compiler.plan.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 
 /**
  * The optimizer that takes the user specified pact plan and creates an optimized plan that contains
@@ -673,37 +678,36 @@ public class PactCompiler {
 		rootNode.accept(branchingVisitor);
 
 		// the final step is now to generate the actual plan alternatives
-		List<? extends PlanNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
+		List<PlanNode> bestPlan = rootNode.getAlternativePlans(this.costEstimator);
 
 		if (bestPlan.size() != 1) {
 			throw new CompilerException("Error in compiler: more than one best plan was created!");
 		}
-//
-//		// check if the best plan's root is a data sink (single sink plan)
-//		// if so, directly take it. if it is a sink joiner node, get its contained sinks
-//		OptimizerNode bestPlanRoot = bestPlan.get(0);
-//		List<DataSinkNode> bestPlanSinks = new ArrayList<DataSinkNode>(4);
-//
-//		if (bestPlanRoot instanceof DataSinkNode) {
-//			bestPlanSinks.add((DataSinkNode) bestPlanRoot);
+
+		// check if the best plan's root is a data sink (single sink plan)
+		// if so, directly take it. if it is a sink joiner node, get its contained sinks
+		PlanNode bestPlanRoot = bestPlan.get(0);
+		List<SinkPlanNode> bestPlanSinks = new ArrayList<SinkPlanNode>(4);
+
+		if (bestPlanRoot instanceof SinkPlanNode) {
+			bestPlanSinks.add((SinkPlanNode) bestPlanRoot);
 //		} else if (bestPlanRoot instanceof SinkJoiner) {
 //			((SinkJoiner) bestPlanRoot).getDataSinks(bestPlanSinks);
-//		}
+		}
 		
-//		// connect nodes bidirectional
-//		new NodeConnector().connectNodes(bestPlanSinks);
-//
+		// connect nodes bidirectional
+		new NodeConnector().connectNodes(bestPlanSinks);
+
 //		// insert temporary dams, as they may be necessary in non-tree graphs to prevent deadlocks
 //		Configuration config = GlobalConfiguration.getConfiguration();
 //		new DeadlockResolver(config.getBoolean("channel.network.allowSpilling",true)).resolveDeadlocks(bestPlanSinks);
-//
-//		// finalize the plan
-//		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryMegabytes);
-//		plan.setInstanceTypeName(instanceName);
-//		plan.setPlanConfiguration(pactPlan.getPlanConfiguration());
+
+		// finalize the plan
+		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, pactPlan.getJobName(), memoryMegabytes);
+		plan.setInstanceTypeName(instanceName);
+		plan.setPlanConfiguration(pactPlan.getPlanConfiguration());
 		
-//		return plan;
-		return null;
+		return plan;
 	}
 
 	/**
@@ -716,12 +720,13 @@ public class PactCompiler {
 	 */
 	public static OptimizedPlan createPreOptimizedPlan(Plan pactPlan)
 	{
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
-		pactPlan.accept(graphCreator);
-		OptimizedPlan optPlan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
-				pactPlan.getJobName());
-		optPlan.setPlanConfiguration(pactPlan.getPlanConfiguration());
-		return optPlan;
+//		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(null, -1, 1, false);
+//		pactPlan.accept(graphCreator);
+//		OptimizedPlan optPlan = new OptimizedPlan(graphCreator.sources, graphCreator.sinks, graphCreator.con2node.values(),
+//				pactPlan.getJobName());
+//		optPlan.setPlanConfiguration(pactPlan.getPlanConfiguration());
+//		return optPlan;
+		return null;
 	}
 
 	/**
@@ -948,185 +953,185 @@ public class PactCompiler {
 		}
 	};
 
-//	/**
-//	 * Utility class that traverses a plan to connect all nodes.
-//	 */
-//	private static final class NodeConnector implements Visitor<OptimizerNode> {
-//		private final Set<OptimizerNode> allNodes; // a set of all nodes in the optimizer plan
-//
-//		/**
-//		 * Creates a new node connector.
-//		 */
-//		private NodeConnector() {
-//			this.allNodes = new HashSet<OptimizerNode>();
-//		}
-//
-//		private void connectNodes(List<DataSinkNode> sinks) {
-//			
-//			// traverse the graph
-//			for (DataSinkNode node : sinks) {
-//				node.accept(this);
-//			}
-//		}
-//
-//		/*
-//		 * (non-Javadoc)
-//		 * @see
-//		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-//		 */
-//		@Override
-//		public boolean preVisit(OptimizerNode visitable) {
-//			// if we come here again, prevent a further descend
-//			if (!this.allNodes.add(visitable)) {
-//				return false;
-//			}
-//
-//			for (PactConnection conn : visitable.getIncomingConnections()) {
-//				conn.getSourcePact().addOutConn(conn);
-//			}
-//
-//			return true;
-//		}
-//
-//		/*
-//		 * (non-Javadoc)
-//		 * @see
-//		 * eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-//		 */
-//		@Override
-//		public void postVisit(OptimizerNode visitable) {
-//			// do nothing
-//		}
-//	}
+	/**
+	 * Utility class that traverses a plan to connect all nodes.
+	 */
+	private static final class NodeConnector implements Visitor<PlanNode>
+	{
+		private final Set<PlanNode> allNodes; // a set of all nodes in the optimizer plan
+
+		/**
+		 * Creates a new node connector.
+		 */
+		private NodeConnector() {
+			this.allNodes = new HashSet<PlanNode>();
+		}
+
+		private void connectNodes(List<SinkPlanNode> sinks) {
+			// traverse the graph
+			for (SinkPlanNode node : sinks) {
+				node.accept(this);
+			}
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public boolean preVisit(PlanNode visitable) {
+			// if we come here again, prevent a further descend
+			if (!this.allNodes.add(visitable)) {
+				return false;
+			}
+			
+			for (Iterator<Channel> iter = visitable.getInputs(); iter.hasNext();) {
+				final Channel conn = iter.next();
+				conn.getSource().addOutgoingChannel(conn);
+			}
+			return true;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public void postVisit(PlanNode visitable) {
+			// do nothing
+		}
+	}
 	
-//	/**
-//	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.
-//	 * Besides collecting all nodes, this traversal assigns the memory to the nodes.
-//	 */
-//	private static final class PlanFinalizer implements Visitor<OptimizerNode>
-//	{
-//		private final Set<OptimizerNode> allNodes; // a set of all nodes in the optimizer plan
-//
-//		private final List<DataSourceNode> sources; // all data source nodes in the optimizer plan
-//
-//		private final List<DataSinkNode> sinks; // all data sink nodes in the optimizer plan
-//
-//		private int memoryConsumers; // a counter of all memory consumers
-//		
-//		private int memoryPerInstance; // the amount of memory per instance
-//
-//		/**
-//		 * Creates a new plan finalizer.
-//		 */
-//		private PlanFinalizer() {
-//			this.allNodes = new HashSet<OptimizerNode>();
-//			this.sources = new ArrayList<DataSourceNode>();
-//			this.sinks = new ArrayList<DataSinkNode>();
-//		}
-//
-//		private OptimizedPlan createFinalPlan(List<DataSinkNode> sinks, String jobName, int memoryPerInstance)
-//		{
-//			if (LOG.isDebugEnabled())
-//				LOG.debug("Available memory per instance: " + memoryPerInstance);
-//			
-//			this.memoryPerInstance = memoryPerInstance;
-//			this.memoryConsumers = 0;
-//			
-//			// traverse the graph
-//			for (DataSinkNode node : sinks) {
-//				node.accept(this);
-//			}
-//
-//			// assign the memory to each node
-//			if (this.memoryConsumers > 0) {
-//				final int memoryPerTask = this.memoryPerInstance / this.memoryConsumers;
-//				
-//				if (LOG.isDebugEnabled())
-//					LOG.debug("Memory per consumer: "+memoryPerTask);
-//				
-//				for (OptimizerNode node : this.allNodes) {
-//					final int consumerCount = node.getMemoryConsumerCount(); 
-//					if (consumerCount > 0) {
-//						node.setMemoryPerTask(memoryPerTask * consumerCount);
-//						if (LOG.isDebugEnabled())
-//							LOG.debug("Assigned " + (memoryPerTask * consumerCount) + " MB to " + 
-//									node.getPactContract().getName());
-//					}
-//				}
-//			}
-//
-//			return new OptimizedPlan(this.sources, this.sinks, this.allNodes, jobName);
-//		}
-//
-//		/*
-//		 * (non-Javadoc)
-//		 * @see
-//		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
-//		 */
-//		@Override
-//		public boolean preVisit(OptimizerNode visitable) {
-//			// if we come here again, prevent a further descend
-//			if (!this.allNodes.add(visitable)) {
-//				return false;
-//			}
-//
-//			for (PactConnection conn : visitable.getIncomingConnections()) {
-//				
-//				// check for memory consuming temp connection
-//				switch(conn.getTempMode()) {
-//					case NONE:
-//						// do nothing
-//						break;
-//					case TEMP_SENDER_SIDE:
-//						// reduce available memory
-//						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
-//													conn.getSourcePact().getDegreeOfParallelism();
-//						LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
-//						break;
-//					case TEMP_RECEIVER_SIDE:
-//						// reduce available memory
-//						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
-//													conn.getTargetPact().getDegreeOfParallelism();
-//						LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
-//						break;
-//				}
-//			}
-//			
-//			for (PactConnection conn : visitable.getOutConns()) {
-//				if(conn.getShipStrategy().type() == ShipStrategyType.PARTITION_RANGE) {
-//					// One memory consumer for the histogram
-//					this.memoryConsumers += visitable.getInstancesPerMachine();
-//					//Reduce available memory because of temp task to avoid spilling
-//					this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY *
-//					conn.getSourcePact().getDegreeOfParallelism();
-//					//TODO: is this correct reducing memory per INSTANCE by multiplying required
-//					//memory * the TOTAL DoP?
-//					LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
-//				}
-//			}
-//
-//			if (visitable instanceof DataSinkNode) {
-//				this.sinks.add((DataSinkNode) visitable);
-//			} else if (visitable instanceof DataSourceNode) {
-//				this.sources.add((DataSourceNode) visitable);
-//			}
-//
-//			// count the memory consumption
-//			this.memoryConsumers += visitable.getMemoryConsumerCount() * visitable.getInstancesPerMachine();
-//			
-//			return true;
-//		}
-//
-//		/*
-//		 * (non-Javadoc)
-//		 * @see
-//		 * eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
-//		 */
-//		@Override
-//		public void postVisit(OptimizerNode visitable) {
-//			// do nothing
-//		}
-//	}
+	/**
+	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.
+	 * Besides collecting all nodes, this traversal assigns the memory to the nodes.
+	 */
+	private static final class PlanFinalizer implements Visitor<PlanNode>
+	{
+		private final Set<PlanNode> allNodes; // a set of all nodes in the optimizer plan
+
+		private final List<SourcePlanNode> sources; // all data source nodes in the optimizer plan
+
+		private final List<SinkPlanNode> sinks; // all data sink nodes in the optimizer plan
+
+		private int memoryConsumers; // a counter of all memory consumers
+		
+		private int memoryPerInstance; // the amount of memory per instance
+
+		/**
+		 * Creates a new plan finalizer.
+		 */
+		private PlanFinalizer() {
+			this.allNodes = new HashSet<PlanNode>();
+			this.sources = new ArrayList<SourcePlanNode>();
+			this.sinks = new ArrayList<SinkPlanNode>();
+		}
+
+		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, int memoryPerInstance)
+		{
+			if (LOG.isDebugEnabled())
+				LOG.debug("Available memory per instance: " + memoryPerInstance);
+			
+			this.memoryPerInstance = memoryPerInstance;
+			this.memoryConsumers = 0;
+			
+			// traverse the graph
+			for (SinkPlanNode node : sinks) {
+				node.accept(this);
+			}
+
+			// assign the memory to each node
+			if (this.memoryConsumers > 0) {
+				final int memoryPerTask = this.memoryPerInstance / this.memoryConsumers;
+				
+				if (LOG.isDebugEnabled())
+					LOG.debug("Memory per consumer: "+memoryPerTask);
+				
+				for (PlanNode node : this.allNodes) {
+					final int consumerCount = node.getMemoryConsumerCount(); 
+					if (consumerCount > 0) {
+						node.setMemoryPerTask(memoryPerTask * consumerCount);
+						if (LOG.isDebugEnabled())
+							LOG.debug("Assigned " + (memoryPerTask * consumerCount) + " MB to " + 
+									node.getPactContract().getName());
+					}
+				}
+			}
+
+			return new OptimizedPlan(this.sources, this.sinks, this.allNodes, jobName);
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.pact.common.plan.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public boolean preVisit(OptimizerNode visitable) {
+			// if we come here again, prevent a further descend
+			if (!this.allNodes.add(visitable)) {
+				return false;
+			}
+
+			for (PactConnection conn : visitable.getIncomingConnections()) {
+				
+				// check for memory consuming temp connection
+				switch(conn.getTempMode()) {
+					case NONE:
+						// do nothing
+						break;
+					case TEMP_SENDER_SIDE:
+						// reduce available memory
+						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
+													conn.getSourcePact().getDegreeOfParallelism();
+						LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
+						break;
+					case TEMP_RECEIVER_SIDE:
+						// reduce available memory
+						this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY * 
+													conn.getTargetPact().getDegreeOfParallelism();
+						LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
+						break;
+				}
+			}
+			
+			for (PactConnection conn : visitable.getOutConns()) {
+				if(conn.getShipStrategy().type() == ShipStrategyType.PARTITION_RANGE) {
+					// One memory consumer for the histogram
+					this.memoryConsumers += visitable.getInstancesPerMachine();
+					//Reduce available memory because of temp task to avoid spilling
+					this.memoryPerInstance -= PactCompiler.DEFAULT_TEMP_TASK_MEMORY *
+					conn.getSourcePact().getDegreeOfParallelism();
+					//TODO: is this correct reducing memory per INSTANCE by multiplying required
+					//memory * the TOTAL DoP?
+					LOG.debug("Memory reduced to "+this.memoryPerInstance+ " due to TempTask");
+				}
+			}
+
+			if (visitable instanceof DataSinkNode) {
+				this.sinks.add((DataSinkNode) visitable);
+			} else if (visitable instanceof DataSourceNode) {
+				this.sources.add((DataSourceNode) visitable);
+			}
+
+			// count the memory consumption
+			this.memoryConsumers += visitable.getMemoryConsumerCount() * visitable.getInstancesPerMachine();
+			
+			return true;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.pact.common.plan.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+		 */
+		@Override
+		public void postVisit(OptimizerNode visitable) {
+			// do nothing
+		}
+	}
 
 	/**
 	 * Utility class to resolve pipeline deadlocks in non-tree graphs.

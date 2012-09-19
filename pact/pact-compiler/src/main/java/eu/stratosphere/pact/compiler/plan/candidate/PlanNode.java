@@ -15,10 +15,13 @@
 
 package eu.stratosphere.pact.compiler.plan.candidate;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.Costs;
@@ -35,6 +38,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 public abstract class PlanNode implements Visitable<PlanNode>
 {
 	protected final OptimizerNode template;
+	
+	protected final List<Channel> outChannels;
 	
 	private final LocalStrategy localStrategy;		// The local strategy (sorting / hashing, ...)
 	
@@ -57,7 +62,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	
 	private int memoryPerTask;						// the amount of memory dedicated to each task, in MiBytes
 	
-	protected boolean pFlag;						// flag for the internal pruning algorithm
+	private boolean pFlag;						// flag for the internal pruning algorithm
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -72,6 +77,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	
 	public PlanNode(OptimizerNode template, LocalStrategy strategy, LocalProperties localProps, GlobalProperties globalProps)
 	{
+		this.outChannels = new ArrayList<Channel>(2);
 		this.template = template;
 		this.localStrategy = strategy == null ? LocalStrategy.NONE : strategy;
 		this.localProps = localProps;
@@ -82,6 +88,24 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	// --------------------------------------------------------------------------------------------
 	//                                           Accessors
 	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the optimizer's pact node for which this plan candidate node was created.
+	 * 
+	 * @return The template optimizer's node.
+	 */
+	public OptimizerNode getOriginalOptimizerNode() {
+		return this.template;
+	}
+	
+	/**
+	 * Gets the pact contract this node represents in the plan.
+	 * 
+	 * @return The pact contract this node represents in the plan.
+	 */
+	public Contract getPactContract() {
+		return this.template.getPactContract();
+	}
 	
 	/**
 	 * Gets the memory dedicated to each task for this node.
@@ -177,12 +201,30 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                               Input and Predecessors
+	//                               Input, Predecessors, Successors
 	// --------------------------------------------------------------------------------------------
 	
 	public abstract Iterator<Channel> getInputs();
 	
 	public abstract Iterator<PlanNode> getPredecessors();
+	
+	/**
+	 * Adds a channel to a successor node to this node.
+	 * 
+	 * @param channel The channel to the successor.
+	 */
+	public void addOutgoingChannel(Channel channel) {
+		this.outChannels.add(channel);
+	}
+	
+	/**
+	 * Gets a list of all outgoing channels leading to successors.
+	 * 
+	 * @return A list of all channels leading to successors.
+	 */
+	public List<Channel> getOutgoingChannels() {
+		return this.outChannels;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//                                Branching and Pruning
@@ -201,7 +243,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 //	protected boolean areBranchCompatible(PlanNode subPlan1, PlanNode subPlan2)
 //	{
 //		if (subPlan1 == null || subPlan2 == null)
-//			throw new CompilerException("SubPlans may not be null.");
+//			throw new NullPointerException();
 //		
 //		// if there is no open branch, the children are always compatible.
 //		// in most plans, that will be the dominant case
@@ -212,7 +254,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 //		final PlanNode nodeToCompare = subPlan1.branchPlan.get(this.lastJoinedBranchNode);
 //		return nodeToCompare == subPlan2.branchPlan.get(this.lastJoinedBranchNode);
 //	}
-//	
+	
 //	/**
 //	 * Takes the given list of plans that are candidates for this node in the final plan and retains for each distinct
 //	 * set of interesting properties only the cheapest plan.
@@ -273,103 +315,6 @@ public abstract class PlanNode implements Visitable<PlanNode>
 //			plans.addAll(result);
 //		}
 //	}
-//	
-//	private final <T extends OptimizerNode> void prunePlansWithCommonBranchAlternatives(List<T> plans) {
-//		List<List<T>> toKeep = new ArrayList<List<T>>(this.intProps.size()); // for each interesting property, which plans
-//		// are cheapest
-//		for (int i = 0; i < this.intProps.size(); i++) {
-//			toKeep.add(null);
-//		}
-//
-//		T cheapest = null; // the overall cheapest plan
-//
-//		// go over all plans from the list
-//		for (T candidate : plans) {
-//			// check if that plan is the overall cheapest
-//			if (cheapest == null || (cheapest.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0)) {
-//				cheapest = candidate;
-//			}
-//
-//			// find the interesting properties that this plan matches
-//			for (int i = 0; i < this.intProps.size(); i++) {
-//				if (this.intProps.get(i).isMetBy(candidate)) {
-//					// the candidate meets them
-//					if (toKeep.get(i) == null) {
-//						// first one to meet the interesting properties, so store it
-//						List<T> l = new ArrayList<T>(2);
-//						l.add(candidate);
-//						toKeep.set(i, l);
-//					} else {
-//						// others met that one before
-//						// see if that one is more expensive and not more general than
-//						// one of the others. If so, drop it.
-//						List<T> l = toKeep.get(i);
-//						boolean met = false;
-//						boolean replaced = false;
-//
-//						for (int k = 0; k < l.size(); k++) {
-//							T other = l.get(k);
-//
-//							// check if the candidate is both cheaper and at least as general
-//							if (other.getGlobalProperties().isMetBy(candidate.getGlobalProperties())
-//								&& other.getLocalProperties().isMetBy(candidate.getLocalProperties())
-//								&& other.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0) {
-//								// replace that one with the candidate
-//								l.set(k, replaced ? null : candidate);
-//								replaced = true;
-//								met = true;
-//							} else {
-//								// check if the previous plan is more general and not more expensive than the candidate
-//								met |= (candidate.getGlobalProperties().isMetBy(other.getGlobalProperties())
-//									&& candidate.getLocalProperties().isMetBy(other.getLocalProperties()) && candidate
-//									.getCumulativeCosts().compareTo(other.getCumulativeCosts()) >= 0);
-//							}
-//						}
-//
-//						if (!met) {
-//							l.add(candidate);
-//						}
-//					}
-//				}
-//			}
-//		}
-//
-//		// all plans are set now
-//		plans.clear();
-//
-//		// add the cheapest plan
-//		if (cheapest != null) {
-//			plans.add(cheapest);
-//			cheapest.pFlag = true; // remember that that plan is in the set
-//		}
-//
-//		Costs cheapestCosts = cheapest.cumulativeCosts;
-//
-//		// add all others, which are optimal for some interesting properties
-//		for (int i = 0; i < toKeep.size(); i++) {
-//			List<T> l = toKeep.get(i);
-//
-//			if (l != null) {
-//				Costs maxDelta = this.intProps.get(i).getMaximalCosts();
-//
-//				for (T plan : l) {
-//					if (plan != null && !plan.pFlag) {
-//						plan.pFlag = true;
-//
-//						// check, if that plan is not more than the delta above the costs of the
-//						if (!cheapestCosts.isOtherMoreThanDeltaAbove(plan.getCumulativeCosts(), maxDelta)) {
-//							plans.add(plan);
-//						}
-//					}
-//				}
-//			}
-//		}
-//
-//		// reset the flags
-//		for (T p : plans) {
-//			p.pFlag = false;
-//		}
-//	}
 	
 	// --------------------------------------------------------------------------------------------
 	//                                Miscellaneous
@@ -388,5 +333,21 @@ public abstract class PlanNode implements Visitable<PlanNode>
 		if (this.localProps.getUniqueFields() == null) {
 			this.localProps.setUniqueFields(unique);
 		}
+	}
+	
+	/**
+	 * Sets the pruning marker to true.
+	 */
+	public void setPruningMarker() {
+		this.pFlag = true;
+	}
+	
+	/**
+	 * Checks whether the pruning marker was set.
+	 * 
+	 * @return True, if the pruning marker was set, false otherwise.
+	 */
+	public boolean isPruneMarkerSet() {
+		return this.pFlag;
 	}
 }

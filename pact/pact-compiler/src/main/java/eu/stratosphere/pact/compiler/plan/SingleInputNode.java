@@ -204,7 +204,10 @@ public abstract class SingleInputNode extends OptimizerNode
 		List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		createPlanAlternatives(candidates, outputPlans);
 		
-		// prune the plans
+		// cost and prune the plans
+		for (PlanNode node : outputPlans) {
+			estimator.costOperator(node);
+		}
 		prunePlanAlternatives(outputPlans);
 
 		// cache the result only if we have multiple outputs --> this function gets invoked multiple times

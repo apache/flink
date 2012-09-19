@@ -26,8 +26,11 @@ import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
@@ -35,10 +38,13 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  * 
  * @author Stephan Ewen
  */
-public class DataSinkNode extends OptimizerNode {
+public class DataSinkNode extends OptimizerNode
+{
+	protected PactConnection input;			// The input edge
 	
-	protected PactConnection input; // The input edges
+	private List<PlanNode> cachedPlans;		// plan candidate cache
 
+	
 	/**
 	 * Creates a new DataSinkNode for the given contract.
 	 * 
@@ -50,58 +56,29 @@ public class DataSinkNode extends OptimizerNode {
 		setLocalStrategy(LocalStrategy.NONE);
 	}
 
-//	/**
-//	 * Copy constructor to create a copy of a DataSinkNode with a different predecessor. The predecessor
-//	 * is assumed to be of the same type and merely a copy with different strategies, as they
-//	 * are created in the process of the plan enumeration.
-//	 * 
-//	 * @param template
-//	 *        The node to create a copy of.
-//	 * @param pred
-//	 *        The new predecessor.
-//	 * @param conn
-//	 *        The old connection to copy properties from.
-//	 * @param globalProps
-//	 *        The global properties of this copy.
-//	 * @param localProps
-//	 *        The local properties of this copy.
-//	 */
-//	protected DataSinkNode(DataSinkNode template, OptimizerNode pred, PactConnection conn,
-//			GlobalProperties globalProps, LocalProperties localProps) {
-//		super(template, globalProps, localProps);
-//
-//		this.input = new PactConnection(conn, pred, this);
-//
-//		// copy the child's branch-plan map
-//		if(pred.branchPlan != null && pred.branchPlan.size() > 0)
-//			this.branchPlan = new HashMap<OptimizerNode, OptimizerNode>(pred.branchPlan);
-//		else 
-//			this.branchPlan = null;
-//	}
-
+	// --------------------------------------------------------------------------------------
 	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its input.
 	 * 
 	 * @return The input connection.
 	 */
-	public PactConnection getInConn() {
+	public PactConnection getInputConnection() {
 		return this.input;
 	}
 
 	/**
 	 * Sets the <tt>PactConnection</tt> through which this node receives its input.
 	 * 
-	 * @param conn
-	 *        The input connection to set.
+	 * @param conn The input connection to set.
 	 */
 	public void setInputConnection(PactConnection conn) {
 		this.input = conn;
 	}
 	
 	/**
-	 * TODO
+	 * 
 	 */
-	public OptimizerNode getPredNode() {
+	public OptimizerNode getPredecessorNode() {
 		if(this.input != null) {
 			return input.getSourcePact();
 		} else {
@@ -197,16 +174,16 @@ public class DataSinkNode extends OptimizerNode {
 	@Override
 	public void computeOutputEstimates(DataStatistics statistics) {
 		// we copy the output estimates from the input
-		if (this.getPredNode() == null) {
+		if (this.getPredecessorNode() == null) {
 			throw new CompilerException();
 		}
 		
 		if (this.estimatedCardinality.size() > 0)
 			this.estimatedCardinality.clear();
 		
-		this.estimatedCardinality.putAll(getPredNode().getEstimatedCardinalities());
-		this.estimatedNumRecords = getPredNode().getEstimatedNumRecords();
-		this.estimatedOutputSize = getPredNode().getEstimatedOutputSize();
+		this.estimatedCardinality.putAll(getPredecessorNode().getEstimatedCardinalities());
+		this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
+		this.estimatedOutputSize = getPredecessorNode().getEstimatedOutputSize();
 	}
 
 	/*
@@ -228,7 +205,7 @@ public class DataSinkNode extends OptimizerNode {
 			// in both cases create a range partitioned only IP
 			InterestingProperties partitioningProps = new InterestingProperties();
 			
-			partitioningProps.getGlobalProperties().setPartitioning(PartitioningProperty.RANGE_PARTITIONED, partitioning);
+			partitioningProps.getGlobalProperties().setRangePartitioned(partitioning);
 			estimator.addRangePartitionCost(this.input, partitioningProps.getMaximalCosts());
 			
 			this.input.addInterestingProperties(partitioningProps);
@@ -241,7 +218,7 @@ public class DataSinkNode extends OptimizerNode {
 				// global sort case: create IP for range partitioned and sorted
 				InterestingProperties globalSortProps = new InterestingProperties();
 				
-				globalSortProps.getGlobalProperties().setPartitioning(PartitioningProperty.RANGE_PARTITIONED, partitioning);
+				globalSortProps.getGlobalProperties().setRangePartitioned(partitioning);
 				estimator.addRangePartitionCost(this.input, globalSortProps.getMaximalCosts());
 				
 				globalSortProps.getLocalProperties().setOrdering(partitioning);
@@ -274,11 +251,11 @@ public class DataSinkNode extends OptimizerNode {
 			return;
 		}
 
-		addClosedBranches(this.getPredNode().closedBranchingNodes);
+		addClosedBranches(getPredecessorNode().closedBranchingNodes);
 		
 		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
 		// TODO: check if merge is necessary
-		result = mergeLists(result, this.getPredNode().getBranchesForParent(this));
+		result = mergeLists(result, getPredecessorNode().getBranchesForParent(this));
 
 		this.openBranches = result;
 	}
@@ -296,86 +273,49 @@ public class DataSinkNode extends OptimizerNode {
 	//                                   Recursive Optimization
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact.compiler.costs.CostEstimator)
 	 */
 	@Override
-	public List<OptimizerNode> getAlternativePlans(CostEstimator estimator)
+	public List<PlanNode> getAlternativePlans(CostEstimator estimator)
 	{
-//		final Ordering po = getPactContract().getPartitionOrdering();
-//		final Ordering lo = getPactContract().getLocalOrder();
-//		
-//		// the alternative plans are the ones that we have incoming, plus the attached output node
-		final List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
-//
-//		// step down to all producer nodes and calculate alternative plans
-//		final List<? extends OptimizerNode> subPlans = this.getPredNode().getAlternativePlans(estimator);
-//
-//		// build all possible alternative plans for this node
-//		for(OptimizerNode subPlan : subPlans) {
-//
-//			final GlobalProperties gp = subPlan.getGlobalPropertiesForParent(this).createCopy();
-//			final LocalProperties lp = subPlan.getLocalPropertiesForParent(this).createCopy();
-//
-//			final ShipStrategy ss;
-//			final LocalStrategy ls;
-//
-//			if (po != null && !po.isMetBy(gp.getOrdering())) {
-//				// requires global sort
-//
-//				ShipStrategy s = this.input.getShipStrategy();
-//				if (s.type() == ShipStrategyType.NONE || s.type() == ShipStrategyType.PARTITION_RANGE) {
-//					// strategy not fixed a priori, or strategy fixed, but valid
-//					ss = new PartitionRangeSS(po.getInvolvedIndexes());
-//				} else {
-//					// strategy is set a priory --> via compiler hint
-//					// this input plan cannot produce a valid plan
-//					continue;
-//				}
-//				
-//				gp.setPartitioning(PartitionProperty.RANGE_PARTITIONED, po.getInvolvedIndexes());
-//				gp.setOrdering(po);
-//			} else {
-//				ss = new ForwardSS();
-//			}
-//			
-//			if (lo != null && !lo.isMetBy(lp.getOrdering())) {
-//				// requires local sort
-//				if (this.localStrategy == LocalStrategy.NONE || this.localStrategy == LocalStrategy.SORT) {
-//					// strategy not fixed a priori, or strategy fixed, but valid
-//					ls = LocalStrategy.SORT;
-//				} else {
-//					// strategy is set a priory --> via compiler hint
-//					// this input plan cannot produce a valid plan
-//					continue;
-//				}
-//
-//				lp.setOrdering(lo);
-//			} else {
-//				ls = LocalStrategy.NONE;
-//			}
-//			
-//			DataSinkNode ns = new DataSinkNode(this, subPlan, this.input, gp, lp);
-//			ns.input.setShipStrategy(ss);
-//			ns.setLocalStrategy(ls);
-//
-//			// set the costs
-//			estimator.costOperator(ns);
-//
-//			// add the plan
-//			outputPlans.add(ns);
-//		}
-//		
-//		// prune the plans
-//		prunePlanAlternatives(outputPlans);
-//
-//		// check if the list does not contain any plan. That may happen, if the channels specify
-//		// incompatible shipping strategies.
-//		if (outputPlans.isEmpty()) {
-//			throw new CompilerException("Could not create a valid plan for the DataSink contract '"
-//				+ getPactContract().getName() + "'. The compiler hints specified incompatible shipping strategies.");
-//		}
+		// check if we have a cached version
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
+		}
+		
+		// calculate alternative subplans for predecessor
+		List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
+		List<PlanNode> outputPlans = new ArrayList<PlanNode>();
+		
+		List<InterestingProperties> ips = this.input.getInterestingProperties();
+		for (PlanNode p : subPlans) {
+			if (ips.isEmpty()) {
+				// create a simple forwarding channel
+				Channel c = new Channel(p);
+				c.setShipStrategy(ShipStrategyType.FORWARD);
+				c.setLocalStrategy(LocalStrategy.NONE);
+				outputPlans.add(new SinkPlanNode(this, c));
+			} else {
+				for (InterestingProperties ip : ips) {
+					// create a channel that realizes the properties
+					Channel c = ip.createChannelRealizingProperties(p);
+					outputPlans.add(new SinkPlanNode(this, c));
+				}
+			}
+		}
+		
+		// cost and prune the plans
+		for (PlanNode node : outputPlans) {
+			estimator.costOperator(node);
+		}
+		prunePlanAlternatives(outputPlans);
+
+		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
+		if (isBranching()) {
+			this.cachedPlans = outputPlans;
+		}
 
 		return outputPlans;
 	}
@@ -411,8 +351,8 @@ public class DataSinkNode extends OptimizerNode {
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {
-			if (this.getPredNode() != null) {
-				this.getPredNode().accept(visitor);
+			if (getPredecessorNode() != null) {
+				getPredecessorNode().accept(visitor);
 			} else {
 				throw new CompilerException();
 			}

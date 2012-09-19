@@ -19,6 +19,7 @@ import java.util.ArrayList;
 
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  *
@@ -180,6 +181,18 @@ public class Ordering
 			newOrdering.appendOrdering(this.indexes.get(i), this.types.get(i), this.orders.get(i));
 		}
 		return newOrdering;
+	}
+	
+	public boolean groupsFields(FieldSet fields) {
+		if (fields.size() > this.indexes.size()) {
+			return false;
+		}
+		
+		for (int i = 0; i < fields.size(); i++) {
+			if (!fields.contains(this.indexes.get(i)))
+				return false;
+		}
+		return true;
 	}
 	
 	// --------------------------------------------------------------------------------------------

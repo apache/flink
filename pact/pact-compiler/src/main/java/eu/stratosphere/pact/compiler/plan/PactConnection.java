@@ -22,9 +22,6 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
@@ -43,7 +40,7 @@ public class PactConnection implements EstimateProvider
 
 	private List<InterestingProperties> interestingProps; // local properties that succeeding nodes are interested in
 
-	private ShipStrategyType shipStrategy; // The data distribution strategy
+	private ShipStrategyType shipStrategy; // The data distribution strategy, if preset
 
 	/**
 	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
@@ -182,26 +179,6 @@ public class PactConnection implements EstimateProvider
 		this.interestingProps = Collections.emptyList();
 	}
 
-
-
-	/**
-	 * Gets the global properties of the data after this connection.
-	 * 
-	 * @return The global data properties of the output data.
-	 */
-//	public GlobalProperties getGlobalProperties() {
-//		return PactConnection.getGlobalPropertiesAfterConnection(this.sourcePact, this.targetPact, this.shipStrategy);
-//	}
-
-	/**
-	 * Gets the local properties of the data after this connection.
-	 * 
-	 * @return The local data properties of the output data.
-	 */
-	public LocalProperties getLocalProperties() {
-		return PactConnection.getLocalPropertiesAfterConnection(this.sourcePact, this.targetPact, this.shipStrategy);
-	}
-
 	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
@@ -269,42 +246,5 @@ public class PactConnection implements EstimateProvider
 		}
 
 		return buf.toString();
-	}
-
-	/**
-	 * Gets the local properties of the sources output after it crossed a pact connection with the given
-	 * strategy. Local properties are only maintained on <tt>FORWARD</tt> connections.
-	 * 
-	 * @return The properties of the data after a channel using the given strategy.
-	 */
-	public static LocalProperties getLocalPropertiesAfterConnection(OptimizerNode source, OptimizerNode target, ShipStrategyType shipMode) {
-//		LocalProperties lp = source.getLocalPropertiesForParent(target);
-//
-//		if (shipMode == null || shipMode.type() == ShipStrategyType.NONE) {
-//			throw new CompilerException("Cannot determine properties if shipping strategy is not defined.");
-//		}
-//		else if (shipMode.type() == ShipStrategyType.FORWARD) {
-//			if (source.getDegreeOfParallelism() > target.getDegreeOfParallelism()) {
-//				// any order is destroyed by the random merging of the inputs
-//				lp.setOrdering(null);
-////				lp.setGrouped(false, null);
-//			}
-//		}
-//		else {
-//			lp.reset();
-//		}
-//		
-////		if (lp.isGrouped() == false && 
-////				shipMode.type() != ShipStrategyType.BROADCAST && 
-////				shipMode.type() != ShipStrategyType.SFR) {
-////			
-////			if (source.getUniqueFields().size() > 0) {
-////				//TODO allow list of grouped fields, up to now only add the first one
-////				lp.setGrouped(true, source.getUniqueFields().iterator().next());
-////			}
-////		}
-//
-//		return lp;
-		return null;
 	}
 }

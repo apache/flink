@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.plan;
+package eu.stratosphere.pact.compiler.plan.candidate;
 
 import java.util.Collection;
 
@@ -26,24 +26,25 @@ import eu.stratosphere.pact.common.plan.Visitor;
  * It works on this representation during its optimization. Finally, this plan is translated to a schedule
  * for the nephele runtime system.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
- * @author Fabian Hüske (fabian.hueske@tu-berlin.de)
+ * @author Stephan Ewen
+ * @author Fabian Hüske
  */
-public class OptimizedPlan implements Visitable<OptimizerNode> {
+public class OptimizedPlan implements Visitable<PlanNode>
+{
 	/**
 	 * The data sources in the plan.
 	 */
-	private final Collection<DataSourceNode> dataSources;
+	private final Collection<SourcePlanNode> dataSources;
 
 	/**
 	 * The data sinks in the plan.
 	 */
-	private final Collection<DataSinkNode> dataSinks;
+	private final Collection<SinkPlanNode> dataSinks;
 
 	/**
 	 * All nodes in the optimizer plan.
 	 */
-	private final Collection<OptimizerNode> allNodes;
+	private final Collection<PlanNode> allNodes;
 
 	/**
 	 * Name of the PACT job
@@ -73,8 +74,9 @@ public class OptimizedPlan implements Visitable<OptimizerNode> {
 	 * @param jobName
 	 *        The name of the PACT job
 	 */
-	public OptimizedPlan(Collection<DataSourceNode> sources, Collection<DataSinkNode> sinks,
-			Collection<OptimizerNode> allNodes, String jobName) {
+	public OptimizedPlan(Collection<SourcePlanNode> sources, Collection<SinkPlanNode> sinks,
+			Collection<PlanNode> allNodes, String jobName)
+	{
 		this.dataSources = sources;
 		this.dataSinks = sinks;
 		this.allNodes = allNodes;
@@ -86,7 +88,7 @@ public class OptimizedPlan implements Visitable<OptimizerNode> {
 	 * 
 	 * @return The data sources.
 	 */
-	public Collection<DataSourceNode> getDataSources() {
+	public Collection<SourcePlanNode> getDataSources() {
 		return dataSources;
 	}
 
@@ -95,7 +97,7 @@ public class OptimizedPlan implements Visitable<OptimizerNode> {
 	 * 
 	 * @return The data sinks.
 	 */
-	public Collection<DataSinkNode> getDataSinks() {
+	public Collection<SinkPlanNode> getDataSinks() {
 		return dataSinks;
 	}
 
@@ -104,7 +106,7 @@ public class OptimizedPlan implements Visitable<OptimizerNode> {
 	 * 
 	 * @return All nodes.
 	 */
-	public Collection<OptimizerNode> getAllNodes() {
+	public Collection<PlanNode> getAllNodes() {
 		return allNodes;
 	}
 
@@ -164,8 +166,8 @@ public class OptimizedPlan implements Visitable<OptimizerNode> {
 	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
 	 */
 	@Override
-	public void accept(Visitor<OptimizerNode> visitor) {
-		for (DataSinkNode node : dataSinks) {
+	public void accept(Visitor<PlanNode> visitor) {
+		for (SinkPlanNode node : this.dataSinks) {
 			node.accept(visitor);
 		}
 	}
