@@ -91,8 +91,6 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -114,6 +112,7 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
@@ -142,7 +141,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
-	private Server jobManagerServer = null;
+	private final RPCService rpcService;
 
 	private final JobManagerProfiler profiler;
 
@@ -186,7 +185,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			try {
 				ipcAddress = InetAddress.getByName(ipcAddressString);
 			} catch (UnknownHostException e) {
-				LOG.error("Cannot convert " + ipcAddressString + " to an IP address: "
+				LOG.fatal("Cannot convert " + ipcAddressString + " to an IP address: "
 					+ StringUtils.stringifyException(e));
 				System.exit(FAILURERETURNCODE);
 			}
@@ -199,7 +198,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		try {
 			DiscoveryService.startDiscoveryService(ipcAddress, ipcPort);
 		} catch (DiscoveryException e) {
-			LOG.error("Cannot start discovery manager: " + StringUtils.stringifyException(e));
+			LOG.fatal("Cannot start discovery manager: " + StringUtils.stringifyException(e));
 			System.exit(FAILURERETURNCODE);
 		}
 
@@ -215,16 +214,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Determine own RPC address
 		final InetSocketAddress rpcServerAddress = new InetSocketAddress(ipcAddress, ipcPort);
 
-		// Start job manager's IPC server
+		// Start job manager's RPC server
+		RPCService rpcService = null;
 		try {
-			final int handlerCount = GlobalConfiguration.getInteger("jobmanager.rpc.numhandler", 3);
-			this.jobManagerServer = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
-				handlerCount);
-			this.jobManagerServer.start();
+			rpcService = new RPCService(rpcServerAddress.getPort());
 		} catch (IOException ioe) {
-			LOG.error("Cannot start RPC server: " + StringUtils.stringifyException(ioe));
+			LOG.fatal("Cannot start RPC server: " + StringUtils.stringifyException(ioe));
 			System.exit(FAILURERETURNCODE);
 		}
+		this.rpcService = rpcService;
 
 		LOG.info("Starting job manager in " + executionMode + " mode");
 
@@ -235,7 +233,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Try to load the scheduler for the given execution mode
 		if ("local".equals(executionMode)) {
 			try {
-				this.instanceManager = new LocalInstanceManager(configDir);
+				this.instanceManager = new LocalInstanceManager(configDir, this.rpcService);
 			} catch (RuntimeException rte) {
 				LOG.fatal("Cannot instantiate local instance manager: " + StringUtils.stringifyException(rte));
 				System.exit(FAILURERETURNCODE);
@@ -245,7 +243,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LOG.info("Trying to load " + instanceManagerClassName + " as instance manager");
 			this.instanceManager = JobManagerUtils.loadInstanceManager(instanceManagerClassName);
 			if (this.instanceManager == null) {
-				LOG.error("UNable to load instance manager " + instanceManagerClassName);
+				LOG.fatal("Unable to load instance manager " + instanceManagerClassName);
 				System.exit(FAILURERETURNCODE);
 			}
 		}
@@ -257,7 +255,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Try to get the instance manager class name
 		this.scheduler = JobManagerUtils.loadScheduler(schedulerClassName, this, this.instanceManager);
 		if (this.scheduler == null) {
-			LOG.error("Unable to load scheduler " + schedulerClassName);
+			LOG.fatal("Unable to load scheduler " + schedulerClassName);
 			System.exit(FAILURERETURNCODE);
 		}
 
@@ -269,12 +267,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			final String profilerClassName = GlobalConfiguration.getString(ProfilingUtils.JOBMANAGER_CLASSNAME_KEY,
 				null);
 			if (profilerClassName == null) {
-				LOG.error("Cannot find class name for the profiler");
+				LOG.fatal("Cannot find class name for the profiler");
 				System.exit(FAILURERETURNCODE);
 			}
 			this.profiler = ProfilingUtils.loadJobManagerProfiler(profilerClassName, ipcAddress);
 			if (this.profiler == null) {
-				LOG.error("Cannot load profiler");
+				LOG.fatal("Cannot load profiler");
 				System.exit(FAILURERETURNCODE);
 			}
 		} else {
@@ -324,9 +322,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.profiler.shutdown();
 		}
 
-		// Stop RPC server
-		if (this.jobManagerServer != null) {
-			this.jobManagerServer.stop();
+		// Stop RPC service
+		if (this.rpcService != null) {
+			this.rpcService.shutDown();
 		}
 
 		// Stop the executor service

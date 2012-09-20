@@ -65,10 +65,7 @@ import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.plugins.PluginID;
 import eu.stratosphere.nephele.plugins.PluginManager;
 import eu.stratosphere.nephele.plugins.TaskManagerPlugin;
@@ -79,6 +76,7 @@ import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
@@ -111,9 +109,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 	private final ExecutorService executorService = Executors.newCachedThreadPool();
 
-	private static final int handlerCount = 1;
-
-	private final Server taskManagerServer;
+	private final RPCService rpcService;
 
 	/**
 	 * This map contains all the tasks whose threads are in a state other than TERMINATED. If any task
@@ -208,12 +204,22 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		this.localInstanceConnectionInfo = new InstanceConnectionInfo(taskManagerAddress, ipcPort, dataPort);
 
+		// Start local RPC server
+		RPCService rpcService = null;
+		try {
+			rpcService = new RPCService(ipcPort);
+		} catch (IOException e) {
+			LOG.error(StringUtils.stringifyException(e));
+			throw new Exception("Failed to taskmanager server. " + e.getMessage(), e);
+		}
+		this.rpcService = rpcService;
+
 		LOG.info("Announcing connection information " + this.localInstanceConnectionInfo + " to job manager");
 
 		// Try to create local stub for the job manager
 		JobManagerProtocol jobManager = null;
 		try {
-			jobManager = RPC.getProxy(JobManagerProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
+			jobManager = this.rpcService.getProxy(jobManagerAddress, JobManagerProtocol.class);
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize connection to JobManager: " + e.getMessage(), e);
@@ -223,8 +229,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub of the global input split provider
 		InputSplitProviderProtocol globalInputSplitProvider = null;
 		try {
-			globalInputSplitProvider = RPC.getProxy(InputSplitProviderProtocol.class, jobManagerAddress, 
-				NetUtils.getSocketFactory());
+			globalInputSplitProvider = this.rpcService.getProxy(jobManagerAddress, InputSplitProviderProtocol.class);
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize connection to global input split provider: " + e.getMessage(), e);
@@ -234,7 +239,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub for the lookup service
 		ChannelLookupProtocol lookupService = null;
 		try {
-			lookupService = RPC.getProxy(ChannelLookupProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
+			lookupService = this.rpcService.getProxy(jobManagerAddress, ChannelLookupProtocol.class);
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize channel lookup protocol. " + e.getMessage(), e);
@@ -244,24 +249,12 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Try to create local stub for the plugin communication service
 		PluginCommunicationProtocol pluginCommunicationService = null;
 		try {
-			pluginCommunicationService = RPC.getProxy(PluginCommunicationProtocol.class, jobManagerAddress, 
-				NetUtils.getSocketFactory());
+			pluginCommunicationService = this.rpcService.getProxy(jobManagerAddress, PluginCommunicationProtocol.class);
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to initialize plugin communication protocol. " + e.getMessage(), e);
 		}
 		this.pluginCommunicationService = pluginCommunicationService;
-
-		// Start local RPC server
-		Server taskManagerServer = null;
-		try {
-			taskManagerServer = RPC.getServer(this, taskManagerAddress.getHostName(), ipcPort, handlerCount);
-			taskManagerServer.start();
-		} catch (IOException e) {
-			LOG.error(StringUtils.stringifyException(e));
-			throw new Exception("Failed to taskmanager server. " + e.getMessage(), e);
-		}
-		this.taskManagerServer = taskManagerServer;
 
 		// Load profiler if it should be used
 		if (GlobalConfiguration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false)) {
@@ -445,7 +438,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		if (task == null) {
 			final TaskKillResult taskKillResult = new TaskKillResult(id,
-					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
+				AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
 			taskKillResult.setDescription("No task with ID + " + id + " is currently running");
 			return taskKillResult;
 		}
@@ -476,7 +469,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		if (task == null) {
 			final TaskCheckpointResult taskCheckpointResult = new TaskCheckpointResult(id,
-					AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
+				AbstractTaskResult.ReturnCode.TASK_NOT_FOUND);
 			taskCheckpointResult.setDescription("No task with ID + " + id + " is currently running");
 			return taskCheckpointResult;
 		}
@@ -752,31 +745,27 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		}
 
 		if (newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
-				|| newExecutionState == ExecutionState.FAILED) {
+			|| newExecutionState == ExecutionState.FAILED) {
 
 			// Unregister the task (free all buffers, remove all channels, task-specific class loaders, etc...)
 			unregisterTask(id);
 		}
 		// Get lock on the jobManager object and propagate the state change
-		synchronized (this.jobManager) {
-			try {
-				this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
-					optionalDescription));
-			} catch (IOException e) {
-				LOG.error(StringUtils.stringifyException(e));
-			}
+		try {
+			this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
+				optionalDescription));
+		} catch (IOException e) {
+			LOG.error(StringUtils.stringifyException(e));
 		}
 	}
 
 	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id,
 			final CheckpointState newCheckpointState) {
 
-		synchronized (this.jobManager) {
-			try {
-				this.jobManager.updateCheckpointState(new TaskCheckpointState(jobID, id, newCheckpointState));
-			} catch (IOException e) {
-				LOG.error(StringUtils.stringifyException(e));
-			}
+		try {
+			this.jobManager.updateCheckpointState(new TaskCheckpointState(jobID, id, newCheckpointState));
+		} catch (IOException e) {
+			LOG.error(StringUtils.stringifyException(e));
 		}
 	}
 
@@ -791,20 +780,8 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 
 		LOG.info("Shutting down TaskManager");
 
-		// Stop RPC proxy for the task manager
-		RPC.stopProxy(this.jobManager);
-
-		// Stop RPC proxy for the global input split assigner
-		RPC.stopProxy(this.globalInputSplitProvider);
-
-		// Stop RPC proxy for the lookup service
-		RPC.stopProxy(this.lookupService);
-
-		// Stop RPC proxy for the plugin communication service
-		RPC.stopProxy(this.pluginCommunicationService);
-
-		// Shut down the own RPC server
-		this.taskManagerServer.stop();
+		// Shut down the RPC service
+		this.rpcService.shutDown();
 
 		// Stop profiling if enabled
 		if (this.profiler != null) {

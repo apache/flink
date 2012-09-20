@@ -28,12 +28,11 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.plugins.PluginID;
 import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
@@ -64,6 +63,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	private final HardwareDescription hardwareDescription;
 
 	/**
+	 * The RPC service to use when a proxy for the task manager on this instance shall be created.
+	 */
+	private final RPCService rpcService;
+
+	/**
 	 * Stores the RPC stub object for the instance's task manager.
 	 */
 	private TaskOperationProtocol taskManager = null;
@@ -89,11 +93,12 @@ public abstract class AbstractInstance extends NetworkNode {
 	 */
 	public AbstractInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
 			final NetworkNode parentNode, final NetworkTopology networkTopology,
-			final HardwareDescription hardwareDescription) {
+			final HardwareDescription hardwareDescription, final RPCService rpcService) {
 		super((instanceConnectionInfo == null) ? null : instanceConnectionInfo.toString(), parentNode, networkTopology);
 		this.instanceType = instanceType;
 		this.instanceConnectionInfo = instanceConnectionInfo;
 		this.hardwareDescription = hardwareDescription;
+		this.rpcService = rpcService;
 	}
 
 	/**
@@ -106,24 +111,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	private TaskOperationProtocol getTaskManagerProxy() throws IOException {
 
 		if (this.taskManager == null) {
-
-			this.taskManager = RPC.getProxy(TaskOperationProtocol.class,
-				new InetSocketAddress(getInstanceConnectionInfo().getAddress(),
-					getInstanceConnectionInfo().getIPCPort()), NetUtils.getSocketFactory());
+			this.taskManager = this.rpcService.getProxy(new InetSocketAddress(getInstanceConnectionInfo().getAddress(),
+				getInstanceConnectionInfo().getIPCPort()), TaskOperationProtocol.class);
 		}
 
 		return this.taskManager;
-	}
-
-	/**
-	 * Destroys and removes the RPC stub object for this instance's task manager.
-	 */
-	private void destroyTaskManagerProxy() {
-
-		if (this.taskManager != null) {
-			RPC.stopProxy(this.taskManager);
-			this.taskManager = null;
-		}
 	}
 
 	/**
@@ -137,23 +129,12 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		if (this.taskManagerPluginComponent == null) {
 
-			this.taskManagerPluginComponent = RPC.getProxy(PluginCommunicationProtocol.class, 
-				new InetSocketAddress(getInstanceConnectionInfo().getAddress(), 
-					getInstanceConnectionInfo().getIPCPort()), NetUtils.getSocketFactory());
+			this.taskManagerPluginComponent = this.rpcService.getProxy(new InetSocketAddress(
+				getInstanceConnectionInfo().getAddress(), getInstanceConnectionInfo().getIPCPort()),
+				PluginCommunicationProtocol.class);
 		}
 
 		return this.taskManagerPluginComponent;
-	}
-
-	/**
-	 * Destroys and removes the RPC stub object for this instance's task manager plugin component.
-	 */
-	private void destroyTaskManagerPluginProxy() {
-
-		if (this.taskManagerPluginComponent != null) {
-			RPC.stopProxy(this.taskManagerPluginComponent);
-			this.taskManagerPluginComponent = null;
-		}
 	}
 
 	/**
@@ -381,15 +362,5 @@ public abstract class AbstractInstance extends NetworkNode {
 	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
 
 		getTaskManagerProxy().invalidateLookupCacheEntries(channelIDs);
-	}
-
-	/**
-	 * Destroys all RPC stub objects attached to this instance.
-	 */
-	public synchronized void destroyProxies() {
-
-		destroyTaskManagerProxy();
-		destroyTaskManagerPluginProxy();
-
 	}
 }

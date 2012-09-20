@@ -22,6 +22,7 @@ import eu.stratosphere.nephele.client.JobProgressResult;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 import eu.stratosphere.nephele.types.IntegerRecord;
 
 /**
@@ -30,7 +31,7 @@ import eu.stratosphere.nephele.types.IntegerRecord;
  * 
  * @author warneke
  */
-public interface JobManagementProtocol extends VersionedProtocol {
+public interface JobManagementProtocol extends RPCProtocol {
 
 	/**
 	 * Submits the specified job to the job manager.

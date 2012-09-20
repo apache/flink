@@ -42,7 +42,7 @@ public class DummyInstance extends AbstractInstance {
 	 *        the ID of the dummy instance
 	 */
 	private DummyInstance(InstanceType type, int id) {
-		super(type, null, null, null, null);
+		super(type, null, null, null, null, null);
 
 		this.name = "DummyInstance_" + Integer.toString(id);
 	}

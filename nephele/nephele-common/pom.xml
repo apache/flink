@@ -14,6 +14,14 @@
 
   <packaging>jar</packaging>
 
+  <dependencies>
+    <dependency>
+      <groupId>com.esotericsoftware.kryo</groupId>
+      <artifactId>kryo</artifactId>
+      <version>2.19</version>
+    </dependency>
+  </dependencies>
+
   <build>
     <plugins>
       <plugin>

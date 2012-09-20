@@ -19,14 +19,16 @@ import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
 public class LocalInstance extends AbstractInstance {
 
-	public LocalInstance(InstanceType instanceType, InstanceConnectionInfo instanceConnectionInfo,
-			NetworkNode parentNode, NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
-		super(instanceType, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
+	public LocalInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
+			final NetworkNode parentNode, final NetworkTopology networkTopology,
+			final HardwareDescription hardwareDescription, final RPCService rpcService) {
+		super(instanceType, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription, rpcService);
 	}
 
 	/**

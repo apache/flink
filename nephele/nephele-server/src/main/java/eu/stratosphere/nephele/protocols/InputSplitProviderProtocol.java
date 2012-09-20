@@ -20,6 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 import eu.stratosphere.nephele.types.IntegerRecord;
 
 /**
@@ -28,7 +29,7 @@ import eu.stratosphere.nephele.types.IntegerRecord;
  * 
  * @author warneke
  */
-public interface InputSplitProviderProtocol extends VersionedProtocol {
+public interface InputSplitProviderProtocol extends RPCProtocol {
 
 	/**
 	 * Requests the next split to be consumed by the task with the given execution vertex ID.

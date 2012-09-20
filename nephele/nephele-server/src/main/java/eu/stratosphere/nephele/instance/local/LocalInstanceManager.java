@@ -42,6 +42,7 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.SerializableHashMap;
 
@@ -71,9 +72,9 @@ public class LocalInstanceManager implements InstanceManager {
 	private static final String LOCALINSTANCE_TYPE_KEY = "instancemanager.local.type";
 
 	/**
-	 * The instance listener registered with this instance manager.
+	 * The RPC service to use when creating the local instance object.
 	 */
-	private InstanceListener instanceListener;
+	private final RPCService rpcService;
 
 	/**
 	 * The default instance type which is either generated from the hardware characteristics of the machine the local
@@ -85,16 +86,6 @@ public class LocalInstanceManager implements InstanceManager {
 	 * A synchronization object to protect critical sections.
 	 */
 	private final Object synchronizationObject = new Object();
-
-	/**
-	 * Stores if the local task manager is currently by a job.
-	 */
-	private AllocatedResource allocatedResource = null;
-
-	/**
-	 * The local instance encapsulating the task manager
-	 */
-	private LocalInstance localInstance = null;
 
 	/**
 	 * The thread running the local task manager.
@@ -112,12 +103,29 @@ public class LocalInstanceManager implements InstanceManager {
 	private final Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptionMap;
 
 	/**
+	 * The instance listener registered with this instance manager.
+	 */
+	private InstanceListener instanceListener;
+
+	/**
+	 * Stores if the local task manager is currently by a job.
+	 */
+	private AllocatedResource allocatedResource = null;
+
+	/**
+	 * The local instance encapsulating the task manager
+	 */
+	private LocalInstance localInstance = null;
+
+	/**
 	 * Constructs a new local instance manager.
 	 * 
 	 * @param configDir
 	 *        the path to the configuration directory
+	 * @param rpcService
+	 *        the RPC service to use when communicating with the local instance
 	 */
-	public LocalInstanceManager(final String configDir) {
+	public LocalInstanceManager(final String configDir, final RPCService rpcService) {
 
 		final Configuration config = GlobalConfiguration.getConfiguration();
 
@@ -131,6 +139,8 @@ public class LocalInstanceManager implements InstanceManager {
 				LOG.warn("Unable to parse default instance type from configuration, using hardware profile instead");
 			}
 		}
+
+		this.rpcService = rpcService;
 
 		this.defaultInstanceType = (type != null) ? type : createDefaultInstanceType();
 
@@ -231,7 +241,7 @@ public class LocalInstanceManager implements InstanceManager {
 			if (this.localInstance == null) {
 				this.localInstance = new LocalInstance(this.defaultInstanceType,
 					instanceConnectionInfo, this.networkTopology.getRootNode(), this.networkTopology,
-					hardwareDescription);
+					hardwareDescription, this.rpcService);
 
 				this.instanceTypeDescriptionMap.put(this.defaultInstanceType,
 					InstanceTypeDescriptionFactory.construct(this.defaultInstanceType, hardwareDescription, 1));
@@ -264,10 +274,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 		// Destroy local instance
 		synchronized (this.synchronizationObject) {
-			if (this.localInstance != null) {
-				this.localInstance.destroyProxies();
-				this.localInstance = null;
-			}
+			this.localInstance = null;
 		}
 	}
 
@@ -303,7 +310,7 @@ public class LocalInstanceManager implements InstanceManager {
 		int diskCapacityInGB = 0;
 		final String tempDirs[] = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
-		
+
 		for (final String tempDir : tempDirs) {
 			if (tempDir != null) {
 				File f = new File(tempDir);
