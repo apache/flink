@@ -39,6 +39,7 @@ import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.parser.DecimalTextIntParser;
+import eu.stratosphere.pact.common.type.base.parser.FieldParser;
 
 public class RecordInputFormatTest {
 
@@ -175,6 +176,24 @@ public class RecordInputFormatTest {
 				validConfig = false;
 			}
 			assertTrue(validConfig);
+			
+			// check forwarding of configuration
+			config = new Configuration();
+			config.setString(RecordInputFormat.FILE_PARAMETER_KEY, "file:///some/file/that/will/not/be/read");
+			config.setString(RecordInputFormat.FIELD_DELIMITER_PARAMETER, "|");
+			config.setInteger(RecordInputFormat.NUM_FIELDS_PARAMETER, 2);
+			config.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 0, ConfigForwardCheckParser.class);
+			config.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 0, 0);
+			config.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 0, 0);
+			config.setClass(RecordInputFormat.FIELD_PARSER_PARAMETER_PREFIX + 1, ConfigForwardCheckParser.class);
+			config.setInteger(RecordInputFormat.TEXT_POSITION_PARAMETER_PREFIX + 1, 1);
+			config.setInteger(RecordInputFormat.RECORD_POSITION_PARAMETER_PREFIX + 1, 1);
+			// config test values
+			config.setString("MY-PARSER-TEST-KEY-1","MY-PARSER-TEST-VALUE");
+			config.setInteger("MY-PARSER-TEST-KEY-2",42);
+			
+			new RecordInputFormat().configure(config);
+			
 		}
 		catch (Exception ex) {
 			Assert.fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
@@ -529,6 +548,30 @@ public class RecordInputFormatTest {
 		dos.close();
 			
 		return new FileInputSplit(0, new Path("file://" + this.tempFile.getAbsolutePath()), 0, this.tempFile.length(), new String[] {"localhost"});
+	}
+	
+	private static class ConfigForwardCheckParser implements FieldParser<PactInteger> {
+
+		@SuppressWarnings("unused")
+		public ConfigForwardCheckParser() {};
+		
+		@Override
+		public void configure(Configuration config) {
+			assertTrue("Configuration was not forwarded to parser.", config.getString("MY-PARSER-TEST-KEY-1", "").equals("MY-PARSER-TEST-VALUE"));
+			assertTrue("Configuration was not forwarded to parser.", config.getInteger("MY-PARSER-TEST-KEY-2", -1) == 42);
+		}
+
+		@Override
+		public int parseField(byte[] bytes, int startPos, int limit,
+				char delim, PactInteger field) {
+			return 0;
+		}
+
+		@Override
+		public PactInteger getValue() {
+			return null;
+		}
+		
 	}
 
 }

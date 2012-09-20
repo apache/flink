@@ -279,28 +279,28 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 				// nothing
 				break;
 			case HYBRIDHASH_FIRST:
-				locString = "Hybrid Hash (build: " + child1name + ")";
+				locString = "Hybrid Hash (build first: " + child1name + ")";
 				break;
 			case HYBRIDHASH_SECOND:
-				locString = "Hybrid Hash (build: " + child2name + ")";
+				locString = "Hybrid Hash (build second: " + child2name + ")";
 				break;
 			case MMHASH_FIRST:
-				locString = "Main-Memory Hash (build: " + child1name + ")";
+				locString = "Main-Memory Hash (build first: " + child1name + ")";
 				break;
 			case MMHASH_SECOND:
-				locString = "Main-Memory Hash (build: " + child2name + ")";
+				locString = "Main-Memory Hash (build second: " + child2name + ")";
 				break;
 			case NESTEDLOOP_BLOCKED_OUTER_FIRST:
-				locString = "Nested Loops (Blocked Outer: " + child1name + ")";
+				locString = "Nested Loops (Blocked Outer first: " + child1name + ")";
 				break;
 			case NESTEDLOOP_BLOCKED_OUTER_SECOND:
-				locString = "Nested Loops (Blocked Outer: " + child2name + ")";
+				locString = "Nested Loops (Blocked Outer second: " + child2name + ")";
 				break;
 			case NESTEDLOOP_STREAMED_OUTER_FIRST:
-				locString = "Nested Loops (Streamed Outer: " + child1name + ")";
+				locString = "Nested Loops (Streamed Outer first: " + child1name + ")";
 				break;
 			case NESTEDLOOP_STREAMED_OUTER_SECOND:
-				locString = "Nested Loops (Streamed Outer: " + child2name + ")";
+				locString = "Nested Loops (Streamed Outer second: " + child2name + ")";
 				break;
 			case SORT_BOTH_MERGE:
 				locString = "Sort-Both-Merge";
