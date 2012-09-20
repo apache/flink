@@ -37,5 +37,6 @@ $NEPHELE_BIN_DIR/nephele-jobmanager.sh stop
 while read line
 do
 	HOST=$( extractHostName $line)
-	ssh -n $NEPHELE_SSH_OPTS $HOST -- "nohup /bin/bash $NEPHELE_BIN_DIR/nephele-taskmanager.sh stop &"
+	ssh -n $NEPHELE_SSH_OPTS $HOST -- "nohup /bin/bash $NEPHELE_BIN_DIR/nephele-taskmanager.sh stop &" &
 done < $HOSTLIST
+wait
