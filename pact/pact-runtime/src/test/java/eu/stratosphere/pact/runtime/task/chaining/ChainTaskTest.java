@@ -36,8 +36,8 @@ import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.MapTaskTest.MockMapStub;
 import eu.stratosphere.pact.runtime.task.ReduceTaskTest.MockReduceStub;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
 

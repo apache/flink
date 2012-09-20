@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.compiler.plan.candidate;
 
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * Plan candidate node for data flow sinks.
@@ -32,6 +32,6 @@ public class SinkPlanNode extends SingleInputPlanNode
 	 * @param template The template optimizer node that this candidate is created for.
 	 */
 	public SinkPlanNode(OptimizerNode template, Channel input) {
-		super(template, input, LocalStrategy.NONE);
+		super(template, input, DriverStrategy.NONE);
 	}
 }

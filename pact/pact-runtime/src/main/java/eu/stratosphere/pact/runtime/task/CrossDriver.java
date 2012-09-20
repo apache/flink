@@ -25,8 +25,8 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  * Cross task which is executed by a Nephele task manager. The task has two

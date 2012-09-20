@@ -30,7 +30,7 @@ import eu.stratosphere.pact.common.generic.types.TypePairComparator;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.EmptyIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 

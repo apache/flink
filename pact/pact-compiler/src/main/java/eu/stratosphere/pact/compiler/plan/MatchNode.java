@@ -40,7 +40,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionRangeSS;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The Optimizer representation of a <i>Match</i> contract node.

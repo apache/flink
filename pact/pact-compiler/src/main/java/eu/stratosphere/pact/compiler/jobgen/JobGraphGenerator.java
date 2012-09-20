@@ -80,8 +80,8 @@ import eu.stratosphere.pact.runtime.task.TempDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  * This component translates an optimized PACT plan into a nephele schedule. The

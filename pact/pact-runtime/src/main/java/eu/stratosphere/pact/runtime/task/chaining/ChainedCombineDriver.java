@@ -32,8 +32,8 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorterCollector;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.InputDataCollector;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
 

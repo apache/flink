@@ -29,10 +29,9 @@ import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
- *
  * @author Stephan Ewen
  */
 public abstract class PlanNode implements Visitable<PlanNode>
@@ -41,49 +40,35 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	
 	protected final List<Channel> outChannels;
 	
-	private final LocalStrategy localStrategy;		// The local strategy (sorting / hashing, ...)
+	private final DriverStrategy driverStrategy;	// The local strategy (sorting / hashing, ...)
 	
-	
-	protected LocalProperties localProps; 	// local properties of the data produced by this node
+	private final LocalProperties localProps; 			// local properties of the data produced by this node
 
-	protected GlobalProperties globalProps;	// global properties of the data produced by this node
-	
+	private final GlobalProperties globalProps;			// global properties of the data produced by this node
 	
 	protected Map<OptimizerNode, PlanNode> branchPlan; // the actual plan alternative chosen at a branch point
 
 	protected PlanNode lastJoinedBranchNode;		// the node with latest branch (node with multiple outputs)
 	                                        		// that both children share and that is at least partially joined
 	
-	
 	private Costs nodeCosts;						// the costs incurred by this node
 
 	private Costs cumulativeCosts;					// the cumulative costs of all operators in the sub-tree
 	
+	private long memoryPerSubTask;					// the amount of memory dedicated to each task, in bytes
 	
-	private int memoryPerTask;						// the amount of memory dedicated to each task, in MiBytes
-	
-	private boolean pFlag;						// flag for the internal pruning algorithm
+	private boolean pFlag;							// flag for the internal pruning algorithm
 	
 	// --------------------------------------------------------------------------------------------
 	
-	
-	public PlanNode(OptimizerNode template) {
-		this(template, template.getLocalStrategy());
-	}
-
-	public PlanNode(OptimizerNode template, LocalStrategy strategy) {
-		this(template, strategy, new LocalProperties(), new GlobalProperties());
-	}
-	
-	public PlanNode(OptimizerNode template, LocalStrategy strategy, LocalProperties localProps, GlobalProperties globalProps)
+	public PlanNode(OptimizerNode template, DriverStrategy strategy)
 	{
 		this.outChannels = new ArrayList<Channel>(2);
 		this.template = template;
-		this.localStrategy = strategy == null ? LocalStrategy.NONE : strategy;
-		this.localProps = localProps;
-		this.globalProps = globalProps;
+		this.driverStrategy = strategy; 
+		this.localProps = new LocalProperties();
+		this.globalProps = new GlobalProperties();
 	}
-	
 	
 	// --------------------------------------------------------------------------------------------
 	//                                           Accessors
@@ -107,33 +92,42 @@ public abstract class PlanNode implements Visitable<PlanNode>
 		return this.template.getPactContract();
 	}
 	
+	public int getMemoryConsumerWeight() {
+		int weight = this.driverStrategy.getNumberOfDams(); 
+
+		for (Iterator<Channel> channels = getInputs(); channels.hasNext();) {
+			final Channel c = channels.next();
+			weight += c.getLocalStrategy().dams() ? 1 : 0;
+		}
+		return weight;
+	}
+	
 	/**
-	 * Gets the memory dedicated to each task for this node.
+	 * Gets the memory dedicated to each sub-task for this node.
 	 * 
-	 * @return The memory per task, in MiBytes.
+	 * @return The memory per task, in bytes.
 	 */
-	public int getMemoryPerTask() {
-		return this.memoryPerTask;
+	public long getMemoryPerSubTask() {
+		return this.memoryPerSubTask;
 	}
 
 	/**
 	 * Sets the memory dedicated to each task for this node.
 	 * 
-	 * @param memoryPerTask
-	 *        The memory per task.
+	 * @param memoryPerTask The memory per sub-task, in bytes.
 	 */
-	public void setMemoryPerTask(int memoryPerTask) {
-		this.memoryPerTask = memoryPerTask;
+	public void setMemoryPerSubTask(long memoryPerTask) {
+		this.memoryPerSubTask = memoryPerTask;
 	}
 	
 	/**
-	 * Gets the local strategy from this node. This determines for example for a <i>match</i> Pact whether
-	 * to use a sort-merge or a hybrid hash strategy.
+	 * Gets the driver strategy from this node. This determines for example for a <i>match</i> Pact whether
+	 * to use a merge or a hybrid hash strategy.
 	 * 
-	 * @return The local strategy.
+	 * @return The driver strategy.
 	 */
-	public LocalStrategy getLocalStrategy() {
-		return this.localStrategy;
+	public DriverStrategy getDriverStrategy() {
+		return this.driverStrategy;
 	}
 	
 	/**
@@ -142,7 +136,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	 * @return The local properties.
 	 */
 	public LocalProperties getLocalProperties() {
-		return localProps;
+		return this.localProps;
 	}
 	
 	/**
@@ -151,7 +145,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	 * @return The global properties.
 	 */
 	public GlobalProperties getGlobalProperties() {
-		return globalProps;
+		return this.globalProps;
 	}
 	
 	/**
@@ -196,10 +190,10 @@ public abstract class PlanNode implements Visitable<PlanNode>
 		return this.template.getDegreeOfParallelism();
 	}
 	
-	public long getTotalAvailableMemory() {
-		return 3 * 1024 * 1024 * getDegreeOfParallelism();	// mock: 3 MiBytes per task
+	public long getGuaranteedAvailableMemory() {
+		return this.template.getTotalMemoryAcrossAllSubTasks();
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                               Input, Predecessors, Successors
 	// --------------------------------------------------------------------------------------------

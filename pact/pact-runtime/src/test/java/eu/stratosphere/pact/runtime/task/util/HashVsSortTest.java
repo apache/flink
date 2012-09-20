@@ -36,7 +36,6 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;

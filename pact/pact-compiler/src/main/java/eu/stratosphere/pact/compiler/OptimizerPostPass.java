@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,22 +13,14 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.util;
+package eu.stratosphere.pact.compiler;
 
-import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 
 /**
- * A LastRepeatableIterator allows to emit the latest emitted object again. 
- * 
- * @author Matthias Ringwald
- * @param <E> The type of element that the iterator iterates over.
+ * @author Stephan Ewen
  */
-public interface LastRepeatableMutableObjectIterator<E> extends MutableObjectIterator<E>
+public interface OptimizerPostPass
 {
-	/**
-	 * Return the last returned element again.
-	 * 
-	 * @return The last returned element.
-	 */
-	public boolean repeatLast(E target);
+	void postPass(OptimizedPlan plan);
 }

@@ -38,7 +38,7 @@ import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.util.PactType;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * This class represents a node in the optimizer's internal representation of the PACT plan. It contains
@@ -63,7 +63,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected Set<OptimizerNode> closedBranchingNodes; // stack of branching nodes which have already been closed
 
-	protected LocalStrategy localStrategy; // The local strategy, if it is fixed by a hint
+	protected DriverStrategy driverStrategy; // The local strategy, if it is fixed by a hint
 	
 	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
 	
@@ -79,9 +79,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
 
-	protected int instancesPerMachine = -1; // the number of parallel instance that will run on the same machine
+	private int subtasksPerInstance = -1; // the number of parallel instance that will run on the same machine
 	
-	private long minimalGuaranteedMemory;
+	private long minimalMemoryPerSubTask = -1;
 
 	protected int id = -1; // the id for this node.
 
@@ -234,7 +234,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return True, if this node contains logic that requires memory usage, false otherwise.
 	 */
-	public abstract int getMemoryConsumerCount();
+	public abstract boolean isMemoryConsumer();
 	
 	/**
 	 * Reads all constant stub annotations. Constant stub annotations are defined per input.
@@ -351,49 +351,73 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	/**
 	 * Gets the number of parallel instances of the contract that are
-	 * to be executed on the same machine.
+	 * to be executed on the same compute instance (logical machine).
 	 * 
-	 * @return The number of instances per machine.
+	 * @return The number of subtask instances per machine.
 	 */
-	public int getInstancesPerMachine() {
-		return this.instancesPerMachine;
+	public int getSubtasksPerInstance() {
+		return this.subtasksPerInstance;
 	}
 
 	/**
-	 * Sets the number of parallel instances of the contract that are
-	 * to be executed on the same machine.
+	 * Sets the number of parallel task instances of the contract that are
+	 * to be executed on the same computing instance (logical machine).
 	 * 
-	 * @param instancesPerMachine
-	 *        The instances per machine.
-	 * @throws IllegalArgumentException
-	 *         If the number of instances per machine is smaller than one.
+	 * @param instancesPerMachine The instances per machine.
+	 * @throws IllegalArgumentException If the number of instances per machine is smaller than one.
 	 */
-	public void setInstancesPerMachine(int instancesPerMachine) {
+	public void setSubtasksPerInstance(int instancesPerMachine) {
 		if (instancesPerMachine < 1) {
 			throw new IllegalArgumentException();
 		}
-		this.instancesPerMachine = instancesPerMachine;
+		this.subtasksPerInstance = instancesPerMachine;
+	}
+	
+	/**
+	 * Gets the minimal guaranteed memory per subtask for tasks represented by this OptimizerNode.
+	 *
+	 * @return The minimal guaranteed memory per subtask, in bytes.
+	 */
+	public long getMinimalMemoryPerSubTask() {
+		return this.minimalMemoryPerSubTask;
+	}
+	
+	/**
+	 * Sets the minimal guaranteed memory per subtask for tasks represented by this OptimizerNode.
+	 *
+	 * @param minimalGuaranteedMemory The minimal guaranteed memory per subtask, in bytes.
+	 */
+	public void setMinimalMemoryPerSubTask(long minimalGuaranteedMemory) {
+		this.minimalMemoryPerSubTask = minimalGuaranteedMemory;
+	}
+	
+	/**
+	 * Gets the amount of memory that all subtasks of this task have jointly available.
+	 * 
+	 * @return The total amount of memory across all subtasks.
+	 */
+	public long getTotalMemoryAcrossAllSubTasks() {
+		return this.minimalMemoryPerSubTask == -1 ? -1 : this.minimalMemoryPerSubTask * this.degreeOfParallelism;
 	}
 
 	/**
 	 * Gets the local strategy from this node. This determines for example for a <i>match</i> Pact whether
 	 * to use a sort-merge or a hybrid hash strategy.
 	 * 
-	 * @return The local strategy.
+	 * @return The driver strategy.
 	 */
-	public LocalStrategy getLocalStrategy() {
-		return this.localStrategy;
+	public DriverStrategy getDriverStrategy() {
+		return this.driverStrategy;
 	}
 
 	/**
-	 * Sets the local strategy from this node. This determines the algorithms to be used to prepare the data inside a
+	 * Sets the driver strategy from this node. This determines the algorithms to be used to prepare the data inside a
 	 * partition.
 	 * 
-	 * @param strategy
-	 *        The local strategy to be set.
+	 * @param strategy The driver strategy to be set.
 	 */
-	public void setLocalStrategy(LocalStrategy strategy) {
-		this.localStrategy = strategy;
+	public void setDriverStrategy(DriverStrategy strategy) {
+		this.driverStrategy = strategy;
 	}
 
 	/**
@@ -404,38 +428,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public List<InterestingProperties> getInterestingProperties() {
 		return this.intProps;
 	}
-	
-//	/**
-//	 * Gets a copy of local properties from this OptimizedNode for the parent node.
-//	 * If the parent node has a different DoP all local properties are lost.
-//	 * 
-//	 * @return The local properties.
-//	 */
-//	public LocalProperties getLocalPropertiesForParent(OptimizerNode parent) {
-//		LocalProperties localPropsForParent = this.localProps.createCopy();
-//		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
-//			localPropsForParent.reset();
-//		}
-//		return localPropsForParent;
-//	}
-//
-//	/**
-//	 * Gets a copy of global properties from this OptimizedNode for the parent node.
-//	 * If the parent node has a different DoP ordering is lost and partitioning is at 
-//	 * most PartitionProperty.ANY
-//	 * 
-//	 * @return The global properties.
-//	 */
-//	public GlobalProperties getGlobalPropertiesForParent(OptimizerNode parent) {
-//		GlobalProperties globalPropsForParent = this.globalProps.createCopy();
-//		if (this.degreeOfParallelism != parent.getDegreeOfParallelism()) {
-//			globalPropsForParent.setOrdering(null);
-//			if (globalPropsForParent.getPartitioning() != PartitionProperty.NONE) {
-//				globalPropsForParent.setPartitioning(PartitionProperty.ANY, globalPropsForParent.getPartitionedFields());
-//			}
-//		}
-//		return globalPropsForParent;
-//	}
 
 	/**
 	 * Gets the estimated output size from this node.
@@ -1032,9 +1024,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		bld.append(getName());
 		bld.append(" (").append(getPactType().name()).append(") ");
 
-		if (this.localStrategy != null) {
+		if (this.driverStrategy != null) {
 			bld.append('(');
-			bld.append(getLocalStrategy().name());
+			bld.append(this.driverStrategy.name());
 			bld.append(") ");
 		}
 

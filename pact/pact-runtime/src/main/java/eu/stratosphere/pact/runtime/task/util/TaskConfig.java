@@ -45,44 +45,6 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
  */
 public class TaskConfig
 {
-	/**
-	 * Enumeration of all available local strategies for Pact tasks. 
-	 */
-	public enum LocalStrategy {
-		// both inputs are sorted and merged
-		SORT_BOTH_MERGE,
-		// the first input is sorted and merged with the (already sorted) second input
-		SORT_FIRST_MERGE,
-		// the second input is sorted and merged with the (already sorted) first input
-		SORT_SECOND_MERGE,
-		// both (already sorted) inputs are merged
-		MERGE,
-		// input is sorted, within a key values are crossed in a nested loop fashion
-		SORT_SELF_NESTEDLOOP,
-		// already grouped input, within a key values are crossed in a nested loop fashion
-		SELF_NESTEDLOOP,
-		// the input is sorted
-		SORT,
-		// the input is sorted, during sorting a combiner is applied
-		COMBININGSORT,
-		// the first input is build side, the second side is probe side of a hybrid hash table
-		HYBRIDHASH_FIRST,
-		// the second input is build side, the first side is probe side of a hybrid hash table
-		HYBRIDHASH_SECOND,
-		// the second input is inner loop, the first input is outer loop and block-wise processed
-		NESTEDLOOP_BLOCKED_OUTER_FIRST,
-		// the first input is inner loop, the second input is outer loop and block-wise processed
-		NESTEDLOOP_BLOCKED_OUTER_SECOND,
-		// the second input is inner loop, the first input is outer loop and stream-processed
-		NESTEDLOOP_STREAMED_OUTER_FIRST,
-		// the first input is inner loop, the second input is outer loop and stream-processed
-		NESTEDLOOP_STREAMED_OUTER_SECOND,
-		// no special local strategy is applied
-		NONE
-	}
-	
-	// --------------------------------------------------------------------------------------------
-
 	private static final String DRIVER_CLASS = "pact.driver.class";
 	
 	private static final String STUB_CLASS = "pact.stub.class";

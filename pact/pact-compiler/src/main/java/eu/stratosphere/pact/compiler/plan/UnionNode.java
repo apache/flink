@@ -35,7 +35,7 @@ import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The Optimizer representation of a <i>Union</i>. A Union is automatically

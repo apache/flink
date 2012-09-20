@@ -20,7 +20,7 @@ import java.util.Iterator;
 
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * Plan candidate node for data flow sources that have no input and no special strategies.
@@ -35,7 +35,7 @@ public class SourcePlanNode extends PlanNode
 	 * @param template The template optimizer node that this candidate is created for.
 	 */
 	public SourcePlanNode(OptimizerNode template) {
-		super(template, LocalStrategy.NONE);
+		super(template, DriverStrategy.NONE);
 	}
 
 	// --------------------------------------------------------------------------------------------

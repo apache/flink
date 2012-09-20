@@ -22,7 +22,7 @@ import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * The optimizer's internal representation of a <i>Map</i> contract node.
@@ -39,7 +39,7 @@ public class MapNode extends SingleInputNode
 	 */
 	public MapNode(MapContract pactContract) {
 		super(pactContract);
-		setLocalStrategy(LocalStrategy.NONE);
+		setDriverStrategy(DriverStrategy.NONE);
 	}
 
 	/**
@@ -62,11 +62,11 @@ public class MapNode extends SingleInputNode
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getMemoryConsumerCount()
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public int getMemoryConsumerCount() {
-		return 0;
+	public boolean isMemoryConsumer() {
+		return false;
 	}
 
 	/* (non-Javadoc)
@@ -93,7 +93,7 @@ public class MapNode extends SingleInputNode
 	protected void createPlanAlternatives(List<Channel> inputs, List<PlanNode> outputPlans)
 	{
 		for (Channel c : inputs) {
-			outputPlans.add(new SingleInputPlanNode(this, c, this.localStrategy));
+			outputPlans.add(new SingleInputPlanNode(this, c, DriverStrategy.NONE));
 		}
 	}
 

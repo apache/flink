@@ -27,7 +27,7 @@ import eu.stratosphere.pact.compiler.GlobalProperties;
 import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  *
@@ -77,6 +77,8 @@ public class Channel implements EstimateProvider
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	//                                         Accessors
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Gets the source of this Channel.
@@ -85,6 +87,15 @@ public class Channel implements EstimateProvider
 	 */
 	public PlanNode getSource() {
 		return this.source;
+	}
+	
+	/**
+	 * Sets the target of this Channel.
+	 *
+	 * @param target The target.
+	 */
+	public void setTarget(PlanNode target) {
+		this.target = target;
 	}
 	
 	/**
@@ -151,7 +162,6 @@ public class Channel implements EstimateProvider
 		return this.localSortOrder;
 	}
 	
-	
 	/**
 	 * Returns the TempMode of the Connection. NONE if the connection is not temped,
 	 * TEMP_SENDER_SIDE if the connection is temped on the sender node, and
@@ -192,6 +202,8 @@ public class Channel implements EstimateProvider
 	}
 
 	// --------------------------------------------------------------------------------------------
+	//                                Statistic Estimates
+	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.EstimateProvider#getEstimatedOutputSize()
@@ -230,6 +242,8 @@ public class Channel implements EstimateProvider
 		return this.source.template.getEstimatedCardinality(cP) * this.replicationFactor;
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	//                                Data Property Handling
 	// --------------------------------------------------------------------------------------------
 	
 

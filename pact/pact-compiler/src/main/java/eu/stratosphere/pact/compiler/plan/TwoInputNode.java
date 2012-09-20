@@ -230,7 +230,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			pred1.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred1.SetId(this.id);
-			pred1.setInstancesPerMachine(instancesPerMachine);
+			pred1.setInstancesPerMachine(subtasksPerInstance);
 			this.id++;
 		}
 		// create the connection and add it
@@ -246,7 +246,7 @@ public abstract class TwoInputNode extends OptimizerNode
 			pred2.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred2.SetId(this.id);
-			pred2.setInstancesPerMachine(instancesPerMachine);
+			pred2.setInstancesPerMachine(subtasksPerInstance);
 			this.id++;
 		}
 		// create the connection and add it

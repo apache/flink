@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,23 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.util;
-
-import java.util.Iterator;
-
+package eu.stratosphere.pact.runtime.task.util;
 
 /**
- * A LastRepeatableIterator allows to emit the latest emitted object again. 
- * 
- * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
- * @param <E> The type of element that the iterator iterates over.
+ * Enumeration of all available local processing strategies tasks. 
  */
-public interface LastRepeatableIterator<E> extends Iterator<E>
+public enum LocalStrategy
 {
-	/**
-	 * Return the last returned element again.
-	 * 
-	 * @return The last returned element.
-	 */
-	public E repeatLast();
+	// no special local strategy is applied
+	NONE(false),
+	// the input is sorted
+	SORT(true),
+	// the input is sorted, during sorting a combiner is applied
+	COMBININGSORT(true);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private final boolean dams;
+
+	private LocalStrategy(boolean dams) {
+		this.dams = dams;
+	}
+	
+	public boolean dams() {
+		return this.dams;
+	}
 }

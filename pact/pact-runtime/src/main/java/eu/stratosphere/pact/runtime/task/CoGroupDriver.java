@@ -30,8 +30,8 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.sort.SortMergeCoGroupIterator;
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
 
 /**
  * CoGroup task which is executed by a Nephele task manager. The task has two

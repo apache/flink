@@ -31,7 +31,8 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The Optimizer representation of a data sink.
@@ -53,7 +54,7 @@ public class DataSinkNode extends OptimizerNode
 	 */
 	public DataSinkNode(GenericDataSink pactContract) {
 		super(pactContract);
-		setLocalStrategy(LocalStrategy.NONE);
+		setDriverStrategy(DriverStrategy.NONE);
 	}
 
 	// --------------------------------------------------------------------------------------
@@ -105,20 +106,13 @@ public class DataSinkNode extends OptimizerNode
 		return "Data Sink";
 	}
 
-	/*
-	 * (non-Javadoc)
+
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public int getMemoryConsumerCount() {
-		switch(this.localStrategy) {
-			case SORT:
-				return 1;
-			case NONE:
-				return 0;
-			default:
-				throw new IllegalStateException("Unknown strategy for data sink: " + this.localStrategy.name());
-		}
+	public boolean isMemoryConsumer() {
+		return getPactContract().getPartitionOrdering() != null || getPactContract().getLocalOrder() != null;
 	}
 
 	/*
@@ -153,7 +147,7 @@ public class DataSinkNode extends OptimizerNode
 			pred.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred.SetId(this.id);
-			pred.setInstancesPerMachine(this.instancesPerMachine);
+			pred.setSubtasksPerInstance(getSubtasksPerInstance());
 			this.id++;
 		}
 		// create the connection and add it

@@ -32,7 +32,8 @@ import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The Optimizer representation of a <i>Reduce</i> contract node.
@@ -42,6 +43,8 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
  */
 public class ReduceNode extends SingleInputNode
 {
+	private final boolean shouldUseCombiner;
+	
 	/**
 	 * Creates a new ReduceNode for the given contract.
 	 * 
@@ -58,14 +61,18 @@ public class ReduceNode extends SingleInputNode
 
 		if (localStrategy != null) {
 			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT.equals(localStrategy)) {
-				setLocalStrategy(LocalStrategy.SORT);
+				this.shouldUseCombiner = false;
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_COMBINING_SORT.equals(localStrategy)) {
-				setLocalStrategy(LocalStrategy.COMBININGSORT);
+				if (!isCombineable()) {
+					PactCompiler.LOG.warn("Strategy hint for Reduce Pact '" + pactContract.getName() + 
+						"' desires combinable reduce, but user function is not marked combinable.");
+				}
+				this.shouldUseCombiner = true;
 			} else {
 				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
 			}
 		} else {
-			setLocalStrategy(LocalStrategy.NONE);
+			this.shouldUseCombiner = isCombineable();
 		}
 	}
 
@@ -105,13 +112,8 @@ public class ReduceNode extends SingleInputNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public int getMemoryConsumerCount() {
-		switch(this.localStrategy) {
-			case SORT:          return 1;
-			case COMBININGSORT: return 1;
-			case NONE:          return getPactContract().getGroupOrder() == null ? 0 : 1;
-			default:	        return 0;
-		}
+	public boolean isMemoryConsumer() {
+		return true;
 	}
 
 	/*
@@ -131,7 +133,7 @@ public class ReduceNode extends SingleInputNode
 		ip1.getGlobalProperties().setAnyPartitioning(this.keys);
 		ip1.getLocalProperties().setGroupedFields(this.keys);
 		estimator.addHashPartitioningCost(this.inConn, ip1.getMaximalCosts());
-		estimator.addLocalSortCost(this.inConn, -1, ip1.getMaximalCosts());
+		estimator.addLocalSortCost(this.inConn, getTotalMemoryAcrossAllSubTasks(), ip1.getMaximalCosts());
 		
 		// add the second interesting properties: partitioned only
 		InterestingProperties ip2 = new InterestingProperties();
@@ -146,9 +148,7 @@ public class ReduceNode extends SingleInputNode
 	@Override
 	protected void createPlanAlternatives(List<Channel> inputs, List<PlanNode> outputPlans)
 	{
-		final LocalStrategy defaultStrat = isCombineable() ? 
-				(this.localStrategy != LocalStrategy.NONE ? this.localStrategy : LocalStrategy.COMBININGSORT) :
-				LocalStrategy.SORT;
+		final LocalStrategy defaultStrat = this.shouldUseCombiner ? LocalStrategy.COMBININGSORT : LocalStrategy.SORT;
 
 		for (Channel c : inputs) {
 			final GlobalProperties gprops = c.getGlobalProperties();
@@ -161,17 +161,17 @@ public class ReduceNode extends SingleInputNode
 					if (c.getShipStrategy() == ShipStrategyType.FORWARD) {
 						// valid candidate. change local strategy according to the hint
 						c.setLocalStrategy(defaultStrat);
-						outputPlans.add(new SingleInputPlanNode(this, c, LocalStrategy.NONE));
+						outputPlans.add(new SingleInputPlanNode(this, c, DriverStrategy.GROUP));
 					} else {
 						// plug in a combiner
 						Channel toCombiner = new Channel(c.getSource());
 						toCombiner.setShipStrategy(ShipStrategyType.FORWARD);
 						toCombiner.setLocalStrategy(LocalStrategy.COMBININGSORT, c.getLocalStrategyKeys(), c.getLocalStrategySortOrder());
-						SingleInputPlanNode combiner = new SingleInputPlanNode(this, toCombiner, LocalStrategy.NONE);
+						SingleInputPlanNode combiner = new SingleInputPlanNode(this, toCombiner, DriverStrategy.GROUP);
 						Channel toReducer = new Channel(combiner);
 						toReducer.setShipStrategy(c.getShipStrategy(), c.getShipStrategyKeys(), c.getShipStrategySortOrder());
 						toReducer.setLocalStrategy(defaultStrat, c.getLocalStrategyKeys(), c.getLocalStrategySortOrder());
-						outputPlans.add(new SingleInputPlanNode(this, toReducer, LocalStrategy.NONE));
+						outputPlans.add(new SingleInputPlanNode(this, toReducer, DriverStrategy.GROUP));
 					}
 				}
 			}

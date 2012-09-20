@@ -34,7 +34,7 @@ import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * A node in the optimizer's program representation for a PACT with a single input.
@@ -122,7 +122,7 @@ public abstract class SingleInputNode extends OptimizerNode
 			pred.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred.SetId(this.id);
-			pred.setInstancesPerMachine(this.instancesPerMachine);
+			pred.setSubtasksPerInstance(getSubtasksPerInstance());
 			this.id++;
 		}
 		// create the connection and add it

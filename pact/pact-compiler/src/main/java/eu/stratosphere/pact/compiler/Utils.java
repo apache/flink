@@ -29,9 +29,13 @@ import eu.stratosphere.pact.common.util.FieldSet;
 public class Utils
 {
 	public static final FieldList createOrderedFromSet(FieldSet set) {
-		final int[] cols = set.toArray();
-		Arrays.sort(cols);
-		return new FieldList(cols);
+		if (set instanceof FieldList) {
+			return (FieldList) set;
+		} else {
+			final int[] cols = set.toArray();
+			Arrays.sort(cols);
+			return new FieldList(cols);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -61,7 +61,7 @@ public abstract class CostEstimator {
 	{
 		// initialize costs objects with currently unknown costs
 		final Costs costs = new Costs(0, 0);
-		final long availableMemory = n.getTotalAvailableMemory();
+		final long availableMemory = n.getGuaranteedAvailableMemory();
 		
 		// add the shipping strategy costs
 		for (Iterator<Channel> channels = n.getInputs(); channels.hasNext(); ) {
@@ -112,35 +112,13 @@ public abstract class CostEstimator {
 		}
 
 		// determine the local costs
-		switch (n.getLocalStrategy()) {
+		switch (n.getDriverStrategy()) {
 		case NONE:
-			break;
-		case COMBININGSORT:
-		case SORT:
-			addLocalSortCost(firstInput, availableMemory, costs);
-			break;
-		case SORT_BOTH_MERGE:
-			addLocalSortCost(firstInput, availableMemory / 2, costs);
-			addLocalSortCost(secondInput, availableMemory / 2, costs);
-			addLocalMergeCost(firstInput, secondInput, 0, costs);
-			break;
-		case SORT_FIRST_MERGE:
-			addLocalSortCost(firstInput, availableMemory, costs);
-			addLocalMergeCost(firstInput, secondInput, 0, costs);
-			break;
-		case SORT_SECOND_MERGE:
-			addLocalSortCost(secondInput, availableMemory, costs);
-			addLocalMergeCost(firstInput, secondInput, 0, costs);
+		case GROUP:
+		case CO_GROUP:
 			break;
 		case MERGE:
-			addLocalMergeCost(firstInput, secondInput, 0, costs);
-			break;
-		case SORT_SELF_NESTEDLOOP:
-			addLocalSortCost(firstInput, availableMemory, costs);
-			addLocalSelfNestedLoopCost(firstInput, 10, costs);
-			break;
-		case SELF_NESTEDLOOP:
-			addLocalSelfNestedLoopCost(firstInput, 10, costs);
+			addLocalMergeCost(firstInput, secondInput, availableMemory, costs);
 			break;
 		case HYBRIDHASH_FIRST:
 			addHybridHashCosts(firstInput, secondInput, availableMemory, costs);
@@ -160,8 +138,9 @@ public abstract class CostEstimator {
 		case NESTEDLOOP_STREAMED_OUTER_SECOND:
 			addStreamedNestedLoopsCosts(secondInput, firstInput, availableMemory, costs);
 			break;
+		case GROUP_SELF_NESTEDLOOP:
 		default:
-			throw new CompilerException("Unknown local strategy: " + n.getLocalStrategy().name());
+			throw new CompilerException("Unknown local strategy: " + n.getDriverStrategy().name());
 		}
 
 		n.setCosts(costs);

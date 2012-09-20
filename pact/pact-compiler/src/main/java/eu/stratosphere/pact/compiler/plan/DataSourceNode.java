@@ -35,7 +35,7 @@ import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * The optimizer's internal representation of a data source.
@@ -56,7 +56,7 @@ public class DataSourceNode extends OptimizerNode
 	 */
 	public DataSourceNode(GenericDataSource<?> pactContract) {
 		super(pactContract);
-		setLocalStrategy(LocalStrategy.NONE);
+		setDriverStrategy(DriverStrategy.NONE);
 	}
 
 	/**
@@ -78,13 +78,12 @@ public class DataSourceNode extends OptimizerNode
 		return "Data Source";
 	}
 
-	/*
-	 * (non-Javadoc)
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public int getMemoryConsumerCount() {
-		return 0;
+	public boolean isMemoryConsumer() {
+		return false;
 	}
 
 	/*

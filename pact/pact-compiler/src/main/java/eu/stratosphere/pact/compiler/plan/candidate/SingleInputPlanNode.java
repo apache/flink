@@ -18,30 +18,55 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 
 /**
- *
- *
  * @author Stephan Ewen
  */
 public class SingleInputPlanNode extends PlanNode
 {
 	protected final Channel input;
 	
+	protected final FieldList keys;
+	
+	protected final boolean[] sortOrders;
+	
+	private TypeSerializerFactory<?> serializer;
+	
+	private TypeComparatorFactory<?> comparator;
+	
+	public Object postPassHelper;
+	
 	// --------------------------------------------------------------------------------------------
+
+//	public SingleInputPlanNode(OptimizerNode template, Channel input, DriverStrategy localStrategy)
+//	{
+//		this(template, input, localStrategy, null);
+//	}
+//	
+//	public SingleInputPlanNode(OptimizerNode template, Channel input, 
+//			DriverStrategy localStrategy, FieldList driverKeyFields)
+//	{
+//		this(template, input, localStrategy, driverKeyFields, null);
+//	}
 	
-	
-	public SingleInputPlanNode(OptimizerNode template, Channel input, LocalStrategy localStrategy)
+	public SingleInputPlanNode(OptimizerNode template, Channel input, 
+			DriverStrategy localStrategy, FieldList driverKeyFields, boolean[] driverSortOrders)
 	{
 		super(template, localStrategy);
 		this.input = input;
+		this.keys = driverKeyFields;
+		this.sortOrders = driverSortOrders;
 		
 		if (this.input.getShipStrategy() == ShipStrategyType.BROADCAST) {
 			this.input.setReplicationFactor(getDegreeOfParallelism());
@@ -49,6 +74,22 @@ public class SingleInputPlanNode extends PlanNode
 	}
 
 	// --------------------------------------------------------------------------------------------
+	
+	public SingleInputNode getSingleInputNode() {
+		if (this.template instanceof SingleInputNode) {
+			return (SingleInputNode) this.template;
+		} else {
+			throw new RuntimeException();
+		}
+	}
+	
+	public FieldList getKeys() {
+		return this.keys;
+	}
+	
+	public boolean[] getSortOrders() {
+		return sortOrders;
+	}
 	
 	/**
 	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.pact.compiler.plan.candidate.PlanNode}.
@@ -63,6 +104,42 @@ public class SingleInputPlanNode extends PlanNode
 		if (this.lastJoinedBranchNode != null) {
 			throw new CompilerException("SingleInputPlanNode should not have a branch node");
 		}
+	}
+	
+	/**
+	 * Gets the serializer from this PlanNode.
+	 *
+	 * @return The serializer.
+	 */
+	public TypeSerializerFactory<?> getSerializer() {
+		return serializer;
+	}
+	
+	/**
+	 * Sets the serializer for this PlanNode.
+	 *
+	 * @param serializer The serializer to set.
+	 */
+	public void setSerializer(TypeSerializerFactory<?> serializer) {
+		this.serializer = serializer;
+	}
+	
+	/**
+	 * Gets the comparator from this PlanNode.
+	 *
+	 * @return The comparator.
+	 */
+	public TypeComparatorFactory<?> getComparator() {
+		return comparator;
+	}
+	
+	/**
+	 * Sets the comparator for this PlanNode.
+	 *
+	 * @param comparator The comparator to set.
+	 */
+	public void setComparator(TypeComparatorFactory<?> comparator) {
+		this.comparator = comparator;
 	}
 	
 	// --------------------------------------------------------------------------------------------

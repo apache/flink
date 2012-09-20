@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,12 +15,16 @@
 
 package eu.stratosphere.pact.common.generic.types;
 
+import eu.stratosphere.nephele.configuration.Configuration;
+
 /**
  * @author Stephan Ewen
  */
 public interface TypeSerializerFactory<T>
 {
-	TypeSerializer<T> getSerializer();
+	void writeParametersToConfig(Configuration config);
+	
+	TypeSerializer<T> getSerializer(Configuration config);
 	
 	Class<T> getDataType();
 }
