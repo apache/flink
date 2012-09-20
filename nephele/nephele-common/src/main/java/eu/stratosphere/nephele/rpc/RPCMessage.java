@@ -2,7 +2,7 @@ package eu.stratosphere.nephele.rpc;
 
 abstract class RPCMessage {
 
-	public static final int MAXIMUM_MSG_SIZE = 2048;
+	public static final int MAXIMUM_MSG_SIZE = 1024;
 
 	private final int requestID;
 
