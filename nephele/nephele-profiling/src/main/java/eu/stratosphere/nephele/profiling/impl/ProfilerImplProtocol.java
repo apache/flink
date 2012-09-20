@@ -18,9 +18,9 @@ package eu.stratosphere.nephele.profiling.impl;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 
-public interface ProfilerImplProtocol extends VersionedProtocol {
+public interface ProfilerImplProtocol extends RPCProtocol {
 
 	void reportProfilingData(ProfilingDataContainer profilingDataContainer) throws IOException;
 }

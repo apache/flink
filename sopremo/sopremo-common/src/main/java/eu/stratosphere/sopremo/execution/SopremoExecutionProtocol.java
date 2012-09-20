@@ -14,14 +14,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.execution;
 
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 
 /**
  * A general purpose interface for everything that executes meteor scripts synchronically and asynchronically.
  * 
  * @author Arvid Heise
  */
-public interface SopremoExecutionProtocol extends VersionedProtocol, LibraryTransferProtocol {
+public interface SopremoExecutionProtocol extends RPCProtocol, LibraryTransferProtocol {
 	/**
 	 * Executes the query specified in the {@link ExecutionRequest}.
 	 * 

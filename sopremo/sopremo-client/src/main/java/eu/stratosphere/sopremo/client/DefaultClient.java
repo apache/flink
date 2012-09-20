@@ -30,9 +30,8 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionRequest.ExecutionMode;
@@ -65,6 +64,8 @@ public class DefaultClient implements Closeable {
 
 	private Configuration configuration;
 
+	private RPCService rpcService;
+	
 	private SopremoExecutionProtocol executor;
 
 	private InetSocketAddress serverAddress;
@@ -252,7 +253,7 @@ public class DefaultClient implements Closeable {
 	 */
 	@Override
 	public void close() {
-		RPC.stopProxy(this.executor);
+		this.rpcService.shutDown();
 	}
 
 	protected void sleepSafely(int updateTime) {
@@ -278,7 +279,8 @@ public class DefaultClient implements Closeable {
 		}
 
 		try {
-			this.executor = RPC.getProxy(SopremoExecutionProtocol.class, serverAddress, NetUtils.getSocketFactory());
+			this.rpcService = new RPCService();
+			this.executor = this.rpcService.getProxy(serverAddress, SopremoExecutionProtocol.class);
 		} catch (IOException e) {
 			this.dealWithError(progressListener, e, "Error while connecting to the server");
 		}

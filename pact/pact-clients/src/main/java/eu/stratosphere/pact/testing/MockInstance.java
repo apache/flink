@@ -47,7 +47,7 @@ class MockInstance extends AbstractInstance {
 	// String>();
 
 	MockInstance(final InstanceType instanceType, final NetworkTopology networkTopology) {
-		super(instanceType, createConnectionInfo(), networkTopology
+		super(instanceType, createConnectionInfo(), null, networkTopology
 			.getRootNode(), networkTopology, DESCRIPTION);
 	}
 

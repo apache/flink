@@ -36,12 +36,11 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
-import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.pact.test.util.FileWriter;
 
 /**
@@ -264,9 +263,10 @@ public class NepheleMiniCluster {
 		final InetSocketAddress address = new InetSocketAddress(hostname, port);
 		ExtendedManagementProtocol jobManagerConnection = null;
 		
+		RPCService rpcService = new RPCService();
+		
 		try {
-			jobManagerConnection = RPC.getProxy(ExtendedManagementProtocol.class,
-				address, NetUtils.getSocketFactory());
+			jobManagerConnection = rpcService.getProxy(address, ExtendedManagementProtocol.class);
 			
 			Map<InstanceType, InstanceTypeDescription> map = null;
 			final long startTime = System.currentTimeMillis();
@@ -287,13 +287,7 @@ public class NepheleMiniCluster {
 		}
 		finally {
 			
-			if (jobManagerConnection != null) {
-				try {
-					RPC.stopProxy(jobManagerConnection);
-				} catch (Throwable t) {
-					LOG.error("Could not cleanly shut down connection from compiler to job manager,", t);
-				}
-			}
+			rpcService.shutDown();
 		}
 	}
 }

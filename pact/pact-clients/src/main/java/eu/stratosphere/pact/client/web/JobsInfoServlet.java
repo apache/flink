@@ -29,9 +29,8 @@ import javax.servlet.http.HttpServletResponse;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.rpc.RPCService;
 
 /**
  * @author Stephan Ewen (stephan.ewen@tu-berlin.com)
@@ -45,7 +44,7 @@ public class JobsInfoServlet extends HttpServlet {
 	// ------------------------------------------------------------------------
 
 	private final Configuration config;
-	
+
 	public JobsInfoServlet(Configuration nepheleConfig) {
 		this.config = nepheleConfig;
 	}
@@ -57,65 +56,64 @@ public class JobsInfoServlet extends HttpServlet {
 	 */
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-		//resp.setContentType("application/json");
-		
-		ExtendedManagementProtocol jmConn = null;
+		// resp.setContentType("application/json");
+
+		RPCService rpcService = null;
 		try {
-			
-			jmConn = getJMConnection();
+
+			rpcService = new RPCService();
+			ExtendedManagementProtocol jmConn = getJMConnection(rpcService);
 			List<RecentJobEvent> recentJobs = jmConn.getRecentJobs();
-			
+
 			ArrayList<RecentJobEvent> jobs = new ArrayList<RecentJobEvent>(recentJobs);
-			
+
 			resp.setStatus(HttpServletResponse.SC_OK);
 			PrintWriter wrt = resp.getWriter();
 			wrt.write("[");
 			for (int i = 0; i < jobs.size(); i++) {
 				RecentJobEvent jobEvent = jobs.get(i);
-				
-				//Serialize job to json
+
+				// Serialize job to json
 				wrt.write("{");
 				wrt.write("\"jobid\": \"" + jobEvent.getJobID() + "\",");
-				if(jobEvent.getJobName() != null) {
-					wrt.write("\"jobname\": \"" + jobEvent.getJobName()+"\",");
+				if (jobEvent.getJobName() != null) {
+					wrt.write("\"jobname\": \"" + jobEvent.getJobName() + "\",");
 				}
-				wrt.write("\"status\": \""+ jobEvent.getJobStatus() + "\",");
+				wrt.write("\"status\": \"" + jobEvent.getJobStatus() + "\",");
 				wrt.write("\"time\": " + jobEvent.getTimestamp());
 				wrt.write("}");
-				//Write seperator between json objects
-				if(i != jobs.size() - 1) {
+				// Write seperator between json objects
+				if (i != jobs.size() - 1) {
 					wrt.write(",");
 				}
 			}
 			wrt.write("]");
-			
+
 		} catch (Throwable t) {
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 			resp.getWriter().print(t.getMessage());
 		} finally {
-			if (jmConn != null) {
-				try {
-					RPC.stopProxy(jmConn);
-				} catch (Throwable t) {
-					System.err.println("Could not cleanly shut down connection from compiler to job manager");
-				}
+			if (rpcService != null) {
+				rpcService.shutDown();
 			}
-			jmConn = null;
+			rpcService = null;
 		}
 	}
-	
+
 	/**
 	 * Sets up a connection to the JobManager.
 	 * 
+	 * @param rpcService
+	 *        the RPC service to use to create the proxy object
 	 * @return Connection to the JobManager.
 	 * @throws IOException
 	 */
-	private ExtendedManagementProtocol getJMConnection() throws IOException {
+	private ExtendedManagementProtocol getJMConnection(RPCService rpcService) throws IOException {
 		String jmHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		String jmPort = config.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, null);
-		
-		return RPC.getProxy(ExtendedManagementProtocol.class,
-				new InetSocketAddress(jmHost, Integer.parseInt(jmPort)), NetUtils.getSocketFactory());
+		int jmPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+
+		return rpcService.getProxy(new InetSocketAddress(jmHost, jmPort), 
+			ExtendedManagementProtocol.class);
 	}
 
 	protected String escapeString(String str) {

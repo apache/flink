@@ -240,8 +240,8 @@ public class LocalInstanceManager implements InstanceManager {
 		synchronized (this.synchronizationObject) {
 			if (this.localInstance == null) {
 				this.localInstance = new LocalInstance(this.defaultInstanceType,
-					instanceConnectionInfo, this.networkTopology.getRootNode(), this.networkTopology,
-					hardwareDescription, this.rpcService);
+					instanceConnectionInfo, this.rpcService, this.networkTopology.getRootNode(), this.networkTopology,
+					hardwareDescription);
 
 				this.instanceTypeDescriptionMap.put(this.defaultInstanceType,
 					InstanceTypeDescriptionFactory.construct(this.defaultInstanceType, hardwareDescription, 1));

@@ -84,6 +84,8 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the type of the instance
 	 * @param instanceConnectionInfo
 	 *        the connection info identifying the instance
+	 * @param rpcService
+	 *        the RPC service to used to create a proxy for this instance
 	 * @param parentNode
 	 *        the parent node in the network topology
 	 * @param networkTopology
@@ -92,13 +94,14 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the hardware description provided by the instance itself
 	 */
 	public AbstractInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
-			final NetworkNode parentNode, final NetworkTopology networkTopology,
-			final HardwareDescription hardwareDescription, final RPCService rpcService) {
+			final RPCService rpcService, final NetworkNode parentNode, final NetworkTopology networkTopology,
+			final HardwareDescription hardwareDescription) {
 		super((instanceConnectionInfo == null) ? null : instanceConnectionInfo.toString(), parentNode, networkTopology);
 		this.instanceType = instanceType;
 		this.instanceConnectionInfo = instanceConnectionInfo;
-		this.hardwareDescription = hardwareDescription;
 		this.rpcService = rpcService;
+		this.hardwareDescription = hardwareDescription;
+
 	}
 
 	/**

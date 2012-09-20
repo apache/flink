@@ -78,8 +78,8 @@ public class HostInClusterTest {
 			memorySize * 1024L * 1024L, memorySize * 1024L * 1024L);
 
 		final NetworkTopology topology = NetworkTopology.createEmptyTopology();
-		ClusterInstance host = new ClusterInstance(instanceConnectionInfo, capacity, topology.getRootNode(), topology,
-			hardwareDescription);
+		ClusterInstance host = new ClusterInstance(instanceConnectionInfo, null, capacity, topology.getRootNode(),
+			topology, hardwareDescription);
 
 		return host;
 	}
@@ -148,7 +148,7 @@ public class HostInClusterTest {
 	 */
 	@Test
 	public void testTermination() {
-		
+
 		// check whether the accounting of capacity works correctly if terminateAllInstances is called
 		final ClusterInstance host = createTestClusterInstance();
 		final JobID jobID = new JobID();
@@ -177,19 +177,19 @@ public class HostInClusterTest {
 			List<AllocatedSlice> removedSlices = host.removeAllAllocatedSlices();
 
 			final Set<AllocatedSlice> slicesSet = new HashSet<AllocatedSlice>();
-			for(int i = 0; i < slices.length; ++i) {
+			for (int i = 0; i < slices.length; ++i) {
 				slicesSet.add(slices[i]);
 			}
-			
+
 			final Set<AllocatedSlice> removedSlicesSet = new HashSet<AllocatedSlice>(removedSlices);
-			
-			//Check if both sets are equal
+
+			// Check if both sets are equal
 			assertEquals(slicesSet.size(), removedSlices.size());
 			final Iterator<AllocatedSlice> it = slicesSet.iterator();
-			while(it.hasNext()) {
+			while (it.hasNext()) {
 				assertTrue(removedSlicesSet.remove(it.next()));
 			}
-			
+
 			assertEquals(0, removedSlicesSet.size());
 		}
 	}

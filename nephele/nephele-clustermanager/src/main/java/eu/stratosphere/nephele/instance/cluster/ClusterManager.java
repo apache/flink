@@ -52,6 +52,7 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.SerializableHashMap;
@@ -136,6 +137,11 @@ public class ClusterManager implements InstanceManager {
 	// ------------------------------------------------------------------------
 	// Fields
 	// ------------------------------------------------------------------------
+
+	/**
+	 * The RPC service to use when a proxy for a cluster instance shall be created.
+	 */
+	private final RPCService rpcService;
 
 	/**
 	 * Duration after which a host is purged in case it did not send a
@@ -272,13 +278,18 @@ public class ClusterManager implements InstanceManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Constructor.
+	 * Constructs a new cluster manager.
+	 * 
+	 * @param rpcService
+	 *        the RPC service to use when a proxy for a cluster instance shall be created.
 	 */
-	public ClusterManager() {
+	public ClusterManager(final RPCService rpcService) {
 
 		this.registeredHosts = new HashMap<InstanceConnectionInfo, ClusterInstance>();
 
 		this.slicesOfJobs = new HashMap<JobID, List<AllocatedSlice>>();
+
+		this.rpcService = rpcService;
 
 		// Load the instance type this cluster can offer
 		this.availableInstanceTypes = populateInstanceTypeArray();
@@ -443,10 +454,6 @@ public class ClusterManager implements InstanceManager {
 	@Override
 	public synchronized void shutdown() {
 
-		final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
-		while (it.hasNext()) {
-			it.next().destroyProxies();
-		}
 		this.registeredHosts.clear();
 
 		this.cleanupStaleMachines.cancel();
@@ -654,8 +661,8 @@ public class ClusterManager implements InstanceManager {
 
 		LOG.info("Creating instance of type " + instanceType + " for " + instanceConnectionInfo + ", parent is "
 			+ parentNode.getName());
-		final ClusterInstance host = new ClusterInstance(instanceConnectionInfo, instanceType, parentNode,
-			this.networkTopology, hardwareDescription);
+		final ClusterInstance host = new ClusterInstance(instanceConnectionInfo, this.rpcService, instanceType,
+			parentNode, this.networkTopology, hardwareDescription);
 
 		return host;
 	}

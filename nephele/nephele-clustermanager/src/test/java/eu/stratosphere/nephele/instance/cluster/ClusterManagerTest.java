@@ -104,7 +104,7 @@ public class ClusterManagerTest {
 		GlobalConfiguration.loadConfiguration(configDir);
 
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
+		final ClusterManager cm = new ClusterManager(null);
 		cm.setInstanceListener(testInstanceListener);
 		try {
 
@@ -145,7 +145,7 @@ public class ClusterManagerTest {
 		GlobalConfiguration.loadConfiguration(configDir);
 
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
+		final ClusterManager cm = new ClusterManager(null);
 		cm.setInstanceListener(testInstanceListener);
 
 		Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptions = null;
@@ -242,7 +242,7 @@ public class ClusterManagerTest {
 
 		GlobalConfiguration.loadConfiguration(configDir);
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
+		final ClusterManager cm = new ClusterManager(null);
 		cm.setInstanceListener(testInstanceListener);
 
 		try {
@@ -339,7 +339,7 @@ public class ClusterManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR);
 
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
+		final ClusterManager cm = new ClusterManager(null);
 		cm.setInstanceListener(testInstanceListener);
 
 		try {
