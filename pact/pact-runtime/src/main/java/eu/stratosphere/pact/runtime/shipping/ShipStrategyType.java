@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -23,11 +23,30 @@ package eu.stratosphere.pact.runtime.shipping;
  */
 public enum ShipStrategyType
 {
-	NONE,
-	FORWARD,
-	PARTITION_HASH,
-	PARTITION_LOCAL_HASH,
-	PARTITION_RANGE,
-	PARTITION_LOCAL_RANGE,
-	BROADCAST,
-}	
+	NONE(false, false),
+	FORWARD(false, false),
+	PARTITION_HASH(true, true),
+	PARTITION_LOCAL_HASH(false, true),
+	PARTITION_RANGE(true, true),
+	PARTITION_LOCAL_RANGE(false, true),
+	BROADCAST(true, false);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private final boolean isNetwork;
+	
+	private final boolean requiresComparator;
+	
+	private ShipStrategyType(boolean network, boolean requiresComparator) {
+		this.isNetwork = network;
+		this.requiresComparator = requiresComparator;
+	}
+	
+	public boolean isNetworkStrategy() {
+		return this.isNetwork;
+	}
+	
+	public boolean requiresComparator() {
+		return this.requiresComparator;
+	}
+}

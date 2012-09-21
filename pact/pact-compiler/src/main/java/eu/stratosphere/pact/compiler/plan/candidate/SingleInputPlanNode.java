@@ -206,4 +206,13 @@ public class SingleInputPlanNode extends PlanNode
 			}
 		};
 	}
+	
+	/**
+	 * Gets the input channel to this node.
+	 * 
+	 * @return The input channel to this node.
+	 */
+	public Channel getInput() {
+		return this.input;
+	}
 }

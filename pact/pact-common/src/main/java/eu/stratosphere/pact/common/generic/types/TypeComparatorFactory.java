@@ -22,9 +22,13 @@ import eu.stratosphere.nephele.configuration.Configuration;
  */
 public interface TypeComparatorFactory<T>
 {
-	TypeComparator<T> createComparator(Configuration config, ClassLoader cl) throws ClassNotFoundException;
+	void writeParametersToConfig(Configuration config);
 	
-	TypeComparator<T> createSecondarySortComparator(Configuration config, ClassLoader cl) throws ClassNotFoundException;
+	void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException;
 	
 	Class<T> getDataType();
+	
+	TypeComparator<T> createComparator();
+	
+//	TypeComparator<T> createSecondarySortComparator();
 }

@@ -95,6 +95,14 @@ public abstract class SingleInputNode extends OptimizerNode
 			return null;
 		}
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getPactContract()
+	 */
+	@Override
+	public SingleInputContract<?> getPactContract() {
+		return (SingleInputContract<?>) super.getPactContract();
+	}
 
 	/*
 	 * (non-Javadoc)

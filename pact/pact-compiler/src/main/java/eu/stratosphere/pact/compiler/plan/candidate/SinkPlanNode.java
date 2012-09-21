@@ -15,7 +15,9 @@
 
 package eu.stratosphere.pact.compiler.plan.candidate;
 
+import eu.stratosphere.pact.compiler.plan.DataSinkNode;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
@@ -31,7 +33,15 @@ public class SinkPlanNode extends SingleInputPlanNode
 	 * 
 	 * @param template The template optimizer node that this candidate is created for.
 	 */
-	public SinkPlanNode(OptimizerNode template, Channel input) {
+	public SinkPlanNode(DataSinkNode template, Channel input) {
 		super(template, input, DriverStrategy.NONE);
+	}
+	
+	public DataSinkNode getSinkNode() {
+		if (this.template instanceof DataSinkNode) {
+			return (DataSinkNode) this.template;
+		} else {
+			throw new RuntimeException();
+		}
 	}
 }

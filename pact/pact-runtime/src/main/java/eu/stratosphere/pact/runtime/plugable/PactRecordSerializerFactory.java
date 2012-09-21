@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.plugable;
 
+import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.type.PactRecord;
@@ -39,6 +40,20 @@ public class PactRecordSerializerFactory implements TypeSerializerFactory<PactRe
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.generic.types.TypeSerializerFactory#writeParametersToConfig(eu.stratosphere.nephele.configuration.Configuration)
+	 */
+	@Override
+	public void writeParametersToConfig(Configuration config)
+	{}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.generic.types.TypeSerializerFactory#readParametersFromConfig(eu.stratosphere.nephele.configuration.Configuration, java.lang.ClassLoader)
+	 */
+	@Override
+	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException
+	{}
 	
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.common.generic.types.TypeSerializerFactory#getSerializer()

@@ -20,6 +20,8 @@ import java.util.Map;
 
 import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
+import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
@@ -65,6 +67,12 @@ public class Channel implements EstimateProvider
 	private GlobalProperties globalProps;
 	
 	private LocalProperties localProps;
+	
+	private TypeSerializerFactory<?> serializer;
+	
+	private TypeComparatorFactory<?> shipStrategyComparator;
+	
+	private TypeComparatorFactory<?> localStrategyComparator;
 	
 	private TempMode tempMode;
 	
@@ -318,5 +326,61 @@ public class Channel implements EstimateProvider
 			}
 			return props;
 		}
+	}
+
+	
+	/**
+	 * Gets the serializer from this Channel.
+	 *
+	 * @return The serializer.
+	 */
+	public TypeSerializerFactory<?> getSerializer() {
+		return serializer;
+	}
+
+	
+	/**
+	 * Sets the serializer for this Channel.
+	 *
+	 * @param serializer The serializer to set.
+	 */
+	public void setSerializer(TypeSerializerFactory<?> serializer) {
+		this.serializer = serializer;
+	}
+	
+	/**
+	 * Gets the ship strategy comparator from this Channel.
+	 *
+	 * @return The ship strategy comparator.
+	 */
+	public TypeComparatorFactory<?> getShipStrategyComparator() {
+		return shipStrategyComparator;
+	}
+	
+	/**
+	 * Sets the ship strategy comparator for this Channel.
+	 *
+	 * @param shipStrategyComparator The ship strategy comparator to set.
+	 */
+	public void setShipStrategyComparator(TypeComparatorFactory<?> shipStrategyComparator) {
+		this.shipStrategyComparator = shipStrategyComparator;
+	}
+	
+	/**
+	 * Gets the local strategy comparator from this Channel.
+	 *
+	 * @return The local strategy comparator.
+	 */
+	public TypeComparatorFactory<?> getLocalStrategyComparator() {
+		return localStrategyComparator;
+	}
+	
+	/**
+	 * Sets the local strategy comparator for this Channel.
+	 *
+	 * @param localStrategyComparator The local strategy comparator to set.
+	 */
+	public void setLocalStrategyComparator(TypeComparatorFactory<?> localStrategyComparator) {
+		this.localStrategyComparator = localStrategyComparator;
 	}
 }
