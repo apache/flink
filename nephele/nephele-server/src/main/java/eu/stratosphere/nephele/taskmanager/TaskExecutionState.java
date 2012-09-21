@@ -15,32 +15,27 @@
 
 package eu.stratosphere.nephele.taskmanager;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * This class can be used to propagate updates about a task's execution state from the
  * task manager to the job manager.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public class TaskExecutionState implements IOReadableWritable {
+public final class TaskExecutionState {
 
-	private JobID jobID = null;
+	private final JobID jobID;
 
-	private ExecutionVertexID executionVertexID = null;
+	private final ExecutionVertexID executionVertexID;
 
-	private ExecutionState executionState = null;
+	private final ExecutionState executionState;
 
-	private String description = null;
+	private final String description;
 
 	/**
 	 * Creates a new task execution state.
@@ -66,6 +61,10 @@ public class TaskExecutionState implements IOReadableWritable {
 	 * Creates an empty task execution state.
 	 */
 	public TaskExecutionState() {
+		this.jobID = null;
+		this.executionVertexID = null;
+		this.executionState = null;
+		this.description = null;
 	}
 
 	/**
@@ -103,66 +102,4 @@ public class TaskExecutionState implements IOReadableWritable {
 	public JobID getJobID() {
 		return this.jobID;
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		boolean isNotNull = in.readBoolean();
-
-		if (isNotNull) {
-			this.jobID = new JobID();
-			this.jobID.read(in);
-		} else {
-			this.jobID = null;
-		}
-
-		isNotNull = in.readBoolean();
-
-		// Read the execution vertex ID
-		if (isNotNull) {
-			this.executionVertexID = new ExecutionVertexID();
-			this.executionVertexID.read(in);
-		} else {
-			this.executionVertexID = null;
-		}
-
-		// Read execution state
-		this.executionState = EnumUtils.readEnum(in, ExecutionState.class);
-
-		// Read description
-		this.description = StringRecord.readString(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		if (this.jobID == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			this.jobID.write(out);
-		}
-
-		// Write the execution vertex ID
-		if (this.executionVertexID == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			this.executionVertexID.write(out);
-		}
-
-		// Write execution state
-		EnumUtils.writeEnum(out, this.executionState);
-
-		// Write description
-		StringRecord.writeString(out, this.description);
-
-	}
-
 }

@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -753,7 +754,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				null);
 		}
 
-		final SerializableArrayList<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
+		final ArrayList<AbstractEvent> eventList = new ArrayList<AbstractEvent>();
 		this.eventCollector.getEventsForJob(jobID, eventList, false);
 
 		return new JobProgressResult(ReturnCode.SUCCESS, null, eventList);
@@ -925,7 +926,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	@Override
 	public List<RecentJobEvent> getRecentJobs() throws IOException {
 
-		final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
+		final List<RecentJobEvent> eventList = new ArrayList<RecentJobEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
@@ -942,7 +943,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	@Override
 	public List<AbstractEvent> getEvents(final JobID jobID) throws IOException {
 
-		final List<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
+		final List<AbstractEvent> eventList = new ArrayList<AbstractEvent>();
 
 		if (this.eventCollector == null) {
 			throw new IOException("No instance of the event collector found");
@@ -1224,7 +1225,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
 				}
 
-				final List<TaskDeploymentDescriptor> submissionList = new SerializableArrayList<TaskDeploymentDescriptor>();
+				final List<TaskDeploymentDescriptor> submissionList = new ArrayList<TaskDeploymentDescriptor>();
 
 				// Check the consistency of the call
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {

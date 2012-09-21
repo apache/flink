@@ -20,6 +20,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.junit.Test;
 
@@ -30,7 +31,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.library.FileLineReader;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -56,10 +56,8 @@ public class TaskDeploymentDescriptorTest {
 		final Configuration taskConfiguration = new Configuration();
 		final CheckpointState initialCheckpointState = CheckpointState.UNDECIDED;
 		final Class<? extends AbstractInvokable> invokableClass = FileLineReader.class;
-		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
-			0);
-		final SerializableArrayList<GateDeploymentDescriptor> inputGates = new SerializableArrayList<GateDeploymentDescriptor>(
-			0);
+		final ArrayList<GateDeploymentDescriptor> outputGates = new ArrayList<GateDeploymentDescriptor>(0);
+		final ArrayList<GateDeploymentDescriptor> inputGates = new ArrayList<GateDeploymentDescriptor>(0);
 
 		final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 			indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration, initialCheckpointState,
@@ -93,10 +91,8 @@ public class TaskDeploymentDescriptorTest {
 		final Configuration taskConfiguration = new Configuration();
 		final CheckpointState initialCheckpointState = CheckpointState.UNDECIDED;
 		final Class<? extends AbstractInvokable> invokableClass = FileLineReader.class;
-		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
-			0);
-		final SerializableArrayList<GateDeploymentDescriptor> inputGates = new SerializableArrayList<GateDeploymentDescriptor>(
-			0);
+		final ArrayList<GateDeploymentDescriptor> outputGates = new ArrayList<GateDeploymentDescriptor>(0);
+		final ArrayList<GateDeploymentDescriptor> inputGates = new ArrayList<GateDeploymentDescriptor>(0);
 
 		boolean firstExceptionCaught = false;
 		boolean secondExceptionCaught = false;
@@ -258,16 +254,12 @@ public class TaskDeploymentDescriptorTest {
 		final Configuration taskConfiguration = new Configuration();
 		final CheckpointState initialCheckpointState = CheckpointState.UNDECIDED;
 		final Class<? extends AbstractInvokable> invokableClass = FileLineReader.class;
-		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
-			0);
-		final SerializableArrayList<GateDeploymentDescriptor> inputGates = new SerializableArrayList<GateDeploymentDescriptor>(
-			0);
+		final ArrayList<GateDeploymentDescriptor> outputGates = new ArrayList<GateDeploymentDescriptor>(0);
+		final ArrayList<GateDeploymentDescriptor> inputGates = new ArrayList<GateDeploymentDescriptor>(0);
 
 		final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 			indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration, initialCheckpointState,
 			invokableClass, outputGates, inputGates);
-
-		TaskDeploymentDescriptor copy = null;
 
 		try {
 			LibraryCacheManager.register(jobID, new String[] {});
@@ -275,11 +267,7 @@ public class TaskDeploymentDescriptorTest {
 			fail(StringUtils.stringifyException(ioe));
 		}
 
-		try {
-			copy = ServerTestUtils.createCopy(orig);
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		}
+		final TaskDeploymentDescriptor copy = ServerTestUtils.createCopy(orig);
 
 		assertFalse(orig.getJobID() == copy.getJobID());
 		assertFalse(orig.getVertexID() == copy.getVertexID());

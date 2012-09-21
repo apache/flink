@@ -33,7 +33,6 @@ import org.mockito.Mock;
 
 import eu.stratosphere.nephele.util.CommonTestUtils;
 
-
 /**
  * @author Mathias Peters <mathias.peters@informatik.hu-berlin.de>
  *         TODO: {@link StringRecord} has a lot of public methods that need to be tested.
@@ -56,18 +55,13 @@ public class StringRecordTest {
 
 		final StringRecord orig = new StringRecord("Test Record");
 
-		try {
+		final StringRecord copy = (StringRecord) CommonTestUtils.createCopy(orig);
 
-			final StringRecord copy = (StringRecord) CommonTestUtils.createCopy(orig);
-			
-			assertEquals(orig.getLength(), copy.getLength());
-			assertEquals(orig.toString(), copy.toString());
-			assertEquals(orig, copy);
-			assertEquals(orig.hashCode(), copy.hashCode());
+		assertEquals(orig.getLength(), copy.getLength());
+		assertEquals(orig.toString(), copy.toString());
+		assertEquals(orig, copy);
+		assertEquals(orig.hashCode(), copy.hashCode());
 
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
 	}
 
 	@Test
@@ -88,21 +82,21 @@ public class StringRecordTest {
 
 	@Test
 	public void shouldReadNegativeInputs() {
-		
+
 		try {
-		
+
 			when(this.inputMock.readBoolean()).thenReturn(true);
 			when(this.inputMock.readInt()).thenReturn(-1);
-		} catch(IOException ioe) {
+		} catch (IOException ioe) {
 			fail(ioe.getMessage());
 		}
 
 		try {
 			StringRecord.readString(inputMock);
-		} catch(IOException ioe) {
+		} catch (IOException ioe) {
 			return;
 		}
 
-		fail("StringRecord.readString did not throw an IOException for negative length of string");		
+		fail("StringRecord.readString did not throw an IOException for negative length of string");
 	}
 }

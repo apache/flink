@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.profiling.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
@@ -35,72 +31,72 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 	/**
 	 * The interval of time this profiling event covers in milliseconds.
 	 */
-	private int profilingInterval;
+	private final int profilingInterval;
 
 	/**
 	 * The percentage of time the CPU(s) spent in state IOWAIT during the profiling interval.
 	 */
-	private int ioWaitCPU;
+	private final int ioWaitCPU;
 
 	/**
 	 * The percentage of time the CPU(s) spent in state IDLE during the profiling interval.
 	 */
-	private int idleCPU;
+	private final int idleCPU;
 
 	/**
 	 * The percentage of time the CPU(s) spent in state USER during the profiling interval.
 	 */
-	private int userCPU;
+	private final int userCPU;
 
 	/**
 	 * The percentage of time the CPU(s) spent in state SYSTEM during the profiling interval.
 	 */
-	private int systemCPU;
+	private final int systemCPU;
 
 	/**
 	 * The percentage of time the CPU(s) spent in state HARD_IRQ during the profiling interval.
 	 */
-	private int hardIrqCPU;
+	private final int hardIrqCPU;
 
 	/**
 	 * The percentage of time the CPU(s) spent in state SOFT_IRQ during the profiling interval.
 	 */
-	private int softIrqCPU;
+	private final int softIrqCPU;
 
 	/**
 	 * The total amount of this instance's main memory in bytes.
 	 */
-	private long totalMemory;
+	private final long totalMemory;
 
 	/**
 	 * The free amount of this instance's main memory in bytes.
 	 */
-	private long freeMemory;
+	private final long freeMemory;
 
 	/**
 	 * The amount of main memory the instance uses for file buffers.
 	 */
-	private long bufferedMemory;
+	private final long bufferedMemory;
 
 	/**
 	 * The amount of main memory the instance uses as cache memory.
 	 */
-	private long cachedMemory;
+	private final long cachedMemory;
 
 	/**
 	 * The amount of main memory the instance uses for cached swaps.
 	 */
-	private long cachedSwapMemory;
+	private final long cachedSwapMemory;
 
 	/**
 	 * The number of bytes received via network during the profiling interval.
 	 */
-	private long receivedBytes;
+	private final long receivedBytes;
 
 	/**
 	 * The number of bytes transmitted via network during the profiling interval.
 	 */
-	private long transmittedBytes;
+	private final long transmittedBytes;
 
 	/**
 	 * Constructs a new instance profiling event.
@@ -171,7 +167,23 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 	 * Default constructor for serialization/deserialization.
 	 */
 	public InstanceProfilingEvent() {
-		super();
+		this.profilingInterval = -1;
+
+		this.ioWaitCPU = -1;
+		this.idleCPU = -1;
+		this.userCPU = -1;
+		this.systemCPU = -1;
+		this.hardIrqCPU = -1;
+		this.softIrqCPU = -1;
+
+		this.totalMemory = -1L;
+		this.freeMemory = -1L;
+		this.bufferedMemory = -1L;
+		this.cachedMemory = -1L;
+		this.cachedSwapMemory = -1L;
+
+		this.receivedBytes = -1L;
+		this.transmittedBytes = -1L;
 	}
 
 	/**
@@ -300,58 +312,6 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 	 */
 	public final long getTransmittedBytes() {
 		return this.transmittedBytes;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
-
-		this.profilingInterval = in.readInt();
-
-		this.ioWaitCPU = in.readInt();
-		this.idleCPU = in.readInt();
-		this.userCPU = in.readInt();
-		this.systemCPU = in.readInt();
-		this.hardIrqCPU = in.readInt();
-		this.softIrqCPU = in.readInt();
-
-		this.totalMemory = in.readLong();
-		this.freeMemory = in.readLong();
-		this.bufferedMemory = in.readLong();
-		this.cachedMemory = in.readLong();
-		this.cachedSwapMemory = in.readLong();
-
-		this.receivedBytes = in.readLong();
-		this.transmittedBytes = in.readLong();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
-
-		out.writeInt(this.profilingInterval);
-
-		out.writeInt(this.ioWaitCPU);
-		out.writeInt(this.idleCPU);
-		out.writeInt(this.userCPU);
-		out.writeInt(this.systemCPU);
-		out.writeInt(this.hardIrqCPU);
-		out.writeInt(this.softIrqCPU);
-
-		out.writeLong(totalMemory);
-		out.writeLong(freeMemory);
-		out.writeLong(bufferedMemory);
-		out.writeLong(cachedMemory);
-		out.writeLong(cachedSwapMemory);
-
-		out.writeLong(receivedBytes);
-		out.writeLong(transmittedBytes);
 	}
 
 	/**

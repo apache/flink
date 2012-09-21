@@ -15,12 +15,7 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * A {@link VertexAssignmentEvent} can be used to notify other objects about changes in the assignment of vertices to
@@ -33,17 +28,17 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 	/**
 	 * The ID identifies the vertex this events refers to.
 	 */
-	private ManagementVertexID managementVertexID;
+	private final ManagementVertexID managementVertexID;
 
 	/**
 	 * The name of the instance the vertex is now assigned to.
 	 */
-	private String instanceName;
+	private final String instanceName;
 
 	/**
 	 * The type of the instance the vertex is now assigned to.
 	 */
-	private String instanceType;
+	private final String instanceType;
 
 	/**
 	 * Constructs a new event.
@@ -70,9 +65,9 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 	 * Constructor for serialization/deserialization. Should not be called on other occasions.
 	 */
 	public VertexAssignmentEvent() {
-		super();
-
-		this.managementVertexID = new ManagementVertexID();
+		this.managementVertexID = null;
+		this.instanceName = null;
+		this.instanceType = null;
 	}
 
 	/**
@@ -100,32 +95,6 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 	 */
 	public String getInstanceType() {
 		return this.instanceType;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		super.read(in);
-
-		this.managementVertexID.read(in);
-		this.instanceName = StringRecord.readString(in);
-		this.instanceType = StringRecord.readString(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		super.write(out);
-
-		this.managementVertexID.write(out);
-		StringRecord.writeString(out, this.instanceName);
-		StringRecord.writeString(out, this.instanceType);
 	}
 
 	/**

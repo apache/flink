@@ -15,30 +15,31 @@
 
 package eu.stratosphere.nephele.deployment;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * A task deployment descriptor contains all the information necessary to deploy a task on a task manager.
  * <p>
- * This class is not thread-safe in general.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public final class TaskDeploymentDescriptor implements IOReadableWritable {
+public final class TaskDeploymentDescriptor implements KryoSerializable {
 
 	/**
 	 * The ID of the job the tasks belongs to.
@@ -88,12 +89,12 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	/**
 	 * The list of output gate deployment descriptors.
 	 */
-	private final SerializableArrayList<GateDeploymentDescriptor> outputGates;
+	private ArrayList<GateDeploymentDescriptor> outputGates;
 
 	/**
 	 * The list of input gate deployment descriptors.
 	 */
-	private final SerializableArrayList<GateDeploymentDescriptor> inputGates;
+	private ArrayList<GateDeploymentDescriptor> inputGates;
 
 	/**
 	 * Constructs a task deployment descriptor.
@@ -125,8 +126,8 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 			final int indexInSubtaskGroup, final int currentNumberOfSubtasks, final Configuration jobConfiguration,
 			final Configuration taskConfiguration, final CheckpointState initialCheckpointState,
 			final Class<? extends AbstractInvokable> invokableClass,
-			final SerializableArrayList<GateDeploymentDescriptor> outputGates,
-			final SerializableArrayList<GateDeploymentDescriptor> inputGates) {
+			final ArrayList<GateDeploymentDescriptor> outputGates,
+			final ArrayList<GateDeploymentDescriptor> inputGates) {
 
 		if (jobID == null) {
 			throw new IllegalArgumentException("Argument jobID must not be null");
@@ -194,49 +195,54 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		this.jobID = new JobID();
 		this.vertexID = new ExecutionVertexID();
 		this.taskName = null;
-		this.indexInSubtaskGroup = 0;
-		this.currentNumberOfSubtasks = 0;
-		this.jobConfiguration = new Configuration();
-		this.taskConfiguration = new Configuration();
-		this.initialCheckpointState = CheckpointState.NONE;
+		this.indexInSubtaskGroup = -1;
+		this.currentNumberOfSubtasks = -1;
+		this.jobConfiguration = null;
+		this.taskConfiguration = null;
+		this.initialCheckpointState = null;
 		this.invokableClass = null;
-		this.outputGates = new SerializableArrayList<GateDeploymentDescriptor>();
-		this.inputGates = new SerializableArrayList<GateDeploymentDescriptor>();
+		this.outputGates = null;
+		this.inputGates = null;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final Kryo kryo, final Output output) {
 
-		this.jobID.write(out);
-		this.vertexID.write(out);
-		StringRecord.writeString(out, this.taskName);
-		out.writeInt(this.indexInSubtaskGroup);
-		out.writeInt(this.currentNumberOfSubtasks);
-		EnumUtils.writeEnum(out, this.initialCheckpointState);
+		this.jobID.write(kryo, output);
+		this.vertexID.write(kryo, output);
+		output.writeString(this.taskName);
+		output.writeInt(this.indexInSubtaskGroup);
+		output.writeInt(this.currentNumberOfSubtasks);
+		EnumUtils.writeEnum(output, this.initialCheckpointState);
 
 		// Write out the names of the required jar files
-		final String[] requiredJarFiles = LibraryCacheManager.getRequiredJarFiles(this.jobID);
+		String[] requiredJarFiles = null;
+		try {
+			requiredJarFiles = LibraryCacheManager.getRequiredJarFiles(this.jobID);
+		} catch (IOException ioe) {
+			throw new RuntimeException(ioe);
+		}
 
-		out.writeInt(requiredJarFiles.length);
+		output.writeInt(requiredJarFiles.length);
 		for (int i = 0; i < requiredJarFiles.length; i++) {
-			StringRecord.writeString(out, requiredJarFiles[i]);
+			output.writeString(requiredJarFiles[i]);
 		}
 
 		// Write out the name of the invokable class
 		if (this.invokableClass == null) {
-			throw new IOException("this.invokableClass is null");
+			throw new RuntimeException("this.invokableClass is null");
 		}
 
-		StringRecord.writeString(out, this.invokableClass.getName());
+		output.writeString(this.invokableClass.getName());
 
-		this.jobConfiguration.write(out);
-		this.taskConfiguration.write(out);
+		this.jobConfiguration.write(kryo, output);
+		this.taskConfiguration.write(kryo, output);
 
-		this.outputGates.write(out);
-		this.inputGates.write(out);
+		kryo.writeObject(output, this.outputGates);
+		kryo.writeObject(output, this.inputGates);
 	}
 
 	/**
@@ -244,48 +250,57 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
-		this.jobID.read(in);
-		this.vertexID.read(in);
-		this.taskName = StringRecord.readString(in);
-		this.indexInSubtaskGroup = in.readInt();
-		this.currentNumberOfSubtasks = in.readInt();
-		this.initialCheckpointState = EnumUtils.readEnum(in, CheckpointState.class);
+		this.jobID.read(kryo, input);
+		this.vertexID.read(kryo, input);
+		this.taskName = input.readString();
+		this.indexInSubtaskGroup = input.readInt();
+		this.currentNumberOfSubtasks = input.readInt();
+		this.initialCheckpointState = EnumUtils.readEnum(input, CheckpointState.class);
 
 		// Read names of required jar files
-		final String[] requiredJarFiles = new String[in.readInt()];
+		final String[] requiredJarFiles = new String[input.readInt()];
 		for (int i = 0; i < requiredJarFiles.length; i++) {
-			requiredJarFiles[i] = StringRecord.readString(in);
+			requiredJarFiles[i] = input.readString();
 		}
 
 		// Now register data with the library manager
-		LibraryCacheManager.register(this.jobID, requiredJarFiles);
+		try {
+			LibraryCacheManager.register(this.jobID, requiredJarFiles);
+		} catch (IOException ioe) {
+			throw new RuntimeException(ioe);
+		}
 
 		// Get ClassLoader from Library Manager
-		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.jobID);
+		ClassLoader cl = null;
+		try {
+			cl = LibraryCacheManager.getClassLoader(this.jobID);
+		} catch (IOException ioe) {
+			throw new RuntimeException(ioe);
+		}
 
 		// Read the name of the invokable class;
-		final String invokableClassName = StringRecord.readString(in);
+		final String invokableClassName = input.readString();
 
 		if (invokableClassName == null) {
-			throw new IOException("invokableClassName is null");
+			throw new RuntimeException("invokableClassName is null");
 		}
 
 		try {
 			this.invokableClass = (Class<? extends AbstractInvokable>) Class.forName(invokableClassName, true, cl);
 		} catch (ClassNotFoundException cnfe) {
-			throw new IOException("Class " + invokableClassName + " not found in one of the supplied jar files: "
+			throw new RuntimeException("Class " + invokableClassName + " not found in one of the supplied jar files: "
 				+ StringUtils.stringifyException(cnfe));
 		}
 
 		this.jobConfiguration = new Configuration(cl);
-		this.jobConfiguration.read(in);
+		this.jobConfiguration.read(kryo, input);
 		this.taskConfiguration = new Configuration(cl);
-		this.taskConfiguration.read(in);
+		this.taskConfiguration.read(kryo, input);
 
-		this.outputGates.read(in);
-		this.inputGates.read(in);
+		this.outputGates = kryo.readObject(input, ArrayList.class);
+		this.inputGates = kryo.readObject(input, ArrayList.class);
 	}
 
 	/**

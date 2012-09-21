@@ -29,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.esotericsoftware.kryo.io.Input;
+
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileStatus;
@@ -618,7 +620,7 @@ public final class LibraryCacheManager {
 	 *         thrown if the library cache manager could not be instantiated or an error occurred while reading the
 	 *         library data from the input stream
 	 */
-	public static void addLibrary(final JobID jobID, final Path name, final long size, final DataInput in)
+	public static void addLibrary(final JobID jobID, final Path name, final int size, final Input in)
 			throws IOException {
 
 		final LibraryCacheManager lib = get();
@@ -640,7 +642,7 @@ public final class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if an error occurred while reading the library data from the input stream
 	 */
-	private void addLibraryInternal(final JobID jobID, final Path name, final long size, final DataInput in)
+	private void addLibraryInternal(final JobID jobID, final Path name, final int size, final Input in)
 			throws IOException {
 
 		if (size > (long) Integer.MAX_VALUE) {
@@ -648,8 +650,7 @@ public final class LibraryCacheManager {
 		}
 
 		// Map the entire jar file to memory
-		final byte[] buf = new byte[(int) size];
-		in.readFully(buf);
+		final byte[] buf = in.readBytes(size);
 
 		// Reset and calculate message digest from jar file
 		this.md.reset();

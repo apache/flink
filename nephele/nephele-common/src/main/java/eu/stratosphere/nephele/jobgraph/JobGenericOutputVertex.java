@@ -15,15 +15,16 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -39,7 +40,6 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 	 * The class of the output task.
 	 */
 	protected Class<? extends AbstractOutputTask> outputClass = null;
-
 
 	/**
 	 * Creates a new job file output vertex with the specified name.
@@ -80,7 +80,8 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 	/**
 	 * Sets the class of the vertex's output task.
 	 * 
-	 * @param outputClass The class of the vertex's output task.
+	 * @param outputClass
+	 *        The class of the vertex's output task.
 	 */
 	public void setOutputClass(Class<? extends AbstractOutputTask> outputClass) {
 		this.outputClass = outputClass;
@@ -99,31 +100,31 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
-		super.read(in);
+	public void read(final Kryo kryo, final Input input) {
+		super.read(kryo, input);
 
 		// Read class
-		boolean isNotNull = in.readBoolean();
+		boolean isNotNull = input.readBoolean();
 		if (isNotNull) {
 
 			// Read the name of the class and try to instantiate the class object
-			final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
-			if (cl == null) {
-				throw new IOException("Cannot find class loader for vertex " + getID());
+			ClassLoader cl = null;
+			try {
+				LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
+			} catch (IOException ioe) {
+				throw new RuntimeException(ioe);
 			}
 
 			// Read the name of the expected class
-			final String className = StringRecord.readString(in);
+			final String className = input.readString();
 
 			try {
 				this.outputClass = Class.forName(className, true, cl).asSubclass(AbstractOutputTask.class);
-			}
-			catch (ClassNotFoundException cnfe) {
-				throw new IOException("Class " + className + " not found in one of the supplied jar files: "
+			} catch (ClassNotFoundException cnfe) {
+				throw new RuntimeException("Class " + className + " not found in one of the supplied jar files: "
 					+ StringUtils.stringifyException(cnfe));
-			}
-			catch (ClassCastException ccex) {
-				throw new IOException("Class " + className + " is not a subclass of "
+			} catch (ClassCastException ccex) {
+				throw new RuntimeException("Class " + className + " is not a subclass of "
 					+ AbstractOutputTask.class.getName() + ": " + StringUtils.stringifyException(ccex));
 			}
 		}
@@ -133,16 +134,16 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		super.write(out);
+	public void write(Kryo kryo, Output output) {
+		super.write(kryo, output);
 
 		// Write out the name of the class
 		if (this.outputClass == null) {
-			out.writeBoolean(false);
+			output.writeBoolean(false);
 		}
 		else {
-			out.writeBoolean(true);
-			StringRecord.writeString(out, this.outputClass.getName());
+			output.writeBoolean(true);
+			output.writeString(this.outputClass.getName());
 		}
 	}
 
@@ -156,12 +157,10 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 		// because this is user code running on the master, we embed it in a catch-all block
 		try {
 			invokable.checkConfiguration();
-		}
-		catch (IllegalConfigurationException icex) {
+		} catch (IllegalConfigurationException icex) {
 			throw icex; // simply forward
-		}
-		catch (Throwable t) {
-			throw new IllegalConfigurationException("Checking the invokable's configuration caused an error: " 
+		} catch (Throwable t) {
+			throw new IllegalConfigurationException("Checking the invokable's configuration caused an error: "
 				+ StringUtils.stringifyException(t));
 		}
 	}

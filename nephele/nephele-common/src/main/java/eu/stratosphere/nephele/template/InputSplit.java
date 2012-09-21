@@ -15,14 +15,12 @@
 
 package eu.stratosphere.nephele.template;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-
 /**
  * This interface must be implemented by all kind of input splits that can be assigned to Nephele's input vertices.
  * 
  * @author warneke
  */
-public interface InputSplit extends IOReadableWritable {
+public interface InputSplit {
 	/**
 	 * Returns the number of this input split.
 	 * 

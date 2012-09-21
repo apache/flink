@@ -15,14 +15,9 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
 
 /**
  * An abstract event is transmitted from the job manager to the
@@ -30,7 +25,7 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  * 
  * @author warneke
  */
-public abstract class AbstractEvent implements IOReadableWritable {
+public abstract class AbstractEvent {
 
 	/**
 	 * Static variable that points to the current global sequence number
@@ -73,28 +68,6 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 * supposed to be called directly.
 	 */
 	public AbstractEvent() {
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		// Read the timestamp
-		this.timestamp = in.readLong();
-		this.sequenceNumber = in.readLong();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		// Write the timestamp
-		out.writeLong(this.timestamp);
-		out.writeLong(this.sequenceNumber);
 	}
 
 	/**

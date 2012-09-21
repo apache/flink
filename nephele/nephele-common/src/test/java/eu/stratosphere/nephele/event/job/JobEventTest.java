@@ -17,9 +17,6 @@ package eu.stratosphere.nephele.event.job;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.IOException;
 
 import org.junit.Test;
 
@@ -42,19 +39,13 @@ public class JobEventTest {
 	@Test
 	public void testJobEvent() {
 
-		try {
+		final JobEvent orig = new JobEvent(1234567L, JobStatus.FINISHED, null);
+		final JobEvent copy = (JobEvent) CommonTestUtils.createCopy(orig);
 
-			final JobEvent orig = new JobEvent(1234567L, JobStatus.FINISHED, null);
-			final JobEvent copy = (JobEvent) CommonTestUtils.createCopy(orig);
-
-			assertEquals(orig.getTimestamp(), copy.getTimestamp());
-			assertEquals(orig.getCurrentJobStatus(), copy.getCurrentJobStatus());
-			assertEquals(orig.hashCode(), copy.hashCode());
-			assertTrue(orig.equals(copy));
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
+		assertEquals(orig.getTimestamp(), copy.getTimestamp());
+		assertEquals(orig.getCurrentJobStatus(), copy.getCurrentJobStatus());
+		assertEquals(orig.hashCode(), copy.hashCode());
+		assertTrue(orig.equals(copy));
 	}
 
 	/**
@@ -63,24 +54,18 @@ public class JobEventTest {
 	@Test
 	public void testVertexEvent() {
 
-		try {
+		final VertexEvent orig = new VertexEvent(23423423L, new JobVertexID(), "Test Vertex", 2, 0,
+			ExecutionState.READY, "Test Description");
+		final VertexEvent copy = (VertexEvent) CommonTestUtils.createCopy(orig);
 
-			final VertexEvent orig = new VertexEvent(23423423L, new JobVertexID(), "Test Vertex", 2, 0,
-				ExecutionState.READY, "Test Description");
-			final VertexEvent copy = (VertexEvent) CommonTestUtils.createCopy(orig);
-
-			assertEquals(orig.getTimestamp(), copy.getTimestamp());
-			assertEquals(orig.getJobVertexID(), copy.getJobVertexID());
-			assertEquals(orig.getJobVertexName(), copy.getJobVertexName());
-			assertEquals(orig.getTotalNumberOfSubtasks(), copy.getTotalNumberOfSubtasks());
-			assertEquals(orig.getIndexOfSubtask(), copy.getIndexOfSubtask());
-			assertEquals(orig.getCurrentExecutionState(), copy.getCurrentExecutionState());
-			assertEquals(orig.getDescription(), copy.getDescription());
-			assertEquals(orig.hashCode(), copy.hashCode());
-			assertTrue(orig.equals(copy));
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
+		assertEquals(orig.getTimestamp(), copy.getTimestamp());
+		assertEquals(orig.getJobVertexID(), copy.getJobVertexID());
+		assertEquals(orig.getJobVertexName(), copy.getJobVertexName());
+		assertEquals(orig.getTotalNumberOfSubtasks(), copy.getTotalNumberOfSubtasks());
+		assertEquals(orig.getIndexOfSubtask(), copy.getIndexOfSubtask());
+		assertEquals(orig.getCurrentExecutionState(), copy.getCurrentExecutionState());
+		assertEquals(orig.getDescription(), copy.getDescription());
+		assertEquals(orig.hashCode(), copy.hashCode());
+		assertTrue(orig.equals(copy));
 	}
 }

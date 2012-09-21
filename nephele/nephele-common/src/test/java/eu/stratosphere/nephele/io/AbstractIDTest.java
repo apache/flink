@@ -17,8 +17,6 @@ package eu.stratosphere.nephele.io;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -52,14 +50,9 @@ public class AbstractIDTest {
 	public void testSerialization() {
 
 		final ChannelID origID = new ChannelID();
-		try {
-			final ChannelID copyID = (ChannelID) CommonTestUtils.createCopy(origID);
+		final ChannelID copyID = (ChannelID) CommonTestUtils.createCopy(origID);
 
-			assertEquals(origID.hashCode(), copyID.hashCode());
-			assertEquals(origID, copyID);
-
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		assertEquals(origID.hashCode(), copyID.hashCode());
+		assertEquals(origID, copyID);
 	}
 }

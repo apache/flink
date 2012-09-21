@@ -15,13 +15,8 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * An {@link ExecutionStateChangeEvent} can be used to notify other objects about an execution state change of a vertex.
@@ -33,12 +28,12 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	/**
 	 * The ID identifies the vertex this events refers to.
 	 */
-	private ManagementVertexID managementVertexID;
+	private final ManagementVertexID managementVertexID;
 
 	/**
 	 * The new execution state of the vertex this event refers to.
 	 */
-	private ExecutionState newExecutionState;
+	private final ExecutionState newExecutionState;
 
 	/**
 	 * Constructs a new vertex event object.
@@ -63,10 +58,8 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	 * to be called directly.
 	 */
 	public ExecutionStateChangeEvent() {
-		super();
-
-		this.managementVertexID = new ManagementVertexID();
-		this.newExecutionState = ExecutionState.CREATED;
+		this.managementVertexID = null;
+		this.newExecutionState = null;
 	}
 
 	/**
@@ -85,30 +78,6 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	 */
 	public ExecutionState getNewExecutionState() {
 		return this.newExecutionState;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		super.read(in);
-
-		this.managementVertexID.read(in);
-		this.newExecutionState = EnumUtils.readEnum(in, ExecutionState.class);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		super.write(out);
-
-		this.managementVertexID.write(out);
-		EnumUtils.writeEnum(out, this.newExecutionState);
 	}
 
 	/**

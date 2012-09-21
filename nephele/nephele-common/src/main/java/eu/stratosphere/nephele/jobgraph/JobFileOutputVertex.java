@@ -15,10 +15,12 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -122,31 +124,22 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
+	public void read(final Kryo kryo, final Input input) {
+		super.read(kryo, input);
 
 		// Read path of the input file
-		boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			this.path = new Path();
-			this.path.read(in);
-		}
+		this.path = kryo.readObjectOrNull(input, Path.class);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
+	public void write(final Kryo kryo, final Output output) {
+		super.write(kryo, output);
 
 		// Write out the path of the input file
-		if (this.path == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			this.path.write(out);
-		}
+		kryo.writeObjectOrNull(output, this.path, Path.class);
 	}
 
 	/**

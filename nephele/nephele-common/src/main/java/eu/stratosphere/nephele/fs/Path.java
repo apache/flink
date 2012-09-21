@@ -21,21 +21,15 @@
 
 package eu.stratosphere.nephele.fs;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * Names a file or directory in a {@link FileSystem}. Path strings use slash as
  * the directory separator. A path string is absolute if it begins with a slash.
  */
-public class Path implements IOReadableWritable {
+public final class Path {
 
 	/**
 	 * The directory separator, a slash.
@@ -454,51 +448,5 @@ public class Path implements IOReadableWritable {
 		}
 
 		return new Path(scheme + ":" + "//" + authority + pathUri.getPath());
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		final boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			final String scheme = StringRecord.readString(in);
-			final String userInfo = StringRecord.readString(in);
-			final String host = StringRecord.readString(in);
-			final int port = in.readInt();
-			final String path = StringRecord.readString(in);
-			final String query = StringRecord.readString(in);
-			final String fragment = StringRecord.readString(in);
-
-			try {
-				uri = new URI(scheme, userInfo, host, port, path, query, fragment);
-			} catch (URISyntaxException e) {
-				throw new IOException("Error reconstructing URI: " + StringUtils.stringifyException(e));
-			}
-
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		if (uri == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			StringRecord.writeString(out, uri.getScheme());
-			StringRecord.writeString(out, uri.getUserInfo());
-			StringRecord.writeString(out, uri.getHost());
-			out.writeInt(uri.getPort());
-			StringRecord.writeString(out, uri.getPath());
-			StringRecord.writeString(out, uri.getQuery());
-			StringRecord.writeString(out, uri.getFragment());
-		}
-
 	}
 }

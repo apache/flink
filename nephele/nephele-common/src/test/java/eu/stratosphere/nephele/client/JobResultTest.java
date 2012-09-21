@@ -17,9 +17,8 @@ package eu.stratosphere.nephele.client;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
-import java.io.IOException;
+import java.util.ArrayList;
 
 import org.junit.Test;
 
@@ -28,7 +27,6 @@ import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.util.CommonTestUtils;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * This class contains test concerning all classes which are derived from {@link AbstractJobResult}.
@@ -50,17 +48,11 @@ public class JobResultTest {
 
 		final JobCancelResult orig = new JobCancelResult(ReturnCode.SUCCESS, SAMPLE_DESCRIPTION);
 
-		try {
-
-			final JobCancelResult copy = (JobCancelResult) CommonTestUtils.createCopy(orig);
-			assertEquals(orig.getReturnCode(), copy.getReturnCode());
-			assertEquals(orig.getDescription(), copy.getDescription());
-			assertEquals(orig.hashCode(), copy.hashCode());
-			assertTrue(orig.equals(copy));
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
+		final JobCancelResult copy = (JobCancelResult) CommonTestUtils.createCopy(orig);
+		assertEquals(orig.getReturnCode(), copy.getReturnCode());
+		assertEquals(orig.getDescription(), copy.getDescription());
+		assertEquals(orig.hashCode(), copy.hashCode());
+		assertTrue(orig.equals(copy));
 	}
 
 	/**
@@ -69,21 +61,15 @@ public class JobResultTest {
 	@Test
 	public void testJobProgressResult() {
 
-		final SerializableArrayList<AbstractEvent> events = new SerializableArrayList<AbstractEvent>();
+		final ArrayList<AbstractEvent> events = new ArrayList<AbstractEvent>();
 		events.add(new JobEvent(123456L, JobStatus.FAILED, SAMPLE_DESCRIPTION));
 		final JobProgressResult orig = new JobProgressResult(ReturnCode.ERROR, null, events);
 
-		try {
-
-			final JobProgressResult copy = (JobProgressResult) CommonTestUtils.createCopy(orig);
-			assertEquals(orig.getReturnCode(), copy.getReturnCode());
-			assertEquals(orig.getDescription(), copy.getDescription());
-			assertEquals(orig.hashCode(), copy.hashCode());
-			assertTrue(orig.equals(copy));
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
+		final JobProgressResult copy = (JobProgressResult) CommonTestUtils.createCopy(orig);
+		assertEquals(orig.getReturnCode(), copy.getReturnCode());
+		assertEquals(orig.getDescription(), copy.getDescription());
+		assertEquals(orig.hashCode(), copy.hashCode());
+		assertTrue(orig.equals(copy));
 	}
 
 	/**
@@ -94,16 +80,10 @@ public class JobResultTest {
 
 		final JobSubmissionResult orig = new JobSubmissionResult(ReturnCode.SUCCESS, SAMPLE_DESCRIPTION);
 
-		try {
-
-			final JobSubmissionResult copy = (JobSubmissionResult) CommonTestUtils.createCopy(orig);
-			assertEquals(orig.getReturnCode(), copy.getReturnCode());
-			assertEquals(orig.getDescription(), copy.getDescription());
-			assertEquals(orig.hashCode(), copy.hashCode());
-			assertTrue(orig.equals(copy));
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
+		final JobSubmissionResult copy = (JobSubmissionResult) CommonTestUtils.createCopy(orig);
+		assertEquals(orig.getReturnCode(), copy.getReturnCode());
+		assertEquals(orig.getDescription(), copy.getDescription());
+		assertEquals(orig.hashCode(), copy.hashCode());
+		assertTrue(orig.equals(copy));
 	}
 }

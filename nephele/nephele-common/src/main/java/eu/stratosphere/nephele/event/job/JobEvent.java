@@ -15,13 +15,7 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * A job event object is used by the job manager to inform a client about
@@ -67,34 +61,6 @@ public class JobEvent extends AbstractEvent {
 		super();
 
 		this.currentJobStatus = JobStatus.SCHEDULED;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
-
-		// Read job status
-		this.currentJobStatus = EnumUtils.readEnum(in, JobStatus.class);
-
-		// Read optional message
-		this.optionalMessage = StringRecord.readString(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
-
-		// Write job status
-		EnumUtils.writeEnum(out, this.currentJobStatus);
-
-		// Write optional message
-		StringRecord.writeString(out, this.optionalMessage);
 	}
 
 	/**

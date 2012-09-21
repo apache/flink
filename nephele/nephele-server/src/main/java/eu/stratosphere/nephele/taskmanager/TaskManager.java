@@ -84,7 +84,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ByteBufferedChannelManag
 import eu.stratosphere.nephele.taskmanager.bytebuffered.InsufficientResourcesException;
 import eu.stratosphere.nephele.taskmanager.runtime.EnvelopeConsumptionLog;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -506,7 +505,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	@Override
 	public List<TaskSubmissionResult> submitTasks(final List<TaskDeploymentDescriptor> tasks) throws IOException {
 
-		final List<TaskSubmissionResult> submissionResultList = new SerializableArrayList<TaskSubmissionResult>();
+		final List<TaskSubmissionResult> submissionResultList = new ArrayList<TaskSubmissionResult>();
 		final List<Task> tasksToStart = new ArrayList<Task>();
 
 		// Make sure all tasks are fully registered before they are started

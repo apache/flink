@@ -19,6 +19,11 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -27,7 +32,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public abstract class AbstractID implements IOReadableWritable {
+public abstract class AbstractID implements IOReadableWritable, KryoSerializable {
 
 	/**
 	 * The size of a long in bytes.
@@ -170,6 +175,24 @@ public abstract class AbstractID implements IOReadableWritable {
 
 		out.writeLong(this.lowerPart);
 		out.writeLong(this.upperPart);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void write(final Kryo kryo, final Output output) {
+		output.writeLong(this.lowerPart);
+		output.writeLong(this.upperPart);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void read(final Kryo kryo, final Input input) {
+		this.lowerPart = input.readLong();
+		this.upperPart = input.readLong();
 	}
 
 	/**

@@ -15,20 +15,21 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -37,7 +38,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public abstract class AbstractJobVertex implements IOReadableWritable {
+public abstract class AbstractJobVertex implements KryoSerializable {
 
 	/**
 	 * List of outgoing edges.
@@ -360,32 +361,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns the index of the edge which is used to connect the given job vertex to this job vertex.
-	 * 
-	 * @param jv
-	 *        the connected job vertex
-	 * @return the index of the edge which is used to connect the given job vertex to this job vertex or -1 if the given
-	 *         vertex is not connected to this job vertex
-	 */
-	/*
-	 * public int getBackwardConnectionIndex(AbstractJobVertex jv) {
-	 * if(jv == null) {
-	 * return -1;
-	 * }
-	 * final Iterator<JobEdge> it = this.backwardEdges.iterator();
-	 * int i = 0;
-	 * while(it.hasNext()) {
-	 * final JobEdge edge = it.next();
-	 * if(edge.getConnectedVertex() == jv) {
-	 * return i;
-	 * }
-	 * i++;
-	 * }
-	 * return -1;
-	 * }
-	 */
-
-	/**
 	 * Returns the ID of this job vertex.
 	 * 
 	 * @return the ID of this job vertex
@@ -397,70 +372,132 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	/**
 	 * {@inheritDoc}
 	 */
+	@Override
+	public void write(final Kryo kryo, final Output output) {
+
+		// Instance type
+		output.writeString(this.instanceType);
+
+		// Number of subtasks
+		output.writeInt(this.numberOfSubtasks);
+
+		// Number of subtasks per instance
+		output.writeInt(this.numberOfSubtasksPerInstance);
+
+		// Number of execution retries
+		output.writeInt(this.numberOfExecutionRetries);
+
+		// Vertex to share instance with
+		if (this.vertexToShareInstancesWith != null) {
+			output.writeBoolean(true);
+			this.vertexToShareInstancesWith.getID().write(kryo, output);
+		} else {
+			output.writeBoolean(false);
+		}
+
+		// Write the configuration
+		this.configuration.write(kryo, output);
+
+		// We ignore the backward edges and connect them when we reconstruct the graph on the remote side, only write
+		// number of forward edges
+		output.writeInt(this.forwardEdges.size());
+
+		// Now output the IDs of the vertices this vertex is connected to
+		for (int i = 0; i < this.forwardEdges.size(); i++) {
+			final JobEdge edge = this.forwardEdges.get(i);
+			if (edge == null) {
+				output.writeBoolean(false);
+			} else {
+				output.writeBoolean(true);
+				edge.getConnectedVertex().getID().write(kryo, output);
+				EnumUtils.writeEnum(output, edge.getChannelType());
+				EnumUtils.writeEnum(output, edge.getCompressionLevel());
+				EnumUtils.writeEnum(output, edge.getDistributionPattern());
+				output.writeInt(edge.getIndexOfInputGate());
+			}
+		}
+
+		// Write the invokable class
+		if (this.invokableClass == null) {
+			output.writeBoolean(false);
+			return;
+		}
+
+		output.writeBoolean(true);
+
+		// Write out the name of the class
+		output.writeString(this.invokableClass.getName());
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
 		if (jobGraph == null) {
-			throw new IOException("jobGraph is null, cannot deserialize");
+			throw new IllegalStateException("jobGraph is null, cannot deserialize");
 		}
 
 		// Read instance type
-		this.instanceType = StringRecord.readString(in);
+		this.instanceType = input.readString();
 
 		// Read number of subtasks
-		this.numberOfSubtasks = in.readInt();
+		this.numberOfSubtasks = input.readInt();
 
 		// Read number of subtasks per instance
-		this.numberOfSubtasksPerInstance = in.readInt();
+		this.numberOfSubtasksPerInstance = input.readInt();
 
 		// Number of execution retries
-		this.numberOfExecutionRetries = in.readInt();
+		this.numberOfExecutionRetries = input.readInt();
 
 		// Read vertex to share instances with
-		if (in.readBoolean()) {
+		if (input.readBoolean()) {
 			final JobVertexID id = new JobVertexID();
-			id.read(in);
+			id.read(kryo, input);
 			final AbstractJobVertex vertexToShareInstancesWith = this.jobGraph.findVertexByID(id);
 			if (vertexToShareInstancesWith == null) {
-				throw new IOException("Cannot find vertex with id " + id + " share instances with");
+				throw new IllegalStateException("Cannot find vertex with id " + id + " share instances with");
 			}
 
 			this.vertexToShareInstancesWith = vertexToShareInstancesWith;
 		}
 
 		// Find the class loader for the job
-		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
-		if (cl == null) {
-			throw new IOException("Cannot find class loader for vertex " + getID());
+		ClassLoader cl = null;
+		try {
+			cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
+		} catch (IOException ioe) {
+			throw new RuntimeException("Error initializying class loader: " + StringUtils.stringifyException(ioe));
 		}
 
 		// Re-instantiate the configuration object with the correct class loader and read the configuration
 		this.configuration = new Configuration(cl);
-		this.configuration.read(in);
+		this.configuration.read(kryo, input);
 
 		// Read number of forward edges
-		final int numForwardEdges = in.readInt();
+		final int numForwardEdges = input.readInt();
 
 		// Now reconnect to other vertices via the reconstruction map
 		final JobVertexID tmpID = new JobVertexID();
 		for (int i = 0; i < numForwardEdges; i++) {
-			if (in.readBoolean()) {
-				tmpID.read(in);
+			if (input.readBoolean()) {
+				tmpID.read(kryo, input);
 				final AbstractJobVertex jv = jobGraph.findVertexByID(tmpID);
 				if (jv == null) {
-					throw new IOException("Cannot find vertex with id " + tmpID);
+					throw new IllegalStateException("Cannot find vertex with id " + tmpID);
 				}
 
-				final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-				final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-				final DistributionPattern distributionPattern = EnumUtils.readEnum(in, DistributionPattern.class);
-				final int indexOfInputGate = in.readInt();
+				final ChannelType channelType = EnumUtils.readEnum(input, ChannelType.class);
+				final CompressionLevel compressionLevel = EnumUtils.readEnum(input, CompressionLevel.class);
+				final DistributionPattern distributionPattern = EnumUtils.readEnum(input, DistributionPattern.class);
+				final int indexOfInputGate = input.readInt();
 
 				try {
 					this.connectTo(jv, channelType, compressionLevel, i, indexOfInputGate, distributionPattern);
 				} catch (JobGraphDefinitionException e) {
-					throw new IOException(StringUtils.stringifyException(e));
+					throw new IllegalStateException(StringUtils.stringifyException(e));
 				}
 			} else {
 				this.forwardEdges.add(null);
@@ -468,80 +505,20 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		}
 
 		// Read the invokable class
-		final boolean isNotNull = in.readBoolean();
+		final boolean isNotNull = input.readBoolean();
 		if (!isNotNull) {
 			return;
 		}
 
 		// Read the name of the expected class
-		final String className = StringRecord.readString(in);
+		final String className = input.readString();
 
 		try {
 			this.invokableClass = (Class<? extends AbstractInvokable>) Class.forName(className, true, cl);
 		} catch (ClassNotFoundException cnfe) {
-			throw new IOException("Class " + className + " not found in one of the supplied jar files: "
+			throw new RuntimeException("Class " + className + " not found in one of the supplied jar files: "
 				+ StringUtils.stringifyException(cnfe));
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		// Instance type
-		StringRecord.writeString(out, this.instanceType);
-
-		// Number of subtasks
-		out.writeInt(this.numberOfSubtasks);
-
-		// Number of subtasks per instance
-		out.writeInt(this.numberOfSubtasksPerInstance);
-
-		// Number of execution retries
-		out.writeInt(this.numberOfExecutionRetries);
-
-		// Vertex to share instance with
-		if (this.vertexToShareInstancesWith != null) {
-			out.writeBoolean(true);
-			this.vertexToShareInstancesWith.getID().write(out);
-		} else {
-			out.writeBoolean(false);
-		}
-
-		// Write the configuration
-		this.configuration.write(out);
-
-		// We ignore the backward edges and connect them when we reconstruct the graph on the remote side, only write
-		// number of forward edges
-		out.writeInt(this.forwardEdges.size());
-
-		// Now output the IDs of the vertices this vertex is connected to
-		for (int i = 0; i < this.forwardEdges.size(); i++) {
-			final JobEdge edge = this.forwardEdges.get(i);
-			if (edge == null) {
-				out.writeBoolean(false);
-			} else {
-				out.writeBoolean(true);
-				edge.getConnectedVertex().getID().write(out);
-				EnumUtils.writeEnum(out, edge.getChannelType());
-				EnumUtils.writeEnum(out, edge.getCompressionLevel());
-				EnumUtils.writeEnum(out, edge.getDistributionPattern());
-				out.writeInt(edge.getIndexOfInputGate());
-			}
-		}
-
-		// Write the invokable class
-		if (this.invokableClass == null) {
-			out.writeBoolean(false);
-			return;
-		}
-
-		out.writeBoolean(true);
-
-		// Write out the name of the class
-		StringRecord.writeString(out, this.invokableClass.getName());
 	}
 
 	/**

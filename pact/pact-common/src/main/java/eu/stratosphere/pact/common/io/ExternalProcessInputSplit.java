@@ -21,12 +21,8 @@
  */
 package eu.stratosphere.pact.common.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 
 import eu.stratosphere.nephele.template.GenericInputSplit;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.pact.common.generic.io.InputFormat;
 
 /**
@@ -43,10 +39,12 @@ import eu.stratosphere.pact.common.generic.io.InputFormat;
 public class ExternalProcessInputSplit extends GenericInputSplit {
 
 	// command to be executed for this input split
-	private String extProcessCommand;
+	private final String extProcessCommand;
 	
 	// default constructor for deserialization
-	public ExternalProcessInputSplit() { }
+	public ExternalProcessInputSplit() {
+		this.extProcessCommand = null;
+	}
 	
 	/**
 	 * Instanciates an ExternalProcessInputSplit
@@ -67,25 +65,4 @@ public class ExternalProcessInputSplit extends GenericInputSplit {
 	public String getExternalProcessCommand() {
 		return this.extProcessCommand;
 	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-		super.number = in.readInt();
-		this.extProcessCommand = StringRecord.readString(in);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-		out.writeInt(super.number);
-		StringRecord.writeString(out, this.extProcessCommand);
-	}
-
 }

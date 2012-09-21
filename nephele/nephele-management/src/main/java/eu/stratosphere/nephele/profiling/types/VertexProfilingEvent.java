@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.profiling.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
@@ -30,9 +26,9 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  */
 public abstract class VertexProfilingEvent extends ProfilingEvent {
 
-	private ManagementVertexID vertexID;
+	private final ManagementVertexID vertexID;
 
-	private int profilingInterval;
+	private final int profilingInterval;
 
 	public VertexProfilingEvent(ManagementVertexID vertexID, int profilingInterval, JobID jobID, long timestamp,
 			long profilingTimestamp) {
@@ -43,7 +39,8 @@ public abstract class VertexProfilingEvent extends ProfilingEvent {
 	}
 
 	public VertexProfilingEvent() {
-		super();
+		this.vertexID = null;
+		this.profilingInterval = -1;
 	}
 
 	/**
@@ -64,30 +61,6 @@ public abstract class VertexProfilingEvent extends ProfilingEvent {
 	 */
 	public int getProfilingInterval() {
 		return this.profilingInterval;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-		super.read(in);
-
-		this.vertexID = new ManagementVertexID();
-		this.vertexID.read(in);
-
-		this.profilingInterval = in.readInt();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-		super.write(out);
-
-		this.vertexID.write(out);
-		out.writeInt(this.profilingInterval);
 	}
 
 	/**

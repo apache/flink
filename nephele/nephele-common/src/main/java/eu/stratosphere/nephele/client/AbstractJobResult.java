@@ -15,14 +15,6 @@
 
 package eu.stratosphere.nephele.client;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
-
 /**
  * A <code>AbstractJobResult</code> is the super class of all results
  * to report the job operation. It contains a return code and an
@@ -30,7 +22,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * 
  * @author Alexander Stanik
  */
-public abstract class AbstractJobResult implements IOReadableWritable {
+public abstract class AbstractJobResult {
 
 	/**
 	 * The possible return codes for a job operation.
@@ -78,32 +70,6 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	 * for the deserialization process.
 	 */
 	public AbstractJobResult() {
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		// Read the return code
-		this.returnCode = EnumUtils.readEnum(in, ReturnCode.class);
-
-		// Read the description
-		this.description = StringRecord.readString(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		// Write the return code
-		EnumUtils.writeEnum(out, this.returnCode);
-
-		// Write the description
-		StringRecord.writeString(out, this.description);
 	}
 
 	/**

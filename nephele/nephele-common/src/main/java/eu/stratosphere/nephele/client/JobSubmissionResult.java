@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.client;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 /**
  * A <code>JobSubmissionResult</code> is used to report the results
  * of a job submission. It contains a return code and a description.
@@ -49,21 +45,4 @@ public class JobSubmissionResult extends AbstractJobResult {
 	public JobSubmissionResult() {
 		super();
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
-	}
-
 }

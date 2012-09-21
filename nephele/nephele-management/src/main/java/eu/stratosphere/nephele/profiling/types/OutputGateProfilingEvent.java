@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.profiling.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
@@ -35,12 +31,12 @@ public final class OutputGateProfilingEvent extends VertexProfilingEvent {
 	/**
 	 * The index of the output gate at the corresponding management vertex.
 	 */
-	private int gateIndex;
+	private final int gateIndex;
 
 	/**
 	 * Stores how often the output gate had exhausted one of its channels capacity during the last time period.
 	 */
-	private int channelCapacityExhausted;
+	private final int channelCapacityExhausted;
 
 	/**
 	 * Constructs a new output gate profiling event.
@@ -73,7 +69,8 @@ public final class OutputGateProfilingEvent extends VertexProfilingEvent {
 	 * Default constructor for the serialization/deserialization process. Should not be called for other purposes.
 	 */
 	public OutputGateProfilingEvent() {
-		super();
+		this.gateIndex = -1;
+		this.channelCapacityExhausted = -1;
 	}
 
 	/**
@@ -93,28 +90,6 @@ public final class OutputGateProfilingEvent extends VertexProfilingEvent {
 	 */
 	public int getChannelCapacityExhausted() {
 		return this.channelCapacityExhausted;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
-
-		this.gateIndex = in.readInt();
-		this.channelCapacityExhausted = in.readInt();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
-
-		out.writeInt(this.gateIndex);
-		out.writeInt(this.channelCapacityExhausted);
 	}
 
 	/**

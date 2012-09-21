@@ -15,18 +15,13 @@
 
 package eu.stratosphere.nephele.util;
 
-import static org.junit.Assert.fail;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 
+import com.esotericsoftware.kryo.Kryo;
+
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 
 /**
  * This class contains auxiliary methods for unit tests in the Nephele common module.
@@ -83,8 +78,7 @@ public class CommonTestUtils {
 	}
 
 	/**
-	 * Creates a copy of the given {@link IOReadableWritable} object by an in-memory serialization and subsequent
-	 * deserialization.
+	 * Creates a copy of the given object by an in-memory serialization and subsequent deserialization.
 	 * 
 	 * @param original
 	 *        the original object to be copied
@@ -92,49 +86,9 @@ public class CommonTestUtils {
 	 * @throws IOException
 	 *         thrown if an error occurs while creating the copy of the object
 	 */
-	@SuppressWarnings("unchecked")
-	public static <T extends IOReadableWritable> T createCopy(final T original) throws IOException {
+	public static <T> T createCopy(final T original) {
 
-		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		final DataOutputStream dos = new DataOutputStream(baos);
-
-		original.write(dos);
-
-		final String className = original.getClass().getName();
-		if (className == null) {
-			fail("Class name is null");
-		}
-
-		Class<T> clazz = null;
-
-		try {
-			clazz = (Class<T>) Class.forName(className);
-		} catch (ClassNotFoundException e) {
-			fail(e.getMessage());
-		}
-
-		if (clazz == null) {
-			fail("Cannot find class with name " + className);
-		}
-
-		T copy = null;
-		try {
-			copy = clazz.newInstance();
-		} catch (InstantiationException e) {
-			fail(e.getMessage());
-		} catch (IllegalAccessException e) {
-			fail(e.getMessage());
-		}
-
-		if (copy == null) {
-			fail("Copy of object of type " + className + " is null");
-		}
-
-		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		final DataInputStream dis = new DataInputStream(bais);
-
-		copy.read(dis);
-
-		return copy;
+		final Kryo kryo = new Kryo();
+		return (T) kryo.copy(original);
 	}
 }

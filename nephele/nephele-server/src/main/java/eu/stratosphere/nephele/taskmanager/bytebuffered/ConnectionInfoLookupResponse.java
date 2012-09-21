@@ -16,37 +16,36 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.util.EnumUtils;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
-public class ConnectionInfoLookupResponse implements IOReadableWritable {
+public class ConnectionInfoLookupResponse {
 
 	private enum ReturnCode {
 		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY, JOB_IS_ABORTING
 	};
 
 	// was request successful?
-	private ReturnCode returnCode;
+	private final ReturnCode returnCode;
 
 	/**
 	 * Contains next-hop instances, this instance must forward multicast transmissions to.
 	 */
-	private final SerializableArrayList<RemoteReceiver> remoteTargets = new SerializableArrayList<RemoteReceiver>();
+	private final ArrayList<RemoteReceiver> remoteTargets = new ArrayList<RemoteReceiver>();
 
 	/**
 	 * Contains local ChannelIDs, multicast packets must be forwarded to.
 	 */
-	private final SerializableArrayList<ChannelID> localTargets = new SerializableArrayList<ChannelID>();
+	private final ArrayList<ChannelID> localTargets = new ArrayList<ChannelID>();
+
+	public ConnectionInfoLookupResponse(final ReturnCode returnCode) {
+		this.returnCode = ReturnCode.NOT_FOUND;
+	}
 
 	public ConnectionInfoLookupResponse() {
-		this.returnCode = ReturnCode.NOT_FOUND;
+		this.returnCode = null;
 	}
 
 	public void addRemoteTarget(final RemoteReceiver remote) {
@@ -57,35 +56,12 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		this.localTargets.add(local);
 	}
 
-	private void setReturnCode(ReturnCode code) {
-		this.returnCode = code;
-	}
-
 	public List<RemoteReceiver> getRemoteTargets() {
 		return this.remoteTargets;
 	}
 
 	public List<ChannelID> getLocalTargets() {
 		return this.localTargets;
-	}
-
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		this.localTargets.read(in);
-		this.remoteTargets.read(in);
-
-		this.returnCode = EnumUtils.readEnum(in, ReturnCode.class);
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		this.localTargets.write(out);
-		this.remoteTargets.write(out);
-
-		EnumUtils.writeEnum(out, this.returnCode);
-
 	}
 
 	public boolean receiverNotFound() {
@@ -110,8 +86,8 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(final ChannelID targetChannelID) {
 
-		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
-		response.setReturnCode(ReturnCode.FOUND_AND_RECEIVER_READY);
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse(
+			ReturnCode.FOUND_AND_RECEIVER_READY);
 		response.addLocalTarget(targetChannelID);
 
 		return response;
@@ -119,8 +95,8 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(final RemoteReceiver remoteReceiver) {
 
-		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
-		response.setReturnCode(ReturnCode.FOUND_AND_RECEIVER_READY);
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse(
+			ReturnCode.FOUND_AND_RECEIVER_READY);
 		response.addRemoteTarget(remoteReceiver);
 
 		return response;
@@ -133,29 +109,27 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	 */
 	public static ConnectionInfoLookupResponse createReceiverFoundAndReady() {
 
-		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
-		response.setReturnCode(ReturnCode.FOUND_AND_RECEIVER_READY);
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse(
+			ReturnCode.FOUND_AND_RECEIVER_READY);
 
 		return response;
 	}
 
 	public static ConnectionInfoLookupResponse createReceiverNotFound() {
-		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
-		response.setReturnCode(ReturnCode.NOT_FOUND);
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse(ReturnCode.NOT_FOUND);
 
 		return response;
 	}
 
 	public static ConnectionInfoLookupResponse createReceiverNotReady() {
-		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
-		response.setReturnCode(ReturnCode.FOUND_BUT_RECEIVER_NOT_READY);
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse(
+			ReturnCode.FOUND_BUT_RECEIVER_NOT_READY);
 
 		return response;
 	}
 
 	public static ConnectionInfoLookupResponse createJobIsAborting() {
-		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse();
-		response.setReturnCode(ReturnCode.JOB_IS_ABORTING);
+		final ConnectionInfoLookupResponse response = new ConnectionInfoLookupResponse(ReturnCode.JOB_IS_ABORTING);
 
 		return response;
 	}

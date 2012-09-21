@@ -15,13 +15,10 @@
 
 package eu.stratosphere.nephele.client;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * A <code>JobProgressResult</code> is used to report the current progress
@@ -34,7 +31,7 @@ public class JobProgressResult extends AbstractJobResult {
 	/**
 	 * The list containing the events.
 	 */
-	private final SerializableArrayList<AbstractEvent> events;
+	private final ArrayList<AbstractEvent> events;
 
 	/**
 	 * Constructs a new job progress result object.
@@ -47,7 +44,7 @@ public class JobProgressResult extends AbstractJobResult {
 	 *        the job events to be transported within this object
 	 */
 	public JobProgressResult(final ReturnCode returnCode, final String description,
-			final SerializableArrayList<AbstractEvent> events) {
+			final ArrayList<AbstractEvent> events) {
 
 		super(returnCode, description);
 
@@ -60,27 +57,7 @@ public class JobProgressResult extends AbstractJobResult {
 	public JobProgressResult() {
 		super();
 
-		this.events = new SerializableArrayList<AbstractEvent>();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
-
-		this.events.read(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
-
-		this.events.write(out);
+		this.events = new ArrayList<AbstractEvent>();
 	}
 
 	/**
