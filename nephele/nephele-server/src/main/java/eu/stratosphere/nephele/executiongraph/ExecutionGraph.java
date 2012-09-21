@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
@@ -104,7 +105,14 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * The executor service to asynchronously perform update operations to this graph.
 	 */
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {		
+		@Override
+		public Thread newThread(Runnable r) {
+			final Thread thread = new Thread(r);
+			thread.setDaemon(true);
+			return thread;
+		}
+	});
 
 	/**
 	 * Index to the current execution stage.
