@@ -571,11 +571,11 @@ public class JobGraph implements KryoSerializable {
 			final Path jar = this.userJars.get(i);
 
 			// Write out the actual path
-			kryo.writeObject(out, jar);
+			jar.write(kryo, out);
 
 			// Write out the length of the file
 			final FileStatus file = fs.getFileStatus(jar);
-			out.writeLong(file.getLen());
+			out.writeInt((int) file.getLen());
 
 			// Now write the jar file
 			final FSDataInputStream inStream = fs.open(this.userJars.get(i));
@@ -608,7 +608,8 @@ public class JobGraph implements KryoSerializable {
 
 			for (int i = 0; i < numJars; i++) {
 
-				final Path p = kryo.readObject(input, Path.class);
+				final Path p = new Path();
+				p.read(kryo, input);
 				this.userJars.add(p);
 
 				// Read the size of the jar file
