@@ -117,7 +117,7 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		for (int index = 0; index < this.lastAggregators.size(); index++)
 			this.lastAggregators.set(index,
 				this.partials.get(index).getFunction().initialize(this.lastAggregators.get(index)));
-		for (final IJsonNode input : (ArrayNode) node)
+		for (final IJsonNode input : (IArrayNode) node)
 			for (int index = 0; index < this.partials.size(); index++) {
 				final AggregationExpression partial = this.partials.get(index);
 				final IJsonNode preprocessedValue =

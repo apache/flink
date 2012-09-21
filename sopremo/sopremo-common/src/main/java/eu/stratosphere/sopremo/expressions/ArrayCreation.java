@@ -43,6 +43,11 @@ public class ArrayCreation extends ContainerExpression {
 	public ArrayCreation(final List<EvaluationExpression> elements) {
 		this.elements = new ArrayList<EvaluationExpression>(elements);
 	}
+	
+	public ArrayCreation add(EvaluationExpression expression) {
+		this.elements.add(expression);
+		return this;
+	}
 
 	public int size() {
 		return this.elements.size();

@@ -39,6 +39,11 @@ public class AndExpression extends BooleanExpression {
 	public AndExpression(final List<? extends BooleanExpression> expressions) {
 		this.expressions = new ArrayList<BooleanExpression>(expressions);
 	}
+	
+	public AndExpression addExpression(final BooleanExpression expression) {
+		this.expressions.add(expression);
+		return this;
+	}
 
 	@Override
 	public boolean equals(final Object obj) {
