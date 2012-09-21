@@ -10,9 +10,10 @@ import eu.stratosphere.sopremo.operator.ElementaryOperator;
 import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonUtil;
@@ -33,9 +34,18 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		 */
 		private static final long serialVersionUID = -3340948936846733311L;
 
+		private StringBuilder builder = new StringBuilder();
+		
 		@Override
 		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-			return TextNode.valueOf(String.format("%d_%d", ((ArrayNode) node).get(0), ((ArrayNode) node).get(1)));
+			final IArrayNode values = (IArrayNode) node;
+			TextNode textTarget = SopremoUtil.ensureType(target, TextNode.class);
+			this.builder.setLength(0);
+			this.builder.append(((INumericNode) values.get(0)).getIntValue());
+			this.builder.append('_');
+			this.builder.append(((INumericNode) values.get(1)).getIntValue());
+			textTarget.setValue(this.builder.toString());
+			return textTarget;
 		}
 
 		@Override
@@ -63,8 +73,11 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		 */
 		@Override
 		public IJsonNode evaluate(IJsonNode node, IJsonNode target, EvaluationContext context) {
-			return LongNode.valueOf((((LongNode) ((ArrayNode) node).get(0)).getLongValue() << 48)
-				+ ((LongNode) ((ArrayNode) node).get(1)).getLongValue());
+			final IArrayNode values = (IArrayNode) node;
+			LongNode longTarget = SopremoUtil.ensureType(target, LongNode.class);
+			longTarget.setValue((((INumericNode) values.get(0)).getLongValue() << 48)
+				+ ((INumericNode) values.get(1)).getLongValue());
+			return longTarget;
 		}
 	};
 
