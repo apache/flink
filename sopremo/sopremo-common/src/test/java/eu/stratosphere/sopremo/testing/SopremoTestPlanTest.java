@@ -326,11 +326,10 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			protected void reduce(final IArrayNode values, final JsonCollector out) {
 				final Iterator<IJsonNode> valueIterator = values.iterator();
 				final IObjectNode firstEntry = (IObjectNode) valueIterator.next();
-				final String word = ((TextNode) firstEntry.get("word")).getTextValue();
 				int sum = this.getCount(firstEntry);
 				while (valueIterator.hasNext())
 					sum += this.getCount((IObjectNode) valueIterator.next());
-				out.collect(JsonUtil.createObjectNode("word", TextNode.valueOf(word), "count", sum));
+				out.collect(JsonUtil.createObjectNode("word", firstEntry.get("word"), "count", sum));
 			}
 
 			protected int getCount(final IObjectNode entry) {

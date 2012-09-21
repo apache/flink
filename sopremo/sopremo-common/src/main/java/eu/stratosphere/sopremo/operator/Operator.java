@@ -98,7 +98,7 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	}
 
 	public abstract ElementarySopremoModule asElementaryOperators(EvaluationContext context);
-	
+
 	/**
 	 * Converts this operator to a {@link PactModule} using the provided {@link EvaluationContext}.
 	 * 
@@ -225,7 +225,11 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * @return the number of inputs
 	 */
 	public int getNumInputs() {
-		return this.inputs.size();
+		int numInputs = getMinInputs();
+		for (int index = numInputs; index < getMaxInputs() && index < this.inputs.size(); index++)
+			if (this.inputs.get(index) != null)
+				numInputs++;
+		return numInputs;
 	}
 
 	/**
@@ -234,9 +238,18 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 	 * @return the number of outputs
 	 */
 	public int getNumOutputs() {
-		return this.outputs.size();
+		int numOutputs = getMinOutputs();
+		for (int index = numOutputs; index < getMaxOutputs() && index < this.outputs.size(); index++)
+			if (this.outputs.get(index) != null)
+				numOutputs++;
+		return numOutputs;
 	}
 
+	/**
+	 * Returns the maxInputs.
+	 * 
+	 * @return the maxInputs
+	 */
 	public int getMaxInputs() {
 		return this.maxInputs;
 	}
@@ -246,8 +259,31 @@ public abstract class Operator<Self extends Operator<Self>> extends AbstractSopr
 		return this.getBeanInfo().getMethodDescriptors();
 	}
 
+	/**
+	 * Returns the minInputs.
+	 * 
+	 * @return the minInputs
+	 */
 	public int getMinInputs() {
 		return this.minInputs;
+	}
+
+	/**
+	 * Returns the minOutputs.
+	 * 
+	 * @return the minOutputs
+	 */
+	public int getMinOutputs() {
+		return this.minOutputs;
+	}
+
+	/**
+	 * Returns the maxOutputs.
+	 * 
+	 * @return the maxOutputs
+	 */
+	public int getMaxOutputs() {
+		return this.maxOutputs;
 	}
 
 	/**

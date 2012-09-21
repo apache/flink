@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.pact.common.plan.PactModule;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ISerializableSopremoType;
 import eu.stratosphere.sopremo.io.Sink;
@@ -176,9 +175,9 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> implem
 		
 		@Override
 		public void addImplementation(SopremoModule module, EvaluationContext context) {
-			module.inputNodes.addAll(inputNodes);
-			module.outputNodes.addAll(outputNodes);
-			module.internalOutputNodes.addAll(internalOutputNodes);
+			module.inputNodes.addAll(SopremoModule.this.inputNodes);
+			module.outputNodes.addAll(SopremoModule.this.outputNodes);
+			module.internalOutputNodes.addAll(SopremoModule.this.internalOutputNodes);
 		}
 	}
 
