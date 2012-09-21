@@ -19,6 +19,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
@@ -38,6 +39,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IPrimitiveNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.reflect.BoundType;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
@@ -497,8 +499,9 @@ public class SopremoUtil {
 		return byteArrayToSerializable(buffer, clazz, clazz.getClassLoader());
 	}
 
-	@SuppressWarnings("unchecked")
-	public static <T extends Serializable> T byteArrayToSerializable(byte[] buffer, Class<T> clazz, final ClassLoader classLoader)
+	@SuppressWarnings({ "unchecked", "unused" })
+	public static <T extends Serializable> T byteArrayToSerializable(byte[] buffer, Class<T> clazz,
+			final ClassLoader classLoader)
 			throws IOException {
 		final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(buffer)) {
 			/*
@@ -542,6 +545,22 @@ public class SopremoUtil {
 		} catch (IOException e) {
 			throw new IllegalStateException("IO exceptions should not occur locally", e);
 		}
+	}
+
+	private static ThreadLocal<Map<CharSequence, Pattern>> CACHED_PATTERN =
+		new ThreadLocal<Map<CharSequence, Pattern>>() {
+			@Override
+			protected Map<CharSequence, Pattern> initialValue() {
+				return new HashMap<CharSequence, Pattern>();
+			}
+		};
+
+	public static Pattern getPatternOf(TextNode node) {
+		final Map<CharSequence, Pattern> localCache = CACHED_PATTERN.get();
+		Pattern pattern = localCache.get(node);
+		if (pattern == null)
+			localCache.put(node, pattern = Pattern.compile(node.getJavaValue().toString()));
+		return pattern;
 	}
 
 }

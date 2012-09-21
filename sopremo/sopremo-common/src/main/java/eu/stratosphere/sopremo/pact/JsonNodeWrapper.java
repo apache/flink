@@ -147,8 +147,8 @@ public class JsonNodeWrapper extends AbstractJsonNode implements IJsonNode {
 	}
 
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		return this.value.toString(sb);
+	public void toString(final StringBuilder sb) {
+		this.value.toString(sb);
 	}
 
 	@Override

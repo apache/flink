@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.pact;
 
-import java.util.ArrayList;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -10,8 +9,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonUtil;
+import eu.stratosphere.sopremo.type.OneTimeArrayNode;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * An abstract implementation of the {@link CoGroupStub}. SopremoCoGroup provides the functionality to convert the
@@ -25,17 +24,9 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 
 	private RecordToJsonIterator cachedIterator1, cachedIterator2;
 
-	/**
-	 * This method must be implemented to provide a user implementation of a CoGroup.
-	 * 
-	 * @param values1
-	 *        an {@link IArrayNode} that holds all elements of the first input which were paired with the key
-	 * @param values2
-	 *        an {@link IArrayNode} that holds all elements of the second input which were paired with the key
-	 * @param out
-	 *        a collector that collects all output pairs
-	 */
-	protected abstract void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out);
+	private OneTimeArrayNode leftArray = new OneTimeArrayNode(), rightArray = new OneTimeArrayNode();
+
+	private boolean needsResettableIteratorLeft = false, needsResettableIteratorRight = false;
 
 	/*
 	 * (non-Javadoc)
@@ -49,27 +40,25 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 		this.collector.configure(out, this.context);
 		this.cachedIterator1.setIterator(records1);
 		this.cachedIterator2.setIterator(records2);
-		Iterator<IJsonNode> values1 = this.cachedIterator1;
-		Iterator<IJsonNode> values2 = this.cachedIterator2;
+
+		IArrayNode leftArray = this.needsResettableIteratorLeft ? new ArrayNode(this.leftArray) : this.leftArray;
+		IArrayNode rightArray = this.needsResettableIteratorRight ? new ArrayNode(this.rightArray) : this.rightArray;
+
 		if (SopremoUtil.LOG.isTraceEnabled()) {
-			final ArrayList<IJsonNode> cached1 = new ArrayList<IJsonNode>(), cached2 = new ArrayList<IJsonNode>();
-			while (values1.hasNext())
-				cached1.add(values1.next());
-			while (values2.hasNext())
-				cached2.add(values2.next());
+			if (!this.needsResettableIteratorLeft)
+				leftArray = new ArrayNode(leftArray);
+			if (!this.needsResettableIteratorRight)
+				rightArray = new ArrayNode(rightArray);
+
 			SopremoUtil.LOG.trace(String
-				.format("%s %s/%s", this.getContext().operatorTrace(), cached1, cached2));
-			values1 = cached1.iterator();
-			values2 = cached2.iterator();
+				.format("%s %s/%s", this.getContext().operatorTrace(), leftArray, rightArray));
 		}
 
-		final ArrayNode array1 = JsonUtil.wrapWithNode(this.needsResettableIterator(0, values1), values1);
-		final ArrayNode array2 = JsonUtil.wrapWithNode(this.needsResettableIterator(0, values2), values2);
 		try {
-			this.coGroup(array1, array2, this.collector);
+			this.coGroup(leftArray, rightArray, this.collector);
 		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with %s/%s: %s", this.getContext()
-				.operatorTrace(), array1, array2, e));
+				.operatorTrace(), leftArray, rightArray, e));
 			throw e;
 		}
 	}
@@ -88,14 +77,30 @@ public abstract class SopremoCoGroup extends CoGroupStub {
 		this.cachedIterator1 = new RecordToJsonIterator(this.context.getInputSchema(0));
 		this.cachedIterator2 = new RecordToJsonIterator(this.context.getInputSchema(1));
 		SopremoUtil.configureStub(this, parameters);
+		this.leftArray.setNodeIterator(this.cachedIterator1);
+		this.rightArray.setNodeIterator(this.cachedIterator2);
+		this.needsResettableIteratorLeft = needsResettableIterator(true);
+		this.needsResettableIteratorRight = needsResettableIterator(false);
 	}
+
+	/**
+	 * This method must be implemented to provide a user implementation of a CoGroup.
+	 * 
+	 * @param values1
+	 *        an {@link IArrayNode} that holds all elements of the first input which were paired with the key
+	 * @param values2
+	 *        an {@link IArrayNode} that holds all elements of the second input which were paired with the key
+	 * @param out
+	 *        a collector that collects all output pairs
+	 */
+	protected abstract void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out);
 
 	protected final EvaluationContext getContext() {
 		return this.context;
 	}
 
-	@SuppressWarnings("unused")
-	protected boolean needsResettableIterator(final int input, final Iterator<IJsonNode> values) {
-		return false;
+	protected boolean needsResettableIterator(final boolean left) {
+		final MultipassValues annotation = ReflectUtil.getAnnotation(getClass(), MultipassValues.class);
+		return left ? annotation.left() : annotation.right();
 	}
 }

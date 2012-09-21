@@ -116,7 +116,8 @@ public class TypeCoercer {
 			@Override
 			public IntNode coerce(final TextNode from, final IntNode target) {
 				try {
-					target.setValue(Integer.parseInt(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(Integer.parseInt(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;
@@ -127,7 +128,8 @@ public class TypeCoercer {
 			@Override
 			public DoubleNode coerce(final TextNode from, final DoubleNode target) {
 				try {
-					target.setValue(Double.parseDouble(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(Double.parseDouble(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;
@@ -138,7 +140,8 @@ public class TypeCoercer {
 			@Override
 			public LongNode coerce(final TextNode from, final LongNode target) {
 				try {
-					target.setValue(Long.parseLong(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(Long.parseLong(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;
@@ -149,7 +152,8 @@ public class TypeCoercer {
 			@Override
 			public DecimalNode coerce(final TextNode from, final DecimalNode target) {
 				try {
-					target.setValue(new BigDecimal(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(new BigDecimal(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;
@@ -160,7 +164,8 @@ public class TypeCoercer {
 			@Override
 			public BigIntegerNode coerce(final TextNode from, final BigIntegerNode target) {
 				try {
-					target.setValue(new BigInteger(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(new BigInteger(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;

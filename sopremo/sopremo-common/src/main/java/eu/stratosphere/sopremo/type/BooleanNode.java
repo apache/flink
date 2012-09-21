@@ -34,6 +34,14 @@ public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 		}
 
 		/* (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.type.AbstractJsonNode#copy()
+		 */
+		@Override
+		public UnmodifiableBoolean copy() {
+			return this;
+		}
+		
+		/* (non-Javadoc)
 		 * @see eu.stratosphere.sopremo.type.BooleanNode#copyValueFrom(eu.stratosphere.sopremo.type.IJsonNode)
 		 */
 		@Override
@@ -96,11 +104,6 @@ public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 	@Override
 	public IJsonNode clone() {
 		return this;
-	}
-
-	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		return this == TRUE ? sb.append("true") : sb.append("false");
 	}
 
 	@Override

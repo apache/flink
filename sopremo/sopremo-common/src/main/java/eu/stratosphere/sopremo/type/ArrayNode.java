@@ -170,21 +170,7 @@ public class ArrayNode extends AbstractArrayNode {
 	public void clear() {
 		this.children.clear();
 	}
-
-	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		sb.append('[');
-
-		for (int i = 0; i < this.children.size(); i++) {
-			if (i > 0)
-				sb.append(',');
-			this.children.get(i).toString(sb);
-		}
-
-		sb.append(']');
-		return sb;
-	}
-
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;

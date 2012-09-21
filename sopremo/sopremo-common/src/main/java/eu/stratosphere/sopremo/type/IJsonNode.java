@@ -17,10 +17,10 @@ package eu.stratosphere.sopremo.type;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.Serializable;
 
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.sopremo.ISerializableSopremoType;
 
 /**
  * Interface for all JsonNodes.
@@ -28,7 +28,7 @@ import eu.stratosphere.pact.common.type.Value;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public interface IJsonNode extends Serializable, Value, Key {
+public interface IJsonNode extends ISerializableSopremoType, Value, Key {
 	/**
 	 * This enumeration contains all possible types of JsonNode.
 	 * 
@@ -102,6 +102,13 @@ public interface IJsonNode extends Serializable, Value, Key {
 	public abstract void copyValueFrom(IJsonNode otherNode);
 
 	/**
+	 * Creates a new instance of this class and invokes {@link #copyValueFrom(IJsonNode)}.
+	 * 
+	 * @return a copy of this object
+	 */
+	public IJsonNode copy();
+
+	/**
 	 * Deserializes this node from a DataInput.
 	 * 
 	 * @param {@link DataInput} in
@@ -169,15 +176,6 @@ public interface IJsonNode extends Serializable, Value, Key {
 	 * @return result of the comparison
 	 */
 	public abstract int compareToSameType(IJsonNode other);
-
-	/**
-	 * Appends this nodes string representation to a given {@link StringBuilder}.
-	 * 
-	 * @param sb
-	 *        the StringBuilder
-	 * @return a StringBuilder where this nodes string representation is appended
-	 */
-	public abstract StringBuilder toString(StringBuilder sb);
 
 	public int getMaxNormalizedKeyLen();
 

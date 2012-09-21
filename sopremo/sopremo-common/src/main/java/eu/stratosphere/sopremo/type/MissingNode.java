@@ -38,8 +38,8 @@ public class MissingNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		return sb.append("<missing>");
+	public void toString(final StringBuilder sb) {
+		sb.append("<missing>");
 	}
 
 	@Override
@@ -84,8 +84,11 @@ public class MissingNode extends AbstractJsonNode implements IPrimitiveNode {
 		return Instance;
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.AbstractJsonNode#copy()
+	 */
 	@Override
-	public IJsonNode clone() {
+	public MissingNode copy() {
 		return this;
 	}
 

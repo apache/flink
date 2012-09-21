@@ -105,9 +105,8 @@ public class AppendableTextNode extends AbstractJsonNode implements Appendable {
 	}
 
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
+	public void toString(final StringBuilder sb) {
 		appendQuoted(sb, this.value.toString());
-		return sb;
 	}
 
 	/**

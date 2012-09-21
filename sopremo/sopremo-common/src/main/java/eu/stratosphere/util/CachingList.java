@@ -14,6 +14,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.util;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +27,12 @@ import java.util.List;
  * 
  * @author Arvid Heise
  */
-public class CachingList<T> extends AbstractList<T> {
+public class CachingList<T> extends AbstractList<T> implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3096573686030611189L;
+
 	private List<T> backingList = new ArrayList<T>();
 
 	private int size;
@@ -34,6 +43,15 @@ public class CachingList<T> extends AbstractList<T> {
 
 		this.size++;
 		this.backingList.add(index, element);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		this.backingList = (List<T>) ois.readObject();
+	}
+	
+	private void writeObject(ObjectOutputStream oos) throws IOException {
+		oos.writeObject(new ArrayList<T>(this.backingList.subList(0, this.size)));
 	}
 
 	/*

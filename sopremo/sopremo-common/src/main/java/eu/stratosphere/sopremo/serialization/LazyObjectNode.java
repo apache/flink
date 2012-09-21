@@ -249,7 +249,7 @@ public class LazyObjectNode extends AbstractObjectNode {
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
+	public void toString(final StringBuilder sb) {
 		sb.append('{');
 
 		int count = 0;
@@ -264,7 +264,6 @@ public class LazyObjectNode extends AbstractObjectNode {
 		}
 
 		sb.append('}');
-		return sb;
 	}
 
 	@Override

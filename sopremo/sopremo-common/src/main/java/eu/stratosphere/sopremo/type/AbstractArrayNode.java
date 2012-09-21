@@ -74,19 +74,21 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 		this.addAll(Arrays.asList(nodes));
 		return this;
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IArrayNode#contains(eu.stratosphere.sopremo.type.IJsonNode)
 	 */
 	@Override
 	public boolean contains(IJsonNode node) {
 		for (final IJsonNode element : this)
-			if(node.equals(element))
+			if (node.equals(element))
 				return true;
 		return false;
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IArrayNode#asCollection()
 	 */
 	@Override
@@ -100,7 +102,7 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 			@Override
 			public int size() {
 				return AbstractArrayNode.this.size();
-			}			
+			}
 		};
 	}
 
@@ -148,6 +150,25 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 		int i = 0;
 		for (final IJsonNode node : this)
 			result[i++] = node;
+	}
+
+	@Override
+	public int compareToSameType(final IJsonNode other) {
+		final IArrayNode node = (IArrayNode) other;
+		final Iterator<IJsonNode> entries1 = this.iterator(), entries2 = node.iterator();
+
+		while (entries1.hasNext() && entries2.hasNext()) {
+			final IJsonNode entry1 = entries1.next(), entry2 = entries2.next();
+			final int comparison = entry1.compareTo(entry2);
+			if (comparison != 0)
+				return comparison;
+		}
+
+		if (entries1.hasNext())
+			return 1;
+		if (entries2.hasNext())
+			return -1;
+		return 0;
 	}
 
 	/*

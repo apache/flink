@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.pact;
 
-import java.util.ArrayList;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -10,8 +9,8 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
-import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.JsonUtil;
+import eu.stratosphere.sopremo.type.OneTimeArrayNode;
+import eu.stratosphere.util.reflect.ReflectUtil;
 
 /**
  * An abstract implementation of the {@link ReduceStub}. SopremoReduce provides the functionality to convert the
@@ -24,6 +23,10 @@ public abstract class SopremoReduce extends ReduceStub {
 	private JsonCollector collector;
 
 	private RecordToJsonIterator cachedIterator;
+
+	private final OneTimeArrayNode array = new OneTimeArrayNode(this.cachedIterator);
+
+	private boolean needsResettableIterator = false;
 
 	/*
 	 * (non-Javadoc)
@@ -38,15 +41,16 @@ public abstract class SopremoReduce extends ReduceStub {
 		this.cachedIterator = new RecordToJsonIterator(this.context.getInputSchema(0));
 		this.collector = new JsonCollector(this.context.getOutputSchema(0));
 		SopremoUtil.configureStub(this, parameters);
+		this.array.setNodeIterator(this.cachedIterator);
+		this.needsResettableIterator = this.needsResettableIterator();
 	}
 
 	protected final EvaluationContext getContext() {
 		return this.context;
 	}
 
-	@SuppressWarnings("unused")
-	protected boolean needsResettableIterator(final Iterator<IJsonNode> values) {
-		return false;
+	protected boolean needsResettableIterator() {
+		return ReflectUtil.getAnnotation(getClass(), MultipassValues.class) != null;
 	}
 
 	/**
@@ -69,16 +73,13 @@ public abstract class SopremoReduce extends ReduceStub {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);
 		this.cachedIterator.setIterator(records);
-		Iterator<IJsonNode> values = this.cachedIterator;
-		if (SopremoUtil.LOG.isTraceEnabled()) {
-			final ArrayList<IJsonNode> cached = new ArrayList<IJsonNode>();
-			while (this.cachedIterator.hasNext())
-				cached.add(this.cachedIterator.next());
-			values = cached.iterator();
-			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), cached));
+		IArrayNode array = this.needsResettableIterator ? new ArrayNode(this.array) : this.array;
+		if (SopremoUtil.DEBUG && SopremoUtil.LOG.isTraceEnabled()) {
+			if(!this.needsResettableIterator)
+				array = new ArrayNode(array);
+			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), array));
 		}
 
-		final ArrayNode array = JsonUtil.wrapWithNode(this.needsResettableIterator(values), values);
 		try {
 			this.reduce(array, this.collector);
 		} catch (final RuntimeException e) {

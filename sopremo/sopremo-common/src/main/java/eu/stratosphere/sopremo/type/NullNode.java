@@ -40,8 +40,8 @@ public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		return sb.append("null");
+	public void toString(final StringBuilder sb) {
+		sb.append("null");
 	}
 
 	@Override
@@ -80,7 +80,7 @@ public class NullNode extends AbstractJsonNode implements IPrimitiveNode {
 	}
 
 	@Override
-	public IJsonNode clone() {
+	public NullNode copy() {
 		return this;
 	}
 

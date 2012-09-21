@@ -136,11 +136,6 @@ public class LongNode extends AbstractNumericNode implements INumericNode {
 		return this.value.toString();
 	}
 
-	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		return sb.append(this.value);
-	}
-
 	private void writeObject(final ObjectOutputStream out) throws IOException {
 		out.writeLong(this.value.getValue());
 	}

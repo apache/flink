@@ -658,6 +658,14 @@ public class SopremoTestPlan {
 		public String toString() {
 			return IteratorUtil.toString(this.iterator(), 10);
 		}
+		
+		public List<IJsonNode> getAllNodes() {
+			final ArrayList<IJsonNode> list = new ArrayList<IJsonNode>();
+			final Iterator<IJsonNode> iterator = iterator();
+			while(iterator.hasNext())
+				list.add(iterator.next().copy());
+			return list;
+		}
 	}
 
 	/**

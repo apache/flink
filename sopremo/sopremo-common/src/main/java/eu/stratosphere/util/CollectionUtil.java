@@ -78,4 +78,5 @@ public class CollectionUtil {
 			range.add(index);
 		return range;
 	}
+
 }

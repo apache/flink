@@ -59,11 +59,6 @@ public class DecimalNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		return sb.append(this.value);
-	}
-
-	@Override
 	public BigDecimal getJavaValue() {
 		return this.value;
 	}
@@ -160,11 +155,6 @@ public class DecimalNode extends AbstractNumericNode implements INumericNode {
 	@Override
 	public String getValueAsText() {
 		return this.value.toString();
-	}
-
-	@Override
-	public DecimalNode clone() {
-		return (DecimalNode) super.clone();
 	}
 
 	@Override
