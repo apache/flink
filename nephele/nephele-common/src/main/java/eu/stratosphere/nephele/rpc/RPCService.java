@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Timer;
@@ -43,6 +44,8 @@ public final class RPCService {
 	private final ConcurrentHashMap<Integer, RPCResponse> pendingResponses = new ConcurrentHashMap<Integer, RPCResponse>();
 
 	private final ConcurrentHashMap<Integer, CachedResponse> cachedResponses = new ConcurrentHashMap<Integer, CachedResponse>();
+
+	private final ConcurrentHashMap<MultiPacketInputStreamKey, MultiPacketInputStream> incompleteInputStreams = new ConcurrentHashMap<MultiPacketInputStreamKey, MultiPacketInputStream>();
 
 	private static final class CachedResponse {
 
@@ -96,6 +99,47 @@ public final class RPCService {
 		}
 	}
 
+	private static final class MultiPacketInputStreamKey {
+
+		private final SocketAddress socketAddress;
+
+		private final int requestID;
+
+		private MultiPacketInputStreamKey(final SocketAddress socketAddress, final int requestID) {
+			this.socketAddress = socketAddress;
+			this.requestID = requestID;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public boolean equals(final Object obj) {
+
+			if (!(obj instanceof MultiPacketInputStreamKey)) {
+				return false;
+			}
+
+			final MultiPacketInputStreamKey mpisk = (MultiPacketInputStreamKey) obj;
+
+			if (this.requestID != mpisk.requestID) {
+				return false;
+			}
+
+			if (!this.socketAddress.equals(mpisk.socketAddress)) {
+				return false;
+			}
+
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+
+			return this.socketAddress.hashCode() + this.requestID;
+		}
+	}
+
 	static Kryo createKryoObject() {
 
 		final Kryo kryo = new Kryo();
@@ -119,11 +163,11 @@ public final class RPCService {
 
 		this.cleanupTimer.schedule(new CleanupTask(), CLEANUP_INTERVAL, CLEANUP_INTERVAL);
 	}
-	
+
 	public RPCService() throws IOException {
 
 		this.rpcPort = -1;
-		
+
 		this.socket = new DatagramSocket();
 
 		this.senderThread = new SenderThread(this.socket);
@@ -134,8 +178,6 @@ public final class RPCService {
 
 		this.cleanupTimer.schedule(new CleanupTask(), CLEANUP_INTERVAL, CLEANUP_INTERVAL);
 	}
-	
-	
 
 	public void setProtocolCallbackHandler(final Class<? extends RPCProtocol> protocol,
 			final RPCProtocol callbackHandler) {
@@ -292,5 +334,26 @@ public final class RPCService {
 	public int getRPCPort() {
 
 		return this.rpcPort;
+	}
+
+	MultiPacketInputStream getIncompleteInputStream(final SocketAddress socketAddress, final int requestID,
+			final short numberOfPackets) {
+
+		final MultiPacketInputStreamKey key = new MultiPacketInputStreamKey(socketAddress, requestID);
+		MultiPacketInputStream mpis = this.incompleteInputStreams.get(key);
+		if (mpis == null) {
+			mpis = new MultiPacketInputStream(numberOfPackets);
+			MultiPacketInputStream oldVal = this.incompleteInputStreams.putIfAbsent(key, mpis);
+			if (oldVal != null) {
+				mpis = oldVal;
+			}
+		}
+
+		return mpis;
+	}
+
+	void removeIncompleteInputStream(final SocketAddress socketAddress, final int requestID) {
+
+		this.incompleteInputStreams.remove(new MultiPacketInputStreamKey(socketAddress, requestID));
 	}
 }

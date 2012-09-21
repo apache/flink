@@ -1,7 +1,6 @@
 package eu.stratosphere.nephele.rpc;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -11,6 +10,8 @@ import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.minlog.Log;
 
 final class SenderThread extends Thread {
+
+	private static final int SEND_BUFFER = 8192;
 
 	private final DatagramSocket socket;
 
@@ -40,8 +41,8 @@ final class SenderThread extends Thread {
 	public void run() {
 
 		final Kryo kryo = RPCService.createKryoObject();
-		final byte[] buf = new byte[RPCMessage.MAXIMUM_MSG_SIZE];
-		final MemoryBackedOutputStream mbos = new MemoryBackedOutputStream(buf);
+		final byte[] buf = new byte[SEND_BUFFER];
+		final MultiPacketOutputStream mbos = new MultiPacketOutputStream(buf);
 
 		while (!this.shutdownRequested) {
 
@@ -62,11 +63,9 @@ final class SenderThread extends Thread {
 			output.close();
 			mbos.close();
 
-			final DatagramPacket datagramPacket = new DatagramPacket(mbos.getBuf(), mbos.getLen());
-			datagramPacket.setSocketAddress(sendingRequest.remoteSocketAddress);
-
 			try {
-				this.socket.send(datagramPacket);
+				mbos.sendPackets(this.socket, sendingRequest.remoteSocketAddress,
+					sendingRequest.rpcMessage.getRequestID());
 			} catch (IOException ioe) {
 				Log.error("Shutting down sender thread due to error: ", ioe);
 				return;

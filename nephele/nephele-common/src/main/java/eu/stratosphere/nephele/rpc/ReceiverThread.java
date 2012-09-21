@@ -29,8 +29,8 @@ final class ReceiverThread extends Thread {
 	public void run() {
 
 		final Kryo kryo = RPCService.createKryoObject();
-		final byte[] buf = new byte[RPCMessage.MAXIMUM_MSG_SIZE];
-		final DatagramPacket dp = new DatagramPacket(buf, buf.length);
+		byte[] buf = new byte[RPCMessage.MAXIMUM_MSG_SIZE + RPCMessage.METADATA_SIZE];
+		DatagramPacket dp = new DatagramPacket(buf, buf.length);
 
 		while (!this.shutdownRequested) {
 
@@ -48,9 +48,30 @@ final class ReceiverThread extends Thread {
 			}
 
 			final InetSocketAddress remoteSocketAddress = (InetSocketAddress) dp.getSocketAddress();
-			final MemoryBackedInputStream mbis = new MemoryBackedInputStream(dp.getData(), dp.getOffset(),
-				dp.getLength());
-			final Input input = new Input(mbis);
+			final int length = dp.getLength() - RPCMessage.METADATA_SIZE;
+			final byte[] dbbuf = dp.getData();
+			final short numberOfPackets = byteArrayToShort(dbbuf, length + 2);
+			Input input = null;
+			if (numberOfPackets == 1) {
+				final SinglePacketInputStream spis = new SinglePacketInputStream(dbbuf, length);
+				input = new Input(spis);
+			} else {
+				final MultiPacketInputStream mpis = this.rpcService.getIncompleteInputStream(remoteSocketAddress, 0,
+					numberOfPackets);
+
+				mpis.addPacket(byteArrayToShort(dbbuf, length), dp);
+				if (!mpis.isComplete()) {
+					buf = new byte[RPCMessage.MAXIMUM_MSG_SIZE + RPCMessage.METADATA_SIZE];
+					dp = new DatagramPacket(buf, buf.length);
+					continue;
+				}
+
+				this.rpcService.removeIncompleteInputStream(remoteSocketAddress, 0);
+
+				System.out.println("Completed transfer");
+				continue;
+			}
+
 			final RPCEnvelope envelope = kryo.readObject(input, RPCEnvelope.class);
 			final RPCMessage msg = envelope.getRPCMessage();
 
@@ -82,5 +103,13 @@ final class ReceiverThread extends Thread {
 
 		this.shutdownRequested = true;
 		interrupt();
+	}
+
+	static short byteArrayToShort(final byte[] arr, final int offset) {
+
+		short val = arr[offset];
+		val += (0xFF00 & ((short) (arr[offset + 1]) << 8));
+
+		return val;
 	}
 }

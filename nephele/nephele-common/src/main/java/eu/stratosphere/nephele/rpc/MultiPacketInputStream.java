@@ -2,20 +2,29 @@ package eu.stratosphere.nephele.rpc;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.DatagramPacket;
 
-final class MemoryBackedInputStream extends InputStream {
+final class MultiPacketInputStream extends InputStream {
 
-	private final byte[] buf;
+	private final DatagramPacket[] packets;
 
-	private final int len;
+	MultiPacketInputStream(final short numberOfPackets) {
+		this.packets = new DatagramPacket[numberOfPackets];
+	}
 
-	private int read;
+	void addPacket(final short packetNumber, final DatagramPacket datagramPacket) {
+		this.packets[packetNumber] = datagramPacket;
+	}
 
-	MemoryBackedInputStream(final byte[] buf, final int off, final int len) {
+	boolean isComplete() {
 
-		this.buf = buf;
-		this.read = off;
-		this.len = len;
+		for (int i = 0; i < this.packets.length; ++i) {
+			if (this.packets[i] == null) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	@Override
@@ -86,5 +95,6 @@ final class MemoryBackedInputStream extends InputStream {
 		this.read += (int) n;
 
 		return n;
-	}
+	}**/
+
 }
