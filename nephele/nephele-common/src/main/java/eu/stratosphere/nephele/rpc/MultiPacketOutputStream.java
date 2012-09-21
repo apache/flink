@@ -3,7 +3,6 @@ package eu.stratosphere.nephele.rpc;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 
 final class MultiPacketOutputStream extends OutputStream {
@@ -59,7 +58,7 @@ final class MultiPacketOutputStream extends OutputStream {
 			}
 
 			final int amountOfDataToWrite = Math.min((len - written), (RPCMessage.MAXIMUM_MSG_SIZE - this.lenInPacket));
-			System.arraycopy(b, off, this.buf, this.totalLen, amountOfDataToWrite);
+			System.arraycopy(b, off + written, this.buf, this.totalLen, amountOfDataToWrite);
 			this.lenInPacket += amountOfDataToWrite;
 			this.totalLen += amountOfDataToWrite;
 			written += amountOfDataToWrite;
@@ -81,14 +80,16 @@ final class MultiPacketOutputStream extends OutputStream {
 		this.totalLen = 0;
 	}
 
-	void sendPackets(final DatagramSocket socket, final InetSocketAddress remoteAddress, final int requestID) throws IOException {
+	DatagramPacket[] createPackets(final InetSocketAddress remoteAddress, final int requestID) {
 
 		if (this.totalLen == 0) {
-			return;
+			return new DatagramPacket[0];
 		}
 
 		final int maximumPacketSize = RPCMessage.MAXIMUM_MSG_SIZE + RPCMessage.METADATA_SIZE;
 		final short numberOfPackets = (short) (this.totalLen / maximumPacketSize + 1);
+
+		final DatagramPacket[] packets = new DatagramPacket[numberOfPackets];
 
 		// Write meta data
 		for (short i = 0; i < numberOfPackets; ++i) {
@@ -109,9 +110,12 @@ final class MultiPacketOutputStream extends OutputStream {
 			} else {
 				packet = new DatagramPacket(this.buf, i * maximumPacketSize, maximumPacketSize);
 			}
+
 			packet.setSocketAddress(remoteAddress);
-			socket.send(packet);
+			packets[i] = packet;
 		}
+
+		return packets;
 	}
 
 	private static void shortToByteArray(final short val, final byte[] arr, final int offset) {

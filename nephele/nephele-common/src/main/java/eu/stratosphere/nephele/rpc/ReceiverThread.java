@@ -67,9 +67,7 @@ final class ReceiverThread extends Thread {
 				}
 
 				this.rpcService.removeIncompleteInputStream(remoteSocketAddress, 0);
-
-				System.out.println("Completed transfer");
-				continue;
+				input = new Input(mpis);
 			}
 
 			final RPCEnvelope envelope = kryo.readObject(input, RPCEnvelope.class);

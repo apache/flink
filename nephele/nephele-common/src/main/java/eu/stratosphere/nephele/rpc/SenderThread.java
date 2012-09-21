@@ -1,6 +1,7 @@
 package eu.stratosphere.nephele.rpc;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -63,9 +64,13 @@ final class SenderThread extends Thread {
 			output.close();
 			mbos.close();
 
+			final DatagramPacket[] packets = mbos.createPackets(sendingRequest.remoteSocketAddress,
+				sendingRequest.rpcMessage.getRequestID());
+
 			try {
-				mbos.sendPackets(this.socket, sendingRequest.remoteSocketAddress,
-					sendingRequest.rpcMessage.getRequestID());
+				for (int i = 0; i < packets.length; ++i) {
+					this.socket.send(packets[i]);
+				}
 			} catch (IOException ioe) {
 				Log.error("Shutting down sender thread due to error: ", ioe);
 				return;
