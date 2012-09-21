@@ -128,7 +128,7 @@ public class TestPlanTest {
 	 * 
 	 * @author Arvid Heise
 	 */
-	public static final class Join extends MatchStub {
+	public static final class TestJoin extends MatchStub {
 		/*
 		 * (non-Javadoc)
 		 * @see eu.stratosphere.pact.common.stubs.MatchStub#match(eu.stratosphere.pact.common.type.PactRecord,
@@ -424,7 +424,7 @@ public class TestPlanTest {
 	 */
 	@Test
 	public void matchShouldBeSupported() {
-		MatchContract crossContract = MatchContract.builder(Join.class, PactInteger.class, 0, 0)
+		MatchContract crossContract = MatchContract.builder(TestJoin.class, PactInteger.class, 0, 0)
 			.build();
 
 		TestPlan testPlan = new TestPlan(crossContract);
