@@ -15,7 +15,6 @@
 
 package eu.stratosphere.nephele.deployment;
 
-import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.GateID;
@@ -86,7 +85,7 @@ public final class GateDeploymentDescriptor {
 		this.gateID = gateID;
 		this.channelType = channelType;
 		this.compressionLevel = compressionLevel;
-		this.channels = Collections.unmodifiableList(channels);
+		this.channels = channels;
 	}
 
 	/**

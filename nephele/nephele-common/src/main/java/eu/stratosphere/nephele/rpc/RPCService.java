@@ -73,7 +73,7 @@ public final class RPCService {
 		@Override
 		public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
 
-			final int requestID = Integer.MIN_VALUE + (int) (Math.random() * (double) Integer.MAX_VALUE * 2.0);
+			final int requestID = (int) ((double) Integer.MIN_VALUE + (Math.random() * (double) Integer.MAX_VALUE * 2.0));
 			final RPCRequest rpcRequest = new RPCRequest(requestID, this.interfaceName, method, args);
 
 			return sendRPCRequest(this.remoteSocketAddress, rpcRequest);
@@ -103,11 +103,11 @@ public final class RPCService {
 
 		private final SocketAddress socketAddress;
 
-		private final int requestID;
+		private final short fragmentationID;
 
-		private MultiPacketInputStreamKey(final SocketAddress socketAddress, final int requestID) {
+		private MultiPacketInputStreamKey(final SocketAddress socketAddress, final short fragmentationID) {
 			this.socketAddress = socketAddress;
-			this.requestID = requestID;
+			this.fragmentationID = fragmentationID;
 		}
 
 		/**
@@ -122,7 +122,7 @@ public final class RPCService {
 
 			final MultiPacketInputStreamKey mpisk = (MultiPacketInputStreamKey) obj;
 
-			if (this.requestID != mpisk.requestID) {
+			if (this.fragmentationID != mpisk.fragmentationID) {
 				return false;
 			}
 
@@ -136,7 +136,7 @@ public final class RPCService {
 		@Override
 		public int hashCode() {
 
-			return this.socketAddress.hashCode() + this.requestID;
+			return this.socketAddress.hashCode() + this.fragmentationID;
 		}
 	}
 
@@ -336,10 +336,10 @@ public final class RPCService {
 		return this.rpcPort;
 	}
 
-	MultiPacketInputStream getIncompleteInputStream(final SocketAddress socketAddress, final int requestID,
+	MultiPacketInputStream getIncompleteInputStream(final SocketAddress socketAddress, final short fragmentationID,
 			final short numberOfPackets) {
 
-		final MultiPacketInputStreamKey key = new MultiPacketInputStreamKey(socketAddress, requestID);
+		final MultiPacketInputStreamKey key = new MultiPacketInputStreamKey(socketAddress, fragmentationID);
 		MultiPacketInputStream mpis = this.incompleteInputStreams.get(key);
 		if (mpis == null) {
 			mpis = new MultiPacketInputStream(numberOfPackets);
@@ -352,8 +352,8 @@ public final class RPCService {
 		return mpis;
 	}
 
-	void removeIncompleteInputStream(final SocketAddress socketAddress, final int requestID) {
+	void removeIncompleteInputStream(final SocketAddress socketAddress, final short fragmentationID) {
 
-		this.incompleteInputStreams.remove(new MultiPacketInputStreamKey(socketAddress, requestID));
+		this.incompleteInputStreams.remove(new MultiPacketInputStreamKey(socketAddress, fragmentationID));
 	}
 }

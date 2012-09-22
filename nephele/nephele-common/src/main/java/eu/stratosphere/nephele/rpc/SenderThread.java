@@ -41,7 +41,6 @@ final class SenderThread extends Thread {
 	@Override
 	public void run() {
 
-		final Kryo kryo = RPCService.createKryoObject();
 		final byte[] buf = new byte[SEND_BUFFER];
 		final MultiPacketOutputStream mbos = new MultiPacketOutputStream(buf);
 
@@ -60,12 +59,13 @@ final class SenderThread extends Thread {
 
 			mbos.reset();
 			final Output output = new Output(mbos);
+			final Kryo kryo = RPCService.createKryoObject();
+
 			kryo.writeObject(output, new RPCEnvelope(sendingRequest.rpcMessage));
 			output.close();
 			mbos.close();
 
-			final DatagramPacket[] packets = mbos.createPackets(sendingRequest.remoteSocketAddress,
-				sendingRequest.rpcMessage.getRequestID());
+			final DatagramPacket[] packets = mbos.createPackets(sendingRequest.remoteSocketAddress);
 
 			try {
 				for (int i = 0; i < packets.length; ++i) {

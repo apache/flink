@@ -111,6 +111,7 @@ import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
+import eu.stratosphere.nephele.protocols.JobManagementProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.rpc.RPCService;
@@ -224,9 +225,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			System.exit(FAILURERETURNCODE);
 		}
 		this.rpcService = rpcService;
-		
+
 		// Add callback handlers to the RPC service
 		this.rpcService.setProtocolCallbackHandler(JobManagerProtocol.class, this);
+		this.rpcService.setProtocolCallbackHandler(JobManagementProtocol.class, this);
+		this.rpcService.setProtocolCallbackHandler(ChannelLookupProtocol.class, this);
 
 		LOG.info("Starting job manager in " + executionMode + " mode");
 

@@ -28,7 +28,6 @@ final class ReceiverThread extends Thread {
 	@Override
 	public void run() {
 
-		final Kryo kryo = RPCService.createKryoObject();
 		byte[] buf = new byte[RPCMessage.MAXIMUM_MSG_SIZE + RPCMessage.METADATA_SIZE];
 		DatagramPacket dp = new DatagramPacket(buf, buf.length);
 
@@ -50,26 +49,31 @@ final class ReceiverThread extends Thread {
 			final InetSocketAddress remoteSocketAddress = (InetSocketAddress) dp.getSocketAddress();
 			final int length = dp.getLength() - RPCMessage.METADATA_SIZE;
 			final byte[] dbbuf = dp.getData();
+			final short packetIndex = byteArrayToShort(dbbuf, length);
 			final short numberOfPackets = byteArrayToShort(dbbuf, length + 2);
+			final short fragmentationID = byteArrayToShort(dbbuf, length + 4);
+			// System.out.println("RECEIVED PACKET " + packetIndex + "/" + numberOfPackets + " FROM REQUEST " +
+			// requestID);
 			Input input = null;
 			if (numberOfPackets == 1) {
 				final SinglePacketInputStream spis = new SinglePacketInputStream(dbbuf, length);
 				input = new Input(spis);
 			} else {
-				final MultiPacketInputStream mpis = this.rpcService.getIncompleteInputStream(remoteSocketAddress, 0,
-					numberOfPackets);
+				final MultiPacketInputStream mpis = this.rpcService.getIncompleteInputStream(remoteSocketAddress,
+					fragmentationID, numberOfPackets);
 
-				mpis.addPacket(byteArrayToShort(dbbuf, length), dp);
+				mpis.addPacket(packetIndex, dp);
 				if (!mpis.isComplete()) {
 					buf = new byte[RPCMessage.MAXIMUM_MSG_SIZE + RPCMessage.METADATA_SIZE];
 					dp = new DatagramPacket(buf, buf.length);
 					continue;
 				}
 
-				this.rpcService.removeIncompleteInputStream(remoteSocketAddress, 0);
+				this.rpcService.removeIncompleteInputStream(remoteSocketAddress, fragmentationID);
 				input = new Input(mpis);
 			}
 
+			final Kryo kryo = RPCService.createKryoObject();
 			final RPCEnvelope envelope = kryo.readObject(input, RPCEnvelope.class);
 			final RPCMessage msg = envelope.getRPCMessage();
 

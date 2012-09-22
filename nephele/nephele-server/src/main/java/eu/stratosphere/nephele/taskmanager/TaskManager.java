@@ -213,6 +213,9 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		}
 		this.rpcService = rpcService;
 
+		// Add callback handlers to the RPC service
+		this.rpcService.setProtocolCallbackHandler(TaskOperationProtocol.class, this);
+
 		LOG.info("Announcing connection information " + this.localInstanceConnectionInfo + " to job manager");
 
 		// Try to create local stub for the job manager

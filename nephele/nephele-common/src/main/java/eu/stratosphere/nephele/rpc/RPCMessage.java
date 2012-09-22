@@ -4,7 +4,7 @@ abstract class RPCMessage {
 
 	public static final int MAXIMUM_MSG_SIZE = 1020;
 
-	public static final int METADATA_SIZE = 4;
+	public static final int METADATA_SIZE = 6;
 	
 	private final int requestID;
 
