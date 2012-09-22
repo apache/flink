@@ -128,7 +128,7 @@ final class MultiPacketOutputStream extends OutputStream {
 
 	private static void shortToByteArray(final short val, final byte[] arr, final int offset) {
 
-		arr[offset] = (byte) (val & 0xff);
-		arr[offset + 1] = (byte) ((val >> 8) & 0xff);
+		arr[offset] = (byte) ((val & 0xFF00) >> 8);
+		arr[offset + 1] = (byte) (val & 0x00FF);
 	}
 }

@@ -12,7 +12,7 @@ import com.esotericsoftware.minlog.Log;
 
 final class SenderThread extends Thread {
 
-	private static final int SEND_BUFFER = 8192;
+	private static final int SEND_BUFFER = 524288;
 
 	private final DatagramSocket socket;
 

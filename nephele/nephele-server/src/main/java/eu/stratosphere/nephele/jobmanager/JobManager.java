@@ -219,7 +219,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Start job manager's RPC server
 		RPCService rpcService = null;
 		try {
-			rpcService = new RPCService(rpcServerAddress.getPort());
+			final int handlerCount = GlobalConfiguration.getInteger("jobmanager.rpc.numhandler", 3);
+			rpcService = new RPCService(rpcServerAddress.getPort(), handlerCount);
 		} catch (IOException ioe) {
 			LOG.fatal("Cannot start RPC server: " + StringUtils.stringifyException(ioe));
 			System.exit(FAILURERETURNCODE);

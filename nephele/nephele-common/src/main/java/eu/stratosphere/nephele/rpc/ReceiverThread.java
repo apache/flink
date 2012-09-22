@@ -109,9 +109,6 @@ final class ReceiverThread extends Thread {
 
 	static short byteArrayToShort(final byte[] arr, final int offset) {
 
-		short val = arr[offset];
-		val += (0xFF00 & ((short) (arr[offset + 1]) << 8));
-
-		return val;
+		return (short) (((arr[offset] << 8)) | ((arr[offset + 1] & 0xFF)));
 	}
 }

@@ -12,6 +12,9 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -19,11 +22,15 @@ import com.esotericsoftware.minlog.Log;
 
 public final class RPCService {
 
+	private static final int DEFAULT_NUM_RPC_HANDLERS = 1;
+
 	private static final int TIMEOUT = 1000;
 
 	private static final int RETRY_LIMIT = 10;
 
 	private static final int CLEANUP_INTERVAL = 20000;
+
+	private final ExecutorService rpcHandlers;
 
 	private final int rpcPort;
 
@@ -149,7 +156,9 @@ public final class RPCService {
 		return kryo;
 	}
 
-	public RPCService(final int rpcPort) throws IOException {
+	public RPCService(final int rpcPort, final int numRPCHandlers) throws IOException {
+
+		this.rpcHandlers = Executors.newFixedThreadPool(numRPCHandlers);
 
 		this.rpcPort = rpcPort;
 
@@ -165,6 +174,12 @@ public final class RPCService {
 	}
 
 	public RPCService() throws IOException {
+		this(DEFAULT_NUM_RPC_HANDLERS);
+	}
+
+	public RPCService(final int numRPCHandlers) throws IOException {
+
+		this.rpcHandlers = Executors.newFixedThreadPool(numRPCHandlers);
 
 		this.rpcPort = -1;
 
@@ -213,7 +228,12 @@ public final class RPCService {
 			this.senderThread.sendMessage(remoteSocketAddress, request);
 
 			synchronized (request) {
-				request.wait(TIMEOUT);
+				try {
+					request.wait(TIMEOUT);
+				} catch (InterruptedException ie) {
+					// TODO: This is a bit of a hack, maybe we can find a more elegant solution later on
+					throw new IOException(ie);
+				}
 			}
 
 			// Check if response has arrived
@@ -266,6 +286,14 @@ public final class RPCService {
 			Log.debug("Caught exception while waiting for receiver thread to shut down: ", ie);
 		}
 
+		this.rpcHandlers.shutdown();
+
+		try {
+			this.rpcHandlers.awaitTermination(5000L, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException ie) {
+			Log.debug("Caught exception while waiting for RPC handlers to finish: ", ie);
+		}
+
 		this.cleanupTimer.cancel();
 	}
 
@@ -279,35 +307,49 @@ public final class RPCService {
 			return;
 		}
 
-		final RPCProtocol callbackHandler = this.callbackHandlers.get(rpcRequest.getInterfaceName());
-		if (callbackHandler == null) {
-			Log.error("Cannot find callback handler for protocol " + rpcRequest.getInterfaceName());
-			return;
-		}
+		final Runnable runnable = new Runnable() {
 
-		Method method = null;
-		try {
-			method = callbackHandler.getClass().getMethod(rpcRequest.getMethodName(), rpcRequest.getParameterTypes());
-		} catch (Exception e) {
-			e.printStackTrace();
-			Log.error("Error while processing incoming RPC request: ", e);
-			return;
-		}
+			@Override
+			public void run() {
 
-		RPCResponse rpcResponse = null;
-		try {
-			final Object retVal = method.invoke(callbackHandler, rpcRequest.getArgs());
-			rpcResponse = new RPCReturnValue(rpcRequest.getRequestID(), retVal);
-		} catch (InvocationTargetException ite) {
-			rpcResponse = new RPCThrowable(rpcRequest.getRequestID(), ite.getTargetException());
-		} catch (Exception e) {
-			e.printStackTrace();
-			Log.error("Error while processing incoming RPC request: ", e);
-			return;
-		}
+				final RPCProtocol callbackHandler = callbackHandlers.get(rpcRequest.getInterfaceName());
+				if (callbackHandler == null) {
+					Log.error("Cannot find callback handler for protocol " + rpcRequest.getInterfaceName());
+					return;
+				}
 
-		this.cachedResponses.put(requestID, new CachedResponse(System.currentTimeMillis(), rpcResponse));
-		this.senderThread.sendMessage(remoteSocketAddress, rpcResponse);
+				Method method = null;
+				try {
+					method = callbackHandler.getClass().getMethod(rpcRequest.getMethodName(),
+						rpcRequest.getParameterTypes());
+				} catch (Exception e) {
+					e.printStackTrace();
+					Log.error("Error while processing incoming RPC request: ", e);
+					return;
+				}
+
+				RPCResponse rpcResponse = null;
+				try {
+					final Object retVal = method.invoke(callbackHandler, rpcRequest.getArgs());
+					rpcResponse = new RPCReturnValue(rpcRequest.getRequestID(), retVal);
+				} catch (InvocationTargetException ite) {
+					rpcResponse = new RPCThrowable(rpcRequest.getRequestID(), ite.getTargetException());
+				} catch (Exception e) {
+					e.printStackTrace();
+					Log.error("Error while processing incoming RPC request: ", e);
+					return;
+				}
+
+				cachedResponses.put(requestID, new CachedResponse(System.currentTimeMillis(), rpcResponse));
+				try {
+					senderThread.sendMessage(remoteSocketAddress, rpcResponse);
+				} catch (InterruptedException e) {
+					Log.error("Caught interrupted excetion while trying to send RPC response: ", e);
+				}
+			}
+		};
+
+		this.rpcHandlers.execute(runnable);
 	}
 
 	void processIncomingRPCResponse(final InetSocketAddress remoteSocketAddress, final RPCResponse rpcResponse) {
