@@ -544,11 +544,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				break;
 			}
 
-			ConnectionInfoLookupResponse lookupResponse;
-			synchronized (this.channelLookupService) {
-				lookupResponse = this.channelLookupService.lookupConnectionInfo(
-					this.localConnectionInfo, jobID, sourceChannelID);
-			}
+			final ConnectionInfoLookupResponse lookupResponse = this.channelLookupService.lookupConnectionInfo(
+				this.localConnectionInfo, jobID, sourceChannelID);
 
 			if (lookupResponse.isJobAborting()) {
 				break;

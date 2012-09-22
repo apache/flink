@@ -227,9 +227,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		this.rpcService = rpcService;
 
 		// Add callback handlers to the RPC service
-		this.rpcService.setProtocolCallbackHandler(JobManagerProtocol.class, this);
-		this.rpcService.setProtocolCallbackHandler(JobManagementProtocol.class, this);
 		this.rpcService.setProtocolCallbackHandler(ChannelLookupProtocol.class, this);
+		this.rpcService.setProtocolCallbackHandler(ExtendedManagementProtocol.class, this);
+		this.rpcService.setProtocolCallbackHandler(InputSplitProviderProtocol.class, this);
+		this.rpcService.setProtocolCallbackHandler(JobManagementProtocol.class, this);
+		this.rpcService.setProtocolCallbackHandler(JobManagerProtocol.class, this);
 
 		LOG.info("Starting job manager in " + executionMode + " mode");
 

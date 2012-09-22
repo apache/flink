@@ -41,7 +41,7 @@ public class ConnectionInfoLookupResponse {
 	private final ArrayList<ChannelID> localTargets = new ArrayList<ChannelID>();
 
 	public ConnectionInfoLookupResponse(final ReturnCode returnCode) {
-		this.returnCode = ReturnCode.NOT_FOUND;
+		this.returnCode = returnCode;
 	}
 
 	public ConnectionInfoLookupResponse() {
