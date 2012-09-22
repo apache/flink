@@ -18,18 +18,20 @@ package eu.stratosphere.pact.runtime.iterative.playing.iterativemapreduce;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.type.base.PactInteger;
 
 public class AppendTokenMapper extends MapStub {
 
   @Override
   public void map(PactRecord record, Collector<PactRecord> collector) throws Exception {
 
-    PactString token = record.getField(1, PactString.class);
-    String value = token.getValue() + "-map";
-    System.out.println("MAP: " + value);
-    token.setValue(value);
-    record.setField(1, token);
+    PactInteger key = record.getField(0, PactInteger.class);
+    key.setValue(key.getValue() * 3);
+    record.setField(0, key);
+
+    PactInteger value = record.getField(1, PactInteger.class);
+    value.setValue(value.getValue() + 1);
+    record.setField(1, value);
 
     collector.collect(record);
   }

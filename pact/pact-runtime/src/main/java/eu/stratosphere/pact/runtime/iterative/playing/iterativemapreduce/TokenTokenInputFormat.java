@@ -17,7 +17,7 @@ package eu.stratosphere.pact.runtime.iterative.playing.iterativemapreduce;
 
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.common.type.base.PactInteger;
 
 import java.util.regex.Pattern;
 
@@ -28,11 +28,12 @@ public class TokenTokenInputFormat extends TextInputFormat {
   @Override
   public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {
     String str = new String(bytes, offset, numBytes);
+    str = str.trim();
     String[] parts = SEPARATOR.split(str);
 
     target.clear();
-    target.addField(new PactString(parts[0]));
-    target.addField(new PactString(parts[1]));
+    target.addField(new PactInteger(Integer.parseInt(parts[0])));
+    target.addField(new PactInteger(Integer.parseInt(parts[1])));
 
     return true;
   }

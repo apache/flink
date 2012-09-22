@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.runtime.iterative.playing.simple;
 
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.DistributionPattern;
@@ -40,28 +39,41 @@ public class Simple {
   public static void main(String[] args) throws Exception {
 
     int degreeOfParallelism = 2;
+    int numSubTasksPerInstance = degreeOfParallelism;
+    String inputPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/simple";
+    String outputPath = "file:///tmp/stratosphere/iterations";
+    String confPath = PlayConstants.PLAY_DIR + "local-conf";
+
+    if (args.length == 5) {
+      degreeOfParallelism = Integer.parseInt(args[0]);
+      numSubTasksPerInstance = Integer.parseInt(args[1]);
+      inputPath = args[2];
+      outputPath = args[3];
+      confPath = args[4];
+    }
+
     JobGraph jobGraph = new JobGraph("SimpleIteration");
 
-    JobInputVertex input = JobGraphUtils.createInput(TextInputFormat.class,
-        "file://" + PlayConstants.PLAY_DIR + "test-inputs/simple", "FileInput", jobGraph, degreeOfParallelism) ;
+    JobInputVertex input = JobGraphUtils.createInput(TextInputFormat.class, inputPath, "FileInput", jobGraph,
+        degreeOfParallelism, numSubTasksPerInstance);
 
     JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "BulkIterationHead", jobGraph,
-        degreeOfParallelism);
+        degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
     headConfig.setStubClass(AppendMapper.AppendHeadMapper.class);
-    headConfig.setMemorySize(10 * JobGraphUtils.MEGABYTE);
+    headConfig.setMemorySize(50 * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
 
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class, "BulkIntermediate",
-        jobGraph, degreeOfParallelism);
+        jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
     intermediateConfig.setDriver(MapDriver.class);
     intermediateConfig.setStubClass(AppendMapper.AppendIntermediateMapper.class);
     intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
     JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "BulkIterationTail", jobGraph,
-        degreeOfParallelism);
+        degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setDriver(MapDriver.class);
     tailConfig.setStubClass(AppendMapper.AppendTailMapper.class);
@@ -71,13 +83,15 @@ public class Simple {
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setNumberOfIterations(3);
 
-    JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
+    JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism,
+        numSubTasksPerInstance);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
     outputConfig.setStubClass(SimpleOutFormat.class);
-    outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, "file:///tmp/stratosphere/iterations");
+    outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
 
     //TODO implicit order should be documented/configured somehow
-    JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
+    JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism,
+        numSubTasksPerInstance);
 
     JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
         ShipStrategy.ShipStrategyType.FORWARD);
@@ -100,7 +114,7 @@ public class Simple {
     tail.setVertexToShareInstancesWith(head);
     fakeTailOutput.setVertexToShareInstancesWith(head);
 
-    GlobalConfiguration.loadConfiguration(PlayConstants.PLAY_DIR + "local-conf");
+    GlobalConfiguration.loadConfiguration(confPath);
     Configuration conf = GlobalConfiguration.getConfiguration();
 
     JobGraphUtils.submit(jobGraph, conf);

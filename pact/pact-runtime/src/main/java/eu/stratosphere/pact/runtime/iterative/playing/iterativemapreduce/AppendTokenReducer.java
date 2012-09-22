@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.iterative.playing.iterativemapreduce;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 import java.util.Iterator;
@@ -28,12 +29,9 @@ public class AppendTokenReducer extends ReduceStub {
   public void reduce(Iterator<PactRecord> records, Collector<PactRecord> collector) throws Exception {
     while (records.hasNext()) {
       PactRecord record = records.next();
-      String key = record.getField(0, PactString.class).getValue();
-      PactString token = record.getField(1, PactString.class);
-      String value = token.getValue() + "-reduce(" + key + ")";
-      System.out.println("REDUCE: " + value);
-      token.setValue(value);
-      record.setField(1, token);
+      PactInteger value = record.getField(1, PactInteger.class);
+      value.setValue(value.getValue() + 1);
+      record.setField(1, value);
 
       collector.collect(record);
     }

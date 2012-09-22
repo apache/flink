@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.iterative.playing.iterativemapreduce;
 import com.google.common.base.Charsets;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 
 import java.io.IOException;
@@ -29,9 +30,9 @@ public class AppendTokenOutFormat extends FileOutputFormat {
   @Override
   public void writeRecord(PactRecord record) throws IOException {
     buffer.setLength(0);
-    buffer.append(record.getField(0, PactString.class).toString());
+    buffer.append(record.getField(0, PactInteger.class).getValue());
     buffer.append('\t');
-    buffer.append(record.getField(1, PactString.class).toString());
+    buffer.append(record.getField(1, PactInteger.class).getValue());
     buffer.append('\n');
 
     byte[] bytes = buffer.toString().getBytes(Charsets.UTF_8);
