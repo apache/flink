@@ -19,9 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.pact.compiler.Costs;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -37,9 +36,9 @@ public class InterestingProperties implements Cloneable
 	private Costs maximalCosts; // the maximal costs that it may take to establish these
 	                            // interesting properties, before they become worthless
 
-	private GlobalProperties globalProps; // the global properties, i.e. properties across partitions
+	private InterestingGlobalProperties globalProps; // the global properties, i.e. properties across partitions
 
-	private LocalProperties localProps; // the local properties, i.e. properties within partitions
+	private InterestingLocalProperties localProps; // the local properties, i.e. properties within partitions
 
 	// ------------------------------------------------------------------------
 
@@ -51,8 +50,8 @@ public class InterestingProperties implements Cloneable
 		// instantiate the maximal costs to the possible maximum
 		this.maximalCosts = new Costs(0, 0);
 
-		this.globalProps = new GlobalProperties();
-		this.localProps = new LocalProperties();
+		this.globalProps = new InterestingGlobalProperties();
+		this.localProps = new InterestingLocalProperties();
 	}
 
 	/**
@@ -65,7 +64,7 @@ public class InterestingProperties implements Cloneable
 	 * @param localProps
 	 *        The local properties for this new object.
 	 */
-	private InterestingProperties(Costs maximalCosts, GlobalProperties globalProps, LocalProperties localProps) {
+	private InterestingProperties(Costs maximalCosts, InterestingGlobalProperties globalProps, InterestingLocalProperties localProps) {
 		this.maximalCosts = maximalCosts;
 		this.globalProps = globalProps;
 		this.localProps = localProps;
@@ -88,7 +87,7 @@ public class InterestingProperties implements Cloneable
 	 * 
 	 * @return The interesting local properties.
 	 */
-	public LocalProperties getLocalProperties() {
+	public InterestingLocalProperties getLocalProperties() {
 		return localProps;
 	}
 
@@ -97,7 +96,7 @@ public class InterestingProperties implements Cloneable
 	 * 
 	 * @return The interesting global properties.
 	 */
-	public GlobalProperties getGlobalProperties() {
+	public InterestingGlobalProperties getGlobalProperties() {
 		return globalProps;
 	}
 
@@ -123,22 +122,23 @@ public class InterestingProperties implements Cloneable
 	 * @return True, if the node meets the properties, false otherwise.
 	 */
 	public boolean isMetBy(PlanNode node) {
-		return globalProps.isMetBy(node.getGlobalProperties()) && localProps.isMetBy(node.getLocalProperties());
+		return this.globalProps.isMetBy(node.getGlobalProperties()) && 
+			this.localProps.isMetBy(node.getLocalProperties());
 	}
 	
 	
 	
 	public InterestingProperties filterByCodeAnnotations(OptimizerNode node, int input)
 	{
-		final GlobalProperties gp = this.globalProps.filterByNodesConstantSet(node, input);
-		final LocalProperties lp = this.localProps.filterByNodesConstantSet(node, input);
+		final InterestingGlobalProperties gp = this.globalProps.filterByNodesConstantSet(node, input);
+		final InterestingLocalProperties lp = this.localProps.filterByNodesConstantSet(node, input);
 		
 		if (gp != this.globalProps || lp != this.localProps) {
 			if ((gp == null || gp.isTrivial()) && (lp == null || lp.isTrivial())) {
 				return null;
 			} else {
 				return new InterestingProperties(this.maximalCosts,
-						gp == null ? new GlobalProperties() : gp, lp == null ? new LocalProperties() : lp);
+						gp == null ? new InterestingGlobalProperties() : gp, lp == null ? new InterestingLocalProperties() : lp);
 			}
 		} else {
 			return this;
@@ -290,17 +290,10 @@ public class InterestingProperties implements Cloneable
 				continue;
 			}
 			
-			final GlobalProperties topDownAdjustedGP = filteredProps.globalProps.createInterestingGlobalPropertiesTopDownSubset(node, input);
-			if (topDownAdjustedGP == null && filteredProps.localProps.isTrivial()) 
-				continue;
-			
 			if (preserved == null) {
 				preserved = new ArrayList<InterestingProperties>();
 			}
-			
-			final InterestingProperties toAdd = topDownAdjustedGP == filteredProps.getGlobalProperties() ? filteredProps :
-				new InterestingProperties(filteredProps.getMaximalCosts(), topDownAdjustedGP, filteredProps.localProps);
-			mergeUnionOfInterestingProperties(preserved, toAdd);
+			mergeUnionOfInterestingProperties(preserved, filteredProps);
 		}
 		return preserved == null ? new ArrayList<InterestingProperties>() : preserved;
 	}

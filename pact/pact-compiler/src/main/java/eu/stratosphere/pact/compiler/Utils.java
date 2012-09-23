@@ -17,6 +17,8 @@ package eu.stratosphere.pact.compiler;
 
 import java.util.Arrays;
 
+import eu.stratosphere.pact.common.contract.Order;
+import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 
@@ -36,6 +38,14 @@ public class Utils
 			Arrays.sort(cols);
 			return new FieldList(cols);
 		}
+	}
+	
+	public static final Ordering createOrdering(FieldList fields, boolean[] directions) {
+		final Ordering o = new Ordering();
+		for (int i = 0; i < fields.size(); i++) {
+			o.appendOrdering(fields.get(i), null, directions == null || directions[i] ? Order.ASCENDING : Order.DESCENDING);
+		}
+		return o;
 	}
 	
 	// --------------------------------------------------------------------------------------------

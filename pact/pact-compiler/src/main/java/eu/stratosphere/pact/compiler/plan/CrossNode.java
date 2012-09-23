@@ -23,8 +23,6 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
@@ -92,7 +90,7 @@ public class CrossNode extends TwoInputNode {
 	 *        The local properties of this copy.
 	 */
 	protected CrossNode(CrossNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
+			PactConnection conn2, InterestingGlobalProperties globalProps, InterestingLocalProperties localProps) {
 		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
 	}
 
@@ -339,8 +337,8 @@ public class CrossNode extends TwoInputNode {
 			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, boolean keepFirstOrder, boolean keepSecondOrder,
 			CostEstimator estimator) {
 
-		GlobalProperties gp;
-		LocalProperties lp;
+		InterestingGlobalProperties gp;
+		InterestingLocalProperties lp;
 		
 		gp = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
 		lp = PactConnection.getLocalPropertiesAfterConnection(subPlan1, this, ss1);

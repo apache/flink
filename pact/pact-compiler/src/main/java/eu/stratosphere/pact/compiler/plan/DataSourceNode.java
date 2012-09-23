@@ -261,7 +261,6 @@ public class DataSourceNode extends OptimizerNode
 		}
 		
 		SourcePlanNode candidate = new SourcePlanNode(this);
-		candidate.updatePropertiesWithUniqueSets(getUniqueFields());
 		
 		final Costs costs = new Costs(0, 0);
 		if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatClass())) {

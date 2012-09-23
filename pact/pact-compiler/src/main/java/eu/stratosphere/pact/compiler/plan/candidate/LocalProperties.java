@@ -13,14 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler;
+package eu.stratosphere.pact.compiler.plan.candidate;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
@@ -32,9 +33,9 @@ public final class LocalProperties implements Cloneable
 {
 	private Ordering ordering;			// order inside a partition, null if not ordered
 
-	private FieldSet groupedFields;		// fields by which the stream is grouped. null if not grouped.
+	private FieldList groupedFields;		// fields by which the stream is grouped. null if not grouped.
 	
-	private FieldSet uniqueFields;		// fields whose value combination is unique in the stream
+	private Set<FieldSet> uniqueFields;		// fields whose value combination is unique in the stream
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -54,7 +55,7 @@ public final class LocalProperties implements Cloneable
 	 * @param groupedFields The grouped fields for these local properties.
 	 * @param uniqueFields The unique fields for these local properties.
 	 */
-	private LocalProperties(Ordering ordering, FieldSet groupedFields, FieldSet uniqueFields) {
+	private LocalProperties(Ordering ordering, FieldList groupedFields, Set<FieldSet> uniqueFields) {
 		this.ordering = ordering;
 		this.groupedFields = groupedFields;
 		this.uniqueFields = uniqueFields;
@@ -79,6 +80,7 @@ public final class LocalProperties implements Cloneable
 	 */
 	public void setOrdering(Ordering ordering) {
 		this.ordering = ordering;
+		this.groupedFields = ordering.getInvolvedIndexes();
 	}
 	
 	/**
@@ -86,7 +88,7 @@ public final class LocalProperties implements Cloneable
 	 * 
 	 * @return The grouped fields, or <code>null</code> if nothing is grouped.
 	 */
-	public FieldSet getGroupedFields() {
+	public FieldList getGroupedFields() {
 		return this.groupedFields;
 	}
 	
@@ -95,7 +97,7 @@ public final class LocalProperties implements Cloneable
 	 * 
 	 * @param groupedFields The fields that are grouped in these data properties.
 	 */
-	public void setGroupedFields(FieldSet groupedFields) {
+	public void setGroupedFields(FieldList groupedFields) {
 		this.groupedFields = groupedFields;	
 	}
 
@@ -104,22 +106,38 @@ public final class LocalProperties implements Cloneable
 	 * 
 	 * @return The unique field combination, or <code>null</code> if nothing is unique.
 	 */
-	public FieldSet getUniqueFields() {
+	public Set<FieldSet> getUniqueFields() {
 		return this.uniqueFields;
 	}
 	
+	public boolean areFieldsUnique(FieldSet set) {
+		return this.uniqueFields != null && this.uniqueFields.contains(set);
+	}
+	
 	/**
-	 * Sets the fields that are unique in these data properties. This automatically sets the
-	 * grouped properties as well, if they have not been set, because unique fields are always
-	 * implicitly grouped.
+	 * Adds a combination of fields that are unique in these data properties.
 	 * 
 	 * @param uniqueFields The fields that are unique in these data properties.
 	 */
-	public void setUniqueFields(FieldSet uniqueFields) {
-		this.uniqueFields = uniqueFields;
-		if (this.groupedFields == null) {
-			this.groupedFields = this.uniqueFields;
+	public void addUniqueFields(FieldSet uniqueFields) {
+		if (this.uniqueFields == null) {
+			this.uniqueFields = new HashSet<FieldSet>();
 		}
+		this.uniqueFields.add(uniqueFields);
+	}
+	
+	public void clearUniqueFieldSets() {
+		if (this.uniqueFields != null) {
+			this.uniqueFields = null;
+		}
+	}
+	
+	public boolean areFieldsGrouped(FieldSet set) {
+		return this.groupedFields.isValidUnorderedPrefix(set);
+	}
+	
+	public boolean meetsOrderingConstraint(Ordering o) {
+		return o.isMetBy(this.ordering);
 	}
 	
 	/**
@@ -152,11 +170,11 @@ public final class LocalProperties implements Cloneable
 	{
 		// check, whether the local order is preserved
 		Ordering no = this.ordering;
-		FieldSet ngf = this.groupedFields;
-		FieldSet nuf = this.uniqueFields;
+		FieldList ngf = this.groupedFields;
+		Set<FieldSet> nuf = this.uniqueFields;
 		
 		if (this.ordering != null) {
-			FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
+			final FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
 				if (!node.isFieldConstant(input, involvedIndexes.get(i))) {
 					if (i == 0) {
@@ -180,76 +198,23 @@ public final class LocalProperties implements Cloneable
 		
 		// check, whether the local key grouping is preserved
 		if (this.uniqueFields != null) {
-			for (Integer index : this.uniqueFields) {
-				if (!node.isFieldConstant(input, index)) {
-					nuf = null;
-					break;
+			Set<FieldSet> s = new HashSet<FieldSet>(this.uniqueFields);
+			for (FieldSet fields : this.uniqueFields) {
+				for (Integer index : fields) {
+					if (!node.isFieldConstant(input, index)) {
+						s.remove(fields);
+						break;
+					}
 				}
+			}
+			if (s.size() != this.uniqueFields.size()) {
+				nuf = s;
 			}
 		}
 		
 		return (no == this.ordering && ngf == this.groupedFields && nuf == this.uniqueFields) ? this :
 			   (no == null && ngf == null && nuf == null) ? null :
 					new LocalProperties(no, ngf, nuf);
-	}
-
-	/**
-	 * Checks, if this set of properties, as interesting properties, is met by the given
-	 * properties.
-	 * 
-	 * @param other
-	 *        The properties for which to check whether they meet these properties.
-	 * @return True, if the properties are met, false otherwise.
-	 */
-	public boolean isMetBy(LocalProperties other)
-	{
-		if (this.groupedFields != null) {
-			// we demand a grouping
-			
-			// check if the other fields are unique
-			if (other.uniqueFields == null || !this.groupedFields.isValidSubset(other.uniqueFields)) {
-				// not unique, check whether grouped
-				if (other.groupedFields == null || !this.groupedFields.equals(other.groupedFields)) {
-					// check whether the ordering does the grouping
-					if (other.ordering == null ||
-							!other.ordering.getInvolvedIndexes().isValidUnorderedPrefix(this.groupedFields)) {
-						return false;
-					}
-				}
-			}
-		}
-		
-		if (this.ordering != null) {
-			// we demand an ordering
-			if (other.ordering == null || !this.ordering.isMetBy(other.ordering)) {
-				return false;
-			}
-		}
-		
-		if (this.uniqueFields != null) {
-			// we demand field uniqueness
-			throw new CompilerException("Uniqueness as a required property is not supported.");
-		}
-		
-		return true;
-	}
-	
-	/**
-	 * Parameterizes the local strategy fields of a channel such that the channel produces the desired local properties.
-	 * 
-	 * @param channel The channel to parameterize.
-	 */
-	public void parameterizeChannel(Channel channel)
-	{
-		if (this.uniqueFields != null) {
-			throw new CompilerException("Uniqueness as a required property is not supported.");
-		}
-		
-		if (this.ordering != null) {
-			channel.setLocalStrategy(LocalStrategy.SORT, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
-		} else if (this.groupedFields != null) {
-			channel.setLocalStrategy(LocalStrategy.SORT, Utils.createOrderedFromSet(this.groupedFields));
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -274,18 +239,14 @@ public final class LocalProperties implements Cloneable
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		} else if (obj == null) {
-			return false;
-		} else if (getClass() != obj.getClass()) {
+		if (obj instanceof LocalProperties) {
+			final LocalProperties other = (LocalProperties) obj;
+			return (ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering()))) &&
+				(groupedFields == other.getGroupedFields() || (groupedFields != null && groupedFields.equals(other.getGroupedFields()))) &&
+				(uniqueFields == other.getUniqueFields() || (uniqueFields != null && uniqueFields.equals(other.getUniqueFields())));
+		} else {
 			return false;
 		}
-
-		LocalProperties other = (LocalProperties) obj;
-		return (ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering()))) &&
-			(groupedFields == other.getGroupedFields() || (groupedFields != null && groupedFields.equals(other.getGroupedFields()))) &&
-			(uniqueFields == other.getUniqueFields() || (uniqueFields != null && uniqueFields.equals(other.getUniqueFields())));
 	}
 
 	/*
@@ -304,16 +265,7 @@ public final class LocalProperties implements Cloneable
 	 */
 	@Override
 	public LocalProperties clone() {
-		LocalProperties newProps = new LocalProperties();
-		if (this.ordering != null) {
-			newProps.ordering = this.ordering.clone();
-		}
-		if (this.groupedFields != null) {
-			newProps.groupedFields = this.groupedFields.clone();
-		}
-		if (this.uniqueFields != null) {
-			newProps.uniqueFields = this.uniqueFields.clone();
-		}
-		return newProps;
+		return new LocalProperties(this.ordering, this.groupedFields,
+			this.uniqueFields == null ? null : new HashSet<FieldSet>(this.uniqueFields));
 	}
 }

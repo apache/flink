@@ -1072,6 +1072,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected void prunePlanAlternatives(List<PlanNode> plans)
 	{
+		// shortcut for the simple case
+		if (plans.size() == 1) {
+			return;
+		}
+		
 		// for each interesting property, which plans are cheapest
 		final PlanNode[] toKeep = new PlanNode[this.intProps.size()]; 
 		PlanNode cheapest = null; // the overall cheapest plan

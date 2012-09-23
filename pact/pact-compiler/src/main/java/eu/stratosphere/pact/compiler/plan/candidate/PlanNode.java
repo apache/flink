@@ -25,9 +25,6 @@ import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.Costs;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
-import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
@@ -42,9 +39,9 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	
 	private final DriverStrategy driverStrategy;	// The local strategy (sorting / hashing, ...)
 	
-	private final LocalProperties localProps; 			// local properties of the data produced by this node
+	protected LocalProperties localProps; 			// local properties of the data produced by this node
 
-	private final GlobalProperties globalProps;			// global properties of the data produced by this node
+	protected GlobalProperties globalProps;			// global properties of the data produced by this node
 	
 	protected Map<OptimizerNode, PlanNode> branchPlan; // the actual plan alternative chosen at a branch point
 
@@ -66,8 +63,6 @@ public abstract class PlanNode implements Visitable<PlanNode>
 		this.outChannels = new ArrayList<Channel>(2);
 		this.template = template;
 		this.driverStrategy = strategy; 
-		this.localProps = new LocalProperties();
-		this.globalProps = new GlobalProperties();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -314,18 +309,13 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	//                                Miscellaneous
 	// --------------------------------------------------------------------------------------------
 	
-	public void updatePropertiesWithUniqueSets(Set<FieldSet> uniqueFieldCombinations)
-	{
-		if (uniqueFieldCombinations.isEmpty()) {
+	protected void updatePropertiesWithUniqueSets(Set<FieldSet> uniqueFieldCombinations) {
+		if (uniqueFieldCombinations == null || uniqueFieldCombinations.isEmpty()) {
 			return;
-		} else if (uniqueFieldCombinations.size() > 1) {
-			PactCompiler.LOG.warn("Node has multiple unique field combinations. " +
-					"The compiler can currently exploit only the first one as a hint.");
 		}
-		
-		final FieldSet unique = uniqueFieldCombinations.iterator().next();
-		if (this.localProps.getUniqueFields() == null) {
-			this.localProps.setUniqueFields(unique);
+		for (FieldSet fields : uniqueFieldCombinations) {
+			this.globalProps.addUniqueFieldCombination(fields);
+			this.localProps.addUniqueFields(fields);
 		}
 	}
 	

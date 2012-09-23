@@ -79,7 +79,11 @@ public class PactRecordPostPass implements OptimizerPostPass
 			} catch (ConflictingFieldTypeInfoException ex) {
 				throw new CompilerPostPassException("BUG: Conflicting information found when adding data sink types");
 			}
-			propagateToChannel(schema, inchannel);
+			try {
+				propagateToChannel(schema, inchannel);
+			} catch (MissingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("BUG: Missing key type infomation for input to to data sink.");
+			}
 		}
 		else if (node instanceof SingleInputPlanNode) {
 			final SingleInputPlanNode sn = (SingleInputPlanNode) node;
@@ -96,11 +100,19 @@ public class PactRecordPostPass implements OptimizerPostPass
 			
 			// add the parent schema to the schema
 			final SingleInputNode optNode = sn.getSingleInputNode();
-			for (Map.Entry<Integer, Class<? extends Key>> entry : parentSchema) {
-				final Integer pos = entry.getKey();
-				if (optNode.isFieldConstant(0, pos)) {
-					schema.addKeyType(pos, entry.getValue());
+			try {
+				for (Map.Entry<Integer, Class<? extends Key>> entry : parentSchema) {
+					final Integer pos = entry.getKey();
+					if (optNode.isFieldConstant(0, pos)) {
+						schema.addKeyType(pos, entry.getValue());
+					}
 				}
+			} catch (ConflictingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
+					+ " in node '" + optNode.getPactContract().getName() + "' propagated from successor node. " +
+					"Conflicting types: " + ex.getPreviousType().getName() + " and " + ex.getNewType().getName() +
+					". Most probably cause: Invalid constant field annotations.");
+					
 			}
 			
 			// check whether all outgoing channels have not yet contributed. come back later if not.
@@ -112,18 +124,38 @@ public class PactRecordPostPass implements OptimizerPostPass
 			final SingleInputContract<?> contract = optNode.getPactContract();
 			final int[] localPositions = contract.getKeyColumnNumbers(0);
 			final Class<? extends Key>[] types = contract.getKeyClasses();
-			for (int i = 0; i < localPositions.length; i++) {
-				schema.addKeyType(localPositions[i], types[i]);
+			try {
+				for (int i = 0; i < localPositions.length; i++) {
+					schema.addKeyType(localPositions[i], types[i]);
+				}
+			} catch (ConflictingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Conflicting key type information for field " + ex.getFieldNumber()
+					+ " in node '" + optNode.getPactContract().getName() + "' between types declared in the node's "
+					+ "contract and types inferred from successor contracts. Conflicting types: "
+					+ ex.getPreviousType().getName() + " and " + ex.getNewType().getName()
+					+ ". Most probably cause: Invalid constant field annotations.");
+					
 			}
 			
 			// parameterize the node's driver strategy
 			sn.setSerializer(PactRecordSerializerFactory.get());
 			if (sn.getDriverStrategy().requiresComparator()) {
-				sn.setComparator(createComparator(sn.getKeys(), sn.getSortOrders(), schema));
+				try {
+					sn.setComparator(createComparator(sn.getKeys(), sn.getSortOrders(), schema));
+				} catch (MissingFieldTypeInfoException ex) {
+					throw new CompilerPostPassException("Could not set up runtime strategy for node '" + 
+						contract.getName() + "'. Missing type information for key field " + ex.getFieldNumber());
+				}
 			}
 			
 			// done, we can now propagate our info down
-			propagateToChannel(schema, sn.getInput());
+			try {
+				propagateToChannel(schema, sn.getInput());
+			} catch (MissingFieldTypeInfoException ex) {
+				throw new CompilerPostPassException("Could not set up runtime strategy for input channel to node '"
+					+ contract.getName() + "'. Missing type information for key field " + ex.getFieldNumber());
+			}
+
 		}
 		else if (node instanceof SourcePlanNode) {
 			// nothing to be done here. the source has no input and no strategy itself
@@ -181,6 +213,9 @@ public class PactRecordPostPass implements OptimizerPostPass
 	
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Class encapsulating a schema map (int column position -> column type) and a reference counter.
+	 */
 	private static final class KeySchema implements Iterable<Map.Entry<Integer, Class<? extends Key>>>
 	{
 		private final Map<Integer, Class<? extends Key>> schema;
@@ -235,24 +270,24 @@ public class PactRecordPostPass implements OptimizerPostPass
 	{
 		private final int fieldNumber;
 		
-		private final Class<? extends Key> type1, type2;
+		private final Class<? extends Key> previousType, newType;
 
-		ConflictingFieldTypeInfoException(int fieldNumber, Class<? extends Key> type1, Class<? extends Key> type2) {
+		ConflictingFieldTypeInfoException(int fieldNumber, Class<? extends Key> previousType, Class<? extends Key> newType) {
 			this.fieldNumber = fieldNumber;
-			this.type1 = type1;
-			this.type2 = type2;
+			this.previousType = previousType;
+			this.newType = newType;
 		}
 		
 		int getFieldNumber() {
 			return fieldNumber;
 		}
 
-		Class<? extends Key> getType1() {
-			return type1;
+		Class<? extends Key> getPreviousType() {
+			return this.previousType;
 		}
 
-		Class<? extends Key> getType2() {
-			return type2;
+		Class<? extends Key> getNewType() {
+			return this.newType;
 		}
 	}
 }

@@ -36,6 +36,10 @@ public class SourcePlanNode extends PlanNode
 	 */
 	public SourcePlanNode(OptimizerNode template) {
 		super(template, DriverStrategy.NONE);
+		
+		this.globalProps = new GlobalProperties();
+		this.localProps = new LocalProperties();
+		updatePropertiesWithUniqueSets(template.getUniqueFields());
 	}
 
 	// --------------------------------------------------------------------------------------------

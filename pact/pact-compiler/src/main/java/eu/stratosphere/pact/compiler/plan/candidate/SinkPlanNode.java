@@ -16,8 +16,6 @@
 package eu.stratosphere.pact.compiler.plan.candidate;
 
 import eu.stratosphere.pact.compiler.plan.DataSinkNode;
-import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**

@@ -29,8 +29,6 @@ import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -308,8 +306,8 @@ public class MatchNode extends TwoInputNode {
 //					continue;
 //				}
 
-				GlobalProperties gp1;
-				GlobalProperties gp2;
+				InterestingGlobalProperties gp1;
+				InterestingGlobalProperties gp2;
 
 				// test which degree of freedom we have in choosing the shipping strategies
 				// some may be fixed a priori by compiler hints
@@ -579,8 +577,8 @@ public class MatchNode extends TwoInputNode {
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
 	{
 		// compute the given properties of the incoming data
-		LocalProperties lp1;
-		LocalProperties lp2;
+		InterestingLocalProperties lp1;
+		InterestingLocalProperties lp2;
 
 		lp1 = PactConnection.getLocalPropertiesAfterConnection(subPlan1, this, ss1);
 		lp2 = PactConnection.getLocalPropertiesAfterConnection(subPlan2, this, ss2);
@@ -604,7 +602,7 @@ public class MatchNode extends TwoInputNode {
 				
 				createMatchAlternative(target, subPlan1, null, ss1, null, ls, Order.ASCENDING, true, null, estimator);
 			} else if (ls == LocalStrategy.SELF_NESTEDLOOP) {
-				LocalProperties outLp = new LocalProperties();
+				InterestingLocalProperties outLp = new InterestingLocalProperties();
 				outLp.setOrdering(lp1.getOrdering());
 				outLp.setGroupedFields(lp1.getGroupedFields());
 				
@@ -756,7 +754,7 @@ public class MatchNode extends TwoInputNode {
 	 *        The cost estimator.
 	 */
 	private void createMatchAlternative(List<OptimizerNode> target, OptimizerNode subPlan1, OptimizerNode subPlan2,
-			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, Order order, boolean grouped, LocalProperties outLpp,
+			ShipStrategy ss1, ShipStrategy ss2, LocalStrategy ls, Order order, boolean grouped, InterestingLocalProperties outLpp,
 			CostEstimator estimator) {
 		
 		// TODO: check this function. Why are two alternatives generated with different local properties?!?
@@ -765,8 +763,8 @@ public class MatchNode extends TwoInputNode {
 		if(ls != LocalStrategy.SELF_NESTEDLOOP && ls != LocalStrategy.SORT_SELF_NESTEDLOOP) {
 		
 			// compute the given properties of the incoming data
-			GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
-			GlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
+			InterestingGlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
+			InterestingGlobalProperties gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
 					
 			int[] scrambledKeyOrder1 = null;
 			int[] scrambledKeyOrder2 = null;
@@ -803,16 +801,16 @@ public class MatchNode extends TwoInputNode {
 				}
 			}
 			
-			LocalProperties outLp = outLpp;
+			InterestingLocalProperties outLp = outLpp;
 			
 			// determine the properties of the data before it goes to the user code
-			GlobalProperties outGp = new GlobalProperties();
+			InterestingGlobalProperties outGp = new InterestingGlobalProperties();
 			outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFields());
 			outGp.setOrdering(gp1.getOrdering());
 			
 			if (outLpp == null) {
 				
-				outLp = new LocalProperties();
+				outLp = new InterestingLocalProperties();
 				if (order != Order.NONE) {
 					Ordering ordering = new Ordering();
 					for (int keyColumn : this.keySet1) {
@@ -846,13 +844,13 @@ public class MatchNode extends TwoInputNode {
 			target.add(n);
 			
 			// determine the properties of the data before it goes to the user code
-			outGp = new GlobalProperties();
+			outGp = new InterestingGlobalProperties();
 			outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFields());
 			outGp.setOrdering(gp2.getOrdering());
 			
 			if (outLpp == null) {
 				
-				outLp = new LocalProperties();
+				outLp = new InterestingLocalProperties();
 				if (order != Order.NONE) {
 					Ordering ordering = new Ordering();
 					for (int keyColumn : this.keySet2) {
@@ -889,16 +887,16 @@ public class MatchNode extends TwoInputNode {
 		} else {
 			// self match
 			
-			GlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
+			InterestingGlobalProperties gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
 			
 			// determine the properties of the data before it goes to the user code
-			GlobalProperties outGp = new GlobalProperties();
+			InterestingGlobalProperties outGp = new InterestingGlobalProperties();
 			outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFields());
 			outGp.setOrdering(gp1.getOrdering());
 			
-			LocalProperties outLp = null;
+			InterestingLocalProperties outLp = null;
 			if (outLpp == null) {
-				outLp = new LocalProperties();
+				outLp = new InterestingLocalProperties();
 				if (order != Order.NONE) {
 					Ordering ordering = new Ordering();
 					for (int keyColumn : this.keySet1) {
@@ -1014,7 +1012,7 @@ public class MatchNode extends TwoInputNode {
 	 * @param inputNum
 	 * @return
 	 */
-	public boolean partitioningIsOnRightFields(GlobalProperties gp, int inputNum) {
+	public boolean partitioningIsOnRightFields(InterestingGlobalProperties gp, int inputNum) {
 		FieldList partitionedFields = gp.getPartitionedFields();
 		if (partitionedFields == null || partitionedFields.size() == 0) {
 			return false;

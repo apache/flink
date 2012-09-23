@@ -18,15 +18,12 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.pact.common.contract.Order;
-import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
+import eu.stratosphere.pact.compiler.Utils;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -268,16 +265,14 @@ public class Channel implements EstimateProvider
 					break;
 				case PARTITION_RANGE:
 				case PARTITION_LOCAL_RANGE:
-					Ordering o = new Ordering();
-					for (int i = 0; i < this.shipKeys.size(); i++) {
-						o.appendOrdering(this.shipKeys.get(i), null, this.shipSortOrder == null || this.shipSortOrder[i] ? Order.ASCENDING : Order.DESCENDING);
-					}
-					this.globalProps.setRangePartitioned(o);
+					this.globalProps.setRangePartitioned(Utils.createOrdering(this.shipKeys, this.shipSortOrder));
 					break;
 				case FORWARD:
 					break;
 				case NONE:
 					throw new CompilerException("Cannot produce GlobalProperties before ship strategy is set.");
+				default:
+					throw new CompilerException("Unrecognized ship strategy: " + this.shipStrategy);
 			}
 		}
 		
@@ -291,12 +286,8 @@ public class Channel implements EstimateProvider
 				case NONE:
 					break;
 				case SORT:
-					Ordering o = new Ordering();
-					for (int i = 0; i < this.localKeys.size(); i++) {
-						o.appendOrdering(this.localKeys.get(i), null, this.localSortOrder == null || this.localSortOrder[i] ? Order.ASCENDING : Order.DESCENDING);
-					}
-					this.localProps.setOrdering(o);
-					this.localProps.setGroupedFields(o.getInvolvedIndexes());
+				case COMBININGSORT:
+					this.localProps.setOrdering(Utils.createOrdering(this.localKeys, this.localSortOrder));
 					break;
 				default:
 					throw new CompilerException("Unsupported local strategy for channel.");

@@ -144,10 +144,6 @@ public class Ordering
 				return false;
 			}
 			
-			if(this.types.get(i) != otherOrdering.types.get(i)) {
-				return false;
-			}
-			
 			// if this one request no order, everything is good
 			if (this.orders.get(i) != Order.NONE) {
 				if (this.orders.get(i) == Order.ANY) {
@@ -160,7 +156,7 @@ public class Ordering
 					return false;
 				}
 			}
-		}	
+		}
 		return true;
 	}
 	

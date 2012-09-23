@@ -30,8 +30,6 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.GlobalProperties;
-import eu.stratosphere.pact.compiler.LocalProperties;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
@@ -100,7 +98,7 @@ public class CoGroupNode extends TwoInputNode {
 	 *        The local properties of this copy.
 	 */
 	protected CoGroupNode(CoGroupNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
+			PactConnection conn2, InterestingGlobalProperties globalProps, InterestingLocalProperties localProps) {
 		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
 	}
 
@@ -243,8 +241,8 @@ public class CoGroupNode extends TwoInputNode {
 				ShipStrategy ss1 = this.input1.getShipStrategy();
 				ShipStrategy ss2 = this.input2.getShipStrategy();
 				
-				GlobalProperties gp1;
-				GlobalProperties gp2;
+				InterestingGlobalProperties gp1;
+				InterestingGlobalProperties gp2;
 
 				// test which degree of freedom we have in choosing the shipping strategies
 				// some may be fixed a priori by compiler hints
@@ -486,8 +484,8 @@ public class CoGroupNode extends TwoInputNode {
 			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
 	{
 		// compute the given properties of the incoming data
-		GlobalProperties gp1, gp2;
-		LocalProperties lp1, lp2;
+		InterestingGlobalProperties gp1, gp2;
+		InterestingLocalProperties lp1, lp2;
 		
 		gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
 		lp1 = PactConnection.getLocalPropertiesAfterConnection(subPlan1, this, ss1);
@@ -546,11 +544,11 @@ public class CoGroupNode extends TwoInputNode {
 		}
 		
 		// determine the properties of the data before it goes to the user code
-		GlobalProperties outGp = new GlobalProperties();
+		InterestingGlobalProperties outGp = new InterestingGlobalProperties();
 		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFields());
 		
 		// create a new cogroup node for this input
-		CoGroupNode n = new CoGroupNode(this, subPlan1, subPlan2, this.input1, this.input2, outGp, new LocalProperties());
+		CoGroupNode n = new CoGroupNode(this, subPlan1, subPlan2, this.input1, this.input2, outGp, new InterestingLocalProperties());
 		n.input1.setShipStrategy(ss1);
 		n.input2.setShipStrategy(ss2);
 
@@ -587,11 +585,11 @@ public class CoGroupNode extends TwoInputNode {
 		target.add(n);
 		
 		// determine the properties of the data before it goes to the user code
-		outGp = new GlobalProperties();
+		outGp = new InterestingGlobalProperties();
 		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFields());
 		
 		// create a new cogroup node for this input
-		n = new CoGroupNode(this, subPlan1, subPlan2, input1, input2, outGp, new LocalProperties());
+		n = new CoGroupNode(this, subPlan1, subPlan2, input1, input2, outGp, new InterestingLocalProperties());
 
 		n.input1.setShipStrategy(ss1);
 		n.input2.setShipStrategy(ss2);
@@ -723,7 +721,7 @@ public class CoGroupNode extends TwoInputNode {
 	 * @param inputNum
 	 * @return
 	 */
-	private boolean partitioningIsOnRightFields(GlobalProperties gp, int inputNum) {
+	private boolean partitioningIsOnRightFields(InterestingGlobalProperties gp, int inputNum) {
 		FieldList partitionedFields = gp.getPartitionedFields();
 		if (partitionedFields == null || partitionedFields.size() == 0) {
 			return false;

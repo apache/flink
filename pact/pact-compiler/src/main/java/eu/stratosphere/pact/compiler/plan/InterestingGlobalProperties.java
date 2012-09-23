@@ -13,23 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler;
+package eu.stratosphere.pact.compiler.plan;
 
-import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.PartitioningProperty;
+import eu.stratosphere.pact.compiler.Utils;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.GlobalProperties;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
- * This class represents global properties of the data. Global properties are properties that
- * describe data across different partitions.
+ * This class represents global properties of the data that an operator is interested in, because it needs those
+ * properties for its contract.
  * <p>
  * Currently, the properties are the following: A partitioning type (ANY, HASH, RANGE), and EITHER an ordering (for range partitioning)
  * or an FieldSet with the hash partitioning columns.
  */
-public final class GlobalProperties implements Cloneable
+public final class InterestingGlobalProperties implements Cloneable
 {
 	private PartitioningProperty partitioning;	// the type partitioning
 	
@@ -42,17 +44,8 @@ public final class GlobalProperties implements Cloneable
 	/**
 	 * Initializes the global properties with no partitioning.
 	 */
-	public GlobalProperties() {
+	public InterestingGlobalProperties() {
 		this.partitioning = PartitioningProperty.RANDOM;
-	}
-	
-	/**
-	 * @param partitioning2
-	 * @param newFields
-	 */
-	private GlobalProperties(PartitioningProperty partitioning, FieldSet fields) {
-		this.partitioning = partitioning;
-		this.partitioningFields = fields;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -94,8 +87,6 @@ public final class GlobalProperties implements Cloneable
 		this.ordering = null;
 	}
 	
-
-
 	/**
 	 * Gets the partitioning property.
 	 * 
@@ -140,13 +131,14 @@ public final class GlobalProperties implements Cloneable
 	}
 
 	/**
-	 * Filters these properties by what can be preserved through the given output contract.
+	 * Filters these properties by what can be preserved by the given node when propagated down
+	 * to the given input.
 	 * 
-	 * @param contract
-	 *        The output contract.
+	 * @param node The node representing the contract.
+	 * @param input The index of the input.
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
-	public GlobalProperties filterByNodesConstantSet(OptimizerNode node, int input)
+	public InterestingGlobalProperties filterByNodesConstantSet(OptimizerNode node, int input)
 	{
 		// check if partitioning survives
 		if (this.ordering != null) {
@@ -165,92 +157,31 @@ public final class GlobalProperties implements Cloneable
 		return this;
 	}
 
-	public GlobalProperties createInterestingGlobalPropertiesTopDownSubset(OptimizerNode node, int input)
-	{
-		// check, whether the global order is preserved
-		if (this.ordering != null) {
-			for (int i : this.ordering.getInvolvedIndexes()) {
-				if (!node.isFieldConstant(input, i)) {
-					return null;
-				}
-			}
-			return this;
-		}
-		else if (partitioningFields != null) {
-			boolean allIn = true;
-			boolean atLeasOneIn = false;
-			for (int col : this.partitioningFields) {
-				boolean res = node.isFieldConstant(input, col);
-				allIn &= res;
-				atLeasOneIn |= res;
-			}
-			if (allIn) {
-				return this;
-			} else if (atLeasOneIn) {
-				FieldSet newFields = new FieldSet();
-				for (Integer nc : this.partitioningFields) {
-					if (node.isFieldConstant(input, nc)) {
-						newFields.add(nc);
-					}
-				}
-				return new GlobalProperties(this.partitioning, newFields);
-			} else {
-				return null;
-			}
-		} else {
-			return this;
-		}
-	}
-
 	/**
-	 * Checks, if this set of properties, as interesting properties, is met by the given
-	 * properties.
+	 * Checks, if this set of interesting properties, is met by the given
+	 * produced properties.
 	 * 
-	 * @param other
-	 *        The properties for which to check whether they meet these properties.
+	 * @param props The properties for which to check whether they meet these properties.
 	 * @return True, if the properties are met, false otherwise.
 	 */
-	public boolean isMetBy(GlobalProperties other)
+	public boolean isMetBy(GlobalProperties props)
 	{
-		if (this.partitioning == PartitioningProperty.FULL_REPLICATION || other.partitioning == PartitioningProperty.FULL_REPLICATION) {
-			return other.partitioning == this.partitioning;
-		}
-		
-		if (this.partitioning == PartitioningProperty.RANDOM) {
-			return true;
-		}
-		
-		if (this.partitioning == PartitioningProperty.ANY_PARTITIONING) {
-			if (other.partitioning == PartitioningProperty.RANDOM) {
-				return false;
-			}
-		} else if (other.partitioning != this.partitioning) {
+		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
+			return props.isFullyReplicated();
+		} else if (props.isFullyReplicated()) {
 			return false;
-		}
-
-		if (this.ordering != null) {
-			if (other.ordering == null)
-				throw new CompilerException("BUG: Equal partitioning property, ordering not equally set.");
-			if (this.ordering.getInvolvedIndexes().isValidSubset(other.ordering.getInvolvedIndexes())) {
-				// check if the directions match
-				for (int i = 0; i < other.ordering.getNumberOfFields(); i++) {
-					Order to = this.ordering.getOrder(i);
-					Order oo = other.ordering.getOrder(i);
-					if (to == Order.NONE)
-						continue;
-					if (oo == Order.NONE)
-						return false;
-					if (to != Order.ANY && to != oo)
-						return false;
-				}
-				return true;
-			} else {
-				return false;
-			}
-		} else if (this.partitioningFields != null) {
-			return this.partitioningFields.isValidSubset(other.partitioningFields);
+		} else if (this.partitioning == PartitioningProperty.RANDOM) {
+			return true;
+		} else if (this.partitioning == PartitioningProperty.ANY_PARTITIONING) {
+			return props.isPartitionedOnFields(this.partitioningFields);
+		} else if (this.partitioning == PartitioningProperty.HASH_PARTITIONED) {
+			return props.getPartitioning() == PartitioningProperty.HASH_PARTITIONED &&
+					props.isPartitionedOnFields(this.partitioningFields);
+		} else if (this.partitioning == PartitioningProperty.RANGE_PARTITIONED) {
+			return props.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
+					props.matchesOrderedPartitioning(this.ordering);
 		} else {
-			throw new RuntimeException("Found a partitioning property, but no fields.");
+			throw new CompilerException("Bug in properties matching logic.");
 		}
 	}
 	
@@ -300,8 +231,8 @@ public final class GlobalProperties implements Cloneable
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof GlobalProperties) {
-			GlobalProperties other = (GlobalProperties) obj;
+		if (obj != null && obj instanceof InterestingGlobalProperties) {
+			InterestingGlobalProperties other = (InterestingGlobalProperties) obj;
 			return (ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
 					&& (partitioning == other.getPartitioning())
 					&& (partitioningFields == other.partitioningFields || 
@@ -326,9 +257,9 @@ public final class GlobalProperties implements Cloneable
 	 * (non-Javadoc)
 	 * @see java.lang.Object#clone()
 	 */
-	public GlobalProperties clone() {
+	public InterestingGlobalProperties clone() {
 		try {
-			return (GlobalProperties) super.clone();
+			return (InterestingGlobalProperties) super.clone();
 		} catch (CloneNotSupportedException cnse) {
 			// should never happen, but propagate just in case
 			throw new RuntimeException(cnse);

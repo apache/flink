@@ -49,16 +49,16 @@ public class SingleInputPlanNode extends PlanNode
 	
 	// --------------------------------------------------------------------------------------------
 
-//	public SingleInputPlanNode(OptimizerNode template, Channel input, DriverStrategy localStrategy)
-//	{
-//		this(template, input, localStrategy, null);
-//	}
-//	
-//	public SingleInputPlanNode(OptimizerNode template, Channel input, 
-//			DriverStrategy localStrategy, FieldList driverKeyFields)
-//	{
-//		this(template, input, localStrategy, driverKeyFields, null);
-//	}
+	public SingleInputPlanNode(OptimizerNode template, Channel input, DriverStrategy localStrategy)
+	{
+		this(template, input, localStrategy, null);
+	}
+	
+	public SingleInputPlanNode(OptimizerNode template, Channel input, 
+			DriverStrategy localStrategy, FieldList driverKeyFields)
+	{
+		this(template, input, localStrategy, driverKeyFields, null);
+	}
 	
 	public SingleInputPlanNode(OptimizerNode template, Channel input, 
 			DriverStrategy localStrategy, FieldList driverKeyFields, boolean[] driverSortOrders)
@@ -71,6 +71,27 @@ public class SingleInputPlanNode extends PlanNode
 		if (this.input.getShipStrategy() == ShipStrategyType.BROADCAST) {
 			this.input.setReplicationFactor(getDegreeOfParallelism());
 		}
+		
+		// adjust the global properties
+		this.globalProps = input.getGlobalProperties().clone();
+		this.globalProps.clearUniqueFieldSets();
+		this.globalProps.filterByNodesConstantSet(template, 0);
+		
+		
+		// adjust the local properties
+		this.localProps = input.getLocalProperties().clone();
+		switch (this.getDriverStrategy()) {
+			case NONE:
+			case GROUP:
+				break;
+			default:
+				throw new CompilerException("Unrecognized diver strategy impacting local properties.");
+		}
+		this.localProps.clearUniqueFieldSets();
+		this.localProps.filterByNodesConstantSet(template, 0);
+		
+		// add the new unique information
+		updatePropertiesWithUniqueSets(template.getUniqueFields());
 	}
 
 	// --------------------------------------------------------------------------------------------
