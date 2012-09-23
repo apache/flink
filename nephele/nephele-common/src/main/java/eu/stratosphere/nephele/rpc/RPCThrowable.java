@@ -15,54 +15,55 @@
 
 package eu.stratosphere.nephele.rpc;
 
-import java.net.DatagramPacket;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 /**
- * Abstract base class for all types of communication messages used by this RPC service.
+ * This message is used to transport an exception of a remote procedure call back to the caller.
  * <p>
- * This class is in general not thread-safe.
+ * This message is in general not thread-safe.
  * 
  * @author warneke
  */
-abstract class RPCMessage implements KryoSerializable {
+final class RPCThrowable extends RPCResponse implements KryoSerializable {
 
 	/**
-	 * The largest amount of data to be put in a single {@link DatagramPacket}.
+	 * The exception to be transported.
 	 */
-	public static final int MAXIMUM_MSG_SIZE = 1020;
+	private Throwable throwable;
 
 	/**
-	 * The amount of data reserved for meta data in each {@link DatagramPacket}.
-	 */
-	public static final int METADATA_SIZE = 6;
-
-	/**
-	 * The message ID.
-	 */
-	private int messageID;
-
-	/**
-	 * Constructs a new RPC message.
+	 * Constructs a new RPC exception message.
 	 * 
 	 * @param messageID
 	 *        the message ID
+	 * @param throwable
+	 *        the exception to be transported
 	 */
-	protected RPCMessage(final int messageID) {
-		this.messageID = messageID;
+	RPCThrowable(final int messageID, final Throwable throwable) {
+		super(messageID);
+
+		this.throwable = throwable;
 	}
 
 	/**
-	 * Returns the message ID.
-	 * 
-	 * @return the message ID
+	 * The default constructor required by kryo.
 	 */
-	final int getMessageID() {
-		return this.messageID;
+	private RPCThrowable() {
+		super(0);
+
+		this.throwable = null;
+	}
+
+	/**
+	 * Returns the transported exception.
+	 * 
+	 * @return the transported exception
+	 */
+	Throwable getThrowable() {
+		return this.throwable;
 	}
 
 	/**
@@ -70,16 +71,26 @@ abstract class RPCMessage implements KryoSerializable {
 	 */
 	@Override
 	public void write(final Kryo kryo, final Output output) {
+		super.write(kryo, output);
 
-		output.writeInt(this.messageID);
+		output.writeString(this.throwable.getClass().getName());
+		kryo.writeObject(output, this.throwable);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override
+	@SuppressWarnings("unchecked")
 	public void read(final Kryo kryo, final Input input) {
+		super.read(kryo, input);
 
-		this.messageID = input.readInt();
+		Class<? extends Throwable> clazz = null;
+		try {
+			clazz = (Class<? extends Throwable>) Class.forName(input.readString());
+		} catch (ClassNotFoundException cnfe) {
+			throw new RuntimeException(cnfe);
+		}
+
+		this.throwable = kryo.readObject(input, clazz);
 	}
 }

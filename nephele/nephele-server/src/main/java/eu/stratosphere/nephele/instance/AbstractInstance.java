@@ -189,8 +189,7 @@ public abstract class AbstractInstance extends NetworkNode {
 		request.setRequiredLibraries(requiredLibraries);
 
 		// Send the request
-		LibraryCacheProfileResponse response = null;
-		response = getTaskManagerProxy().getLibraryCacheProfile(request);
+		final LibraryCacheProfileResponse response = getTaskManagerProxy().getLibraryCacheProfile(request);
 
 		// Check response and transfer libraries if necessary
 		for (int k = 0; k < requiredLibraries.length; k++) {
