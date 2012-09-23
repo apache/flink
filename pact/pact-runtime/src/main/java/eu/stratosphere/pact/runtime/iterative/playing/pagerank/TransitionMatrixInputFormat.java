@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 
 public class TransitionMatrixInputFormat extends TextInputFormat {
 
-  private static final Pattern SEPARATOR = Pattern.compile(",");
+  private static final Pattern SEPARATOR = Pattern.compile("[, \t]");
 
   @Override
   public boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes) {

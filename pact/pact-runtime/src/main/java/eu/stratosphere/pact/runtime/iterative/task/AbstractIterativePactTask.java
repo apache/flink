@@ -30,6 +30,7 @@ import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.CachingMutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
+import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
@@ -64,6 +65,13 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
   protected void incrementIterationCounter() {
     numIterations++;
+  }
+
+  protected void notifyMonitor(IterationMonitoring.Event event) {
+    if (log.isInfoEnabled()) {
+      log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration(),
+          getEnvironment().getIndexInSubtaskGroup()));
+    }
   }
 
   protected String brokerKey() {

@@ -26,6 +26,7 @@ import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
+import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
@@ -126,6 +127,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 
     while (!terminationRequested()) {
 
+      notifyMonitor(IterationMonitoring.Event.SYNC_STARTING, currentIteration);
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration + "]"));
       }
@@ -145,6 +147,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 
         requestTermination();
         sendToAllWorkers(new TerminationEvent());
+        notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
       } else {
 
         if (log.isInfoEnabled()) {
@@ -152,9 +155,16 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
         }
 
         sendToAllWorkers(new AllWorkersDoneEvent());
+        notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
         currentIteration++;
       }
 
+    }
+  }
+
+  protected void notifyMonitor(IterationMonitoring.Event event, int currentIteration) {
+    if (log.isInfoEnabled()) {
+      log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration, 1));
     }
   }
 

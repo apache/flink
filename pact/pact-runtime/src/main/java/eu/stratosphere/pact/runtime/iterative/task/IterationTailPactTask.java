@@ -25,6 +25,7 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
+import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -74,15 +75,18 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 
     while (!terminationRequested()) {
 
+      notifyMonitor(IterationMonitoring.Event.TAIL_STARTING);
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
       }
 
+      notifyMonitor(IterationMonitoring.Event.TAIL_PACT_STARTING);
       if (!inFirstIteration()) {
         reinstantiateDriver();
       }
 
       super.invoke();
+      notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
@@ -95,6 +99,7 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
       } else {
         propagateEvent(new TerminationEvent());
       }
+      notifyMonitor(IterationMonitoring.Event.TAIL_FINISHED);
     }
   }
 

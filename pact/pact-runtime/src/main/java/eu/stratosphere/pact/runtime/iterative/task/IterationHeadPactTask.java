@@ -43,6 +43,7 @@ import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
+import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
@@ -165,33 +166,13 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     TypeComparator<IT1> probesideComparator = instantiateTypeComparator(
         config.getWorksetHashJoinProbeSideComparatorFactoryClass(userCodeClassLoader),
         config.getWorksetHashjoinProbesideComparatorPrefix());
-    //(TypeComparator<IT1>) new PactRecordComparator(new int[] { 0 }, new Class[] { PactLong.class });
+
     TypeComparator<IT2> buildSideComparator = instantiateTypeComparator(
         config.getWorksetHashJoinBuildSideComparatorFactoryClass(userCodeClassLoader),
         config.getWorksetHashjoinBuildsideComparatorPrefix());
-    //new PactRecordComparator(new int[] { 0 },  new Class[] { PactLong.class });
 
     TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = (TypePairComparatorFactory<IT1, IT2>)
         instantiateTypePairComparator(config.getWorksetHashJoinTypePairComparatorFactoryClass(userCodeClassLoader));
-//    TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
-//    try {
-//      final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
-//          config.getPairComparatorFactory(getUserCodeClassLoader());
-//
-//      if (factoryClass == null) {
-//        @SuppressWarnings("unchecked")
-//        TypePairComparatorFactory<IT1, IT2> pactRecordFactory =
-//            (TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
-//        pairComparatorFactory = pactRecordFactory;
-//      } else {
-//        @SuppressWarnings("unchecked")
-//        final Class<TypePairComparatorFactory<IT1, IT2>> clazz =
-//            (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
-//        pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
-//      }
-//    } catch (ClassNotFoundException e) {
-//      throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", e);
-//    }
 
     List<MemorySegment> memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), config.getMemorySize());
 
@@ -244,17 +225,22 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
 
     while (!terminationRequested()) {
 
+      notifyMonitor(IterationMonitoring.Event.HEAD_STARTING);
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
       }
 
+
+
+      barrier.setup();
+
+      notifyMonitor(IterationMonitoring.Event.HEAD_PACT_STARTING);
       if (!inFirstIteration()) {
         reinstantiateDriver();
       }
 
-      barrier.setup();
-
       super.invoke();
+      notifyMonitor(IterationMonitoring.Event.HEAD_PACT_FINISHED);
 
       EndOfSuperstepEvent endOfSuperstepEvent = new EndOfSuperstepEvent();
 
@@ -268,7 +254,9 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
       }
 
       sendEventToSync(endOfSuperstepEvent);
+      notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
 
+      notifyMonitor(IterationMonitoring.Event.HEAD_WAITING_FOR_OTHERS);
       if (log.isInfoEnabled()) {
         log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
       }
