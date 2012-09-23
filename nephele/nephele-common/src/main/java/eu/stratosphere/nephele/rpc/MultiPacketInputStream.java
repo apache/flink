@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.rpc;
 
 import java.io.IOException;
@@ -7,6 +22,8 @@ import java.net.DatagramPacket;
 final class MultiPacketInputStream extends InputStream {
 
 	private final DatagramPacket[] packets;
+
+	private final long creationTime;
 
 	private int nextPacketToRead = 0;
 
@@ -18,6 +35,11 @@ final class MultiPacketInputStream extends InputStream {
 
 	MultiPacketInputStream(final short numberOfPackets) {
 		this.packets = new DatagramPacket[numberOfPackets];
+		this.creationTime = System.currentTimeMillis();
+	}
+
+	long getCreationTime() {
+		return this.creationTime;
 	}
 
 	void addPacket(final short packetNumber, final DatagramPacket datagramPacket) {
@@ -39,11 +61,11 @@ final class MultiPacketInputStream extends InputStream {
 	public int available() {
 
 		System.out.println("Available called");
-		
+
 		if (!isComplete()) {
 			return 0;
 		}
-		
+
 		int available = this.currentLength - this.read;
 		for (int i = this.nextPacketToRead; i < this.packets.length; ++i) {
 			available += this.packets[i].getLength() - RPCMessage.METADATA_SIZE;
@@ -90,7 +112,7 @@ final class MultiPacketInputStream extends InputStream {
 			this.currentLength = dp.getLength() - RPCMessage.METADATA_SIZE;
 			this.read = 0;
 		}
-		
+
 		return true;
 	}
 

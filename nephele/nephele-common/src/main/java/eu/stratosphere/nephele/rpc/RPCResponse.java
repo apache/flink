@@ -15,11 +15,6 @@
 
 package eu.stratosphere.nephele.rpc;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
 /**
  * Abstract base class for all types of response messages used by this RPC service.
  * <p>
@@ -27,7 +22,7 @@ import com.esotericsoftware.kryo.io.Output;
  * 
  * @author warneke
  */
-abstract class RPCResponse extends RPCMessage implements KryoSerializable {
+abstract class RPCResponse extends RPCMessage {
 
 	/**
 	 * Constructs a new RPC response.
@@ -37,21 +32,5 @@ abstract class RPCResponse extends RPCMessage implements KryoSerializable {
 	 */
 	protected RPCResponse(final int messageID) {
 		super(messageID);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final Kryo kryo, final Output output) {
-		super.write(kryo, output);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final Kryo kryo, final Input input) {
-		super.read(kryo, input);
 	}
 }

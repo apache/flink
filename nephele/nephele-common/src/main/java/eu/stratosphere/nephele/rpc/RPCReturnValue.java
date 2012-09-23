@@ -15,24 +15,19 @@
 
 package eu.stratosphere.nephele.rpc;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
 /**
  * This message is used to transport the return value of a remote procedure call back to the caller.
  * <p>
- * This message is in general not thread-safe.
+ * This message is thread-safe.
  * 
  * @author warneke
  */
-final class RPCReturnValue extends RPCResponse implements KryoSerializable {
+final class RPCReturnValue extends RPCResponse {
 
 	/**
 	 * The return value of the remote procedure call.
 	 */
-	private Object retVal;
+	private final Object retVal;
 
 	/**
 	 * Constructs a new RPC return value message.
@@ -64,43 +59,5 @@ final class RPCReturnValue extends RPCResponse implements KryoSerializable {
 	 */
 	Object getRetVal() {
 		return this.retVal;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final Kryo kryo, final Output output) {
-		super.write(kryo, output);
-
-		if (this.retVal == null) {
-			output.writeBoolean(false);
-			return;
-		}
-
-		output.writeBoolean(true);
-		output.writeString(this.retVal.getClass().getName());
-		kryo.writeObject(output, this.retVal);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	public void read(final Kryo kryo, final Input input) {
-		super.read(kryo, input);
-
-		if (!input.readBoolean()) {
-			this.retVal = null;
-			return;
-		}
-
-		Class<?> clazz = null;
-		try {
-			clazz = Class.forName(input.readString());
-		} catch (ClassNotFoundException cnfe) {
-			throw new RuntimeException(cnfe);
-		}
-
-		this.retVal = kryo.readObject(input, clazz);
 	}
 }

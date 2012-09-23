@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.rpc;
 
 import static org.junit.Assert.fail;
@@ -15,6 +30,8 @@ import eu.stratosphere.nephele.util.StringUtils;
 public class RPCServiceTest implements RPCTestProtocol {
 
 	private static final int RPC_TEST_PORT = 8000;
+
+	private static final int NUMBER_OF_RPC_HANDLERS = 2;
 
 	private static final int NUMBER_OF_TEST_STRINGS = 100;
 
@@ -34,7 +51,7 @@ public class RPCServiceTest implements RPCTestProtocol {
 
 		RPCService rpcService = null;
 		try {
-			rpcService = new RPCService(RPC_TEST_PORT);
+			rpcService = new RPCService(RPC_TEST_PORT, NUMBER_OF_RPC_HANDLERS);
 			rpcService.setProtocolCallbackHandler(RPCTestProtocol.class, this);
 
 			final RPCTestProtocol proxy = rpcService.getProxy(new InetSocketAddress("localhost", RPC_TEST_PORT),
@@ -67,7 +84,7 @@ public class RPCServiceTest implements RPCTestProtocol {
 
 		RPCService rpcService = null;
 		try {
-			rpcService = new RPCService(RPC_TEST_PORT);
+			rpcService = new RPCService(RPC_TEST_PORT, NUMBER_OF_RPC_HANDLERS);
 			rpcService.setProtocolCallbackHandler(RPCTestProtocol.class, this);
 
 			final RPCTestProtocol proxy = rpcService.getProxy(new InetSocketAddress("localhost", RPC_TEST_PORT),

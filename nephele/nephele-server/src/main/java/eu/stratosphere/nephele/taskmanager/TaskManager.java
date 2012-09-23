@@ -206,7 +206,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Start local RPC server
 		RPCService rpcService = null;
 		try {
-			rpcService = new RPCService(ipcPort, 1);
+			rpcService = new RPCService(ipcPort, 4);
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to taskmanager server. " + e.getMessage(), e);

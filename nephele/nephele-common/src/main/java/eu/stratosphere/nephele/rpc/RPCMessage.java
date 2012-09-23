@@ -17,24 +17,19 @@ package eu.stratosphere.nephele.rpc;
 
 import java.net.DatagramPacket;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
 /**
  * Abstract base class for all types of communication messages used by this RPC service.
  * <p>
- * This class is in general not thread-safe.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-abstract class RPCMessage implements KryoSerializable {
+abstract class RPCMessage {
 
 	/**
 	 * The largest amount of data to be put in a single {@link DatagramPacket}.
 	 */
-	public static final int MAXIMUM_MSG_SIZE = 1020;
+	public static final int MAXIMUM_MSG_SIZE = 1018;
 
 	/**
 	 * The amount of data reserved for meta data in each {@link DatagramPacket}.
@@ -44,7 +39,7 @@ abstract class RPCMessage implements KryoSerializable {
 	/**
 	 * The message ID.
 	 */
-	private int messageID;
+	private final int messageID;
 
 	/**
 	 * Constructs a new RPC message.
@@ -63,23 +58,5 @@ abstract class RPCMessage implements KryoSerializable {
 	 */
 	final int getMessageID() {
 		return this.messageID;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final Kryo kryo, final Output output) {
-
-		output.writeInt(this.messageID);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final Kryo kryo, final Input input) {
-
-		this.messageID = input.readInt();
 	}
 }

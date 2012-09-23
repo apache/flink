@@ -1,12 +1,29 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.rpc;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.SocketException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Timer;
@@ -18,30 +35,67 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.minlog.Log;
 
+/**
+ * This class implements a lightweight, UDP-based RPC service.
+ * <p>
+ * This class is thread-safe.
+ * 
+ * @author warneke
+ */
 public final class RPCService {
 
+	/**
+	 * The default number of threads handling RPC requests.
+	 */
 	private static final int DEFAULT_NUM_RPC_HANDLERS = 1;
 
-	private static final int TIMEOUT = 1000;
+	/**
+	 * The request timeout in milliseconds.
+	 */
+	private static final int TIMEOUT = 500;
 
+	/**
+	 * The maximum number of retries in case the response does not arrive on time.
+	 */
 	private static final int RETRY_LIMIT = 10;
 
+	/**
+	 * Interval in which the background clean-up routine runs in milliseconds.
+	 */
 	private static final int CLEANUP_INTERVAL = 20000;
 
+	/**
+	 * The executor service managing the RPC handler threads.
+	 */
 	private final ExecutorService rpcHandlers;
 
+	/**
+	 * The UDP port this service is bound to.
+	 */
 	private final int rpcPort;
 
+	/**
+	 * The datagram socket used for the actual network communication.
+	 */
 	private final DatagramSocket socket;
 
-	private final SenderThread senderThread;
-
+	/**
+	 * Background thread to wait for incoming data and dispatch it among the available RPC handler threads.
+	 */
 	private final ReceiverThread receiverThread;
 
+	/**
+	 * Stores whether the RPC service was requested to shut down.
+	 */
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
 
+	/**
+	 * Periodic timer to handle clean-up tasks in the background.
+	 */
 	private final Timer cleanupTimer = new Timer();
 
 	private final ConcurrentHashMap<String, RPCProtocol> callbackHandlers = new ConcurrentHashMap<String, RPCProtocol>();
@@ -54,15 +108,121 @@ public final class RPCService {
 
 	private final ConcurrentHashMap<MultiPacketInputStreamKey, MultiPacketInputStream> incompleteInputStreams = new ConcurrentHashMap<MultiPacketInputStreamKey, MultiPacketInputStream>();
 
+	final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>() {
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		protected Kryo initialValue() {
+			return new Kryo();
+		}
+	};
+
+	/**
+	 * This class implements the receiver thread which waits for incoming data and dispatch it among the available RPC
+	 * handler threads.
+	 * <p>
+	 * This class is thread-safe.
+	 * 
+	 * @author warneke
+	 */
+	private static final class ReceiverThread extends Thread {
+
+		/**
+		 * Reference to the RPC service object.
+		 */
+		private final RPCService rpcService;
+
+		/**
+		 * The datagram socket to receive data from.
+		 */
+		private final DatagramSocket socket;
+
+		/**
+		 * Stores whether the thread has been requested to stop and shut down.
+		 */
+		private volatile boolean shutdownRequested = false;
+
+		/**
+		 * Constructs a new receiver thread.
+		 * 
+		 * @param rpcService
+		 *        reference to the RPC service object
+		 * @param socket
+		 *        the datagram socket to receive data from
+		 */
+		private ReceiverThread(final RPCService rpcService, final DatagramSocket socket) {
+			super("RPC Receiver Thread");
+
+			this.rpcService = rpcService;
+			this.socket = socket;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public void run() {
+
+			while (!this.shutdownRequested) {
+
+				final byte[] buf = new byte[RPCMessage.MAXIMUM_MSG_SIZE + RPCMessage.METADATA_SIZE];
+				final DatagramPacket dp = new DatagramPacket(buf, buf.length);
+
+				try {
+					this.socket.receive(dp);
+				} catch (SocketException se) {
+					if (this.shutdownRequested) {
+						return;
+					}
+					Log.error("Shutting down receiver thread due to error: ", se);
+					return;
+				} catch (IOException ioe) {
+					Log.error("Shutting down receiver thread due to error: ", ioe);
+					return;
+				}
+
+				final InetSocketAddress remoteSocketAddress = (InetSocketAddress) dp.getSocketAddress();
+				final int length = dp.getLength() - RPCMessage.METADATA_SIZE;
+				final byte[] dbbuf = dp.getData();
+				final short numberOfPackets = byteArrayToShort(dbbuf, length + 2);
+
+				if (numberOfPackets == 1) {
+					this.rpcService.processIncomingRPCRequest(remoteSocketAddress, new Input(
+						new SinglePacketInputStream(dbbuf, length)));
+				} else {
+					final short packetIndex = byteArrayToShort(dbbuf, length);
+					final short fragmentationID = byteArrayToShort(dbbuf, length + 4);
+					final MultiPacketInputStream mpis = this.rpcService.getIncompleteInputStream(remoteSocketAddress,
+						fragmentationID, numberOfPackets);
+
+					mpis.addPacket(packetIndex, dp);
+					if (!mpis.isComplete()) {
+						continue;
+					}
+
+					this.rpcService.removeIncompleteInputStream(remoteSocketAddress, fragmentationID);
+					this.rpcService.processIncomingRPCRequest(remoteSocketAddress, new Input(mpis));
+				}
+			}
+		}
+
+		private void requestShutdown() {
+			this.shutdownRequested = true;
+			interrupted();
+		}
+	}
+
 	private static final class CachedResponse {
 
 		private final long creationTime;
 
-		private final RPCResponse rpcResponse;
+		private final DatagramPacket[] packets;
 
-		private CachedResponse(final long creationTime, final RPCResponse rpcResponse) {
+		private CachedResponse(final long creationTime, final DatagramPacket[] packets) {
 			this.creationTime = creationTime;
-			this.rpcResponse = rpcResponse;
+			this.packets = packets;
 		}
 	}
 
@@ -77,11 +237,14 @@ public final class RPCService {
 			this.interfaceName = interfaceName;
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
 		@Override
 		public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
 
-			final int requestID = (int) ((double) Integer.MIN_VALUE + (Math.random() * (double) Integer.MAX_VALUE * 2.0));
-			final RPCRequest rpcRequest = new RPCRequest(requestID, this.interfaceName, method, args);
+			final int messageID = (int) ((double) Integer.MIN_VALUE + (Math.random() * (double) Integer.MAX_VALUE * 2.0));
+			final RPCRequest rpcRequest = new RPCRequest(messageID, this.interfaceName, method, args);
 
 			return sendRPCRequest(this.remoteSocketAddress, rpcRequest);
 		}
@@ -90,6 +253,9 @@ public final class RPCService {
 
 	private final class CleanupTask extends TimerTask {
 
+		/**
+		 * {@inheritDoc}
+		 */
 		@Override
 		public void run() {
 
@@ -101,6 +267,16 @@ public final class RPCService {
 				final CachedResponse cachedResponse = entry.getValue();
 				if (cachedResponse.creationTime + CLEANUP_INTERVAL < now) {
 					it.remove();
+				}
+			}
+
+			final Iterator<Map.Entry<MultiPacketInputStreamKey, MultiPacketInputStream>> it2 = incompleteInputStreams
+				.entrySet().iterator();
+			while (it2.hasNext()) {
+				final Map.Entry<MultiPacketInputStreamKey, MultiPacketInputStream> entry = it2.next();
+				final MultiPacketInputStream mpis = entry.getValue();
+				if (mpis.getCreationTime() + CLEANUP_INTERVAL < now) {
+					it2.remove();
 				}
 			}
 		}
@@ -140,20 +316,14 @@ public final class RPCService {
 			return true;
 		}
 
+		/**
+		 * {@inheritDoc}
+		 */
 		@Override
 		public int hashCode() {
 
 			return this.socketAddress.hashCode() + this.fragmentationID;
 		}
-	}
-
-	static Kryo createKryoObject() {
-
-		final Kryo kryo = new Kryo();
-		kryo.register(RPCMessage.class);
-		kryo.register(RPCRequest.class);
-
-		return kryo;
 	}
 
 	public RPCService(final int rpcPort, final int numRPCHandlers) throws IOException {
@@ -163,9 +333,6 @@ public final class RPCService {
 		this.rpcPort = rpcPort;
 
 		this.socket = new DatagramSocket(rpcPort);
-
-		this.senderThread = new SenderThread(this.socket);
-		this.senderThread.start();
 
 		this.receiverThread = new ReceiverThread(this, this.socket);
 		this.receiverThread.start();
@@ -184,9 +351,6 @@ public final class RPCService {
 		this.rpcPort = -1;
 
 		this.socket = new DatagramSocket();
-
-		this.senderThread = new SenderThread(this.socket);
-		this.senderThread.start();
 
 		this.receiverThread = new ReceiverThread(this, this.socket);
 		this.receiverThread.start();
@@ -219,44 +383,45 @@ public final class RPCService {
 			throw new IOException("Shutdown of RPC service has already been requested");
 		}
 
-		final Integer requestID = Integer.valueOf(request.getRequestID());
+		DatagramPacket[] packets = messageToPackets(remoteSocketAddress, request);
+		final Integer messageID = Integer.valueOf(request.getMessageID());
 
-		this.pendingRequests.put(requestID, request);
+		this.pendingRequests.put(messageID, request);
 
 		for (int i = 0; i < RETRY_LIMIT; ++i) {
 
-			this.senderThread.sendMessage(remoteSocketAddress, request);
+			sendPackets(packets);
 
-			synchronized (request) {
-				try {
+			try {
+				synchronized (request) {
 					request.wait(TIMEOUT);
-				} catch (InterruptedException ie) {
-					// TODO: This is a bit of a hack, maybe we can find a more elegant solution later on
-					throw new IOException(ie);
 				}
+			} catch (InterruptedException ie) {
+				Log.debug("Caught interrupted exception while waiting for RPC request to complete: ", ie);
+				return null;
 			}
 
 			// Check if response has arrived
-			final RPCResponse rpcResponse = this.pendingResponses.remove(requestID);
+			final RPCResponse rpcResponse = this.pendingResponses.remove(messageID);
 			if (rpcResponse == null) {
 				// Resend message
+				Log.debug("Timeout, retransmitting request " + request.getMessageID());
 				continue;
 			}
 
 			// Request is no longer pending
-			this.pendingRequests.remove(requestID);
+			this.pendingRequests.remove(messageID);
 
-			// Send clean up message
-			this.senderThread.sendMessage(remoteSocketAddress, new RPCCleanup(request.getRequestID()));
+			packets = messageToPackets(remoteSocketAddress, new RPCCleanup(request.getMessageID()));
+			sendPackets(packets);
 
 			if (rpcResponse instanceof RPCReturnValue) {
 				return ((RPCReturnValue) rpcResponse).getRetVal();
 			}
-
 			throw ((RPCThrowable) rpcResponse).getThrowable();
 		}
 
-		this.pendingRequests.remove(requestID);
+		this.pendingRequests.remove(messageID);
 
 		throw new IOException("Unable to complete RPC of method " + request.getMethodName() + " on "
 			+ remoteSocketAddress);
@@ -268,17 +433,10 @@ public final class RPCService {
 			return;
 		}
 
-		// Request shutdown of sender and receiver thread
-		this.senderThread.requestShutdown();
+		// Request shutdown of receiver thread
 		this.receiverThread.requestShutdown();
 
 		this.socket.close();
-
-		try {
-			this.senderThread.join();
-		} catch (InterruptedException ie) {
-			Log.debug("Caught exception while waiting for sender thread to shut down: ", ie);
-		}
 
 		try {
 			this.receiverThread.join();
@@ -297,18 +455,61 @@ public final class RPCService {
 		this.cleanupTimer.cancel();
 	}
 
-	void processIncomingRPCRequest(final InetSocketAddress remoteSocketAddress, final RPCRequest rpcRequest)
-			throws InterruptedException {
+	void processIncomingRPCRequest(final InetSocketAddress remoteSocketAddress, final Input input) {
 
-		final Integer requestID = Integer.valueOf(rpcRequest.getRequestID());
-		final CachedResponse cachedResponse = this.cachedResponses.get(requestID);
+		final ThreadLocal<Kryo> threadLocalKryo = this.kryo;
+
+		final Runnable runnable = new Runnable() {
+
+			/**
+			 * {@inheritDoc}
+			 */
+			@Override
+			public void run() {
+
+				final Kryo kryo = threadLocalKryo.get();
+				kryo.reset();
+				final RPCEnvelope envelope = kryo.readObject(input, RPCEnvelope.class);
+				final RPCMessage msg = envelope.getRPCMessage();
+
+				if (msg instanceof RPCRequest) {
+					processIncomingRPCRequest(remoteSocketAddress, (RPCRequest) msg);
+				} else if (msg instanceof RPCResponse) {
+					processIncomingRPCResponse(remoteSocketAddress, (RPCResponse) msg);
+				} else {
+					processIncomingRPCCleanup(remoteSocketAddress, (RPCCleanup) msg);
+				}
+			}
+		};
+
+		this.rpcHandlers.execute(runnable);
+	}
+
+	private void sendPackets(final DatagramPacket[] packets) throws IOException {
+
+		for (int i = 0; i < packets.length; ++i) {
+			this.socket.send(packets[i]);
+		}
+	}
+
+	private void processIncomingRPCRequest(final InetSocketAddress remoteSocketAddress, final RPCRequest rpcRequest) {
+
+		final Integer messageID = Integer.valueOf(rpcRequest.getMessageID());
+		final CachedResponse cachedResponse = this.cachedResponses.get(messageID);
 		if (cachedResponse != null) {
-			this.senderThread.sendMessage(remoteSocketAddress, cachedResponse.rpcResponse);
+			try {
+				sendPackets(cachedResponse.packets);
+			} catch (IOException e) {
+				Log.error("Caught exception while trying to send RPC response: ", e);
+			}
 			return;
 		}
 
 		final Runnable runnable = new Runnable() {
 
+			/**
+			 * {@inheritDoc}
+			 */
 			@Override
 			public void run() {
 
@@ -327,24 +528,23 @@ public final class RPCService {
 					Log.error("Error while processing incoming RPC request: ", e);
 					return;
 				}
-
 				RPCResponse rpcResponse = null;
 				try {
 					final Object retVal = method.invoke(callbackHandler, rpcRequest.getArgs());
-					rpcResponse = new RPCReturnValue(rpcRequest.getRequestID(), retVal);
+					rpcResponse = new RPCReturnValue(rpcRequest.getMessageID(), retVal);
 				} catch (InvocationTargetException ite) {
-					rpcResponse = new RPCThrowable(rpcRequest.getRequestID(), ite.getTargetException());
+					rpcResponse = new RPCThrowable(rpcRequest.getMessageID(), ite.getTargetException());
 				} catch (Exception e) {
 					e.printStackTrace();
 					Log.error("Error while processing incoming RPC request: ", e);
 					return;
 				}
-
-				cachedResponses.put(requestID, new CachedResponse(System.currentTimeMillis(), rpcResponse));
+				final DatagramPacket[] packets = messageToPackets(remoteSocketAddress, rpcResponse);
+				cachedResponses.put(messageID, new CachedResponse(System.currentTimeMillis(), packets));
 				try {
-					senderThread.sendMessage(remoteSocketAddress, rpcResponse);
-				} catch (InterruptedException e) {
-					Log.error("Caught interrupted excetion while trying to send RPC response: ", e);
+					sendPackets(packets);
+				} catch (IOException e) {
+					Log.error("Caught exception while trying to send RPC response: ", e);
 				}
 			}
 		};
@@ -352,16 +552,32 @@ public final class RPCService {
 		this.rpcHandlers.execute(runnable);
 	}
 
+	private DatagramPacket[] messageToPackets(final InetSocketAddress remoteSocketAddress, final RPCMessage rpcMessage) {
+
+		final MultiPacketOutputStream mpos = new MultiPacketOutputStream(RPCMessage.MAXIMUM_MSG_SIZE
+			+ RPCMessage.METADATA_SIZE);
+		final Kryo kryo = this.kryo.get();
+		kryo.reset();
+
+		final Output output = new Output(mpos);
+
+		kryo.writeObject(output, new RPCEnvelope(rpcMessage));
+		output.close();
+		mpos.close();
+
+		return mpos.createPackets(remoteSocketAddress);
+	}
+
 	void processIncomingRPCResponse(final InetSocketAddress remoteSocketAddress, final RPCResponse rpcResponse) {
 
-		final Integer requestID = Integer.valueOf(rpcResponse.getRequestID());
+		final Integer messageID = Integer.valueOf(rpcResponse.getMessageID());
 
-		final RPCRequest request = this.pendingRequests.get(requestID);
+		final RPCRequest request = this.pendingRequests.get(messageID);
 		if (request == null) {
 			return;
 		}
 
-		this.pendingResponses.put(requestID, rpcResponse);
+		this.pendingResponses.put(messageID, rpcResponse);
 
 		synchronized (request) {
 			request.notify();
@@ -370,7 +586,7 @@ public final class RPCService {
 
 	void processIncomingRPCCleanup(final InetSocketAddress remoteSocketAddress, final RPCCleanup rpcCleanup) {
 
-		this.cachedResponses.remove(Integer.valueOf(rpcCleanup.getRequestID()));
+		this.cachedResponses.remove(Integer.valueOf(rpcCleanup.getMessageID()));
 	}
 
 	public int getRPCPort() {
@@ -397,5 +613,16 @@ public final class RPCService {
 	void removeIncompleteInputStream(final SocketAddress socketAddress, final short fragmentationID) {
 
 		this.incompleteInputStreams.remove(new MultiPacketInputStreamKey(socketAddress, fragmentationID));
+	}
+
+	static short byteArrayToShort(final byte[] arr, final int offset) {
+
+		return (short) (((arr[offset] << 8)) | ((arr[offset + 1] & 0xFF)));
+	}
+
+	static void shortToByteArray(final short val, final byte[] arr, final int offset) {
+
+		arr[offset] = (byte) ((val & 0xFF00) >> 8);
+		arr[offset + 1] = (byte) (val & 0x00FF);
 	}
 }

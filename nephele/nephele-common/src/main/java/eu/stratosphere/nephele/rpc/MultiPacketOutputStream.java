@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.nephele.rpc;
 
 import java.io.IOException;
@@ -7,24 +22,24 @@ import java.net.InetSocketAddress;
 
 final class MultiPacketOutputStream extends OutputStream {
 
-	private final int bufferSize;
+	private int bufferSize;
 
-	private final byte[] buf;
+	private byte[] buf;
 
 	private int totalLen = 0;
 
 	private int lenInPacket = 0;
 
-	MultiPacketOutputStream(final byte[] buf) {
-		this.bufferSize = buf.length - RPCMessage.METADATA_SIZE;
-		this.buf = buf;
+	MultiPacketOutputStream(final int initialBufferSize) {
+		this.bufferSize = initialBufferSize - RPCMessage.METADATA_SIZE;
+		this.buf = new byte[initialBufferSize];
 	}
 
 	@Override
 	public void write(final int b) throws IOException {
 
 		if (this.totalLen == this.bufferSize) {
-			throw new IOException("Insufficient buffer space");
+			resizeBuffer();
 		}
 
 		if (this.lenInPacket == RPCMessage.MAXIMUM_MSG_SIZE) {
@@ -45,8 +60,8 @@ final class MultiPacketOutputStream extends OutputStream {
 	@Override
 	public void write(final byte[] b, final int off, final int len) throws IOException {
 
-		if (this.totalLen + len > this.bufferSize) {
-			throw new IOException("Insufficient buffer space");
+		while (this.totalLen + len > this.bufferSize) {
+			resizeBuffer();
 		}
 
 		int written = 0;
@@ -63,6 +78,14 @@ final class MultiPacketOutputStream extends OutputStream {
 			this.totalLen += amountOfDataToWrite;
 			written += amountOfDataToWrite;
 		}
+	}
+
+	private void resizeBuffer() {
+
+		final byte[] newBuf = new byte[this.buf.length * 2];
+		System.arraycopy(this.buf, 0, newBuf, 0, this.totalLen);
+		this.buf = newBuf;
+		this.bufferSize = newBuf.length - RPCMessage.METADATA_SIZE;
 	}
 
 	@Override
@@ -107,9 +130,9 @@ final class MultiPacketOutputStream extends OutputStream {
 			} else {
 				offset = (i + 1) * maximumPacketSize - RPCMessage.METADATA_SIZE;
 			}
-			shortToByteArray(i, this.buf, offset);
-			shortToByteArray(numberOfPackets, this.buf, offset + 2);
-			shortToByteArray(fragmentationID, this.buf, offset + 4);
+			RPCService.shortToByteArray(i, this.buf, offset);
+			RPCService.shortToByteArray(numberOfPackets, this.buf, offset + 2);
+			RPCService.shortToByteArray(fragmentationID, this.buf, offset + 4);
 
 			DatagramPacket packet;
 			if (lastPacket) {
@@ -124,11 +147,5 @@ final class MultiPacketOutputStream extends OutputStream {
 		}
 
 		return packets;
-	}
-
-	private static void shortToByteArray(final short val, final byte[] arr, final int offset) {
-
-		arr[offset] = (byte) ((val & 0xFF00) >> 8);
-		arr[offset + 1] = (byte) (val & 0x00FF);
 	}
 }

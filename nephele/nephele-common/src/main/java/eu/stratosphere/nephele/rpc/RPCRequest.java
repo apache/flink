@@ -17,39 +17,34 @@ package eu.stratosphere.nephele.rpc;
 
 import java.lang.reflect.Method;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
 /**
  * This class implements a request message for the RPC service.
  * <p>
- * This class is in general not thread-safe.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-final class RPCRequest extends RPCMessage implements KryoSerializable {
+final class RPCRequest extends RPCMessage {
 
 	/**
 	 * The name of the protocol this message is designed for.
 	 */
-	private String protocolName;
+	private final String protocolName;
 
 	/**
 	 * The method to be called as part of this RPC request.
 	 */
-	private String methodName;
+	private final String methodName;
 
 	/**
 	 * The parameter types of the method.
 	 */
-	private Class<?>[] parameterTypes;
+	private final Class<?>[] parameterTypes;
 
 	/**
 	 * The arguments for the remote procedure call.
 	 */
-	private Object[] args;
+	private final Object[] args;
 
 	/**
 	 * Constructs a new RPC request message.
@@ -122,64 +117,5 @@ final class RPCRequest extends RPCMessage implements KryoSerializable {
 	Object[] getArgs() {
 
 		return this.args;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final Kryo kryo, final Output output) {
-		super.write(kryo, output);
-
-		output.writeString(this.protocolName);
-		output.writeString(this.methodName);
-		output.writeInt(this.parameterTypes.length);
-		for (int i = 0; i < this.parameterTypes.length; i++) {
-			output.writeString(this.parameterTypes[i].getName());
-			if (this.args[i] == null) {
-				output.writeBoolean(false);
-			} else {
-				output.writeBoolean(true);
-				output.writeString(this.args[i].getClass().getName());
-				kryo.writeObject(output, this.args[i]);
-			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final Kryo kryo, final Input input) {
-		super.read(kryo, input);
-
-		this.protocolName = input.readString();
-		this.methodName = input.readString();
-		this.args = new Object[input.readInt()];
-		this.parameterTypes = new Class<?>[this.args.length];
-
-		for (int i = 0; i < this.args.length; ++i) {
-
-			// Read class name for parameter and try to get class to that name
-			final String className = input.readString();
-			try {
-				this.parameterTypes[i] = Class.forName(className);
-			} catch (ClassNotFoundException cnfe) {
-				throw new RuntimeException(cnfe);
-			}
-
-			// See if parameter is null
-			if (input.readBoolean()) {
-				try {
-					final String parameterClassName = input.readString();
-					final Class<?> parameterClass = Class.forName(parameterClassName);
-					this.args[i] = kryo.readObject(input, parameterClass);
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			} else {
-				this.args[i] = null;
-			}
-		}
 	}
 }
