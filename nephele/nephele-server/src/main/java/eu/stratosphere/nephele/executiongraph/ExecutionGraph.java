@@ -70,18 +70,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public class ExecutionGraph implements ExecutionListener {
 
-	/**
-	 * @author Arvid Heise
-	 *
-	 */
-	private static final class DeamonThreadFactory implements ThreadFactory {
-		@Override
-		public Thread newThread(Runnable r) {
-			final Thread thread = new Thread(r);
-			thread.setDaemon(true);
-			return thread;
-		}
-	}
+
 
 	/**
 	 * The log object used for debugging.
@@ -1450,5 +1439,21 @@ public class ExecutionGraph implements ExecutionListener {
 	public void executeCommand(final Runnable command) {
 
 		this.executorService.execute(command);
+	}
+	
+	/**
+	 * Creates deamon threads.<br />
+	 * Is used to allow the JVM to shutdown without closing the executorService of the {@link ExecutionGraph}.<br />
+	 * Has to be static to avoid resource leaks, since threads are GC roots.
+	 * 
+	 * @author Arvid Heise
+	 */
+	private static final class DeamonThreadFactory implements ThreadFactory {
+		@Override
+		public Thread newThread(Runnable r) {
+			final Thread thread = new Thread(r);
+			thread.setDaemon(true);
+			return thread;
+		}
 	}
 }
