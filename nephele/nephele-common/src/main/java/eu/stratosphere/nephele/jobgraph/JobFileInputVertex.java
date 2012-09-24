@@ -106,17 +106,7 @@ public final class JobFileInputVertex extends AbstractJobInputVertex {
 	 *        the class of the vertex's input task.
 	 */
 	public void setFileInputClass(final Class<? extends AbstractFileInputTask> inputClass) {
-		this.invokableClass = inputClass;
-	}
-
-	/**
-	 * Returns the class of the vertex's input task.
-	 * 
-	 * @return the class of the vertex's input task or <code>null</code> if no task has yet been set
-	 */
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractFileInputTask> getFileInputClass() {
-		return (Class<? extends AbstractFileInputTask>) this.invokableClass;
+		this.invokableClassName = inputClass.getName();
 	}
 
 	/**

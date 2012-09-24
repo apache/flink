@@ -96,9 +96,9 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 	private Configuration configuration = new Configuration();
 
 	/**
-	 * The class of the invokable.
+	 * The name of the invokable class.
 	 */
-	protected Class<? extends AbstractInvokable> invokableClass = null;
+	protected String invokableClassName = null;
 
 	/**
 	 * Constructs a new job vertex and assigns it with the given name.
@@ -417,22 +417,13 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 			}
 		}
 
-		// Write the invokable class
-		if (this.invokableClass == null) {
-			output.writeBoolean(false);
-			return;
-		}
-
-		output.writeBoolean(true);
-
-		// Write out the name of the class
-		output.writeString(this.invokableClass.getName());
+		// Write the name of invokable class
+		output.writeString(this.invokableClassName);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
 	public void read(final Kryo kryo, final Input input) {
 
@@ -504,21 +495,8 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 			}
 		}
 
-		// Read the invokable class
-		final boolean isNotNull = input.readBoolean();
-		if (!isNotNull) {
-			return;
-		}
-
-		// Read the name of the expected class
-		final String className = input.readString();
-
-		try {
-			this.invokableClass = (Class<? extends AbstractInvokable>) Class.forName(className, true, cl);
-		} catch (ClassNotFoundException cnfe) {
-			throw new RuntimeException("Class " + className + " not found in one of the supplied jar files: "
-				+ StringUtils.stringifyException(cnfe));
-		}
+		// Read the name of the invokable class
+		this.invokableClassName = input.readString();
 	}
 
 	/**
@@ -702,12 +680,12 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 	}
 
 	/**
-	 * Returns the invokable class which represents the task of this vertex
+	 * Returns the name of the invokable class.
 	 * 
-	 * @return the invokable class, <code>null</code> if it is not set
+	 * @return the name of the invokable class
 	 */
-	public Class<? extends AbstractInvokable> getInvokableClass() {
+	public String getInvokableClassName() {
 
-		return this.invokableClass;
+		return this.invokableClassName;
 	}
 }

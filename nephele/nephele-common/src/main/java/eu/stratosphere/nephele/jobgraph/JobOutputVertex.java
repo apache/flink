@@ -69,16 +69,6 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 	 *        The class of the vertex's output task.
 	 */
 	public void setOutputClass(final Class<? extends AbstractOutputTask> outputClass) {
-		this.invokableClass = outputClass;
-	}
-
-	/**
-	 * Returns the class of the vertex's output task.
-	 * 
-	 * @return The class of the vertex's output task or <code>null</code> if no task has yet been set.
-	 */
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractOutputTask> getOutputClass() {
-		return (Class<? extends AbstractOutputTask>) this.invokableClass;
+		this.invokableClassName = outputClass.getName();
 	}
 }

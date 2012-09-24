@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,6 +37,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -169,7 +171,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
 	public ExecutionGraph(final JobGraph job, final InstanceManager instanceManager)
-																					throws GraphConversionException {
+			throws GraphConversionException {
 		this(job.getJobID(), job.getName(), job.getJobConfiguration());
 
 		// Start constructing the new execution graph from given job graph
@@ -280,11 +282,24 @@ public class ExecutionGraph implements ExecutionListener {
 		final ExecutionStage initialExecutionStage = new ExecutionStage(this, 0);
 		this.stages.add(initialExecutionStage);
 
+		// Get the job's class loader
+		final JobID jobID = jobGraph.getJobID();
+		ClassLoader jobClassLoader = null;
+		try {
+			jobClassLoader = LibraryCacheManager.getClassLoader(jobID);
+		} catch (IOException e) {
+			LOG.error(e);
+			throw new GraphConversionException(StringUtils.stringifyException(e));
+		}
+		if (jobClassLoader == null) {
+			throw new GraphConversionException("Cannot find class loader for job " + jobID);
+		}
+
 		// Convert job vertices to execution vertices and initialize them
 		final AbstractJobVertex[] all = jobGraph.getAllJobVertices();
 		for (int i = 0; i < all.length; i++) {
 			final ExecutionVertex createdVertex = createVertex(all[i], instanceManager, initialExecutionStage,
-				jobGraph.getJobConfiguration());
+				jobGraph.getJobConfiguration(), jobClassLoader);
 			temporaryVertexMap.put(all[i], createdVertex);
 			temporaryGroupVertexMap.put(all[i], createdVertex.getGroupVertex());
 		}
@@ -472,13 +487,16 @@ public class ExecutionGraph implements ExecutionListener {
 	 *        the initial execution stage all group vertices are added to
 	 * @param jobConfiguration
 	 *        the configuration object originally attached to the {@link JobGraph}
+	 * @param jobClassLoader
+	 *        the class loader of the job
 	 * @return the new execution vertex
 	 * @throws GraphConversionException
 	 *         thrown if the job vertex is of an unknown subclass
 	 */
+	@SuppressWarnings("unchecked")
 	private ExecutionVertex createVertex(final AbstractJobVertex jobVertex, final InstanceManager instanceManager,
-			final ExecutionStage initialExecutionStage, final Configuration jobConfiguration)
-			throws GraphConversionException {
+			final ExecutionStage initialExecutionStage, final Configuration jobConfiguration,
+			final ClassLoader jobClassLoader) throws GraphConversionException {
 
 		// If the user has requested instance type, check if the type is known by the current instance manager
 		InstanceType instanceType = null;
@@ -497,15 +515,23 @@ public class ExecutionGraph implements ExecutionListener {
 			instanceType = instanceManager.getDefaultInstanceType();
 		}
 
+		Class<? extends AbstractInvokable> invokableClass = null;
+		try {
+			invokableClass = (Class<? extends AbstractInvokable>) Class.forName(jobVertex.getInvokableClassName(),
+				false, jobClassLoader);
+		} catch (ClassNotFoundException e) {
+			LOG.error(e);
+			throw new GraphConversionException(StringUtils.stringifyException(e));
+		}
+
 		// Create an initial execution vertex for the job vertex
-		final Class<? extends AbstractInvokable> invokableClass = jobVertex.getInvokableClass();
 		if (invokableClass == null) {
 			throw new GraphConversionException("JobVertex " + jobVertex.getID() + " (" + jobVertex.getName()
 				+ ") does not specify a task");
 		}
 
 		// Calculate the cryptographic signature of this vertex
-		final ExecutionSignature signature = ExecutionSignature.createSignature(jobVertex.getInvokableClass(),
+		final ExecutionSignature signature = ExecutionSignature.createSignature(invokableClass,
 			jobVertex.getJobGraph().getJobID());
 
 		// Create a group vertex for the job vertex

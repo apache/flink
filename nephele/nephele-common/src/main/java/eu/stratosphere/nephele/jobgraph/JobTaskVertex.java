@@ -75,17 +75,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 *        the class of the vertex's task
 	 */
 	public void setTaskClass(final Class<? extends AbstractTask> taskClass) {
-		this.invokableClass = taskClass;
-	}
-
-	/**
-	 * Returns the class of the vertex's task.
-	 * 
-	 * @return the class of the vertex's task or <code>null</code> if the class has not yet been set
-	 */
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractTask> getTaskClass() {
-		return (Class<? extends AbstractTask>) this.invokableClass;
+		this.invokableClassName = taskClass.getName();
 	}
 
 	/**
