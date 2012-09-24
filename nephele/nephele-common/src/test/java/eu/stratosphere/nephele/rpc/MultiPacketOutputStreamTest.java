@@ -27,10 +27,19 @@ import org.junit.Test;
 
 import eu.stratosphere.nephele.util.StringUtils;
 
+/**
+ * This class contains unit tests for the {@link MultiPacketOutputStream}.
+ * 
+ * @author warneke
+ */
 public class MultiPacketOutputStreamTest {
 
 	private InetSocketAddress TEST_REMOTE_ADDRESS = new InetSocketAddress("localhost", 2000);
 
+	/**
+	 * Checks the output of the stream for small amounts of data, i.e. the output fits into a single
+	 * {@link DatagramPaket}.
+	 */
 	@Test
 	public void testSinglePacketSerialization() {
 
@@ -60,10 +69,14 @@ public class MultiPacketOutputStreamTest {
 		}
 		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE]);
 		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 1]);
-		assertEquals(1, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 2]);
-		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 3]);
+		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 2]);
+		assertEquals(1, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 3]);
 	}
 
+	/**
+	 * Checks the output of the stream for larger amounts of data, i.e. the output is fragmented into several
+	 * {@link DatagramPacket} objects.
+	 */
 	@Test
 	public void testMultiPacketSerialization() {
 
@@ -94,12 +107,11 @@ public class MultiPacketOutputStreamTest {
 			lastByte = packetBuf[i];
 			assertEquals((byte) (i % 23), lastByte);
 		}
-		assertEquals(7, lastByte);
-		System.out.println("Last byte" + lastByte);
+		assertEquals(5, lastByte);
 		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE]);
 		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 1]);
-		assertEquals(2, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 2]);
-		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 3]);
+		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 2]);
+		assertEquals(2, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 3]);
 
 		// Inspect second package
 		offset = packets[1].getOffset();
