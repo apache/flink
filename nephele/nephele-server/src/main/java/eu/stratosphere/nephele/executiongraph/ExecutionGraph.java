@@ -71,6 +71,19 @@ import eu.stratosphere.nephele.util.StringUtils;
 public class ExecutionGraph implements ExecutionListener {
 
 	/**
+	 * @author Arvid Heise
+	 *
+	 */
+	private static final class DeamonThreadFactory implements ThreadFactory {
+		@Override
+		public Thread newThread(Runnable r) {
+			final Thread thread = new Thread(r);
+			thread.setDaemon(true);
+			return thread;
+		}
+	}
+
+	/**
 	 * The log object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(ExecutionGraph.class);
@@ -105,14 +118,7 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * The executor service to asynchronously perform update operations to this graph.
 	 */
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {		
-		@Override
-		public Thread newThread(Runnable r) {
-			final Thread thread = new Thread(r);
-			thread.setDaemon(true);
-			return thread;
-		}
-	});
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor(new DeamonThreadFactory());
 
 	/**
 	 * Index to the current execution stage.
