@@ -56,12 +56,12 @@ public final class RPCService {
 	/**
 	 * The request timeout in milliseconds.
 	 */
-	private static final int TIMEOUT = 500;
+	private static final int TIMEOUT = 100;
 
 	/**
 	 * The maximum number of retries in case the response does not arrive on time.
 	 */
-	private static final int RETRY_LIMIT = 10;
+	private static final int RETRY_LIMIT = 30;
 
 	/**
 	 * Interval in which the background clean-up routine runs in milliseconds.
@@ -101,6 +101,8 @@ public final class RPCService {
 	private final ConcurrentHashMap<String, RPCProtocol> callbackHandlers = new ConcurrentHashMap<String, RPCProtocol>();
 
 	private final ConcurrentHashMap<Integer, RPCRequest> pendingRequests = new ConcurrentHashMap<Integer, RPCRequest>();
+
+	private final ConcurrentHashMap<Integer, RPCRequest> requestsBeingProcessed = new ConcurrentHashMap<Integer, RPCRequest>();
 
 	private final ConcurrentHashMap<Integer, RPCResponse> pendingResponses = new ConcurrentHashMap<Integer, RPCResponse>();
 
@@ -189,7 +191,7 @@ public final class RPCService {
 				final short numberOfPackets = byteArrayToShort(dbbuf, length + 2);
 
 				if (numberOfPackets == 1) {
-					this.rpcService.processIncomingRPCRequest(remoteSocketAddress, new Input(
+					this.rpcService.processIncomingRPCMessage(remoteSocketAddress, new Input(
 						new SinglePacketInputStream(dbbuf, length)));
 				} else {
 					final short packetIndex = byteArrayToShort(dbbuf, length);
@@ -203,7 +205,7 @@ public final class RPCService {
 					}
 
 					this.rpcService.removeIncompleteInputStream(remoteSocketAddress, fragmentationID);
-					this.rpcService.processIncomingRPCRequest(remoteSocketAddress, new Input(mpis));
+					this.rpcService.processIncomingRPCMessage(remoteSocketAddress, new Input(mpis));
 				}
 			}
 		}
@@ -455,7 +457,7 @@ public final class RPCService {
 		this.cleanupTimer.cancel();
 	}
 
-	void processIncomingRPCRequest(final InetSocketAddress remoteSocketAddress, final Input input) {
+	void processIncomingRPCMessage(final InetSocketAddress remoteSocketAddress, final Input input) {
 
 		final ThreadLocal<Kryo> threadLocalKryo = this.kryo;
 
@@ -495,61 +497,53 @@ public final class RPCService {
 	private void processIncomingRPCRequest(final InetSocketAddress remoteSocketAddress, final RPCRequest rpcRequest) {
 
 		final Integer messageID = Integer.valueOf(rpcRequest.getMessageID());
+
+		if (this.requestsBeingProcessed.putIfAbsent(messageID, rpcRequest) != null) {
+			Log.debug("Request " + rpcRequest.getMessageID() + " is already being processed at the moment");
+			return;
+		}
+
 		final CachedResponse cachedResponse = this.cachedResponses.get(messageID);
 		if (cachedResponse != null) {
 			try {
 				sendPackets(cachedResponse.packets);
 			} catch (IOException e) {
 				Log.error("Caught exception while trying to send RPC response: ", e);
+			} finally {
+				this.requestsBeingProcessed.remove(messageID);
 			}
 			return;
 		}
 
-		final Runnable runnable = new Runnable() {
+		final RPCProtocol callbackHandler = callbackHandlers.get(rpcRequest.getInterfaceName());
+		if (callbackHandler == null) {
+			Log.error("Cannot find callback handler for protocol " + rpcRequest.getInterfaceName());
+			this.requestsBeingProcessed.remove(messageID);
+			return;
+		}
 
-			/**
-			 * {@inheritDoc}
-			 */
-			@Override
-			public void run() {
+		try {
+			final Method method = callbackHandler.getClass().getMethod(rpcRequest.getMethodName(),
+				rpcRequest.getParameterTypes());
 
-				final RPCProtocol callbackHandler = callbackHandlers.get(rpcRequest.getInterfaceName());
-				if (callbackHandler == null) {
-					Log.error("Cannot find callback handler for protocol " + rpcRequest.getInterfaceName());
-					return;
-				}
-
-				Method method = null;
-				try {
-					method = callbackHandler.getClass().getMethod(rpcRequest.getMethodName(),
-						rpcRequest.getParameterTypes());
-				} catch (Exception e) {
-					e.printStackTrace();
-					Log.error("Error while processing incoming RPC request: ", e);
-					return;
-				}
-				RPCResponse rpcResponse = null;
-				try {
-					final Object retVal = method.invoke(callbackHandler, rpcRequest.getArgs());
-					rpcResponse = new RPCReturnValue(rpcRequest.getMessageID(), retVal);
-				} catch (InvocationTargetException ite) {
-					rpcResponse = new RPCThrowable(rpcRequest.getMessageID(), ite.getTargetException());
-				} catch (Exception e) {
-					e.printStackTrace();
-					Log.error("Error while processing incoming RPC request: ", e);
-					return;
-				}
-				final DatagramPacket[] packets = messageToPackets(remoteSocketAddress, rpcResponse);
-				cachedResponses.put(messageID, new CachedResponse(System.currentTimeMillis(), packets));
-				try {
-					sendPackets(packets);
-				} catch (IOException e) {
-					Log.error("Caught exception while trying to send RPC response: ", e);
-				}
+			RPCResponse rpcResponse = null;
+			try {
+				final Object retVal = method.invoke(callbackHandler, rpcRequest.getArgs());
+				rpcResponse = new RPCReturnValue(rpcRequest.getMessageID(), retVal);
+			} catch (InvocationTargetException ite) {
+				rpcResponse = new RPCThrowable(rpcRequest.getMessageID(), ite.getTargetException());
 			}
-		};
+			final DatagramPacket[] packets = messageToPackets(remoteSocketAddress, rpcResponse);
+			cachedResponses.put(messageID, new CachedResponse(System.currentTimeMillis(), packets));
 
-		this.rpcHandlers.execute(runnable);
+			sendPackets(packets);
+
+		} catch (Exception e) {
+			Log.error("Caught processing RPC request: ", e);
+		} finally {
+			this.requestsBeingProcessed.remove(messageID);
+		}
+
 	}
 
 	private DatagramPacket[] messageToPackets(final InetSocketAddress remoteSocketAddress, final RPCMessage rpcMessage) {

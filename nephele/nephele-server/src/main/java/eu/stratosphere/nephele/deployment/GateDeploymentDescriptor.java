@@ -89,9 +89,10 @@ public final class GateDeploymentDescriptor {
 	}
 
 	/**
-	 * Default constructor for serialization/deserialization.
+	 * Default constructor required by kryo.
 	 */
-	public GateDeploymentDescriptor() {
+	@SuppressWarnings("unused")
+	private GateDeploymentDescriptor() {
 
 		this.gateID = null;
 		this.channelType = null;
