@@ -1087,7 +1087,7 @@ public class TestPlan implements Closeable {
 		// }
 	}
 
-	private final class ExecutionExceptionHandler implements ExecutionListener {
+	private static final class ExecutionExceptionHandler implements ExecutionListener {
 		private String executionError;
 
 		public ExecutionVertex executionVertex;
