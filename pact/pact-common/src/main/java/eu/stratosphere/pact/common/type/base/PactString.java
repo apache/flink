@@ -118,7 +118,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, Appendabl
 	{
 		if (len < 0)
 			throw new IllegalArgumentException("Length must be non-negative.");		 
-		ensureSize(len);
+		grow(len);
 		this.len = len;
 	}
 	/**
@@ -369,7 +369,7 @@ public class PactString implements Key, NormalizableKey, CharSequence, Appendabl
 	 */
 	@Override
 	public Appendable append(char c) {
-		ensureSize(this.len + 1);
+		grow(this.len + 1);
 		this.value[this.len++] = c;
 		return this;
 	}
@@ -388,9 +388,11 @@ public class PactString implements Key, NormalizableKey, CharSequence, Appendabl
 	 */
 	@Override
 	public Appendable append(CharSequence csq, int start, int end) {
-		ensureSize(this.len + end - start);
-		for (int pos = start; pos < this.len; pos++) 
+		final int otherLen = end - start;
+		grow(this.len + otherLen);
+		for (int pos = start; pos < otherLen; pos++) 
 			this.value[this.len + pos] = csq.charAt(pos);
+		this.len += otherLen;
 		return this;
 	}
 	
@@ -406,8 +408,10 @@ public class PactString implements Key, NormalizableKey, CharSequence, Appendabl
 	 * @see java.lang.Appendable#append(java.lang.CharSequence, int, int)
 	 */
 	public Appendable append(PactString csq, int start, int end) {
-		ensureSize(this.len + end - start);
-		System.arraycopy(csq, start, this.value, this.len, end - start);
+		final int otherLen = end - start;
+		grow(this.len + otherLen);
+		System.arraycopy(csq.value, start, this.value, this.len, otherLen);
+		this.len += otherLen;
 		return this;
 	}
 	
@@ -704,7 +708,18 @@ public class PactString implements Key, NormalizableKey, CharSequence, Appendabl
 	private final void ensureSize(int size) {
 		if (this.value.length < size) {
 			// grow either to the given size or enlarge the current size by half, whichever is greater
-			this.value = new char[Math.max(this.value.length * 3 / 2, size)];
+			this.value = new char[size];
+		}
+	}
+	
+	/**
+	 * Grow and retain content.
+	 */
+	private final void grow(int size) {
+		if (this.value.length < size) {
+			char[] value = new char[ Math.max(this.value.length * 3 / 2, size)];
+			System.arraycopy(this.value, 0, value, 0, this.len);
+			this.value = value;
 		}
 	}
 }
