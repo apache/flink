@@ -66,7 +66,7 @@ public class ObjectSplit extends ElementaryOperator<ObjectSplit> {
 	}
 
 	public ObjectSplit withObjectProjection(EvaluationExpression objectProjection) {
-		setObjectProjection(objectProjection);
+		this.setObjectProjection(objectProjection);
 		return this;
 	}
 

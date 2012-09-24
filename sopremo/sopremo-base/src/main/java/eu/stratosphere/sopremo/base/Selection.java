@@ -69,7 +69,6 @@ public class Selection extends ElementaryOperator<Selection> {
 		return builder.toString();
 	}
 
-
 	public static class Implementation extends SopremoMap {
 		private BooleanExpression condition;
 

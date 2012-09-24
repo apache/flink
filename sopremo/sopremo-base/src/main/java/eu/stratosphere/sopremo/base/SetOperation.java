@@ -19,18 +19,19 @@ public abstract class SetOperation<Op extends SetOperation<Op>> extends Composit
 	public SetOperation() {
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
 	public void addImplementation(SopremoModule module, EvaluationContext context) {
-		final int numInputs = getNumInputs();
-		
+		final int numInputs = this.getNumInputs();
+
 		// successively connect binary operators
 		// connect the result of one binary operator with each new input
 		ElementaryOperator<?> leftInput = module.getInput(0);
 		for (int index = 1; index < numInputs; index++) {
-			leftInput = createBinaryOperations(leftInput, module.getInput(index));
+			leftInput = this.createBinaryOperations(leftInput, module.getInput(index));
 			leftInput.setKeyExpressions(0, ALL_KEYS);
 			leftInput.setKeyExpressions(1, ALL_KEYS);
 		}

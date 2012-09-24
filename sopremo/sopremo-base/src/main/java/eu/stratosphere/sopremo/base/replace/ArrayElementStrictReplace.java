@@ -34,7 +34,7 @@ public class ArrayElementStrictReplace extends ArrayElementReplaceBase<ArrayElem
 
 		@Override
 		protected void match(final IJsonNode value1, final IJsonNode value2, final JsonCollector out) {
-			((IArrayNode) value1).set(this.index, this.dictionaryValueExtraction.evaluate(value2, getContext()));
+			((IArrayNode) value1).set(this.index, this.dictionaryValueExtraction.evaluate(value2, this.getContext()));
 			out.collect(value1);
 		}
 	}

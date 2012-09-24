@@ -35,5 +35,5 @@ public class OperatorUtil {
 			withResultProjection(new ArrayCreation(elements)).
 			withInputs(input);
 	}
-	
+
 }

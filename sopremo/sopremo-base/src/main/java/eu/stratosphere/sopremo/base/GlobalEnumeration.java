@@ -35,7 +35,7 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		private static final long serialVersionUID = -3340948936846733311L;
 
 		private StringBuilder builder = new StringBuilder();
-		
+
 		@Override
 		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
 			final IArrayNode values = (IArrayNode) node;
@@ -139,22 +139,22 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 	}
 
 	public GlobalEnumeration withIdFieldName(String enumerationFieldName) {
-		setIdFieldName(enumerationFieldName);
+		this.setIdFieldName(enumerationFieldName);
 		return this;
 	}
 
 	public GlobalEnumeration withValueFieldName(String valueFieldName) {
-		setValueFieldName(valueFieldName);
+		this.setValueFieldName(valueFieldName);
 		return this;
 	}
 
 	public GlobalEnumeration withEnumerationExpression(EvaluationExpression enumerationExpression) {
-		setEnumerationExpression(enumerationExpression);
+		this.setEnumerationExpression(enumerationExpression);
 		return this;
 	}
 
 	public GlobalEnumeration withIdGeneration(EvaluationExpression idGeneration) {
-		setIdGeneration(idGeneration);
+		this.setIdGeneration(idGeneration);
 		return this;
 	}
 

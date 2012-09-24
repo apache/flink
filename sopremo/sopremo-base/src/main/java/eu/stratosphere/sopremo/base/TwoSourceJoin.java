@@ -46,12 +46,11 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
-		this.strategy.setResultProjection(getResultProjection());
-		if (!this.outerJoinSources.isEmpty() && this.strategy instanceof OuterJoin) {
+		this.strategy.setResultProjection(this.getResultProjection());
+		if (!this.outerJoinSources.isEmpty() && this.strategy instanceof OuterJoin)
 			((OuterJoin) this.strategy).withMode(
 				this.outerJoinSources.contains(this.inverseInputs ? 1 : 0),
 				this.outerJoinSources.contains(this.inverseInputs ? 0 : 1));
-		}
 		final PactModule pactModule = this.strategy.asPactModule(context);
 		if (this.inverseInputs)
 			ContractUtil.swapInputs(pactModule.getOutput(0).getInputs().get(0), 0, 1);
@@ -79,7 +78,7 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 			return true;
 		if (!super.equals(obj))
 			return false;
-		if (getClass() != obj.getClass())
+		if (this.getClass() != obj.getClass())
 			return false;
 		TwoSourceJoin other = (TwoSourceJoin) obj;
 		return this.condition.equals(other.condition) && this.inverseInputs == other.inverseInputs
@@ -135,7 +134,7 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 	public void setOuterJoinSources(EvaluationExpression outerJoinSources) {
 		if (outerJoinSources == null)
 			throw new NullPointerException("outerJoinSources must not be null");
-		
+
 		final Iterable<? extends EvaluationExpression> expressions;
 		if (outerJoinSources instanceof InputSelection)
 			expressions = Collections.singleton(outerJoinSources);
@@ -152,12 +151,12 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 	public void setOuterJoinIndices(int... outerJoinIndices) {
 		if (outerJoinIndices == null)
 			throw new NullPointerException("outerJoinIndices must not be null");
-		
+
 		this.outerJoinSources.clear();
 		for (int index : outerJoinIndices)
 			this.outerJoinSources.add(index);
 	}
-	
+
 	public int[] getOuterJoinIndices() {
 		return this.outerJoinSources.toIntArray();
 	}

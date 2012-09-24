@@ -64,7 +64,7 @@ public class Join extends CompositeOperator<Join> {
 				withOuterJoinIndices(this.outerJoinSources.toIntArray()).
 				withInputs(module.getInputs()).
 				withCondition(this.binaryConditions.get(0)).
-				withResultProjection(getResultProjection());
+				withResultProjection(this.getResultProjection());
 			module.getOutput(0).setInput(0, join);
 			break;
 
@@ -76,10 +76,9 @@ public class Join extends CompositeOperator<Join> {
 			// asElementaryOperators();
 
 			final List<JsonStream> inputs = new ArrayList<JsonStream>();
-			int numInputs = getNumInputs();
-			for (int index = 0; index < numInputs ; index++) {
+			int numInputs = this.getNumInputs();
+			for (int index = 0; index < numInputs; index++)
 				inputs.add(OperatorUtil.positionEncode(module.getInput(index), index, numInputs));
-			}
 
 			for (final TwoSourceJoin twoSourceJoin : joins) {
 				List<JsonStream> operatorInputs = twoSourceJoin.getInputs();
@@ -99,7 +98,7 @@ public class Join extends CompositeOperator<Join> {
 			}
 
 			final TwoSourceJoin lastJoin = joins.get(joins.size() - 1);
-			EvaluationExpression resultProjection = getResultProjection();
+			EvaluationExpression resultProjection = this.getResultProjection();
 			resultProjection.replace(new IsInstancePredicate(InputSelection.class),
 				new ReplaceInputSelectionWithArray());
 			module.getOutput(0).setInput(0,
@@ -159,7 +158,7 @@ public class Join extends CompositeOperator<Join> {
 			throw new NullPointerException("joinCondition must not be null");
 
 		final ArrayList<BinaryBooleanExpression> expressions = new ArrayList<BinaryBooleanExpression>();
-		addBinaryExpressions(joinCondition, expressions);
+		this.addBinaryExpressions(joinCondition, expressions);
 		if (expressions.size() == 0)
 			throw new IllegalArgumentException("No join condition given");
 
@@ -237,7 +236,7 @@ public class Join extends CompositeOperator<Join> {
 			expressions.add((BinaryBooleanExpression) joinCondition);
 		else if (joinCondition instanceof AndExpression)
 			for (BooleanExpression expression : ((AndExpression) joinCondition).getExpressions())
-				addBinaryExpressions(expression, expressions);
+				this.addBinaryExpressions(expression, expressions);
 		else
 			throw new IllegalArgumentException("Cannot handle expression " + joinCondition);
 	}

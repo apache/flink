@@ -6,7 +6,7 @@ import org.junit.Test;
 
 import eu.stratosphere.sopremo.CoreFunctions;
 import eu.stratosphere.sopremo.SopremoTest;
-import eu.stratosphere.sopremo.expressions.ArrayAccess;
+import eu.stratosphere.sopremo.expressions.AggregationExpression;
 import eu.stratosphere.sopremo.expressions.BatchAggregationExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
@@ -90,8 +90,8 @@ public class GroupingTest extends SopremoTest<Grouping> {
 		final ObjectCreation transformation = new ObjectCreation();
 		transformation.addMapping("dept",
 			new PathExpression(new InputSelection(0), batch.add(CoreFunctions.FIRST), new ObjectAccess("dept")));
-		transformation.addMapping("deptName", new PathExpression(new InputSelection(1), new ArrayAccess(0),
-			new ObjectAccess("name")));
+		transformation.addMapping("deptName", new PathExpression(new InputSelection(1), new AggregationExpression(CoreFunctions.FIRST,
+			new ObjectAccess("name"))));
 		transformation.addMapping("emps",
 			new PathExpression(new InputSelection(0), batch.add(CoreFunctions.SORT, JsonUtil.createPath("id"))));
 		transformation.addMapping("numEmps",

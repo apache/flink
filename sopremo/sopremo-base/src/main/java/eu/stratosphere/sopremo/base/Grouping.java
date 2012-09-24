@@ -20,8 +20,8 @@ import eu.stratosphere.sopremo.operator.SopremoModule;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
-import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.NullNode;
 
@@ -43,7 +43,6 @@ public class Grouping extends CompositeOperator<Grouping> {
 
 	private EvaluationExpression defaultGroupingKey = GROUP_ALL;
 
-
 	@Override
 	public void addImplementation(SopremoModule module, EvaluationContext context) {
 		Operator<?> output;
@@ -52,30 +51,30 @@ public class Grouping extends CompositeOperator<Grouping> {
 			throw new IllegalStateException("No input given for grouping");
 		case 1:
 			output = new GroupProjection(this.resultProjection.remove(InputSelection.class)).
-				withKeyExpression(0, getGroupingKey(0)).
+				withKeyExpression(0, this.getGroupingKey(0)).
 				withInputs(module.getInputs());
 			break;
 		case 2:
 			output = new CoGroupProjection(this.resultProjection).
-				withKeyExpression(0, getGroupingKey(0)).
-				withKeyExpression(1, getGroupingKey(1)).
+				withKeyExpression(0, this.getGroupingKey(0)).
+				withKeyExpression(1, this.getGroupingKey(1)).
 				withInputs(module.getInputs());
 			break;
 		default:
 			throw new IllegalStateException("More than two sources are not supported");
-//			List<JsonStream> inputs = new ArrayList<JsonStream>();
-//			List<EvaluationExpression> keyExpressions = new ArrayList<EvaluationExpression>();
-//			for (int index = 0; index < numInputs; index++) {
-//				inputs.add(OperatorUtil.positionEncode(module.getInput(index), index, numInputs));
-//				keyExpressions.add(new PathExpression(new InputSelection(index), getGroupingKey(index)));
-//			}
-//			final UnionAll union = new UnionAll().
-//				withInputs(inputs);
-//			final PathExpression projection =
-//				new PathExpression(new AggregationExpression(new ArrayUnion()), this.resultProjection);
-//			output = new GroupProjection(projection).
-//				withInputs(union);
-//			break;
+			// List<JsonStream> inputs = new ArrayList<JsonStream>();
+			// List<EvaluationExpression> keyExpressions = new ArrayList<EvaluationExpression>();
+			// for (int index = 0; index < numInputs; index++) {
+			// inputs.add(OperatorUtil.positionEncode(module.getInput(index), index, numInputs));
+			// keyExpressions.add(new PathExpression(new InputSelection(index), getGroupingKey(index)));
+			// }
+			// final UnionAll union = new UnionAll().
+			// withInputs(inputs);
+			// final PathExpression projection =
+			// new PathExpression(new AggregationExpression(new ArrayUnion()), this.resultProjection);
+			// output = new GroupProjection(projection).
+			// withInputs(union);
+			// break;
 		}
 
 		module.getOutput(0).setInput(0, output);
@@ -120,7 +119,7 @@ public class Grouping extends CompositeOperator<Grouping> {
 	@Property(preferred = true, input = true)
 	@Name(preposition = "by")
 	public void setGroupingKey(final int inputIndex, final EvaluationExpression keyExpression) {
-		this.setGroupingKey(getSafeInput(inputIndex), keyExpression);
+		this.setGroupingKey(this.getSafeInput(inputIndex), keyExpression);
 	}
 
 	public void setGroupingKey(final JsonStream input, final EvaluationExpression keyExpression) {
@@ -131,12 +130,12 @@ public class Grouping extends CompositeOperator<Grouping> {
 	}
 
 	public Grouping withGroupingKey(int inputIndex, EvaluationExpression groupingKey) {
-		setGroupingKey(inputIndex, groupingKey);
+		this.setGroupingKey(inputIndex, groupingKey);
 		return this;
 	}
 
 	public Grouping withGroupingKey(EvaluationExpression groupingKey) {
-		setDefaultGroupingKey(groupingKey);
+		this.setDefaultGroupingKey(groupingKey);
 		return this;
 	}
 
@@ -196,7 +195,7 @@ public class Grouping extends CompositeOperator<Grouping> {
 			private CachingExpression<IJsonNode> projection;
 
 			@Override
-			protected void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out) {
+			protected void coGroup(IStreamArrayNode values1, IStreamArrayNode values2, JsonCollector out) {
 				out.collect(this.projection.evaluate(JsonUtil.asArray(values1, values2), this.getContext()));
 			}
 		}
@@ -220,7 +219,7 @@ public class Grouping extends CompositeOperator<Grouping> {
 			private CachingExpression<IJsonNode> projection;
 
 			@Override
-			protected void reduce(final IArrayNode values, final JsonCollector out) {
+			protected void reduce(final IStreamArrayNode values, final JsonCollector out) {
 				out.collect(this.projection.evaluate(values, this.getContext()));
 			}
 		}

@@ -74,11 +74,11 @@ public class Replace extends CompositeOperator<Replace> {
 	private boolean arrayElementsReplacement = false;
 
 	public JsonStreamExpression getDictionary() {
-		return new JsonStreamExpression(getInput(1));
+		return new JsonStreamExpression(this.getInput(1));
 	}
 
 	public Replace withDictionary(JsonStreamExpression dictionary) {
-		setDictionary(dictionary);
+		this.setDictionary(dictionary);
 		return this;
 	}
 
@@ -91,7 +91,8 @@ public class Replace extends CompositeOperator<Replace> {
 		this.setInput(1, dictionary.getStream());
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.operator.CompositeOperator#asModule(eu.stratosphere.sopremo.EvaluationContext)
 	 */
 	@Override
@@ -112,7 +113,7 @@ public class Replace extends CompositeOperator<Replace> {
 			else
 				defaultExpression = new PathExpression(new ArrayAccess(0), this.defaultExpression);
 			Replace replacedElements = new Replace().
-				withName(String.format("%s element", getName())).
+				withName(String.format("%s element", this.getName())).
 				withInputs(arraySplit, module.getInput(1)).
 				withDefaultExpression(defaultExpression).
 				withDictionaryValueExtraction(this.dictionaryValueExtraction).
@@ -128,7 +129,7 @@ public class Replace extends CompositeOperator<Replace> {
 				withInputs(replacedElements);
 
 			final Replace arrayLookup = new Replace().
-				withName(String.format("%s array", getName())).
+				withName(String.format("%s array", this.getName())).
 				withInputs(module.getInput(0), arrayDictionary).
 				withReplaceExpression(this.replaceExpression).
 				withDefaultExpression(FILTER_RECORDS);
@@ -149,8 +150,8 @@ public class Replace extends CompositeOperator<Replace> {
 			replaceAtom.withInputs(module.getInputs()).
 				withReplaceExpression(this.replaceExpression).
 				withDictionaryValueExtraction(this.dictionaryValueExtraction).
-				withKeyExpression(0, getReplaceExpression()).
-				withKeyExpression(1, getDictionaryKeyExtraction());
+				withKeyExpression(0, this.getReplaceExpression()).
+				withKeyExpression(1, this.getDictionaryKeyExtraction());
 			module.getOutput(0).setInput(0,
 				replaceAtom.withInputs(module.getInput(0), module.getInput(1)));
 		}
@@ -206,16 +207,16 @@ public class Replace extends CompositeOperator<Replace> {
 	 */
 	@Override
 	public void toString(StringBuilder builder) {
-		builder.append(getName());
-		if (isArrayElementsReplacement())
+		builder.append(this.getName());
+		if (this.isArrayElementsReplacement())
 			builder.append(" all ");
-		getReplaceExpression().toString(builder);
-		if (getInput(1) != null) {
+		this.getReplaceExpression().toString(builder);
+		if (this.getInput(1) != null) {
 			builder.append(" with ");
-			getDictionary().toString(builder);
+			this.getDictionary().toString(builder);
 		}
 		builder.append(" default ");
-		getDefaultExpression().toString(builder);
+		this.getDefaultExpression().toString(builder);
 	}
 
 	public boolean isArrayElementsReplacement() {
