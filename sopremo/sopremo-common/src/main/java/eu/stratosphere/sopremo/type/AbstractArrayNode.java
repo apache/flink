@@ -127,6 +127,14 @@ public abstract class AbstractArrayNode extends AbstractJsonNode implements IArr
 		for (final IJsonNode child : this)
 			SopremoUtil.serializeNode(out, child);
 	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.type.IStreamArrayNode#getFirst()
+	 */
+	@Override
+	public IJsonNode getFirst() {
+		return get(0);
+	}
 
 	/*
 	 * (non-Javadoc)

@@ -130,20 +130,50 @@ public class CoreFunctions implements BuiltinProvider {
 		private static final long serialVersionUID = 9079394721632933377L;
 	};
 
+	static final class AverageState extends ArrayNode {
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = -6320534939283525418L;
+
+		/**
+		 * Initializes CoreFunctions.AverageState.
+		 *
+		 */
+		public AverageState() {
+			add(new IntNode(0));
+			add(new IntNode(0));
+		}
+		
+		public INumericNode getSum() {
+			return (INumericNode) get(0);
+		}
+		
+		public void setSum(INumericNode sum) {
+			set(0, sum);
+		}		
+		
+		public IntNode getCount() {
+			return (IntNode) get(1);
+		}
+		
+		public void increaseCount() {
+			getCount().increment();
+		}
+	}
+	
 	@Name(noun = "average")
-	public static final Aggregation<INumericNode, ArrayNode> AVERAGE = new Aggregation<INumericNode, ArrayNode>("avg") {
+	public static final Aggregation<INumericNode, AverageState> AVERAGE = new Aggregation<INumericNode, AverageState>("avg") {
 		/**
 		 * 
 		 */
 		private static final long serialVersionUID = 483420587993286076L;
 
 		@Override
-		public ArrayNode aggregate(INumericNode node, ArrayNode avgState, EvaluationContext context) {
+		public AverageState aggregate(INumericNode node, AverageState avgState, EvaluationContext context) {
 			INumericNode sum = (INumericNode) avgState.get(0);
-			sum = ArithmeticOperator.ADDITION.evaluate(node, sum, sum);
-			avgState.set(0, sum);
-			// count
-			((IntNode) avgState.get(1)).increment();
+			avgState.setSum(ArithmeticOperator.ADDITION.evaluate(node, sum, sum));
+			avgState.increaseCount();
 			return avgState;
 		}
 
@@ -154,19 +184,15 @@ public class CoreFunctions implements BuiltinProvider {
 		 * , eu.stratosphere.sopremo.type.IJsonNode)
 		 */
 		@Override
-		public IJsonNode getFinalAggregate(ArrayNode avgState, IJsonNode target) {
+		public INumericNode getFinalAggregate(AverageState avgState, IJsonNode target) {
 			if (avgState.get(1).equals(IntNode.ZERO))
 				return DoubleNode.NaN;
-			return ArithmeticOperator.DIVISION.evaluate((INumericNode) avgState.get(0), (INumericNode) avgState.get(1),
-				target);
+			return ArithmeticOperator.DIVISION.evaluate(avgState.getSum(), avgState.getCount(),				target);
 		}
 
 		@Override
-		public ArrayNode initialize(ArrayNode aggregationValue) {
-			ArrayNode array = SopremoUtil.reinitializeTarget(aggregationValue, ArrayNode.class);
-			array.add(new IntNode(0));
-			array.add(new IntNode(0));
-			return array;
+		public AverageState initialize(AverageState aggregationValue) {
+			return aggregationValue == null ? new AverageState() : aggregationValue;
 		}
 	};
 
@@ -203,20 +229,41 @@ public class CoreFunctions implements BuiltinProvider {
 				return aggregator;
 			}
 		};
+		
+
+		/**
+		 * Creates a new array by combining sparse array information.<br />
+		 * For example: [[0, "a"], [3, "d"], [2, "c"]] -&lt; ["a", missing, "c", "d"]
+		 */
+		@Name(verb = "assemble")
+		public static final Aggregation<IArrayNode, ArrayNode> ASSEMBLE_ARRAY =
+			new TransitiveAggregationFunction<IArrayNode, ArrayNode>(
+				"assemble", new ArrayNode()) {
+				/**
+			 * 
+			 */
+				private static final long serialVersionUID = -8021932798231751696L;
+
+				@Override
+				public ArrayNode aggregate(IArrayNode node, ArrayNode aggregationTarget, EvaluationContext context) {
+					aggregationTarget.add(((INumericNode) node.get(0)).getIntValue(), node.get(1));
+					return aggregationTarget;
+				}
+			};
 
 	/**
 	 * Adds the specified node to the array at the given index
 	 * 
 	 * @param array
 	 *        the array that should be extended
-	 * @param node
-	 *        the node to add
 	 * @param index
 	 *        the position of the insert
+	 * @param node
+	 *        the node to add
 	 * @return array with the added node
 	 */
 	public static IArrayNode add(@SuppressWarnings("unused") final IArrayNode result, final IArrayNode array,
-			final IJsonNode node, final IntNode index) {
+			final IntNode index, final IJsonNode node) {
 		array.add(resolveIndex(index.getIntValue(), array.size()), node);
 		return array;
 	}
@@ -317,6 +364,11 @@ public class CoreFunctions implements BuiltinProvider {
 		if (regexTokenizer == null)
 			REGEX_TOKENIZERS.put(searchPattern, regexTokenizer = new RegexTokenizer(searchPattern));
 		regexTokenizer.tokenizeInto(input, result);
+	}
+	
+	private static final TextNode WHITESPACES = TextNode.valueOf("\\p{javaWhitespace}+");
+	public static void split(final CachingArrayNode result, final TextNode input) {
+		split(result, input, WHITESPACES);
 	}
 
 	public static void substring(final TextNode result, final TextNode input, final IntNode from, final IntNode to) {

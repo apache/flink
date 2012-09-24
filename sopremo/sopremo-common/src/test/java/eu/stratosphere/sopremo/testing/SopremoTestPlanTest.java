@@ -45,9 +45,9 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
-import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.TextNode;
@@ -323,7 +323,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void reduce(final IArrayNode values, final JsonCollector out) {
+			protected void reduce(final IStreamArrayNode values, final JsonCollector out) {
 				final Iterator<IJsonNode> valueIterator = values.iterator();
 				final IObjectNode firstEntry = (IObjectNode) valueIterator.next();
 				int sum = this.getCount(firstEntry);

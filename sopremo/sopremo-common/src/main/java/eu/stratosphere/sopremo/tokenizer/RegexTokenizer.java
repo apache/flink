@@ -29,7 +29,7 @@ public class RegexTokenizer extends AbstractTokenizer {
 	 */
 	private static final long serialVersionUID = 8089912054552780511L;
 
-	private final static Pattern WHITESPACE_PATTERN = Pattern.compile("\\p{javaWhitespace}+");
+	public final static Pattern WHITESPACE_PATTERN = Pattern.compile("\\p{javaWhitespace}+");
 
 	private Pattern pattern = WHITESPACE_PATTERN;
 

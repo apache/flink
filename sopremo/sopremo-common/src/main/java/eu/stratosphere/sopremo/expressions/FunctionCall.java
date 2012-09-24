@@ -76,7 +76,14 @@ public class FunctionCall extends ContainerExpression {
 	 */
 	public FunctionCall(final String functionName, final EvaluationScope scope,
 			final EvaluationExpression... params) {
-		this(functionName, (SopremoFunction) scope.getFunctionRegistry().get(functionName), Arrays.asList(params));
+		this(functionName, checkIfMethodExists(functionName, scope), Arrays.asList(params));
+	}
+
+	private static SopremoFunction checkIfMethodExists(final String functionName, final EvaluationScope scope) {
+		final SopremoFunction function = (SopremoFunction) scope.getFunctionRegistry().get(functionName);
+		if(function == null)
+			throw new IllegalArgumentException(String.format("No method %s found", functionName));
+		return function;
 	}
 
 	/**
@@ -93,7 +100,7 @@ public class FunctionCall extends ContainerExpression {
 	 */
 	public FunctionCall(final String functionName, final EvaluationScope scope,
 			final List<EvaluationExpression> params) {
-		this(functionName, (SopremoFunction) scope.getFunctionRegistry().get(functionName), params);
+		this(functionName, checkIfMethodExists(functionName, scope), params);
 	}
 	
 	/* (non-Javadoc)

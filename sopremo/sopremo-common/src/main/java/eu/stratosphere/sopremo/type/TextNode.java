@@ -191,7 +191,7 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode, CharSe
 	}
 
 	public void setValue(TextNode text, int start, int end) {
-		this.value.setValue(text.value, start, end);
+		this.value.setValue(text.value, start, end - start);
 	}
 
 	public int find(CharSequence str) {

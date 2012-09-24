@@ -22,7 +22,7 @@ import java.util.Collection;
  * @author Michael Hopstock
  * @author Tommy Neubert
  */
-public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
+public interface IArrayNode extends IStreamArrayNode {
 
 	/**
 	 * Returns the actual size of this node.
@@ -132,11 +132,6 @@ public interface IArrayNode extends Iterable<IJsonNode>, IJsonNode {
 	 * @return this node
 	 */
 	public abstract IArrayNode addAll(IJsonNode[] nodes);
-
-	/**
-	 * @return true if size() == 0
-	 */
-	public abstract boolean isEmpty();
 
 	/**
 	 * @param nodes

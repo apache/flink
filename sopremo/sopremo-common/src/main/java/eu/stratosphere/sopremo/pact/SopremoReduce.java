@@ -8,9 +8,8 @@ import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.type.ArrayNode;
-import eu.stratosphere.sopremo.type.IArrayNode;
-import eu.stratosphere.sopremo.type.OneTimeArrayNode;
-import eu.stratosphere.util.reflect.ReflectUtil;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
+import eu.stratosphere.sopremo.type.StreamArrayNode;
 
 /**
  * An abstract implementation of the {@link ReduceStub}. SopremoReduce provides the functionality to convert the
@@ -24,9 +23,7 @@ public abstract class SopremoReduce extends ReduceStub {
 
 	private RecordToJsonIterator cachedIterator;
 
-	private final OneTimeArrayNode array = new OneTimeArrayNode(this.cachedIterator);
-
-	private boolean needsResettableIterator = false;
+	private final StreamArrayNode array = new StreamArrayNode(this.cachedIterator);
 
 	/*
 	 * (non-Javadoc)
@@ -42,15 +39,10 @@ public abstract class SopremoReduce extends ReduceStub {
 		this.collector = new JsonCollector(this.context.getOutputSchema(0));
 		SopremoUtil.configureStub(this, parameters);
 		this.array.setNodeIterator(this.cachedIterator);
-		this.needsResettableIterator = this.needsResettableIterator();
 	}
 
 	protected final EvaluationContext getContext() {
 		return this.context;
-	}
-
-	protected boolean needsResettableIterator() {
-		return ReflectUtil.getAnnotation(getClass(), MultipassValues.class) != null;
 	}
 
 	/**
@@ -61,7 +53,7 @@ public abstract class SopremoReduce extends ReduceStub {
 	 * @param out
 	 *        a collector that collects all output nodes
 	 */
-	protected abstract void reduce(IArrayNode values, JsonCollector out);
+	protected abstract void reduce(IStreamArrayNode values, JsonCollector out);
 
 	/*
 	 * (non-Javadoc)
@@ -73,18 +65,18 @@ public abstract class SopremoReduce extends ReduceStub {
 		this.context.increaseInputCounter();
 		this.collector.configure(out, this.context);
 		this.cachedIterator.setIterator(records);
-		IArrayNode array = this.needsResettableIterator ? new ArrayNode(this.array) : this.array;
-		if (SopremoUtil.DEBUG && SopremoUtil.LOG.isTraceEnabled()) {
-			if(!this.needsResettableIterator)
-				array = new ArrayNode(array);
-			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), array));
-		}
 
 		try {
+		if (SopremoUtil.DEBUG && SopremoUtil.LOG.isTraceEnabled()) {
+			ArrayNode array = new ArrayNode(this.array);
+			SopremoUtil.LOG.trace(String.format("%s %s", this.getContext().operatorTrace(), array));
 			this.reduce(array, this.collector);
+		} else {
+			this.reduce(this.array, this.collector);
+		}
 		} catch (final RuntimeException e) {
 			SopremoUtil.LOG.error(String.format("Error occurred @ %s with %s: %s", this.getContext().operatorTrace(),
-				array, e));
+				this.array, e));
 			throw e;
 		}
 	}
