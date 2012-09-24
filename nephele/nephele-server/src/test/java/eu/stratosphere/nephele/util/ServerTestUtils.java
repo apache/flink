@@ -26,6 +26,8 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
@@ -234,9 +236,15 @@ public final class ServerTestUtils {
 	 * @throws IOException
 	 *         thrown if an error occurs while creating the copy of the object
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T> T createCopy(final T original) {
 
 		final Kryo kryo = new Kryo();
-		return (T) kryo.copy(original);
+		final byte[] buf = new byte[8192];
+		Output output = new Output(buf);
+		kryo.writeObject(output, original);
+		output.flush();
+		Input input = new Input(buf);
+		return (T) kryo.readObject(input, original.getClass());
 	}
 }
