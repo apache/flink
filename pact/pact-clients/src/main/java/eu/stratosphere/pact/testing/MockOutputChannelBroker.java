@@ -67,7 +67,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 		this.outgoingTransferEnvelope = this.newEnvelope();
 		final int uncompressedBufferSize = this.transitBufferPool.getMaximumBufferSize();
 
-		return this.transitBufferPool.requestEmptyBuffer(uncompressedBufferSize);
+		return this.transitBufferPool.requestEmptyBufferBlocking(uncompressedBufferSize);
 	}
 
 	protected TransferEnvelope newEnvelope() {
