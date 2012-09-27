@@ -34,13 +34,13 @@ public class UnionAll extends ElementaryOperator<UnionAll> {
 	public PactModule asPactModule(EvaluationContext context) {
 		final List<JsonStream> inputs = this.getInputs();
 		final PactModule module = new PactModule(this.getName(), inputs.size(), 1);
-		// TODO: remove identity map, when Nephele can deal with direct source->sink connections
+		// TODO: remove identity map, when Pact/Nephele can deal with direct source->sink connections
 		MapContract identityContract = MapContract.builder(IdentityMap.class).build();
 		for (Contract input : module.getInputs())
 			identityContract.addInput(input);
 		module.getOutput(0).setInput(identityContract);
 		// without identity mapper
-		// module.getOutput(0).setInputs(Arrays.asList(module.getInputs()));
+		// module.getOutput(0).setInputs(module.getInputs());
 		return module;
 	}
 }
