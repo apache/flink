@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.packages.EvaluationScope;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -155,7 +156,11 @@ public class FunctionCall extends ContainerExpression {
 		for (int index = 0; index < params.length; index++)
 			params[index] = this.paramExprs.get(index).evaluate(node, context);
 
-		return this.function.call(JsonUtil.asArray(params), target, context);
+		try {
+			return this.function.call(JsonUtil.asArray(params), target, context);
+		} catch (Exception e) {
+			throw new EvaluationException(e);
+		}
 	}
 
 	/*

@@ -140,7 +140,7 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 			this.getName(), Arrays.toString(signature.getParameterTypes()), ambigiousSignatures));
 	}
 
-	public ReturnType invoke(final Object context, final Object... params) {
+	public ReturnType invoke(final Object context, final Object... params) throws Exception {
 		final Class<?>[] paramTypes = this.getActualParameterTypes(params);
 		final Signature signature = this.findBestSignature(new Signature(paramTypes));
 		if (signature == null)
@@ -149,7 +149,7 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		return this.invokeSignature(signature, context, params);
 	}
 
-	public ReturnType invokeStatic(final Object... params) {
+	public ReturnType invokeStatic(final Object... params) throws Exception {
 		return this.invoke(null, params);
 	}
 
@@ -160,13 +160,14 @@ public abstract class DynamicInvokable<MemberType extends Member, DeclaringType,
 		return this.findBestSignature(new Signature(paramTypes)) != null;
 	}
 
-	public ReturnType invokeSignature(final Signature signature, final Object context, final Object... params) {
+	public ReturnType invokeSignature(final Signature signature, final Object context, final Object... params) throws Exception {
 		try {
 			return this.invokeDirectly(this.getMember(signature), context, signature.adjustParameters(params));
-		} catch (final Exception e) {
-			throw new EvaluationException("Cannot invoke " + this.getMember(signature) + " with "
-				+ Arrays.toString(params), e);
-		}
+		} catch (final Error e) {
+			throw e;
+		} catch (final InvocationTargetException e) {
+			throw (Exception) e.getCause();
+		} 
 	}
 
 	protected MemberType getMember(final Signature signature) {
