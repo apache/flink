@@ -42,7 +42,7 @@ import java.io.IOException;
 
 public class JobGraphUtils {
 
-  public static final int MEGABYTE = 1024 * 1024;
+  public static final long MEGABYTE = 1024l * 1024l;
 
   private JobGraphUtils() {}
 
