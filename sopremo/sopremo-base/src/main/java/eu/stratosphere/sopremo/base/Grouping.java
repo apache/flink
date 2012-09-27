@@ -51,13 +51,13 @@ public class Grouping extends CompositeOperator<Grouping> {
 			throw new IllegalStateException("No input given for grouping");
 		case 1:
 			output = new GroupProjection(this.resultProjection.remove(InputSelection.class)).
-				withKeyExpression(0, this.getGroupingKey(0)).
+				withKeyExpression(0, this.getGroupingKey(0).remove(new InputSelection(0))).
 				withInputs(module.getInputs());
 			break;
 		case 2:
 			output = new CoGroupProjection(this.resultProjection).
-				withKeyExpression(0, this.getGroupingKey(0)).
-				withKeyExpression(1, this.getGroupingKey(1)).
+				withKeyExpression(0, this.getGroupingKey(0).remove(new InputSelection(0))).
+				withKeyExpression(1, this.getGroupingKey(1).remove(new InputSelection(1))).
 				withInputs(module.getInputs());
 			break;
 		default:
