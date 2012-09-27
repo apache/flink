@@ -60,7 +60,7 @@ public class CachingList<T> extends AbstractList<T> implements Serializable {
 	 */
 	@Override
 	public void clear() {
-		this.size--;
+		this.size = 0;
 	}
 
 	@Override
