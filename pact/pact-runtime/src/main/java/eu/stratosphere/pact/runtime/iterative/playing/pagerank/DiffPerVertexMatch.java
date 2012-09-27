@@ -19,14 +19,12 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
-import eu.stratosphere.pact.common.type.base.PactLong;
 
 public class DiffPerVertexMatch extends MatchStub {
 
   @Override
   public void match(PactRecord pageWithPreviousRank, PactRecord pageWithCurrentRank, Collector<PactRecord> out)
       throws Exception {
-    long vertex = pageWithPreviousRank.getField(0, PactLong.class).getValue();
 
     double previousPageRank = pageWithPreviousRank.getField(1, PactDouble.class).getValue();
     double currentPageRank = pageWithCurrentRank.getField(1, PactDouble.class).getValue();
@@ -34,8 +32,7 @@ public class DiffPerVertexMatch extends MatchStub {
     double diff = Math.abs(currentPageRank - previousPageRank);
     //System.out.println(vertex + " " + previousPageRank + " --> " + currentPageRank + " (" + diff + ")");
 
-    PactRecord result = new PactRecord();
-    result.setField(0, new PactLong(vertex));
+    PactRecord result = pageWithPreviousRank;
     result.setField(1, new PactDouble(diff));
 
     out.collect(result);

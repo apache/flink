@@ -47,14 +47,16 @@ public class PageRank {
     String transitionMatrixInputPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/pagerank/transitionMatrix";
     String outputPath = "file:///tmp/stratosphere/iterations";
     String confPath = PlayConstants.PLAY_DIR + "local-conf";
+    int memoryPerTask = 100;
 
-    if (args.length == 6) {
+    if (args.length == 7) {
       degreeOfParallelism = Integer.parseInt(args[0]);
       numSubTasksPerInstance = Integer.parseInt(args[1]);
       pageWithRankInputPath = args[2];
       transitionMatrixInputPath = args[3];
       outputPath = args[4];
       confPath = args[5];
+      memoryPerTask = Integer.parseInt(args[6]);
     }
 
     JobGraph jobGraph = new JobGraph("PageRank");
@@ -74,7 +76,7 @@ public class PageRank {
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
     headConfig.setStubClass(IdentityMap.class);
-    headConfig.setMemorySize(100 * JobGraphUtils.MEGABYTE);
+    headConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
 
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
@@ -87,7 +89,7 @@ public class PageRank {
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(1),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
-    intermediateConfig.setMemorySize(100 * JobGraphUtils.MEGABYTE);
+    intermediateConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     intermediateConfig.setGateCached(1);
     intermediateConfig.setInputGateCacheMemoryFraction(0.5f);
 
@@ -99,12 +101,12 @@ public class PageRank {
     tailConfig.setStubClass(DotProductReducer.class);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(0), new int[] { 0 },
         new Class[] { PactLong.class }, new boolean[] { true });
-    tailConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
-    tailConfig.setNumFilehandles(2);
+    tailConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
+    tailConfig.setNumFilehandles(10);
 
     JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-    syncConfig.setNumberOfIterations(25);
+    syncConfig.setNumberOfIterations(5);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism,
         numSubTasksPerInstance);
