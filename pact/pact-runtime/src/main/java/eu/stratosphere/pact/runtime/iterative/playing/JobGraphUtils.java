@@ -51,12 +51,6 @@ public class JobGraphUtils {
     client.submitJobAndWait();
   }
 
-  @Deprecated
-  public static JobInputVertex createInput(Class<?> stubClass, String path, String name, JobGraph graph,
-      int degreeOfParallelism) {
-    return createInput(stubClass, path, name, graph, degreeOfParallelism, degreeOfParallelism);
-  }
-
   public static JobInputVertex createInput(Class<?> stubClass, String path, String name, JobGraph graph,
       int degreeOfParallelism, int numSubTasksPerInstance) {
     JobInputVertex inputVertex = new JobInputVertex(name, graph);
@@ -74,12 +68,6 @@ public class JobGraphUtils {
       DistributionPattern distributionPattern, ShipStrategyType shipStrategy) throws JobGraphDefinitionException {
     source.connectTo(target, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
     new TaskConfig(source.getConfiguration()).addOutputShipStrategy(shipStrategy);
-  }
-
-  @Deprecated
-  public static JobTaskVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph,
-      int degreeOfParallelism) {
-    return createTask(task, name, graph, degreeOfParallelism, degreeOfParallelism);
   }
 
   public static JobTaskVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph,
@@ -100,11 +88,6 @@ public class JobGraphUtils {
     return sync;
   }
 
-  @Deprecated
-  public static JobOutputVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism) {
-    return createFakeOutput(jobGraph, name, degreeOfParallelism, degreeOfParallelism);
-  }
-
   public static JobOutputVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism,
       int numSubTasksPerInstance) {
     JobOutputVertex outputVertex = new JobOutputVertex(name, jobGraph);
@@ -112,11 +95,6 @@ public class JobGraphUtils {
     outputVertex.setNumberOfSubtasks(degreeOfParallelism);
     outputVertex.setNumberOfSubtasksPerInstance(numSubTasksPerInstance);
     return outputVertex;
-  }
-
-  @Deprecated
-  public static JobOutputVertex createFileOutput(JobGraph jobGraph, String name, int degreeOfParallelism) {
-    return createFileOutput(jobGraph, name, degreeOfParallelism, degreeOfParallelism);
   }
 
   public static JobOutputVertex createFileOutput(JobGraph jobGraph, String name, int degreeOfParallelism,

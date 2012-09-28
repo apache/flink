@@ -20,6 +20,7 @@ import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -38,16 +39,19 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 
     while (!terminationRequested()) {
 
+      notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_STARTING);
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
       }
 
+      notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_STARTING);
       if (!inFirstIteration()) {
         reinstantiateDriver();
       }
 
       super.invoke();
 
+      notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_FINISHED);
       if (log.isInfoEnabled()) {
         log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
       }
@@ -58,6 +62,7 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
       } else {
         propagateEvent(new TerminationEvent());
       }
+      notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_FINISHED);
     }
   }
 

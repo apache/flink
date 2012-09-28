@@ -230,8 +230,6 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
         log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
       }
 
-
-
       barrier.setup();
 
       notifyMonitor(IterationMonitoring.Event.HEAD_PACT_STARTING);

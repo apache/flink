@@ -46,34 +46,40 @@ public class ConnectedComponents {
   public static void main(String[] args) throws Exception {
 
     int degreeOfParallelism = 2;
+    int numSubTasksPerInstance = degreeOfParallelism;
+    String initialSolutionSetPath = "file://" + PlayConstants.PLAY_DIR +
+        "test-inputs/connectedComponents/initialSolutionset";
+    String initialWorksetPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/connectedComponents/initialWorkset";
+    String graphPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/connectedComponents/graph";
+    String outputPath = "file:///tmp/stratosphere/iterations";
+    String confPath = PlayConstants.PLAY_DIR + "local-conf";
+    int memoryPerTask = 100;
+
     JobGraph jobGraph = new JobGraph("ConnectedComponents");
 
-    JobInputVertex initialSolutionset = JobGraphUtils.createInput(LongLongInputFormat.class,
-        "file://" + PlayConstants.PLAY_DIR + "test-inputs/connectedComponents/initialSolutionset",
-        "InitialSolutionset", jobGraph, degreeOfParallelism);
+    JobInputVertex initialSolutionset = JobGraphUtils.createInput(LongLongInputFormat.class, initialSolutionSetPath,
+        "InitialSolutionset", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig initialSolutionsetConfig = new TaskConfig(initialSolutionset.getConfiguration());
     initialSolutionsetConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(initialSolutionsetConfig.getConfigForOutputParameters(0),
-    		new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] {true});
+      new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] {true});
 
-    JobInputVertex initialWorkset = JobGraphUtils.createInput(LongLongInputFormat.class,
-        "file://" + PlayConstants.PLAY_DIR + "test-inputs/connectedComponents/initialWorkset",
-        "InitialWorkset", jobGraph, degreeOfParallelism);
+    JobInputVertex initialWorkset = JobGraphUtils.createInput(LongLongInputFormat.class, initialWorksetPath,
+        "InitialWorkset", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
 
-    JobInputVertex graph = JobGraphUtils.createInput(LongLongInputFormat.class,
-        "file://" + PlayConstants.PLAY_DIR + "test-inputs/connectedComponents/graph",
-        "Graph", jobGraph, degreeOfParallelism);
+    JobInputVertex graph = JobGraphUtils.createInput(LongLongInputFormat.class, graphPath, "Graph", jobGraph,
+        degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig graphConfig = new TaskConfig(graph.getConfiguration());
     graphConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(graphConfig.getConfigForOutputParameters(0),
-    	new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] {true});
+      new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] {true});
 
     JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Head-Repartition", jobGraph,
-        degreeOfParallelism);
+        degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
     headConfig.setStubClass(IdentityMap.class);
-    headConfig.setMemorySize(25 * JobGraphUtils.MEGABYTE);
+    headConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.5f);
     headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(headConfig.getConfigForOutputParameters(0), new int[] { 0 },
@@ -89,19 +95,19 @@ public class ConnectedComponents {
         new boolean[] { true });
 
     JobTaskVertex intermediateMinimumComponentID = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
-        "Intermediate-MinimumComponentID", jobGraph, degreeOfParallelism);
+        "Intermediate-MinimumComponentID", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateMinimumComponentIDConfig = new TaskConfig(intermediateMinimumComponentID.getConfiguration());
     intermediateMinimumComponentIDConfig.setDriver(ReduceDriver.class);
     intermediateMinimumComponentIDConfig.setStubClass(MinimumComponentIDReduce.class);
     intermediateMinimumComponentIDConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT);
-    intermediateMinimumComponentIDConfig.setMemorySize(3 * JobGraphUtils.MEGABYTE);
+    intermediateMinimumComponentIDConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     intermediateMinimumComponentIDConfig.setNumFilehandles(2);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(
         intermediateMinimumComponentIDConfig.getConfigForInputParameters(0), new int[] { 0 },
         new Class[] { PactLong.class }, new boolean[] { true });
 
     JobTaskVertex intermediateSolutionSetUpdate = JobGraphUtils.createTask(WorksetIterationSolutionsetJoinTask.class,
-        "Intermediate-UpdateComponentID", jobGraph, degreeOfParallelism);
+        "Intermediate-UpdateComponentID", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateSolutionSetUpdateConfig = new TaskConfig(intermediateSolutionSetUpdate.getConfiguration());
     intermediateSolutionSetUpdateConfig.setDriver(SolutionsetMatchDriver.class);
     intermediateSolutionSetUpdateConfig.setStubClass(UpdateCompontentIDMatch.class);
@@ -114,8 +120,8 @@ public class ConnectedComponents {
         intermediateSolutionSetUpdateConfig.getConfigForInputParameters(1), new int[] { 0 },
         new Class[] { PactLong.class }, new boolean[] { true });
 
-    JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class,
-        "Tail-NeighborComponentIDToWorkset", jobGraph, degreeOfParallelism);
+    JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Tail-NeighborComponentIDToWorkset",
+        jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
     tailConfig.setDriver(MatchDriver.class);
     tailConfig.setStubClass(NeighborComponentIDToWorksetMatch.class);
@@ -124,7 +130,7 @@ public class ConnectedComponents {
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(1),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
-    tailConfig.setMemorySize(20 * JobGraphUtils.MEGABYTE);
+    tailConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     tailConfig.setGateCached(0);
     tailConfig.setInputGateCacheMemoryFraction(0.5f);
 
@@ -133,12 +139,14 @@ public class ConnectedComponents {
     syncConfig.setNumberOfIterations(5);
     syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.class);
 
-    JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
+    JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism,
+        numSubTasksPerInstance);
     TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
     outputConfig.setStubClass(ConnectedComponentsOutFormat.class);
-    outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, "file:///tmp/stratosphere/iterations");
+    outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
 
-    JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism);
+    JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism,
+        numSubTasksPerInstance);
 
     JobGraphUtils.connect(initialWorkset, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
         ShipStrategyType.FORWARD);
@@ -184,7 +192,7 @@ public class ConnectedComponents {
     output.setVertexToShareInstancesWith(head);
     sync.setVertexToShareInstancesWith(head);
 
-    GlobalConfiguration.loadConfiguration(PlayConstants.PLAY_DIR + "local-conf");
+    GlobalConfiguration.loadConfiguration(confPath);
     Configuration conf = GlobalConfiguration.getConfiguration();
 
     JobGraphUtils.submit(jobGraph, conf);
