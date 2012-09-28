@@ -177,6 +177,9 @@ public class DefaultClient implements Closeable {
 	}
 
 	public boolean submit(SopremoPlan plan, ProgressListener progressListener, boolean wait) {
+		if(plan == null)
+			throw new NullPointerException();
+		
 		if (progressListener == null)
 			progressListener = new DummyListener();
 		this.initConnection(progressListener);
