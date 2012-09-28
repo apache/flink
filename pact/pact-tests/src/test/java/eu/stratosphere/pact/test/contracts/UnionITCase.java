@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.io.DelimitedInputFormat;
+import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
@@ -123,30 +123,24 @@ public class UnionITCase extends TestBase
 	protected JobGraph getJobGraph() throws Exception {
 		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
 		
-		
 		FileDataSource input1 = new FileDataSource(
-			ContractITCaseInputFormat.class, pathPrefix + config.getString("UnionTest#Input1Path", ""));
-		DelimitedInputFormat.configureDelimitedFormat(input1)
+				ContractITCaseInputFormat.class, pathPrefix + config.getString("UnionTest#Input1Path", ""));
+		RecordInputFormat.configureRecordFormat(input1)
 			.recordDelimiter('\n');
-		input1.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
+		input1.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));		
 		
 		FileDataSource input2 = new FileDataSource(
 				ContractITCaseInputFormat.class, pathPrefix + config.getString("UnionTest#Input2Path", ""));
-		DelimitedInputFormat.configureDelimitedFormat(input2)
+		RecordInputFormat.configureRecordFormat(input2)
 			.recordDelimiter('\n');
-		input2.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
+		input2.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));	
 		
-		MapContract testMapper = MapContract.builder(TestMapper.class).build();
+		MapContract testMapper = MapContract.builder(TestMapper.class).input(input1, input2).build();
 		testMapper.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 
 		FileDataSink output = new FileDataSink(
-				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt");
+				ContractITCaseOutputFormat.class, pathPrefix + "/result.txt", testMapper);
 		output.setDegreeOfParallelism(1);
-
-		output.addInput(testMapper);
-
-		testMapper.addInput(input1);
-		testMapper.addInput(input2);
 
 		Plan plan = new Plan(output);
 
