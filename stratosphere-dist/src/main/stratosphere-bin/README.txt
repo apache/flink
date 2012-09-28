@@ -2,9 +2,9 @@ For the latest information about Stratosphere, please visit our website at:
 
    http://www.stratosphere.eu/
 
-and our wiki, at:
+and the documentation in our wiki, at:
 
-   http://www.stratosphere.eu/projects/Stratosphere/wiki
+   http://www.stratosphere.eu/wiki
 
 This distribution includes cryptographic software.  The country in 
 which you currently reside may have restrictions on the import, 
