@@ -49,12 +49,12 @@ public class ArrayNode extends AbstractArrayNode {
 	}
 
 	/**
-	 * Initializes an ArrayNode which cointains all {@link IJsonNode}s from the given Collection in proper sequence.
+	 * Initializes an ArrayNode which cointains all {@link IJsonNode}s from the given Iterable in proper sequence.
 	 * 
 	 * @param nodes
 	 *        a Collection of nodes that should be added to this ArrayNode
 	 */
-	public ArrayNode(final Collection<? extends IJsonNode> nodes) {
+	public ArrayNode(final Iterable<? extends IJsonNode> nodes) {
 		this();
 		for (final IJsonNode node : nodes)
 			this.children.add(node);
@@ -170,7 +170,7 @@ public class ArrayNode extends AbstractArrayNode {
 	public void clear() {
 		this.children.clear();
 	}
-	
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
