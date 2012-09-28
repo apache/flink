@@ -261,7 +261,7 @@ public class Configuration implements IOReadableWritable {
 	 */
 	public void setLong(final String key, final long value) {
 		if (key == null) {
-			LOG.warn("Cannot set integer: Given key is null!");
+			LOG.warn("Cannot set long: Given key is null!");
 			return;
 		}
 
@@ -342,7 +342,7 @@ public class Configuration implements IOReadableWritable {
 	public void setFloat(final String key, final float value) {
 
 		if (key == null) {
-			LOG.warn("Cannot set boolean: Given key is null!");
+			LOG.warn("Cannot set float: Given key is null!");
 			return;
 		}
 
@@ -383,7 +383,7 @@ public class Configuration implements IOReadableWritable {
 	 */
 	public void setBytes(final String key, final byte[] bytes) {
 		if (key == null) {
-			LOG.warn("Cannot set boolean: Given key is null!");
+			LOG.warn("Cannot set bytes: Given key is null!");
 			return;
 		}
 		
