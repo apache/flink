@@ -86,13 +86,13 @@ public class RegexTokenizer extends AbstractTokenizer {
 		}
 
 		int start = 0, end = 0;
-		while (matcher.find()) {
+		do {
 			end = matcher.start();
 			if (end > start) {
 				addToken(tokens, text, start, end);
 			}
-			start = matcher.end() + 1;
-		}
+			start = matcher.end();
+		} while (matcher.find());
 		addToken(tokens, text, start, text.length());
 	}
 

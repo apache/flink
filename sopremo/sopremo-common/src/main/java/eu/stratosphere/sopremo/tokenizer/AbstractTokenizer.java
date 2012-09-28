@@ -29,7 +29,7 @@ public abstract class AbstractTokenizer implements Tokenizer {
 	protected void addToken(CachingArrayNode tokens, TextNode text, int tokenStart, int tokenEnd) {
 		TextNode textNode = (TextNode) tokens.reuseUnusedNode();
 		if (textNode == null)
-			textNode = new TextNode();
+			tokens.add(textNode = new TextNode());
 		textNode.setValue(text, tokenStart, tokenEnd);
 	}
 }
