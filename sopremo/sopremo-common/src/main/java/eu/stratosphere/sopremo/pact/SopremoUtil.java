@@ -124,17 +124,25 @@ public class SopremoUtil {
 
 	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
 			final Class<T> objectClass) {
+		return deserialize(config, key, objectClass, null, ClassLoader.getSystemClassLoader());
+	}
 
-		return deserialize(config, key, objectClass, ClassLoader.getSystemClassLoader());
+	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
+			final Class<T> objectClass, final ClassLoader classLoader) {
+		return deserialize(config, key, objectClass, null, classLoader);
+	}
 
+	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
+			final Class<T> objectClass, final T defaultValue) {
+		return deserialize(config, key, objectClass, defaultValue, ClassLoader.getSystemClassLoader());
 	}
 
 	@SuppressWarnings("unchecked")
 	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
-			@SuppressWarnings("unused") final Class<T> objectClass, final ClassLoader classLoader) {
+			@SuppressWarnings("unused") final Class<T> objectClass, final T defaultValue, final ClassLoader classLoader) {
 		final String string = config.getString(key, null);
 		if (string == null)
-			return null;
+			return defaultValue;
 		return (T) stringToObject(string, classLoader);
 	}
 
