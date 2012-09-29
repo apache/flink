@@ -174,7 +174,7 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = (TypePairComparatorFactory<IT1, IT2>)
         instantiateTypePairComparator(config.getWorksetHashJoinTypePairComparatorFactoryClass(userCodeClassLoader));
 
-    List<MemorySegment> memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), config.getMemorySize());
+    List<MemorySegment> memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), hashjoinMemorySize);
 
     MutableHashTable hashJoin = new MutableHashTable(buildsideSerializer, probesideSerializer, buildSideComparator,
         probesideComparator, pairComparatorFactory.createComparator12(probesideComparator, buildSideComparator),

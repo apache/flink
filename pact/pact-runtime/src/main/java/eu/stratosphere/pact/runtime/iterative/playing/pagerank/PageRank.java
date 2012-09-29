@@ -27,13 +27,14 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
+import eu.stratosphere.pact.runtime.iterative.playing.Utils;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
+import eu.stratosphere.pact.runtime.iterative.task.RepeatableHashJoinMatchDriver;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.MapDriver;
-import eu.stratosphere.pact.runtime.task.MatchDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -47,7 +48,9 @@ public class PageRank {
     String transitionMatrixInputPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/pagerank/transitionMatrix";
     String outputPath = "file:///tmp/stratosphere/iterations";
     String confPath = PlayConstants.PLAY_DIR + "local-conf";
-    int memoryPerTask = 100;
+    int memoryPerTask = 25;
+
+    //Utils.ensureLogging();
 
     if (args.length == 7) {
       degreeOfParallelism = Integer.parseInt(args[0]);
@@ -82,16 +85,17 @@ public class PageRank {
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "BulkIterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
-    intermediateConfig.setDriver(MatchDriver.class);
+    //intermediateConfig.setDriver(MatchDriver.class);
+    intermediateConfig.setDriver(RepeatableHashJoinMatchDriver.class);
     intermediateConfig.setStubClass(DotProductMatch.class);
-    intermediateConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
+    //intermediateConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(1),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     intermediateConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
-    intermediateConfig.setGateCached(1);
-    intermediateConfig.setInputGateCacheMemoryFraction(0.5f);
+    //intermediateConfig.setGateCached(1);
+    //intermediateConfig.setInputGateCacheMemoryFraction(0.5f);
 
     JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "BulkIterationTail", jobGraph,
         degreeOfParallelism, numSubTasksPerInstance);

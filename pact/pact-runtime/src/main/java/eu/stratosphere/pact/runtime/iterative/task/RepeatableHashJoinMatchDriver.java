@@ -16,20 +16,28 @@
 package eu.stratosphere.pact.runtime.iterative.task;
 
 import com.google.common.base.Preconditions;
+import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.generic.GenericMatcher;
+import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
+import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
-import eu.stratosphere.pact.runtime.iterative.io.UpdateSolutionsetOutputCollector;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 
-public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
+import java.util.List;
+
+public class RepeatableHashJoinMatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
 
   protected PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
-
-  private Collector<OT> collector;
 
   private boolean firstIteration = true;
 
@@ -37,10 +45,6 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
   private volatile MutableHashTable hashJoin;
 
   private volatile boolean running;
-
-  void injectHashJoin(MutableHashTable hashJoin) {
-    this.hashJoin = hashJoin;
-  }
 
   @Override
   public void setup(PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> context) {
@@ -73,7 +77,40 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
       return;
     }
 
-    collector = new UpdateSolutionsetOutputCollector(taskContext.getOutputCollector());
+    TaskConfig config = taskContext.getTaskConfig();
+
+    TypeSerializer<IT1> probesideSerializer = taskContext.getInputSerializer(0);
+    TypeSerializer<IT2> buildsideSerializer = taskContext.getInputSerializer(1);
+    TypeComparator<IT1> probesideComparator = taskContext.getInputComparator(0);
+    TypeComparator<IT2> buildSideComparator = taskContext.getInputComparator(1);
+
+    //TODO duplicated from MatchDriver, refactor
+    final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
+    try {
+      final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
+          config.getPairComparatorFactory(taskContext.getUserCodeClassLoader());
+
+      if (factoryClass == null) {
+        @SuppressWarnings("unchecked")
+        TypePairComparatorFactory<IT1, IT2> pactRecordFactory =
+            (TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
+        pairComparatorFactory = pactRecordFactory;
+      } else {
+        @SuppressWarnings("unchecked")
+        final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>)
+            (Class<?>) TypePairComparatorFactory.class;
+        pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
+      }
+    } catch (ClassNotFoundException e) {
+      throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", e);
+    }
+
+    List<MemorySegment> memSegments = taskContext.getMemoryManager().allocatePages(taskContext.getOwningNepheleTask(),
+        config.getMemorySize());
+
+    hashJoin = new MutableHashTable(buildsideSerializer, probesideSerializer, buildSideComparator,
+        probesideComparator, pairComparatorFactory.createComparator12(probesideComparator, buildSideComparator),
+        memSegments, taskContext.getIOManager());
   }
 
   @Override
@@ -81,7 +118,7 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
 
     final GenericMatcher<IT1, IT2, OT> matchStub = taskContext.getStub();
     //TODO type safety
-    final UpdateSolutionsetOutputCollector<OT> collector = (UpdateSolutionsetOutputCollector<OT>) this.collector;
+    final Collector<OT> collector = taskContext.getOutputCollector();
     final MutableObjectIterator<IT1> probeSide = taskContext.getInput(0);
     final MutableObjectIterator<IT2> buildSide = taskContext.getInput(1);
 
@@ -95,19 +132,21 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
     final IT2 buildSideRecord = taskContext.<IT2>getInputSerializer(1).createInstance();
 
     while (running && probeSide.next(probeSideRecord)) {
+      //System.out.println("#######################PROBING FOR " + ((PactRecord) probeSideRecord).getField(0, PactLong.class).getValue());
       MutableHashTable.HashBucketIterator<IT2, IT1> bucket = hashJoin.getMatchesFor(probeSideRecord);
-
-      boolean matched = bucket.next(buildSideRecord);
-      //Preconditions.checkState(matched);
-
-      collector.setHashBucket(bucket);
-      matchStub.match(probeSideRecord, buildSideRecord, collector);
+      while (bucket.next(buildSideRecord)) {
+        matchStub.match(probeSideRecord, buildSideRecord, collector);
+      }
     }
   }
 
   @Override
   public void cleanup() throws Exception {
     firstIteration = false;
+  }
+
+  public void finalCleanup() {
+    hashJoin.close();
   }
 
   @Override
@@ -117,5 +156,4 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
       hashJoin.close();
     }
   }
-
 }

@@ -440,7 +440,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		this.bucketIterator = new HashBucketIterator<BT, PT>(this.buildSideSerializer, this.recordComparator);
 		this.lazyBucketIterator = new LazyHashBucketIterator<BT, PT>(this.recordComparator);
 	}
-	
+
 	/**
 	 * @return
 	 * @throws IOException
@@ -475,9 +475,9 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 				p.insertIntoProbeBuffer(next);
 			}
 		}
-		
+
 		// -------------- partition done ---------------
-		
+
 		// finalize and cleanup the partitions of the current table
 		int buffersAvailable = 0;
 		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {
@@ -486,39 +486,39 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		}
 		this.partitionsBeingBuilt.clear();
 		this.writeBehindBuffersAvailable += buffersAvailable;
-		
+
 		// release the table memory
 		releaseTable();
-		
+
 		if (this.currentSpilledProbeSide != null) {
 			this.currentSpilledProbeSide.closeAndDelete();
 			this.currentSpilledProbeSide = null;
 		}
-		
+
 		// check if there are pending partitions
 		if (!this.partitionsPending.isEmpty())
 		{
 			final HashPartition<BT, PT> p = this.partitionsPending.get(0);
-			
+
 			// build the next table
 			buildTableFromSpilledPartition(p);
-			
+
 			// set the probe side - gather memory segments for reading
 			LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
 			this.currentSpilledProbeSide = this.ioManager.createBlockChannelReader(p.getProbeSideChannel().getChannelID(), returnQueue);
-			
+
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
 			memory.add(getNextBuffer());
 			memory.add(getNextBuffer());
-			
-			ChannelReaderInputViewIterator<PT> probeReader = new ChannelReaderInputViewIterator<PT>(this.currentSpilledProbeSide, 
+
+			ChannelReaderInputViewIterator<PT> probeReader = new ChannelReaderInputViewIterator<PT>(this.currentSpilledProbeSide,
 				returnQueue, memory, this.availableMemory, this.probeSideSerializer, p.getProbeSideBlockCount());
 			this.probeIterator.set(probeReader);
-			
+
 			// unregister the pending partition
 			this.partitionsPending.remove(0);
 			this.currentRecursionDepth = p.getRecursionLevel() + 1;
-			
+
 			// recursively get the next
 			return nextRecord();
 		}
@@ -815,7 +815,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	}
 	
 	/**
-	 * @param pair
+	 * @param record
 	 * @param hashCode
 	 * @throws IOException
 	 */
@@ -1007,7 +1007,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	
 	/**
 	 * @param numBuckets
-	 * @param partitionLevel
 	 * @param numPartitions
 	 * @return
 	 */
@@ -1260,7 +1259,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 	/**
 	 * Assigns a partition to a bucket.
 	 * 
-	 * @param code The integer to be hashed.
+	 * @param bucket T
+   *  @param maxParts
 	 * @return The hash code for the integer.
 	 */
 	public static final byte assignPartition(int bucket, byte maxParts)

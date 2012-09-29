@@ -34,6 +34,7 @@ import java.io.IOException;
  * reading the cached data and must read the cached data fully afterwards
  *
  */
+@Deprecated
 public class CachingMutableObjectIterator<T> implements MutableObjectIterator<T> {
 
   /** the original input */

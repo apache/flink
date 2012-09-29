@@ -37,7 +37,9 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
   @Override
   public void invoke() throws Exception {
 
-    while (!terminationRequested()) {
+    boolean isJoinOnConstantDataPath = driver instanceof RepeatableHashJoinMatchDriver;
+
+    while (!terminationRequested() && currentIteration() < 7) {
 
       notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_STARTING);
       if (log.isInfoEnabled()) {
@@ -45,7 +47,7 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
       }
 
       notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_STARTING);
-      if (!inFirstIteration()) {
+      if (!inFirstIteration() && !isJoinOnConstantDataPath) {
         reinstantiateDriver();
       }
 
@@ -63,6 +65,10 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
         propagateEvent(new TerminationEvent());
       }
       notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_FINISHED);
+    }
+
+    if (isJoinOnConstantDataPath) {
+      ((RepeatableHashJoinMatchDriver) driver).finalCleanup();
     }
   }
 

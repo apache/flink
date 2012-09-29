@@ -73,7 +73,7 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
     //TODO type safety
     output = new DataOutputCollector(backChannel.getWriteEnd(), createOutputTypeSerializer(), validOutputs);
 
-    while (!terminationRequested()) {
+    while (!terminationRequested() && currentIteration() < 7) {
 
       notifyMonitor(IterationMonitoring.Event.TAIL_STARTING);
       if (log.isInfoEnabled()) {
