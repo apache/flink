@@ -96,7 +96,17 @@ constructJobManagerClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'fastutil' ]]; then
 			add=1
-		 elif [[ "$jarfile" =~ 'commons' ]]; then
+		elif [[ "$jarfile" =~ 'commons' ]]; then
+                        add=1
+		elif [[ "$jarfile" =~ 'kryo' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'reflectasm' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'minlog' ]]; then
+                        add=1
+		elif [[ "$jarfile" =~ 'asm' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'objenesis' ]]; then
                         add=1
 		fi
 
