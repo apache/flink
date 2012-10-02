@@ -13,14 +13,14 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.contract;
+package eu.stratosphere.pact.common.generic.contract;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.Key;
 
 /**
  * Abstract contract superclass for for all contracts that have one input like "map" or "reduce".
@@ -46,9 +46,9 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * @param keyTypes The classes of the data types that act as keys in this stub.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	protected SingleInputContract(Class<? extends T> stubClass, Class<? extends Key>[] keyTypes, int[] keyPositions, String name)
+	protected SingleInputContract(Class<? extends T> stubClass, int[] keyPositions, String name)
 	{
-		super(stubClass, keyTypes, name);
+		super(stubClass, name);
 		this.keyFields = keyPositions;
 	}
 	
@@ -149,10 +149,8 @@ public abstract class SingleInputContract<T extends Stub> extends AbstractPact<T
 	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
 	 */
 	@Override
-	public void accept(Visitor<Contract> visitor)
-	{
-		boolean descend = visitor.preVisit(this);	
-		if (descend) {
+	public void accept(Visitor<Contract> visitor) {
+		if (visitor.preVisit(this)) {
 			for(Contract c : this.input) {
 				c.accept(visitor);
 			}

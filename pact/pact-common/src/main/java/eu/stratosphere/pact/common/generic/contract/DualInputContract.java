@@ -13,14 +13,14 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.contract;
+package eu.stratosphere.pact.common.generic.contract;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.Key;
 
 /**
  * Abstract contract superclass for for all contracts that have two inputs, like "match" or "cross".
@@ -30,11 +30,11 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	/**
 	 * The contract producing the first input.
 	 */
-	final protected List<Contract> input1 = new ArrayList<Contract>();
+	protected final List<Contract> input1 = new ArrayList<Contract>();
 	/**
 	 * The contract producing the second input.
 	 */
-	final protected List<Contract> input2 = new ArrayList<Contract>();
+	protected final List<Contract> input2 = new ArrayList<Contract>();
 
 	/**
 	 * The positions of the keys in the tuples of the first input.
@@ -68,9 +68,9 @@ public abstract class DualInputContract<T extends Stub> extends AbstractPact<T>
 	 * @param keyTypes The classes of the data types that act as keys in this stub.
 	 * @param stubClass The class containing the user function.
 	 */
-	protected DualInputContract(Class<? extends T> stubClass, Class<? extends Key>[] keyTypes, int[] keyPositions1, int[] keyPositions2, String name)
+	protected DualInputContract(Class<? extends T> stubClass, int[] keyPositions1, int[] keyPositions2, String name)
 	{
-		super(stubClass, keyTypes, name);
+		super(stubClass, name);
 		this.keyFields1 = keyPositions1;
 		this.keyFields2 = keyPositions2;
 	}

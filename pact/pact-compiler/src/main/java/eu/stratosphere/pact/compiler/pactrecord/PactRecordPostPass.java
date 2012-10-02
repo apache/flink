@@ -22,7 +22,7 @@ import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.contract.SingleInputContract;
+import eu.stratosphere.pact.common.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerPostPassException;

@@ -214,13 +214,13 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 				if (status.isDir()) {
 					FileStatus[] fss = fs.listStatus(file);
 					files = new ArrayList<FileStatus>(fss.length);
-					boolean unmodified = stats.avgBytesPerRecord == (float) this.recordLength;
+					boolean unmodified = stats.getAverageRecordWidth() == (float) this.recordLength;
 
 					for (FileStatus s : fss) {
 						if (!s.isDir()) {
 							files.add(s);
 							if (s.getModificationTime() > stats.getLastModificationTime()) {
-								stats.fileModTime = s.getModificationTime();
+								stats.setLastModificationTime(s.getModificationTime());
 								unmodified = false;
 							}
 						}
@@ -237,24 +237,25 @@ public abstract class FixedLengthInputFormat extends FileInputFormat
 						return stats;
 					}
 
-					stats.fileModTime = modTime;
+					stats.setLastModificationTime(modTime);
 					
 					files = new ArrayList<FileStatus>(1);
 					files.add(status);
 				}
 			}
 
-			stats.avgBytesPerRecord = this.recordLength;
-			stats.fileSize = 0;
+			stats.setAverageRecordWidth(this.recordLength);
 			
 			// calculate the whole length
+			long len = 0;
 			for (FileStatus s : files) {
-				stats.fileSize += s.getLen();
+				len += s.getLen();
 			}
+			stats.setTotalInputSize(len);
 			
 			// sanity check
 			if (stats.getTotalInputSize() <= 0) {
-				stats.fileModTime = BaseStatistics.UNKNOWN;
+				stats.setLastModificationTime(BaseStatistics.UNKNOWN);
 				return stats;
 			}
 		}

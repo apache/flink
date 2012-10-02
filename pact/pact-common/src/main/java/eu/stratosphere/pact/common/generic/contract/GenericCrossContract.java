@@ -13,14 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.generic.contract;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.generic.GenericCrosser;
+import eu.stratosphere.pact.common.generic.contract.DualInputContract;
+import eu.stratosphere.pact.common.stubs.CrossStub;
+
 
 /**
- * The base interface for input formats that read {@link PactRecord}s from a
- * file.
+ * CrossContract represents a Cross InputContract of the PACT Programming Model.
+ *  InputContracts are second-order functions. They have one or multiple input sets of records and a first-order
+ *  user function (stub implementation).
+ * <p> 
+ * Cross works on two inputs and calls the first-order function of a {@link CrossStub} 
+ * for each combination of record from both inputs (each element of the Cartesian Product) independently.
+ * 
+ * @see CrossStub
  */
-public abstract class FileInputFormat extends eu.stratosphere.pact.common.generic.io.FileInputFormat<PactRecord>
+public class GenericCrossContract<T extends GenericCrosser<?, ?, ?>> extends DualInputContract<T>
 {
+	public GenericCrossContract(Class<? extends T> udf, String name) {
+		super(udf, name);
+	}
 }

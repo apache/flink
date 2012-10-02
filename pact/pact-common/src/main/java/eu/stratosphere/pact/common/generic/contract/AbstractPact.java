@@ -13,11 +13,10 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.contract;
+package eu.stratosphere.pact.common.generic.contract;
 
+import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.type.Key;
-
 
 /**
  * Abstract superclass for all contracts that represent actual Pacts.
@@ -30,11 +29,6 @@ public abstract class AbstractPact<T extends Stub> extends Contract
 	 * The class containing the user function for this Pact.
 	 */
 	protected final Class<? extends T> stubClass;
-
-	/**
-	 * The classes that represent the key data types.
-	 */
-	private final Class<? extends Key>[] keyClasses;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -44,26 +38,9 @@ public abstract class AbstractPact<T extends Stub> extends Contract
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 * @param stubClass The class containing the user function.
 	 */
-	@SuppressWarnings("unchecked")
-	protected AbstractPact(Class<? extends T> stubClass, String name)
-	{
+	protected AbstractPact(Class<? extends T> stubClass, String name) {
 		super(name);
 		this.stubClass = stubClass;
-		this.keyClasses = (Class<? extends Key>[]) new Class[0];
-	}
-	
-	/**
-	 * Creates a new abstract Pact with the given name wrapping the given user function.
-	 * 
-	 * @param name The given name for the Pact, used in plans, logs and progress messages.
-	 * @param stubClass The class containing the user function.
-	 * @param keyClasses The classes describing the keys.
-	 */
-	protected AbstractPact(Class<? extends T> stubClass, Class<? extends Key>[] keyClasses, String name)
-	{
-		super(name);
-		this.stubClass = stubClass;
-		this.keyClasses = keyClasses;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -77,22 +54,11 @@ public abstract class AbstractPact<T extends Stub> extends Contract
 	 * @see eu.stratosphere.pact.common.contract.Contract#getUserCodeClass()
 	 */
 	@Override
-	public Class<? extends T> getUserCodeClass()
-	{
+	public Class<? extends T> getUserCodeClass() {
 		return this.stubClass;
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Gets the types of the key fields on which this reduce contract groups.
-	 * 
-	 * @return The types of the key fields.
-	 */
-	public Class<? extends Key>[] getKeyClasses()
-	{
-		return this.keyClasses;
-	}
 	
 	/**
 	 * Gets the number of inputs for this Pact.
@@ -117,10 +83,21 @@ public abstract class AbstractPact<T extends Stub> extends Contract
 	 * @param clazz The class object to be wrapped.
 	 * @return An array wrapping the class object.
 	 */
-	protected static final <U> Class<U>[] asArray(Class<U> clazz)
-	{
+	protected static final <U> Class<U>[] asArray(Class<U> clazz) {
 		@SuppressWarnings("unchecked")
 		Class<U>[] array = (Class<U>[]) new Class[] { clazz };
+		return array;
+	}
+	
+	/**
+	 * Generic utility function that returns an empty class array.
+	 * 
+	 * @param <U> The type of the classes.
+	 * @return An empty array of type <tt>Class&lt;U&gt;</tt>.
+	 */
+	protected static final <U> Class<U>[] emptyClassArray() {
+		@SuppressWarnings("unchecked")
+		Class<U>[] array = (Class<U>[]) new Class[0];
 		return array;
 	}
 }

@@ -18,7 +18,9 @@ package eu.stratosphere.pact.common.contract;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.pact.common.generic.contract.GenericCrossContract;
 import eu.stratosphere.pact.common.stubs.CrossStub;
+import eu.stratosphere.pact.common.type.Key;
 
 
 /**
@@ -31,7 +33,7 @@ import eu.stratosphere.pact.common.stubs.CrossStub;
  * 
  * @see CrossStub
  */
-public class CrossContract extends DualInputContract<CrossStub>
+public class CrossContract extends GenericCrossContract<CrossStub> implements RecordContract
 {	
 	private static String DEFAULT_NAME = "<Unnamed Crosser>";
 
@@ -54,6 +56,14 @@ public class CrossContract extends DualInputContract<CrossStub>
 		super(builder.udf, builder.name);
 		setFirstInputs(builder.inputs1);
 		setSecondInputs(builder.inputs2);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.RecordContract#getKeyClasses()
+	 */
+	@Override
+	public Class<? extends Key>[] getKeyClasses() {
+		return emptyClassArray();
 	}
 	
 	// --------------------------------------------------------------------------------------------

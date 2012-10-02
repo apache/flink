@@ -25,9 +25,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import eu.stratosphere.pact.common.contract.AbstractPact;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.generic.contract.AbstractPact;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;

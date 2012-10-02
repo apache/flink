@@ -22,6 +22,7 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.pact.common.generic.contract.GenericReduceContract;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 
@@ -36,9 +37,14 @@ import eu.stratosphere.pact.common.type.Key;
  * 
  * @see ReduceStub
  */
-public class ReduceContract extends SingleInputContract<ReduceStub>
+public class ReduceContract extends GenericReduceContract<ReduceStub> implements RecordContract
 {	
-	private static final String DEFAULT_NAME = "<Unnamed Reducer>";	// the default name for contracts
+	private static final String DEFAULT_NAME = "<Unnamed Reducer>";		// the default name for contracts
+	
+	/**
+	 * The types of the keys that the contract operates on.
+	 */
+	private final Class<? extends Key>[] keyTypes;
 	
 	/**
 	 * The ordering for the order inside a reduce group.
@@ -72,12 +78,21 @@ public class ReduceContract extends SingleInputContract<ReduceStub>
 	 * @param builder
 	 */
 	private ReduceContract(Builder builder) {
-		super(builder.udf, builder.getKeyClassesArray(), builder.getKeyColumnsArray(), builder.name);
+		super(builder.udf, builder.getKeyColumnsArray(), builder.name);
+		this.keyTypes = builder.getKeyClassesArray();
 		setInputs(builder.inputs);
 		setGroupOrder(builder.secondaryOrder);
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.RecordContract#getKeyClasses()
+	 */
+	@Override
+	public Class<? extends Key>[] getKeyClasses() {
+		return this.keyTypes;
+	}
 	
 	/**
 	 * Sets the order of the elements within a reduce group.

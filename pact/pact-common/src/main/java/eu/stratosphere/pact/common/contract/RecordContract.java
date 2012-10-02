@@ -13,14 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.contract;
 
+import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
- * The base interface for input formats that read {@link PactRecord}s from a
- * file.
+ * Interface marking contract classes to be referring to the {@link PactRecord} data model.
  */
-public abstract class FileInputFormat extends eu.stratosphere.pact.common.generic.io.FileInputFormat<PactRecord>
+public interface RecordContract
 {
+	Class<? extends Key>[] getKeyClasses();
 }

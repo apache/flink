@@ -1,0 +1,161 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package eu.stratosphere.pact.example.wordcount;
+
+import java.util.Iterator;
+
+import eu.stratosphere.pact.common.array.io.ArrayOutputFormat;
+import eu.stratosphere.pact.common.array.io.StringInputFormat;
+import eu.stratosphere.pact.common.array.stubs.DataTypes;
+import eu.stratosphere.pact.common.array.stubs.MapStub;
+import eu.stratosphere.pact.common.array.stubs.ReduceStub;
+import eu.stratosphere.pact.common.contract.FileDataSink;
+import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.io.RecordOutputFormat;
+import eu.stratosphere.pact.common.io.TextInputFormat;
+import eu.stratosphere.pact.common.plan.Plan;
+import eu.stratosphere.pact.common.plan.PlanAssembler;
+import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
+import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
+import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
+import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.common.type.base.PactString;
+import eu.stratosphere.pact.example.util.AsciiUtils;
+
+/**
+ * Implements a word count which takes the input file and counts the number of
+ * the occurrences of each word in the file.
+ */
+public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescription {
+	
+	/**
+	 * Converts a PactRecord containing one string in to multiple string/integer pairs.
+	 * The string is tokenized by whitespaces. For each token a new record is emitted,
+	 * where the token is the first field and an Integer(1) is the second field.
+	 */
+	
+	@OutCardBounds(lowerBound=0, upperBound=OutCardBounds.UNBOUNDED)
+	public static class TokenizeLine extends MapStub
+	{
+		// initialize reusable mutable objects
+		private final PactString word = new PactString();
+		private final PactInteger one = new PactInteger(1);
+		private final Value[] outputRecord = new Value[] { this.word, this.one };
+		
+		private final AsciiUtils.WhitespaceTokenizer tokenizer = 
+						new AsciiUtils.WhitespaceTokenizer();
+		
+		@Override
+		@DataTypes(PactString.class)
+		public void map(Value[] record, Collector<Value[]> collector)
+		{
+			// get the first field (as type PactString) from the record
+			PactString line = (PactString) record[0];
+			
+			// normalize the line
+			AsciiUtils.replaceNonWordChars(line, ' ');
+			AsciiUtils.toLowerCase(line);
+			
+			// tokenize the line
+			this.tokenizer.setStringToTokenize(line);
+			while (tokenizer.next(this.word)) {
+				// we emit a (word, 1) pair 
+				collector.collect(this.outputRecord);
+			}
+		}
+	}
+
+	/**
+	 * Sums up the counts for a certain given key. The counts are assumed to be at position <code>1</code>
+	 * in the record. The other fields are not modified.
+	 */
+	@ConstantFields(fields={0})
+	@OutCardBounds(lowerBound=1, upperBound=1)
+	@Combinable
+	public static class CountWords extends ReduceStub
+	{
+		private final PactInteger cnt = new PactInteger();
+		private final Value[] result = new Value[] { null, cnt };
+		
+		@Override
+		@DataTypes({PactString.class, PactInteger.class})
+		public void reduce(Iterator<Value[]> records, Collector<Value[]> out) throws Exception {
+			Value[] element = null;
+			int sum = 0;
+			while (records.hasNext()) {
+				element = records.next();
+				sum += ((PactInteger) element[1]).getValue();
+			}
+
+			this.cnt.setValue(sum);
+			result[0] = element[0];
+			out.collect(element);
+		}
+		
+		@Override
+		public void combine(Iterator<Value[]> records, Collector<Value[]> out) throws Exception {
+			// the logic is the same as in the reduce function, so simply call the reduce method
+			this.reduce(records, out);
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Plan getPlan(String... args)
+	{
+		// parse job parameters
+		int noSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		String dataInput = (args.length > 1 ? args[1] : "");
+		String output    = (args.length > 2 ? args[2] : "");
+
+		FileDataSource source = new FileDataSource(StringInputFormat.class, dataInput, "Input Lines");
+		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");		// comment out this line for UTF-8 inputs
+		
+		MapContract mapper = MapContract.builder(TokenizeLine.class)
+			.input(source)
+			.name("Tokenize Lines")
+			.build();
+		
+		ReduceContract reducer = ReduceContract.builder(CountWords.class, PactString.class, 0)
+			.input(mapper)
+			.name("Count Words")
+			.build();
+		
+		FileDataSink out = new FileDataSink(ArrayOutputFormat.class, output, reducer, "Word Counts");
+		ArrayOutputFormat.configureArrayFormat(out)
+			.recordDelimiter('\n')
+			.fieldDelimiter(' ')
+			.lenient(true);
+		
+		Plan plan = new Plan(out, "WordCount Example");
+		plan.setDefaultParallelism(noSubTasks);
+		return plan;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public String getDescription() {
+		return "Parameters: [noSubStasks] [input] [output]";
+	}
+
+}

@@ -23,7 +23,7 @@ import java.util.Map;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.contract.SingleInputContract;
+import eu.stratosphere.pact.common.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsExcept;

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,14 +13,22 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.array.stubs;
 
-import eu.stratosphere.pact.common.type.PactRecord;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+import eu.stratosphere.pact.common.type.Value;
+
 
 /**
- * The base interface for input formats that read {@link PactRecord}s from a
- * file.
+ *
  */
-public abstract class FileInputFormat extends eu.stratosphere.pact.common.generic.io.FileInputFormat<PactRecord>
-{
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface DataTypes {
+	
+	Class<? extends Value>[] value();
 }

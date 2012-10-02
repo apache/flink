@@ -15,13 +15,13 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import eu.stratosphere.pact.common.io.FileInputFormat;
+import eu.stratosphere.pact.common.generic.io.FileInputFormat;
 
 
 /**
  * Contract for input nodes which read data from files.
  */
-public class FileDataSource extends GenericDataSource<FileInputFormat>
+public class FileDataSource extends GenericDataSource<FileInputFormat<?>>
 {
 	private static String DEFAULT_NAME = "<Unnamed File Data Source>";
 	
@@ -36,7 +36,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat>
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public FileDataSource(Class<? extends FileInputFormat> clazz, String filePath, String name)
+	public FileDataSource(Class<? extends FileInputFormat<?>> clazz, String filePath, String name)
 	{
 		super(clazz, name);
 		this.filePath = filePath;
@@ -49,7 +49,7 @@ public class FileDataSource extends GenericDataSource<FileInputFormat>
 	 * @param clazz The class describing the input format for the file.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
-	public FileDataSource(Class<? extends FileInputFormat> clazz, String file) {
+	public FileDataSource(Class<? extends FileInputFormat<?>> clazz, String file) {
 		this(clazz, file, DEFAULT_NAME);
 	}
 

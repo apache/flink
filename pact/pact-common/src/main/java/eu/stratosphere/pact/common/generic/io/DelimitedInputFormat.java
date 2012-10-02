@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.common.io;
+package eu.stratosphere.pact.common.generic.io;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -33,17 +33,16 @@ import eu.stratosphere.nephele.fs.LineReader;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
-import eu.stratosphere.pact.common.type.PactRecord;
 
 /**
  * Base implementation for delimiter based input formats. By default it splits
- * by line breaks. The key/value pair generation is done in the readLine function
+ * by line breaks. The record generation is done in the readLine function
  * which needs to be implemented for specific formats.
  * 
  * @author Moritz Kaufmann
  * @author Stephan Ewen
  */
-public abstract class DelimitedInputFormat extends FileInputFormat
+public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
 {
 	// -------------------------------------- Constants -------------------------------------------
 	
@@ -114,7 +113,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	 * @param bytes The serialized record.
 	 * @return returns whether the record was successfully deserialized
 	 */
-	public abstract boolean readRecord(PactRecord target, byte[] bytes, int offset, int numBytes);
+	public abstract boolean readRecord(OT target, byte[] bytes, int offset, int numBytes);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -396,7 +395,7 @@ public abstract class DelimitedInputFormat extends FileInputFormat
 	 * @see eu.stratosphere.pact.common.generic.io.InputFormat#nextRecord(java.lang.Object)
 	 */
 	@Override
-	public boolean nextRecord(PactRecord record) throws IOException
+	public boolean nextRecord(OT record) throws IOException
 	{
 		if (readLine()) {
 			return readRecord(record, this.currBuffer, this.currOffset, this.currLen);

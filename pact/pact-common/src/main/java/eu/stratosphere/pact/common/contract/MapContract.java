@@ -18,8 +18,9 @@ package eu.stratosphere.pact.common.contract;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.pact.common.generic.contract.GenericMapContract;
 import eu.stratosphere.pact.common.stubs.MapStub;
-
+import eu.stratosphere.pact.common.type.Key;
 
 /**
  * MapContract represents a Pact with a Map Input Contract.
@@ -33,7 +34,7 @@ import eu.stratosphere.pact.common.stubs.MapStub;
  * 
  * @author Aljoscha Krettek
  */
-public class MapContract extends SingleInputContract<MapStub>
+public class MapContract extends GenericMapContract<MapStub> implements RecordContract
 {	
 	private static String DEFAULT_NAME = "<Unnamed Mapper>";
 	
@@ -53,8 +54,15 @@ public class MapContract extends SingleInputContract<MapStub>
 	 * @param builder
 	 */
 	private MapContract(Builder builder) {
-		super(builder.udf, builder.name);
-		setInputs(builder.inputs);
+		super(builder.udf, builder.name, builder.inputs);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.RecordContract#getKeyClasses()
+	 */
+	@Override
+	public Class<? extends Key>[] getKeyClasses() {
+		return emptyClassArray();
 	}
 
 	// --------------------------------------------------------------------------------------------
