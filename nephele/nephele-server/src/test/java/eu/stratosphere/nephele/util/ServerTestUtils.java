@@ -241,10 +241,10 @@ public final class ServerTestUtils {
 
 		final Kryo kryo = new Kryo();
 		final byte[] buf = new byte[8192];
-		Output output = new Output(buf);
+		final Output output = new Output(buf);
 		kryo.writeObject(output, original);
 		output.flush();
-		Input input = new Input(buf);
+		final Input input = new Input(buf);
 		return (T) kryo.readObject(input, original.getClass());
 	}
 }
