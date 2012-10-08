@@ -17,11 +17,17 @@ package eu.stratosphere.nephele.rpc;
 
 import java.util.List;
 
+import eu.stratosphere.nephele.event.job.ExecutionStateChangeEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
+import eu.stratosphere.nephele.event.job.VertexAssignmentEvent;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
+import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
+import eu.stratosphere.nephele.profiling.types.InstanceSummaryProfilingEvent;
+import eu.stratosphere.nephele.profiling.types.SingleInstanceProfilingEvent;
+import eu.stratosphere.nephele.profiling.types.ThreadProfilingEvent;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -47,13 +53,19 @@ public class ManagementTypeUtils {
 
 		final List<Class<?>> types = CommonTypeUtils.getRPCTypesToRegister();
 
+		types.add(ExecutionStateChangeEvent.class);
 		types.add(HardwareDescription.class);
+		types.add(InstanceSummaryProfilingEvent.class);
 		types.add(InstanceType.class);
 		types.add(InstanceTypeDescription.class);
 		types.add(ManagementGraph.class);
+		types.add(ManagementVertexID.class);
 		types.add(NetworkNode.class);
 		types.add(NetworkTopology.class);
 		types.add(RecentJobEvent.class);
+		types.add(SingleInstanceProfilingEvent.class);
+		types.add(ThreadProfilingEvent.class);
+		types.add(VertexAssignmentEvent.class);
 
 		return types;
 	}

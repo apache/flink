@@ -15,17 +15,16 @@
 
 package eu.stratosphere.nephele.topology;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
-public class NetworkNode implements IOReadableWritable {
+public class NetworkNode implements KryoSerializable {
 
 	private final NetworkTopology networkTopology;
 
@@ -223,19 +222,19 @@ public class NetworkNode implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
-		this.name = StringRecord.readString(in);
+		this.name = input.readString();
 
 		// We need to read the name before we can add the node to the topology's node map
 		if (this.networkTopology != null) {
 			this.networkTopology.addNode(this);
 		}
 
-		final int numberOfChildNodes = in.readInt();
+		final int numberOfChildNodes = input.readInt();
 		for (int i = 0; i < numberOfChildNodes; i++) {
 			final NetworkNode networkNode = new NetworkNode(this, this.networkTopology);
-			networkNode.read(in);
+			networkNode.read(kryo, input);
 			this.childNodes.add(networkNode);
 		}
 	}
@@ -244,13 +243,13 @@ public class NetworkNode implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final Kryo kryo, Output output) {
 
-		StringRecord.writeString(out, this.name);
-		out.writeInt(this.childNodes.size());
+		output.writeString(this.name);
+		output.writeInt(this.childNodes.size());
 		final Iterator<NetworkNode> it = this.childNodes.iterator();
 		while (it.hasNext()) {
-			it.next().write(out);
+			it.next().write(kryo, output);
 		}
 	}
 
