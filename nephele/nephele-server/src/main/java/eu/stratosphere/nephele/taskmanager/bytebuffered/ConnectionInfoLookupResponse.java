@@ -17,50 +17,81 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.util.EnumUtils;
 
-public class ConnectionInfoLookupResponse {
+public class ConnectionInfoLookupResponse implements KryoSerializable {
 
-	private enum ReturnCode {
+	public enum ReturnCode {
 		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY, JOB_IS_ABORTING
 	};
 
 	// was request successful?
-	private final ReturnCode returnCode;
+	private ReturnCode returnCode;
 
 	/**
 	 * Contains next-hop instances, this instance must forward multicast transmissions to.
 	 */
-	private final ArrayList<RemoteReceiver> remoteTargets = new ArrayList<RemoteReceiver>();
+	private ArrayList<RemoteReceiver> remoteTargets = null;
 
 	/**
 	 * Contains local ChannelIDs, multicast packets must be forwarded to.
 	 */
-	private final ArrayList<ChannelID> localTargets = new ArrayList<ChannelID>();
+	private ArrayList<ChannelID> localTargets = null;
 
 	public ConnectionInfoLookupResponse(final ReturnCode returnCode) {
 		this.returnCode = returnCode;
 	}
 
-	public ConnectionInfoLookupResponse() {
+	/**
+	 * The default constructor required by kryo.
+	 */
+	@SuppressWarnings("unused")
+	private ConnectionInfoLookupResponse() {
 		this.returnCode = null;
 	}
 
 	public void addRemoteTarget(final RemoteReceiver remote) {
+
+		if (this.remoteTargets == null) {
+			this.remoteTargets = new ArrayList<RemoteReceiver>();
+		}
+
 		this.remoteTargets.add(remote);
 	}
 
-	public void addLocalTarget(ChannelID local) {
+	public void addLocalTarget(final ChannelID local) {
+
+		if (this.localTargets == null) {
+			this.localTargets = new ArrayList<ChannelID>();
+		}
+
 		this.localTargets.add(local);
 	}
 
 	public List<RemoteReceiver> getRemoteTargets() {
+
+		if (this.remoteTargets == null) {
+			return Collections.emptyList();
+		}
+
 		return this.remoteTargets;
 	}
 
 	public List<ChannelID> getLocalTargets() {
+
+		if (this.localTargets == null) {
+			return Collections.emptyList();
+		}
+
 		return this.localTargets;
 	}
 
@@ -146,5 +177,24 @@ public class ConnectionInfoLookupResponse {
 			returnstring.append(rr + "\n");
 		}
 		return returnstring.toString();
+	}
+
+	@Override
+	public void write(final Kryo kryo, final Output output) {
+
+		EnumUtils.writeEnum(output, this.returnCode);
+
+		kryo.writeObjectOrNull(output, this.remoteTargets, ArrayList.class);
+		kryo.writeObjectOrNull(output, this.localTargets, ArrayList.class);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void read(final Kryo kryo, final Input input) {
+
+		this.returnCode = EnumUtils.readEnum(input, ReturnCode.class);
+
+		this.remoteTargets = kryo.readObjectOrNull(input, ArrayList.class);
+		this.localTargets = kryo.readObjectOrNull(input, ArrayList.class);
 	}
 }

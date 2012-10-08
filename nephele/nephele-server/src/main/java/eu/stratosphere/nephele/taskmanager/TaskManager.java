@@ -77,6 +77,7 @@ import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.rpc.RPCService;
+import eu.stratosphere.nephele.rpc.ServerTypeUtils;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
@@ -206,7 +207,7 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 		// Start local RPC server
 		RPCService rpcService = null;
 		try {
-			rpcService = new RPCService(ipcPort, 4);
+			rpcService = new RPCService(ipcPort, 4, ServerTypeUtils.getRPCTypesToRegister());
 		} catch (IOException e) {
 			LOG.error(StringUtils.stringifyException(e));
 			throw new Exception("Failed to taskmanager server. " + e.getMessage(), e);

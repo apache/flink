@@ -15,32 +15,26 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * Objects of this class uniquely identify a connection to a remote {@link TaskManager}.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public final class RemoteReceiver implements IOReadableWritable {
+public final class RemoteReceiver {
 
 	/**
 	 * The address of the connection to the remote {@link TaskManager}.
 	 */
-	private InetSocketAddress connectionAddress;
+	private final InetSocketAddress connectionAddress;
 
 	/**
 	 * The index of the connection to the remote {@link TaskManager}.
 	 */
-	private int connectionIndex;
+	private final int connectionIndex;
 
 	/**
 	 * Constructs a new remote receiver object.
@@ -65,9 +59,10 @@ public final class RemoteReceiver implements IOReadableWritable {
 	}
 
 	/**
-	 * Default constructor for serialization/deserialization.
+	 * Default constructor required by kryo.
 	 */
-	public RemoteReceiver() {
+	@SuppressWarnings("unused")
+	private RemoteReceiver() {
 		this.connectionAddress = null;
 		this.connectionIndex = -1;
 	}
@@ -121,42 +116,6 @@ public final class RemoteReceiver implements IOReadableWritable {
 		}
 
 		return true;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		final InetAddress ia = this.connectionAddress.getAddress();
-		out.writeInt(ia.getAddress().length);
-		out.write(ia.getAddress());
-		out.writeInt(this.connectionAddress.getPort());
-
-		out.writeInt(this.connectionIndex);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		final int addr_length = in.readInt();
-		final byte[] address = new byte[addr_length];
-		in.readFully(address);
-
-		InetAddress ia = null;
-		try {
-			ia = InetAddress.getByAddress(address);
-		} catch (UnknownHostException uhe) {
-			throw new IOException(StringUtils.stringifyException(uhe));
-		}
-		final int port = in.readInt();
-		this.connectionAddress = new InetSocketAddress(ia, port);
-
-		this.connectionIndex = in.readInt();
 	}
 
 	/**

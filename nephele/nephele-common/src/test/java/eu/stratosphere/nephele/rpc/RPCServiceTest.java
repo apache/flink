@@ -39,6 +39,13 @@ public class RPCServiceTest implements RPCTestProtocol {
 
 	private final AtomicInteger counter = new AtomicInteger(0);
 
+	private static List<Class<?>> getTypesToRegister() {
+
+		final ArrayList<Class<?>> types = new ArrayList<Class<?>>();
+
+		return types;
+	}
+
 	@Test
 	public void testSingleClientRPCService() {
 
@@ -51,7 +58,7 @@ public class RPCServiceTest implements RPCTestProtocol {
 
 		RPCService rpcService = null;
 		try {
-			rpcService = new RPCService(RPC_TEST_PORT, NUMBER_OF_RPC_HANDLERS);
+			rpcService = new RPCService(RPC_TEST_PORT, NUMBER_OF_RPC_HANDLERS, getTypesToRegister());
 			rpcService.setProtocolCallbackHandler(RPCTestProtocol.class, this);
 
 			final RPCTestProtocol proxy = rpcService.getProxy(new InetSocketAddress("localhost", RPC_TEST_PORT),
@@ -84,7 +91,7 @@ public class RPCServiceTest implements RPCTestProtocol {
 
 		RPCService rpcService = null;
 		try {
-			rpcService = new RPCService(RPC_TEST_PORT, NUMBER_OF_RPC_HANDLERS);
+			rpcService = new RPCService(RPC_TEST_PORT, NUMBER_OF_RPC_HANDLERS, getTypesToRegister());
 			rpcService.setProtocolCallbackHandler(RPCTestProtocol.class, this);
 
 			final RPCTestProtocol proxy = rpcService.getProxy(new InetSocketAddress("localhost", RPC_TEST_PORT),

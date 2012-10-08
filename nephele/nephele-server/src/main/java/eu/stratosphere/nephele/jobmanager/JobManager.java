@@ -115,6 +115,7 @@ import eu.stratosphere.nephele.protocols.JobManagementProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.rpc.RPCService;
+import eu.stratosphere.nephele.rpc.ServerTypeUtils;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
@@ -220,7 +221,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		RPCService rpcService = null;
 		try {
 			final int handlerCount = GlobalConfiguration.getInteger("jobmanager.rpc.numhandler", 3);
-			rpcService = new RPCService(rpcServerAddress.getPort(), handlerCount);
+			rpcService = new RPCService(rpcServerAddress.getPort(), handlerCount,
+				ServerTypeUtils.getRPCTypesToRegister());
 		} catch (IOException ioe) {
 			LOG.fatal("Cannot start RPC server: " + StringUtils.stringifyException(ioe));
 			System.exit(FAILURERETURNCODE);

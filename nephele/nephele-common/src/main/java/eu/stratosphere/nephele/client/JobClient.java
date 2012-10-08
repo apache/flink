@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.event.job.JobEvent;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.protocols.JobManagementProtocol;
+import eu.stratosphere.nephele.rpc.CommonTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -161,7 +162,7 @@ public class JobClient {
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
-		this.rpcService = new RPCService();
+		this.rpcService = new RPCService(CommonTypeUtils.getRPCTypesToRegister());
 		this.jobSubmitClient = this.rpcService.getProxy(inetaddr, JobManagementProtocol.class);
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
@@ -185,7 +186,7 @@ public class JobClient {
 			final InetSocketAddress jobManagerAddress)
 			throws IOException {
 
-		this.rpcService = new RPCService();
+		this.rpcService = new RPCService(CommonTypeUtils.getRPCTypesToRegister());
 		this.jobSubmitClient = this.rpcService.getProxy(jobManagerAddress, JobManagementProtocol.class);
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;

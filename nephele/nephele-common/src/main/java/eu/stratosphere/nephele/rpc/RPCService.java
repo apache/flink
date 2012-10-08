@@ -24,7 +24,10 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -35,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.minlog.Log;
@@ -110,6 +114,8 @@ public final class RPCService {
 
 	private final ConcurrentHashMap<MultiPacketInputStreamKey, MultiPacketInputStream> incompleteInputStreams = new ConcurrentHashMap<MultiPacketInputStreamKey, MultiPacketInputStream>();
 
+	private final List<Class<?>> kryoTypesToRegister;
+
 	final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>() {
 
 		/**
@@ -117,7 +123,18 @@ public final class RPCService {
 		 */
 		@Override
 		protected Kryo initialValue() {
-			return new Kryo();
+
+			final Kryo kryo = new Kryo();
+			if (kryoTypesToRegister != null) {
+				kryo.setAutoReset(false);
+				kryo.setRegistrationRequired(true);
+
+				for (final Class<?> kryoType : kryoTypesToRegister) {
+					kryo.register(kryoType);
+				}
+			}
+
+			return kryo;
 		}
 	};
 
@@ -328,9 +345,19 @@ public final class RPCService {
 		}
 	}
 
-	public RPCService(final int rpcPort, final int numRPCHandlers) throws IOException {
+	public RPCService(final int rpcPort, final int numRPCHandlers, final List<Class<?>> typesToRegister)
+			throws IOException {
 
 		this.rpcHandlers = Executors.newFixedThreadPool(numRPCHandlers);
+
+		if (typesToRegister == null) {
+			this.kryoTypesToRegister = null;
+		} else {
+			ArrayList<Class<?>> kryoTypesToRegister = new ArrayList<Class<?>>();
+			addBasicRPCTypes(kryoTypesToRegister);
+			kryoTypesToRegister.addAll(typesToRegister);
+			this.kryoTypesToRegister = Collections.unmodifiableList(kryoTypesToRegister);
+		}
 
 		this.rpcPort = rpcPort;
 
@@ -342,13 +369,42 @@ public final class RPCService {
 		this.cleanupTimer.schedule(new CleanupTask(), CLEANUP_INTERVAL, CLEANUP_INTERVAL);
 	}
 
-	public RPCService() throws IOException {
-		this(DEFAULT_NUM_RPC_HANDLERS);
+	private static void addBasicRPCTypes(final List<Class<?>> typesToRegister) {
+
+		typesToRegister.add(ArrayList.class);
+		typesToRegister.add(boolean[].class);
+		typesToRegister.add(Class.class);
+		typesToRegister.add(Class[].class);
+		typesToRegister.add(IllegalArgumentException.class);
+		typesToRegister.add(KryoException.class);
+		typesToRegister.add(List.class);
+		typesToRegister.add(Object[].class);
+		typesToRegister.add(RPCEnvelope.class);
+		typesToRegister.add(RPCRequest.class);
+		typesToRegister.add(RPCReturnValue.class);
+		typesToRegister.add(RPCCleanup.class);
+		typesToRegister.add(RPCThrowable.class);
+		typesToRegister.add(StackTraceElement[].class);
+		typesToRegister.add(String[].class);
+		typesToRegister.add(StringBuffer.class);
 	}
 
-	public RPCService(final int numRPCHandlers) throws IOException {
+	public RPCService(final List<Class<?>> typesToRegister) throws IOException {
+		this(DEFAULT_NUM_RPC_HANDLERS, typesToRegister);
+	}
+
+	public RPCService(final int numRPCHandlers, final List<Class<?>> typesToRegister) throws IOException {
 
 		this.rpcHandlers = Executors.newFixedThreadPool(numRPCHandlers);
+
+		if (typesToRegister == null) {
+			this.kryoTypesToRegister = null;
+		} else {
+			ArrayList<Class<?>> kryoTypesToRegister = new ArrayList<Class<?>>();
+			addBasicRPCTypes(kryoTypesToRegister);
+			kryoTypesToRegister.addAll(typesToRegister);
+			this.kryoTypesToRegister = Collections.unmodifiableList(kryoTypesToRegister);
+		}
 
 		this.rpcPort = -1;
 
