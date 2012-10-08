@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.rpc.ManagementTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
@@ -1665,7 +1666,7 @@ public class PactCompiler {
 		{
 			RPCService rpcService = null;
 			try {
-				rpcService = new RPCService();
+				rpcService = new RPCService(ManagementTypeUtils.getRPCTypesToRegister());
 				ExtendedManagementProtocol jobManagerConnection = rpcService.
 						getProxy(this.jobManagerAddress, ExtendedManagementProtocol.class);
 

@@ -44,6 +44,7 @@ import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.rpc.ManagementTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.client.nephele.api.Client;
@@ -441,7 +442,7 @@ public class CliFrontend {
 		RPCService rpcService = null;
 		try {
 			
-			rpcService = new RPCService();
+			rpcService = new RPCService(ManagementTypeUtils.getRPCTypesToRegister());
 			ExtendedManagementProtocol jmConn = getJMConnection(rpcService);
 			List<RecentJobEvent> recentJobs = jmConn.getRecentJobs();
 			

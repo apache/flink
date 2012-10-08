@@ -40,6 +40,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.rpc.ManagementTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.pact.test.util.FileWriter;
 
@@ -263,7 +264,7 @@ public class NepheleMiniCluster {
 		final InetSocketAddress address = new InetSocketAddress(hostname, port);
 		ExtendedManagementProtocol jobManagerConnection = null;
 		
-		RPCService rpcService = new RPCService();
+		RPCService rpcService = new RPCService(ManagementTypeUtils.getRPCTypesToRegister());
 		
 		try {
 			jobManagerConnection = rpcService.getProxy(address, ExtendedManagementProtocol.class);

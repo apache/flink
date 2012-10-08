@@ -389,6 +389,10 @@ public final class RPCService {
 		typesToRegister.add(StringBuffer.class);
 	}
 
+	public RPCService() throws IOException {
+		this(DEFAULT_NUM_RPC_HANDLERS, null);
+	}
+
 	public RPCService(final List<Class<?>> typesToRegister) throws IOException {
 		this(DEFAULT_NUM_RPC_HANDLERS, typesToRegister);
 	}

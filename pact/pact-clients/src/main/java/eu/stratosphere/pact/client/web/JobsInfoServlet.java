@@ -30,6 +30,7 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.rpc.ManagementTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
 
 /**
@@ -61,7 +62,7 @@ public class JobsInfoServlet extends HttpServlet {
 		RPCService rpcService = null;
 		try {
 
-			rpcService = new RPCService();
+			rpcService = new RPCService(ManagementTypeUtils.getRPCTypesToRegister());
 			ExtendedManagementProtocol jmConn = getJMConnection(rpcService);
 			List<RecentJobEvent> recentJobs = jmConn.getRecentJobs();
 
