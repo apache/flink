@@ -44,6 +44,7 @@ import eu.stratosphere.nephele.profiling.types.InstanceSummaryProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.OutputGateProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.SingleInstanceProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.ThreadProfilingEvent;
+import eu.stratosphere.nephele.rpc.ProfilingTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -65,11 +66,12 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 
 		RPCService rpcService = null;
 		try {
-			rpcService = new RPCService(rpcPort);
+			rpcService = new RPCService(rpcPort, 1, ProfilingTypeUtils.getRPCTypesToRegister());
 		} catch (IOException ioe) {
 			throw new ProfilingException("Cannot start profiling RPC server: " + StringUtils.stringifyException(ioe));
 		}
 		this.rpcService = rpcService;
+		this.rpcService.setProtocolCallbackHandler(ProfilerImplProtocol.class, this);
 	}
 
 	@Override

@@ -40,6 +40,7 @@ import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
+import eu.stratosphere.nephele.rpc.ProfilingTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -69,7 +70,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 		// Start RPC service
 		try {
-			this.rpcService = new RPCService();
+			this.rpcService = new RPCService(ProfilingTypeUtils.getRPCTypesToRegister());
 		} catch (IOException e) {
 			throw new ProfilingException(StringUtils.stringifyException(e));
 		}
@@ -175,7 +176,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 					this.jobManagerProfiler.reportProfilingData(this.profilingDataContainer);
 					this.profilingDataContainer.clear();
 				} catch (IOException e) {
-					LOG.error(e);
+					LOG.error(StringUtils.stringifyException(e));
 				}
 			}
 		}
