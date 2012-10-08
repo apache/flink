@@ -25,6 +25,7 @@ import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
+import eu.stratosphere.nephele.instance.local.LocalInstance;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
@@ -67,6 +68,7 @@ public class ServerTypeUtils {
 		types.add(Inet4Address.class);
 		types.add(InputSplitWrapper.class);
 		types.add(InstanceConnectionInfo.class);
+		types.add(LocalInstance.class);
 		types.add(RemoteReceiver.class);
 		types.add(TaskCancelResult.class);
 		types.add(TaskCheckpointState.class);

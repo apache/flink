@@ -17,9 +17,13 @@ package eu.stratosphere.nephele.rpc;
 
 import java.util.List;
 
+import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
+import eu.stratosphere.nephele.managementgraph.ManagementGraph;
+import eu.stratosphere.nephele.topology.NetworkNode;
+import eu.stratosphere.nephele.topology.NetworkTopology;
 
 /**
  * This utility class provides a list of types frequently used by the RPC protocols included in this package.
@@ -46,6 +50,10 @@ public class ManagementTypeUtils {
 		types.add(HardwareDescription.class);
 		types.add(InstanceType.class);
 		types.add(InstanceTypeDescription.class);
+		types.add(ManagementGraph.class);
+		types.add(NetworkNode.class);
+		types.add(NetworkTopology.class);
+		types.add(RecentJobEvent.class);
 
 		return types;
 	}

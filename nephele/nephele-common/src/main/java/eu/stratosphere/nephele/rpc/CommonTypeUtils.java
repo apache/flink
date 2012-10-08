@@ -16,10 +16,12 @@
 package eu.stratosphere.nephele.rpc;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.nephele.client.AbstractJobResult;
+import eu.stratosphere.nephele.client.JobCancelResult;
 import eu.stratosphere.nephele.client.JobProgressResult;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.event.job.JobEvent;
@@ -70,7 +72,9 @@ public class CommonTypeUtils {
 		types.add(CompressionLevel.class);
 		types.add(ExecutionState.class);
 		types.add(GateID.class);
+		types.add(HashMap.class);
 		types.add(IntegerRecord.class);
+		types.add(JobCancelResult.class);
 		types.add(JobEvent.class);
 		types.add(JobGraph.class);
 		types.add(JobID.class);
