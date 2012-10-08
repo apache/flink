@@ -23,10 +23,12 @@ public class DotProductReducer extends ReduceStub {
   @Override
   public void reduce(Iterator<PactRecord> records, Collector<PactRecord> collector) throws Exception {
 
+    records.hasNext();
     PactRecord first = records.next();
 
-    //StringBuilder buffer = new StringBuilder();
-    //buffer.append("\t" + first.getField(0, PactLong.class) + " " + first.getField(1, PactDouble.class) + "\n");
+//    StringBuilder buffer = new StringBuilder();
+//    buffer.append("(((");
+//    buffer.append("\t" + first.getField(0, PactLong.class) + " " + first.getField(1, PactDouble.class) + "\n");
 
     accumulator.setField(0, first.getField(0, PactLong.class));
     double sum = first.getField(1, PactDouble.class).getValue();
@@ -34,13 +36,13 @@ public class DotProductReducer extends ReduceStub {
     while (records.hasNext()) {
       PactRecord record = records.next();
       sum += record.getField(1, PactDouble.class).getValue();
-      //buffer.append("\t" + record.getField(0, PactLong.class) + " " + record.getField(1, PactDouble.class) + "\n");
+//      buffer.append("\t" + record.getField(0, PactLong.class) + " " + record.getField(1, PactDouble.class) + "\n");
     }
 
     accumulator.setField(1, new PactDouble(sum));
 
-    //buffer.append("Reduce: " + accumulator.getField(0, PactLong.class) + " " + sum);
-    //System.out.println(buffer);
+//    buffer.append("= " + accumulator.getField(0, PactLong.class) + " " + sum + ")))");
+//    System.out.println(buffer);
 
     collector.collect(accumulator);
   }

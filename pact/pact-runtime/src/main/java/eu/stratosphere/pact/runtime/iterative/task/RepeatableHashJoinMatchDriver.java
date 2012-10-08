@@ -22,8 +22,6 @@ import eu.stratosphere.pact.common.generic.types.TypeComparator;
 import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
@@ -115,7 +113,7 @@ public class RepeatableHashJoinMatchDriver<IT1, IT2, OT> implements PactDriver<G
 
   @Override
   public void run() throws Exception {
-
+    //TODO configure build and probeside index
     final GenericMatcher<IT1, IT2, OT> matchStub = taskContext.getStub();
     //TODO type safety
     final Collector<OT> collector = taskContext.getOutputCollector();
@@ -132,7 +130,6 @@ public class RepeatableHashJoinMatchDriver<IT1, IT2, OT> implements PactDriver<G
     final IT2 buildSideRecord = taskContext.<IT2>getInputSerializer(1).createInstance();
 
     while (running && probeSide.next(probeSideRecord)) {
-      //System.out.println("#######################PROBING FOR " + ((PactRecord) probeSideRecord).getField(0, PactLong.class).getValue());
       MutableHashTable.HashBucketIterator<IT2, IT1> bucket = hashJoin.getMatchesFor(probeSideRecord);
       while (bucket.next(buildSideRecord)) {
         matchStub.match(probeSideRecord, buildSideRecord, collector);

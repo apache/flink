@@ -109,10 +109,10 @@ public final class KeyGroupedIterator<E>
 		// try to move to next key.
 		// Required if user code / reduce() method did not read the whole value iterator.
 		while (true) {
-			if (this.iterator.next(this.current)) {
+			if (!this.done && this.iterator.next(this.current)) {
 				if (!this.comparator.equalToReference(this.current)) {
 					// the keys do not match, so we have a new group. store the current keys
-					this.comparator.setReference(this.current);						
+					this.comparator.setReference(this.current);
 					this.lookAheadHasNext = false;
 					this.valuesIterator.currentIsUnconsumed = true;
 					return true;

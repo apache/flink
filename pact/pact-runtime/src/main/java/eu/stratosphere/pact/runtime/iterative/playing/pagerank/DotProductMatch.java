@@ -35,13 +35,13 @@ public class DotProductMatch extends MatchStub {
   public void match(PactRecord pageWithRank, PactRecord transitionMatrixEntry, Collector<PactRecord> collector)
       throws Exception {
 
-    //System.out.println("fields ###### " + pageWithRank.getNumFields() + " " + transitionMatrixEntry.getNumFields());
-    //System.out.println("field0 ###### " + pageWithRank.getField(0, PactLong.class).getValue() + " " + transitionMatrixEntry.getField(0, PactLong.class).getValue());
-    //System.out.println("field1 ###### " + pageWithRank.getField(1, PactDouble.class).getValue() + " " + transitionMatrixEntry.getField(1, PactDouble.class).getValue());
+//    System.out.println("fields ###### " + pageWithRank.getNumFields() + " " + transitionMatrixEntry.getNumFields());
+//    System.out.println("field0 ###### " + pageWithRank.getField(0, PactLong.class).getValue() + " " + transitionMatrixEntry.getField(0, PactLong.class).getValue());
+//    System.out.println("field1 ###### " + pageWithRank.getField(1, PactDouble.class).getValue() + " " + transitionMatrixEntry.getField(1, PactDouble.class).getValue());
 
-    //long source = transitionMatrixEntry.getField(0, PactLong.class).getValue();
-    //long target = transitionMatrixEntry.getField(1, PactLong.class).getValue();
-    //long vertexID = pageWithRank.getField(0, PactLong.class).getValue();
+    long source = transitionMatrixEntry.getField(0, PactLong.class).getValue();
+    long target = transitionMatrixEntry.getField(1, PactLong.class).getValue();
+    long vertexID = pageWithRank.getField(0, PactLong.class).getValue();
 
     double rank = pageWithRank.getField(1, PactDouble.class).getValue();
     double transitionProbability = transitionMatrixEntry.getField(2, PactDouble.class).getValue();
@@ -49,7 +49,9 @@ public class DotProductMatch extends MatchStub {
     record.setField(0, transitionMatrixEntry.getField(1, PactLong.class));
     record.setField(1, new PactDouble(rank * transitionProbability));
 
-    //System.out.println("Joining (" + vertexID + "," + rank + ") with (" + source + "," + target + "," + transitionProbability + ")");
+//    System.out.println("Joining (" + vertexID + "," + rank + ") with (" + source + "," + target + "," + transitionProbability + ")");
+//    System.out.println(">>>>>>>>>>>> Emitting: " + target + "," + (rank * transitionProbability));
+
 
     collector.collect(record);
   }
