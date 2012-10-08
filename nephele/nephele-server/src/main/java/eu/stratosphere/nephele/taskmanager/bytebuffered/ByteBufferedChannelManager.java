@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -155,14 +154,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				// Add routing entry to receiver cache to reduce latency
 				if (outputChannelContext.getType() == ChannelType.INMEMORY) {
-					addReceiverListHint(outputChannelContext.getChannelID(),
-						outputChannelContext.getConnectedChannelID());
-				}
-
-				// Add routing entry to receiver cache to save lookup for data arriving at the output channel
-				if (outputChannelContext.getType() == ChannelType.NETWORK) {
-					addReceiverListHint(outputChannelContext.getConnectedChannelID(),
-						outputChannelContext.getChannelID());
+					addReceiverListHint(outputChannelContext);
 				}
 
 				if (LOG.isDebugEnabled())
@@ -190,7 +182,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				// Add routing entry to receiver cache to reduce latency
 				if (inputChannelContext.getType() == ChannelType.INMEMORY) {
-					addReceiverListHint(inputChannelContext.getChannelID(), inputChannelContext.getConnectedChannelID());
+					addReceiverListHint(inputChannelContext);
 				}
 
 				this.registeredChannels.put(inputChannelContext.getChannelID(), inputChannelContext);
@@ -415,11 +407,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 				final List<RemoteReceiver> remoteReceivers = receiverList.getRemoteReceivers();
 
-				// Generate sender hint before sending the first envelope over the network
-				if (transferEnvelope.getSequenceNumber() == 0) {
-					generateSenderHint(transferEnvelope, remoteReceivers);
-				}
-
 				for (final RemoteReceiver remoteReceiver : remoteReceivers) {
 
 					final TransferEnvelope dup = transferEnvelope.duplicate();
@@ -456,10 +443,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 		// Generate sender hint before sending the first envelope over the network
 		final List<RemoteReceiver> remoteReceivers = receiverList.getRemoteReceivers();
-		if (transferEnvelope.getSequenceNumber() == 0) {
-			generateSenderHint(transferEnvelope, remoteReceivers);
-		}
-
 		final Iterator<RemoteReceiver> remoteIt = remoteReceivers.iterator();
 
 		while (remoteIt.hasNext()) {
@@ -469,52 +452,12 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		}
 	}
 
-	private void addReceiverListHint(final ChannelID source, final ChannelID localReceiver) {
+	private void addReceiverListHint(final ChannelContext channelContext) {
 
-		final TransferEnvelopeReceiverList receiverList = new TransferEnvelopeReceiverList(localReceiver);
+		final TransferEnvelopeReceiverList receiverList = new TransferEnvelopeReceiverList(channelContext);
 
-		if (this.receiverCache.put(source, receiverList) != null) {
-			LOG.warn("Receiver cache already contained entry for " + source);
-		}
-	}
-
-	private void addReceiverListHint(final ChannelID source, final RemoteReceiver remoteReceiver) {
-
-		final TransferEnvelopeReceiverList receiverList = new TransferEnvelopeReceiverList(remoteReceiver);
-
-		if (this.receiverCache.put(source, receiverList) != null) {
-			LOG.warn("Receiver cache already contained entry for " + source);
-		}
-	}
-
-	private void generateSenderHint(final TransferEnvelope transferEnvelope, final List<RemoteReceiver> remoteReceivers) {
-
-		final ChannelContext channelContext = this.registeredChannels.get(transferEnvelope.getSource());
-		if (channelContext == null) {
-			LOG.error("Cannot find channel context for channel ID " + transferEnvelope.getSource());
-			return;
-		}
-
-		// Only generate sender hints for output channels
-		if (channelContext.isInputChannel()) {
-			return;
-		}
-
-		final ChannelID remoteSourceID = channelContext.getConnectedChannelID();
-		final int connectionIndex = remoteReceivers.get(0).getConnectionIndex();
-		final InetSocketAddress isa = new InetSocketAddress(this.localConnectionInfo.getAddress(),
-			this.localConnectionInfo.getDataPort());
-
-		final RemoteReceiver remoteReceiver = new RemoteReceiver(isa, connectionIndex);
-		final TransferEnvelope senderHint = SenderHintEvent.createEnvelopeWithEvent(transferEnvelope, remoteSourceID,
-			remoteReceiver);
-
-		final Iterator<RemoteReceiver> remoteIt = remoteReceivers.iterator();
-
-		while (remoteIt.hasNext()) {
-
-			final RemoteReceiver rr = remoteIt.next();
-			this.networkConnectionManager.queueEnvelopeForTransfer(rr, senderHint);
+		if (this.receiverCache.put(channelContext.getChannelID(), receiverList) != null) {
+			LOG.warn("Receiver cache already contained entry for " + channelContext.getChannelID());
 		}
 	}
 
@@ -627,18 +570,6 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	@Override
 	public void processEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer)
 			throws IOException, InterruptedException {
-
-		// Check if the envelope is the special envelope with the sender hint event
-		if (SenderHintEvent.isSenderHintEvent(transferEnvelope)) {
-
-			// Check if this is the final destination of the sender hint event before adding it
-			final SenderHintEvent seh = (SenderHintEvent) transferEnvelope.getEventList().get(0);
-			if (this.registeredChannels.get(seh.getSource()) != null) {
-
-				addReceiverListHint(seh.getSource(), seh.getRemoteReceiver());
-				return;
-			}
-		}
 
 		processEnvelope(transferEnvelope, freeSourceBuffer);
 	}
