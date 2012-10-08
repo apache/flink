@@ -17,6 +17,10 @@ package eu.stratosphere.nephele.rpc;
 
 import java.util.List;
 
+import eu.stratosphere.nephele.instance.HardwareDescription;
+import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.InstanceTypeDescription;
+
 /**
  * This utility class provides a list of types frequently used by the RPC protocols included in this package.
  * 
@@ -38,6 +42,10 @@ public class ManagementTypeUtils {
 	public static List<Class<?>> getRPCTypesToRegister() {
 
 		final List<Class<?>> types = CommonTypeUtils.getRPCTypesToRegister();
+
+		types.add(HardwareDescription.class);
+		types.add(InstanceType.class);
+		types.add(InstanceTypeDescription.class);
 
 		return types;
 	}
