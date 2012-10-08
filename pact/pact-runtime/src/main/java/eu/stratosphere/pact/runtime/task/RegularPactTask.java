@@ -714,15 +714,15 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 																				" could not be loaded.", cnfex);
 				}
 
-				final PactRecordOutputEmitter oe;
+				final PactRecordOutputEmitter outputEmitter;
 				if (comparatorFactoryClass == null) {
-					oe = new PactRecordOutputEmitter(strategy);
+					outputEmitter = new PactRecordOutputEmitter(strategy);
 				} else {
 					try {
 						final PactRecordComparator comparator = PactRecordComparatorFactory.get().createComparator(
 												config.getConfigForOutputParameters(i), cl);
 						final DataDistribution distribution = config.getOutputDataDistribution(cl);
-						oe = new PactRecordOutputEmitter(strategy, comparator, distribution);
+						outputEmitter = new PactRecordOutputEmitter(strategy, comparator, distribution);
 					} catch (ClassNotFoundException cnfex) {
 						throw new Exception("The comparator for output " + i +
 									" could not be created, because it could not load dependent classes.", cnfex);
@@ -730,20 +730,20 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 
 				}
 
-				if (strategy == ShipStrategyType.BROADCAST) {
+//				if (strategy == ShipStrategyType.BROADCAST) {
+//					if (task instanceof AbstractTask) {
+//						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
+//					} else if (task instanceof AbstractInputTask<?>) {
+//						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
+//					}
+//				} else {
 					if (task instanceof AbstractTask) {
-						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractTask) task, PactRecord.class));
+						writers.add(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, outputEmitter));
 					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new BroadcastRecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class));
-					}
-				} else {
-					if (task instanceof AbstractTask) {
-						writers.add(new RecordWriter<PactRecord>((AbstractTask) task, PactRecord.class, oe));
-					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, oe));
+						writers.add(new RecordWriter<PactRecord>((AbstractInputTask<?>) task, PactRecord.class, outputEmitter));
 					}
 				}
-			}
+//			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
 			}
@@ -771,35 +771,35 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 																				" could not be loaded.", cnfex);
 				}
 
-				final ChannelSelector<SerializationDelegate<T>> oe;
+				final ChannelSelector<SerializationDelegate<T>> outputEmitter;
 				if (comparatorFactoryClass == null) {
-					oe = new OutputEmitter<T>(strategy);
+					outputEmitter = new OutputEmitter<T>(strategy);
 				} else {
 					final TypeComparatorFactory<T> compFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
 					try {
 						final TypeComparator<T> comparator = compFactory.createComparator(config.getConfigForOutputParameters(i), cl);
 
-						oe = new OutputEmitter<T>(strategy, comparator);
+						outputEmitter = new OutputEmitter<T>(strategy, comparator);
 					} catch (ClassNotFoundException cnfex) {
 						throw new Exception("The comparator for output " + i +
 									" could not be created, because it could not load dependent classes.", cnfex);
 					}
 				}
 
-				if (strategy == ShipStrategyType.BROADCAST) {
+//				if (strategy == ShipStrategyType.BROADCAST) {
+//					if (task instanceof AbstractTask) {
+//						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
+//					} else if (task instanceof AbstractInputTask<?>) {
+//						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz));
+//					}
+//				} else {
 					if (task instanceof AbstractTask) {
-						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
+						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz, outputEmitter));
 					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz));
-					}
-				} else {
-					if (task instanceof AbstractTask) {
-						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz, oe));
-					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz, oe));
+						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz, outputEmitter));
 					}
 				}
-			}
+//			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
 			}

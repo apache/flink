@@ -68,10 +68,10 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   }
 
   protected void notifyMonitor(IterationMonitoring.Event event) {
-    //if (log.isInfoEnabled()) {
-    //  log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration(),
-    //      getEnvironment().getIndexInSubtaskGroup()));
-    //}
+    if (log.isInfoEnabled()) {
+      log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration(),
+          getEnvironment().getIndexInSubtaskGroup()));
+    }
   }
 
   protected String brokerKey() {
