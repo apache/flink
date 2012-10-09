@@ -22,8 +22,6 @@ import java.net.InetSocketAddress;
 
 final class MultiPacketOutputStream extends OutputStream {
 
-	private int bufferSize;
-
 	private byte[] buf;
 
 	private int totalLen = 0;
@@ -31,14 +29,13 @@ final class MultiPacketOutputStream extends OutputStream {
 	private int lenInPacket = 0;
 
 	MultiPacketOutputStream(final int initialBufferSize) {
-		this.bufferSize = initialBufferSize - RPCMessage.METADATA_SIZE;
 		this.buf = new byte[initialBufferSize];
 	}
 
 	@Override
 	public void write(final int b) throws IOException {
 
-		if (this.totalLen == this.bufferSize) {
+		if (this.totalLen + RPCMessage.METADATA_SIZE == this.buf.length) {
 			resizeBuffer();
 		}
 
@@ -57,10 +54,18 @@ final class MultiPacketOutputStream extends OutputStream {
 		write(b, 0, b.length);
 	}
 
+	private static int getLengthIncludingMetaData(final int length) {
+
+		final int numberOfPackets = ((length + RPCMessage.MAXIMUM_MSG_SIZE - 1) / RPCMessage.MAXIMUM_MSG_SIZE);
+
+		return length + (numberOfPackets * RPCMessage.METADATA_SIZE);
+	}
+
 	@Override
 	public void write(final byte[] b, final int off, final int len) throws IOException {
 
-		while (this.totalLen + len > this.bufferSize) {
+		final int lengthIncludingMetaData = getLengthIncludingMetaData(len);
+		while (this.totalLen + lengthIncludingMetaData > this.buf.length) {
 			resizeBuffer();
 		}
 
@@ -85,7 +90,6 @@ final class MultiPacketOutputStream extends OutputStream {
 		final byte[] newBuf = new byte[this.buf.length * 2];
 		System.arraycopy(this.buf, 0, newBuf, 0, this.totalLen);
 		this.buf = newBuf;
-		this.bufferSize = newBuf.length - RPCMessage.METADATA_SIZE;
 	}
 
 	@Override

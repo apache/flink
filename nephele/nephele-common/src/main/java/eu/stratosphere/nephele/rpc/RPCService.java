@@ -128,6 +128,7 @@ public final class RPCService {
 			if (kryoTypesToRegister != null) {
 				kryo.setAutoReset(false);
 				kryo.setRegistrationRequired(true);
+				kryo.setReferences(false);
 
 				for (final Class<?> kryoType : kryoTypesToRegister) {
 					kryo.register(kryoType);
