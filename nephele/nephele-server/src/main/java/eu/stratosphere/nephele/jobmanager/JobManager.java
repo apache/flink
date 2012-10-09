@@ -253,7 +253,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		} else {
 			final String instanceManagerClassName = JobManagerUtils.getInstanceManagerClassName(executionMode);
 			LOG.info("Trying to load " + instanceManagerClassName + " as instance manager");
-			this.instanceManager = JobManagerUtils.loadInstanceManager(instanceManagerClassName);
+			this.instanceManager = JobManagerUtils.loadInstanceManager(instanceManagerClassName, this.rpcService);
 			if (this.instanceManager == null) {
 				LOG.fatal("Unable to load instance manager " + instanceManagerClassName);
 				System.exit(FAILURERETURNCODE);

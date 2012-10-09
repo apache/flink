@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.event.job.VertexEvent;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -84,6 +85,7 @@ public class CommonTypeUtils {
 		types.add(JobVertexID.class);
 		types.add(LibraryCacheProfileRequest.class);
 		types.add(LibraryCacheProfileResponse.class);
+		types.add(LibraryCacheUpdate.class);
 		types.add(Path.class);
 		types.add(SerializableArrayList.class);
 		types.add(SerializableHashMap.class);

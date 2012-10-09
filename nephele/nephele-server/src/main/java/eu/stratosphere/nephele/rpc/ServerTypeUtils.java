@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.rpc;
 
 import java.net.Inet4Address;
+import java.net.InetSocketAddress;
 import java.util.List;
 
 import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
@@ -66,6 +67,7 @@ public class ServerTypeUtils {
 		types.add(FileInputSplit.class);
 		types.add(GateDeploymentDescriptor.class);
 		types.add(Inet4Address.class);
+		types.add(InetSocketAddress.class);
 		types.add(InputSplitWrapper.class);
 		types.add(InstanceConnectionInfo.class);
 		types.add(LocalInstance.class);
