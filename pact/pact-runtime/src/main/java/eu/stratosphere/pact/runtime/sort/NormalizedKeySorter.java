@@ -20,12 +20,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
 import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.common.util.PactConfigConstants;
 import eu.stratosphere.pact.runtime.io.RandomAccessInputView;
 import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
 
@@ -35,12 +37,13 @@ import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
  */
 public final class NormalizedKeySorter<T> implements IndexedSortable
 {
-	
-	private static final int OFFSET_LEN = 8;
-	
-	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;
+	private static final int POINTER_LEN = MemorySegment.POINTER_LEN;
 	
 	private static final int MIN_REQUIRED_BUFFERS = 3;
+	
+	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 
+		GlobalConfiguration.getInteger(PactConfigConstants.RUNTIME_SORT_MAX_NORMKEY_LEN_KEY,
+			PactConfigConstants.DEFAULT_MAX_NORMALIZED_KEY_LEN);
 
 	// ------------------------------------------------------------------------
 	//                               Members
@@ -148,7 +151,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		}
 		
 		// compute the index entry size and limits
-		this.indexEntrySize = this.numKeyBytes + OFFSET_LEN;
+		this.indexEntrySize = this.numKeyBytes + POINTER_LEN;
 		this.indexEntriesPerSegment = segmentSize / this.indexEntrySize;
 		this.lastIndexEntryOffset = (this.indexEntriesPerSegment - 1) * this.indexEntrySize;
 		this.swapBuffer = new byte[this.indexEntrySize];
@@ -263,8 +266,8 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		}
 		
 		// add the pointer and the normalized key
-		this.currentSortIndexSegment.putLong(this.currentSortIndexOffset, this.currentDataBufferOffset);
-		this.comparator.putNormalizedKey(record, this.currentSortIndexSegment.getBackingArray(), this.currentSortIndexSegment.translateOffset(this.currentSortIndexOffset + OFFSET_LEN), this.numKeyBytes);
+		this.currentSortIndexSegment.putPointer(this.currentSortIndexOffset, this.currentDataBufferOffset);
+		this.comparator.putNormalizedKey(record, this.currentSortIndexSegment.getBackingArray(), this.currentSortIndexSegment.translateOffset(this.currentSortIndexOffset + POINTER_LEN), this.numKeyBytes);
 		
 		// serialize the record into the data buffers
 		try {
@@ -291,7 +294,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		final int bufferNum = logicalPosition / this.indexEntriesPerSegment;
 		final int segmentOffset = logicalPosition % this.indexEntriesPerSegment;
 		
-		return this.sortIndex.get(bufferNum).getLong(segmentOffset * this.indexEntrySize);
+		return this.sortIndex.get(bufferNum).getPointer(segmentOffset * this.indexEntrySize);
 	}
 	
 	private final void getRecordFromBuffer(T target, long pointer) throws IOException
@@ -341,15 +344,15 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 		final byte[] bJ = segJ.getBackingArray();
 		
 		int val = 0;
-		for (int pos = 0, posI = segI.translateOffset(segmentOffsetI + OFFSET_LEN), posJ = segJ.translateOffset(segmentOffsetJ + OFFSET_LEN);
+		for (int pos = 0, posI = segI.translateOffset(segmentOffsetI + POINTER_LEN), posJ = segJ.translateOffset(segmentOffsetJ + POINTER_LEN);
 			pos < this.numKeyBytes && (val = (bI[posI] & 0xff) - (bJ[posJ] & 0xff)) == 0; pos++, posI++, posJ++);
 		
 		if (val != 0 || this.normalizedKeyFullyDetermines) {
 			return this.useNormKeyUninverted ? val : -val;
 		}
 		
-		final long pointerI = segI.getLong(segmentOffsetI);
-		final long pointerJ = segJ.getLong(segmentOffsetJ);
+		final long pointerI = segI.getPointer(segmentOffsetI);
+		final long pointerJ = segJ.getPointer(segmentOffsetJ);
 		
 		return compareRecords(pointerI, pointerJ);
 	}
@@ -412,7 +415,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 						this.currentIndexSegment = sortIndex.get(++this.currentSegment);
 					}
 					
-					long pointer = this.currentIndexSegment.getLong(this.currentOffset);
+					long pointer = this.currentIndexSegment.getPointer(this.currentOffset);
 					this.currentOffset += indexEntrySize;
 					
 					try {
@@ -452,7 +455,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 			if (recordsLeft >= this.indexEntriesPerSegment) {
 				// full segment
 				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
-					final long pointer = currentIndexSegment.getLong(offset);
+					final long pointer = currentIndexSegment.getPointer(offset);
 					this.recordBuffer.setReadPosition(pointer);
 					this.serializer.copy(this.recordBuffer, output);
 					
@@ -462,7 +465,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				// partially filled segment
 				for (; recordsLeft > 0; recordsLeft--, offset += this.indexEntrySize)
 				{
-					final long pointer = currentIndexSegment.getLong(offset);
+					final long pointer = currentIndexSegment.getPointer(offset);
 					this.recordBuffer.setReadPosition(pointer);
 					this.serializer.copy(this.recordBuffer, output);
 				}
@@ -490,7 +493,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 			if (num >= this.indexEntriesPerSegment && offset == 0) {
 				// full segment
 				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
-					final long pointer = currentIndexSegment.getLong(offset);
+					final long pointer = currentIndexSegment.getPointer(offset);
 					this.recordBuffer.setReadPosition(pointer);
 					this.serializer.copy(this.recordBuffer, output);
 				}
@@ -499,7 +502,7 @@ public final class NormalizedKeySorter<T> implements IndexedSortable
 				// partially filled segment
 				for (; num > 0 && offset <= this.lastIndexEntryOffset; num--, offset += this.indexEntrySize)
 				{
-					final long pointer = currentIndexSegment.getLong(offset);
+					final long pointer = currentIndexSegment.getPointer(offset);
 					this.recordBuffer.setReadPosition(pointer);
 					this.serializer.copy(this.recordBuffer, output);
 				}

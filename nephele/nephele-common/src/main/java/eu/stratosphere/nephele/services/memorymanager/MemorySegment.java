@@ -32,6 +32,8 @@ import java.nio.ByteBuffer;
  */
 public class MemorySegment
 {
+	public static final int POINTER_LEN = 5;
+	
 	/**
 	 * The array in which the data is stored.
 	 */
@@ -530,6 +532,31 @@ public class MemorySegment
 			this.memory[this.offset + index + 5] = (byte) (value >> 16);
 			this.memory[this.offset + index + 6] = (byte) (value >> 8);
 			this.memory[this.offset + index + 7] = (byte) value;
+			return this;
+		} else {
+			throw new IndexOutOfBoundsException();
+		}
+	}
+	
+	public final long getPointer(int index) {
+		if (index >= 0 && index < this.size - 4) {
+			return (((long) this.memory[this.offset + index + 0] & 0xff) << 32)
+				| (((long) this.memory[this.offset + index + 1] & 0xff) << 24)
+				| (((long) this.memory[this.offset + index + 2] & 0xff) << 16)
+				| (((long) this.memory[this.offset + index + 3] & 0xff) << 8)
+				| (((long) this.memory[this.offset + index + 4] & 0xff) << 0);
+		} else {
+			throw new IndexOutOfBoundsException();
+		}
+	}
+	
+	public final MemorySegment putPointer(int index, long pointer) {
+		if (index >= 0 && index < this.size - 4) {
+			this.memory[this.offset + index + 0] = (byte) (pointer >> 32);
+			this.memory[this.offset + index + 1] = (byte) (pointer >> 24);
+			this.memory[this.offset + index + 2] = (byte) (pointer >> 16);
+			this.memory[this.offset + index + 3] = (byte) (pointer >> 8);
+			this.memory[this.offset + index + 4] = (byte) pointer;
 			return this;
 		} else {
 			throw new IndexOutOfBoundsException();
