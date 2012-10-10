@@ -23,9 +23,9 @@ import java.util.List;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
 import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
-import eu.stratosphere.pact.common.generic.types.TypeComparator;
-import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.generic.types.TypeComparator;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.io.RandomAccessInputView;
 import eu.stratosphere.pact.runtime.io.SimpleCollectingOutputView;
 

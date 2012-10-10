@@ -15,18 +15,14 @@
 
 package eu.stratosphere.pact.compiler.pactrecord;
 
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.Ordering;
-import eu.stratosphere.pact.common.generic.contract.SingleInputContract;
+import eu.stratosphere.pact.common.contract.RecordContract;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerPostPassException;
-import eu.stratosphere.pact.compiler.OptimizerPostPass;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
@@ -34,6 +30,11 @@ import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
+import eu.stratosphere.pact.compiler.postpass.ConflictingFieldTypeInfoException;
+import eu.stratosphere.pact.compiler.postpass.KeySchema;
+import eu.stratosphere.pact.compiler.postpass.MissingFieldTypeInfoException;
+import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
+import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 
@@ -52,8 +53,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 		}
 	}
 	
-	protected void traverse(PlanNode node, KeySchema parentSchema)
-	{
+	protected void traverse(PlanNode node, KeySchema parentSchema) {
 		// distinguish the node types
 		if (node instanceof SinkPlanNode) {
 			// sinks can derive type schema from partitioning and local ordering,
@@ -122,8 +122,12 @@ public class PactRecordPostPass implements OptimizerPostPass
 			
 			// add the nodes local information. this automatically consistency checks
 			final SingleInputContract<?> contract = optNode.getPactContract();
-			final int[] localPositions = contract.getKeyColumnNumbers(0);
-			final Class<? extends Key>[] types = contract.getKeyClasses();
+			if (! (contract instanceof RecordContract)) {
+				throw new CompilerPostPassException("Error: Contract is not a Pact Record based contract. Wrong compiler invokation.");
+			}
+			final RecordContract recContract = (RecordContract) contract;
+			final int[] localPositions = contract.getKeyColumns(0);
+			final Class<? extends Key>[] types = recContract.getKeyClasses();
 			try {
 				for (int i = 0; i < localPositions.length; i++) {
 					schema.addKeyType(localPositions[i], types[i]);
@@ -209,85 +213,5 @@ public class PactRecordPostPass implements OptimizerPostPass
 			}
 		}
 		return new PactRecordComparatorFactory(positions, keyTypes, directions);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Class encapsulating a schema map (int column position -> column type) and a reference counter.
-	 */
-	private static final class KeySchema implements Iterable<Map.Entry<Integer, Class<? extends Key>>>
-	{
-		private final Map<Integer, Class<? extends Key>> schema;
-		
-		private int numConnectionsThatContributed;
-		
-		KeySchema() {
-			this.schema = new HashMap<Integer, Class<? extends Key>>();
-		}
-		
-		void addKeyType(Integer key, Class<? extends Key> type) throws ConflictingFieldTypeInfoException 
-		{
-			Class<? extends Key> previous = this.schema.put(key, type);
-			if (previous != null && previous != type) {
-				throw new ConflictingFieldTypeInfoException(key, previous, type);
-			}
-		}
-		
-		Class<? extends Key> getType(Integer field) {
-			return this.schema.get(field);
-		}
-		
-		public Iterator<Entry<Integer, Class<? extends Key>>> iterator() {
-			return this.schema.entrySet().iterator();
-		}
-		
-		int getNumConnectionsThatContributed() {
-			return this.numConnectionsThatContributed;
-		}
-		
-		void increaseNumConnectionsThatContributed() {
-			this.numConnectionsThatContributed++;
-		}
-	}
-	
-	@SuppressWarnings("serial")
-	private static final class MissingFieldTypeInfoException extends Exception
-	{
-		private final int fieldNumber;
-
-		MissingFieldTypeInfoException(int fieldNumber) {
-			this.fieldNumber = fieldNumber;
-		}
-		
-		int getFieldNumber() {
-			return fieldNumber;
-		}
-	}
-	
-	@SuppressWarnings("serial")
-	private static final class ConflictingFieldTypeInfoException extends Exception
-	{
-		private final int fieldNumber;
-		
-		private final Class<? extends Key> previousType, newType;
-
-		ConflictingFieldTypeInfoException(int fieldNumber, Class<? extends Key> previousType, Class<? extends Key> newType) {
-			this.fieldNumber = fieldNumber;
-			this.previousType = previousType;
-			this.newType = newType;
-		}
-		
-		int getFieldNumber() {
-			return fieldNumber;
-		}
-
-		Class<? extends Key> getPreviousType() {
-			return this.previousType;
-		}
-
-		Class<? extends Key> getNewType() {
-			return this.newType;
-		}
 	}
 }

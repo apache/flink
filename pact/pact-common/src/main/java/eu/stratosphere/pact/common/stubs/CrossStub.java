@@ -15,9 +15,9 @@
 
 package eu.stratosphere.pact.common.stubs;
 
-import eu.stratosphere.pact.common.generic.AbstractStub;
-import eu.stratosphere.pact.common.generic.GenericCrosser;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.generic.stub.AbstractStub;
+import eu.stratosphere.pact.generic.stub.GenericCrosser;
 
 /**
  * The CrossStub must be extended to provide a cross implementation which is called by a Cross PACT.

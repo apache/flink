@@ -17,10 +17,10 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.List;
 
-import eu.stratosphere.pact.common.generic.AbstractStub;
-import eu.stratosphere.pact.common.generic.contract.DualInputContract;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.generic.contract.DualInputContract;
+import eu.stratosphere.pact.generic.stub.AbstractStub;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 

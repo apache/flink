@@ -22,8 +22,6 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.generic.contract.DualInputContract;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsFirstExcept;
@@ -36,6 +34,8 @@ import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.OptimizerFieldSet;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;

@@ -19,9 +19,9 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.pact.common.generic.types.TypeComparator;
-import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.generic.types.TypeComparator;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
 
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).

@@ -32,7 +32,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.DelimitedInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -83,7 +82,7 @@ public class ReduceITCase extends TestBase
 		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_4.txt", REDUCE_IN_4);
 	}
 
-	@Combinable
+	@ReduceContract.Combinable
 	public static class TestReducer extends ReduceStub {
 
 		private PactString reduceValue = new PactString();

@@ -21,7 +21,6 @@ import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -89,7 +88,7 @@ public class TPCHQueryAsterix implements PlanAssembler, PlanAssemblerDescription
 	 * already in the combiner
 	 *
 	 */
-	@Combinable
+	@ReduceContract.Combinable
 	@ConstantFields(fields={1})
 	@OutCardBounds(lowerBound=1, upperBound=1)
 	public static class AggCO extends ReduceStub {

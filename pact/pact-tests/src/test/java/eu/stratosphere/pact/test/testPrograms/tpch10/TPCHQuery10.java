@@ -25,7 +25,6 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -201,7 +200,7 @@ public class TPCHQuery10 implements PlanAssembler, PlanAssemblerDescription
 		}
 	}
 	
-	@Combinable
+	@ReduceContract.Combinable
 	public static class Sum extends ReduceStub
 	{
 		private final PactDouble d = new PactDouble();

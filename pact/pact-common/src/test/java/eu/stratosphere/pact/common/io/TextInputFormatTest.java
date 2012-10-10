@@ -100,8 +100,8 @@ public class TextInputFormatTest
 		int bufferSize = 5;
 		format.setBufferSize(bufferSize);
 		format.open(split);
-		assertEquals(0, format.splitStart);
-		assertEquals(myString.length() - bufferSize, format.splitLength);
+		assertEquals(0, format.getSplitStart());
+		assertEquals(myString.length() - bufferSize, format.getSplitLength());
 		assertEquals(bufferSize, format.getBufferSize());
 	}
 

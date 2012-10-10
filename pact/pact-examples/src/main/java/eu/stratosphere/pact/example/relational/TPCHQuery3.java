@@ -23,7 +23,6 @@ import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.io.RecordInputFormat;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -161,7 +160,7 @@ public class TPCHQuery3 implements PlanAssembler, PlanAssemblerDescription {
 	 * already in the combiner
 	 *
 	 */
-	@Combinable
+	@ReduceContract.Combinable
 	@ConstantFields(fields={0,1})
 	@OutCardBounds(upperBound=1, lowerBound=1)
 	public static class AggLiO extends ReduceStub

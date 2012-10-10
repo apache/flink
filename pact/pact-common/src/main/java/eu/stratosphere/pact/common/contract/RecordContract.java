@@ -23,5 +23,10 @@ import eu.stratosphere.pact.common.type.PactRecord;
  */
 public interface RecordContract
 {
+	/**
+	 * Gets the key classes that this record works on.
+	 * 
+	 * @return The key classes that this record works on.
+	 */
 	Class<? extends Key>[] getKeyClasses();
 }

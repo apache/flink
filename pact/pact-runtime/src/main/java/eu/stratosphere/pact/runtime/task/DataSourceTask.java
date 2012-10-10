@@ -25,12 +25,12 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.pact.common.generic.io.InputFormat;
-import eu.stratosphere.pact.common.generic.types.TypeSerializer;
-import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.generic.io.InputFormat;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
+import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
@@ -42,7 +42,7 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * DataSourceTask which is executed by a Nephele task manager. The task reads data and uses an 
  * {@link InputFormat} to create records from the input.
  * 
- * @see eu.stratosphere.pact.common.generic.io.InputFormat
+ * @see eu.stratosphere.pact.generic.io.InputFormat
  * 
  * @author Stephan Ewen
  * @author Fabian Hueske

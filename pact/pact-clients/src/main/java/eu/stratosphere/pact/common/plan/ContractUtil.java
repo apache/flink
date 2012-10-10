@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
@@ -33,10 +32,6 @@ import eu.stratosphere.pact.common.contract.GenericDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.common.contract.MatchContract;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.generic.contract.DualInputContract;
-import eu.stratosphere.pact.common.generic.contract.SingleInputContract;
-import eu.stratosphere.pact.common.generic.io.InputFormat;
-import eu.stratosphere.pact.common.generic.io.OutputFormat;
 import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
@@ -44,6 +39,11 @@ import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.DualInputContract;
+import eu.stratosphere.pact.generic.contract.SingleInputContract;
+import eu.stratosphere.pact.generic.io.InputFormat;
+import eu.stratosphere.pact.generic.io.OutputFormat;
 
 /**
  * Convenience methods when dealing with {@link Contract}s.

@@ -15,16 +15,13 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.pact.common.generic.contract.GenericReduceContract;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 
 
 /**
@@ -112,61 +109,6 @@ public class ReduceContract extends GenericReduceContract<ReduceStub> implements
 	public Ordering getGroupOrder() {
 		return this.groupOrder;
 	}
-
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Returns true if the ReduceContract is annotated with a Combinable annotation.
-	 * The annotation indicates that the contract's {@link ReduceStub} implements the 
-	 * {@link ReduceStub#combine(eu.stratosphere.pact.common.type.Key, java.util.Iterator, eu.stratosphere.pact.common.stubs.Collector)}
-	 * method.
-	 * 
-	 * @return True, if the ReduceContract is combinable, false otherwise.
-	 */
-	public boolean isCombinable()
-	{
-		return getUserCodeClass().getAnnotation(Combinable.class) != null;
-	}
-	
-	/**
-	 * This annotation marks reduce stubs as eligible for the usage of a combiner.
-	 * 
-	 * The following code excerpt shows how to make a simple reduce stub combinable (assuming here that
-	 * the reducer function and combiner function do the same):
-	 * 
-	 * <code>
-	 * \@Combinable
-	 * public static class CountWords extends ReduceStub&lt;PactString&gt;
-	 * {
-	 *     private final PactInteger theInteger = new PactInteger();
-	 * 
-	 *     \@Override
-	 *     public void reduce(PactString key, Iterator&lt;PactRecord&gt; records, Collector out) throws Exception
-	 *     {
-	 *         PactRecord element = null;
-	 *         int sum = 0;
-	 *         while (records.hasNext()) {
-	 *             element = records.next();
-	 *             element.getField(1, this.theInteger);
-	 *             // we could have equivalently used PactInteger i = record.getField(1, PactInteger.class);
-	 *          
-	 *             sum += this.theInteger.getValue();
-	 *         }
-	 *      
-	 *         element.setField(1, this.theInteger);
-	 *         out.collect(element);
-	 *     }
-	 *     
-	 *     public void combine(PactString key, Iterator&lt;PactRecord&gt; records, Collector out) throws Exception
-	 *     {
-	 *         this.reduce(key, records, out);
-	 *     }
-	 * }
-	 * </code>
-	 */
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target(ElementType.TYPE)
-	public @interface Combinable {};
 	
 	// --------------------------------------------------------------------------------------------
 	

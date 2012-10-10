@@ -17,11 +17,11 @@ package eu.stratosphere.pact.testing;
 
 import java.util.List;
 
-import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.plan.ContractUtil;
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.generic.contract.Contract;
 
 /**
  * Adds missing {@link DataSourceContract} and {@link DataSinkContract} to an incomplete plan.

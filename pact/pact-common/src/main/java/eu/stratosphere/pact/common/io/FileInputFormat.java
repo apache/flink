@@ -21,6 +21,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * The base interface for input formats that read {@link PactRecord}s from a
  * file.
  */
-public abstract class FileInputFormat extends eu.stratosphere.pact.common.generic.io.FileInputFormat<PactRecord>
+public abstract class FileInputFormat extends eu.stratosphere.pact.generic.io.FileInputFormat<PactRecord>
 {
 }

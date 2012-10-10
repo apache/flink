@@ -15,8 +15,8 @@
 
 package eu.stratosphere.pact.common.io;
 
-import eu.stratosphere.pact.common.generic.io.InputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.generic.io.InputFormat;
 
 /**
  * The OutputSchemaProvider interface can be implemented by {@link InputFormat}.

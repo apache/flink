@@ -20,9 +20,9 @@ import java.io.IOException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.common.generic.types.TypeComparator;
-import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.generic.types.TypeComparator;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
 
 /**
  * The {@link AsynchronousPartialSorterCollector} is a simple sort implementation that sorts

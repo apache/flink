@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.runtime.shipping;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 

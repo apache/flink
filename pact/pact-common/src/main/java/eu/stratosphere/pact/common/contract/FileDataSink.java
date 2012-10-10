@@ -17,7 +17,8 @@ package eu.stratosphere.pact.common.contract;
 
 import java.util.List;
 
-import eu.stratosphere.pact.common.generic.io.FileOutputFormat;
+import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.io.FileOutputFormat;
 
 /**
  * Contract for nodes which act as data sinks, storing the data they receive in a file instead of sending it to another

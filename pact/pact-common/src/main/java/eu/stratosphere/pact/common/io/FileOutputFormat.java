@@ -22,5 +22,5 @@ import eu.stratosphere.pact.common.type.PactRecord;
  * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
  * file streams.
  */
-public abstract class FileOutputFormat extends eu.stratosphere.pact.common.generic.io.FileOutputFormat<PactRecord>
+public abstract class FileOutputFormat extends eu.stratosphere.pact.generic.io.FileOutputFormat<PactRecord>
 {}

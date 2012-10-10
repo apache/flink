@@ -22,6 +22,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
  *
  * @author Stephan Ewen
  */
-public abstract class GenericInputFormat extends eu.stratosphere.pact.common.generic.io.GenericInputFormat<PactRecord>
+public abstract class GenericInputFormat extends eu.stratosphere.pact.generic.io.GenericInputFormat<PactRecord>
 {
 }

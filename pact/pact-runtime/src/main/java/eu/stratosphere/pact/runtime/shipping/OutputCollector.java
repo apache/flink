@@ -21,8 +21,8 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
-import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 
 /**

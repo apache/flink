@@ -17,13 +17,14 @@ package eu.stratosphere.pact.example.wordcount;
 
 import java.util.Iterator;
 
-import eu.stratosphere.pact.common.array.io.ArrayOutputFormat;
-import eu.stratosphere.pact.common.array.io.StringInputFormat;
-import eu.stratosphere.pact.common.array.stubs.DataTypes;
-import eu.stratosphere.pact.common.array.stubs.MapStub;
-import eu.stratosphere.pact.common.array.stubs.ReduceStub;
+import eu.stratosphere.pact.array.io.ArrayOutputFormat;
+import eu.stratosphere.pact.array.io.StringInputFormat;
+import eu.stratosphere.pact.array.stubs.DataTypes;
+import eu.stratosphere.pact.array.stubs.MapStub;
+import eu.stratosphere.pact.array.stubs.ReduceStub;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
+import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
@@ -87,7 +88,7 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 	 */
 	@ConstantFields(fields={0})
 	@OutCardBounds(lowerBound=1, upperBound=1)
-	@Combinable
+	@ReduceContract.Combinable
 	public static class CountWords extends ReduceStub
 	{
 		private final PactInteger cnt = new PactInteger();

@@ -22,7 +22,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
 import eu.stratosphere.nephele.types.Record;
-import eu.stratosphere.pact.common.generic.types.TypeSerializer;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
 
 
 /**

@@ -18,13 +18,13 @@ package eu.stratosphere.pact.compiler.plan.candidate;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Utils;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
+import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 

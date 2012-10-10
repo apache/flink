@@ -18,7 +18,7 @@ package eu.stratosphere.pact.runtime.test.util.types;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
-import eu.stratosphere.pact.common.generic.types.TypeComparator;
+import eu.stratosphere.pact.generic.types.TypeComparator;
 
 
 public class IntPairComparator implements TypeComparator<IntPair>

@@ -26,8 +26,6 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.Contract;
-import eu.stratosphere.pact.common.generic.contract.AbstractPact;
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
@@ -38,6 +36,8 @@ import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.util.PactType;
+import eu.stratosphere.pact.generic.contract.AbstractPact;
+import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
@@ -935,12 +935,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param input
 	 * @return
 	 */
-	protected int[] getConstantKeySet(int input)
-	{
+	protected int[] getConstantKeySet(int input) {
 		Contract contract = getPactContract();
 		if (contract instanceof AbstractPact<?>) {
 			AbstractPact<?> abstractPact = (AbstractPact<?>) contract;
-			int[] keyColumns = abstractPact.getKeyColumnNumbers(input);
+			int[] keyColumns = abstractPact.getKeyColumns(input);
 			if (keyColumns != null) {
 				if (keyColumns.length == 0) {
 					return null;

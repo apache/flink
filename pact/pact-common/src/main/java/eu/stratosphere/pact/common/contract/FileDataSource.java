@@ -15,7 +15,7 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import eu.stratosphere.pact.common.generic.io.FileInputFormat;
+import eu.stratosphere.pact.generic.io.FileInputFormat;
 
 
 /**

@@ -19,8 +19,8 @@ package eu.stratosphere.pact.runtime.task.util;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
-import eu.stratosphere.pact.common.generic.GenericMatcher;
 import eu.stratosphere.pact.common.stubs.Collector;
+import eu.stratosphere.pact.generic.stub.GenericMatcher;
 
 /**
  * Interface of an iterator that performs the logic of a match task. The iterator follows the

@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 
-import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
+import eu.stratosphere.pact.generic.contract.Contract;
 
 
 /**
