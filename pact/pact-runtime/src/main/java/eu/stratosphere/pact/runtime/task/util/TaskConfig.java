@@ -188,6 +188,15 @@ public class TaskConfig
   private static final String WORKSET_HASHJOIN_PAIRCOMPARATOR_FACTORY_CLASS =
       "pact.iterative.worksetHashjoinPairComparatorFactoryClass";
 
+  private static final String CACHED_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS =
+      "pact.iterative.cachedHashjoinProbesideComparatorFactoryClass";
+
+  private static final String CACHED_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX =
+      "pact.iterative.cachedHashjoinProbesideComparator.";
+
+  private static final String CACHED_HASHJOIN_PAIRCOMPARATOR_FACTORY_CLASS =
+      "pact.iterative.cachedHashjoinPairComparatorFactoryClass";
+
   // --------------------------------------------------------------------------------------------
 
 	protected final Configuration config;			// the actual configuration holding the values
@@ -481,6 +490,10 @@ public class TaskConfig
 
   public Configuration getConfigurationForWorksetHashjoinProbeside() {
     return new DelegatingConfiguration(this.config, WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX);
+  }
+
+  public Configuration getConfigurationForCachedHashjoinProbeside() {
+    return new DelegatingConfiguration(this.config, CACHED_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX);
   }
 	
 	public Configuration getConfigForOutputParameters(int outputNum)
@@ -797,18 +810,18 @@ public class TaskConfig
     config.setClass(WORKSET_HASHJOIN_PROBESIDE_SERIALIZER_FACTORY_CLASS, serializerFactoryClass);
   }
 
-  public <T> Class<? extends TypeComparatorFactory<T>> getWorksetHashJoinProbeSideComparatorFactoryClass(ClassLoader
+  public <T> Class<? extends TypeComparatorFactory<T>> getCachedHashJoinProbeSideComparatorFactoryClass(ClassLoader
       classLoader) throws ClassNotFoundException {
-    return getComparatorFactoryClass(WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS, classLoader);
+    return getComparatorFactoryClass(CACHED_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS, classLoader);
   }
 
-  public <T> void setWorksetHashjoinProbesideComparatorFactoryClass(Class<? extends TypeComparatorFactory<T>>
+  public <T> void setCachedHashjoinProbesideComparatorFactoryClass(Class<? extends TypeComparatorFactory<T>>
       comparatorFactoryClass) {
-    config.setClass(WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS, comparatorFactoryClass);
+    config.setClass(CACHED_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS, comparatorFactoryClass);
   }
 
-  public String getWorksetHashjoinProbesideComparatorPrefix() {
-    return WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX;
+  public String getCachedHashjoinProbesideComparatorPrefix() {
+    return CACHED_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX;
   }
 
   public <T1, T2> Class<? extends TypePairComparatorFactory<T1, T2>>
@@ -819,6 +832,20 @@ public class TaskConfig
   public <T1, T2> void setWorksetHashJoinTypePairComparatorFactoryClass(
       Class<? extends TypePairComparatorFactory<T1, T2>> comparatorFactoryClass) {
     config.setClass(WORKSET_HASHJOIN_PAIRCOMPARATOR_FACTORY_CLASS, comparatorFactoryClass);
+  }
+
+  public <T> Class<? extends TypeComparatorFactory<T>> getWorksetHashJoinProbeSideComparatorFactoryClass(ClassLoader
+                                                                                                             classLoader) throws ClassNotFoundException {
+    return getComparatorFactoryClass(WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS, classLoader);
+  }
+
+  public <T> void setWorksetHashjoinProbesideComparatorFactoryClass(Class<? extends TypeComparatorFactory<T>>
+                                                                        comparatorFactoryClass) {
+    config.setClass(WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_FACTORY_CLASS, comparatorFactoryClass);
+  }
+
+  public String getWorksetHashjoinProbesideComparatorPrefix() {
+    return WORKSET_HASHJOIN_PROBESIDE_COMPARATOR_PREFIX;
   }
 
   // --------------------------------------------------------------------------------------------
