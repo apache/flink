@@ -56,6 +56,12 @@ public final class PactConfigConstants {
 	 * A value of 0 indicates infinite waiting.
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "pact.runtime.fs_timeout";
+
+	/**
+	 * The key for the config parameter defining the maximal length of the additional normalized
+	 * key generated in the sorter.
+	 */
+	public static final String RUNTIME_SORT_MAX_NORMKEY_LEN_KEY = "pact.runtime.sort.max-normkey-len";
 	
 	// ----------------------------- Web Frontend -----------------------------
 
@@ -127,6 +133,11 @@ public final class PactConfigConstants {
 	 * The default timeout for filesystem stream opening: 10 seconds.
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 10000;
+	
+	/**
+	 * The default length for the maximal normalized key length: 8 bytes.
+	 */
+	public static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;
 	
 	// ----------------------------- Web Frontend -----------------------------
 
