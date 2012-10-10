@@ -133,7 +133,7 @@ public final class LocalProperties implements Cloneable
 	}
 	
 	public boolean areFieldsGrouped(FieldSet set) {
-		return this.groupedFields.isValidUnorderedPrefix(set);
+		return this.groupedFields != null && this.groupedFields.isValidUnorderedPrefix(set);
 	}
 	
 	public boolean meetsOrderingConstraint(Ordering o) {
