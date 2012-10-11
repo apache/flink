@@ -36,13 +36,8 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
-import eu.stratosphere.pact.common.contract.CrossContract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.contract.GenericDataSource;
-import eu.stratosphere.pact.common.contract.MapContract;
-import eu.stratosphere.pact.common.contract.MatchContract;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.PactConfigConstants;
@@ -63,7 +58,13 @@ import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
+import eu.stratosphere.pact.compiler.postpass.OptimizerPostPass;
 import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
+import eu.stratosphere.pact.generic.contract.GenericCrossContract;
+import eu.stratosphere.pact.generic.contract.GenericMapContract;
+import eu.stratosphere.pact.generic.contract.GenericMatchContract;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 
 /**
  * The optimizer that takes the user specified pact plan and creates an optimized plan that contains
@@ -504,42 +505,22 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan) throws CompilerException
-	{
+	public OptimizedPlan compile(Plan pactPlan) throws CompilerException {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Connecting compiler to JobManager to dertermine instance information.");
-		}
-		
-		// create the connection in a separate thread, such that this thread
-		// can abort, if an unsuccessful connection occurs.
-		Map<InstanceType, InstanceTypeDescription> instances = null;
-		
-		JobManagerConnector jmc = new JobManagerConnector(this.jobManagerAddress);
-		Thread connectorThread = new Thread(jmc, "Compiler - JobManager connector.");
-		connectorThread.setDaemon(true);
-		connectorThread.start();
-
-		// connect and get the result
-		try {
-			jmc.waitForCompletion();
-			instances = jmc.instances;
-			if (instances == null) {
-				throw new NullPointerException("Returned instance map is <null>");
-			}
-		}
-		catch (Throwable t) {
-			throw new CompilerException("Available instances could not be determined from job manager: " + 
-				t.getMessage(), t);
-		}
-
-		// determine which type to run on
-		InstanceTypeDescription type = getType(instances);
-		
-		return compile(pactPlan, type);
+		return compile(pactPlan, getInstanceTypeInfo(), new PactRecordPostPass());
 	}
+	
+	public OptimizedPlan compile(Plan pactPlan, OptimizerPostPass postPasser) throws CompilerException {
+		// -------------------- try to get the connection to the job manager ----------------------
+		// --------------------------to obtain instance information --------------------------------
+		return compile(pactPlan, getInstanceTypeInfo(), postPasser);
+	}
+	
+	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException {
+		return compile(pactPlan, type, new PactRecordPostPass());
+	}
+	
 	/**
 	 * Translates the given pact plan in to an OptimizedPlan, where all nodes have their local strategy assigned
 	 * and all channels have a shipping strategy assigned. The process goes through several phases:
@@ -553,12 +534,15 @@ public class PactCompiler {
 	 * @param pactPlan The PACT plan to be translated.
 	 * @param type The instance type to schedule the execution on. Used also to determine the amount of memory
 	 *             available to the tasks.
+	 * @param postPasser The function to be used for post passing the optimizer's plan and setting the
+	 *                   data type specific serialization routines.
 	 * @return The optimized plan.
+	 * 
 	 * @throws CompilerException
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type) throws CompilerException
+	public OptimizedPlan compile(Plan pactPlan, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException
 	{
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of PACT program '" + pactPlan.getJobName() + '\'');
@@ -704,7 +688,7 @@ public class PactCompiler {
 		plan.setPlanConfiguration(pactPlan.getPlanConfiguration());
 		
 		// post pass the plan. this is the phase where the serialization and comparator code is set
-		new PactRecordPostPass().postPass(plan);
+		postPasser.postPass(plan);
 		
 		return plan;
 	}
@@ -727,7 +711,11 @@ public class PactCompiler {
 //		return optPlan;
 		return null;
 	}
-
+	
+	// ------------------------------------------------------------------------
+	//                 Visitors for Compilation Traversals
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * This utility class performs the translation from the user specified PACT job to the optimizer plan.
 	 * It works as a visitor that walks the user's job in a depth-first fashion. During the descend, it creates
@@ -795,16 +783,16 @@ public class PactCompiler {
 				DataSourceNode dsn = new DataSourceNode((GenericDataSource<?>) c);
 				this.sources.add(dsn);
 				n = dsn;
-			} else if (c instanceof MapContract) {
-				n = new MapNode((MapContract) c);
-			} else if (c instanceof ReduceContract) {
-				n = new ReduceNode((ReduceContract) c);
-			} else if (c instanceof MatchContract) {
-				n = new MatchNode((MatchContract) c);
-			} else if (c instanceof CoGroupContract) {
-				n = new CoGroupNode((CoGroupContract) c);
-			} else if (c instanceof CrossContract) {
-				n = new CrossNode((CrossContract) c);
+			} else if (c instanceof GenericMapContract) {
+				n = new MapNode((GenericMapContract<?>) c);
+			} else if (c instanceof GenericReduceContract) {
+				n = new ReduceNode((GenericReduceContract<?>) c);
+			} else if (c instanceof GenericMatchContract) {
+				n = new MatchNode((GenericMatchContract<?>) c);
+			} else if (c instanceof GenericCoGroupContract) {
+				n = new CoGroupNode((GenericCoGroupContract<?>) c);
+			} else if (c instanceof GenericCrossContract) {
+				n = new CrossNode((GenericCrossContract<?>) c);
 			} else {
 				throw new IllegalArgumentException("Unknown contract type.");
 			}
@@ -1088,6 +1076,37 @@ public class PactCompiler {
 	// Miscellaneous
 	// ------------------------------------------------------------------------
 
+	private InstanceTypeDescription getInstanceTypeInfo() {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Connecting compiler to JobManager to dertermine instance information.");
+		}
+		
+		// create the connection in a separate thread, such that this thread
+		// can abort, if an unsuccessful connection occurs.
+		Map<InstanceType, InstanceTypeDescription> instances = null;
+		
+		JobManagerConnector jmc = new JobManagerConnector(this.jobManagerAddress);
+		Thread connectorThread = new Thread(jmc, "Compiler - JobManager connector.");
+		connectorThread.setDaemon(true);
+		connectorThread.start();
+
+		// connect and get the result
+		try {
+			jmc.waitForCompletion();
+			instances = jmc.instances;
+			if (instances == null) {
+				throw new NullPointerException("Returned instance map is <null>");
+			}
+		}
+		catch (Throwable t) {
+			throw new CompilerException("Available instances could not be determined from job manager: " + 
+				t.getMessage(), t);
+		}
+
+		// determine which type to run on
+		return getType(instances);
+	}
+	
 	/**
 	 * This utility method picks the instance type to be used for scheduling PACT processor
 	 * instances.

@@ -116,7 +116,7 @@ public class PactRecordPostPass implements OptimizerPostPass
 			}
 			
 			// check whether all outgoing channels have not yet contributed. come back later if not.
-			if (schema.getNumConnectionsThatContributed() <= sn.getOutgoingChannels().size()) {
+			if (schema.getNumConnectionsThatContributed() < sn.getOutgoingChannels().size()) {
 				return;
 			}
 			

@@ -16,7 +16,6 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,15 +29,14 @@ import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFieldsSecondExce
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
-import eu.stratosphere.pact.compiler.OptimizerFieldSet;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * A node in the optimizer plan that represents a PACT with a two different inputs, such as MATCH or CROSS.
@@ -48,15 +46,15 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
  */
 public abstract class TwoInputNode extends OptimizerNode
 {
-	private List<OptimizerNode> cachedPlans; // a cache for the computed alternative plans
+	private List<PlanNode> cachedPlans; // a cache for the computed alternative plans
 
 	protected PactConnection input1; // The first input edge
 
 	protected PactConnection input2; // The second input edge
 
-	protected OptimizerFieldSet keySet1; // The set of key fields for the first input
+	protected final FieldList keySet1; // The set of key fields for the first input
 	
-	protected OptimizerFieldSet keySet2; // The set of key fields for the second input
+	protected final FieldList keySet2; // The set of key fields for the second input
 	
 	// ------------- Stub Annotations
 	
@@ -68,6 +66,8 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 	protected FieldSet notConstant2; // set of fields that are changed by the stub
 	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
 	 * 
@@ -77,9 +77,8 @@ public abstract class TwoInputNode extends OptimizerNode
 	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
-		this.keySet1 = new OptimizerFieldSet();
-		this.keySet2 = new OptimizerFieldSet();
-		
+		this.keySet1 = new FieldList(pactContract.getKeyColumns(0));
+		this.keySet2 = new FieldList(pactContract.getKeyColumns(1));
 	}
 
 //	/**
@@ -163,7 +162,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * 
 	 * @return The first input connection.
 	 */
-	public PactConnection getFirstInConn() {
+	public PactConnection getFirstIncomingConnection() {
 		return this.input1;
 	}
 
@@ -172,24 +171,18 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * 
 	 * @return The second input connection.
 	 */
-	public PactConnection getSecondInConn() {
+	public PactConnection getSecondIncomingConnection() {
 		return this.input2;
 	}
 	
-	/**
-	 * TODO
-	 */
-	public OptimizerNode getFirstPredNode() {
+	public OptimizerNode getFirstPredecessorNode() {
 		if(this.input1 != null)
 			return this.input1.getSourcePact();
 		else
 			return null;
 	}
-	
-	/**
-	 * TODO
-	 */
-	public OptimizerNode getSecondPredNode() {
+
+	public OptimizerNode getSecondPredecessorNode() {
 		if(this.input2 != null)
 			return this.input2.getSourcePact();
 		else
@@ -225,16 +218,16 @@ public abstract class TwoInputNode extends OptimizerNode
 			pred1 = contractToNode.get(leftPreds.get(0));
 		} else {
 			pred1 = new UnionNode(getPactContract(), leftPreds, contractToNode);
-			pred1.setDegreeOfParallelism(this.getDegreeOfParallelism());
+			pred1.setDegreeOfParallelism(getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred1.SetId(this.id);
-			pred1.setInstancesPerMachine(subtasksPerInstance);
+			pred1.setSubtasksPerInstance(getSubtasksPerInstance());
 			this.id++;
 		}
 		// create the connection and add it
 		PactConnection conn1 = new PactConnection(pred1, this);
 		this.input1 = conn1;
-		pred1.addOutConn(conn1);
+		pred1.addOutgoingConnection(conn1);
 		
 		OptimizerNode pred2;
 		if (rightPreds.size() == 1) {
@@ -244,27 +237,27 @@ public abstract class TwoInputNode extends OptimizerNode
 			pred2.setDegreeOfParallelism(this.getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred2.SetId(this.id);
-			pred2.setInstancesPerMachine(subtasksPerInstance);
+			pred2.setSubtasksPerInstance(getSubtasksPerInstance());
 			this.id++;
 		}
 		// create the connection and add it
 		PactConnection conn2 = new PactConnection(pred2, this);
 		this.input2 = conn2;
-		pred2.addOutConn(conn2);
+		pred2.addOutgoingConnection(conn2);
 
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
 		Configuration conf = getPactContract().getParameters();
 		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new ForwardSS());
-				this.input2.setShipStrategy(new ForwardSS());
+				this.input1.setShipStrategy(ShipStrategyType.FORWARD);
+				this.input2.setShipStrategy(ShipStrategyType.FORWARD);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new BroadcastSS());
-				this.input2.setShipStrategy(new BroadcastSS());
+				this.input1.setShipStrategy(ShipStrategyType.BROADCAST);
+				this.input2.setShipStrategy(ShipStrategyType.BROADCAST);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new PartitionHashSS(this.keySet1));
-				this.input2.setShipStrategy(new PartitionHashSS(this.keySet2));
+				this.input1.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+				this.input2.setShipStrategy(ShipStrategyType.PARTITION_HASH);
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy: " + shipStrategy);
 			}
@@ -274,11 +267,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new ForwardSS());
+				this.input1.setShipStrategy(ShipStrategyType.FORWARD);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new BroadcastSS());
+				this.input1.setShipStrategy(ShipStrategyType.BROADCAST);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				this.input1.setShipStrategy(new PartitionHashSS(this.keySet1));
+				this.input1.setShipStrategy(ShipStrategyType.PARTITION_HASH);
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input one: " + shipStrategy);
 			}
@@ -288,11 +281,11 @@ public abstract class TwoInputNode extends OptimizerNode
 		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT, null);
 		if (shipStrategy != null) {
 			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
-				this.input2.setShipStrategy(new ForwardSS());
+				this.input2.setShipStrategy(ShipStrategyType.FORWARD);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
-				this.input2.setShipStrategy(new BroadcastSS());
+				this.input2.setShipStrategy(ShipStrategyType.BROADCAST);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
-				this.input2.setShipStrategy(new PartitionHashSS(this.keySet2));
+				this.input2.setShipStrategy(ShipStrategyType.PARTITION_HASH);
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input two: " + shipStrategy);
 			}
@@ -304,43 +297,69 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
 	 */
 	@Override
-	final public List<OptimizerNode> getAlternativePlans(CostEstimator estimator) {
-//		// check if we have a cached version
-//		if (this.cachedPlans != null) {
-//			return this.cachedPlans;
-//		}
-//
-//		// step down to all producer nodes for first input and calculate alternative plans
-//		List<? extends OptimizerNode> subPlans1 = this.getFirstPredNode().getAlternativePlans(estimator);
-//		
-//		// step down to all producer nodes for second input and calculate alternative plans
-//		List<? extends OptimizerNode> subPlans2 = this.getSecondPredNode().getAlternativePlans(estimator);
+	final public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
+		// check if we have a cached version
+		if (this.cachedPlans != null) {
+			return this.cachedPlans;
+		}
 
-		List<OptimizerNode> outputPlans = new ArrayList<OptimizerNode>();
-//		computeValidPlanAlternatives(subPlans1, subPlans2, estimator,  outputPlans);
-//		
-//		// prune the plans
-//		prunePlanAlternatives(outputPlans);
-//
-//		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-//		if (this.getOutConns() != null && this.getOutConns().size() > 1) {
-//			this.cachedPlans = outputPlans;
-//		}
+		// step down to all producer nodes and calculate alternative plans
+		final List<? extends PlanNode> subPlans1 = getFirstPredecessorNode().getAlternativePlans(estimator);
+		final List<? extends PlanNode> subPlans2 = getSecondPredecessorNode().getAlternativePlans(estimator);
+		final List<Channel> candidates1 = new ArrayList<Channel>(subPlans1.size());
+		final List<Channel> candidates2 = new ArrayList<Channel>(subPlans2.size());
+		
+		List<InterestingProperties> ips = this.input1.getInterestingProperties();
+		for (PlanNode p : subPlans1) {
+			if (ips.isEmpty()) {
+				// create a simple forwarding channel
+				Channel c = new Channel(p);
+				c.setShipStrategy(ShipStrategyType.FORWARD);
+				c.setLocalStrategy(LocalStrategy.NONE);
+				candidates1.add(c);
+			} else {
+				for (InterestingProperties ip : ips) {
+					// create a channel that realizes the properties
+					candidates1.add(ip.createChannelRealizingProperties(p));
+				}
+			}
+		}
+		
+		ips = this.input2.getInterestingProperties();
+		for (PlanNode p : subPlans2) {
+			if (ips.isEmpty()) {
+				// create a simple forwarding channel
+				Channel c = new Channel(p);
+				c.setShipStrategy(ShipStrategyType.FORWARD);
+				c.setLocalStrategy(LocalStrategy.NONE);
+				candidates2.add(c);
+			} else {
+				for (InterestingProperties ip : ips) {
+					// create a channel that realizes the properties
+					candidates2.add(ip.createChannelRealizingProperties(p));
+				}
+			}
+		}
+		
+		
+		final List<PlanNode> outputPlans = new ArrayList<PlanNode>(subPlans1.size() + subPlans2.size());
+		for (Channel first : candidates1) {
+			for (Channel second : candidates2) {
+				if (areBranchCompatible(first, second)) {
+					createPlanAlternative(first, second, outputPlans);
+				}
+			}
+		}
 
+		// prune the plans
+		prunePlanAlternatives(outputPlans);
+
+		this.cachedPlans = outputPlans;
 		return outputPlans;
 	}
 	
-	/**
-	 * Takes a list with all sub-plan-combinations (each is a list by itself) and produces alternative
-	 * plans for the current node using the single sub-plans-combinations.
-	 *  
-	 * @param altSubPlans1	 	All subplans of the first input
-	 * @param altSubPlans2	 	All subplans of the second input
-	 * @param estimator			Cost estimator to be used
-	 * @param outputPlans		The generated output plans
-	 */
-	protected abstract void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans1,
-			List<? extends OptimizerNode> altSubPlans2, CostEstimator estimator, List<OptimizerNode> outputPlans);
+
+	protected abstract void createPlanAlternative(Channel candidate1, Channel candidate2, List<PlanNode> outputPlans);
 		
 	/**
 	 * Checks if the subPlan has a valid outputSize estimation.
@@ -363,25 +382,23 @@ public abstract class TwoInputNode extends OptimizerNode
 			return;
 		}
 
-		addClosedBranches(this.getFirstPredNode().closedBranchingNodes);
-		addClosedBranches(this.getSecondPredNode().closedBranchingNodes);
+		addClosedBranches(this.getFirstPredecessorNode().closedBranchingNodes);
+		addClosedBranches(this.getSecondPredecessorNode().closedBranchingNodes);
 		
 		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>();
 		// TODO: check if merge is really necessary
-		result1 = mergeLists(result1, this.getFirstPredNode().getBranchesForParent(this));
+		result1 = mergeLists(result1, this.getFirstPredecessorNode().getBranchesForParent(this));
 		
 		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>();
 		// TODO: check if merge is really necessary
-		result2 = mergeLists(result2, this.getSecondPredNode().getBranchesForParent(this));
+		result2 = mergeLists(result2, this.getSecondPredecessorNode().getBranchesForParent(this));
 
 		this.openBranches = mergeLists(result1, result2);
 	}
 
-	// ------------------------------------------------------------------------
-
-
-	
-	// ---------------------- Stub Annotation Handling
+	// --------------------------------------------------------------------------------------------
+	//                                 Stub Annotation Handling
+	// --------------------------------------------------------------------------------------------
 	
 	/*
 	 * (non-Javadoc)
@@ -451,20 +468,20 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 		double avgRecordWidth = -1;
 		
-		if(this.getFirstPredNode() != null && 
-				this.getFirstPredNode().estimatedOutputSize != -1 &&
-				this.getFirstPredNode().estimatedNumRecords != -1) {
-			avgRecordWidth = (this.getFirstPredNode().estimatedOutputSize / this.getFirstPredNode().estimatedNumRecords);
+		if(this.getFirstPredecessorNode() != null && 
+				this.getFirstPredecessorNode().estimatedOutputSize != -1 &&
+				this.getFirstPredecessorNode().estimatedNumRecords != -1) {
+			avgRecordWidth = (this.getFirstPredecessorNode().estimatedOutputSize / this.getFirstPredecessorNode().estimatedNumRecords);
 			
 		} else {
 			return -1;
 		}
 		
-		if(this.getSecondPredNode() != null && 
-				this.getSecondPredNode().estimatedOutputSize != -1 &&
-				this.getSecondPredNode().estimatedNumRecords != -1) {
+		if(this.getSecondPredecessorNode() != null && 
+				this.getSecondPredecessorNode().estimatedOutputSize != -1 &&
+				this.getSecondPredecessorNode().estimatedNumRecords != -1) {
 			
-			avgRecordWidth += (this.getSecondPredNode().estimatedOutputSize / this.getSecondPredNode().estimatedNumRecords);
+			avgRecordWidth += (this.getSecondPredecessorNode().estimatedOutputSize / this.getSecondPredecessorNode().estimatedNumRecords);
 			
 		} else {
 			return -1;
@@ -479,7 +496,7 @@ public abstract class TwoInputNode extends OptimizerNode
 	 * @param input The input for which key fields must be returned.
 	 * @return the key fields of the given input.
 	 */
-	public OptimizerFieldSet getInputKeySet(int input) {
+	public FieldList getInputKeySet(int input) {
 		switch(input) {
 			case 0: return keySet1;
 			case 1: return keySet2;
@@ -534,8 +551,8 @@ public abstract class TwoInputNode extends OptimizerNode
 			if (this.input1 == null || this.input2 == null) {
 				throw new CompilerException();
 			}
-			this.getFirstPredNode().accept(visitor);
-			this.getSecondPredNode().accept(visitor);
+			this.getFirstPredecessorNode().accept(visitor);
+			this.getSecondPredecessorNode().accept(visitor);
 			visitor.postVisit(this);
 		}
 	}

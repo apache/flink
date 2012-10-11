@@ -34,6 +34,7 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.util.PactType;
 import eu.stratosphere.pact.generic.contract.AbstractPact;
@@ -49,26 +50,33 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
  */
 public abstract class OptimizerNode implements Visitable<OptimizerNode>, EstimateProvider
 {
-	// ------------------------------------------------------------------------
-	//                              Members
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
+	//                                      Members
+	// --------------------------------------------------------------------------------------------
 
 	private final Contract pactContract; // The contract (Reduce / Match / DataSource / ...)
+	
+	protected DriverStrategy driverStrategy; // The local strategy, if it is fixed by a hint
 	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
 	private List<InterestingProperties> intProps; // the interesting properties of this node
+	
+	// --------------------------------- Branch Handling ------------------------------------------
 
 	protected List<UnclosedBranchDescriptor> openBranches; // stack of branches in the sub-graph that are not joined
 	
 	protected Set<OptimizerNode> closedBranchingNodes; // stack of branching nodes which have already been closed
+	
+	protected OptimizerNode lastJoinedBranchNode;	// the node with latest branch (node with multiple outputs)
+												// that both children share and that is at least partially joined
 
-	protected DriverStrategy driverStrategy; // The local strategy, if it is fixed by a hint
+	// ---------------------------- Estimates and Annotations -------------------------------------
+	
+	protected Set<FieldSet> uniqueFields = new HashSet<FieldSet>(); // set of attributes that will always be unique after this node
 	
 	protected Map<FieldSet, Long> estimatedCardinality = new HashMap<FieldSet, Long>(); // the estimated number of distinct keys in the output
 	
-	protected Set<FieldSet> uniqueFields = new HashSet<FieldSet>(); // set of attributes that will always be unique after this node
-
 	protected long estimatedOutputSize = -1; // the estimated size of the output (bytes)
 
 	protected long estimatedNumRecords = -1; // the estimated number of key/value pairs in the output
@@ -77,6 +85,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected int stubOutCardUB; // The upper bound of the stubs output cardinality
 
+	// --------------------------------- General Parameters ---------------------------------------
+	
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
 
 	private int subtasksPerInstance = -1; // the number of parallel instance that will run on the same machine
@@ -94,8 +104,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @param pactContract The PACT that the node represents.
 	 */
-	public OptimizerNode(Contract pactContract)
-	{
+	public OptimizerNode(Contract pactContract) {
 		if (pactContract == null) {
 			throw new NullPointerException("The contract must not ne null.");
 		}
@@ -708,17 +717,40 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 	
 	
-	// ------------------------------------------------------------------------
-	// Handling of branches
-	// ------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
+	//                       Handling of branches
+	// --------------------------------------------------------------------------------------------
 
-	public boolean hasUnclosedBranches()
-	{
+	public boolean hasUnclosedBranches() {
 		return this.openBranches != null && !this.openBranches.isEmpty();
 	}
+	
+	/**
+	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
+	 * alternative plans are comparable, if
+	 * 
+	 * a) There is no branch in the sub-plan of this node
+	 * b) Both candidates have the same candidate as the child at the last open branch. 
+	 * 
+	 * @param subPlan1
+	 * @param subPlan2
+	 * @return
+	 */
+	protected boolean areBranchCompatible(Channel plan1, Channel plan2) {
+		if (plan1 == null || plan2 == null)
+			throw new NullPointerException();
+		
+		// if there is no open branch, the children are always compatible.
+		// in most plans, that will be the dominant case
+		if (this.lastJoinedBranchNode == null) {
+			return true;
+		}
 
-	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent)
-	{
+		final PlanNode nodeToCompare = plan1.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
+		return nodeToCompare == plan2.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
+	}
+
+	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent) {
 		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
 			if (this.openBranches == null)
@@ -863,6 +895,34 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		Collections.reverse(result);
 		
 		return result;
+	}
+	
+	/**
+	 *
+	 */
+	protected static final class UnclosedBranchDescriptor
+	{
+		protected OptimizerNode branchingNode;
+
+		protected long joinedPathsVector;
+
+		/**
+		 * @param branchingNode
+		 * @param joinedPathsVector
+		 */
+		protected UnclosedBranchDescriptor(OptimizerNode branchingNode, long joinedPathsVector)
+		{
+			this.branchingNode = branchingNode;
+			this.joinedPathsVector = joinedPathsVector;
+		}
+
+		public OptimizerNode getBranchingNode() {
+			return this.branchingNode;
+		}
+
+		public long getJoinedPathsVector() {
+			return this.joinedPathsVector;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -1038,36 +1098,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                                Branching and Pruning
+	//                                    Pruning
 	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 *
-	 */
-	protected static final class UnclosedBranchDescriptor
-	{
-		protected OptimizerNode branchingNode;
-
-		protected long joinedPathsVector;
-
-		/**
-		 * @param branchingNode
-		 * @param joinedPathsVector
-		 */
-		protected UnclosedBranchDescriptor(OptimizerNode branchingNode, long joinedPathsVector)
-		{
-			this.branchingNode = branchingNode;
-			this.joinedPathsVector = joinedPathsVector;
-		}
-
-		public OptimizerNode getBranchingNode() {
-			return this.branchingNode;
-		}
-
-		public long getJoinedPathsVector() {
-			return this.joinedPathsVector;
-		}
-	}
 	
 	protected void prunePlanAlternatives(List<PlanNode> plans)
 	{
@@ -1122,4 +1154,5 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			}
 		}
 	}
+	
 }

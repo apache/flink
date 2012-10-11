@@ -44,9 +44,6 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	protected GlobalProperties globalProps;			// global properties of the data produced by this node
 	
 	protected Map<OptimizerNode, PlanNode> branchPlan; // the actual plan alternative chosen at a branch point
-
-	protected PlanNode lastJoinedBranchNode;		// the node with latest branch (node with multiple outputs)
-	                                        		// that both children share and that is at least partially joined
 	
 	private Costs nodeCosts;						// the costs incurred by this node
 
@@ -220,31 +217,6 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	// --------------------------------------------------------------------------------------------
 	
 //	/**
-//	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
-//	 * alternative plans are comparable, if
-//	 * a) There is no branch in the sub-plan of this node
-//	 * b) Both candidates have the same candidate as the child at the last open branch. 
-//	 * 
-//	 * @param subPlan1
-//	 * @param subPlan2
-//	 * @return
-//	 */
-//	protected boolean areBranchCompatible(PlanNode subPlan1, PlanNode subPlan2)
-//	{
-//		if (subPlan1 == null || subPlan2 == null)
-//			throw new NullPointerException();
-//		
-//		// if there is no open branch, the children are always compatible.
-//		// in most plans, that will be the dominant case
-//		if (this.lastJoinedBranchNode == null) {
-//			return true;
-//		}
-//
-//		final PlanNode nodeToCompare = subPlan1.branchPlan.get(this.lastJoinedBranchNode);
-//		return nodeToCompare == subPlan2.branchPlan.get(this.lastJoinedBranchNode);
-//	}
-	
-//	/**
 //	 * Takes the given list of plans that are candidates for this node in the final plan and retains for each distinct
 //	 * set of interesting properties only the cheapest plan.
 //	 * 
@@ -333,5 +305,9 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	 */
 	public boolean isPruneMarkerSet() {
 		return this.pFlag;
+	}
+	
+	public PlanNode getCandidateAtBranchPoint(OptimizerNode branchPoint) {
+		return this.branchPlan.get(branchPoint);
 	}
 }

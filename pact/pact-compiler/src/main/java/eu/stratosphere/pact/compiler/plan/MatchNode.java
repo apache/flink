@@ -32,28 +32,23 @@ import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionRangeSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
+import eu.stratosphere.pact.generic.contract.GenericMatchContract;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The Optimizer representation of a <i>Match</i> contract node.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
-public class MatchNode extends TwoInputNode {
-
+public class MatchNode extends TwoInputNode
+{
 	/**
 	 * Creates a new MatchNode for the given contract.
 	 * 
 	 * @param pactContract
 	 *        The match contract object.
 	 */
-	public MatchNode(MatchContract pactContract) {
+	public MatchNode(GenericMatchContract<?> pactContract) {
 		super(pactContract);
 
 		// see if an internal hint dictates the strategy to use
@@ -85,31 +80,6 @@ public class MatchNode extends TwoInputNode {
 		}
 	}
 
-//	/**
-//	 * Copy constructor to create a copy of a node with different predecessors. The predecessors
-//	 * is assumed to be of the same type as in the template node and merely copies with different
-//	 * strategies, as they are created in the process of the plan enumeration.
-//	 * 
-//	 * @param template
-//	 *        The node to create a copy of.
-//	 * @param pred1
-//	 *        The new predecessor for the first input.
-//	 * @param pred2
-//	 *        The new predecessor for the second input.
-//	 * @param conn1
-//	 *        The old connection of the first input to copy properties from.
-//	 * @param conn2
-//	 *        The old connection of the second input to copy properties from.
-//	 * @param globalProps
-//	 *        The global properties of this copy.
-//	 * @param localProps
-//	 *        The local properties of this copy.
-//	 */
-//	protected MatchNode(MatchNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-//			PactConnection conn2, GlobalProperties globalProps, LocalProperties localProps) {
-//		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
-//	}
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -118,8 +88,8 @@ public class MatchNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public MatchContract getPactContract() {
-		return (MatchContract) super.getPactContract();
+	public GenericMatchContract<?> getPactContract() {
+		return (GenericMatchContract<?>) super.getPactContract();
 	}
 
 	/*
@@ -131,23 +101,12 @@ public class MatchNode extends TwoInputNode {
 		return "Match";
 	}
 
-	/*
-	 * (non-Javadoc)
+
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
-	@Override
-	public int getMemoryConsumerCount() {
-		switch(this.localStrategy) {
-			case SORT_BOTH_MERGE:      return 2;
-			case SORT_FIRST_MERGE:     return 1;
-			case SORT_SECOND_MERGE:    return 1;
-			case MERGE:                return 1;
-			case HYBRIDHASH_FIRST:     return 1;
-			case HYBRIDHASH_SECOND:    return 1;
-			case SORT_SELF_NESTEDLOOP: return 2;
-			case SELF_NESTEDLOOP:      return 1;
-			default:                   return 0;
-		}
+	public boolean isMemoryConsumer() {
+		return true;
 	}
 
 	/*

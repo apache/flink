@@ -25,7 +25,6 @@ import eu.stratosphere.pact.array.stubs.ReduceStub;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.ReduceContract;
-import eu.stratosphere.pact.common.io.RecordOutputFormat;
 import eu.stratosphere.pact.common.io.TextInputFormat;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.pact.common.plan.PlanAssembler;
@@ -33,11 +32,12 @@ import eu.stratosphere.pact.common.plan.PlanAssemblerDescription;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.ConstantFields;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.common.type.base.PactString;
 import eu.stratosphere.pact.example.util.AsciiUtils;
+import eu.stratosphere.pact.generic.contract.GenericMapContract;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 
 /**
  * Implements a word count which takes the input file and counts the number of
@@ -130,15 +130,11 @@ public class WordCountArrayTuples implements PlanAssembler, PlanAssemblerDescrip
 		FileDataSource source = new FileDataSource(StringInputFormat.class, dataInput, "Input Lines");
 		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");		// comment out this line for UTF-8 inputs
 		
-		MapContract mapper = MapContract.builder(TokenizeLine.class)
-			.input(source)
-			.name("Tokenize Lines")
-			.build();
+		GenericMapContract<TokenizeLine> mapper = new GenericMapContract<TokenizeLine>(TokenizeLine.class, "Tokenize Lines");
+		mapper.setInput(source);
 		
-		ReduceContract reducer = ReduceContract.builder(CountWords.class, PactString.class, 0)
-			.input(mapper)
-			.name("Count Words")
-			.build();
+		GenericReduceContract<CountWords> reducer = new GenericReduceContract<CountWords>(CountWords.class, new int[] {0}, "Count Words");
+		reducer.setInput(mapper);
 		
 		FileDataSink out = new FileDataSink(ArrayOutputFormat.class, output, reducer, "Word Counts");
 		ArrayOutputFormat.configureArrayFormat(out)

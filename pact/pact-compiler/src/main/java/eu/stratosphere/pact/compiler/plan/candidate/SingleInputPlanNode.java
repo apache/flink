@@ -121,10 +121,6 @@ public class SingleInputPlanNode extends PlanNode
 	@Override
 	public void setCosts(Costs nodeCosts) {
 		super.setCosts(nodeCosts);
-		// check, if this node has no branch beneath it, no double-counted cost then
-		if (this.lastJoinedBranchNode != null) {
-			throw new CompilerException("SingleInputPlanNode should not have a branch node");
-		}
 	}
 	
 	/**

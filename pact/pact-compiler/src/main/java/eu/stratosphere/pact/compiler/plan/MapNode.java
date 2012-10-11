@@ -17,11 +17,11 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.List;
 
-import eu.stratosphere.pact.common.contract.MapContract;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
+import eu.stratosphere.pact.generic.contract.GenericMapContract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
@@ -37,7 +37,7 @@ public class MapNode extends SingleInputNode
 	 * @param pactContract
 	 *        The map contract object.
 	 */
-	public MapNode(MapContract pactContract) {
+	public MapNode(GenericMapContract<?> pactContract) {
 		super(pactContract);
 		setDriverStrategy(DriverStrategy.NONE);
 	}
@@ -48,8 +48,8 @@ public class MapNode extends SingleInputNode
 	 * @return The contract.
 	 */
 	@Override
-	public MapContract getPactContract() {
-		return (MapContract) super.getPactContract();
+	public GenericMapContract<?> getPactContract() {
+		return (GenericMapContract<?>) super.getPactContract();
 	}
 
 	/*

@@ -79,7 +79,7 @@ public class PactRecordComparatorFactory implements TypeComparatorFactory<PactRe
 		if (sortDirections == null) {
 			this.sortDirections = new boolean[positions.length];
 			Arrays.fill(this.sortDirections, true);
-		} if (sortDirections.length != positions.length) {
+		} else if (sortDirections.length != positions.length) {
 			throw new IllegalArgumentException();
 		} else {
 			this.sortDirections = sortDirections;

@@ -15,8 +15,6 @@
 
 package eu.stratosphere.pact.generic.contract;
 
-import java.util.List;
-
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.generic.stub.GenericMapper;
@@ -36,12 +34,7 @@ import eu.stratosphere.pact.generic.stub.GenericMapper;
  */
 public class GenericMapContract<T extends GenericMapper<?, ?>> extends SingleInputContract<T>
 {
-	/**
-	 * The private constructor that only gets invoked from the Builder.
-	 * @param builder
-	 */
-	public GenericMapContract(Class<? extends T> udf, String name, List<Contract> inputs) {
+	public GenericMapContract(Class<? extends T> udf, String name) {
 		super(udf, name);
-		setInputs(inputs);
 	}
 }

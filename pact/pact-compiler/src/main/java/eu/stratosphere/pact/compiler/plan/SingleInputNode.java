@@ -127,7 +127,7 @@ public abstract class SingleInputNode extends OptimizerNode
 			pred = contractToNode.get(children.get(0));
 		} else {
 			pred = new UnionNode(getPactContract(), children, contractToNode);
-			pred.setDegreeOfParallelism(this.getDegreeOfParallelism());
+			pred.setDegreeOfParallelism(getDegreeOfParallelism());
 			//push id down to newly created union node
 			pred.SetId(this.id);
 			pred.setSubtasksPerInstance(getSubtasksPerInstance());
@@ -218,11 +218,7 @@ public abstract class SingleInputNode extends OptimizerNode
 		}
 		prunePlanAlternatives(outputPlans);
 
-		// cache the result only if we have multiple outputs --> this function gets invoked multiple times
-		if (isBranching()) {
-			this.cachedPlans = outputPlans;
-		}
-
+		this.cachedPlans = outputPlans;
 		return outputPlans;
 	}
 	

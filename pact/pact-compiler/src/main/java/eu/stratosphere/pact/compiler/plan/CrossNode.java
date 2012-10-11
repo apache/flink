@@ -25,27 +25,22 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.BroadcastSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.SFRSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
+import eu.stratosphere.pact.generic.contract.GenericCrossContract;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The Optimizer representation of a <i>Cross</i> contract node.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
-public class CrossNode extends TwoInputNode {
-
+public class CrossNode extends TwoInputNode
+{
 	/**
 	 * Creates a new CrossNode for the given contract.
 	 * 
-	 * @param pactContract
-	 *        The Cross contract object.
+	 * @param pactContract The Cross contract object.
 	 */
-	public CrossNode(CrossContract pactContract) {
+	public CrossNode(GenericCrossContract<?> pactContract) {
 		super(pactContract);
 
 		Configuration conf = getPactContract().getParameters();
@@ -66,32 +61,6 @@ public class CrossNode extends TwoInputNode {
 		} else {
 			setLocalStrategy(LocalStrategy.NONE);
 		}
-
-	}
-
-	/**
-	 * Copy constructor to create a copy of a node with different predecessors. The predecessors
-	 * is assumed to be of the same type as in the template node and merely copies with different
-	 * strategies, as they are created in the process of the plan enumeration.
-	 * 
-	 * @param template
-	 *        The node to create a copy of.
-	 * @param pred1
-	 *        The new predecessor for the first input.
-	 * @param pred2
-	 *        The new predecessor for the second input.
-	 * @param conn1
-	 *        The old connection of the first input to copy properties from.
-	 * @param conn2
-	 *        The old connection of the second input to copy properties from.
-	 * @param globalProps
-	 *        The global properties of this copy.
-	 * @param localProps
-	 *        The local properties of this copy.
-	 */
-	protected CrossNode(CrossNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, InterestingGlobalProperties globalProps, InterestingLocalProperties localProps) {
-		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
 	}
 
 	// ------------------------------------------------------------------------
@@ -102,8 +71,8 @@ public class CrossNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public CrossContract getPactContract() {
-		return (CrossContract) super.getPactContract();
+	public GenericCrossContract<?> getPactContract() {
+		return (GenericCrossContract<?>) super.getPactContract();
 	}
 
 	/*
@@ -115,19 +84,12 @@ public class CrossNode extends TwoInputNode {
 		return "Cross";
 	}
 
-	/*
-	 * (non-Javadoc)
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public int getMemoryConsumerCount() {
-		switch(this.localStrategy) {
-			case NESTEDLOOP_BLOCKED_OUTER_FIRST:   return 1;
-			case NESTEDLOOP_BLOCKED_OUTER_SECOND:  return 1;
-			case NESTEDLOOP_STREAMED_OUTER_FIRST:  return 1;
-			case NESTEDLOOP_STREAMED_OUTER_SECOND: return 1;
-			default:	                           return 0;
-		}
+	public boolean isMemoryConsumer() {
+		return true;
 	}
 
 	/*
@@ -397,11 +359,11 @@ public class CrossNode extends TwoInputNode {
 	 */
 	protected long computeNumberOfProcessedKeys() {
 		// Match processes only keys that appear in both input sets
-		FieldSet fieldSet1 = new FieldSet(getPactContract().getKeyColumnNumbers(0));
-		FieldSet fieldSet2 = new FieldSet(getPactContract().getKeyColumnNumbers(1));
+		FieldSet fieldSet1 = new FieldSet(getPactContract().getKeyColumns(0));
+		FieldSet fieldSet2 = new FieldSet(getPactContract().getKeyColumns(1));
 		
-		long numKey1 = this.getFirstPredNode().getEstimatedCardinality(fieldSet1);
-		long numKey2 = this.getSecondPredNode().getEstimatedCardinality(fieldSet2);
+		long numKey1 = this.getFirstPredecessorNode().getEstimatedCardinality(fieldSet1);
+		long numKey2 = this.getSecondPredecessorNode().getEstimatedCardinality(fieldSet2);
 		
 		if(numKey1 == -1 || numKey2 == -1)
 			return -1;
@@ -417,12 +379,12 @@ public class CrossNode extends TwoInputNode {
 	 */
 	protected long computeNumberOfStubCalls() {
 		
-		long numRecords1 = this.getFirstPredNode().estimatedNumRecords;
+		long numRecords1 = this.getFirstPredecessorNode().estimatedNumRecords;
 		if(numRecords1 == -1) {
 			return -1;
 		}
 
-		long numRecords2 = this.getSecondPredNode().estimatedNumRecords;
+		long numRecords2 = this.getSecondPredecessorNode().estimatedNumRecords;
 		if(numRecords2 == -1) {
 			return -1;
 		}

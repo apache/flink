@@ -20,7 +20,6 @@ import java.util.List;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.ReduceContract;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
@@ -32,6 +31,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.GlobalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -52,7 +52,7 @@ public class ReduceNode extends SingleInputNode
 	 * @param pactContract
 	 *        The reduce contract object.
 	 */
-	public ReduceNode(ReduceContract pactContract)
+	public ReduceNode(GenericReduceContract<?> pactContract)
 	{
 		super(pactContract);
 		
@@ -85,8 +85,8 @@ public class ReduceNode extends SingleInputNode
 	 * @return The contract.
 	 */
 	@Override
-	public ReduceContract getPactContract() {
-		return (ReduceContract) super.getPactContract();
+	public GenericReduceContract<?> getPactContract() {
+		return (GenericReduceContract<?>) super.getPactContract();
 	}
 
 	/**

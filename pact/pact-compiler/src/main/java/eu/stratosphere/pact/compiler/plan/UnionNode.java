@@ -31,8 +31,8 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.util.PactType;
 import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
@@ -283,11 +283,11 @@ public class UnionNode extends OptimizerNode {
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getMemoryConsumerCount()
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public int getMemoryConsumerCount() {
-		return 0;
+	public boolean isMemoryConsumer() {
+		return false;
 	}
 	
 	@Override
@@ -305,10 +305,10 @@ public class UnionNode extends OptimizerNode {
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldKept(int, int)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isFieldConstant(int, int)
 	 */
 	@Override
-	public boolean isFieldKept(int input, int fieldNumber) {
+	public boolean isFieldConstant(int input, int fieldNumber) {
 		return true;
 	}
 	
@@ -401,19 +401,7 @@ public class UnionNode extends OptimizerNode {
 		if(width < 1)
 			return 1;
 		else 
-			return width;  
+			return width;
 		
 	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeUniqueFields()
-	 */
-	@Override
-	public void computeUniqueFields() {
-		//DO NOTHING
-		// we cannot guarantee uniqueness of fields for union
-	}
-
-
 }

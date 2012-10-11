@@ -33,6 +33,7 @@ import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.generic.contract.Contract;
+import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
@@ -53,7 +54,7 @@ public class CoGroupNode extends TwoInputNode {
 	 * @param pactContract
 	 *        The CoGroup contract object.
 	 */
-	public CoGroupNode(CoGroupContract pactContract) {
+	public CoGroupNode(GenericCoGroupContract<?> pactContract) {
 		super(pactContract);
 		
 		// see if an internal hint dictates the strategy to use
@@ -77,31 +78,6 @@ public class CoGroupNode extends TwoInputNode {
 		}
 	}
 
-	/**
-	 * Copy constructor to create a copy of a node with different predecessors. The predecessors
-	 * is assumed to be of the same type as in the template node and merely copies with different
-	 * strategies, as they are created in the process of the plan enumeration.
-	 * 
-	 * @param template
-	 *        The node to create a copy of.
-	 * @param pred1
-	 *        The new predecessor for the first input.
-	 * @param pred2
-	 *        The new predecessor for the second input.
-	 * @param conn1
-	 *        The old connection of the first input to copy properties from.
-	 * @param conn2
-	 *        The old connection of the second input to copy properties from.
-	 * @param globalProps
-	 *        The global properties of this copy.
-	 * @param localProps
-	 *        The local properties of this copy.
-	 */
-	protected CoGroupNode(CoGroupNode template, OptimizerNode pred1, OptimizerNode pred2, PactConnection conn1,
-			PactConnection conn2, InterestingGlobalProperties globalProps, InterestingLocalProperties localProps) {
-		super(template, pred1, pred2, conn1, conn2, globalProps, localProps);
-	}
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -110,8 +86,8 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public CoGroupContract getPactContract() {
-		return (CoGroupContract) super.getPactContract();
+	public GenericCoGroupContract<?> getPactContract() {
+		return (GenericCoGroupContract<?>) super.getPactContract();
 	}
 
 	/*
@@ -123,20 +99,12 @@ public class CoGroupNode extends TwoInputNode {
 		return "CoGroup";
 	}
 
-	/*
-	 * (non-Javadoc)
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
 	 */
 	@Override
-	public int getMemoryConsumerCount() {
-		switch(this.localStrategy) {
-			case SORT_BOTH_MERGE:   return 2;
-			case SORT_FIRST_MERGE:  return 1 + (getPactContract().getGroupOrderForInputTwo() == null ? 0 : 1);
-			case SORT_SECOND_MERGE: return 1 + (getPactContract().getGroupOrderForInputOne() == null ? 0 : 1);
-			case MERGE:             return 0 + (getPactContract().getGroupOrderForInputOne() == null ? 0 : 1)
-			                                 + (getPactContract().getGroupOrderForInputTwo() == null ? 0 : 1);
-			default:	            return 0;
-		}
+	public boolean isMemoryConsumer() {
+		return true;
 	}
 
 	/*
