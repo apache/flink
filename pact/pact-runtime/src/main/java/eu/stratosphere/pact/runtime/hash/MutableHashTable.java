@@ -689,10 +689,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 		final BT record = this.buildSideSerializer.createInstance();
 		
 		// go over the complete input and insert every element into the hash table
+    long recordsInserted = 0;
 		while (input.next(record))
 		{
 			final int hashCode = hash(buildTypeComparator.hash(record), 0);
 			insertIntoTable(record, hashCode);
+      recordsInserted++;
 		}
 
 		// finalize the partitions
@@ -700,6 +702,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(i);
 			p.finalizeBuildPhase(this.ioManager, this.currentEnumerator, this.writeBehindBuffers);
 		}
+
+    System.out.println("inserted " + recordsInserted + " records into build side of HybridHashJoin");
+    if (LOG.isInfoEnabled()) {
+      LOG.info("inserted " + recordsInserted + " records into build side of HybridHashJoin");
+    }
 	}
 	
 	/**

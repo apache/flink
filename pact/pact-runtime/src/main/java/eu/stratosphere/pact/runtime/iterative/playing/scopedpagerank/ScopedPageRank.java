@@ -13,9 +13,8 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
+package eu.stratosphere.pact.runtime.iterative.playing.scopedpagerank;
 
-import com.sun.servicetag.SystemEnvironment;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.DistributionPattern;
@@ -28,6 +27,12 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
+import eu.stratosphere.pact.runtime.iterative.playing.pagerank.DotProductMatch;
+import eu.stratosphere.pact.runtime.iterative.playing.pagerank.DotProductReducer;
+import eu.stratosphere.pact.runtime.iterative.playing.pagerank.IdentityMap;
+import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankInputFormat;
+import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankOutFormat;
+import eu.stratosphere.pact.runtime.iterative.playing.pagerank.TransitionMatrixInputFormat;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
@@ -38,14 +43,15 @@ import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-public class PageRank {
+public class ScopedPageRank {
 
   public static void main(String[] args) throws Exception {
 
     int degreeOfParallelism = 2;
     int numSubTasksPerInstance = degreeOfParallelism;
-    String pageWithRankInputPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/pagerank/pageWithRank";
-    String transitionMatrixInputPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/pagerank/transitionMatrix";
+    String pageWithRankInputPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/scopedpagerank/pageWithRank";
+    String transitionMatrixInputPath = "file://" + PlayConstants.PLAY_DIR +
+        "test-inputs/scopedpagerank/transitionMatrix";
     String outputPath = "file:///tmp/stratosphere/iterations";
     String confPath = PlayConstants.PLAY_DIR + "local-conf";
     int memoryPerTask = 25;
@@ -66,7 +72,7 @@ public class PageRank {
       numIterations = Integer.parseInt(args[8]);
     }
 
-    JobGraph jobGraph = new JobGraph("PageRank");
+    JobGraph jobGraph = new JobGraph("ScopedPageRank");
 
     JobInputVertex pageWithRankInput = JobGraphUtils.createInput(PageWithRankInputFormat.class, pageWithRankInputPath,
         "PageWithRankInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
@@ -75,8 +81,9 @@ public class PageRank {
     PactRecordComparatorFactory.writeComparatorSetupToConfig(pageWithRankInputConfig.getConfigForOutputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
 
-    JobInputVertex transitionMatrixInput = JobGraphUtils.createInput(TransitionMatrixInputFormat.class,
-        transitionMatrixInputPath, "TransitionMatrixInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
+    JobInputVertex transitionMatrixInput = JobGraphUtils.createInput(RowPartitionedTransitionMatrixInputFormat.class,
+        transitionMatrixInputPath, "RowPartitionedTransitionMatrixInput", jobGraph, degreeOfParallelism,
+        numSubTasksPerInstance);
     TaskConfig transitionMatrixInputConfig = new TaskConfig(transitionMatrixInput.getConfiguration());
     transitionMatrixInputConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(transitionMatrixInputConfig.getConfigForOutputParameters(0),
@@ -94,7 +101,7 @@ public class PageRank {
         "IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
     intermediateConfig.setDriver(RepeatableHashJoinMatchDriver.class);
-    intermediateConfig.setStubClass(DotProductMatch.class);
+    intermediateConfig.setStubClass(DotProductRowMatch.class);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(1),
