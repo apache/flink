@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 
-import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.types.Record;
 

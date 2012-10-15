@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * 
  * @author warneke
  */
-public abstract class AbstractChannel {
+public abstract class AbstractChannel implements Channel {
 
 	/**
 	 * The ID of the channel.
@@ -87,13 +87,6 @@ public abstract class AbstractChannel {
 	}
 
 	/**
-	 * Returns the type of the channel.
-	 * 
-	 * @return the type of the channel.
-	 */
-	public abstract ChannelType getType();
-
-	/**
 	 * Checks if the channel is closed, i.e. no more records can be transported through the channel.
 	 * 
 	 * @return <code>true</code> if the channel is closed, <code>false</code> otherwise
@@ -110,10 +103,9 @@ public abstract class AbstractChannel {
 	}
 
 	/**
-	 * Returns the channel's current compression level.
-	 * 
-	 * @return the channel's current compression level
+	 * {@inheritDoc}
 	 */
+	@Override
 	public CompressionLevel getCompressionLevel() {
 		return this.compressionLevel;
 	}

@@ -24,7 +24,6 @@ import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 
 /**

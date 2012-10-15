@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.FileOutputChannel;
 import eu.stratosphere.nephele.io.channels.InMemoryOutputChannel;
 import eu.stratosphere.nephele.io.channels.NetworkOutputChannel;
+import eu.stratosphere.nephele.io.channels.OutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -204,7 +205,7 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkOutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
+	public OutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final NetworkOutputChannel<T> enoc = new NetworkOutputChannel<T>(outputGate, this.outputChannels.size(),

@@ -36,6 +36,7 @@ import eu.stratosphere.nephele.io.channels.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.InMemoryInputChannel;
 import eu.stratosphere.nephele.io.channels.InputChannel;
 import eu.stratosphere.nephele.io.channels.NetworkInputChannel;
+import eu.stratosphere.nephele.io.channels.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -60,7 +61,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	private static final Log LOG = LogFactory.getLog(InputGate.class);
 
 	/**
-	 * The deserializer factory used to instantiate the deserializers that construct records from byte streams.
+	 * The factory used to instantiate new records deserializers.
 	 */
 	private final RecordDeserializerFactory<T> deserializerFactory;
 
@@ -102,13 +103,13 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 *        the ID of the job this input gate belongs to
 	 * @param gateID
 	 *        the ID of the gate
-	 * @param deserializerFactory
-	 *        The factory used to instantiate the deserializers that construct records from byte streams.
+	 * @param recordDeserializerType
+	 *        The type of recordD
 	 * @param index
 	 *        the index assigned to this input gate at the {@link Environment} object
 	 */
 	public RuntimeInputGate(final JobID jobID, final GateID gateID,
-						final RecordDeserializerFactory<T> deserializerFactory, final int index) {
+			final RecordDeserializerFactory<T> deserializerFactory, final int index) {
 		super(jobID, gateID, index);
 		this.deserializerFactory = deserializerFactory;
 	}
@@ -193,8 +194,8 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	public InputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
+		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(), channelID,
+			connectedChannelID, compressionLevel, this.deserializerFactory.createDeserializer());
 		addInputChannel(enic);
 
 		return enic;
@@ -207,8 +208,8 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	public InputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
+		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(), channelID,
+			connectedChannelID, compressionLevel, this.deserializerFactory.createDeserializer());
 		addInputChannel(efic);
 
 		return efic;
@@ -222,7 +223,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
+			channelID, connectedChannelID, compressionLevel, this.deserializerFactory.createDeserializer());
 		addInputChannel(eimic);
 
 		return eimic;
@@ -255,7 +256,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 			}
 			try {
-				record = this.getInputChannel(this.channelToReadFrom).readRecord(target);
+				record = this.inputChannels.get(this.channelToReadFrom).readRecord(target);
 			} catch (EOFException e) {
 				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
 				// this.getInputChannel(channelToReadFrom).getType().toString() + ")");

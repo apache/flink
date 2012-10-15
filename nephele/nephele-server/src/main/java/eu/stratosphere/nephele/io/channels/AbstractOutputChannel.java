@@ -39,7 +39,7 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        The Type of the record that can be transported through the channel.
  */
-public abstract class AbstractOutputChannel<T extends Record> extends AbstractChannel {
+public abstract class AbstractOutputChannel<T extends Record> extends AbstractChannel implements OutputChannel<T> {
 
 	/**
 	 * The log object used to report errors.

@@ -15,26 +15,23 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.types.Record;
-
-public final class InMemoryInputChannel<T extends Record> extends AbstractInputChannel<T> {
-
-	public InMemoryInputChannel(final InputGate<T> inputGate, final int channelIndex, final ChannelID channelID,
-			final ChannelID connectedChannelID, final CompressionLevel compressionLevel,
-			final RecordDeserializer<T> deserializer) {
-		super(inputGate, channelIndex, channelID, connectedChannelID, CompressionLevel.NO_COMPRESSION, deserializer);
-	}
+/**
+ * A simple factory to instantiate record deserializer objects. Since a deserializer might be stateful, the system
+ * must be able to instantiate an arbitrary number of them, equal to the number of data channels.
+ * <p>
+ * If the created deserializers are in fact not stateful, the factory should return a shared object.
+ * 
+ * @author Stephan Ewen
+ * @param <T>
+ *        the type of record the deserializer is created for
+ */
+public interface RecordDeserializerFactory<T> {
 
 	/**
-	 * {@inheritDoc}
+	 * Creates a new instance of the deserializer. The returned instance may not share any state with any previously
+	 * returned instance.
+	 * 
+	 * @return an instance of the deserializer
 	 */
-	@Override
-	public ChannelType getType() {
-
-		return ChannelType.INMEMORY;
-	}
+	RecordDeserializer<T> createDeserializer();
 }

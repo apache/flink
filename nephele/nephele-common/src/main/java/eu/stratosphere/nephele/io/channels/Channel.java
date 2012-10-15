@@ -15,6 +15,21 @@
 
 package eu.stratosphere.nephele.io.channels;
 
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
+
 public interface Channel {
 
+	/**
+	 * Returns the type of the channel.
+	 * 
+	 * @return the type of the channel.
+	 */
+	ChannelType getType();
+
+	/**
+	 * Returns the channel's current compression level.
+	 * 
+	 * @return the channel's current compression level
+	 */
+	CompressionLevel getCompressionLevel();
 }

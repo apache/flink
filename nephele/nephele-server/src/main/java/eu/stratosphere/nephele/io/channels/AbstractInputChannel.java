@@ -24,7 +24,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
