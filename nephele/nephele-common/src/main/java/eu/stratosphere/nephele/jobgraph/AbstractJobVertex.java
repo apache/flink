@@ -197,12 +197,14 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 * @param indexOfInputGate
 	 *        index of the consuming task's input gate to be used, <code>-1</code> will determine the next free index
 	 *        number
+	 * @param distributionPattern
+	 *        the distribution patter according to which the subtasks of the connected vertices shall be connected
 	 * @throws JobGraphDefinitionException
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
 			final CompressionLevel compressionLevel, int indexOfOutputGate, int indexOfInputGate,
-			DistributionPattern distributionPattern)
+			final DistributionPattern distributionPattern)
 			throws JobGraphDefinitionException {
 
 		if (vertex == null) {
