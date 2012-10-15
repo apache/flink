@@ -18,6 +18,7 @@ package eu.stratosphere.nephele.io.channels.bytebuffered;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 
+import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.types.Record;
 
 interface RecordSerializer<T extends Record> {
@@ -48,13 +49,13 @@ interface RecordSerializer<T extends Record> {
 	 * Reads the internal serialization buffer and writes the data to the given {@link WritableByteChannel} byte
 	 * channel.
 	 * 
-	 * @param writableByteChannel
-	 *        the byte channel to write the serialized data to
-	 * @return the number of bytes written the to given byte channel
+	 * @param buffer
+	 *        the buffer to write the serialized data to
+	 * @return <code>true<code> if more data can be written to the given buffer, <code>false</code> otherwise
 	 * @throws IOException
 	 *         thrown if an error occurs while writing to serialized data to the channel
 	 */
-	int read(WritableByteChannel writableByteChannel) throws IOException;
+	boolean read(Buffer buffer) throws IOException;
 
 	/**
 	 * Clears all the internal resources of the record serializer.

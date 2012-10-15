@@ -37,7 +37,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	/**
 	 * The serialization buffer used to serialize records.
 	 */
-	private final RecordSerializer<T> recordSerializer = new BufferSpanningRecordSerializer<T>();
+	private final RecordSerializer<T> recordSerializer = new DefaultRecordSerializer<T>();
 
 	/**
 	 * Buffer for the serialized output data.
@@ -177,8 +177,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		if (this.compressor != null) {
 			while (this.recordSerializer.dataLeftFromPreviousSerialization()) {
 
-				this.recordSerializer.read(this.dataBuffer);
-				if (this.dataBuffer.remaining() == 0) {
+				if (!this.recordSerializer.read(this.dataBuffer)) {
 
 					this.dataBuffer = this.compressor.compress(this.dataBuffer);
 					// this.leasedWriteBuffer.flip();
@@ -189,8 +188,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		} else {
 			while (this.recordSerializer.dataLeftFromPreviousSerialization()) {
 
-				this.recordSerializer.read(this.dataBuffer);
-				if (this.dataBuffer.remaining() == 0) {
+				if (!this.recordSerializer.read(this.dataBuffer)) {
 					releaseWriteBuffer();
 					requestWriteBufferFromBroker();
 				}
@@ -204,16 +202,14 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		this.recordSerializer.serialize(record);
 
 		if (this.compressor != null) {
-			this.recordSerializer.read(this.dataBuffer);
+			if (!this.recordSerializer.read(this.dataBuffer)) {
 
-			if (this.dataBuffer.remaining() == 0) {
 				this.dataBuffer = this.compressor.compress(this.dataBuffer);
 				// this.leasedWriteBuffer.flip();
 				releaseWriteBuffer();
 			}
 		} else {
-			this.recordSerializer.read(this.dataBuffer);
-			if (this.dataBuffer.remaining() == 0) {
+			if (!this.recordSerializer.read(this.dataBuffer)) {
 				releaseWriteBuffer();
 			}
 		}
@@ -288,15 +284,13 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 				}
 			}
 			if (this.compressor != null) {
-				this.recordSerializer.read(this.dataBuffer);
-				if (this.dataBuffer.remaining() == 0) {
+				if (!this.recordSerializer.read(this.dataBuffer)) {
 					this.dataBuffer = this.compressor.compress(this.dataBuffer);
 					// this.leasedWriteBuffer.flip();
 					releaseWriteBuffer();
 				}
 			} else {
-				this.recordSerializer.read(this.dataBuffer);
-				if (this.dataBuffer.remaining() == 0) {
+				if (!this.recordSerializer.read(this.dataBuffer)) {
 					releaseWriteBuffer();
 				}
 			}
