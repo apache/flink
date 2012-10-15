@@ -821,7 +821,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<ChannelID> outputChannelIDs = new HashSet<ChannelID>();
 
-		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		final Iterator<RuntimeOutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
 
 			final OutputGate<? extends Record> outputGate = gateIterator.next();

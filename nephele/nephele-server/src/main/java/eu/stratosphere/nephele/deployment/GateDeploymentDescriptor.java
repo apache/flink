@@ -54,6 +54,11 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	private CompressionLevel compressionLevel;
 
 	/**
+	 * Stores whether the channels connected to this gate shall allow spanning records at runtime.
+	 */
+	private boolean allowSpanningRecords;
+
+	/**
 	 * The list of channel deployment descriptors attached to this gate.
 	 */
 	private final List<ChannelDeploymentDescriptor> channels;
@@ -67,11 +72,15 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	 *        the channel type of the gate
 	 * @param compressionLevel
 	 *        the compression level of the gate
+	 * @param allowSpanningRecords
+	 *        <code>true</code> to indicate that the channels connected to this gate shall allow spanning records at
+	 *        runtime, <code>false</code> otherwise
 	 * @param channels
 	 *        the list of channel deployment descriptors attached to this gate
 	 */
 	public GateDeploymentDescriptor(final GateID gateID, final ChannelType channelType,
-			final CompressionLevel compressionLevel, List<ChannelDeploymentDescriptor> channels) {
+			final CompressionLevel compressionLevel, final boolean allowSpanningRecords,
+			List<ChannelDeploymentDescriptor> channels) {
 
 		if (gateID == null) {
 			throw new IllegalArgumentException("Argument gateID must no be null");
@@ -92,6 +101,7 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 		this.gateID = gateID;
 		this.channelType = channelType;
 		this.compressionLevel = compressionLevel;
+		this.allowSpanningRecords = allowSpanningRecords;
 		this.channels = channels;
 	}
 

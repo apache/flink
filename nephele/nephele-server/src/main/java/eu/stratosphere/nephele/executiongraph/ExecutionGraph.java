@@ -169,7 +169,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
 	public ExecutionGraph(final JobGraph job, final InstanceManager instanceManager)
-																					throws GraphConversionException {
+			throws GraphConversionException {
 		this(job.getJobID(), job.getName(), job.getJobConfiguration());
 
 		// Start constructing the new execution graph from given job graph
@@ -448,10 +448,12 @@ public class ExecutionGraph implements ExecutionListener {
 
 				final DistributionPattern distributionPattern = edge.getDistributionPattern();
 
+				final boolean allowSpanningRecords = edge.spanningRecordsAllowed();
+
 				// Connect the corresponding group vertices and copy the user settings from the job edge
 				final ExecutionGroupEdge groupEdge = sgv.wireTo(tgv, edge.getIndexOfInputGate(), i, channelType,
 					userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern,
-					isBroadcast);
+					isBroadcast, allowSpanningRecords);
 
 				final ExecutionGate outputGate = new ExecutionGate(new GateID(), sev, groupEdge, false);
 				sev.insertOutputGate(i, outputGate);
