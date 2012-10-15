@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.channels;
 
 import java.io.DataOutput;
 import java.io.IOException;
@@ -26,7 +26,6 @@ import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.types.Record;
 
 /**

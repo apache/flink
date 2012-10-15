@@ -18,8 +18,8 @@ package eu.stratosphere.nephele.io;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.OutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
@@ -59,7 +59,7 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 * 
 	 * @return the list of OutputChannels connected to this RecordWriter
 	 */
-	List<AbstractOutputChannel<T>> getOutputChannels();
+	List<OutputChannel<T>> getOutputChannels();
 
 	/**
 	 * Flushes all connected output channels.
@@ -95,7 +95,7 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 * @return the channel from the given position or <code>null</code> if such
 	 *         position does not exist.
 	 */
-	AbstractOutputChannel<T> getOutputChannel(int pos);
+	OutputChannel<T> getOutputChannel(int pos);
 
 	/**
 	 * Returns the output gate's channel selector.
@@ -139,7 +139,7 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new network output channel
 	 */
-	AbstractOutputChannel<T> createNetworkOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
+	OutputChannel<T> createNetworkOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
@@ -155,7 +155,7 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new file output channel
 	 */
-	AbstractOutputChannel<T> createFileOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
+	OutputChannel<T> createFileOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
@@ -171,6 +171,6 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new in-memory output channel
 	 */
-	AbstractOutputChannel<T> createInMemoryOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
+	OutputChannel<T> createInMemoryOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 }

@@ -1,4 +1,4 @@
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.channels;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

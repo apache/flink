@@ -26,16 +26,17 @@ import eu.stratosphere.nephele.types.Record;
  * query for incoming records and read them from input gate.
  * 
  * @author warneke
- * @param <T> The type of the record that can be read from this record reader.
+ * @param <T>
+ *        The type of the record that can be read from this record reader.
  */
 
-public class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T>
-{
+public class RecordReader<T extends Record> extends AbstractRecordReader<T> implements Reader<T> {
+
 	/**
 	 * Stores the last read record.
 	 */
 	private T lastRead;
-	
+
 	/**
 	 * Temporarily stores an exception which may have occurred while reading data from the input gate.
 	 */
@@ -52,59 +53,18 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	private boolean noMoreRecordsWillFollow;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Constructs a new record reader and registers a new input gate with the application's environment.
 	 * 
 	 * @param taskBase
-	 *        The application that instantiated the record reader.
+	 *        the application that instantiated the record reader
 	 * @param inputClass
-	 *        The class of records that can be read from the record reader.
+	 *        the class of records that can be read from the record reader
 	 */
-	public RecordReader(AbstractTask taskBase, Class<T> inputClass) {
+	public RecordReader(final AbstractTask taskBase, final Class<T> inputClass) {
 
-		super(taskBase, new ImmutableRecordDeserializerFactory<T>(inputClass), 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        The application that instantiated the record reader.
-	 * @param inputClass
-	 *        The class of records that can be read from the record reader.
-	 */
-	public RecordReader(AbstractOutputTask outputBase, Class<T> inputClass) {
-
-		super(outputBase, new ImmutableRecordDeserializerFactory<T>(inputClass), 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        The application that instantiated the record reader.
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
-	 */
-	public RecordReader(AbstractTask taskBase, RecordDeserializerFactory<T> deserializerFactory) {
-
-		super(taskBase, deserializerFactory, 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        The application that instantiated the record reader.
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	public RecordReader(AbstractTask taskBase, RecordDeserializerFactory<T> deserializerFactory, int inputGateID) {
-
-		super(taskBase, deserializerFactory, inputGateID);
+		super(taskBase, new DefaultRecordFactory<T>(inputClass), 0);
 	}
 
 	/**
@@ -112,12 +72,40 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * 
 	 * @param outputBase
 	 *        the application that instantiated the record reader
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
+	 * @param inputClass
+	 *        the class of records that can be read from the record reader
 	 */
-	public RecordReader(AbstractOutputTask outputBase, RecordDeserializerFactory<T> deserializerFactory) {
+	public RecordReader(final AbstractOutputTask outputBase, final Class<T> inputClass) {
 
-		super(outputBase, deserializerFactory, 0);
+		super(outputBase, new DefaultRecordFactory<T>(inputClass), 0);
+	}
+
+	/**
+	 * Constructs a new record reader and registers a new input gate with the application's environment.
+	 * 
+	 * @param taskBase
+	 *        the application that instantiated the record reader
+	 * @param recordFactory
+	 *        a factory to instantiate new record records
+	 */
+	public RecordReader(final AbstractTask taskBase, final RecordFactory<T> recordFactory) {
+
+		super(taskBase, recordFactory, 0);
+	}
+
+	/**
+	 * Constructs a new record reader and registers a new input gate with the application's environment.
+	 * 
+	 * @param taskBase
+	 *        the application that instantiated the record reader
+	 * @param recordFactory
+	 *        a factory to instantiate new record records
+	 * @param inputGateID
+	 *        the ID of the input gate that the reader reads from
+	 */
+	public RecordReader(final AbstractTask taskBase, final RecordFactory<T> recordFactory, final int inputGateID) {
+
+		super(taskBase, recordFactory, inputGateID);
 	}
 
 	/**
@@ -125,18 +113,31 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 * 
 	 * @param outputBase
 	 *        the application that instantiated the record reader
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
+	 * @param recordFactory
+	 *        a factory to instantiate new record records
 	 */
-	public RecordReader(AbstractOutputTask outputBase, RecordDeserializerFactory<T> deserializerFactory, int inputGateID) {
+	public RecordReader(final AbstractOutputTask outputBase, final RecordFactory<T> recordFactory) {
 
-		super(outputBase, deserializerFactory, inputGateID);
+		super(outputBase, recordFactory, 0);
 	}
-	
+
+	/**
+	 * Constructs a new record reader and registers a new input gate with the application's environment.
+	 * 
+	 * @param outputBase
+	 *        the application that instantiated the record reader
+	 * @param recordFactory
+	 *        a factory to instantiate the record deserializer.
+	 * @param inputGateID
+	 *        the ID of the input gate that the reader reads from.
+	 */
+	public RecordReader(final AbstractOutputTask outputBase, final RecordFactory<T> recordFactory, int inputGateID) {
+
+		super(outputBase, recordFactory, inputGateID);
+	}
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Checks if at least one more record can be read from the associated input gate. This method may block
 	 * until the associated input gate is able to read the record from one of its input channels.

@@ -52,7 +52,7 @@ public final class SpeedTestProducer extends AbstractGenericInputTask {
 		final long numberOfRecordsToEmit = (long) dataVolumePerSubtaskInMB * 1024L * 1024L
 			/ (long) SpeedTestRecord.RECORD_SIZE;
 
-		final SpeedTestRecord record = new SpeedTestRecord();
+		final SpeedTestRecord record = SpeedTestRecord.create();
 
 		for (long i = 0; i < numberOfRecordsToEmit; ++i) {
 			this.writer.emit(record);

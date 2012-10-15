@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,25 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io;
 
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.types.Record;
+public final class DefaultRecordFactory<T> implements RecordFactory<T> {
 
-public final class NetworkOutputChannel<T extends Record> extends AbstractByteBufferedOutputChannel<T> {
+	private final Class<T> recordType;
 
-	public NetworkOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			ChannelID connectedChannelID, CompressionLevel compressionLevel) {
-		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
+	public DefaultRecordFactory(final Class<T> recordType) {
+		this.recordType = recordType;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public ChannelType getType() {
+	public T createRecord() {
 
-		return ChannelType.NETWORK;
+		try {
+			return this.recordType.newInstance();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
-
 }

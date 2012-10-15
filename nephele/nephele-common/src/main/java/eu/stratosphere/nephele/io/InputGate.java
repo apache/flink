@@ -17,8 +17,8 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.InputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
@@ -64,7 +64,7 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the position to retrieve the channel from
 	 * @return the channel from the given position or <code>null</code> if such position does not exist.
 	 */
-	AbstractInputChannel<T> getInputChannel(int pos);
+	InputChannel<T> getInputChannel(int pos);
 
 	/**
 	 * Notify the gate that the channel with the given index has
@@ -127,7 +127,7 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new network input channel
 	 */
-	AbstractInputChannel<T> createNetworkInputChannel(InputGate<T> inputGate, ChannelID channelID,
+	InputChannel<T> createNetworkInputChannel(InputGate<T> inputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
@@ -143,8 +143,8 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new file input channel
 	 */
-	AbstractInputChannel<T> createFileInputChannel(InputGate<T> inputGate, ChannelID channelID,
-			ChannelID connectedChannelID, CompressionLevel compressionLevel);
+	InputChannel<T> createFileInputChannel(InputGate<T> inputGate, ChannelID channelID, ChannelID connectedChannelID,
+			CompressionLevel compressionLevel);
 
 	/**
 	 * Creates a new in-memory input channel and assigns it to the given input gate.
@@ -159,7 +159,7 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new in-memory input channel
 	 */
-	AbstractInputChannel<T> createInMemoryInputChannel(InputGate<T> inputGate, ChannelID channelID,
+	InputChannel<T> createInMemoryInputChannel(InputGate<T> inputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**

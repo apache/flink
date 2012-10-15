@@ -16,12 +16,10 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
 
@@ -99,15 +97,6 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 
 		// Simply pass record through to the corresponding output gate
 		this.outputGate.writeRecord(record);
-	}
-
-	/**
-	 * Returns the list of OutputChannels connected to this RecordWriter.
-	 * 
-	 * @return the list of OutputChannels connected to this RecordWriter
-	 */
-	public List<AbstractOutputChannel<T>> getOutputChannels() {
-		return this.outputGate.getOutputChannels();
 	}
 
 	/**

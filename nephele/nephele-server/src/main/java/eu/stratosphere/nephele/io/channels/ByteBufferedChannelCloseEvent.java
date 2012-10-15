@@ -13,25 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.channels;
 
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.types.Record;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-public final class NetworkInputChannel<T extends Record> extends AbstractByteBufferedInputChannel<T> {
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 
-	public NetworkInputChannel(InputGate<T> inputGate, int channelIndex, RecordDeserializer<T> deserializer,
-			ChannelID channelID, ChannelID connectedChannelID, CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, deserializer, channelID, connectedChannelID, compressionLevel);
+public class ByteBufferedChannelCloseEvent extends AbstractEvent {
+
+	@Override
+	public void read(DataInput in) throws IOException {
+
+		// Nothing to do here
 	}
 
 	@Override
-	public ChannelType getType() {
-
-		return ChannelType.NETWORK;
+	public void write(DataOutput out) throws IOException {
+		// Nothing to do here
 	}
+
 }

@@ -1,4 +1,4 @@
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.channels;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -8,7 +8,6 @@ import java.nio.channels.ReadableByteChannel;
 
 import eu.stratosphere.nephele.io.RecordDeserializer;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.types.Record;
 
 public class TestRecordDeserializer<T extends Record> implements RecordDeserializer<T> {

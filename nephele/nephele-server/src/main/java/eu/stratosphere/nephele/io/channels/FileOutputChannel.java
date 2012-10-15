@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.channels;
 
 import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -21,13 +21,17 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
-public final class FileOutputChannel<T extends Record> extends AbstractByteBufferedOutputChannel<T> {
+public final class FileOutputChannel<T extends Record> extends AbstractOutputChannel<T> {
 
-	public FileOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			ChannelID connectedChannelID, CompressionLevel compressionLevel) {
-		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
+	public FileOutputChannel(final OutputGate<T> outputGate, final int channelIndex, final ChannelID channelID,
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel,
+			final RecordSerializer<T> recordSerializer) {
+		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel, recordSerializer);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public ChannelType getType() {
 

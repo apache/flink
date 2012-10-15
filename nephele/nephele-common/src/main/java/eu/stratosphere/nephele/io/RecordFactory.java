@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,25 +13,22 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+/**
+ * This interface defines a factory which is able to instantiate new record objects of the type T. A record factory is
+ * required when the user code chooses to use immutable records over mutable ones.
+ * 
+ * @author warneke
+ * @param <T>
+ *        the type of records instantiated by this factory.
+ */
+public interface RecordFactory<T> {
 
-import eu.stratosphere.nephele.event.task.AbstractEvent;
-
-public class ByteBufferedChannelCloseEvent extends AbstractEvent {
-
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		// Nothing to do here
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-		// Nothing to do here
-	}
-
+	/**
+	 * Creates a new record of type T.
+	 * 
+	 * @return a new record of type T
+	 */
+	T createRecord();
 }

@@ -28,9 +28,9 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
+import eu.stratosphere.nephele.io.channels.FileOutputChannel;
+import eu.stratosphere.nephele.io.channels.InMemoryOutputChannel;
+import eu.stratosphere.nephele.io.channels.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -63,7 +63,7 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * Channel selector to determine which channel is supposed receive the next record.
 	 */
 	private final ChannelSelector<T> channelSelector;
-
+	
 	/**
 	 * The class of the record transported through this output gate.
 	 */

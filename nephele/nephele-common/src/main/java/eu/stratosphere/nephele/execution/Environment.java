@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializerFactory;
+import eu.stratosphere.nephele.io.RecordFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -172,8 +172,8 @@ public interface Environment {
 	 *        The type of the record consumed by the output gate.
 	 * @return The created output gate.
 	 */
-	<T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
-															ChannelSelector<T> selector, boolean isBroadcast);
+	<T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass, ChannelSelector<T> selector,
+			boolean isBroadcast);
 
 	/**
 	 * Creates an input gate.
@@ -185,7 +185,7 @@ public interface Environment {
 	 *        The type of the record read from the input gate.
 	 * @return The created input gate.
 	 */
-	<T extends Record> InputGate<T> createInputGate(GateID gateID, RecordDeserializerFactory<T> deserializerFactory);
+	<T extends Record> InputGate<T> createInputGate(GateID gateID, RecordFactory<T> recordFactory);
 
 	/**
 	 * Registers an output gate with this environment.

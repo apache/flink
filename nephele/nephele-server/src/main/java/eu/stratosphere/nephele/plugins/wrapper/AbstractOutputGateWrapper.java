@@ -16,16 +16,15 @@
 package eu.stratosphere.nephele.plugins.wrapper;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.channels.OutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
@@ -222,15 +221,6 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public List<AbstractOutputChannel<T>> getOutputChannels() {
-
-		return this.wrappedOutputGate.getOutputChannels();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public void flush() throws IOException, InterruptedException {
 
 		this.wrappedOutputGate.flush();
@@ -258,7 +248,7 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public AbstractOutputChannel<T> getOutputChannel(final int pos) {
+	public OutputChannel<T> getOutputChannel(final int pos) {
 
 		return this.wrappedOutputGate.getOutputChannel(pos);
 	}
@@ -294,7 +284,7 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public AbstractOutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
+	public OutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedOutputGate.createNetworkOutputChannel(outputGate, channelID, connectedChannelID,
@@ -305,7 +295,7 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public AbstractOutputChannel<T> createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
+	public OutputChannel<T> createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedOutputGate.createFileOutputChannel(outputGate, channelID, connectedChannelID,
@@ -316,7 +306,7 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public AbstractOutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
+	public OutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedOutputGate.createInMemoryOutputChannel(outputGate, channelID, connectedChannelID,

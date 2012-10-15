@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.AtomicEnumerator;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -115,7 +115,7 @@ public final class EnvelopeConsumptionLog {
 		return TEMP_PATHS.getNext() + File.separator + ENVELOPE_CONSUMPTION_LOG_PREFIX + vertexID;
 	}
 
-	void reportEnvelopeAvailability(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
+	void reportEnvelopeAvailability(final AbstractInputChannel<? extends Record> inputChannel) {
 
 		synchronized (this) {
 
@@ -178,12 +178,12 @@ public final class EnvelopeConsumptionLog {
 		}
 	}
 
-	void reportEnvelopeConsumed(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
+	void reportEnvelopeConsumed(final AbstractInputChannel<? extends Record> inputChannel) {
 
 		inputChannel.notifyDataUnitConsumed();
 	}
 
-	private void addOutstandingEnvelope(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
+	private void addOutstandingEnvelope(final AbstractInputChannel<? extends Record> inputChannel) {
 
 		final int entryToTest = toEntry(inputChannel.getInputGate().getIndex(), inputChannel.getChannelIndex(), false);
 
@@ -394,15 +394,16 @@ public final class EnvelopeConsumptionLog {
 
 	}
 
-	private AbstractByteBufferedInputChannel<? extends Record> toInputChannel(final int gateIndex,
+	@SuppressWarnings("unchecked")
+	private AbstractInputChannel<? extends Record> toInputChannel(final int gateIndex,
 			final int channelIndex) {
 
 		final InputGate<? extends Record> inputGate = this.environment.getInputGate(gateIndex);
 
-		return (AbstractByteBufferedInputChannel<? extends Record>) inputGate.getInputChannel(channelIndex);
+		return (AbstractInputChannel<? extends Record>) inputGate.getInputChannel(channelIndex);
 	}
 
-	private void announce(final AbstractByteBufferedInputChannel<? extends Record> inputChannel) {
+	private void announce(final AbstractInputChannel<? extends Record> inputChannel) {
 
 		inputChannel.checkForNetworkEvents();
 

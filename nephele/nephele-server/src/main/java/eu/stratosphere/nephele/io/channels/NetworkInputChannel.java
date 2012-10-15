@@ -13,20 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.io.channels;
 
-import java.io.IOException;
-
+import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
-/**
- * A writer interface which is implemented by record writer.
- * 
- * @author nijkamp
- * @param <T>
- *        the type of the record that can be emitted with this record writer
- */
-public interface Writer<T extends Record> {
+public final class NetworkInputChannel<T extends Record> extends AbstractInputChannel<T> {
 
-	void emit(T record) throws IOException, InterruptedException;
+	public NetworkInputChannel(final InputGate<T> inputGate, final int channelIndex, final ChannelID channelID,
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel,
+			final RecordDeserializer<T> deserializer) {
+		super(inputGate, channelIndex, channelID, connectedChannelID, compressionLevel, deserializer);
+	}
+
+	@Override
+	public ChannelType getType() {
+
+		return ChannelType.NETWORK;
+	}
 }
