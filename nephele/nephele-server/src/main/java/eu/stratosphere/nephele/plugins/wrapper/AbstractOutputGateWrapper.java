@@ -26,9 +26,6 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
@@ -297,7 +294,7 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkOutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
+	public AbstractOutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedOutputGate.createNetworkOutputChannel(outputGate, channelID, connectedChannelID,
@@ -308,7 +305,7 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileOutputChannel<T> createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
+	public AbstractOutputChannel<T> createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedOutputGate.createFileOutputChannel(outputGate, channelID, connectedChannelID,
@@ -319,7 +316,7 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
+	public AbstractOutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedOutputGate.createInMemoryOutputChannel(outputGate, channelID, connectedChannelID,

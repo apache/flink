@@ -24,9 +24,6 @@ import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
@@ -260,7 +257,7 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public AbstractInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedInputGate.createNetworkInputChannel(inputGate, channelID, connectedChannelID,
@@ -271,7 +268,7 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public AbstractInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedInputGate.createFileInputChannel(inputGate, channelID, connectedChannelID, compressionLevel);
@@ -281,7 +278,7 @@ public abstract class AbstractInputGateWrapper<T extends Record> implements Inpu
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public AbstractInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		return this.wrappedInputGate.createInMemoryInputChannel(inputGate, channelID, connectedChannelID,

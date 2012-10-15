@@ -20,9 +20,6 @@ import java.util.List;
 
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
@@ -142,7 +139,7 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new network output channel
 	 */
-	NetworkOutputChannel<T> createNetworkOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
+	AbstractOutputChannel<T> createNetworkOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
@@ -158,7 +155,7 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new file output channel
 	 */
-	FileOutputChannel<T> createFileOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
+	AbstractOutputChannel<T> createFileOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
@@ -174,6 +171,6 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new in-memory output channel
 	 */
-	InMemoryOutputChannel<T> createInMemoryOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
+	AbstractOutputChannel<T> createInMemoryOutputChannel(OutputGate<T> outputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 }

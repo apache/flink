@@ -189,7 +189,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public AbstractInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(),

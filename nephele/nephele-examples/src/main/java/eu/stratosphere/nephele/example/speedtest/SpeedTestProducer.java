@@ -49,7 +49,8 @@ public final class SpeedTestProducer extends AbstractGenericInputTask {
 		final int dataVolumePerSubtaskInMB = getTaskConfiguration().getInteger(SpeedTest.DATA_VOLUME_CONFIG_KEY, 1)
 			* 1024 / getCurrentNumberOfSubtasks();
 
-		final long numberOfRecordsToEmit = dataVolumePerSubtaskInMB * 1024 * 1024 / SpeedTestRecord.RECORD_SIZE;
+		final long numberOfRecordsToEmit = (long) dataVolumePerSubtaskInMB * 1024L * 1024L
+			/ (long) SpeedTestRecord.RECORD_SIZE;
 
 		final SpeedTestRecord record = new SpeedTestRecord();
 

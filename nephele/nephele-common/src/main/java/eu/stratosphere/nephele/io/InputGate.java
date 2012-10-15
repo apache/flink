@@ -19,9 +19,6 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
@@ -130,7 +127,7 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new network input channel
 	 */
-	NetworkInputChannel<T> createNetworkInputChannel(InputGate<T> inputGate, ChannelID channelID,
+	AbstractInputChannel<T> createNetworkInputChannel(InputGate<T> inputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
@@ -146,7 +143,7 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new file input channel
 	 */
-	FileInputChannel<T> createFileInputChannel(InputGate<T> inputGate, ChannelID channelID,
+	AbstractInputChannel<T> createFileInputChannel(InputGate<T> inputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
@@ -162,7 +159,7 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the level of compression to be used for this channel
 	 * @return the new in-memory input channel
 	 */
-	InMemoryInputChannel<T> createInMemoryInputChannel(InputGate<T> inputGate, ChannelID channelID,
+	AbstractInputChannel<T> createInMemoryInputChannel(InputGate<T> inputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**

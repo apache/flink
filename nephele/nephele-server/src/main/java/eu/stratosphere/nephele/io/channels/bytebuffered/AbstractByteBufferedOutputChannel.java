@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.SerializationBuffer;
 import eu.stratosphere.nephele.io.compression.CompressionEvent;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -38,7 +37,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	/**
 	 * The serialization buffer used to serialize records.
 	 */
-	private final SerializationBuffer<T> serializationBuffer = new SerializationBuffer<T>();
+	private final RecordSerializer<T> recordSerializer = new BufferSpanningRecordSerializer<T>();
 
 	/**
 	 * Buffer for the serialized output data.
@@ -93,7 +92,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	public boolean isClosed() throws IOException, InterruptedException {
 
 		if (this.closeRequested && this.dataBuffer == null
-			&& !this.serializationBuffer.dataLeftFromPreviousSerialization()) {
+			&& !this.recordSerializer.dataLeftFromPreviousSerialization()) {
 
 			if (!this.outputChannelBroker.hasDataLeftToTransmit()) {
 				return true;
@@ -111,7 +110,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 
 		if (!this.closeRequested) {
 			this.closeRequested = true;
-			if (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
+			if (this.recordSerializer.dataLeftFromPreviousSerialization()) {
 				// make sure we serialized all data before we send the close event
 				flush();
 			}
@@ -176,9 +175,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		// Check if we can accept new records or if there are still old
 		// records to be transmitted
 		if (this.compressor != null) {
-			while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
+			while (this.recordSerializer.dataLeftFromPreviousSerialization()) {
 
-				this.serializationBuffer.read(this.dataBuffer);
+				this.recordSerializer.read(this.dataBuffer);
 				if (this.dataBuffer.remaining() == 0) {
 
 					this.dataBuffer = this.compressor.compress(this.dataBuffer);
@@ -188,9 +187,9 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 				}
 			}
 		} else {
-			while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
+			while (this.recordSerializer.dataLeftFromPreviousSerialization()) {
 
-				this.serializationBuffer.read(this.dataBuffer);
+				this.recordSerializer.read(this.dataBuffer);
 				if (this.dataBuffer.remaining() == 0) {
 					releaseWriteBuffer();
 					requestWriteBufferFromBroker();
@@ -198,14 +197,14 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 			}
 		}
 
-		if (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
+		if (this.recordSerializer.dataLeftFromPreviousSerialization()) {
 			throw new IOException("Serialization buffer is expected to be empty!");
 		}
 
-		this.serializationBuffer.serialize(record);
+		this.recordSerializer.serialize(record);
 
 		if (this.compressor != null) {
-			this.serializationBuffer.read(this.dataBuffer);
+			this.recordSerializer.read(this.dataBuffer);
 
 			if (this.dataBuffer.remaining() == 0) {
 				this.dataBuffer = this.compressor.compress(this.dataBuffer);
@@ -213,7 +212,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 				releaseWriteBuffer();
 			}
 		} else {
-			this.serializationBuffer.read(this.dataBuffer);
+			this.recordSerializer.read(this.dataBuffer);
 			if (this.dataBuffer.remaining() == 0) {
 				releaseWriteBuffer();
 			}
@@ -278,7 +277,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 	public void flush() throws IOException, InterruptedException {
 
 		// Get rid of remaining data in the serialization buffer
-		while (this.serializationBuffer.dataLeftFromPreviousSerialization()) {
+		while (this.recordSerializer.dataLeftFromPreviousSerialization()) {
 
 			if (this.dataBuffer == null) {
 
@@ -289,14 +288,14 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 				}
 			}
 			if (this.compressor != null) {
-				this.serializationBuffer.read(this.dataBuffer);
+				this.recordSerializer.read(this.dataBuffer);
 				if (this.dataBuffer.remaining() == 0) {
 					this.dataBuffer = this.compressor.compress(this.dataBuffer);
 					// this.leasedWriteBuffer.flip();
 					releaseWriteBuffer();
 				}
 			} else {
-				this.serializationBuffer.read(this.dataBuffer);
+				this.recordSerializer.read(this.dataBuffer);
 				if (this.dataBuffer.remaining() == 0) {
 					releaseWriteBuffer();
 				}
@@ -327,7 +326,7 @@ public abstract class AbstractByteBufferedOutputChannel<T extends Record> extend
 		// TODO: Reconsider release of broker's resources here
 		this.closeRequested = true;
 
-		this.serializationBuffer.clear();
+		this.recordSerializer.clear();
 
 		if (this.dataBuffer != null) {
 			this.dataBuffer.recycleBuffer();
