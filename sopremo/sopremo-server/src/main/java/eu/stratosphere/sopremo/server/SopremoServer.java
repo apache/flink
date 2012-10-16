@@ -103,7 +103,12 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 		LOG.info("Receive execution request for job " + jobId);
 		final SopremoJobInfo info = new SopremoJobInfo(jobId, request, this.configuration);
 		this.meteorInfo.put(jobId, info);
-		this.executorService.submit(new SopremoExecutionThread(info, getJobManagerAddress()));
+		if (request.getQuery() == null)
+			info.setStatusAndDetail(ExecutionState.ERROR, "No plan submitted");
+		else if (request.getMode() == null)
+			info.setStatusAndDetail(ExecutionState.ERROR, "No mode set");
+		else
+			this.executorService.submit(new SopremoExecutionThread(info, getJobManagerAddress()));
 		return this.getState(jobId);
 	}
 
@@ -257,6 +262,8 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			}
 			// Do nothing here
 		}
+
+		sopremoServer.close();
 	}
 
 }

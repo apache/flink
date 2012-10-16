@@ -418,8 +418,7 @@ public class JsonParser {
 		}
 
 		@Override
-		public StringBuilder toString(final StringBuilder sb) {
-			return sb;
+		public void toString(final StringBuilder sb) {
 		}
 
 		@Override

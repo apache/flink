@@ -3,6 +3,7 @@ package eu.stratosphere.sopremo.function;
 import java.lang.reflect.Method;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
@@ -36,7 +37,11 @@ public class FixedReturnJavaMethod<ReturnType extends IJsonNode> extends JavaMet
 	 */
 	@Override
 	public IJsonNode call(final IArrayNode params, final IJsonNode target, final EvaluationContext context) {
-		this.method.invoke(null, addTargetToParameters(params, this.returnValue));
-		return this.returnValue;
+		try {
+			this.method.invoke(null, addTargetToParameters(params, this.returnValue));
+			return this.returnValue;
+		} catch (Exception e) {
+			throw new EvaluationException(e);
+		}
 	}
 }

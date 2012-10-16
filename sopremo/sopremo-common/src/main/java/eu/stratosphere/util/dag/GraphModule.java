@@ -15,9 +15,9 @@
 package eu.stratosphere.util.dag;
 
 import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -28,11 +28,11 @@ import eu.stratosphere.util.IdentitySet;
  * Skeleton implementation of {@link SubGraph}.
  * 
  * @param <Node>
- *        the type of all node
+ *            the type of all node
  * @param <InputNode>
- *        the type of all input nodes
+ *            the type of all input nodes
  * @param <OutputNode>
- *        the type of all output nodes
+ *            the type of all output nodes
  */
 public abstract class GraphModule<Node, InputNode extends Node, OutputNode extends Node> implements
 		SubGraph<Node, InputNode, OutputNode>, Serializable {
@@ -44,7 +44,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	/**
 	 * The outputs of the module.
 	 */
-	protected final OutputNode[] outputNodes;
+	protected final List<OutputNode> outputNodes;
 
 	/**
 	 * internal outputs
@@ -54,27 +54,47 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	/**
 	 * The inputs of the module.
 	 */
-	protected final InputNode[] inputNodes;
+	protected final List<InputNode> inputNodes;
 
 	private final ConnectionNavigator<Node> navigator;
 
 	private final String name;
 
 	/**
-	 * Initializes a PactModule having the given inputs, outputs, and {@link Navigator}.
+	 * Initializes a GraphModule having the given inputs, outputs, and
+	 * {@link Navigator}.
 	 * 
 	 * @param inputNodes
-	 *        the inputs
+	 *            the inputs
 	 * @param outputNodes
-	 *        the outputs
+	 *            the outputs
 	 * @param navigator
-	 *        the navigator used to traverse the graph of nodes
+	 *            the navigator used to traverse the graph of nodes
 	 */
-	protected GraphModule(final String name, final InputNode[] inputNodes, final OutputNode[] outputNodes,
+	protected GraphModule(final String name, final List<InputNode> inputNodes, final List<OutputNode> outputNodes,
 			final ConnectionNavigator<Node> navigator) {
 		this.name = name;
-		this.inputNodes = inputNodes;
-		this.outputNodes = outputNodes;
+		this.inputNodes = new ArrayList<InputNode>(inputNodes);
+		this.outputNodes = new ArrayList<OutputNode>(outputNodes);
+		this.navigator = navigator;
+	}
+
+	/**
+	 * Initializes a GraphModule having the given number of inputs and outputs,
+	 * and {@link Navigator}.
+	 * 
+	 * @param numInputs
+	 *            the number of inputs
+	 * @param numOutputs
+	 *            the number of outputs
+	 * @param navigator
+	 *            the navigator used to traverse the graph of nodes
+	 */
+	protected GraphModule(final String name, final int numInputs, final int numOutputs,
+			final ConnectionNavigator<Node> navigator) {
+		this.name = name;
+		this.inputNodes = new ArrayList<InputNode>(Collections.nCopies(numInputs, (InputNode) null));
+		this.outputNodes = new ArrayList<OutputNode>(Collections.nCopies(numOutputs, (OutputNode) null));
 		this.navigator = navigator;
 	}
 
@@ -88,39 +108,39 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	 * 
 	 * @return the internalOutputNodes
 	 */
-	@SuppressWarnings("unchecked")
-	public OutputNode[] getInternalOutputNodes() {
-		return this.internalOutputNodes.toArray((OutputNode[]) Array.newInstance(
-			this.outputNodes.getClass().getComponentType(),
-			this.internalOutputNodes.size()));
+	public List<OutputNode> getInternalOutputNodes() {
+		return new ArrayList<OutputNode>(this.internalOutputNodes);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public OutputNode[] getAllOutputs() {
-		if (this.internalOutputNodes.isEmpty())
-			return this.outputNodes;
-		final OutputNode[] allOutputs = (OutputNode[]) Array.newInstance(this.outputNodes.getClass()
-			.getComponentType(), this.outputNodes.length + this.internalOutputNodes.size());
-		System.arraycopy(this.outputNodes, 0, allOutputs, 0, this.outputNodes.length);
-		for (int index = 0; index < allOutputs.length; index++)
-			allOutputs[index + this.outputNodes.length] = this.internalOutputNodes.get(index);
+	public List<OutputNode> getAllOutputs() {
+		if (this.internalOutputNodes.isEmpty()) return getOutputs();
+		final List<OutputNode> allOutputs = new ArrayList<OutputNode>(this.outputNodes);
+		allOutputs.addAll(this.internalOutputNodes);
 		return allOutputs;
 	}
 
 	@Override
 	public InputNode getInput(final int index) {
-		return this.inputNodes[index];
+		return this.inputNodes.get(index);
 	}
 
 	@Override
 	public void setInput(final int index, final InputNode input) {
-		this.inputNodes[index] = input;
+		this.inputNodes.set(index, input);
 	}
 
 	@Override
-	public InputNode[] getInputs() {
-		return this.inputNodes;
+	public List<InputNode> getInputs() {
+		return new ArrayList<InputNode>( this.inputNodes);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.util.dag.SubGraph#getNumInputs()
+	 */
+	@Override
+	public int getNumInputs() {
+		return this.inputNodes.size();
 	}
 
 	public String getName() {
@@ -129,7 +149,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 
 	@Override
 	public OutputNode getOutput(final int index) {
-		return this.outputNodes[index];
+		return this.outputNodes.get(index);
 	}
 
 	@Override
@@ -139,12 +159,22 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 
 	@Override
 	public void setOutput(final int index, final OutputNode output) {
-		this.outputNodes[index] = output;
+		this.outputNodes.set(index, output);
 	}
 
 	@Override
-	public OutputNode[] getOutputs() {
-		return this.outputNodes;
+	public List<OutputNode> getOutputs() {
+		return new ArrayList<OutputNode>(this.outputNodes);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see eu.stratosphere.util.dag.SubGraph#getNumOutputs()
+	 */
+	@Override
+	public int getNumOutputs() {
+		return this.outputNodes.size();
 	}
 
 	@Override
@@ -165,17 +195,16 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 			for (final Node node : this.navigator.getConnectedNodes(output))
 				if (node == null)
 					throw new IllegalStateException(String.format("%s: output %s is not fully connected",
-						this.getName(),
-						output));
+							this.getName(), output));
 
 		final Iterable<? extends Node> reachableNodes = this.getReachableNodes();
-		final List<InputNode> inputList = new LinkedList<InputNode>(Arrays.asList(this.inputNodes));
+		final List<InputNode> inputList = new LinkedList<InputNode>(this.inputNodes);
 		for (final Node node : reachableNodes)
 			inputList.remove(node);
 
 		if (!inputList.isEmpty())
-			throw new IllegalStateException(
-				String.format("%s: inputs %s are not fully connected", this.getName(), inputList));
+			throw new IllegalStateException(String.format("%s: inputs %s are not fully connected", this.getName(),
+					inputList));
 	}
 
 	@Override
@@ -189,12 +218,9 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (this.getClass() != obj.getClass())
-			return false;
+		if (this == obj) return true;
+		if (obj == null) return false;
+		if (this.getClass() != obj.getClass()) return false;
 
 		@SuppressWarnings({ "rawtypes", "unchecked" })
 		final GraphModule<Node, InputNode, OutputNode> other = (GraphModule) obj;
@@ -204,7 +230,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 	public List<Node> getUnmatchingNodes(final GraphModule<Node, InputNode, OutputNode> other) {
 		final IdentitySet<Node> seen = new IdentitySet<Node>();
 
-		return this.getUnmatchingNode(Arrays.asList(this.getAllOutputs()), Arrays.asList(other.getAllOutputs()), seen);
+		return this.getUnmatchingNode(this.getAllOutputs(), other.getAllOutputs(), seen);
 	}
 
 	/**
@@ -223,13 +249,11 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 			final Node node1 = iterator1.next();
 			final Node node2 = iterator2.next();
 
-			if (!node1.equals(node2))
-				return Arrays.asList(node1, node2);
+			if (!node1.equals(node2)) return Arrays.asList(node1, node2);
 
 			final List<Node> unmatching = this.getUnmatchingNode(this.navigator.getConnectedNodes(node1),
-				this.navigator.getConnectedNodes(node2), seen);
-			if (unmatching != null)
-				return unmatching;
+					this.navigator.getConnectedNodes(node2), seen);
+			if (unmatching != null) return unmatching;
 		}
 
 		return null;

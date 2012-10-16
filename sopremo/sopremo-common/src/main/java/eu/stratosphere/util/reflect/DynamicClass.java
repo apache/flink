@@ -69,11 +69,11 @@ public class DynamicClass<DeclaringClass> {
 		}
 	}
 
-	public Object invoke(final DeclaringClass instance, final String name, final Object... params) {
+	public Object invoke(final DeclaringClass instance, final String name, final Object... params) throws Exception {
 		return this.getMethod(name).invoke(instance, params);
 	}
 
-	public Object invokeStatic(final String name, final Object... params) {
+	public Object invokeStatic(final String name, final Object... params) throws Exception {
 		return this.getMethod(name).invoke(null, params);
 	}
 
@@ -81,11 +81,11 @@ public class DynamicClass<DeclaringClass> {
 		return this.getConstructor().isInvokableFor();
 	}
 
-	public DynamicInstance<DeclaringClass> newDynamicInstance(final Object... params) {
+	public DynamicInstance<DeclaringClass> newDynamicInstance(final Object... params) throws Exception {
 		return new DynamicInstance<DeclaringClass>(this, params);
 	}
 
-	public DeclaringClass newInstance(final Object... params) {
+	public DeclaringClass newInstance(final Object... params) throws Exception {
 		return this.getConstructor().invoke(params);
 	}
 

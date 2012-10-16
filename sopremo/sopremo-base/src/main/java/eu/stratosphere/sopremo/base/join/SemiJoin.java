@@ -5,6 +5,7 @@ import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 public class SemiJoin extends TwoSourceJoinBase<SemiJoin> {
@@ -22,7 +23,7 @@ public class SemiJoin extends TwoSourceJoinBase<SemiJoin> {
 		private IArrayNode result = new ArrayNode(NullNode.getInstance());
 
 		@Override
-		protected void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out) {
+		protected void coGroup(IStreamArrayNode values1, IStreamArrayNode values2, JsonCollector out) {
 			if (!values2.isEmpty())
 				for (final IJsonNode value : values1) {
 					this.result.set(0, value);

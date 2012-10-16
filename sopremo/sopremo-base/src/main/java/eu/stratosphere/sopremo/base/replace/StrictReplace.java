@@ -43,7 +43,7 @@ public class StrictReplace extends ReplaceBase<StrictReplace> {
 		@Override
 		protected void match(IJsonNode value1, IJsonNode value2, JsonCollector out) {
 			out.collect(this.replaceExpression.set(value1,
-				this.dictionaryValueExtraction.evaluate(value2, getContext()),
+				this.dictionaryValueExtraction.evaluate(value2, this.getContext()),
 				this.getContext()));
 		}
 	}

@@ -40,7 +40,7 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  */
-public class PactString implements Key, NormalizableKey, CharSequence
+public class PactString implements Key, NormalizableKey, CharSequence, Appendable
 {
 	private static final char[] EMPTY_STRING = new char[0];
 	
@@ -75,7 +75,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * 
 	 * @param value The string containing the value for this PactString.
 	 */
-	public PactString(final String value)
+	public PactString(final CharSequence value)
 	{
 		this.value = EMPTY_STRING;
 		setValue(value);
@@ -116,8 +116,9 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 */
 	public void setLength(int len)
 	{
-		if (len < 0 || len > this.len)
-			throw new IllegalArgumentException("Length must be between 0 and the current length.");
+		if (len < 0)
+			throw new IllegalArgumentException("Length must be non-negative.");		 
+		grow(len);
 		this.len = len;
 	}
 	/**
@@ -144,7 +145,7 @@ public class PactString implements Key, NormalizableKey, CharSequence
 	 * 
 	 * @param value The new string value.
 	 */
-	public void setValue(final String value)
+	public void setValue(final CharSequence value)
 	{
 		if (value == null)
 			throw new NullPointerException("Value must not be null");
@@ -357,6 +358,61 @@ public class PactString implements Key, NormalizableKey, CharSequence
 			}
 		}
 		return -1;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                    Appendable Methods
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Appendable#append(char)
+	 */
+	@Override
+	public Appendable append(char c) {
+		grow(this.len + 1);
+		this.value[this.len++] = c;
+		return this;
+	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Appendable#append(java.lang.CharSequence)
+	 */
+	@Override
+	public Appendable append(CharSequence csq) {
+		append(csq, 0, csq.length());
+		return this;
+	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Appendable#append(java.lang.CharSequence, int, int)
+	 */
+	@Override
+	public Appendable append(CharSequence csq, int start, int end) {
+		final int otherLen = end - start;
+		grow(this.len + otherLen);
+		for (int pos = start; pos < otherLen; pos++) 
+			this.value[this.len + pos] = csq.charAt(pos);
+		this.len += otherLen;
+		return this;
+	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Appendable#append(java.lang.CharSequence)
+	 */
+	public Appendable append(PactString csq) {
+		append(csq, 0, csq.length());
+		return this;
+	}
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Appendable#append(java.lang.CharSequence, int, int)
+	 */
+	public Appendable append(PactString csq, int start, int end) {
+		final int otherLen = end - start;
+		grow(this.len + otherLen);
+		System.arraycopy(csq.value, start, this.value, this.len, otherLen);
+		this.len += otherLen;
+		return this;
 	}
 	
 	/**
@@ -651,7 +707,19 @@ public class PactString implements Key, NormalizableKey, CharSequence
 
 	private final void ensureSize(int size) {
 		if (this.value.length < size) {
+			// grow either to the given size or enlarge the current size by half, whichever is greater
 			this.value = new char[size];
+		}
+	}
+	
+	/**
+	 * Grow and retain content.
+	 */
+	private final void grow(int size) {
+		if (this.value.length < size) {
+			char[] value = new char[ Math.max(this.value.length * 3 / 2, size)];
+			System.arraycopy(this.value, 0, value, 0, this.len);
+			this.value = value;
 		}
 	}
 }

@@ -87,7 +87,7 @@ public class ArraySplit extends ElementaryOperator<ArraySplit> {
 	 */
 	public void setSplitProjection(ResultField... fields) {
 		int[] indices = new int[fields.length];
-		for (int index = 0; index < indices.length; index++) 
+		for (int index = 0; index < indices.length; index++)
 			indices[index] = fields[index].ordinal();
 		this.setSplitProjection(ArrayAccess.arrayWithIndices(indices));
 	}

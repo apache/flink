@@ -79,8 +79,11 @@ public class ObjectCreation extends EvaluationExpression {
 	 * @param mapping
 	 *        the new mapping
 	 */
-	public void addMapping(final Mapping<?> mapping) {
+	public ObjectCreation addMapping(final Mapping<?> mapping) {
+		if(mapping == null)
+			throw new NullPointerException();
 		this.mappings.add(mapping);
+		return this;
 	}
 
 	/**
@@ -91,8 +94,11 @@ public class ObjectCreation extends EvaluationExpression {
 	 * @param expression
 	 *        the expression that should be used for the created FieldAssignemt
 	 */
-	public void addMapping(final String target, final EvaluationExpression expression) {
+	public ObjectCreation addMapping(final String target, final EvaluationExpression expression) {
+		if(target == null || expression == null)
+			throw new NullPointerException();
 		this.mappings.add(new FieldAssignment(target, expression));
+		return this;
 	}
 
 	/**
@@ -103,8 +109,11 @@ public class ObjectCreation extends EvaluationExpression {
 	 * @param expression
 	 *        the expression that should be used for the created FieldAssignemt
 	 */
-	public void addMapping(final EvaluationExpression target, final EvaluationExpression expression) {
+	public ObjectCreation addMapping(final EvaluationExpression target, final EvaluationExpression expression) {
+		if(target == null || expression == null)
+			throw new NullPointerException();
 		this.mappings.add(new ExpressionAssignment(target, expression));
+		return this;
 	}
 
 	@Override

@@ -134,7 +134,11 @@ public class ReflectUtil {
 	 */
 	@SuppressWarnings("unchecked")
 	public static Object invoke(final Object object, final String function, final Object... params) {
-		return getDynamicClass((Class<Object>) object.getClass()).getMethod(function).invoke(object, params);
+		try {
+			return getDynamicClass((Class<Object>) object.getClass()).getMethod(function).invoke(object, params);
+		} catch (Exception e) {
+			throw new IllegalArgumentException(e);
+		}
 	}
 
 	/**
@@ -180,7 +184,11 @@ public class ReflectUtil {
 	 *         {@link IllegalAccessException}, * {@link InvocationTargetException}
 	 */
 	public static <T> T newInstance(final Class<T> type) throws IllegalArgumentException {
-		return getDynamicClass(type).newInstance();
+		try {
+			return getDynamicClass(type).newInstance();
+		} catch (Exception e) {
+			throw new IllegalArgumentException(e);
+		}
 	}
 
 	/**
@@ -202,7 +210,11 @@ public class ReflectUtil {
 	 *         {@link IllegalAccessException}, {@link InvocationTargetException}
 	 */
 	public static <T> T newInstance(final Class<T> type, final Object... params) throws IllegalArgumentException {
-		return getDynamicClass(type).newInstance(params);
+		try {
+			return getDynamicClass(type).newInstance(params);
+		} catch (Exception e) {
+			throw new IllegalArgumentException(e);
+		}
 	}
 
 	public static synchronized <T> DynamicClass<T> getDynamicClass(final Class<T> clazz) {

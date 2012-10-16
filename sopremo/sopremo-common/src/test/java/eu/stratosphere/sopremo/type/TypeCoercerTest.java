@@ -61,6 +61,7 @@ public class TypeCoercerTest {
 			{ BooleanNode.TRUE, ArrayNode.class, createArray(BooleanNode.TRUE) },
 			{ BooleanNode.TRUE, ObjectNode.class, CONVERSION_ERROR },
 
+			{ TextNode.valueOf("12.34"), IJsonNode.class, TextNode.valueOf("12.34") },
 			{ TextNode.valueOf("true"), BooleanNode.class, BooleanNode.TRUE },
 			// paradox but we do not parse the string but check if it is empty
 			{ TextNode.valueOf("false"), BooleanNode.class, BooleanNode.TRUE },

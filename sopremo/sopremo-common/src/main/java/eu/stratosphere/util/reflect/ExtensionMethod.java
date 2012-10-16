@@ -54,7 +54,7 @@ public class ExtensionMethod<ReturnType> extends DynamicMethod<ReturnType> {
 		return signatureTypes;
 	}
 
-	public ReturnType invoke(final Object... params) {
+	public ReturnType invoke(final Object... params) throws Exception {
 		return super.invoke(null, params);
 	}
 

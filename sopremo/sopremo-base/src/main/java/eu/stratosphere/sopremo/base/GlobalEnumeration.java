@@ -4,15 +4,16 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.expressions.InputSelection;
-import eu.stratosphere.sopremo.expressions.ObjectCreation;
+import eu.stratosphere.sopremo.expressions.ObjectAccess;
 import eu.stratosphere.sopremo.expressions.SingletonExpression;
 import eu.stratosphere.sopremo.operator.ElementaryOperator;
+import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoMap;
-import eu.stratosphere.sopremo.type.ArrayNode;
+import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonUtil;
@@ -20,6 +21,7 @@ import eu.stratosphere.sopremo.type.LongNode;
 import eu.stratosphere.sopremo.type.ObjectNode;
 import eu.stratosphere.sopremo.type.TextNode;
 
+@InputCardinality(1)
 public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 	/**
 	 * 
@@ -32,9 +34,18 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		 */
 		private static final long serialVersionUID = -3340948936846733311L;
 
+		private StringBuilder builder = new StringBuilder();
+
 		@Override
 		public IJsonNode evaluate(final IJsonNode node, IJsonNode target, final EvaluationContext context) {
-			return TextNode.valueOf(String.format("%d_%d", ((ArrayNode) node).get(0), ((ArrayNode) node).get(1)));
+			final IArrayNode values = (IArrayNode) node;
+			TextNode textTarget = SopremoUtil.ensureType(target, TextNode.class);
+			this.builder.setLength(0);
+			this.builder.append(((INumericNode) values.get(0)).getIntValue());
+			this.builder.append('_');
+			this.builder.append(((INumericNode) values.get(1)).getIntValue());
+			textTarget.setValue(this.builder.toString());
+			return textTarget;
 		}
 
 		@Override
@@ -62,23 +73,26 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		 */
 		@Override
 		public IJsonNode evaluate(IJsonNode node, IJsonNode target, EvaluationContext context) {
-			return LongNode.valueOf((((LongNode) ((ArrayNode) node).get(0)).getLongValue() << 48)
-				+ ((LongNode) ((ArrayNode) node).get(1)).getLongValue());
+			final IArrayNode values = (IArrayNode) node;
+			LongNode longTarget = SopremoUtil.ensureType(target, LongNode.class);
+			longTarget.setValue((((INumericNode) values.get(0)).getLongValue() << 48)
+				+ ((INumericNode) values.get(1)).getLongValue());
+			return longTarget;
 		}
 	};
 
-	private static final EvaluationExpression AUTO = new EvaluationExpression() {
+	public final EvaluationExpression AUTO_ENUMERATION = new EvaluationExpression() {
 		private static final long serialVersionUID = -5506784974227617703L;
 
 		@Override
 		public IJsonNode set(IJsonNode node, IJsonNode value, EvaluationContext context) {
 			if (node.isObject()) {
-				((IObjectNode) node).put("id", value);
+				((IObjectNode) node).put(GlobalEnumeration.this.idFieldName, value);
 				return node;
 			}
 			ObjectNode objectNode = new ObjectNode();
-			objectNode.put("id", value);
-			objectNode.put("value", node);
+			objectNode.put(GlobalEnumeration.this.idFieldName, value);
+			objectNode.put(GlobalEnumeration.this.valueFieldName, node);
 			return objectNode;
 		}
 
@@ -88,23 +102,26 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		}
 	};
 
-	private EvaluationExpression enumerationExpression = AUTO;
+	private EvaluationExpression enumerationExpression = this.AUTO_ENUMERATION;
 
 	private EvaluationExpression idGeneration = CONCATENATION;
+
+	private String idFieldName = "_ID", valueFieldName = "value";
 
 	public EvaluationExpression getEnumerationExpression() {
 		return this.enumerationExpression;
 	}
 
-	public String getEnumerationFieldName() {
-		if (this.enumerationExpression instanceof ObjectCreation
-			&& ((ObjectCreation) this.enumerationExpression).getMappingSize() == 2)
-			return (String) ((ObjectCreation) this.enumerationExpression).getMapping(1).getTarget();
-		return null;
+	public String getIdFieldName() {
+		return this.idFieldName;
 	}
 
 	public EvaluationExpression getIdGeneration() {
 		return this.idGeneration;
+	}
+
+	public EvaluationExpression getIdAccess() {
+		return new ObjectAccess(this.idFieldName);
 	}
 
 	public void setEnumerationExpression(final EvaluationExpression enumerationExpression) {
@@ -114,14 +131,31 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 		this.enumerationExpression = enumerationExpression;
 	}
 
-	public void setEnumerationFieldName(final String field) {
-		if (field == null)
+	public void setIdFieldName(final String enumerationFieldName) {
+		if (enumerationFieldName == null)
 			throw new NullPointerException();
 
-		final ObjectCreation objectMerge = new ObjectCreation();
-		objectMerge.addMapping(new ObjectCreation.CopyFields(new InputSelection(0)));
-		objectMerge.addMapping(field, new InputSelection(1));
-		this.enumerationExpression = objectMerge;
+		this.idFieldName = enumerationFieldName;
+	}
+
+	public GlobalEnumeration withIdFieldName(String enumerationFieldName) {
+		this.setIdFieldName(enumerationFieldName);
+		return this;
+	}
+
+	public GlobalEnumeration withValueFieldName(String valueFieldName) {
+		this.setValueFieldName(valueFieldName);
+		return this;
+	}
+
+	public GlobalEnumeration withEnumerationExpression(EvaluationExpression enumerationExpression) {
+		this.setEnumerationExpression(enumerationExpression);
+		return this;
+	}
+
+	public GlobalEnumeration withIdGeneration(EvaluationExpression idGeneration) {
+		this.setIdGeneration(idGeneration);
+		return this;
 	}
 
 	public void setIdGeneration(final EvaluationExpression idGeneration) {
@@ -129,6 +163,17 @@ public class GlobalEnumeration extends ElementaryOperator<GlobalEnumeration> {
 			throw new NullPointerException("idGeneration must not be null");
 
 		this.idGeneration = idGeneration;
+	}
+
+	public String getValueFieldName() {
+		return this.valueFieldName;
+	}
+
+	public void setValueFieldName(String valueFieldName) {
+		if (valueFieldName == null)
+			throw new NullPointerException("valueFieldName must not be null");
+
+		this.valueFieldName = valueFieldName;
 	}
 
 	public static class Implementation extends SopremoMap {

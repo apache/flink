@@ -63,8 +63,8 @@ statement
 	:	(assignment | operator | packageImport | functionDefinition | javaudf) ->;
 	
 packageImport
-  :  'using' packageName=ID { getPackageManager().importPackage($packageName.text); } ',' 
-     (additionalPackage=ID { getPackageManager().importPackage($additionalPackage.text); })* ->;
+  :  'using' packageName=ID { getPackageManager().importPackage($packageName.text); } 
+     (',' additionalPackage=ID { getPackageManager().importPackage($additionalPackage.text); })* ->;
 	
 assignment
 	:	target=VAR '=' source=operator { putVariable($target, new JsonStreamExpression($source.op)); } -> ;

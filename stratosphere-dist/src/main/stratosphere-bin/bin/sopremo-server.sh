@@ -63,6 +63,8 @@ constructSopremoClassPath() {
 			add=1
 		elif [[ "$jarfile" =~ 'commons-codec' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'guava' ]]; then
+			add=1
 		elif [[ "$jarfile" =~ 'fastutil' ]]; then
 			add=1
 		fi

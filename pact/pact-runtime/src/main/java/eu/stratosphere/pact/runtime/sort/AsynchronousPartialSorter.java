@@ -39,7 +39,7 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
  */
 public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E>
 {
-	private static final int MAX_MEM_PER_PARTIAL_SORT = 64 * 1024 * 0124;
+	private static final int MAX_MEM_PER_PARTIAL_SORT = 512 * 1024 * 1024;
 	
 	private BufferQueueIterator bufferIterator;
 	

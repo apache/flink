@@ -72,7 +72,7 @@ public class ObjectNode extends AbstractObjectNode implements IObjectNode {
 	}
 
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
+	public void toString(final StringBuilder sb) {
 		sb.append('{');
 
 		int count = 0;
@@ -87,7 +87,6 @@ public class ObjectNode extends AbstractObjectNode implements IObjectNode {
 		}
 
 		sb.append('}');
-		return sb;
 	}
 
 	@Override

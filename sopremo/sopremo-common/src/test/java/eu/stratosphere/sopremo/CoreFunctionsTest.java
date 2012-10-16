@@ -38,8 +38,8 @@ public class CoreFunctionsTest {
 	/**
 	 * 
 	 */
-	@Test
-	public void shouldConcatenateObjects() {
+	@Test(expected = ClassCastException.class)
+	public void shouldNotConcatenateObjects() {
 		shouldAggregate("bla1blu2", CoreFunctions.CONCAT, "bla", 1, "blu", 2);
 	}
 
@@ -203,7 +203,7 @@ public class CoreFunctionsTest {
 
 	@Test
 	public void shouldCalculateAvg() {
-		ArrayNode aggregator = CoreFunctions.AVERAGE.initialize(null);
+		CoreFunctions.AverageState aggregator = CoreFunctions.AVERAGE.initialize(null);
 		CoreFunctions.AVERAGE.aggregate(IntNode.valueOf(50), aggregator, this.context);
 		CoreFunctions.AVERAGE.aggregate(IntNode.valueOf(25), aggregator, this.context);
 		CoreFunctions.AVERAGE.aggregate(IntNode.valueOf(75), aggregator, this.context);
@@ -215,7 +215,7 @@ public class CoreFunctionsTest {
 
 	@Test
 	public void shouldCalculateAvgWithDifferentNodes() {
-		ArrayNode aggregator = CoreFunctions.AVERAGE.initialize(null);
+		CoreFunctions.AverageState aggregator = CoreFunctions.AVERAGE.initialize(null);
 
 		for (int i = 1; i < 500; i++)
 			aggregator = CoreFunctions.AVERAGE.aggregate(

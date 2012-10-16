@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
@@ -69,6 +70,8 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public class ExecutionGraph implements ExecutionListener {
 
+
+
 	/**
 	 * The log object used for debugging.
 	 */
@@ -104,7 +107,7 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * The executor service to asynchronously perform update operations to this graph.
 	 */
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor(new DeamonThreadFactory());
 
 	/**
 	 * Index to the current execution stage.
@@ -1436,5 +1439,21 @@ public class ExecutionGraph implements ExecutionListener {
 	public void executeCommand(final Runnable command) {
 
 		this.executorService.execute(command);
+	}
+	
+	/**
+	 * Creates deamon threads.<br />
+	 * Is used to allow the JVM to shutdown without closing the executorService of the {@link ExecutionGraph}.<br />
+	 * Has to be static to avoid resource leaks, since threads are GC roots.
+	 * 
+	 * @author Arvid Heise
+	 */
+	private static final class DeamonThreadFactory implements ThreadFactory {
+		@Override
+		public Thread newThread(Runnable r) {
+			final Thread thread = new Thread(r);
+			thread.setDaemon(true);
+			return thread;
+		}
 	}
 }

@@ -42,7 +42,7 @@ public abstract class ReplaceBase<Self extends ReplaceBase<Self>> extends Elemen
 
 	public Self withReplaceExpression(EvaluationExpression replaceExpression) {
 		this.setReplaceExpression(replaceExpression);
-		return self();
+		return this.self();
 	}
 
 	public void setDictionaryValueExtraction(EvaluationExpression dictionaryValueExtraction) {
@@ -54,7 +54,7 @@ public abstract class ReplaceBase<Self extends ReplaceBase<Self>> extends Elemen
 
 	public Self withDictionaryValueExtraction(EvaluationExpression dictionaryValueExtraction) {
 		this.setDictionaryValueExtraction(dictionaryValueExtraction);
-		return self();
+		return this.self();
 	}
 
 	public EvaluationExpression getDictionaryValueExtraction() {

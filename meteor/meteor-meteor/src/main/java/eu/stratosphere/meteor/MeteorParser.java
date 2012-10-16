@@ -1,4 +1,4 @@
-// $ANTLR 3.4 /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g 2012-08-09 11:50:48
+// $ANTLR 3.4 /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g 2012-09-19 17:55:41
  
 package eu.stratosphere.meteor; 
 
@@ -467,7 +467,7 @@ public TreeAdaptor getTreeAdaptor() {
 
 
     // $ANTLR start "packageImport"
-    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:65:1: packageImport : 'using' packageName= ID ',' (additionalPackage= ID )* ->;
+    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:65:1: packageImport : 'using' packageName= ID ( ',' additionalPackage= ID )* ->;
     public final MeteorParser.packageImport_return packageImport() throws RecognitionException {
         MeteorParser.packageImport_return retval = new MeteorParser.packageImport_return();
         retval.start = input.LT(1);
@@ -489,8 +489,8 @@ public TreeAdaptor getTreeAdaptor() {
         RewriteRuleTokenStream stream_65=new RewriteRuleTokenStream(adaptor,"token 65");
 
         try {
-            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:66:3: ( 'using' packageName= ID ',' (additionalPackage= ID )* ->)
-            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:66:6: 'using' packageName= ID ',' (additionalPackage= ID )*
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:66:3: ( 'using' packageName= ID ( ',' additionalPackage= ID )* ->)
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:66:6: 'using' packageName= ID ( ',' additionalPackage= ID )*
             {
             string_literal8=(Token)match(input,65,FOLLOW_65_in_packageImport164); if (state.failed) return retval; 
             if ( state.backtracking==0 ) stream_65.add(string_literal8);
@@ -502,25 +502,25 @@ public TreeAdaptor getTreeAdaptor() {
 
             if ( state.backtracking==0 ) { getPackageManager().importPackage((packageName!=null?packageName.getText():null)); }
 
-            char_literal9=(Token)match(input,42,FOLLOW_42_in_packageImport172); if (state.failed) return retval; 
-            if ( state.backtracking==0 ) stream_42.add(char_literal9);
-
-
-            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:67:6: (additionalPackage= ID )*
+            // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:67:6: ( ',' additionalPackage= ID )*
             loop3:
             do {
                 int alt3=2;
                 int LA3_0 = input.LA(1);
 
-                if ( (LA3_0==ID) ) {
+                if ( (LA3_0==42) ) {
                     alt3=1;
                 }
 
 
                 switch (alt3) {
             	case 1 :
-            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:67:7: additionalPackage= ID
+            	    // /home/arv/workspace/private/meteor/meteor-meteor/src/main/java/eu/stratosphere/meteor/Meteor.g:67:7: ',' additionalPackage= ID
             	    {
+            	    char_literal9=(Token)match(input,42,FOLLOW_42_in_packageImport179); if (state.failed) return retval; 
+            	    if ( state.backtracking==0 ) stream_42.add(char_literal9);
+
+
             	    additionalPackage=(Token)match(input,ID,FOLLOW_ID_in_packageImport183); if (state.failed) return retval; 
             	    if ( state.backtracking==0 ) stream_ID.add(additionalPackage);
 
@@ -549,7 +549,7 @@ public TreeAdaptor getTreeAdaptor() {
             RewriteRuleSubtreeStream stream_retval=new RewriteRuleSubtreeStream(adaptor,"rule retval",retval!=null?retval.tree:null);
 
             root_0 = (EvaluationExpression)adaptor.nil();
-            // 67:94: ->
+            // 67:98: ->
             {
                 root_0 = null;
             }
@@ -2179,7 +2179,7 @@ public TreeAdaptor getTreeAdaptor() {
 
 
             // AST REWRITE
-            // elements: set, elem, elem
+            // elements: elem, elem, set
             // token labels: 
             // rule labels: elem, retval, set
             // token list labels: 
@@ -2409,7 +2409,7 @@ public TreeAdaptor getTreeAdaptor() {
 
 
             // AST REWRITE
-            // elements: e2, e2, e1, e1, e1, e2, e1
+            // elements: e2, e1, e2, e1, e2, e1, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -2615,7 +2615,7 @@ public TreeAdaptor getTreeAdaptor() {
 
 
             // AST REWRITE
-            // elements: e1, e1, e2
+            // elements: e1, e2, e1
             // token labels: 
             // rule labels: retval, e1, e2
             // token list labels: 
@@ -8096,9 +8096,9 @@ public TreeAdaptor getTreeAdaptor() {
     public static final BitSet FOLLOW_functionDefinition_in_statement145 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_javaudf_in_statement149 = new BitSet(new long[]{0x0000000000000002L});
     public static final BitSet FOLLOW_65_in_packageImport164 = new BitSet(new long[]{0x0000000000010000L});
-    public static final BitSet FOLLOW_ID_in_packageImport168 = new BitSet(new long[]{0x0000040000000000L});
-    public static final BitSet FOLLOW_42_in_packageImport172 = new BitSet(new long[]{0x0000000000010002L});
-    public static final BitSet FOLLOW_ID_in_packageImport183 = new BitSet(new long[]{0x0000000000010002L});
+    public static final BitSet FOLLOW_ID_in_packageImport168 = new BitSet(new long[]{0x0000040000000002L});
+    public static final BitSet FOLLOW_42_in_packageImport179 = new BitSet(new long[]{0x0000000000010000L});
+    public static final BitSet FOLLOW_ID_in_packageImport183 = new BitSet(new long[]{0x0000040000000002L});
     public static final BitSet FOLLOW_VAR_in_assignment201 = new BitSet(new long[]{0x0008000000000000L});
     public static final BitSet FOLLOW_51_in_assignment203 = new BitSet(new long[]{0x4000000000010000L,0x0000000000000004L});
     public static final BitSet FOLLOW_operator_in_assignment207 = new BitSet(new long[]{0x0000000000000002L});

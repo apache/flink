@@ -40,11 +40,11 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> implem
 	 *        the number of outputs.
 	 */
 	public SopremoModule(final String name, final int numberOfInputs, final int numberOfOutputs) {
-		super(name, new Source[numberOfInputs], new Sink[numberOfOutputs], OperatorNavigator.INSTANCE);
-		for (int index = 0; index < this.outputNodes.length; index++)
-			this.outputNodes[index] = new Sink(String.format("%s %d", name, index));
-		for (int index = 0; index < this.inputNodes.length; index++)
-			this.inputNodes[index] = new Source(String.format("%s %d", name, index));
+		super(name, numberOfInputs, numberOfOutputs, OperatorNavigator.INSTANCE);
+		for (int index = 0; index < numberOfInputs; index++)
+			setInput(index, new Source(String.format("%s %d", name, index)));
+		for (int index = 0; index < numberOfOutputs; index++)
+			setOutput(index, new Sink(String.format("%s %d", name, index)));
 	}
 
 	/**
@@ -89,6 +89,19 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> implem
 		return module;
 	}
 
+	public void embed(final Operator<?>... sinks) {
+		embed(Arrays.asList(sinks));
+	}
+	
+	public void embed(final Collection<? extends Operator<?>> sinks) {
+		final List<Operator<?>> inputs = findInputs(sinks);
+		if (inputs.size() != getNumInputs())
+			throw new IllegalArgumentException(String.format("Expected %d instead of %d inputs", getNumInputs(),
+					inputs.size()));
+		connectOutputs(this, sinks);
+		connectInputs(this, inputs);
+	}
+
 	protected static void connectInputs(final SopremoModule module, final List<Operator<?>> inputs) {
 		for (int operatorIndex = 0, moduleIndex = 0; operatorIndex < inputs.size(); operatorIndex++) {
 			final Operator<?> operator = inputs.get(operatorIndex);
@@ -104,7 +117,7 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> implem
 		int sinkIndex = 0;
 		for (final Operator<?> sink : sinks) {
 			if (sink instanceof Sink)
-				module.outputNodes[sinkIndex] = (Sink) sink;
+				module.setOutput(sinkIndex, (Sink) sink);
 			else
 				module.getOutput(sinkIndex).setInput(0, sink);
 			sinkIndex++;
@@ -154,19 +167,17 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> implem
 		 * @param inputs
 		 * @param outputs
 		 */
-		public ModuleOperator(final Source[] inputs, final Sink[] outputs) {
-			super(inputs.length, outputs.length);
+		public ModuleOperator(final List<Source> inputs, final List<Sink> outputs) {
+			super(inputs.size(), outputs.size());
 			this.setInputs(inputs);
 			this.setOutputs(outputs);
 		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.Operator#toElementaryOperators()
-		 */
+		
 		@Override
-		public ElementarySopremoModule asElementaryOperators(final EvaluationContext context) {
-			return SopremoModule.this.asElementary(context);
+		public void addImplementation(SopremoModule module, EvaluationContext context) {
+			module.inputNodes.addAll(SopremoModule.this.inputNodes);
+			module.outputNodes.addAll(SopremoModule.this.outputNodes);
+			module.internalOutputNodes.addAll(SopremoModule.this.internalOutputNodes);
 		}
 	}
 
@@ -187,8 +198,8 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> implem
 		public ElementarySopremoModule assemble(final SopremoModule sopremoModule) {
 			this.convertDAGToModules(sopremoModule);
 
-			final int sinkCount = sopremoModule.getOutputs().length;
-			final int sourceCount = sopremoModule.getInputs().length;
+			final int sinkCount = sopremoModule.getNumOutputs();
+			final int sourceCount = sopremoModule.getNumInputs();
 			final ElementarySopremoModule elementarySopremoModule =
 				new ElementarySopremoModule(sopremoModule.getName(), sourceCount, sinkCount);
 			// replace sources
@@ -260,9 +271,9 @@ public class SopremoModule extends GraphModule<Operator<?>, Source, Sink> implem
 			final Operator<?> inputOperator = input.getSource().getOperator();
 			// check if the given output is directly connected to an input of the module
 			if (inputOperator instanceof Source) {
-				final Source[] inputs = inputModule.getInputs();
-				for (int i = 0; i < inputs.length; i++)
-					if (inputOperator == inputs[i]) {
+				final List<Source> inputs = inputModule.getInputs();
+				for (int i = 0; i < inputs.size(); i++)
+					if (inputOperator == inputs.get(i)) {
 						final JsonStream inputStream = operator.getInput(index);
 						return this.traceInput(inputStream.getSource().getOperator(),
 							inputStream.getSource().getIndex());
