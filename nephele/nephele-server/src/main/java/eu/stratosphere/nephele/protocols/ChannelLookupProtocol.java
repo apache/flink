@@ -20,7 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 
 /**
@@ -29,7 +29,7 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResp
  * 
  * @author warneke
  */
-public interface ChannelLookupProtocol extends VersionedProtocol {
+public interface ChannelLookupProtocol extends RPCProtocol {
 
 	/**
 	 * Retrieves all recipients of a data for the given <code>sourceChannelID</code>.

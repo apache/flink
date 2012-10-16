@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
-import eu.stratosphere.nephele.ipc.RPC;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
@@ -58,8 +58,11 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  */
 @Ignore
 public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
+	
+	private RPCService rpcService;
+	
 	private SopremoServer server;
-
+	
 	private SopremoExecutionProtocol executor;
 
 	private ClusterProvider cluster;
@@ -93,7 +96,8 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 				this.server.setServerAddress(
 					new InetSocketAddress("localhost", SopremoConstants.DEFAULT_SOPREMO_SERVER_IPC_PORT));
 				this.server.start();
-				this.executor = RPC.getProxy(SopremoExecutionProtocol.class, this.server.getServerAddress());
+				this.rpcService = new RPCService();
+				this.executor = this.rpcService.getProxy(this.server.getServerAddress(), SopremoExecutionProtocol.class);
 			} catch (IOException e) {
 				fail(e, "Cannot start rpc sopremo server");
 			}
@@ -167,7 +171,7 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 		}
 		this.server.close();
 		if (this.executor != this.server)
-			RPC.stopProxy(this.executor);
+			this.rpcService.shutDown();
 		FileSystem.closeAll();
 	}
 

@@ -15,18 +15,19 @@
 
 package eu.stratosphere.nephele.execution.librarycache;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * This class is used to encapsulate the transmission of a library file in a Nephele RPC call.
  * 
  * @author warneke
  */
-public class LibraryCacheUpdate implements IOReadableWritable {
+public class LibraryCacheUpdate implements KryoSerializable {
 
 	/**
 	 * The name of the library file that is transmitted with this object.
@@ -53,22 +54,30 @@ public class LibraryCacheUpdate implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
-		LibraryCacheManager.readLibraryFromStream(in);
+		try {
+			LibraryCacheManager.readLibraryFromStream(input);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final Kryo kryo, final Output output) {
 
 		if (this.libraryFileName == null) {
-			throw new IOException("libraryFileName is null");
+			throw new IllegalStateException("libraryFileName is null");
 		}
 
-		LibraryCacheManager.writeLibraryToStream(this.libraryFileName, out);
+		try {
+			LibraryCacheManager.writeLibraryToStream(this.libraryFileName, output);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 }

@@ -16,9 +16,6 @@
 package eu.stratosphere.nephele.types;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-import java.io.IOException;
 
 import org.junit.Test;
 
@@ -45,17 +42,11 @@ public class TypeTest {
 
 		assertEquals(orig.getDataBuffer().length, 2 * data.length);
 
-		try {
-			final FileRecord copy = (FileRecord) CommonTestUtils.createCopy(orig);
+		final FileRecord copy = (FileRecord) CommonTestUtils.createCopy(orig);
 
-			assertEquals(orig.getFileName(), copy.getFileName());
-			assertEquals(orig, copy);
-			assertEquals(orig.hashCode(), copy.hashCode());
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
-
+		assertEquals(orig.getFileName(), copy.getFileName());
+		assertEquals(orig, copy);
+		assertEquals(orig.hashCode(), copy.hashCode());
 	}
 
 	/**
@@ -66,19 +57,11 @@ public class TypeTest {
 
 		final IntegerRecord orig = new IntegerRecord(12);
 
-		try {
+		final IntegerRecord copy = (IntegerRecord) CommonTestUtils.createCopy(orig);
 
-			final IntegerRecord copy = (IntegerRecord) CommonTestUtils.createCopy(orig);
-
-			assertEquals(orig.getValue(), copy.getValue());
-			assertEquals(orig, copy);
-			assertEquals(orig.hashCode(), copy.hashCode());
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
-
+		assertEquals(orig.getValue(), copy.getValue());
+		assertEquals(orig, copy);
+		assertEquals(orig.hashCode(), copy.hashCode());
 	}
 
-	
 }

@@ -96,7 +96,7 @@ public class LocalInstanceManagerTest {
 		LocalInstanceManager lm = null;
 		try {
 
-			lm = new LocalInstanceManager(configDir);
+			lm = new LocalInstanceManager(configDir, null);
 			lm.setInstanceListener(testInstanceListener);
 
 			final InstanceType defaultInstanceType = lm.getDefaultInstanceType();

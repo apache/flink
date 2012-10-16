@@ -15,14 +15,15 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.util.EnumUtils;
@@ -35,7 +36,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * 
  * @author warneke
  */
-public final class ManagementGroupVertex extends ManagementAttachment implements IOReadableWritable {
+public final class ManagementGroupVertex extends ManagementAttachment implements KryoSerializable {
 
 	/**
 	 * The ID of the management group vertex.
@@ -347,17 +348,17 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
-		int numberOfForwardLinks = in.readInt();
+		int numberOfForwardLinks = input.readInt();
 		for (int i = 0; i < numberOfForwardLinks; i++) {
 			final ManagementGroupVertexID targetGroupVertexID = new ManagementGroupVertexID();
-			targetGroupVertexID.read(in);
+			targetGroupVertexID.read(kryo, input);
 			final ManagementGroupVertex targetGroupVertex = getGraph().getGroupVertexByID(targetGroupVertexID);
-			final int sourceIndex = in.readInt();
-			final int targetIndex = in.readInt();
-			final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-			final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
+			final int sourceIndex = input.readInt();
+			final int targetIndex = input.readInt();
+			final ChannelType channelType = EnumUtils.readEnum(input, ChannelType.class);
+			final CompressionLevel compressionLevel = EnumUtils.readEnum(input, CompressionLevel.class);
 			new ManagementGroupEdge(this, sourceIndex, targetGroupVertex, targetIndex, channelType, compressionLevel);
 		}
 
@@ -367,18 +368,18 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final Kryo kryo, final Output output) {
 
 		// Write the number of forward links
-		out.writeInt(this.forwardEdges.size());
+		output.writeInt(this.forwardEdges.size());
 		final Iterator<ManagementGroupEdge> it = this.forwardEdges.iterator();
 		while (it.hasNext()) {
 			final ManagementGroupEdge groupEdge = it.next();
-			groupEdge.getTarget().getID().write(out);
-			out.writeInt(groupEdge.getSourceIndex());
-			out.writeInt(groupEdge.getTargetIndex());
-			EnumUtils.writeEnum(out, groupEdge.getChannelType());
-			EnumUtils.writeEnum(out, groupEdge.getCompressionLevel());
+			groupEdge.getTarget().getID().write(kryo, output);
+			output.writeInt(groupEdge.getSourceIndex());
+			output.writeInt(groupEdge.getTargetIndex());
+			EnumUtils.writeEnum(output, groupEdge.getChannelType());
+			EnumUtils.writeEnum(output, groupEdge.getCompressionLevel());
 		}
 	}
 
@@ -415,7 +416,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 
 		return predecessors;
 	}
-	
+
 	@Override
 	public String toString() {
 		return String.format("ManagementGroupVertex(%s)", getName());

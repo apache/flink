@@ -100,7 +100,7 @@ public final class TestInstanceManager implements InstanceManager {
 		public TestInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
 				final NetworkNode parentNode, final NetworkTopology networkTopology,
 				final HardwareDescription hardwareDescription) {
-			super(instanceType, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
+			super(instanceType, instanceConnectionInfo, null, parentNode, networkTopology, hardwareDescription);
 		}
 	}
 

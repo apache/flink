@@ -13,20 +13,51 @@
  *
  **********************************************************************************************************************/
 
+package eu.stratosphere.nephele.rpc;
+
 /**
- * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
- * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
- * additional information regarding copyright ownership. 
+ * This message is used to transport an exception of a remote procedure call back to the caller.
+ * <p>
+ * This message is thread-safe.
+ * 
+ * @author warneke
  */
+final class RPCThrowable extends RPCResponse {
 
-package eu.stratosphere.nephele.ipc;
+	/**
+	 * The exception to be transported.
+	 */
+	private final Throwable throwable;
 
-enum Status {
-	SUCCESS(0), ERROR(1), FATAL(-1);
+	/**
+	 * Constructs a new RPC exception message.
+	 * 
+	 * @param messageID
+	 *        the message ID
+	 * @param throwable
+	 *        the exception to be transported
+	 */
+	RPCThrowable(final int messageID, final Throwable throwable) {
+		super(messageID);
 
-	int state;
+		this.throwable = throwable;
+	}
 
-	private Status(int state) {
-		this.state = state;
+	/**
+	 * The default constructor required by kryo.
+	 */
+	private RPCThrowable() {
+		super(0);
+
+		this.throwable = null;
+	}
+
+	/**
+	 * Returns the transported exception.
+	 * 
+	 * @return the transported exception
+	 */
+	Throwable getThrowable() {
+		return this.throwable;
 	}
 }

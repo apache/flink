@@ -19,8 +19,9 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.plugins.PluginID;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 
-public interface PluginCommunicationProtocol extends VersionedProtocol {
+public interface PluginCommunicationProtocol extends RPCProtocol {
 
 	void sendData(PluginID pluginID, IOReadableWritable data) throws IOException;
 

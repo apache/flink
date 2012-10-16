@@ -15,12 +15,6 @@
 
 package eu.stratosphere.nephele.util;
 
-import static org.junit.Assert.fail;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -31,9 +25,12 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobmanager.JobManagerITCase;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 
@@ -231,58 +228,23 @@ public final class ServerTestUtils {
 	}
 
 	/**
-	 * Creates a copy of the given {@link IOReadableWritable} object by an in-memory serialization and subsequent
-	 * deserialization.
+	 * Creates a copy of the given object by an in-memory serialization and subsequent deserialization.
 	 * 
 	 * @param original
 	 *        the original object to be copied
-	 * @return the copy of original object created by the original object's serialization/deserialization methods
+	 * @return the copy of original object
 	 * @throws IOException
 	 *         thrown if an error occurs while creating the copy of the object
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends IOReadableWritable> T createCopy(final T original) throws IOException {
+	public static <T> T createCopy(final T original) {
 
-		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		final DataOutputStream dos = new DataOutputStream(baos);
-
-		original.write(dos);
-
-		final String className = original.getClass().getName();
-		if (className == null) {
-			fail("Class name is null");
-		}
-
-		Class<T> clazz = null;
-
-		try {
-			clazz = (Class<T>) Class.forName(className);
-		} catch (ClassNotFoundException e) {
-			fail(e.getMessage());
-		}
-
-		if (clazz == null) {
-			fail("Cannot find class with name " + className);
-		}
-
-		T copy = null;
-		try {
-			copy = clazz.newInstance();
-		} catch (InstantiationException e) {
-			fail(e.getMessage());
-		} catch (IllegalAccessException e) {
-			fail(e.getMessage());
-		}
-
-		if (copy == null) {
-			fail("Copy of object of type " + className + " is null");
-		}
-
-		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		final DataInputStream dis = new DataInputStream(bais);
-
-		copy.read(dis);
-
-		return copy;
+		final Kryo kryo = new Kryo();
+		final byte[] buf = new byte[8192];
+		final Output output = new Output(buf);
+		kryo.writeObject(output, original);
+		output.flush();
+		final Input input = new Input(buf);
+		return (T) kryo.readObject(input, original.getClass());
 	}
 }

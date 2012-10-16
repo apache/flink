@@ -59,6 +59,7 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.util.SerializableHashMap;
@@ -138,6 +139,11 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	private static final int DEFAULTCLEANUPINTERVAL = 2 * 60 * 1000; // 2 min
 
 	/**
+	 * The RPC service to use when a proxy for a cloud instance shall be created.
+	 */
+	private final RPCService rpcService;
+
+	/**
 	 * Instances that send heart beats but do not belong to any job are kept in this map.
 	 **/
 	private final Map<InstanceConnectionInfo, HardwareDescription> orphanedInstances = new HashMap<InstanceConnectionInfo, HardwareDescription>();
@@ -190,8 +196,13 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 
 	/**
 	 * Creates the cloud manager.
+	 * 
+	 * @param rpcService
+	 *        the RPC service to use when a proxy for a cloud instance shall be created
 	 */
-	public EC2CloudManager() {
+	public EC2CloudManager(final RPCService rpcService) {
+
+		this.rpcService = rpcService;
 
 		// Load the instance type this cloud can offer
 		this.availableInstanceTypes = populateInstanceTypeArray();
@@ -335,9 +346,6 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 				return;
 			}
 		}
-
-		// Destroy proxies of that instance
-		instance.destroyProxies();
 
 		if (jobToInstanceMapping.unassignInstanceFromJob(instance)) {
 
@@ -571,7 +579,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		}
 
 		final EC2CloudInstance cloudInstance = new EC2CloudInstance(instance.getInstanceId(), type,
-			instanceConnectionInfo, instance.getLaunchTime().getTime(), this.leasePeriod, parentNode,
+			instanceConnectionInfo, this.rpcService, instance.getLaunchTime().getTime(), this.leasePeriod, parentNode,
 			parentNode.getNetworkTopology(), hardwareDescription, awsAccessKey, awsSecretKey);
 
 		// TODO: Define hardware descriptions for cloud instance types
@@ -704,7 +712,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		final List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
 
 		for (final FloatingInstance fi : floatingInstances) {
-			final EC2CloudInstance ci = fi.asCloudInstance(networkTopology.getRootNode());
+			final EC2CloudInstance ci = fi.asCloudInstance(networkTopology.getRootNode(), this.rpcService);
 			jobToInstanceMapping.assignInstanceToJob(ci);
 			allocatedResources.add(ci.asAllocatedResource());
 		}
@@ -740,15 +748,15 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 			final int mincount, final int maxcount) {
 
 		String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
-		if(awsAccessId == null){
+		if (awsAccessId == null) {
 			awsAccessId = GlobalConfiguration.getString(AWS_ACCESS_ID_KEY_GLOBAL, null);
 		}
-		
+
 		String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
-		if(awsSecretKey == null){
+		if (awsSecretKey == null) {
 			awsSecretKey = GlobalConfiguration.getString(AWS_SECRET_KEY_KEY_GLOBAL, null);
 		}
-		
+
 		String imageID = conf.getString(AWS_AMI_KEY, null);
 
 		if (imageID == null) {
@@ -835,14 +843,14 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 		}
 
 		String awsAccessId = conf.getString(AWS_ACCESS_ID_KEY, null);
-		if(awsAccessId == null){
+		if (awsAccessId == null) {
 			awsAccessId = GlobalConfiguration.getString(AWS_ACCESS_ID_KEY_GLOBAL, null);
 		}
 		String awsSecretKey = conf.getString(AWS_SECRET_KEY_KEY, null);
-		if(awsSecretKey == null){
+		if (awsSecretKey == null) {
 			awsSecretKey = GlobalConfiguration.getString(AWS_SECRET_KEY_KEY_GLOBAL, null);
 		}
-		
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Checking orphaned instances, " + this.orphanedInstances.size() + " orphaned instances listed.");
 		}
@@ -1016,19 +1024,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	public void shutdown() {
 
 		synchronized (this.jobToInstancesAssignmentMap) {
-
-			final Iterator<Map.Entry<JobID, JobToInstancesMapping>> it = this.jobToInstancesAssignmentMap.entrySet()
-				.iterator();
-
-			while (it.hasNext()) {
-
-				final Map.Entry<JobID, JobToInstancesMapping> entry = it.next();
-				final List<EC2CloudInstance> unassignedInstances = entry.getValue().unassignAllInstancesFromJob();
-				final Iterator<EC2CloudInstance> it2 = unassignedInstances.iterator();
-				while (it2.hasNext()) {
-					it2.next().destroyProxies();
-				}
-			}
+			this.jobToInstancesAssignmentMap.clear();
 		}
 
 		// Stop the timer task

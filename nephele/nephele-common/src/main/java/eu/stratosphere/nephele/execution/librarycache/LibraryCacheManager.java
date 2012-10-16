@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.execution.librarycache;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -29,13 +27,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -496,15 +496,15 @@ public final class LibraryCacheManager {
 	 * 
 	 * @param libraryFileName
 	 *        the name of the library
-	 * @param out
+	 * @param output
 	 *        the stream to write the data to
 	 * @throws IOException
 	 *         thrown if an error occurs while writing the data
 	 */
-	public static void writeLibraryToStream(final String libraryFileName, final DataOutput out) throws IOException {
+	public static void writeLibraryToStream(final String libraryFileName, final Output output) throws IOException {
 
 		final LibraryCacheManager lib = get();
-		lib.writeLibraryToStreamInternal(libraryFileName, out);
+		lib.writeLibraryToStreamInternal(libraryFileName, output);
 
 	}
 
@@ -513,12 +513,12 @@ public final class LibraryCacheManager {
 	 * 
 	 * @param libraryFileName
 	 *        the name of the library
-	 * @param out
+	 * @param output
 	 *        the stream to write the data to
 	 * @throws IOException
 	 *         thrown if an error occurs while writing the data
 	 */
-	private void writeLibraryToStreamInternal(final String libraryFileName, final DataOutput out) throws IOException {
+	private void writeLibraryToStreamInternal(final String libraryFileName, final Output output) throws IOException {
 
 		if (libraryFileName == null) {
 			throw new IOException("libraryName is null!");
@@ -534,14 +534,14 @@ public final class LibraryCacheManager {
 
 			final FileStatus status = fs.getFileStatus(storePath);
 
-			StringRecord.writeString(out, libraryFileName);
-			out.writeLong(status.getLen());
+			output.writeString(libraryFileName);
+			output.writeLong(status.getLen());
 
 			final FSDataInputStream inStream = fs.open(storePath);
 			final byte[] buf = new byte[8192]; // 8K Buffer*/
 			int read = inStream.read(buf, 0, buf.length);
 			while (read > 0) {
-				out.write(buf, 0, read);
+				output.writeBytes(buf, 0, read);
 				read = inStream.read(buf, 0, buf.length);
 			}
 
@@ -557,37 +557,37 @@ public final class LibraryCacheManager {
 	 * @throws IOException
 	 *         throws if an error occurs while reading from the stream
 	 */
-	public static void readLibraryFromStream(final DataInput in) throws IOException {
+	public static void readLibraryFromStream(final Input input) throws IOException {
 
 		final LibraryCacheManager lib = get();
-		lib.readLibraryFromStreamInternal(in);
+		lib.readLibraryFromStreamInternal(input);
 
 	}
 
 	/**
 	 * Reads library data from the given stream.
 	 * 
-	 * @param in
+	 * @param input
 	 *        the stream to read the library data from
 	 * @throws IOException
 	 *         throws if an error occurs while reading from the stream
 	 */
-	private void readLibraryFromStreamInternal(final DataInput in) throws IOException {
+	private void readLibraryFromStreamInternal(final Input input) throws IOException {
 
-		final String libraryFileName = StringRecord.readString(in);
+		final String libraryFileName = input.readString();
 
 		if (libraryFileName == null) {
 			throw new IOException("libraryFileName is null!");
 		}
 
-		final long length = in.readLong();
+		final long length = input.readLong();
 
 		if (length > (long) Integer.MAX_VALUE) {
 			throw new IOException("Submitted jar file " + libraryFileName + " is too large");
 		}
 
 		final byte[] buf = new byte[(int) length];
-		in.readFully(buf);
+		input.readBytes(buf);
 
 		final Path storePath = new Path(this.libraryCachePath + "/" + libraryFileName);
 
@@ -618,7 +618,7 @@ public final class LibraryCacheManager {
 	 *         thrown if the library cache manager could not be instantiated or an error occurred while reading the
 	 *         library data from the input stream
 	 */
-	public static void addLibrary(final JobID jobID, final Path name, final long size, final DataInput in)
+	public static void addLibrary(final JobID jobID, final Path name, final int size, final Input in)
 			throws IOException {
 
 		final LibraryCacheManager lib = get();
@@ -640,7 +640,7 @@ public final class LibraryCacheManager {
 	 * @throws IOException
 	 *         thrown if an error occurred while reading the library data from the input stream
 	 */
-	private void addLibraryInternal(final JobID jobID, final Path name, final long size, final DataInput in)
+	private void addLibraryInternal(final JobID jobID, final Path name, final int size, final Input in)
 			throws IOException {
 
 		if (size > (long) Integer.MAX_VALUE) {
@@ -648,8 +648,7 @@ public final class LibraryCacheManager {
 		}
 
 		// Map the entire jar file to memory
-		final byte[] buf = new byte[(int) size];
-		in.readFully(buf);
+		final byte[] buf = in.readBytes(size);
 
 		// Reset and calculate message digest from jar file
 		this.md.reset();

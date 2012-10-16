@@ -26,11 +26,11 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
-import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.JobManagementProtocol;
+import eu.stratosphere.nephele.rpc.CommonTypeUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -47,6 +47,11 @@ public class JobClient {
 	 * The logging object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(JobClient.class);
+
+	/**
+	 * The RPC service.
+	 */
+	private final RPCService rpcService;
 
 	/**
 	 * The job management server stub.
@@ -157,7 +162,8 @@ public class JobClient {
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
-		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, inetaddr, NetUtils.getSocketFactory());
+		this.rpcService = new RPCService(CommonTypeUtils.getRPCTypesToRegister());
+		this.jobSubmitClient = this.rpcService.getProxy(inetaddr, JobManagementProtocol.class);
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
@@ -180,8 +186,8 @@ public class JobClient {
 			final InetSocketAddress jobManagerAddress)
 			throws IOException {
 
-		this.jobSubmitClient = RPC
-			.getProxy(JobManagementProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
+		this.rpcService = new RPCService(CommonTypeUtils.getRPCTypesToRegister());
+		this.jobSubmitClient = this.rpcService.getProxy(jobManagerAddress, JobManagementProtocol.class);
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
@@ -192,8 +198,8 @@ public class JobClient {
 	 */
 	public void close() {
 
-		synchronized (this.jobSubmitClient) {
-			RPC.stopProxy(this.jobSubmitClient);
+		synchronized (this.rpcService) {
+			this.rpcService.shutDown();
 		}
 	}
 

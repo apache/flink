@@ -15,18 +15,11 @@
 
 package eu.stratosphere.nephele.deployment;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * A gate deployment descriptor contains all the information necessary to deploy either an input or an output gate as
@@ -36,7 +29,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * 
  * @author warneke
  */
-public final class GateDeploymentDescriptor implements IOReadableWritable {
+public final class GateDeploymentDescriptor {
 
 	/**
 	 * The ID of the gate.
@@ -46,12 +39,12 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	/**
 	 * The channel type of the gate.
 	 */
-	private ChannelType channelType;
+	private final ChannelType channelType;
 
 	/**
 	 * The compression level of the gate.
 	 */
-	private CompressionLevel compressionLevel;
+	private final CompressionLevel compressionLevel;
 
 	/**
 	 * The list of channel deployment descriptors attached to this gate.
@@ -96,47 +89,15 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	}
 
 	/**
-	 * Default constructor for serialization/deserialization.
+	 * Default constructor required by kryo.
 	 */
-	public GateDeploymentDescriptor() {
+	@SuppressWarnings("unused")
+	private GateDeploymentDescriptor() {
 
-		this.gateID = new GateID();
+		this.gateID = null;
 		this.channelType = null;
 		this.compressionLevel = null;
-		this.channels = new ArrayList<ChannelDeploymentDescriptor>();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		this.gateID.write(out);
-		EnumUtils.writeEnum(out, channelType);
-		EnumUtils.writeEnum(out, this.compressionLevel);
-		out.writeInt(this.channels.size());
-		final Iterator<ChannelDeploymentDescriptor> it = this.channels.iterator();
-		while (it.hasNext()) {
-			it.next().write(out);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.gateID.read(in);
-		this.channelType = EnumUtils.readEnum(in, ChannelType.class);
-		this.compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-		final int nocdd = in.readInt();
-		for (int i = 0; i < nocdd; ++i) {
-			final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor();
-			cdd.read(in);
-			this.channels.add(cdd);
-		}
+		this.channels = null;
 	}
 
 	/**

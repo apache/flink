@@ -21,6 +21,7 @@ import eu.stratosphere.nephele.instance.AllocationID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -57,8 +58,6 @@ public class EC2CloudInstance extends AbstractInstance {
 
 	/** The last received heart beat. */
 	private long lastReceivedHeartBeat = System.currentTimeMillis();
-	
-	
 
 	/**
 	 * Creates a new cloud instance.
@@ -69,6 +68,8 @@ public class EC2CloudInstance extends AbstractInstance {
 	 *        the instance type
 	 * @param instanceConnectionInfo
 	 *        the information required to connect to the instance's task manager
+	 * @param rpcService
+	 *        the RPC service to use when a proxy for a cloud instance shall be created.
 	 * @param launchTime
 	 *        the time the instance was allocated
 	 * @param leasePeriod
@@ -82,11 +83,13 @@ public class EC2CloudInstance extends AbstractInstance {
 	 * @param awsSecretKey
 	 *        The AWS Secret Key to access this machine
 	 */
-	public EC2CloudInstance(String instanceID, InstanceType type,
-			InstanceConnectionInfo instanceConnectionInfo, long launchTime, long leasePeriod, NetworkNode parentNode,
-			NetworkTopology networkTopology, HardwareDescription hardwareDescription, String awsAccessKey,
-			String awsSecretKey) {
-		super(type, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
+	public EC2CloudInstance(final String instanceID, final InstanceType type,
+			final InstanceConnectionInfo instanceConnectionInfo, final RPCService rpcService, final long launchTime,
+			final long leasePeriod, final NetworkNode parentNode,
+			final NetworkTopology networkTopology, final HardwareDescription hardwareDescription,
+			final String awsAccessKey,
+			final String awsSecretKey) {
+		super(type, instanceConnectionInfo, rpcService, parentNode, networkTopology, hardwareDescription);
 
 		this.allocatedResource = new AllocatedResource(this, type, new AllocationID());
 

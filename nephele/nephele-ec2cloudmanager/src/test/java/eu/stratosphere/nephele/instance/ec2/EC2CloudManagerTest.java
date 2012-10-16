@@ -131,7 +131,7 @@ public class EC2CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		EC2CloudManager cm = new EC2CloudManager();
+		EC2CloudManager cm = new EC2CloudManager(null);
 		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType defaultIT = cm.getDefaultInstanceType();
@@ -151,7 +151,7 @@ public class EC2CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		EC2CloudManager cm = new EC2CloudManager();
+		EC2CloudManager cm = new EC2CloudManager(null);
 		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType type1 = cm.getSuitableInstanceType(16, 16, 2048, 40, 80);
@@ -183,7 +183,7 @@ public class EC2CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		EC2CloudManager cm = new EC2CloudManager();
+		EC2CloudManager cm = new EC2CloudManager(null);
 		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType type = cm.getInstanceTypeByName("m1.small");
@@ -203,7 +203,7 @@ public class EC2CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		EC2CloudManager cm = new EC2CloudManager();
+		EC2CloudManager cm = new EC2CloudManager(null);
 		cm.setInstanceListener(myInstanceListener);
 
 		JobID jobID = new JobID();

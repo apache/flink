@@ -28,6 +28,11 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.types.StringRecord;
 
@@ -39,7 +44,7 @@ import eu.stratosphere.nephele.types.StringRecord;
  * 
  * @author warneke
  */
-public class Configuration implements IOReadableWritable {
+public class Configuration implements IOReadableWritable, KryoSerializable {
 
 	/**
 	 * Used to log warnings on error originating from this class.
@@ -478,6 +483,9 @@ public class Configuration implements IOReadableWritable {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -486,6 +494,9 @@ public class Configuration implements IOReadableWritable {
 		return result;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -503,5 +514,43 @@ public class Configuration implements IOReadableWritable {
 
 		final Configuration other = (Configuration) obj;
 		return confData.equals(other.confData);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void write(final Kryo kryo, final Output output) {
+
+		synchronized (this.confData) {
+
+			output.writeInt(this.confData.size());
+
+			final Iterator<String> it = this.confData.keySet().iterator();
+			while (it.hasNext()) {
+				final String key = it.next();
+				final String value = this.confData.get(key);
+				output.writeString(key);
+				output.writeString(value);
+			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void read(final Kryo kryo, final Input input) {
+
+		synchronized (this.confData) {
+
+			final int numberOfProperties = input.readInt();
+
+			for (int i = 0; i < numberOfProperties; i++) {
+				final String key = input.readString();
+				final String value = input.readString();
+				this.confData.put(key, value);
+			}
+		}
 	}
 }

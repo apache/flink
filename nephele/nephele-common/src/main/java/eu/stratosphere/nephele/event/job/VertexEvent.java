@@ -15,19 +15,12 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
- * Vertex events are transmitted from the job manager
- * to the job client in order to inform the user about
- * changes in terms of a tasks execution state.
+ * Vertex events are transmitted from the job manager to the job client in order to inform the user about changes in
+ * terms of a tasks execution state.
  * 
  * @author warneke
  */
@@ -36,32 +29,32 @@ public class VertexEvent extends AbstractEvent {
 	/**
 	 * The ID of the job vertex this event belongs to.
 	 */
-	private JobVertexID jobVertexID;
+	private final JobVertexID jobVertexID;
 
 	/**
 	 * The name of the job vertex this event belongs to.
 	 */
-	private String jobVertexName;
+	private final String jobVertexName;
 
 	/**
 	 * The number of subtasks the corresponding vertex has been split into at runtime.
 	 */
-	private int totalNumberOfSubtasks;
+	private final int totalNumberOfSubtasks;
 
 	/**
 	 * The index of the subtask that this event belongs to.
 	 */
-	private int indexOfSubtask;
+	private final int indexOfSubtask;
 
 	/**
 	 * The current execution state of the subtask this event belongs to.
 	 */
-	private ExecutionState currentExecutionState;
+	private final ExecutionState currentExecutionState;
 
 	/**
 	 * An optional more detailed description of the event.
 	 */
-	private String description;
+	private final String description;
 
 	/**
 	 * Constructs a new vertex event object.
@@ -107,38 +100,6 @@ public class VertexEvent extends AbstractEvent {
 		this.indexOfSubtask = -1;
 		this.currentExecutionState = ExecutionState.CREATED;
 		this.description = null;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		super.read(in);
-
-		this.jobVertexID.read(in);
-		this.jobVertexName = StringRecord.readString(in);
-		this.totalNumberOfSubtasks = in.readInt();
-		this.indexOfSubtask = in.readInt();
-		this.currentExecutionState = EnumUtils.readEnum(in, ExecutionState.class);
-		this.description = StringRecord.readString(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		super.write(out);
-
-		this.jobVertexID.write(out);
-		StringRecord.writeString(out, this.jobVertexName);
-		out.writeInt(this.totalNumberOfSubtasks);
-		out.writeInt(this.indexOfSubtask);
-		EnumUtils.writeEnum(out, this.currentExecutionState);
-		StringRecord.writeString(out, this.description);
 	}
 
 	/**

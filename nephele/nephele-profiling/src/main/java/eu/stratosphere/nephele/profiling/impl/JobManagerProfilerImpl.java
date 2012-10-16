@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.profiling.impl;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -29,8 +28,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingException;
@@ -47,17 +44,15 @@ import eu.stratosphere.nephele.profiling.types.InstanceSummaryProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.OutputGateProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.SingleInstanceProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.ThreadProfilingEvent;
+import eu.stratosphere.nephele.rpc.ProfilingTypeUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplProtocol {
 
 	private static final Log LOG = LogFactory.getLog(JobManagerProfilerImpl.class);
 
-	private static final String RPC_NUM_HANDLER_KEY = "jobmanager.profiling.rpc.numhandler";
-
-	private static final int DEFAULT_NUM_HANLDER = 3;
-
-	private final Server profilingServer;
+	private final RPCService rpcService;
 
 	private final Map<JobID, List<ProfilingListener>> registeredListeners = new HashMap<JobID, List<ProfilingListener>>();
 
@@ -66,22 +61,17 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 	public JobManagerProfilerImpl(InetAddress jobManagerbindAddress) throws ProfilingException {
 
 		// Start profiling IPC server
-		final int handlerCount = GlobalConfiguration.getInteger(RPC_NUM_HANDLER_KEY, DEFAULT_NUM_HANLDER);
 		final int rpcPort = GlobalConfiguration.getInteger(ProfilingUtils.JOBMANAGER_RPC_PORT_KEY,
 			ProfilingUtils.JOBMANAGER_DEFAULT_RPC_PORT);
-		
-		final InetSocketAddress rpcServerAddress = new InetSocketAddress(jobManagerbindAddress, rpcPort);
-		Server profilingServerTmp = null;
-		try {
 
-			profilingServerTmp = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
-				handlerCount);
-			profilingServerTmp.start();
+		RPCService rpcService = null;
+		try {
+			rpcService = new RPCService(rpcPort, 1, ProfilingTypeUtils.getRPCTypesToRegister());
 		} catch (IOException ioe) {
 			throw new ProfilingException("Cannot start profiling RPC server: " + StringUtils.stringifyException(ioe));
 		}
-		this.profilingServer = profilingServerTmp;
-
+		this.rpcService = rpcService;
+		this.rpcService.setProtocolCallbackHandler(ProfilerImplProtocol.class, this);
 	}
 
 	@Override
@@ -113,9 +103,9 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 	public void shutdown() {
 
 		// Stop the RPC server
-		if (this.profilingServer != null) {
-			LOG.debug("Stopping profiling RPC server");
-			this.profilingServer.stop();
+		if (this.rpcService != null) {
+			LOG.debug("Stopping profiling RPC service");
+			this.rpcService.shutDown();
 		}
 	}
 

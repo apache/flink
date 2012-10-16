@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -60,6 +61,8 @@ class ClusterInstance extends AbstractInstance {
 	 * 
 	 * @param instanceConnectionInfo
 	 *        the instance connection info identifying the host
+	 * @param rpcService
+	 *        the RPC service to use when a proxy for a cluster instance shall be created
 	 * @param capacity
 	 *        capacity of this host
 	 * @param parentNode
@@ -69,11 +72,10 @@ class ClusterInstance extends AbstractInstance {
 	 * @param hardwareDescription
 	 *        the hardware description reported by the instance itself
 	 */
-	public ClusterInstance(final InstanceConnectionInfo instanceConnectionInfo, final InstanceType capacity,
-			final NetworkNode parentNode, final NetworkTopology networkTopology,
+	public ClusterInstance(final InstanceConnectionInfo instanceConnectionInfo, final RPCService rpcService,
+			final InstanceType capacity, final NetworkNode parentNode, final NetworkTopology networkTopology,
 			final HardwareDescription hardwareDescription) {
-
-		super(capacity, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
+		super(capacity, instanceConnectionInfo, rpcService, parentNode, networkTopology, hardwareDescription);
 
 		this.remainingCapacity = capacity;
 	}

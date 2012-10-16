@@ -25,9 +25,10 @@ import org.eclipse.swt.widgets.Shell;
 
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.rpc.ManagementTypeUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.nephele.visualization.swt.SWTVisualizationGUI;
 
 public class SWTVisualization {
@@ -71,19 +72,27 @@ public class SWTVisualization {
 			return;
 		}
 
+		RPCService rpcService = null;
+		try {
+			rpcService = new RPCService(ManagementTypeUtils.getRPCTypesToRegister());
+		} catch (IOException ioe) {
+			LOG.error("Error initializing the RPC service: " + StringUtils.stringifyException(ioe));
+			System.exit(1);
+			return;
+		}
+
 		final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
-		ExtendedManagementProtocol jobManager;
+		ExtendedManagementProtocol jobManager = null;
 		int queryInterval = -1;
 		try {
-			jobManager = (ExtendedManagementProtocol) RPC.getProxy(ExtendedManagementProtocol.class, inetaddr, NetUtils
-				.getSocketFactory());
+			jobManager = rpcService.getProxy(inetaddr, ExtendedManagementProtocol.class);
 
 			// Get the query interval
 			queryInterval = jobManager.getRecommendedPollingInterval().getValue();
 
 		} catch (IOException e) {
-
 			e.printStackTrace();
+			rpcService.shutDown();
 			System.exit(1);
 			return;
 		}
@@ -100,5 +109,6 @@ public class SWTVisualization {
 		}
 		display.dispose();
 
+		rpcService.shutDown();
 	}
 }

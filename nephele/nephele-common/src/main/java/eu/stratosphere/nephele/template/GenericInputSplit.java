@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.template;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 /**
  * A generic input split that has only a partition number.
  */
@@ -48,24 +44,6 @@ public class GenericInputSplit implements InputSplit {
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		out.writeInt(this.number);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		this.number = in.readInt();
-	}
 
 	/*
 	 * (non-Javadoc)

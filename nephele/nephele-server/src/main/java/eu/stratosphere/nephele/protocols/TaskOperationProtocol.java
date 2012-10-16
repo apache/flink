@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRespons
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
  * 
  * @author warneke
  */
-public interface TaskOperationProtocol extends VersionedProtocol {
+public interface TaskOperationProtocol extends RPCProtocol {
 
 	/**
 	 * Submits a list of tasks to the task manager.

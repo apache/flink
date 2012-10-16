@@ -15,6 +15,7 @@
 package eu.stratosphere.pact.testing;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Assert;
@@ -27,7 +28,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * @author Arvid Heise
@@ -74,7 +74,7 @@ public class MockDeployManager implements DeploymentManager {
 			@Override
 			public void run() {
 				final List<TaskDeploymentDescriptor> submissionList =
-					new SerializableArrayList<TaskDeploymentDescriptor>();
+					new ArrayList<TaskDeploymentDescriptor>();
 
 				// Check the consistency of the call
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {

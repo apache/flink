@@ -15,13 +15,15 @@
 package eu.stratosphere.sopremo.client;
 
 import java.io.Closeable;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
+import com.esotericsoftware.kryo.io.Input;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -30,9 +32,8 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionRequest.ExecutionMode;
@@ -65,6 +66,8 @@ public class DefaultClient implements Closeable {
 
 	private Configuration configuration;
 
+	private RPCService rpcService;
+	
 	private SopremoExecutionProtocol executor;
 
 	private InetSocketAddress serverAddress;
@@ -207,9 +210,9 @@ public class DefaultClient implements Closeable {
 			progressListener.progressUpdate(ExecutionState.SETUP, "");
 			List<Path> libraryPaths = new ArrayList<Path>();
 			for (String library : requiredLibraries) {
-				final DataInputStream dis = new DataInputStream(new FileInputStream(library));
+				final Input dis = new Input(new FileInputStream(library));
 				final Path libraryPath = new Path(library);
-				LibraryCacheManager.addLibrary(dummyKey, libraryPath, new File(library).length(), dis);
+				LibraryCacheManager.addLibrary(dummyKey, libraryPath, (int) new File(library).length(), dis);
 				dis.close();
 				libraryPaths.add(libraryPath);
 			}
@@ -255,7 +258,7 @@ public class DefaultClient implements Closeable {
 	 */
 	@Override
 	public void close() {
-		RPC.stopProxy(this.executor);
+		this.rpcService.shutDown();
 	}
 
 	protected void sleepSafely(int updateTime) {
@@ -281,7 +284,8 @@ public class DefaultClient implements Closeable {
 		}
 
 		try {
-			this.executor = RPC.getProxy(SopremoExecutionProtocol.class, serverAddress, NetUtils.getSocketFactory());
+			this.rpcService = new RPCService();
+			this.executor = this.rpcService.getProxy(serverAddress, SopremoExecutionProtocol.class);
 		} catch (IOException e) {
 			this.dealWithError(progressListener, e, "Error while connecting to the server");
 		}

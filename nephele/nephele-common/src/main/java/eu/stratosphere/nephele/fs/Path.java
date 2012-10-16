@@ -21,21 +21,20 @@
 
 package eu.stratosphere.nephele.fs;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Names a file or directory in a {@link FileSystem}. Path strings use slash as
  * the directory separator. A path string is absolute if it begins with a slash.
  */
-public class Path implements IOReadableWritable {
+public final class Path implements KryoSerializable {
 
 	/**
 	 * The directory separator, a slash.
@@ -74,7 +73,7 @@ public class Path implements IOReadableWritable {
 	 * @param uri
 	 *        the URI to contruct the path object from
 	 */
-	public Path(URI uri) {
+	public Path(final URI uri) {
 		this.uri = uri;
 	}
 
@@ -86,7 +85,7 @@ public class Path implements IOReadableWritable {
 	 * @param child
 	 *        the child path
 	 */
-	public Path(String parent, String child) {
+	public Path(final String parent, final String child) {
 		this(new Path(parent), new Path(child));
 	}
 
@@ -98,7 +97,7 @@ public class Path implements IOReadableWritable {
 	 * @param child
 	 *        the child path
 	 */
-	public Path(Path parent, String child) {
+	public Path(final Path parent, final String child) {
 		this(parent, new Path(child));
 	}
 
@@ -110,7 +109,7 @@ public class Path implements IOReadableWritable {
 	 * @param child
 	 *        the child path
 	 */
-	public Path(String parent, Path child) {
+	public Path(final String parent, final Path child) {
 		this(new Path(parent), child);
 	}
 
@@ -122,7 +121,7 @@ public class Path implements IOReadableWritable {
 	 * @param child
 	 *        the child path
 	 */
-	public Path(Path parent, Path child) {
+	public Path(final Path parent, Path child) {
 		// Add a slash to parent's path so resolution is compatible with URI's
 		URI parentUri = parent.uri;
 		final String parentPath = parentUri.getPath();
@@ -150,7 +149,7 @@ public class Path implements IOReadableWritable {
 	 * @param path
 	 *        the path string to be checked
 	 */
-	private void checkPathArg(String path) {
+	private void checkPathArg(final String path) {
 		// disallow construction of a Path from an empty string
 		if (path == null) {
 			throw new IllegalArgumentException("Can not create a Path from a null string");
@@ -217,7 +216,7 @@ public class Path implements IOReadableWritable {
 	 * @param path
 	 *        the path string
 	 */
-	public Path(String scheme, String authority, String path) {
+	public Path(final String scheme, final String authority, final String path) {
 		checkPathArg(path);
 		initialize(scheme, authority, path);
 	}
@@ -232,7 +231,7 @@ public class Path implements IOReadableWritable {
 	 * @param path
 	 *        the path string.
 	 */
-	private void initialize(String scheme, String authority, String path) {
+	private void initialize(final String scheme, final String authority, final String path) {
 		try {
 			this.uri = new URI(scheme, authority, normalizePath(path), null, null).normalize();
 		} catch (URISyntaxException e) {
@@ -264,7 +263,7 @@ public class Path implements IOReadableWritable {
 	 *        <code>true</code> to indicate the first character of the string is a slash, <code>false</code> otherwise
 	 * @return <code>true</code> if the path string contains a windows drive letter, <code>false</code> otherwise
 	 */
-	private boolean hasWindowsDrive(String path, boolean slashed) {
+	private boolean hasWindowsDrive(final String path, final boolean slashed) {
 		if (!WINDOWS) {
 			return false;
 		}
@@ -347,7 +346,7 @@ public class Path implements IOReadableWritable {
 	 *        suffix to be added
 	 * @return the new path including the suffix
 	 */
-	public Path suffix(String suffix) {
+	public Path suffix(final String suffix) {
 		return new Path(getParent(), getName() + suffix);
 	}
 
@@ -383,11 +382,11 @@ public class Path implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean equals(Object o) {
+	public boolean equals(final Object o) {
 		if (!(o instanceof Path)) {
 			return false;
 		}
-		Path that = (Path) o;
+		final Path that = (Path) o;
 		return this.uri.equals(that.uri);
 	}
 
@@ -399,8 +398,8 @@ public class Path implements IOReadableWritable {
 		return uri.hashCode();
 	}
 
-	public int compareTo(Object o) {
-		Path that = (Path) o;
+	public int compareTo(final Object o) {
+		final Path that = (Path) o;
 		return this.uri.compareTo(that.uri);
 	}
 
@@ -427,7 +426,7 @@ public class Path implements IOReadableWritable {
 	 *        the FileSystem that should be used to obtain the current working directory
 	 * @return the qualified path object
 	 */
-	public Path makeQualified(FileSystem fs) {
+	public Path makeQualified(final FileSystem fs) {
 		Path path = this;
 		if (!isAbsolute()) {
 			path = new Path(fs.getWorkingDirectory(), this);
@@ -460,24 +459,19 @@ public class Path implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void write(final Kryo kryo, final Output output) {
 
-		final boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			final String scheme = StringRecord.readString(in);
-			final String userInfo = StringRecord.readString(in);
-			final String host = StringRecord.readString(in);
-			final int port = in.readInt();
-			final String path = StringRecord.readString(in);
-			final String query = StringRecord.readString(in);
-			final String fragment = StringRecord.readString(in);
-
-			try {
-				uri = new URI(scheme, userInfo, host, port, path, query, fragment);
-			} catch (URISyntaxException e) {
-				throw new IOException("Error reconstructing URI: " + StringUtils.stringifyException(e));
-			}
-
+		if (this.uri == null) {
+			output.writeBoolean(false);
+		} else {
+			output.writeBoolean(true);
+			output.writeString(this.uri.getScheme());
+			output.writeString(this.uri.getUserInfo());
+			output.writeString(this.uri.getHost());
+			output.writeInt(this.uri.getPort());
+			output.writeString(this.uri.getPath());
+			output.writeString(this.uri.getQuery());
+			output.writeString(this.uri.getFragment());
 		}
 	}
 
@@ -485,20 +479,23 @@ public class Path implements IOReadableWritable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
-		if (uri == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			StringRecord.writeString(out, uri.getScheme());
-			StringRecord.writeString(out, uri.getUserInfo());
-			StringRecord.writeString(out, uri.getHost());
-			out.writeInt(uri.getPort());
-			StringRecord.writeString(out, uri.getPath());
-			StringRecord.writeString(out, uri.getQuery());
-			StringRecord.writeString(out, uri.getFragment());
+		final boolean isNotNull = input.readBoolean();
+		if (isNotNull) {
+			final String scheme = input.readString();
+			final String userInfo = input.readString();
+			final String host = input.readString();
+			final int port = input.readInt();
+			final String path = input.readString();
+			final String query = input.readString();
+			final String fragment = input.readString();
+
+			try {
+				this.uri = new URI(scheme, userInfo, host, port, path, query, fragment);
+			} catch (URISyntaxException e) {
+				throw new RuntimeException(e);
+			}
 		}
-
 	}
 }

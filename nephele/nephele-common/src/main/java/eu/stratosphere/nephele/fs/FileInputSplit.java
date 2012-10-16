@@ -21,12 +21,7 @@
 
 package eu.stratosphere.nephele.fs;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * A file input split provides information on a particular part of a file, possibly
@@ -39,27 +34,27 @@ public class FileInputSplit implements InputSplit {
 	/**
 	 * The path of the file this file split refers to.
 	 */
-	private Path file;
+	private final Path file;
 
 	/**
 	 * The position of the first byte in the file to process.
 	 */
-	private long start;
+	private final long start;
 
 	/**
 	 * The number of bytes in the file to process.
 	 */
-	private long length;
+	private final long length;
 
 	/**
 	 * List of hosts (hostnames) containing the block, possibly <code>null</code>.
 	 */
-	private String[] hosts;
+	private final String[] hosts;
 
 	/**
 	 * The logical number of the split.
 	 */
-	private int partitionNumber;
+	private final int partitionNumber;
 
 	/**
 	 * Constructs a split with host information.
@@ -87,6 +82,11 @@ public class FileInputSplit implements InputSplit {
 	 * Constructor used to reconstruct the object at the receiver of an RPC call.
 	 */
 	public FileInputSplit() {
+		this.partitionNumber = -1;
+		this.file = null;
+		this.start = -1L;
+		this.length = -1L;
+		this.hosts = new String[0];
 	}
 
 	/**
@@ -144,67 +144,5 @@ public class FileInputSplit implements InputSplit {
 	@Override
 	public String toString() {
 		return "[" + this.partitionNumber + "] " + file + ":" + start + "+" + length;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		// write partition number
-		out.writeInt(this.partitionNumber);
-
-		// write file
-		if (this.file != null) {
-			out.writeBoolean(true);
-			this.file.write(out);
-		} else {
-			out.writeBoolean(false);
-		}
-
-		// write start and length
-		out.writeLong(this.start);
-		out.writeLong(this.length);
-
-		// write hosts
-		if (this.hosts == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			out.writeInt(this.hosts.length);
-			for (int i = 0; i < this.hosts.length; i++) {
-				StringRecord.writeString(out, this.hosts[i]);
-			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		// read partition number
-		this.partitionNumber = in.readInt();
-
-		// read file path
-		boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			this.file = new Path();
-			this.file.read(in);
-		}
-
-		this.start = in.readLong();
-		this.length = in.readLong();
-
-		isNotNull = in.readBoolean();
-		if (isNotNull) {
-			final int numHosts = in.readInt();
-			this.hosts = new String[numHosts];
-			for (int i = 0; i < numHosts; i++) {
-				this.hosts[i] = StringRecord.readString(in);
-			}
-		} else {
-			this.hosts = null;
-		}
 	}
 }

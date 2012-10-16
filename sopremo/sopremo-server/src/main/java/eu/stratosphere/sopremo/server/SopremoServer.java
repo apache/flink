@@ -38,8 +38,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.ipc.RPC.Server;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionResponse;
@@ -53,7 +52,8 @@ import eu.stratosphere.sopremo.execution.SopremoID;
  * @author Arvid Heise
  */
 public class SopremoServer implements SopremoExecutionProtocol, Closeable {
-	private Server server;
+	
+	private RPCService rpcService;
 
 	private Configuration configuration;
 
@@ -86,9 +86,9 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	 */
 	@Override
 	public void close() {
-		if (this.server != null) {
-			this.server.stop();
-			this.server = null;
+		if (this.rpcService != null) {
+			this.rpcService.shutDown();
+			this.rpcService = null;
 		}
 		this.executorService.shutdownNow();
 	}
@@ -209,11 +209,8 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	}
 
 	private void startServer() throws IOException {
-		final int handlerCount = this.configuration.getInteger(SopremoConstants.SOPREMO_SERVER_HANDLER_COUNT_KEY, 1);
 		InetSocketAddress rpcServerAddress = getServerAddress();
-		this.server = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
-			handlerCount);
-		this.server.start();
+		this.rpcService = new RPCService(rpcServerAddress.getPort(), null);
 	}
 
 	/**

@@ -33,9 +33,9 @@ import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.rpc.ManagementTypeUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.Contract;
 import eu.stratosphere.pact.common.contract.CrossContract;
@@ -1664,11 +1664,11 @@ public class PactCompiler {
 		@Override
 		public void run()
 		{
-			ExtendedManagementProtocol jobManagerConnection = null;
-
+			RPCService rpcService = null;
 			try {
-				jobManagerConnection = RPC.getProxy(ExtendedManagementProtocol.class,
-					this.jobManagerAddress, NetUtils.getSocketFactory());
+				rpcService = new RPCService(ManagementTypeUtils.getRPCTypesToRegister());
+				ExtendedManagementProtocol jobManagerConnection = rpcService.
+						getProxy(this.jobManagerAddress, ExtendedManagementProtocol.class);
 
 				this.instances = jobManagerConnection.getMapOfAvailableInstanceTypes();
 				if (this.instances == null) {
@@ -1684,14 +1684,10 @@ public class PactCompiler {
 					this.lock.notifyAll();
 				}
 				
-				if (jobManagerConnection != null) {
-					try {
-						RPC.stopProxy(jobManagerConnection);
-					} catch (Throwable t) {
-						LOG.error("Could not cleanly shut down connection from compiler to job manager,", t);
-					}
+				if (rpcService != null) {
+					rpcService.shutDown();
 				}
-				jobManagerConnection = null;
+				rpcService = null;
 			}
 		}
 	}

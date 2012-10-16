@@ -45,7 +45,6 @@ import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.util.AtomicEnum;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -740,7 +739,7 @@ public final class ExecutionVertex {
 			return result;
 		}
 
-		final List<TaskDeploymentDescriptor> tasks = new SerializableArrayList<TaskDeploymentDescriptor>();
+		final List<TaskDeploymentDescriptor> tasks = new ArrayList<TaskDeploymentDescriptor>();
 		tasks.add(constructDeploymentDescriptor());
 
 		try {
@@ -1076,7 +1075,7 @@ public final class ExecutionVertex {
 	 */
 	public TaskDeploymentDescriptor constructDeploymentDescriptor() {
 
-		final SerializableArrayList<GateDeploymentDescriptor> ogd = new SerializableArrayList<GateDeploymentDescriptor>(
+		final ArrayList<GateDeploymentDescriptor> ogd = new ArrayList<GateDeploymentDescriptor>(
 			this.outputGates.length);
 		for (int i = 0; i < this.outputGates.length; ++i) {
 
@@ -1093,7 +1092,7 @@ public final class ExecutionVertex {
 			ogd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), eg.getCompressionLevel(), cdd));
 		}
 
-		final SerializableArrayList<GateDeploymentDescriptor> igd = new SerializableArrayList<GateDeploymentDescriptor>(
+		final ArrayList<GateDeploymentDescriptor> igd = new ArrayList<GateDeploymentDescriptor>(
 			this.inputGates.length);
 		for (int i = 0; i < this.inputGates.length; ++i) {
 

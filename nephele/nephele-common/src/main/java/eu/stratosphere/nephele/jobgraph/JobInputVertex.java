@@ -62,16 +62,6 @@ public class JobInputVertex extends AbstractJobInputVertex {
 	 *        The class of the vertex's input task.
 	 */
 	public void setInputClass(final Class<? extends AbstractInputTask<?>> inputClass) {
-		this.invokableClass = inputClass;
-	}
-
-	/**
-	 * Returns the class of the vertex's input task.
-	 * 
-	 * @return the class of the vertex's input task or <code>null</code> if no task has yet been set
-	 */
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractInputTask<?>> getInputClass() {
-		return (Class<? extends AbstractInputTask<?>>) this.invokableClass;
+		this.invokableClassName = inputClass.getName();
 	}
 }

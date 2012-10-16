@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,6 +24,7 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -75,10 +75,7 @@ public class JobManagerUtils {
 
 			Class<?>[] constructorArgs = { DeploymentManager.class, InstanceManager.class };
 			constructor = schedulerClass.getConstructor(constructorArgs);
-		} catch (NoSuchMethodException e) {
-			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
-			return null;
-		} catch (SecurityException e) {
+		} catch (Exception e) {
 			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
 			return null;
 		}
@@ -87,16 +84,7 @@ public class JobManagerUtils {
 
 		try {
 			scheduler = constructor.newInstance(deploymentManager, instanceManager);
-		} catch (InstantiationException e) {
-			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
-			return null;
-		} catch (IllegalAccessException e) {
-			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
-			return null;
-		} catch (IllegalArgumentException e) {
-			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
-			return null;
-		} catch (InvocationTargetException e) {
+		} catch (Exception e) {
 			LOG.error("Cannot create scheduler: " + StringUtils.stringifyException(e));
 			return null;
 		}
@@ -113,7 +101,7 @@ public class JobManagerUtils {
 	 * @return the {@link InstanceManager} object instantiated from the class with the provided name
 	 */
 	@SuppressWarnings("unchecked")
-	static InstanceManager loadInstanceManager(final String instanceManagerClassName) {
+	static InstanceManager loadInstanceManager(final String instanceManagerClassName, final RPCService rpcService) {
 
 		Class<? extends InstanceManager> instanceManagerClass;
 		try {
@@ -123,14 +111,18 @@ public class JobManagerUtils {
 			return null;
 		}
 
-		InstanceManager instanceManager;
-
+		Constructor<? extends InstanceManager> constructor;
 		try {
-			instanceManager = instanceManagerClass.newInstance();
-		} catch (InstantiationException e) {
-			LOG.error("Cannot create instanceManager: " + StringUtils.stringifyException(e));
+			constructor = instanceManagerClass.getConstructor(RPCService.class);
+		} catch (Exception e) {
+			LOG.error(StringUtils.stringifyException(e));
 			return null;
-		} catch (IllegalAccessException e) {
+		}
+
+		InstanceManager instanceManager;
+		try {
+			instanceManager = constructor.newInstance(rpcService);
+		} catch (Exception e) {
 			LOG.error("Cannot create instanceManager: " + StringUtils.stringifyException(e));
 			return null;
 		}

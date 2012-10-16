@@ -15,11 +15,8 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -31,6 +28,11 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.Vector;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
@@ -38,8 +40,8 @@ import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.ClassUtils;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * A job graph represents an entire job in Nephele. A job graph must consists at least of one job vertex
@@ -47,7 +49,7 @@ import eu.stratosphere.nephele.util.ClassUtils;
  * 
  * @author warneke
  */
-public class JobGraph implements IOReadableWritable {
+public class JobGraph implements KryoSerializable {
 
 	/**
 	 * List of input vertices included in this job graph.
@@ -538,141 +540,10 @@ public class JobGraph implements IOReadableWritable {
 	}
 
 	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		// Read job id
-		this.jobID.read(in);
-
-		// Read the job name
-		this.jobName = StringRecord.readString(in);
-
-		// Read required jar files
-		readRequiredJarFiles(in);
-
-		// First read total number of vertices;
-		final int numVertices = in.readInt();
-
-		// First, recreate each vertex and add it to reconstructionMap
-		for (int i = 0; i < numVertices; i++) {
-			final String className = StringRecord.readString(in);
-			final JobVertexID id = new JobVertexID();
-			id.read(in);
-			final String vertexName = StringRecord.readString(in);
-
-			Class<? extends IOReadableWritable> c;
-			try {
-				c = ClassUtils.getRecordByName(className);
-			} catch (ClassNotFoundException cnfe) {
-				throw new IOException(cnfe.toString());
-			}
-
-			// Find constructor
-			Constructor<? extends IOReadableWritable> cst;
-			try {
-				cst = c.getConstructor(String.class, JobVertexID.class, JobGraph.class);
-			} catch (SecurityException e1) {
-				throw new IOException(e1.toString());
-			} catch (NoSuchMethodException e1) {
-				throw new IOException(e1.toString());
-			}
-
-			try {
-				cst.newInstance(vertexName, id, this);
-			} catch (IllegalArgumentException e) {
-				throw new IOException(e.toString());
-			} catch (InstantiationException e) {
-				throw new IOException(e.toString());
-			} catch (IllegalAccessException e) {
-				throw new IOException(e.toString());
-			} catch (InvocationTargetException e) {
-				throw new IOException(e.toString());
-			}
-		}
-
-		final JobVertexID tmpID = new JobVertexID();
-		for (int i = 0; i < numVertices; i++) {
-
-			AbstractJobVertex jv;
-
-			tmpID.read(in);
-			if (inputVertices.containsKey(tmpID)) {
-				jv = inputVertices.get(tmpID);
-			} else {
-				if (outputVertices.containsKey(tmpID)) {
-					jv = outputVertices.get(tmpID);
-				} else {
-					if (taskVertices.containsKey(tmpID)) {
-						jv = taskVertices.get(tmpID);
-					} else {
-						throw new IOException("Cannot find vertex with ID " + tmpID + " in any vertex map.");
-					}
-				}
-			}
-
-			// Read the vertex data
-			jv.read(in);
-		}
-
-		// Find the class loader for the job
-		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.jobID);
-		if (cl == null) {
-			throw new IOException("Cannot find class loader for job graph " + this.jobID);
-		}
-
-		// Re-instantiate the job configuration object and read the configuration
-		this.jobConfiguration = new Configuration(cl);
-		this.jobConfiguration.read(in);
-
-		// Read the task manager configuration
-		this.taskManagerConfiguration.read(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		// Write job ID
-		this.jobID.write(out);
-
-		// Write out job name
-		StringRecord.writeString(out, this.jobName);
-
-		final AbstractJobVertex[] allVertices = this.getAllJobVertices();
-
-		// Write out all required jar files
-		writeRequiredJarFiles(out, allVertices);
-
-		// Write total number of vertices
-		out.writeInt(allVertices.length);
-
-		// First write out class name and id for every vertex
-		for (int i = 0; i < allVertices.length; i++) {
-
-			final String className = allVertices[i].getClass().getName();
-			StringRecord.writeString(out, className);
-			allVertices[i].getID().write(out);
-			StringRecord.writeString(out, allVertices[i].getName());
-		}
-
-		// Now write out vertices themselves
-		for (int i = 0; i < allVertices.length; i++) {
-			allVertices[i].getID().write(out);
-			allVertices[i].write(out);
-		}
-
-		// Write out configuration objects
-		this.jobConfiguration.write(out);
-		this.taskManagerConfiguration.write(out);
-	}
-
-	/**
 	 * Writes the JAR files of all vertices in array <code>jobVertices</code> to the specified output stream.
 	 * 
+	 * @param kryo
+	 *        the kryo object
 	 * @param out
 	 *        the output stream to write the JAR files to
 	 * @param jobVertices
@@ -680,7 +551,8 @@ public class JobGraph implements IOReadableWritable {
 	 * @throws IOException
 	 *         thrown if an error occurs while writing to the stream
 	 */
-	private void writeRequiredJarFiles(final DataOutput out, final AbstractJobVertex[] jobVertices) throws IOException {
+	private void writeRequiredJarFiles(final Kryo kryo, final Output out, final AbstractJobVertex[] jobVertices)
+			throws IOException {
 
 		// Now check if all the collected jar files really exist
 		final FileSystem fs = FileSystem.getLocalFileSystem();
@@ -699,11 +571,11 @@ public class JobGraph implements IOReadableWritable {
 			final Path jar = this.userJars.get(i);
 
 			// Write out the actual path
-			jar.write(out);
+			jar.write(kryo, out);
 
 			// Write out the length of the file
 			final FileStatus file = fs.getFileStatus(jar);
-			out.writeLong(file.getLen());
+			out.writeInt((int) file.getLen());
 
 			// Now write the jar file
 			final FSDataInputStream inStream = fs.open(this.userJars.get(i));
@@ -720,29 +592,31 @@ public class JobGraph implements IOReadableWritable {
 	 * Reads required JAR files from an input stream and adds them to the
 	 * library cache manager.
 	 * 
-	 * @param in
+	 * @param kryo
+	 *        the kryo object
+	 * @param input
 	 *        the data stream to read the JAR files from
 	 * @throws IOException
 	 *         thrown if an error occurs while reading the stream
 	 */
-	private void readRequiredJarFiles(final DataInput in) throws IOException {
+	private void readRequiredJarFiles(final Kryo kryo, final Input input) throws IOException {
 
 		// Do jar files follow;
-		final int numJars = in.readInt();
+		final int numJars = input.readInt();
 
 		if (numJars > 0) {
 
 			for (int i = 0; i < numJars; i++) {
 
 				final Path p = new Path();
-				p.read(in);
+				p.read(kryo, input);
 				this.userJars.add(p);
 
 				// Read the size of the jar file
-				final long sizeOfJar = in.readLong();
+				final int sizeOfJar = input.readInt();
 
 				// Add the jar to the library manager
-				LibraryCacheManager.addLibrary(this.jobID, p, sizeOfJar, in);
+				LibraryCacheManager.addLibrary(this.jobID, p, sizeOfJar, input);
 			}
 
 		}
@@ -843,5 +717,136 @@ public class JobGraph implements IOReadableWritable {
 		}
 
 		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void write(final Kryo kryo, final Output output) {
+
+		// Write job ID
+		this.jobID.write(kryo, output);
+
+		// Write out job name
+		output.writeString(this.jobName);
+
+		final AbstractJobVertex[] allVertices = this.getAllJobVertices();
+
+		// Write out all required jar files
+		try {
+			writeRequiredJarFiles(kryo, output, allVertices);
+		} catch (IOException ioe) {
+			throw new RuntimeException(ioe);
+		}
+
+		// Write total number of vertices
+		output.writeInt(allVertices.length);
+
+		// First write out class name and id for every vertex
+		for (int i = 0; i < allVertices.length; i++) {
+
+			final String className = allVertices[i].getClass().getName();
+			output.writeString(className);
+			allVertices[i].getID().write(kryo, output);
+			output.writeString(allVertices[i].getName());
+		}
+
+		// Now write out vertices themselves
+		for (int i = 0; i < allVertices.length; i++) {
+			allVertices[i].getID().write(kryo, output);
+			allVertices[i].write(kryo, output);
+		}
+
+		// Write out configuration objects
+		this.jobConfiguration.write(kryo, output);
+		this.taskManagerConfiguration.write(kryo, output);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void read(final Kryo kryo, final Input input) {
+
+		// Read job id
+		this.jobID.read(kryo, input);
+
+		// Read the job name
+		this.jobName = input.readString();
+
+		// Read required jar files
+		try {
+			readRequiredJarFiles(kryo, input);
+		} catch (IOException ioe) {
+			new RuntimeException(ioe);
+		}
+
+		// First read total number of vertices;
+		final int numVertices = input.readInt();
+
+		// First, recreate each vertex and add it to reconstructionMap
+		for (int i = 0; i < numVertices; i++) {
+			final String className = input.readString();
+			final JobVertexID id = new JobVertexID();
+			id.read(kryo, input);
+			final String vertexName = input.readString();
+
+			Class<? extends IOReadableWritable> c;
+			try {
+				c = ClassUtils.getRecordByName(className);
+			} catch (ClassNotFoundException cnfe) {
+				throw new RuntimeException(cnfe.toString());
+			}
+
+			// Find constructor
+			Constructor<? extends IOReadableWritable> cst;
+			try {
+				cst = c.getConstructor(String.class, JobVertexID.class, JobGraph.class);
+
+				cst.newInstance(vertexName, id, this);
+			} catch (Exception e) {
+				throw new RuntimeException(e.toString());
+			}
+		}
+
+		final JobVertexID tmpID = new JobVertexID();
+		for (int i = 0; i < numVertices; i++) {
+
+			AbstractJobVertex jv;
+
+			tmpID.read(kryo, input);
+			if (inputVertices.containsKey(tmpID)) {
+				jv = inputVertices.get(tmpID);
+			} else {
+				if (outputVertices.containsKey(tmpID)) {
+					jv = outputVertices.get(tmpID);
+				} else {
+					if (taskVertices.containsKey(tmpID)) {
+						jv = taskVertices.get(tmpID);
+					} else {
+						throw new IllegalStateException("Cannot find vertex with ID " + tmpID + " in any vertex map.");
+					}
+				}
+			}
+
+			// Read the vertex data
+			jv.read(kryo, input);
+		}
+
+		// Find the class loader for the job
+		ClassLoader cl = null;
+		try {
+			cl = LibraryCacheManager.getClassLoader(this.jobID);
+		} catch (IOException ioe) {
+			throw new RuntimeException("Error initializing class loader: " + StringUtils.stringifyException(ioe));
+		}
+
+		// Re-instantiate the job configuration object and read the configuration
+		this.jobConfiguration = new Configuration(cl);
+		this.jobConfiguration.read(kryo, input);
+
+		// Read the task manager configuration
+		this.taskManagerConfiguration.read(kryo, input);
 	}
 }

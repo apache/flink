@@ -145,7 +145,6 @@ public abstract class GUIServletStub extends HttpServlet {
 			.println("    <h1><img src=\"img/StratosphereLogo.png\" width=\"326\" height=\"100\" alt=\"Stratosphere Logo\" align=\"middle\"/>Nephele and PACTs Query Interface</h1>");
 		writer.println("  </div>");
 
-		@SuppressWarnings("unchecked")
 		Map<String, String[]> m = (Map<String, String[]>) req.getParameterMap();
 
 		// let the content be printed by the child class

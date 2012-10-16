@@ -19,13 +19,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
-
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.util.ServerTestUtils;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class contains unit tests for the {@link ChannelDeploymentDescriptor} class.
@@ -95,14 +92,7 @@ public class ChannelDeploymentDescriptorTest {
 		final ChannelID inputChannelID = new ChannelID();
 
 		final ChannelDeploymentDescriptor orig = new ChannelDeploymentDescriptor(outputChannelID, inputChannelID);
-
-		ChannelDeploymentDescriptor copy = null;
-
-		try {
-			copy = ServerTestUtils.createCopy(orig);
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		}
+		final ChannelDeploymentDescriptor copy = ServerTestUtils.createCopy(orig);
 
 		assertFalse(orig.getOutputChannelID() == copy.getOutputChannelID());
 		assertFalse(orig.getInputChannelID() == copy.getInputChannelID());

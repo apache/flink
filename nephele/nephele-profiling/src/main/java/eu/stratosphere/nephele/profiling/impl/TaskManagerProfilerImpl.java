@@ -34,20 +34,22 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
+import eu.stratosphere.nephele.rpc.ProfilingTypeUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerProfiler {
 
 	private static final Log LOG = LogFactory.getLog(TaskManagerProfilerImpl.class);
+
+	private final RPCService rpcService;
 
 	private final ProfilerImplProtocol jobManagerProfiler;
 
@@ -66,17 +68,21 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	public TaskManagerProfilerImpl(InetAddress jobManagerAddress, InstanceConnectionInfo instanceConnectionInfo)
 			throws ProfilingException {
 
-		// Create RPC stub for communication with job manager's profiling component.
-		final InetSocketAddress profilingAddress = new InetSocketAddress(jobManagerAddress, GlobalConfiguration
-			.getInteger(ProfilingUtils.JOBMANAGER_RPC_PORT_KEY, ProfilingUtils.JOBMANAGER_DEFAULT_RPC_PORT));
-		ProfilerImplProtocol jobManagerProfilerTmp = null;
+		// Start RPC service
 		try {
-			jobManagerProfilerTmp = (ProfilerImplProtocol) RPC.getProxy(ProfilerImplProtocol.class, profilingAddress,
-				NetUtils.getSocketFactory());
+			this.rpcService = new RPCService(ProfilingTypeUtils.getRPCTypesToRegister());
 		} catch (IOException e) {
 			throw new ProfilingException(StringUtils.stringifyException(e));
 		}
-		this.jobManagerProfiler = jobManagerProfilerTmp;
+
+		// Create RPC stub for communication with job manager's profiling component.
+		final InetSocketAddress profilingAddress = new InetSocketAddress(jobManagerAddress, GlobalConfiguration
+			.getInteger(ProfilingUtils.JOBMANAGER_RPC_PORT_KEY, ProfilingUtils.JOBMANAGER_DEFAULT_RPC_PORT));
+		try {
+			this.jobManagerProfiler = this.rpcService.getProxy(profilingAddress, ProfilerImplProtocol.class);
+		} catch (IOException e) {
+			throw new ProfilingException(StringUtils.stringifyException(e));
+		}
 
 		// Initialize MX interface and check if thread contention monitoring is supported
 		this.tmx = ManagementFactory.getThreadMXBean();
@@ -120,6 +126,9 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	@Override
 	public void shutdown() {
+
+		// Stop the RPC service
+		this.rpcService.shutDown();
 
 		// Stop the timer task
 		this.timer.cancel();
@@ -167,7 +176,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 					this.jobManagerProfiler.reportProfilingData(this.profilingDataContainer);
 					this.profilingDataContainer.clear();
 				} catch (IOException e) {
-					LOG.error(e);
+					LOG.error(StringUtils.stringifyException(e));
 				}
 			}
 		}

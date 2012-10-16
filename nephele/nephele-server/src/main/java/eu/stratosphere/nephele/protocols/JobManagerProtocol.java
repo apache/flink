@@ -19,7 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 
@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
  * 
  * @author warneke
  */
-public interface JobManagerProtocol extends VersionedProtocol {
+public interface JobManagerProtocol extends RPCProtocol {
 
 	/**
 	 * Sends a heart beat to the job manager.

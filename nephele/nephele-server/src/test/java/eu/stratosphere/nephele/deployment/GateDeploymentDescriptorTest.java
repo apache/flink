@@ -19,7 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,7 +29,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.util.ServerTestUtils;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class contains unit tests for the {@link GateDeploymentDescriptor} class.
@@ -132,14 +130,8 @@ public class GateDeploymentDescriptorTest {
 		final GateDeploymentDescriptor orig = new GateDeploymentDescriptor(gateID, channelType, compressionLevel,
 			channels);
 
-		GateDeploymentDescriptor copy = null;
-
-		try {
-			copy = ServerTestUtils.createCopy(orig);
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		}
-
+		final GateDeploymentDescriptor copy = ServerTestUtils.createCopy(orig);
+		
 		assertFalse(orig.getGateID() == copy.getGateID());
 
 		assertEquals(orig.getGateID(), copy.getGateID());

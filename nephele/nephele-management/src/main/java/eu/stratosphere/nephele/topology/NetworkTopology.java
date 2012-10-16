@@ -16,9 +16,7 @@
 package eu.stratosphere.nephele.topology;
 
 import java.io.BufferedReader;
-import java.io.DataInput;
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -29,9 +27,12 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
-public class NetworkTopology implements IOReadableWritable {
+public class NetworkTopology implements KryoSerializable {
 
 	private static final String DEFAULT_ROOT_NODE_NAME = "root";
 
@@ -122,16 +123,16 @@ public class NetworkTopology implements IOReadableWritable {
 	}
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
-		this.rootNode.read(in);
+		this.rootNode.read(kryo, input);
 
 	}
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final Kryo kryo, final Output output) {
 
-		this.rootNode.write(out);
+		this.rootNode.write(kryo, output);
 
 	}
 
