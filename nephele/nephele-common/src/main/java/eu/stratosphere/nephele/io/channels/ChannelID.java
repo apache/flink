@@ -19,15 +19,41 @@ import eu.stratosphere.nephele.io.AbstractID;
 
 /**
  * A class for statistically unique channel IDs.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public class ChannelID extends AbstractID {
+public final class ChannelID extends AbstractID {
 
 	/**
-	 * Constructs a new, random channel ID.
+	 * Default constructor required by kryo.
 	 */
-	public ChannelID() {
-		super();
+	private ChannelID() {
+	}
+
+	/**
+	 * Constructs a new channel ID.
+	 * 
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
+	 */
+	private ChannelID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	/**
+	 * Generates a new statistically unique channel ID.
+	 * 
+	 * @return a new statistically unique channel ID
+	 */
+	public static ChannelID generate() {
+
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
+
+		return new ChannelID(lowerPart, upperPart);
 	}
 }

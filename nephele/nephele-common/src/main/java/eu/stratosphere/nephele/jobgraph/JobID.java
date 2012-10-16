@@ -18,26 +18,42 @@ package eu.stratosphere.nephele.jobgraph;
 import eu.stratosphere.nephele.io.AbstractID;
 
 /**
- * A <code>JobID</code> is a statistically unique identification number that unambiguously
- * identifies a job configuration.
+ * A class for statistically unique job IDs.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
 public final class JobID extends AbstractID {
+
 	/**
-	 * Constructs a new random ID from a uniform distribution.
+	 * Default constructor required by kryo.
 	 */
-	public JobID() {
-		super();
+	private JobID() {
 	}
 
 	/**
-	 * Constructs a new ID with a specific bytes value.
+	 * Constructs a new job ID.
 	 * 
-	 * @param bytes
-	 *        the ID in byte representation
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
 	 */
-	public JobID(final byte[] bytes) {
-		super(bytes);
+	private JobID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	/**
+	 * Generates a new statistically unique job ID.
+	 * 
+	 * @return a new statistically unique job ID
+	 */
+	public static JobID generate() {
+
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
+
+		return new JobID(lowerPart, upperPart);
 	}
 }

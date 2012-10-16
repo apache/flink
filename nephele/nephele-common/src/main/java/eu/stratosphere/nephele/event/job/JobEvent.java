@@ -18,8 +18,9 @@ package eu.stratosphere.nephele.event.job;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 
 /**
- * A job event object is used by the job manager to inform a client about
- * changes of the job's status.
+ * A job event object is used by the job manager to inform a client about changes of the job's status.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -28,12 +29,12 @@ public class JobEvent extends AbstractEvent {
 	/**
 	 * The current status of the job.
 	 */
-	private JobStatus currentJobStatus;
+	private final JobStatus currentJobStatus;
 
 	/**
 	 * An optional message attached to the event, possibly <code>null</code>.
 	 */
-	private String optionalMessage = null;
+	private final String optionalMessage;
 
 	/**
 	 * Constructs a new job event object.
@@ -53,14 +54,13 @@ public class JobEvent extends AbstractEvent {
 	}
 
 	/**
-	 * Constructs a new job event object. This constructor
-	 * is only required for the deserialization process and
-	 * is not supposed to be called directly.
+	 * Private constructor required by kryo.
 	 */
-	public JobEvent() {
-		super();
+	@SuppressWarnings("unused")
+	private JobEvent() {
 
-		this.currentJobStatus = JobStatus.SCHEDULED;
+		this.currentJobStatus = null;
+		this.optionalMessage = null;
 	}
 
 	/**

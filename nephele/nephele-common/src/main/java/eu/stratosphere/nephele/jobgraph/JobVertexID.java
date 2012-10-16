@@ -19,9 +19,41 @@ import eu.stratosphere.nephele.io.AbstractID;
 
 /**
  * A class for statistically unique job vertex IDs.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public class JobVertexID extends AbstractID {
+public final class JobVertexID extends AbstractID {
 
+	/**
+	 * Default constructor required by kryo.
+	 */
+	private JobVertexID() {
+	}
+
+	/**
+	 * Constructs a new job vertex ID.
+	 * 
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
+	 */
+	private JobVertexID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	/**
+	 * Generates a new statistically unique job vertex ID.
+	 * 
+	 * @return a new statistically unique job vertex ID
+	 */
+	public static JobVertexID generate() {
+
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
+
+		return new JobVertexID(lowerPart, upperPart);
+	}
 }

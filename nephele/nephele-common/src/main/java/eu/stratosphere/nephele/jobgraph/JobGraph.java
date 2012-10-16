@@ -100,7 +100,7 @@ public class JobGraph implements KryoSerializable {
 	 * Constructs a new job graph with a random job ID.
 	 */
 	public JobGraph() {
-		this.jobID = new JobID();
+		this.jobID = JobID.generate();
 	}
 
 	/**
@@ -726,7 +726,7 @@ public class JobGraph implements KryoSerializable {
 	public void write(final Kryo kryo, final Output output) {
 
 		// Write job ID
-		this.jobID.write(kryo, output);
+		kryo.writeObject(output, this.jobID);
 
 		// Write out job name
 		output.writeString(this.jobName);
@@ -748,13 +748,13 @@ public class JobGraph implements KryoSerializable {
 
 			final String className = allVertices[i].getClass().getName();
 			output.writeString(className);
-			allVertices[i].getID().write(kryo, output);
+			kryo.writeObject(output, allVertices[i].getID());
 			output.writeString(allVertices[i].getName());
 		}
 
 		// Now write out vertices themselves
 		for (int i = 0; i < allVertices.length; i++) {
-			allVertices[i].getID().write(kryo, output);
+			kryo.writeObject(output, allVertices[i].getID());
 			allVertices[i].write(kryo, output);
 		}
 
@@ -770,7 +770,7 @@ public class JobGraph implements KryoSerializable {
 	public void read(final Kryo kryo, final Input input) {
 
 		// Read job id
-		this.jobID.read(kryo, input);
+		this.jobID = kryo.readObjectOrNull(input, JobID.class);
 
 		// Read the job name
 		this.jobName = input.readString();
@@ -788,8 +788,7 @@ public class JobGraph implements KryoSerializable {
 		// First, recreate each vertex and add it to reconstructionMap
 		for (int i = 0; i < numVertices; i++) {
 			final String className = input.readString();
-			final JobVertexID id = new JobVertexID();
-			id.read(kryo, input);
+			final JobVertexID id = kryo.readObject(input, JobVertexID.class);
 			final String vertexName = input.readString();
 
 			Class<? extends IOReadableWritable> c;
@@ -810,12 +809,11 @@ public class JobGraph implements KryoSerializable {
 			}
 		}
 
-		final JobVertexID tmpID = new JobVertexID();
 		for (int i = 0; i < numVertices; i++) {
 
 			AbstractJobVertex jv;
 
-			tmpID.read(kryo, input);
+			final JobVertexID tmpID = kryo.readObject(input, JobVertexID.class);
 			if (inputVertices.containsKey(tmpID)) {
 				jv = inputVertices.get(tmpID);
 			} else {

@@ -87,18 +87,16 @@ public class VertexEvent extends AbstractEvent {
 	}
 
 	/**
-	 * Constructs a new vertex event object. This constructor is
-	 * required for the deserialization process and is not supposed
-	 * to be called directly.
+	 * Default constructor required by kryo.
 	 */
-	public VertexEvent() {
-		super();
+	@SuppressWarnings("unused")
+	private VertexEvent() {
 
-		this.jobVertexID = new JobVertexID();
+		this.jobVertexID = null;
 		this.jobVertexName = null;
 		this.totalNumberOfSubtasks = -1;
 		this.indexOfSubtask = -1;
-		this.currentExecutionState = ExecutionState.CREATED;
+		this.currentExecutionState = null;
 		this.description = null;
 	}
 

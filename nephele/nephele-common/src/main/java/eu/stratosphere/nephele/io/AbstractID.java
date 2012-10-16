@@ -15,24 +15,17 @@
 
 package eu.stratosphere.nephele.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
- * ID is an abstract base class to provide statistically unique and serializable identification numbers in Nephele.
+ * ID is an abstract base class for providing statistically unique identification numbers in Nephele.
  * Every component that requires these kinds of IDs provides its own concrete type.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public abstract class AbstractID implements IOReadableWritable, KryoSerializable {
+public abstract class AbstractID {
 
 	/**
 	 * The size of a long in bytes.
@@ -47,53 +40,44 @@ public abstract class AbstractID implements IOReadableWritable, KryoSerializable
 	/**
 	 * The upper part of the actual ID.
 	 */
-	private long upperPart;
+	private final long upperPart;
 
 	/**
 	 * The lower part of the actual ID.
 	 */
-	private long lowerPart;
+	private final long lowerPart;
 
 	/**
-	 * Constructs a new ID with a specific bytes value.
-	 */
-	public AbstractID(final byte[] bytes) {
-
-		if (bytes.length != SIZE) {
-			throw new IllegalArgumentException("Argument bytes must by an array of " + SIZE + " bytes");
-		}
-
-		this.lowerPart = byteArrayToLong(bytes, 0);
-		this.upperPart = byteArrayToLong(bytes, SIZE_OF_LONG);
-	}
-
-	/**
-	 * Constructs a new random ID from a uniform distribution.
-	 */
-	public AbstractID() {
-
-		this.lowerPart = (long) (Math.random() * Long.MAX_VALUE);
-		this.upperPart = (long) (Math.random() * Long.MAX_VALUE);
-	}
-
-	/**
-	 * Converts the given byte array to a long.
+	 * Constructs a new abstract ID.
 	 * 
-	 * @param ba
-	 *        the byte array to be converted
-	 * @param offset
-	 *        the offset indicating at which byte inside the array the conversion shall begin
-	 * @return the long variable
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
 	 */
-	private static long byteArrayToLong(final byte[] ba, final int offset) {
+	protected AbstractID(final long lowerPart, final long upperPart) {
 
-		long l = 0;
+		this.lowerPart = lowerPart;
+		this.upperPart = upperPart;
+	}
 
-		for (int i = 0; i < SIZE_OF_LONG; ++i) {
-			l |= (ba[offset + SIZE_OF_LONG - 1 - i] & 0xffL) << (i << 3);
-		}
+	/**
+	 * Default constructor required by kryo.
+	 */
+	protected AbstractID() {
 
-		return l;
+		this.lowerPart = 0L;
+		this.upperPart = 0L;
+	}
+
+	/**
+	 * Generates a uniformly distributed random positive long.
+	 * 
+	 * @return a uniformly distributed random positive long
+	 */
+	protected static long generateRandomBytes() {
+
+		return (long) (Math.random() * Long.MAX_VALUE);
 	}
 
 	/**
@@ -112,17 +96,6 @@ public abstract class AbstractID implements IOReadableWritable, KryoSerializable
 			final int shift = i << 3; // i * 8
 			ba[offset + SIZE_OF_LONG - 1 - i] = (byte) ((l & (0xffL << shift)) >>> shift);
 		}
-	}
-
-	/**
-	 * Sets an ID from another ID by copying its internal byte representation.
-	 * 
-	 * @param src
-	 *        the source ID
-	 */
-	public void setID(final AbstractID src) {
-		this.lowerPart = src.lowerPart;
-		this.upperPart = src.upperPart;
 	}
 
 	/**
@@ -155,44 +128,6 @@ public abstract class AbstractID implements IOReadableWritable, KryoSerializable
 	public int hashCode() {
 
 		return (int) (this.lowerPart ^ (this.upperPart >>> 32));
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.lowerPart = in.readLong();
-		this.upperPart = in.readLong();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		out.writeLong(this.lowerPart);
-		out.writeLong(this.upperPart);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final Kryo kryo, final Output output) {
-		output.writeLong(this.lowerPart);
-		output.writeLong(this.upperPart);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final Kryo kryo, final Input input) {
-		this.lowerPart = input.readLong();
-		this.upperPart = input.readLong();
 	}
 
 	/**

@@ -20,8 +20,10 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * An abstract event is transmitted from the job manager to the
- * job client in order to inform the user about the job progress.
+ * An abstract event is transmitted from the job manager to the job client in order to inform the user about the job
+ * progress.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -40,12 +42,12 @@ public abstract class AbstractEvent {
 	/**
 	 * The timestamp of the event.
 	 */
-	private long timestamp = -1;
+	private final long timestamp;
 
 	/**
 	 * The sequence number of the event.
 	 */
-	private long sequenceNumber = -1;
+	private final long sequenceNumber;
 
 	/**
 	 * Constructs a new abstract event object.
@@ -63,11 +65,11 @@ public abstract class AbstractEvent {
 	}
 
 	/**
-	 * Constructs a new abstract event object. This constructor
-	 * is required for the deserialization process and is not
-	 * supposed to be called directly.
+	 * Default constructor required by kryo.
 	 */
-	public AbstractEvent() {
+	protected AbstractEvent() {
+		this.timestamp = 0L;
+		this.sequenceNumber = 0L;
 	}
 
 	/**

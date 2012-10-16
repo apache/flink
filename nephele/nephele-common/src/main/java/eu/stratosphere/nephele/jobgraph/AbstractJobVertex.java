@@ -113,7 +113,7 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 	protected AbstractJobVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
 
 		this.name = name;
-		this.id = (id == null) ? new JobVertexID() : id;
+		this.id = (id == null) ? JobVertexID.generate() : id;
 		this.jobGraph = jobGraph;
 	}
 
@@ -455,7 +455,7 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 		// Vertex to share instance with
 		if (this.vertexToShareInstancesWith != null) {
 			output.writeBoolean(true);
-			this.vertexToShareInstancesWith.getID().write(kryo, output);
+			kryo.writeObject(output, this.vertexToShareInstancesWith.getID());
 		} else {
 			output.writeBoolean(false);
 		}
@@ -474,7 +474,7 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 				output.writeBoolean(false);
 			} else {
 				output.writeBoolean(true);
-				edge.getConnectedVertex().getID().write(kryo, output);
+				kryo.writeObject(output, edge.getConnectedVertex().getID());
 				EnumUtils.writeEnum(output, edge.getChannelType());
 				EnumUtils.writeEnum(output, edge.getCompressionLevel());
 				EnumUtils.writeEnum(output, edge.getDistributionPattern());
@@ -510,8 +510,7 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 
 		// Read vertex to share instances with
 		if (input.readBoolean()) {
-			final JobVertexID id = new JobVertexID();
-			id.read(kryo, input);
+			final JobVertexID id = kryo.readObject(input, JobVertexID.class);
 			final AbstractJobVertex vertexToShareInstancesWith = this.jobGraph.findVertexByID(id);
 			if (vertexToShareInstancesWith == null) {
 				throw new IllegalStateException("Cannot find vertex with id " + id + " share instances with");
@@ -536,10 +535,9 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 		final int numForwardEdges = input.readInt();
 
 		// Now reconnect to other vertices via the reconstruction map
-		final JobVertexID tmpID = new JobVertexID();
 		for (int i = 0; i < numForwardEdges; i++) {
 			if (input.readBoolean()) {
-				tmpID.read(kryo, input);
+				final JobVertexID tmpID = kryo.readObject(input, JobVertexID.class);
 				final AbstractJobVertex jv = jobGraph.findVertexByID(tmpID);
 				if (jv == null) {
 					throw new IllegalStateException("Cannot find vertex with id " + tmpID);
@@ -564,67 +562,6 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 
 		// Read the name of the invokable class
 		this.invokableClassName = input.readString();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		// Instance type
-		StringRecord.writeString(out, this.instanceType);
-
-		// Number of subtasks
-		out.writeInt(this.numberOfSubtasks);
-
-		// Number of subtasks per instance
-		out.writeInt(this.numberOfSubtasksPerInstance);
-
-		// Number of execution retries
-		out.writeInt(this.numberOfExecutionRetries);
-
-		// Vertex to share instance with
-		if (this.vertexToShareInstancesWith != null) {
-			out.writeBoolean(true);
-			this.vertexToShareInstancesWith.getID().write(out);
-		} else {
-			out.writeBoolean(false);
-		}
-
-		// Write the configuration
-		this.configuration.write(out);
-
-		// We ignore the backward edges and connect them when we reconstruct the graph on the remote side, only write
-		// number of forward edges
-		out.writeInt(this.forwardEdges.size());
-
-		// Now output the IDs of the vertices this vertex is connected to
-		for (int i = 0; i < this.forwardEdges.size(); i++) {
-			final JobEdge edge = this.forwardEdges.get(i);
-			if (edge == null) {
-				out.writeBoolean(false);
-			} else {
-				out.writeBoolean(true);
-				edge.getConnectedVertex().getID().write(out);
-				EnumUtils.writeEnum(out, edge.getChannelType());
-				EnumUtils.writeEnum(out, edge.getCompressionLevel());
-				EnumUtils.writeEnum(out, edge.getDistributionPattern());
-				out.writeInt(edge.getIndexOfInputGate());
-				out.writeBoolean(edge.spanningRecordsAllowed());
-			}
-		}
-
-		// Write the invokable class
-		if (this.invokableClass == null) {
-			out.writeBoolean(false);
-			return;
-		}
-
-		out.writeBoolean(true);
-
-		// Write out the name of the class
-		StringRecord.writeString(out, this.invokableClass.getName());
 	}
 
 	/**
