@@ -71,8 +71,7 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 */
 	private void connectOutputGate(final ChannelSelector<T> selector, final boolean isBroadcast) {
 
-		this.outputGate = this.environment.createOutputGate(selector, isBroadcast);
-		this.environment.registerOutputGate(this.outputGate);
+		this.outputGate = this.environment.createAndRegisterOutputGate(selector, isBroadcast);
 	}
 
 	/**

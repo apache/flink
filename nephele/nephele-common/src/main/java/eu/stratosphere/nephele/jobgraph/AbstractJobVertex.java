@@ -226,6 +226,33 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        number
 	 * @param distributionPattern
 	 *        the distribution patter according to which the subtasks of the connected vertices shall be connected
+	 * @throws JobGraphDefinitionException
+	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
+	 */
+	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
+			final CompressionLevel compressionLevel, int indexOfOutputGate, int indexOfInputGate,
+			final DistributionPattern distributionPattern) throws JobGraphDefinitionException {
+		this.connectTo(vertex, channelType, compressionLevel, indexOfOutputGate, indexOfInputGate, distributionPattern,
+			false);
+	}
+
+	/**
+	 * Connects the job vertex to the specified job vertex.
+	 * 
+	 * @param vertex
+	 *        the vertex this vertex should connect to
+	 * @param channelType
+	 *        the channel type the two vertices should be connected by at runtime
+	 * @param compressionLevel
+	 *        the compression level the corresponding channel should have at runtime
+	 * @param indexOfOutputGate
+	 *        index of the producing task's output gate to be used, <code>-1</code> will determine the next free index
+	 *        number
+	 * @param indexOfInputGate
+	 *        index of the consuming task's input gate to be used, <code>-1</code> will determine the next free index
+	 *        number
+	 * @param distributionPattern
+	 *        the distribution patter according to which the subtasks of the connected vertices shall be connected
 	 * @param allowSpanningRecords
 	 *        <code>true</code> to allow spanning records for this edge, <code>false</code> otherwise. Spanning records
 	 *        are records which are too big to fit into one of Nephele's internal buffers at runtime. Allowing spanning

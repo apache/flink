@@ -49,7 +49,7 @@ public class DoubleTargetTask extends AbstractTask {
 	public void registerInputOutput() {
 		this.input1 = new RecordReader<StringRecord>(this, StringRecord.class);
 		this.input2 = new RecordReader<StringRecord>(this, StringRecord.class);
-		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output = new RecordWriter<StringRecord>(this);
 	}
 
 }

@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.FileOutputChannel;
 import eu.stratosphere.nephele.io.channels.InMemoryOutputChannel;
 import eu.stratosphere.nephele.io.channels.NetworkOutputChannel;
-import eu.stratosphere.nephele.io.channels.OutputChannel;
 import eu.stratosphere.nephele.io.channels.RecordSerializerFactory;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
@@ -175,68 +174,36 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getNumberOfOutputChannels() {
-
-		return this.outputChannels.size();
-	}
-
-	/**
-	 * Returns the output channel from position <code>pos</code> of the gate's
-	 * internal channel list.
-	 * 
-	 * @param pos
-	 *        the position to retrieve the channel from
-	 * @return the channel from the given position or <code>null</code> if such
-	 *         position does not exist.
-	 */
-	public AbstractOutputChannel<T> getOutputChannel(int pos) {
-
-		if (pos < this.outputChannels.size())
-			return this.outputChannels.get(pos);
-		else
-			return null;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public OutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
+	public void createNetworkOutputChannel(final OutputGate<T> outputGate,
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final NetworkOutputChannel<T> enoc = new NetworkOutputChannel<T>(outputGate, this.outputChannels.size(),
 			channelID, connectedChannelID, compressionLevel, this.serializerFactory.createSerializer());
 		addOutputChannel(enoc);
-
-		return enoc;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileOutputChannel<T> createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
+	public void createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final FileOutputChannel<T> efoc = new FileOutputChannel<T>(outputGate, this.outputChannels.size(), channelID,
 			connectedChannelID, compressionLevel, this.serializerFactory.createSerializer());
 		addOutputChannel(efoc);
-
-		return efoc;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
+	public void createInMemoryOutputChannel(final OutputGate<T> outputGate,
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final InMemoryOutputChannel<T> einoc = new InMemoryOutputChannel<T>(outputGate, this.outputChannels.size(),
 			channelID, connectedChannelID, compressionLevel, this.serializerFactory.createSerializer());
 		addOutputChannel(einoc);
-
-		return einoc;
 	}
 
 	/**
@@ -245,8 +212,8 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	@Override
 	public void requestClose() throws IOException, InterruptedException {
 		// Close all output channels
-		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
-			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(i);
+		for (int i = 0; i < this.outputChannels.size(); i++) {
+			final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(i);
 			outputChannel.requestClose();
 		}
 	}
@@ -259,8 +226,8 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 
 		boolean allClosed = true;
 
-		for (int i = 0; i < this.getNumberOfOutputChannels(); i++) {
-			final AbstractOutputChannel<T> outputChannel = this.getOutputChannel(i);
+		for (int i = 0; i < this.outputChannels.size(); i++) {
+			final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(i);
 			if (!outputChannel.isClosed()) {
 				allClosed = false;
 			}
@@ -401,5 +368,31 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 		for (int i = 0; i < this.outputChannels.size(); ++i) {
 			this.outputChannels.get(i).initializeCompressor();
 		}
+	}
+
+	/**
+	 * Returns the number of output channels associated with this output gate.
+	 * 
+	 * @return the number of output channels associated with this output gate
+	 */
+	public int getNumberOfOutputChannels() {
+
+		return this.outputChannels.size();
+	}
+
+	/**
+	 * Returns the output channel from position <code>pos</code> of the gate's internal channel list.
+	 * 
+	 * @param pos
+	 *        the position to retrieve the channel from
+	 * @return the channel from the given position or <code>null</code> if such position does not exist.
+	 */
+	public AbstractOutputChannel<T> getOutputChannel(final int pos) {
+
+		if (pos < this.outputChannels.size()) {
+			return this.outputChannels.get(pos);
+		}
+
+		return null;
 	}
 }

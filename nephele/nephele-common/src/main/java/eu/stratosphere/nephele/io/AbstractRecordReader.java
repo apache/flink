@@ -58,17 +58,7 @@ public abstract class AbstractRecordReader<T extends Record> {
 	 */
 	private void connectInputGate(final RecordFactory<T> recordFactory) {
 
-		this.inputGate = this.environment.createInputGate(recordFactory);
-		this.environment.registerInputGate(this.inputGate);
-	}
-
-	/**
-	 * Returns the number of input channels wired to this reader's input gate.
-	 * 
-	 * @return the number of input channels wired to this reader's input gate
-	 */
-	public final int getNumberOfInputChannels() {
-		return this.inputGate.getNumberOfInputChannels();
+		this.inputGate = this.environment.createAndRegisterInputGate(recordFactory);
 	}
 
 	/**

@@ -148,7 +148,7 @@ public interface Environment {
 	int getNumberOfInputChannels();
 
 	/**
-	 * Creates an output gate.
+	 * Creates an registers output gate.
 	 * 
 	 * @param selector
 	 * @param isBroadcast
@@ -156,33 +156,17 @@ public interface Environment {
 	 *        The type of the record consumed by the output gate.
 	 * @return The created output gate.
 	 */
-	<T extends Record> OutputGate<T> createOutputGate(ChannelSelector<T> selector, boolean isBroadcast);
+	<T extends Record> OutputGate<T> createAndRegisterOutputGate(ChannelSelector<T> selector, boolean isBroadcast);
 
 	/**
-	 * Creates an input gate.
+	 * Creates and registers an input gate.
 	 * 
 	 * @param recordFactory
 	 * @param <T>
 	 *        The type of the record read from the input gate.
 	 * @return The created input gate.
 	 */
-	<T extends Record> InputGate<T> createInputGate(RecordFactory<T> recordFactory);
-
-	/**
-	 * Registers an output gate with this environment.
-	 * 
-	 * @param outputGate
-	 *        the output gate to be registered
-	 */
-	void registerOutputGate(OutputGate<? extends Record> outputGate);
-
-	/**
-	 * Registers an input gate with this environment.
-	 * 
-	 * @param inputGate
-	 *        the input gate to be registered
-	 */
-	void registerInputGate(InputGate<? extends Record> inputGate);
+	<T extends Record> InputGate<T> createAndRegisterInputGate(RecordFactory<T> recordFactory);
 
 	/**
 	 * Returns the IDs of all output channels connected to this environment.

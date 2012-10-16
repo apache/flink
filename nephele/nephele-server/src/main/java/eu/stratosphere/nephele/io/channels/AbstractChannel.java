@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * 
  * @author warneke
  */
-public abstract class AbstractChannel implements Channel {
+public abstract class AbstractChannel {
 
 	/**
 	 * The ID of the channel.
@@ -103,9 +103,17 @@ public abstract class AbstractChannel implements Channel {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Returns the type of the channel.
+	 * 
+	 * @return the type of the channel.
 	 */
-	@Override
+	public abstract ChannelType getType();
+
+	/**
+	 * Returns the channel's current compression level.
+	 * 
+	 * @return the channel's current compression level
+	 */
 	public CompressionLevel getCompressionLevel() {
 		return this.compressionLevel;
 	}

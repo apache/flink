@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.AtomicEnumerator;
@@ -394,11 +394,10 @@ public final class EnvelopeConsumptionLog {
 
 	}
 
-	@SuppressWarnings("unchecked")
 	private AbstractInputChannel<? extends Record> toInputChannel(final int gateIndex,
 			final int channelIndex) {
 
-		final InputGate<? extends Record> inputGate = this.environment.getInputGate(gateIndex);
+		final RuntimeInputGate<? extends Record> inputGate = this.environment.getInputGate(gateIndex);
 
 		return (AbstractInputChannel<? extends Record>) inputGate.getInputChannel(channelIndex);
 	}

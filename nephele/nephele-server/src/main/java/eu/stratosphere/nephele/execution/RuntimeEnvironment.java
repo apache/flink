@@ -81,12 +81,12 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	/**
 	 * List of output gates created by the task.
 	 */
-	private final List<OutputGate<? extends Record>> outputGates = new CopyOnWriteArrayList<OutputGate<? extends Record>>();
+	private final List<RuntimeOutputGate<? extends Record>> outputGates = new CopyOnWriteArrayList<RuntimeOutputGate<? extends Record>>();
 
 	/**
 	 * List of input gates created by the task.
 	 */
-	private final List<InputGate<? extends Record>> inputGates = new CopyOnWriteArrayList<InputGate<? extends Record>>();
+	private final List<RuntimeInputGate<? extends Record>> inputGates = new CopyOnWriteArrayList<RuntimeInputGate<? extends Record>>();
 
 	/**
 	 * Queue of gate deployment descriptors for yet to be bound output gates.
@@ -465,7 +465,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(final ChannelSelector<T> selector,
+	public <T extends Record> OutputGate<T> createAndRegisterOutputGate(final ChannelSelector<T> selector,
 			final boolean isBroadcast) {
 
 		if (this.unboundOutputGates == null) {
@@ -493,11 +493,15 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(final RecordFactory<T> recordFactory) {
+	public <T extends Record> InputGate<T> createAndRegisterInputGate(final RecordFactory<T> recordFactory) {
 
 		if (this.unboundInputGates == null) {
-			return new RuntimeInputGate<T>(getJobID(), null, getNumberOfInputGates(), ChannelType.NETWORK,
+			final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), null, getNumberOfInputGates(),
+				ChannelType.NETWORK,
 				CompressionLevel.NO_COMPRESSION, null);
+
+			this.inputGates.add(rig);
+			return rig;
 		}
 
 		final GateDeploymentDescriptor gdd = this.unboundInputGates.poll();
@@ -512,20 +516,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			deserializerFactory = new DefaultRecordDeserializerFactory<T>(recordFactory);
 		}
 
-		return new RuntimeInputGate<T>(getJobID(), gdd.getGateID(), getNumberOfInputGates(), gdd.getChannelType(),
-			gdd.getCompressionLevel(), deserializerFactory);
-	}
+		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gdd.getGateID(), getNumberOfInputGates(),
+			gdd.getChannelType(), gdd.getCompressionLevel(), deserializerFactory);
 
-	@Override
-	public void registerOutputGate(OutputGate<? extends Record> outputGate) {
-
-		this.outputGates.add(outputGate);
-	}
-
-	@Override
-	public void registerInputGate(InputGate<? extends Record> inputGate) {
-
-		this.inputGates.add(inputGate);
+		this.inputGates.add(rig);
+		return rig;
 	}
 
 	/**
@@ -578,7 +573,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 *        the index of the input gate to return
 	 * @return the input gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public InputGate<? extends Record> getInputGate(final int pos) {
+	public RuntimeInputGate<? extends Record> getInputGate(final int pos) {
 		if (pos < this.inputGates.size()) {
 			return this.inputGates.get(pos);
 		}
@@ -593,7 +588,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 *        the index of the output gate to return
 	 * @return the output gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public OutputGate<? extends Record> getOutputGate(final int pos) {
+	public RuntimeOutputGate<? extends Record> getOutputGate(final int pos) {
 		if (pos < this.outputGates.size()) {
 			return this.outputGates.get(pos);
 		}
@@ -853,10 +848,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<ChannelID> outputChannelIDs = new HashSet<ChannelID>();
 
-		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		final Iterator<RuntimeOutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
 
-			final OutputGate<? extends Record> outputGate = gateIterator.next();
+			final RuntimeOutputGate<? extends Record> outputGate = gateIterator.next();
 			for (int i = 0; i < outputGate.getNumberOfOutputChannels(); ++i) {
 				outputChannelIDs.add(outputGate.getOutputChannel(i).getID());
 			}
@@ -873,12 +868,12 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<ChannelID> inputChannelIDs = new HashSet<ChannelID>();
 
-		final Iterator<InputGate<? extends Record>> gateIterator = this.inputGates.iterator();
+		final Iterator<RuntimeInputGate<? extends Record>> gateIterator = this.inputGates.iterator();
 		while (gateIterator.hasNext()) {
 
-			final InputGate<? extends Record> outputGate = gateIterator.next();
-			for (int i = 0; i < outputGate.getNumberOfInputChannels(); ++i) {
-				inputChannelIDs.add(outputGate.getInputChannel(i).getID());
+			final RuntimeInputGate<? extends Record> inputGate = gateIterator.next();
+			for (int i = 0; i < inputGate.getNumberOfInputChannels(); ++i) {
+				inputChannelIDs.add(inputGate.getInputChannel(i).getID());
 			}
 		}
 
@@ -893,7 +888,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<GateID> inputGateIDs = new HashSet<GateID>();
 
-		final Iterator<InputGate<? extends Record>> gateIterator = this.inputGates.iterator();
+		final Iterator<RuntimeInputGate<? extends Record>> gateIterator = this.inputGates.iterator();
 		while (gateIterator.hasNext()) {
 			inputGateIDs.add(gateIterator.next().getGateID());
 		}
@@ -909,7 +904,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<GateID> outputGateIDs = new HashSet<GateID>();
 
-		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		final Iterator<RuntimeOutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
 			outputGateIDs.add(gateIterator.next().getGateID());
 		}
@@ -923,10 +918,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	@Override
 	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
 
-		OutputGate<? extends Record> outputGate = null;
-		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		RuntimeOutputGate<? extends Record> outputGate = null;
+		final Iterator<RuntimeOutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
-			final OutputGate<? extends Record> candidateGate = gateIterator.next();
+			final RuntimeOutputGate<? extends Record> candidateGate = gateIterator.next();
 			if (candidateGate.getGateID().equals(gateID)) {
 				outputGate = candidateGate;
 				break;
@@ -952,10 +947,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	@Override
 	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
 
-		InputGate<? extends Record> inputGate = null;
-		final Iterator<InputGate<? extends Record>> gateIterator = this.inputGates.iterator();
+		RuntimeInputGate<? extends Record> inputGate = null;
+		final Iterator<RuntimeInputGate<? extends Record>> gateIterator = this.inputGates.iterator();
 		while (gateIterator.hasNext()) {
-			final InputGate<? extends Record> candidateGate = gateIterator.next();
+			final RuntimeInputGate<? extends Record> candidateGate = gateIterator.next();
 			if (candidateGate.getGateID().equals(gateID)) {
 				inputGate = candidateGate;
 				break;

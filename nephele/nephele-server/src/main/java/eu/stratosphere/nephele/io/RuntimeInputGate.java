@@ -34,7 +34,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.channels.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.InMemoryInputChannel;
-import eu.stratosphere.nephele.io.channels.InputChannel;
 import eu.stratosphere.nephele.io.channels.NetworkInputChannel;
 import eu.stratosphere.nephele.io.channels.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.compression.CompressionException;
@@ -173,64 +172,36 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getNumberOfInputChannels() {
-
-		return this.inputChannels.size();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public InputChannel<T> getInputChannel(int pos) {
-
-		if (pos < this.inputChannels.size()) {
-			return this.inputChannels.get(pos);
-		}
-
-		return null;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public InputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public void createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(), channelID,
 			connectedChannelID, compressionLevel, this.deserializerFactory.createDeserializer());
 		addInputChannel(enic);
-
-		return enic;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public void createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(), channelID,
 			connectedChannelID, compressionLevel, this.deserializerFactory.createDeserializer());
 		addInputChannel(efic);
-
-		return efic;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public void createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(inputGate, this.inputChannels.size(),
 			channelID, connectedChannelID, compressionLevel, this.deserializerFactory.createDeserializer());
 		addInputChannel(eimic);
-
-		return eimic;
 	}
 
 	/**
@@ -315,7 +286,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 			return true;
 		}
 
-		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
+		for (int i = 0; i < this.inputChannels.size(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
 			if (!inputChannel.isClosed()) {
 				return false;
@@ -333,7 +304,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	@Override
 	public void close() throws IOException, InterruptedException {
 
-		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
+		for (int i = 0; i < this.inputChannels.size(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
 			inputChannel.close();
 		}
@@ -451,5 +422,31 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		for (int i = 0; i < this.inputChannels.size(); ++i) {
 			this.inputChannels.get(i).initializeDecompressor();
 		}
+	}
+
+	/**
+	 * Returns the number of input channels associated with this input gate.
+	 * 
+	 * @return the number of input channels associated with this input gate
+	 */
+	public int getNumberOfInputChannels() {
+
+		return this.inputChannels.size();
+	}
+
+	/**
+	 * Returns the input channel from position <code>pos</code> of the gate's internal channel list.
+	 * 
+	 * @param pos
+	 *        the position to retrieve the channel from
+	 * @return the channel from the given position or <code>null</code> if such position does not exist.
+	 */
+	public AbstractInputChannel<T> getInputChannel(final int pos) {
+
+		if (pos < this.inputChannels.size()) {
+			return this.inputChannels.get(pos);
+		}
+
+		return null;
 	}
 }

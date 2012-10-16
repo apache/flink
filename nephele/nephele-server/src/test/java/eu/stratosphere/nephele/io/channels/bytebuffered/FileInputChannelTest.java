@@ -35,7 +35,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.channels.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ByteBufferedChannelCloseEvent;

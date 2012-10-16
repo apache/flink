@@ -32,8 +32,8 @@ public class SelfCrossInputTask extends AbstractFileInputTask {
 	@Override
 	public void registerInputOutput() {
 
-		new RecordWriter<StringRecord>(this, StringRecord.class);
-		new RecordWriter<StringRecord>(this, StringRecord.class);
+		new RecordWriter<StringRecord>(this);
+		new RecordWriter<StringRecord>(this);
 	}
 
 	/**

@@ -40,7 +40,7 @@ import eu.stratosphere.nephele.types.Record;
  * @param <T>
  *        The Type of the record that can be transported through the channel.
  */
-public abstract class AbstractInputChannel<T extends Record> extends AbstractChannel implements InputChannel<T> {
+public abstract class AbstractInputChannel<T extends Record> extends AbstractChannel {
 
 	private final InputGate<T> inputGate;
 

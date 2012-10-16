@@ -63,7 +63,7 @@ public class ExceptionTask extends AbstractTask {
 	public void registerInputOutput() {
 
 		new RecordReader<StringRecord>(this, StringRecord.class);
-		new RecordWriter<StringRecord>(this, StringRecord.class);
+		new RecordWriter<StringRecord>(this);
 	}
 
 	/**

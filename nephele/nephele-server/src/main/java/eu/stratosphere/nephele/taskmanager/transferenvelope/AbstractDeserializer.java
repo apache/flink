@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 
 import eu.stratosphere.nephele.event.task.EventList;
+import eu.stratosphere.nephele.io.DefaultRecordFactory;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.SpanningRecordDeserializer;
@@ -44,13 +45,13 @@ public abstract class AbstractDeserializer {
 	private DeserializationState deserializationState = DeserializationState.NOTDESERIALIZED;
 
 	private final SpanningRecordDeserializer<ChannelID> channelIDDeserializationBuffer = new SpanningRecordDeserializer<ChannelID>(
-			ChannelID.class, true);
+		new DefaultRecordFactory<ChannelID>(ChannelID.class), true);
 
 	private final SpanningRecordDeserializer<JobID> jobIDDeserializationBuffer = new SpanningRecordDeserializer<JobID>(
-			JobID.class, true);
+		new DefaultRecordFactory<JobID>(JobID.class), true);
 
 	private final SpanningRecordDeserializer<EventList> notificationListDeserializationBuffer = new SpanningRecordDeserializer<EventList>(
-			EventList.class, true);
+		new DefaultRecordFactory<EventList>(EventList.class), true);
 
 	private final ByteBuffer tempBuffer = ByteBuffer.allocate(8); // TODO: Make this configurable
 

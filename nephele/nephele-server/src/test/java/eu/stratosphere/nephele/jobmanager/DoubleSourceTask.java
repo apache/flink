@@ -71,8 +71,8 @@ public class DoubleSourceTask extends AbstractFileInputTask {
 
 	@Override
 	public void registerInputOutput() {
-		this.output1 = new RecordWriter<StringRecord>(this, StringRecord.class);
-		this.output2 = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output1 = new RecordWriter<StringRecord>(this);
+		this.output2 = new RecordWriter<StringRecord>(this);
 	}
 
 }

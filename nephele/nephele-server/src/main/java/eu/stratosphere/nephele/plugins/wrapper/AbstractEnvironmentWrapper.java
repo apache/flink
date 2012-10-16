@@ -18,10 +18,9 @@ package eu.stratosphere.nephele.plugins.wrapper;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializerFactory;
+import eu.stratosphere.nephele.io.RecordFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -168,24 +167,6 @@ public abstract class AbstractEnvironmentWrapper implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public GateID getNextUnboundInputGateID() {
-
-		return this.wrappedEnvironment.getNextUnboundInputGateID();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public GateID getNextUnboundOutputGateID() {
-
-		return this.wrappedEnvironment.getNextUnboundOutputGateID();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public int getNumberOfOutputGates() {
 
 		return this.wrappedEnvironment.getNumberOfOutputGates();
@@ -204,37 +185,18 @@ public abstract class AbstractEnvironmentWrapper implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID,
-			final Class<T> outputClass, final ChannelSelector<T> selector, final boolean isBroadcast)
-	{
-		return this.wrappedEnvironment.createOutputGate(gateID, outputClass, selector, isBroadcast);
+	public <T extends Record> OutputGate<T> createAndRegisterOutputGate(final ChannelSelector<T> selector,
+			final boolean isBroadcast) {
+
+		return this.wrappedEnvironment.createAndRegisterOutputGate(selector, isBroadcast);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
-													final RecordDeserializerFactory<T> deserializer)
-	{
-		return this.wrappedEnvironment.createInputGate(gateID, deserializer);
-	}
+	public <T extends Record> InputGate<T> createAndRegisterInputGate(final RecordFactory<T> recordFactory) {
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
-
-		this.wrappedEnvironment.registerOutputGate(outputGate);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputGate(final InputGate<? extends Record> inputGate) {
-
-		this.wrappedEnvironment.registerInputGate(inputGate);
+		return this.wrappedEnvironment.createAndRegisterInputGate(recordFactory);
 	}
 }

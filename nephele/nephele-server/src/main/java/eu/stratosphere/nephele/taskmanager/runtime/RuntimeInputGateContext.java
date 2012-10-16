@@ -18,7 +18,7 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
@@ -45,7 +45,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
-	private final InputGate<? extends Record> inputGate;
+	private final RuntimeInputGate<? extends Record> inputGate;
 
 	private final EnvelopeConsumptionLog envelopeConsumptionLog;
 
@@ -54,7 +54,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 	private Decompressor decompressor = null;
 
 	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final InputGate<? extends Record> inputGate, final EnvelopeConsumptionLog envelopeConsumptionLog) {
+			final RuntimeInputGate<? extends Record> inputGate, final EnvelopeConsumptionLog envelopeConsumptionLog) {
 
 		this.taskName = taskName;
 		this.localBufferPool = new LocalBufferPool(1, false);

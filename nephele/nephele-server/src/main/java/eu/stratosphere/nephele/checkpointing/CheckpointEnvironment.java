@@ -213,7 +213,7 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(final ChannelSelector<T> selector,
+	public <T extends Record> OutputGate<T> createAndRegisterOutputGate(final ChannelSelector<T> selector,
 			final boolean isBroadcast) {
 
 		throw new IllegalStateException("Checkpoint replay task called createOutputGate");
@@ -223,27 +223,9 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(final RecordFactory<T> recordFactory) {
+	public <T extends Record> InputGate<T> createAndRegisterInputGate(final RecordFactory<T> recordFactory) {
 
 		throw new IllegalStateException("Checkpoint replay task called createInputGate");
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
-
-		throw new IllegalStateException("Checkpoint replay task called registerOutputGate");
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputGate(final InputGate<? extends Record> inputGate) {
-
-		throw new IllegalStateException("Checkpoint replay task called registerInputGate");
 	}
 
 	/**

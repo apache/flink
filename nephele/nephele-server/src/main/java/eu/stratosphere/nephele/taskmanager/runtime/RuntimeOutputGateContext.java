@@ -21,7 +21,7 @@ import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpointForwarder;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -41,11 +41,11 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 
 	private final RuntimeTaskContext taskContext;
 
-	private final OutputGate<? extends Record> outputGate;
+	private final RuntimeOutputGate<? extends Record> outputGate;
 
 	private Compressor compressor = null;
 
-	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final OutputGate<? extends Record> outputGate) {
+	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final RuntimeOutputGate<? extends Record> outputGate) {
 
 		this.taskContext = taskContext;
 		this.outputGate = outputGate;

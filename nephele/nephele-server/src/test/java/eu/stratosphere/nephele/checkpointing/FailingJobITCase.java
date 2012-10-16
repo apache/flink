@@ -272,7 +272,7 @@ public class FailingJobITCase {
 		@Override
 		public void registerInputOutput() {
 
-			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
+			this.recordWriter = new RecordWriter<FailingJobRecord>(this);
 		}
 
 		/**
@@ -328,7 +328,7 @@ public class FailingJobITCase {
 		@Override
 		public void registerInputOutput() {
 
-			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
+			this.recordWriter = new RecordWriter<FailingJobRecord>(this);
 			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
@@ -386,7 +386,7 @@ public class FailingJobITCase {
 		@Override
 		public void registerInputOutput() {
 
-			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
+			this.recordWriter = new RecordWriter<FailingJobRecord>(this);
 			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
@@ -431,7 +431,7 @@ public class FailingJobITCase {
 		@Override
 		public void registerInputOutput() {
 
-			this.recordWriter = new RecordWriter<FailingJobRecord>(this, FailingJobRecord.class);
+			this.recordWriter = new RecordWriter<FailingJobRecord>(this);
 			this.recordReader = new MutableRecordReader<FailingJobITCase.FailingJobRecord>(this);
 		}
 
