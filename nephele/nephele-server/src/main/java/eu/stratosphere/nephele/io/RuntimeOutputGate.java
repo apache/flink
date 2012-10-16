@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.io;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,6 +31,7 @@ import eu.stratosphere.nephele.io.channels.FileOutputChannel;
 import eu.stratosphere.nephele.io.channels.InMemoryOutputChannel;
 import eu.stratosphere.nephele.io.channels.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.channels.OutputChannel;
+import eu.stratosphere.nephele.io.channels.RecordSerializerFactory;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -56,29 +56,29 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	private static final Log LOG = LogFactory.getLog(OutputGate.class);
 
 	/**
-	 * The list of output channels attached to this gate.
+	 * Stores whether all records passed to this output gate shall be transmitted through all connected output channels.
 	 */
-	private final ArrayList<AbstractOutputChannel<T>> outputChannels = new ArrayList<AbstractOutputChannel<T>>();
+	private final boolean isBroadcast;
+
+	/**
+	 * The factory used to instantiate new records serializers.
+	 */
+	private final RecordSerializerFactory<T> serializerFactory;
 
 	/**
 	 * Channel selector to determine which channel is supposed receive the next record.
 	 */
 	private final ChannelSelector<T> channelSelector;
-	
+
 	/**
-	 * The class of the record transported through this output gate.
+	 * The list of output channels attached to this gate.
 	 */
-	private final Class<T> type;
+	private final ArrayList<AbstractOutputChannel<T>> outputChannels = new ArrayList<AbstractOutputChannel<T>>();
 
 	/**
 	 * The thread which executes the task connected to the output gate.
 	 */
 	private Thread executingThread = null;
-
-	/**
-	 * Stores whether all records passed to this output gate shall be transmitted through all connected output channels.
-	 */
-	private final boolean isBroadcast;
 
 	/**
 	 * Constructs a new runtime output gate.
@@ -87,24 +87,28 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 	 *        the ID of the job this input gate belongs to
 	 * @param gateID
 	 *        the ID of the gate
-	 * @param inputClass
-	 *        the class of the record that can be transported through this
-	 *        gate
 	 * @param index
 	 *        the index assigned to this output gate at the {@link Environment} object
+	 * @param channelType
+	 *        the type of the channels connected to this output gate
+	 * @param compressionLevel
+	 *        the compression level of the channels which are connected to this output gate
 	 * @param channelSelector
 	 *        the channel selector to be used for this output gate
 	 * @param isBroadcast
 	 *        <code>true</code> if every records passed to this output gate shall be transmitted through all connected
 	 *        output channels, <code>false</code> otherwise
+	 * @param serializerFactory
+	 *        the factory for the record serializer
 	 */
-	public RuntimeOutputGate(final JobID jobID, final GateID gateID, final Class<T> inputClass, final int index,
-			final ChannelSelector<T> channelSelector, final boolean isBroadcast) {
+	public RuntimeOutputGate(final JobID jobID, final GateID gateID, final int index, final ChannelType channelType,
+			final CompressionLevel compressionLevel, final ChannelSelector<T> channelSelector,
+			final boolean isBroadcast, final RecordSerializerFactory<T> serializerFactory) {
 
-		super(jobID, gateID, index);
+		super(jobID, gateID, index, channelType, compressionLevel);
 
 		this.isBroadcast = isBroadcast;
-		this.type = inputClass;
+		this.serializerFactory = serializerFactory;
 
 		if (this.isBroadcast) {
 			this.channelSelector = null;
@@ -115,14 +119,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 				this.channelSelector = channelSelector;
 			}
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final Class<T> getType() {
-		return this.type;
 	}
 
 	/**
@@ -209,7 +205,7 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final NetworkOutputChannel<T> enoc = new NetworkOutputChannel<T>(outputGate, this.outputChannels.size(),
-			channelID, connectedChannelID, compressionLevel);
+			channelID, connectedChannelID, compressionLevel, this.serializerFactory.createSerializer());
 		addOutputChannel(enoc);
 
 		return enoc;
@@ -223,7 +219,7 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final FileOutputChannel<T> efoc = new FileOutputChannel<T>(outputGate, this.outputChannels.size(), channelID,
-			connectedChannelID, compressionLevel);
+			connectedChannelID, compressionLevel, this.serializerFactory.createSerializer());
 		addOutputChannel(efoc);
 
 		return efoc;
@@ -237,7 +233,7 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final InMemoryOutputChannel<T> einoc = new InMemoryOutputChannel<T>(outputGate, this.outputChannels.size(),
-			channelID, connectedChannelID, compressionLevel);
+			channelID, connectedChannelID, compressionLevel, this.serializerFactory.createSerializer());
 		addOutputChannel(einoc);
 
 		return einoc;
@@ -320,14 +316,6 @@ public class RuntimeOutputGate<T extends Record> extends AbstractGate<T> impleme
 				}
 			}
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public List<AbstractOutputChannel<T>> getOutputChannels() {
-		return this.outputChannels;
 	}
 
 	/**

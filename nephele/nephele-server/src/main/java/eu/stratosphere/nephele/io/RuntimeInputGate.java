@@ -103,14 +103,18 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 *        the ID of the job this input gate belongs to
 	 * @param gateID
 	 *        the ID of the gate
-	 * @param recordDeserializerType
-	 *        The type of recordD
 	 * @param index
 	 *        the index assigned to this input gate at the {@link Environment} object
+	 * @param channelType
+	 *        the type of the channels connected to this input gate
+	 * @param compressionLevel
+	 *        the compression level of the channels which are connected to this input gate
+	 * @param deserializerFactory
+	 *        the factory for the record deserializer
 	 */
-	public RuntimeInputGate(final JobID jobID, final GateID gateID,
-			final RecordDeserializerFactory<T> deserializerFactory, final int index) {
-		super(jobID, gateID, index);
+	public RuntimeInputGate(final JobID jobID, final GateID gateID, final int index, final ChannelType channelType,
+			final CompressionLevel compressionLevel, final RecordDeserializerFactory<T> deserializerFactory) {
+		super(jobID, gateID, index, channelType, compressionLevel);
 		this.deserializerFactory = deserializerFactory;
 	}
 

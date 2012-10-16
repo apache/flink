@@ -36,7 +36,7 @@ public class UnionTask extends AbstractTask {
 		recordReaders[1] = new RecordReader<StringRecord>(this, StringRecord.class);
 
 		this.input = new UnionRecordReader<StringRecord>(recordReaders);
-		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output = new RecordWriter<StringRecord>(this);
 	}
 
 	@Override

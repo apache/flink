@@ -47,40 +47,35 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 * 
 	 * @param invokable
 	 *        the application that instantiated the record writer
-	 * @param outputClass
-	 *        the class of records that can be emitted with this record writer
 	 * @param selector
 	 *        the channel selector to be used to determine the output channel to be used for a record
 	 * @param isBroadcast
 	 *        <code>true</code> if this record writer shall broadcast the records to all connected channels,
 	 *        <code>false/<code> otherwise
 	 */
-	public AbstractRecordWriter(AbstractInvokable invokable, Class<T> outputClass, ChannelSelector<T> selector,
-			boolean isBroadcast) {
+	public AbstractRecordWriter(final AbstractInvokable invokable, final ChannelSelector<T> selector, final boolean isBroadcast) {
 
 		this.environment = invokable.getEnvironment();
-		connectOutputGate(outputClass, selector, isBroadcast);
+		connectOutputGate(selector, isBroadcast);
 	}
 
 	/**
 	 * Connects a record writer to an output gate.
 	 * 
-	 * @param outputClass
-	 *        the class of the record that can be emitted with this record writer
 	 * @param selector
 	 *        the channel selector to be used to determine the output channel to be used for a record
 	 * @param isBroadcast
 	 *        <code>true</code> if this record writer shall broadcast the records to all connected channels,
 	 *        <code>false/<code> otherwise
 	 */
-	private void connectOutputGate(Class<T> outputClass, ChannelSelector<T> selector, boolean isBroadcast)
-	{
+	private void connectOutputGate(final ChannelSelector<T> selector, final boolean isBroadcast) {
+		
 		GateID gateID = this.environment.getNextUnboundOutputGateID();
 		if (gateID == null) {
 			gateID = new GateID();
 		}
 
-		this.outputGate = this.environment.createOutputGate(gateID, outputClass, selector, isBroadcast);
+		this.outputGate = this.environment.createOutputGate(gateID, selector, isBroadcast);
 		this.environment.registerOutputGate(this.outputGate);
 	}
 

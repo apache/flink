@@ -16,7 +16,6 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.OutputChannel;
@@ -36,13 +35,6 @@ import eu.stratosphere.nephele.types.Record;
 public interface OutputGate<T extends Record> extends Gate<T> {
 
 	/**
-	 * Returns the type of record that can be transported through this gate.
-	 * 
-	 * @return the type of record that can be transported through this gate
-	 */
-	Class<T> getType();
-
-	/**
 	 * Writes a record to one of the associated output channels. Currently, the
 	 * channels are chosen in a simple round-robin fashion. This operation may
 	 * block until the respective channel has received the data.
@@ -53,13 +45,6 @@ public interface OutputGate<T extends Record> extends Gate<T> {
 	 *         thrown if any error occurs during channel I/O
 	 */
 	void writeRecord(T record) throws IOException, InterruptedException;
-
-	/**
-	 * Returns all the OutputChannels connected to this gate
-	 * 
-	 * @return the list of OutputChannels connected to this RecordWriter
-	 */
-	List<OutputChannel<T>> getOutputChannels();
 
 	/**
 	 * Flushes all connected output channels.

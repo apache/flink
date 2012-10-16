@@ -165,22 +165,19 @@ public interface Environment {
 	 * Creates an output gate.
 	 * 
 	 * @param gateID
-	 * @param outputClass
 	 * @param selector
 	 * @param isBroadcast
 	 * @param <T>
 	 *        The type of the record consumed by the output gate.
 	 * @return The created output gate.
 	 */
-	<T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass, ChannelSelector<T> selector,
-			boolean isBroadcast);
+	<T extends Record> OutputGate<T> createOutputGate(GateID gateID, ChannelSelector<T> selector, boolean isBroadcast);
 
 	/**
 	 * Creates an input gate.
 	 * 
 	 * @param gateID
-	 * @param deserializer
-	 * @param distributionPattern
+	 * @param recordFactory
 	 * @param <T>
 	 *        The type of the record read from the input gate.
 	 * @return The created input gate.

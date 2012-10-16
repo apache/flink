@@ -124,20 +124,4 @@ public interface Gate<T extends Record> {
 	 * @return <code>true</code> if the considered gate is an input gate, <code>false</code> if it is an output gate
 	 */
 	boolean isInputGate();
-
-	/**
-	 * Sets the type of the input/output channels which are connected to this gate.
-	 * 
-	 * @param channelType
-	 *        the type of input/output channels which are connected to this gate
-	 */
-	void setChannelType(ChannelType channelType);
-
-	/**
-	 * Sets the compression level to be applied by the input/output channels connected to this gate.
-	 * 
-	 * @param compressionLevel
-	 *        the compression level to be applied by the input/output channels connected to this gate
-	 */
-	void setCompressionLevel(CompressionLevel compressionLevel);
 }

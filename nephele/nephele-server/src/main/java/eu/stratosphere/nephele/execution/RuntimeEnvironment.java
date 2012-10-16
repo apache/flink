@@ -36,7 +36,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializerFactory;
+import eu.stratosphere.nephele.io.RecordFactory;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -243,8 +243,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			final OutputGate og = this.outputGates.get(i);
 			final ChannelType channelType = gdd.getChannelType();
 			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
-			og.setChannelType(channelType);
-			og.setCompressionLevel(compressionLevel);
 
 			final int nocdd = gdd.getNumberOfChannelDescriptors();
 			for (int j = 0; j < nocdd; ++j) {
@@ -274,8 +272,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			final InputGate ig = this.inputGates.get(i);
 			final ChannelType channelType = gdd.getChannelType();
 			final CompressionLevel compressionLevel = gdd.getCompressionLevel();
-			ig.setChannelType(channelType);
-			ig.setCompressionLevel(compressionLevel);
 
 			final int nicdd = gdd.getNumberOfChannelDescriptors();
 			for (int j = 0; j < nicdd; ++j) {
@@ -466,10 +462,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID, Class<T> outputClass,
-			final ChannelSelector<T> selector, final boolean isBroadcast) {
-		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gateID, outputClass,
-															getNumberOfOutputGates(), selector, isBroadcast);
+	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID, final ChannelSelector<T> selector, final boolean isBroadcast) {
+		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gateID, getNumberOfOutputGates(), selector, isBroadcast);
 		return rog;
 	}
 
@@ -477,8 +471,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
-										final RecordDeserializerFactory<T> deserializerFactory) {
+	public <T extends Record> InputGate<T> createInputGate(final GateID gateID, final RecordFactory<T> recordFactory) {
+
 		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory,
 			getNumberOfInputGates());
 		return rig;

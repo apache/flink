@@ -73,7 +73,7 @@ public class FileLineReader extends AbstractFileInputTask {
 
 	@Override
 	public void registerInputOutput() {
-		output = new RecordWriter<StringRecord>(this, StringRecord.class);
+		output = new RecordWriter<StringRecord>(this);
 	}
 
 }

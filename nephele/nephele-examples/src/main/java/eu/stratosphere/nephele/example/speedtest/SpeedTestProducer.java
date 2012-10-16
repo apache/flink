@@ -36,7 +36,7 @@ public final class SpeedTestProducer extends AbstractGenericInputTask {
 	@Override
 	public void registerInputOutput() {
 
-		this.writer = new RecordWriter<SpeedTestRecord>(this, SpeedTestRecord.class);
+		this.writer = new RecordWriter<SpeedTestRecord>(this);
 	}
 
 	/**

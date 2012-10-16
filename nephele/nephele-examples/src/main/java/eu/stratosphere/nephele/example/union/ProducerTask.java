@@ -28,7 +28,7 @@ public class ProducerTask extends AbstractFileInputTask {
 	@Override
 	public void registerInputOutput() {
 
-		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output = new RecordWriter<StringRecord>(this);
 	}
 
 	@Override

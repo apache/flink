@@ -35,11 +35,9 @@ public class BroadcastRecordWriter<T extends Record> extends AbstractRecordWrite
 	 * 
 	 * @param taskBase
 	 *        the application that instantiated the record writer
-	 * @param outputClass
-	 *        the class of records that can be emitted with this record writer
 	 */
-	public BroadcastRecordWriter(AbstractTask taskBase, Class<T> outputClass) {
-		super(taskBase, outputClass, null, true);
+	public BroadcastRecordWriter(final AbstractTask taskBase) {
+		super(taskBase, null, true);
 	}
 
 	/**
@@ -47,10 +45,8 @@ public class BroadcastRecordWriter<T extends Record> extends AbstractRecordWrite
 	 * 
 	 * @param inputBase
 	 *        the application that instantiated the record writer
-	 * @param outputClass
-	 *        the class of records that can be emitted with this record writer
 	 */
-	public BroadcastRecordWriter(AbstractInputTask<?> inputBase, Class<T> outputClass) {
-		super(inputBase, outputClass, null, true);
+	public BroadcastRecordWriter(final AbstractInputTask<?> inputBase) {
+		super(inputBase, null, true);
 	}
 }

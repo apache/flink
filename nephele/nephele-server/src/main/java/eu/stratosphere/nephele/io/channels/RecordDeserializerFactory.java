@@ -15,6 +15,8 @@
 
 package eu.stratosphere.nephele.io.channels;
 
+import eu.stratosphere.nephele.types.Record;
+
 /**
  * A simple factory to instantiate record deserializer objects. Since a deserializer might be stateful, the system
  * must be able to instantiate an arbitrary number of them, equal to the number of data channels.
@@ -25,7 +27,7 @@ package eu.stratosphere.nephele.io.channels;
  * @param <T>
  *        the type of record the deserializer is created for
  */
-public interface RecordDeserializerFactory<T> {
+public interface RecordDeserializerFactory<T extends Record> {
 
 	/**
 	 * Creates a new instance of the deserializer. The returned instance may not share any state with any previously
