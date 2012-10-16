@@ -20,24 +20,31 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.EOFException;
 import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.powermock.core.classloader.annotations.SuppressStaticInitializationFor;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.channels.AbstractChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ByteBufferedChannelCloseEvent;
+import eu.stratosphere.nephele.io.channels.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.SerializationBuffer;
+import eu.stratosphere.nephele.io.channels.SpanningRecordDeserializer;
+import eu.stratosphere.nephele.io.channels.FileInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.StringRecord;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class check the functionality of {@link FileInputChannel} class
@@ -47,12 +54,12 @@ import eu.stratosphere.nephele.types.StringRecord;
  */
 @RunWith(PowerMockRunner.class)
 @SuppressStaticInitializationFor("eu.stratosphere.nephele.io.channels.AbstractChannel")
-public class FileOutputChannelTest {
+public class FileInputChannelTest {
 	@Mock
 	private Buffer uncompressedDataBuffer;
 
 	@Mock
-	SerializationBuffer<StringRecord> serializationBuffer;
+	SpanningRecordDeserializer<StringRecord> recordDeserializer;
 
 	@Mock
 	ChannelID id;
@@ -74,62 +81,64 @@ public class FileOutputChannelTest {
 	 * This test checks the functionality of the deserializeNextRecod() method
 	 * 
 	 * @throws IOException
-	 * @throws InterruptedException
 	 */
 	@Test
-	public void writeRecordTest() throws IOException, InterruptedException {
-
-		final StringRecord record = new StringRecord("abc");
+	public void deserializeNextRecordTest() throws IOException, InterruptedException {
+		StringRecord record = new StringRecord("abc");
 		this.uncompressedDataBuffer = mock(Buffer.class);
 		// BufferPairResponse bufferPair = mock(BufferPairResponse.class);
 		// when(bufferPair.getUncompressedDataBuffer()).thenReturn(this.uncompressedDataBuffer,
-		// this.uncompressedDataBuffer, this.uncompressedDataBuffer,null);
-		// when(bufferPair.getCompressedDataBuffer()).thenReturn(this.uncompressedDataBuffer,
-		// this.uncompressedDataBuffer, this.uncompressedDataBuffer,null);
+		// this.uncompressedDataBuffer, null);
 
 		@SuppressWarnings("unchecked")
-		final OutputGate<StringRecord> outGate = mock(OutputGate.class);
-		final ByteBufferedOutputChannelBroker outputBroker = mock(ByteBufferedOutputChannelBroker.class);
-		when(outputBroker.requestEmptyWriteBuffer()).thenReturn(this.uncompressedDataBuffer);
+		final InputGate<StringRecord> inGate = mock(InputGate.class);
+		final ByteBufferedInputChannelBroker inputBroker = mock(ByteBufferedInputChannelBroker.class);
+		when(inputBroker.getReadBufferToConsume()).thenReturn(this.uncompressedDataBuffer);
+		try {
+			when(
+				this.recordDeserializer.readData(Matchers.any(StringRecord.class),
+					Matchers.any(ReadableByteChannel.class))).thenReturn(null, record);
+		} catch (IOException e) {
 
-		when(outputBroker.hasDataLeftToTransmit()).thenReturn(true);
-
-		when(this.serializationBuffer.dataLeftFromPreviousSerialization()).thenReturn(false, false, true, true, false,
-			false);
-		// try {
-		// when(this.serializationBuffer.readData(Matchers.any(ReadableByteChannel.class))).thenReturn(null, record);
-		// } catch (IOException e) {
-		// e.printStackTrace();
-		// }
+		}
 		when(this.uncompressedDataBuffer.remaining()).thenReturn(0);
 
 		// setup test-object
-		FileOutputChannel<StringRecord> fileOutputChannel = new FileOutputChannel<StringRecord>(outGate, 1,
-			new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION);
-		fileOutputChannel.setByteBufferedOutputChannelBroker(outputBroker);
+		final FileInputChannel<StringRecord> fileInputChannel = new FileInputChannel<StringRecord>(inGate, 1,
+			new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION, this.recordDeserializer);
+		fileInputChannel.setInputChannelBroker(inputBroker);
 
-		Whitebox.setInternalState(fileOutputChannel, "serializationBuffer", this.serializationBuffer);
+		Whitebox.setInternalState(fileInputChannel, "deserializer", this.recordDeserializer);
 
 		// correct run
 		try {
-			fileOutputChannel.writeRecord(record);
+			fileInputChannel.readRecord(null);
 		} catch (IOException e) {
-			fail();
-			e.printStackTrace();
+			fail(StringUtils.stringifyException(e));
 		}
 
 		// Close Channel to test EOFException
-		fileOutputChannel.requestClose();
-		// No acknowledgment from consumer yet so the channel should still be open
-		assertEquals(false, fileOutputChannel.isClosed());
-		when(outputBroker.hasDataLeftToTransmit()).thenReturn(false);
-		// Received acknowledgment the channel should be closed now
-		assertEquals(true, fileOutputChannel.isClosed());
 		try {
-			fileOutputChannel.writeRecord(record);
-			fail();
+			fileInputChannel.close();
 		} catch (IOException e) {
-			// expected a IOException
+			fail(StringUtils.stringifyException(e));
+		} catch (InterruptedException e) {
+			fail(StringUtils.stringifyException(e));
+		}
+		// No acknowledgment from consumer yet so the channel should still be open
+		assertEquals(false, fileInputChannel.isClosed());
+		fileInputChannel.processEvent(new ByteBufferedChannelCloseEvent());
+		// Received acknowledgment the channel should be closed now
+		assertEquals(true, fileInputChannel.isClosed());
+		try {
+			fileInputChannel.readRecord(null);
+			fail();
+		} catch (EOFException e) {
+			// expected a EOFException
+		} catch (IOException e) {
+			// all other Exceptions are real failures
+			e.printStackTrace();
+			fail();
 		}
 	}
 

@@ -19,11 +19,11 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ByteBufferedChannelCloseEvent;
+import eu.stratosphere.nephele.io.channels.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
@@ -35,9 +35,9 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 		ByteBufferedOutputChannelBroker {
 
 	/**
-	 * The byte buffered output channel this context belongs to.
+	 * The output channel this context belongs to.
 	 */
-	private final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel;
+	private final AbstractOutputChannel<?> outputChannel;
 
 	/**
 	 * The buffer provider this channel broker to obtain buffers from.
@@ -71,8 +71,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	private int sequenceNumber = 0;
 
 	RuntimeOutputChannelBroker(final RuntimeOutputGateContext outputGateContext,
-			final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel,
-			final AbstractOutputChannelForwarder next) {
+			final AbstractOutputChannel<?> outputChannel, final AbstractOutputChannelForwarder next) {
 
 		super(next);
 
@@ -81,8 +80,8 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 		}
 
 		this.outputGateContext = outputGateContext;
-		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
-		this.byteBufferedOutputChannel.setByteBufferedOutputChannelBroker(this);
+		this.outputChannel = outputChannel;
+		this.outputChannel.setByteBufferedOutputChannelBroker(this);
 	}
 
 	public void setForwardingChain(final OutputChannelForwardingChain forwardingChain) {
@@ -96,7 +95,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	public boolean hasDataLeft() throws IOException, InterruptedException {
 
 		// Don't wait for an acknowledgment in case of a file channel, receiver is not running anyway
-		if (this.byteBufferedOutputChannel.getType() == ChannelType.FILE) {
+		if (this.outputChannel.getType() == ChannelType.FILE) {
 			return getNext().hasDataLeft();
 		}
 
@@ -153,8 +152,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	private TransferEnvelope createNewOutgoingTransferEnvelope() {
 
 		final TransferEnvelope transferEnvelope = new TransferEnvelope(this.sequenceNumber++,
-			this.byteBufferedOutputChannel.getJobID(),
-			this.byteBufferedOutputChannel.getID());
+			this.outputChannel.getJobID(), this.outputChannel.getID());
 
 		return transferEnvelope;
 	}
@@ -182,13 +180,12 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 
 		if (this.outgoingTransferEnvelope == null) {
 			throw new IllegalStateException("Cannot find transfer envelope for channel with ID "
-				+ this.byteBufferedOutputChannel.getID());
+				+ this.outputChannel.getID());
 		}
 
 		// Consistency check
 		if (this.outgoingTransferEnvelope.getBuffer() != null) {
-			throw new IllegalStateException("Channel " + this.byteBufferedOutputChannel.getID()
-				+ " has already a buffer attached");
+			throw new IllegalStateException("Channel " + this.outputChannel.getID() + " has already a buffer attached");
 		}
 
 		// Finish the write phase of the buffer

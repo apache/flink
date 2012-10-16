@@ -27,10 +27,10 @@ import eu.stratosphere.nephele.types.Record;
  * This is an abstract base class for a record reader, either dealing with mutable or immutable records.
  * 
  * @author warneke
- * @param <T> The type of the record that can be read from this record reader.
+ * @param <T>
+ *        The type of the record that can be read from this record reader.
  */
-public abstract class AbstractRecordReader<T extends Record>
-{
+public abstract class AbstractRecordReader<T extends Record> {
 	/**
 	 * The input gate associated with the record reader.
 	 */
@@ -40,62 +40,25 @@ public abstract class AbstractRecordReader<T extends Record>
 	 * The environment the associated task runs in.
 	 */
 	private final Environment environment;
-	
+
 	// --------------------------------------------------------------------------------------------
 
-	protected AbstractRecordReader(final AbstractInvokable invokable, 
-				final RecordDeserializerFactory<T> deserializerFactory, final int inputGateID)
-	{
+	protected AbstractRecordReader(final AbstractInvokable invokable, final RecordFactory<T> recordFactory) {
 		this.environment = invokable.getEnvironment();
-		connectInputGate(deserializerFactory, inputGateID);
+		connectInputGate(recordFactory);
 	}
 
 	/**
 	 * Connects a record reader to an input gate.
 	 * 
-	 * @param deserializerFactory
-	 *        A factory to instantiate the record deserializer.
+	 * @param recordFactory
+	 *        A factory to instantiate new records
 	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
+	 *        the ID of the input gate that the reader reads from.
 	 */
-	private void connectInputGate(final RecordDeserializerFactory<T> deserializerFactory, final int inputGateID)
-	{
-		GateID gateID = this.environment.getNextUnboundInputGateID();
-		if (gateID == null) {
-			gateID = new GateID();
-		}
+	private void connectInputGate(final RecordFactory<T> recordFactory) {
 
-		this.inputGate = this.environment.createInputGate(gateID, deserializerFactory);
-		this.environment.registerInputGate(this.inputGate);
-	}
-
-	/**
-	 * Returns the number of input channels wired to this reader's input gate.
-	 * 
-	 * @return the number of input channels wired to this reader's input gate
-	 */
-	public final int getNumberOfInputChannels() {
-		return this.inputGate.getNumberOfInputChannels();
-	}
-
-	/**
-	 * Checks if the input channel with the given index is closed.
-	 * 
-	 * @param index
-	 *        the index of the input channel
-	 * @return <code>true</code> if the respective input channel is already closed, otherwise <code>false</code>
-	 * @throws IOException
-	 *         thrown if an error occurred while closing the input channel
-	 * @throws InterruptedException
-	 *         thrown if the channel is interrupted while processing this call
-	 */
-	public final boolean isInputChannelClosed(final int index) throws IOException, InterruptedException
-	{
-		if (index < this.inputGate.getNumberOfInputChannels()) {
-			return this.inputGate.getInputChannel(index).isClosed();
-		}
-
-		return false;
+		this.inputGate = this.environment.createAndRegisterInputGate(recordFactory);
 	}
 
 	/**
@@ -107,8 +70,8 @@ public abstract class AbstractRecordReader<T extends Record>
 	 *        the type of event to register the listener for
 	 */
 	public final void subscribeToEvent(final EventListener eventListener,
-			final Class<? extends AbstractTaskEvent> eventType)
-	{
+			final Class<? extends AbstractTaskEvent> eventType) {
+
 		// Delegate call to input gate
 		this.inputGate.subscribeToEvent(eventListener, eventType);
 	}
@@ -122,8 +85,8 @@ public abstract class AbstractRecordReader<T extends Record>
 	 *        the type of the event to cancel the subscription for
 	 */
 	public final void unsubscribeFromEvent(final EventListener eventListener,
-			final Class<? extends AbstractTaskEvent> eventType)
-	{
+			final Class<? extends AbstractTaskEvent> eventType) {
+
 		// Delegate call to input gate
 		this.inputGate.unsubscribeFromEvent(eventListener, eventType);
 	}
@@ -138,8 +101,8 @@ public abstract class AbstractRecordReader<T extends Record>
 	 * @throws InterruptedException
 	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
-	public final void publishEvent(final AbstractTaskEvent event) throws IOException, InterruptedException
-	{
+	public final void publishEvent(final AbstractTaskEvent event) throws IOException, InterruptedException {
+
 		// Delegate call to input gate
 		this.inputGate.publishEvent(event);
 	}

@@ -13,25 +13,28 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.channels;
 
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.OutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
-public final class InMemoryInputChannel<T extends Record> extends AbstractByteBufferedInputChannel<T> {
+public final class FileOutputChannel<T extends Record> extends AbstractOutputChannel<T> {
 
-	public InMemoryInputChannel(InputGate<T> inputGate, int channelIndex, RecordDeserializer<T> deserializer,
-			ChannelID channelID, ChannelID connectedChannelID, CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, deserializer, channelID, connectedChannelID, CompressionLevel.NO_COMPRESSION);
+	public FileOutputChannel(final OutputGate<T> outputGate, final int channelIndex, final ChannelID channelID,
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel,
+			final RecordSerializer<T> recordSerializer) {
+		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel, recordSerializer);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public ChannelType getType() {
 
-		return ChannelType.INMEMORY;
+		return ChannelType.FILE;
 	}
 }

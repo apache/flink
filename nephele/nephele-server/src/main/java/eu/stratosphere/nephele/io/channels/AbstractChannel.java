@@ -87,13 +87,6 @@ public abstract class AbstractChannel {
 	}
 
 	/**
-	 * Returns the type of the channel.
-	 * 
-	 * @return the type of the channel.
-	 */
-	public abstract ChannelType getType();
-
-	/**
 	 * Checks if the channel is closed, i.e. no more records can be transported through the channel.
 	 * 
 	 * @return <code>true</code> if the channel is closed, <code>false</code> otherwise
@@ -108,6 +101,13 @@ public abstract class AbstractChannel {
 
 		return this.connectedChannelID;
 	}
+
+	/**
+	 * Returns the type of the channel.
+	 * 
+	 * @return the type of the channel.
+	 */
+	public abstract ChannelType getType();
 
 	/**
 	 * Returns the channel's current compression level.

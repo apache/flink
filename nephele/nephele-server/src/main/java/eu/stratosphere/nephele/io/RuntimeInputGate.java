@@ -32,9 +32,10 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
+import eu.stratosphere.nephele.io.channels.FileInputChannel;
+import eu.stratosphere.nephele.io.channels.InMemoryInputChannel;
+import eu.stratosphere.nephele.io.channels.NetworkInputChannel;
+import eu.stratosphere.nephele.io.channels.RecordDeserializerFactory;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -59,7 +60,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	private static final Log LOG = LogFactory.getLog(InputGate.class);
 
 	/**
-	 * The deserializer factory used to instantiate the deserializers that construct records from byte streams.
+	 * The factory used to instantiate new records deserializers.
 	 */
 	private final RecordDeserializerFactory<T> deserializerFactory;
 
@@ -101,14 +102,18 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 *        the ID of the job this input gate belongs to
 	 * @param gateID
 	 *        the ID of the gate
-	 * @param deserializerFactory
-	 *        The factory used to instantiate the deserializers that construct records from byte streams.
 	 * @param index
 	 *        the index assigned to this input gate at the {@link Environment} object
+	 * @param channelType
+	 *        the type of the channels connected to this input gate
+	 * @param compressionLevel
+	 *        the compression level of the channels which are connected to this input gate
+	 * @param deserializerFactory
+	 *        the factory for the record deserializer
 	 */
-	public RuntimeInputGate(final JobID jobID, final GateID gateID,
-						final RecordDeserializerFactory<T> deserializerFactory, final int index) {
-		super(jobID, gateID, index);
+	public RuntimeInputGate(final JobID jobID, final GateID gateID, final int index, final ChannelType channelType,
+			final CompressionLevel compressionLevel, final RecordDeserializerFactory<T> deserializerFactory) {
+		super(jobID, gateID, index, channelType, compressionLevel);
 		this.deserializerFactory = deserializerFactory;
 	}
 
@@ -167,64 +172,36 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getNumberOfInputChannels() {
-
-		return this.inputChannels.size();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public AbstractInputChannel<T> getInputChannel(int pos) {
-
-		if (pos < this.inputChannels.size()) {
-			return this.inputChannels.get(pos);
-		}
-
-		return null;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public NetworkInputChannel<T> createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public void createNetworkInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
+		final NetworkInputChannel<T> enic = new NetworkInputChannel<T>(inputGate, this.inputChannels.size(), channelID,
+			connectedChannelID, compressionLevel, this.deserializerFactory.createDeserializer());
 		addInputChannel(enic);
-
-		return enic;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public FileInputChannel<T> createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public void createFileInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
+		final FileInputChannel<T> efic = new FileInputChannel<T>(inputGate, this.inputChannels.size(), channelID,
+			connectedChannelID, compressionLevel, this.deserializerFactory.createDeserializer());
 		addInputChannel(efic);
-
-		return efic;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InMemoryInputChannel<T> createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
+	public void createInMemoryInputChannel(final InputGate<T> inputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
 		final InMemoryInputChannel<T> eimic = new InMemoryInputChannel<T>(inputGate, this.inputChannels.size(),
-			this.deserializerFactory.createDeserializer(), channelID, connectedChannelID, compressionLevel);
+			channelID, connectedChannelID, compressionLevel, this.deserializerFactory.createDeserializer());
 		addInputChannel(eimic);
-
-		return eimic;
 	}
 
 	/**
@@ -254,7 +231,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 				this.channelToReadFrom = waitForAnyChannelToBecomeAvailable();
 			}
 			try {
-				record = this.getInputChannel(this.channelToReadFrom).readRecord(target);
+				record = this.inputChannels.get(this.channelToReadFrom).readRecord(target);
 			} catch (EOFException e) {
 				// System.out.println("### Caught EOF exception at channel " + channelToReadFrom + "(" +
 				// this.getInputChannel(channelToReadFrom).getType().toString() + ")");
@@ -309,7 +286,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 			return true;
 		}
 
-		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
+		for (int i = 0; i < this.inputChannels.size(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
 			if (!inputChannel.isClosed()) {
 				return false;
@@ -327,7 +304,7 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 	@Override
 	public void close() throws IOException, InterruptedException {
 
-		for (int i = 0; i < this.getNumberOfInputChannels(); i++) {
+		for (int i = 0; i < this.inputChannels.size(); i++) {
 			final AbstractInputChannel<T> inputChannel = this.inputChannels.get(i);
 			inputChannel.close();
 		}
@@ -445,5 +422,31 @@ public class RuntimeInputGate<T extends Record> extends AbstractGate<T> implemen
 		for (int i = 0; i < this.inputChannels.size(); ++i) {
 			this.inputChannels.get(i).initializeDecompressor();
 		}
+	}
+
+	/**
+	 * Returns the number of input channels associated with this input gate.
+	 * 
+	 * @return the number of input channels associated with this input gate
+	 */
+	public int getNumberOfInputChannels() {
+
+		return this.inputChannels.size();
+	}
+
+	/**
+	 * Returns the input channel from position <code>pos</code> of the gate's internal channel list.
+	 * 
+	 * @param pos
+	 *        the position to retrieve the channel from
+	 * @return the channel from the given position or <code>null</code> if such position does not exist.
+	 */
+	public AbstractInputChannel<T> getInputChannel(final int pos) {
+
+		if (pos < this.inputChannels.size()) {
+			return this.inputChannels.get(pos);
+		}
+
+		return null;
 	}
 }

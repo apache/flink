@@ -44,7 +44,7 @@ public final class SpeedTestForwarder extends AbstractTask {
 	public void registerInputOutput() {
 
 		this.input = new MutableRecordReader<SpeedTestRecord>(this);
-		this.output = new RecordWriter<SpeedTestRecord>(this, SpeedTestRecord.class);
+		this.output = new RecordWriter<SpeedTestRecord>(this);
 	}
 
 	/**

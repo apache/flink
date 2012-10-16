@@ -13,24 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.channels;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import eu.stratosphere.nephele.io.RecordFactory;
+import eu.stratosphere.nephele.types.Record;
 
-import eu.stratosphere.nephele.event.task.AbstractEvent;
+public class DefaultRecordDeserializerFactory<T extends Record> implements RecordDeserializerFactory<T> {
 
-public class ByteBufferedChannelActivateEvent extends AbstractEvent {
+	private final RecordFactory<T> recordFactory;
 
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		// Nothing to do here
+	public DefaultRecordDeserializerFactory(final RecordFactory<T> recordFactory) {
+		this.recordFactory = recordFactory;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		// Nothing to do here
+	public RecordDeserializer<T> createDeserializer() {
+		return new DefaultRecordDeserializer<T>(this.recordFactory);
 	}
 }

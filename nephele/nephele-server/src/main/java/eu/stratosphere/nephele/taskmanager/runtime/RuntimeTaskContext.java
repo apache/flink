@@ -25,8 +25,8 @@ import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
@@ -68,7 +68,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		// Compute number of output input channels
 		int nooc = 0;
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
+			final RuntimeOutputGate<? extends Record> outputGate = environment.getOutputGate(i);
 			if (outputGate.isBroadcast()) {
 				++nooc;
 			} else {
@@ -258,10 +258,10 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			throw new IllegalArgumentException("Argument gateID must not be null");
 		}
 
-		OutputGate<? extends Record> outputGate = null;
+		RuntimeOutputGate<? extends Record> outputGate = null;
 		final RuntimeEnvironment re = this.task.getRuntimeEnvironment();
 		for (int i = 0; i < re.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> candidateGate = re.getOutputGate(i);
+			final RuntimeOutputGate<? extends Record> candidateGate = re.getOutputGate(i);
 			if (candidateGate.getGateID().equals(gateID)) {
 				outputGate = candidateGate;
 				break;
@@ -285,10 +285,10 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			throw new IllegalArgumentException("Argument gateID must not be null");
 		}
 
-		InputGate<? extends Record> inputGate = null;
+		RuntimeInputGate<? extends Record> inputGate = null;
 		final RuntimeEnvironment re = this.task.getRuntimeEnvironment();
 		for (int i = 0; i < re.getNumberOfInputGates(); ++i) {
-			final InputGate<? extends Record> candidateGate = re.getInputGate(i);
+			final RuntimeInputGate<? extends Record> candidateGate = re.getInputGate(i);
 			if (candidateGate.getGateID().equals(gateID)) {
 				inputGate = candidateGate;
 				break;

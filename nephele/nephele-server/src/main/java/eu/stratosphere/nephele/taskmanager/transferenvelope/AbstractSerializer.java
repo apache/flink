@@ -24,6 +24,7 @@ import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.SerializationBuffer;
+import eu.stratosphere.nephele.io.channels.SpanningRecordSerializer;
 
 public abstract class AbstractSerializer {
 
@@ -42,7 +43,7 @@ public abstract class AbstractSerializer {
 
 	private SerializationState serializationState;
 
-	private final SerializationBuffer<IOReadableWritable> serializationBuffer = new SerializationBuffer<IOReadableWritable>();
+	private final SpanningRecordSerializer<IOReadableWritable> serializationBuffer = new SpanningRecordSerializer<IOReadableWritable>();
 
 	private final ByteBuffer tempBuffer = ByteBuffer.allocate(64); // TODO: Make this configurable
 

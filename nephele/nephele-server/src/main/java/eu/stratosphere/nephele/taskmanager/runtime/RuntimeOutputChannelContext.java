@@ -16,18 +16,18 @@
 package eu.stratosphere.nephele.taskmanager.runtime;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelContext;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
 
 public final class RuntimeOutputChannelContext extends AbstractOutputChannelContext {
 
-	private final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel;
+	private final AbstractOutputChannel<?> byteBufferedOutputChannel;
 
-	RuntimeOutputChannelContext(final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel,
+	RuntimeOutputChannelContext(final AbstractOutputChannel<?> byteBufferedOutputChannel,
 			final OutputChannelForwardingChain forwardingChain) {
 		super(forwardingChain);
 

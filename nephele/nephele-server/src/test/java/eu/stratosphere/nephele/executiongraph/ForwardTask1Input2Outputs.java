@@ -42,7 +42,7 @@ public class ForwardTask1Input2Outputs extends AbstractTask {
 	@Override
 	public void registerInputOutput() {
 		this.input = new RecordReader<StringRecord>(this, StringRecord.class);
-		this.output1 = new RecordWriter<StringRecord>(this, StringRecord.class);
-		this.output2 = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output1 = new RecordWriter<StringRecord>(this);
+		this.output2 = new RecordWriter<StringRecord>(this);
 	}
 }

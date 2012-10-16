@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,21 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io;
+package eu.stratosphere.nephele.io.channels;
 
-/**
- * A simple factory to instantiate record deserializer objects. Since a deserializer might be stateful, the system
- * must be able to instantiate an arbitrary number of them, equal to the number of data channels.
- * 
- * If the created deserializers are in fact not stateful, the factory should return a shared object.
- */
-public interface RecordDeserializerFactory<T>
-{
-	/**
-	 * Creates a new instance of the deserializer. The returned instance may not share any state with
-	 * any previously returned instance.
-	 * 
-	 * @return An instance of the deserializer.
-	 */
-	RecordDeserializer<T> createDeserializer();
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import eu.stratosphere.nephele.event.task.AbstractEvent;
+
+public class ByteBufferedChannelActivateEvent extends AbstractEvent {
+
+	@Override
+	public void read(DataInput in) throws IOException {
+
+		// Nothing to do here
+	}
+
+	@Override
+	public void write(DataOutput out) throws IOException {
+		// Nothing to do here
+	}
 }

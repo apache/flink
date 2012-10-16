@@ -23,9 +23,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.io.RecordDeserializer;
+import eu.stratosphere.nephele.io.RecordFactory;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.types.Record;
 
 /**
  * A class for deserializing a portion of binary data into records of type <code>T</code>. The internal
@@ -35,7 +35,7 @@ import eu.stratosphere.nephele.services.memorymanager.DataInputView;
  * @param <T>
  *        The type of the record this deserialization buffer can be used for.
  */
-public class DefaultDeserializer<T extends IOReadableWritable> implements RecordDeserializer<T> {
+public class SpanningRecordDeserializer<T extends Record> implements RecordDeserializer<T> {
 	/**
 	 * The size of an integer in byte.
 	 */
@@ -59,9 +59,9 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 	private ByteBuffer tempBuffer;
 
 	/**
-	 * The type of the record to be deserialized.
+	 * The record factory to create new records.
 	 */
-	private final Class<? extends T> recordType;
+	private final RecordFactory<T> recordFactory;
 
 	/**
 	 * Size of the record to be deserialized in bytes.
@@ -76,26 +76,26 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Constructs a new deserialization buffer with the specified type.
+	 * Constructs a new spanning record deserializer.
 	 * 
-	 * @param recordType
-	 *        The type of the record to be deserialized.
+	 * @param recordFactory
+	 *        the record factory to instantiate new records
 	 */
-	public DefaultDeserializer(final Class<? extends T> recordType) {
-		this(recordType, false);
+	SpanningRecordDeserializer(final RecordFactory<T> recordFactory) {
+		this(recordFactory, false);
 	}
 
 	/**
-	 * Constructs a new deserialization buffer with the specified type.
+	 * Constructs a new spanning record deserializer.
 	 * 
-	 * @param recordType
-	 *        The type of the record to be deserialized.
+	 * @param recordFactory
+	 *        the record factory to instantiate new records
 	 * @param propagateEndOfStream
 	 *        <code>True</code>, if end of stream notifications during the
 	 *        deserialization process shall be propagated to the caller, <code>false</code> otherwise.
 	 */
-	public DefaultDeserializer(final Class<? extends T> recordType, final boolean propagateEndOfStream) {
-		this.recordType = recordType;
+	SpanningRecordDeserializer(final RecordFactory<T> recordFactory, final boolean propagateEndOfStream) {
+		this.recordFactory = recordFactory;
 		this.propagateEndOfStream = propagateEndOfStream;
 
 		this.lengthBuf = ByteBuffer.allocate(SIZEOFINT);
@@ -178,7 +178,7 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 
 	private final T instantiateTarget() throws IOException {
 		try {
-			return this.recordType.newInstance();
+			return this.recordFactory.createRecord();
 		} catch (Exception e) {
 			throw new IOException("Could not instantiate the given record type: " + e.getMessage(), e);
 		}
@@ -561,8 +561,8 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 		public short readShort() throws EOFException {
 			if (this.position < this.limit - 1) {
 				short num = (short) (
-						((this.source[this.position + 0] & 0xff) << 8) |
-						((this.source[this.position + 1] & 0xff)));
+					((this.source[this.position + 0] & 0xff) << 8) |
+					((this.source[this.position + 1] & 0xff)));
 				this.position += 2;
 				return num;
 			} else {
@@ -587,8 +587,8 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 		public char readChar() throws EOFException {
 			if (this.position < this.limit - 1) {
 				char c = (char) (
-						((this.source[this.position + 0] & 0xff) << 8) |
-						((this.source[this.position + 1] & 0xff)));
+					((this.source[this.position + 0] & 0xff) << 8) |
+					((this.source[this.position + 1] & 0xff)));
 				this.position += 2;
 				return c;
 			} else {
@@ -604,9 +604,9 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 		public int readInt() throws EOFException {
 			if (this.position < this.limit - 3) {
 				final int num = ((this.source[this.position + 0] & 0xff) << 24) |
-								((this.source[this.position + 1] & 0xff) << 16) |
-								((this.source[this.position + 2] & 0xff) << 8) |
-								((this.source[this.position + 3] & 0xff));
+					((this.source[this.position + 1] & 0xff) << 16) |
+					((this.source[this.position + 2] & 0xff) << 8) |
+					((this.source[this.position + 3] & 0xff));
 				this.position += 4;
 				return num;
 			} else {
@@ -622,13 +622,13 @@ public class DefaultDeserializer<T extends IOReadableWritable> implements Record
 		public long readLong() throws EOFException {
 			if (this.position < this.limit - 7) {
 				final long num = (((long) this.source[this.position + 0] & 0xff) << 56) |
-									(((long) this.source[this.position + 1] & 0xff) << 48) |
-									(((long) this.source[this.position + 2] & 0xff) << 40) |
-									(((long) this.source[this.position + 3] & 0xff) << 32) |
-									(((long) this.source[this.position + 4] & 0xff) << 24) |
-									(((long) this.source[this.position + 5] & 0xff) << 16) |
-									(((long) this.source[this.position + 6] & 0xff) << 8) |
-									(((long) this.source[this.position + 7] & 0xff) << 0);
+					(((long) this.source[this.position + 1] & 0xff) << 48) |
+					(((long) this.source[this.position + 2] & 0xff) << 40) |
+					(((long) this.source[this.position + 3] & 0xff) << 32) |
+					(((long) this.source[this.position + 4] & 0xff) << 24) |
+					(((long) this.source[this.position + 5] & 0xff) << 16) |
+					(((long) this.source[this.position + 6] & 0xff) << 8) |
+					(((long) this.source[this.position + 7] & 0xff) << 0);
 				this.position += 8;
 				return num;
 			} else {

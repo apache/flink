@@ -48,5 +48,12 @@ public class SpeedTestConsumer extends AbstractOutputTask {
 		final SpeedTestRecord record = new SpeedTestRecord();
 		while (this.input.next(record)) {
 		}
+		
+		// Check record
+		if(record.check()) {
+			System.out.println("RECORD INTACT");
+		} else {
+			System.out.println("RECORD BROKEN");
+		}
 	}
 }

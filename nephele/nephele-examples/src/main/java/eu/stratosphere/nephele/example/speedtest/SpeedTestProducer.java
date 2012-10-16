@@ -36,7 +36,7 @@ public final class SpeedTestProducer extends AbstractGenericInputTask {
 	@Override
 	public void registerInputOutput() {
 
-		this.writer = new RecordWriter<SpeedTestRecord>(this, SpeedTestRecord.class);
+		this.writer = new RecordWriter<SpeedTestRecord>(this);
 	}
 
 	/**
@@ -49,9 +49,10 @@ public final class SpeedTestProducer extends AbstractGenericInputTask {
 		final int dataVolumePerSubtaskInMB = getTaskConfiguration().getInteger(SpeedTest.DATA_VOLUME_CONFIG_KEY, 1)
 			* 1024 / getCurrentNumberOfSubtasks();
 
-		final long numberOfRecordsToEmit = dataVolumePerSubtaskInMB * 1024 * 1024 / SpeedTestRecord.RECORD_SIZE;
+		final long numberOfRecordsToEmit = (long) dataVolumePerSubtaskInMB * 1024L * 1024L
+			/ (long) SpeedTestRecord.RECORD_SIZE;
 
-		final SpeedTestRecord record = new SpeedTestRecord();
+		final SpeedTestRecord record = SpeedTestRecord.create();
 
 		for (long i = 0; i < numberOfRecordsToEmit; ++i) {
 			this.writer.emit(record);

@@ -49,7 +49,7 @@ public class CompressionTestTask extends AbstractTask {
 	@Override
 	public void registerInputOutput() {
 		this.input = new RecordReader<FileRecord>(this, FileRecord.class);
-		this.output = new RecordWriter<FileRecord>(this, FileRecord.class);
+		this.output = new RecordWriter<FileRecord>(this);
 	}
 
 }

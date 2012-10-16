@@ -61,7 +61,7 @@ public class BroadcastProducer extends AbstractGenericInputTask {
 	@Override
 	public void registerInputOutput() {
 
-		this.output = new BroadcastRecordWriter<BroadcastRecord>(this, BroadcastRecord.class);
+		this.output = new BroadcastRecordWriter<BroadcastRecord>(this);
 	}
 
 	/**

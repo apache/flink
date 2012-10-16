@@ -13,26 +13,27 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.channels;
 
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.RecordDeserializer;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
-public final class FileInputChannel<T extends Record> extends AbstractByteBufferedInputChannel<T> {
+/**
+ * A simple factory to instantiate record deserializer objects. Since a deserializer might be stateful, the system
+ * must be able to instantiate an arbitrary number of them, equal to the number of data channels.
+ * <p>
+ * If the created deserializers are in fact not stateful, the factory should return a shared object.
+ * 
+ * @author Stephan Ewen
+ * @param <T>
+ *        the type of record the deserializer is created for
+ */
+public interface RecordDeserializerFactory<T extends Record> {
 
-	public FileInputChannel(InputGate<T> inputGate, int channelIndex, RecordDeserializer<T> deserializer,
-			ChannelID channelID, ChannelID connectedChannelID, CompressionLevel compressionLevel) {
-		super(inputGate, channelIndex, deserializer, channelID, connectedChannelID, compressionLevel);
-	}
-
-	@Override
-	public ChannelType getType() {
-
-		return ChannelType.FILE;
-	}
-
+	/**
+	 * Creates a new instance of the deserializer. The returned instance may not share any state with any previously
+	 * returned instance.
+	 * 
+	 * @return an instance of the deserializer
+	 */
+	RecordDeserializer<T> createDeserializer();
 }

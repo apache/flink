@@ -36,7 +36,7 @@ public class SelfCrossForwardTask extends AbstractTask {
 		
 		new RecordReader<StringRecord>(this, StringRecord.class);
 		new RecordReader<StringRecord>(this, StringRecord.class);
-		new RecordWriter<StringRecord>(this, StringRecord.class);
+		new RecordWriter<StringRecord>(this);
 	}
 
 	/**

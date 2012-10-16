@@ -126,7 +126,7 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex) throws JobGraphDefinitionException {
-		this.connectTo(vertex, null, null, -1, -1, DistributionPattern.BIPARTITE);
+		this.connectTo(vertex, null, null, -1, -1, DistributionPattern.BIPARTITE, false);
 	}
 
 	/**
@@ -145,7 +145,7 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final int indexOfOutputGate, final int indexOfInputGate)
 			throws JobGraphDefinitionException {
-		this.connectTo(vertex, null, null, indexOfOutputGate, indexOfInputGate, DistributionPattern.BIPARTITE);
+		this.connectTo(vertex, null, null, indexOfOutputGate, indexOfInputGate, DistributionPattern.BIPARTITE, false);
 	}
 
 	/**
@@ -162,7 +162,7 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
 			final CompressionLevel compressionLevel) throws JobGraphDefinitionException {
-		this.connectTo(vertex, channelType, compressionLevel, -1, -1, DistributionPattern.BIPARTITE);
+		this.connectTo(vertex, channelType, compressionLevel, -1, -1, DistributionPattern.BIPARTITE, false);
 	}
 
 	/**
@@ -174,13 +174,40 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 	 *        the channel type the two vertices should be connected by at runtime
 	 * @param compressionLevel
 	 *        the compression level the corresponding channel should have at runtime
+	 * @param distributionPattern
+	 *        the distribution patter according to which the subtasks of the connected vertices shall be connected
 	 * @throws JobGraphDefinitionException
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
 			final CompressionLevel compressionLevel, final DistributionPattern distributionPattern)
 			throws JobGraphDefinitionException {
-		this.connectTo(vertex, channelType, compressionLevel, -1, -1, distributionPattern);
+		this.connectTo(vertex, channelType, compressionLevel, -1, -1, distributionPattern, false);
+	}
+
+	/**
+	 * Connects the job vertex to the specified job vertex.
+	 * 
+	 * @param vertex
+	 *        the vertex this vertex should connect to
+	 * @param channelType
+	 *        the channel type the two vertices should be connected by at runtime
+	 * @param compressionLevel
+	 *        the compression level the corresponding channel should have at runtime
+	 * @param distributionPattern
+	 *        the distribution patter according to which the subtasks of the connected vertices shall be connected
+	 * @param allowSpanningRecords
+	 *        <code>true</code> to allow spanning records for this edge, <code>false</code> otherwise. Spanning records
+	 *        are records which are too big to fit into one of Nephele's internal buffers at runtime. Allowing spanning
+	 *        records will instruct Nephele to split such records among multiple buffers, however, causes some memory
+	 *        copy overhead at runtime.
+	 * @throws JobGraphDefinitionException
+	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
+	 */
+	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
+			final CompressionLevel compressionLevel, final DistributionPattern distributionPattern,
+			final boolean allowSpanningRecords) throws JobGraphDefinitionException {
+		this.connectTo(vertex, channelType, compressionLevel, -1, -1, distributionPattern, allowSpanningRecords);
 	}
 
 	/**
@@ -198,12 +225,46 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 	 * @param indexOfInputGate
 	 *        index of the consuming task's input gate to be used, <code>-1</code> will determine the next free index
 	 *        number
+	 * @param distributionPattern
+	 *        the distribution patter according to which the subtasks of the connected vertices shall be connected
 	 * @throws JobGraphDefinitionException
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
 	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
 			final CompressionLevel compressionLevel, int indexOfOutputGate, int indexOfInputGate,
-			DistributionPattern distributionPattern)
+			final DistributionPattern distributionPattern) throws JobGraphDefinitionException {
+		this.connectTo(vertex, channelType, compressionLevel, indexOfOutputGate, indexOfInputGate, distributionPattern,
+			false);
+	}
+
+	/**
+	 * Connects the job vertex to the specified job vertex.
+	 * 
+	 * @param vertex
+	 *        the vertex this vertex should connect to
+	 * @param channelType
+	 *        the channel type the two vertices should be connected by at runtime
+	 * @param compressionLevel
+	 *        the compression level the corresponding channel should have at runtime
+	 * @param indexOfOutputGate
+	 *        index of the producing task's output gate to be used, <code>-1</code> will determine the next free index
+	 *        number
+	 * @param indexOfInputGate
+	 *        index of the consuming task's input gate to be used, <code>-1</code> will determine the next free index
+	 *        number
+	 * @param distributionPattern
+	 *        the distribution patter according to which the subtasks of the connected vertices shall be connected
+	 * @param allowSpanningRecords
+	 *        <code>true</code> to allow spanning records for this edge, <code>false</code> otherwise. Spanning records
+	 *        are records which are too big to fit into one of Nephele's internal buffers at runtime. Allowing spanning
+	 *        records will instruct Nephele to split such records among multiple buffers, however, causes some memory
+	 *        copy overhead at runtime.
+	 * @throws JobGraphDefinitionException
+	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
+	 */
+	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
+			final CompressionLevel compressionLevel, int indexOfOutputGate, int indexOfInputGate,
+			final DistributionPattern distributionPattern, final boolean allowSpanningRecords)
 			throws JobGraphDefinitionException {
 
 		if (vertex == null) {
@@ -235,9 +296,9 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 
 		// Add new edge
 		this.forwardEdges.set(indexOfOutputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfInputGate,
-			distributionPattern));
+			distributionPattern, allowSpanningRecords));
 		vertex.connectBacklink(this, channelType, compressionLevel, indexOfOutputGate, indexOfInputGate,
-			distributionPattern);
+			distributionPattern, allowSpanningRecords);
 	}
 
 	/**
@@ -287,10 +348,14 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 	 *        index of the producing task's output gate to be used
 	 * @param indexOfInputGate
 	 *        index of the consuming task's input gate to be used
+	 * @param distributionPattern
+	 *        the distribution patter according to which the subtasks of the connected vertices shall be connected
+	 * @param allowSpanningRecords
+	 *        <code>true</code> to allow spanning records, <code>false</code> otherwise
 	 */
 	private void connectBacklink(final AbstractJobVertex vertex, final ChannelType channelType,
 			final CompressionLevel compressionLevel, final int indexOfOutputGate, final int indexOfInputGate,
-			DistributionPattern distributionPattern) {
+			final DistributionPattern distributionPattern, final boolean allowSpanningRecords) {
 
 		// Make sure the array is big enough
 		for (int i = this.backwardEdges.size(); i <= indexOfInputGate; i++) {
@@ -298,7 +363,7 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 		}
 
 		this.backwardEdges.set(indexOfInputGate, new JobEdge(vertex, channelType, compressionLevel, indexOfOutputGate,
-			distributionPattern));
+			distributionPattern, allowSpanningRecords));
 	}
 
 	/**
@@ -484,9 +549,11 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 				final CompressionLevel compressionLevel = EnumUtils.readEnum(input, CompressionLevel.class);
 				final DistributionPattern distributionPattern = EnumUtils.readEnum(input, DistributionPattern.class);
 				final int indexOfInputGate = input.readInt();
+				final boolean allowSpanningRecords = input.readBoolean();
 
 				try {
-					this.connectTo(jv, channelType, compressionLevel, i, indexOfInputGate, distributionPattern);
+					this.connectTo(jv, channelType, compressionLevel, i, indexOfInputGate, distributionPattern,
+						allowSpanningRecords);
 				} catch (JobGraphDefinitionException e) {
 					throw new IllegalStateException(StringUtils.stringifyException(e));
 				}
@@ -497,6 +564,67 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 
 		// Read the name of the invokable class
 		this.invokableClassName = input.readString();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void write(final DataOutput out) throws IOException {
+
+		// Instance type
+		StringRecord.writeString(out, this.instanceType);
+
+		// Number of subtasks
+		out.writeInt(this.numberOfSubtasks);
+
+		// Number of subtasks per instance
+		out.writeInt(this.numberOfSubtasksPerInstance);
+
+		// Number of execution retries
+		out.writeInt(this.numberOfExecutionRetries);
+
+		// Vertex to share instance with
+		if (this.vertexToShareInstancesWith != null) {
+			out.writeBoolean(true);
+			this.vertexToShareInstancesWith.getID().write(out);
+		} else {
+			out.writeBoolean(false);
+		}
+
+		// Write the configuration
+		this.configuration.write(out);
+
+		// We ignore the backward edges and connect them when we reconstruct the graph on the remote side, only write
+		// number of forward edges
+		out.writeInt(this.forwardEdges.size());
+
+		// Now output the IDs of the vertices this vertex is connected to
+		for (int i = 0; i < this.forwardEdges.size(); i++) {
+			final JobEdge edge = this.forwardEdges.get(i);
+			if (edge == null) {
+				out.writeBoolean(false);
+			} else {
+				out.writeBoolean(true);
+				edge.getConnectedVertex().getID().write(out);
+				EnumUtils.writeEnum(out, edge.getChannelType());
+				EnumUtils.writeEnum(out, edge.getCompressionLevel());
+				EnumUtils.writeEnum(out, edge.getDistributionPattern());
+				out.writeInt(edge.getIndexOfInputGate());
+				out.writeBoolean(edge.spanningRecordsAllowed());
+			}
+		}
+
+		// Write the invokable class
+		if (this.invokableClass == null) {
+			out.writeBoolean(false);
+			return;
+		}
+
+		out.writeBoolean(true);
+
+		// Write out the name of the class
+		StringRecord.writeString(out, this.invokableClass.getName());
 	}
 
 	/**

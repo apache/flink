@@ -16,9 +16,7 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -29,7 +27,6 @@ import eu.stratosphere.nephele.types.Record;
  *        the type of the record that can be emitted with this record writer
  */
 public interface Writer<T extends Record> {
-	void emit(T record) throws IOException, InterruptedException;
 
-	List<AbstractOutputChannel<T>> getOutputChannels();
+	void emit(T record) throws IOException, InterruptedException;
 }

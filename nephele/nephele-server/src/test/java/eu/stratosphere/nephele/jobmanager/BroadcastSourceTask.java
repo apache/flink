@@ -24,7 +24,7 @@ public class BroadcastSourceTask extends AbstractFileInputTask {
 	@Override
 	public void registerInputOutput() {
 
-		this.output = new BroadcastRecordWriter<StringRecord>(this, StringRecord.class);
+		this.output = new BroadcastRecordWriter<StringRecord>(this);
 	}
 
 	@Override

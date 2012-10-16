@@ -35,13 +35,11 @@ public class RecordWriter<T extends Record> extends AbstractRecordWriter<T> {
 	 * 
 	 * @param taskBase
 	 *        the application that instantiated the record writer
-	 * @param outputClass
-	 *        the class of records that can be emitted with this record writer
 	 * @param selector
 	 *        the channel selector to be used to determine the output channel to be used for a record
 	 */
-	public RecordWriter(AbstractTask taskBase, Class<T> outputClass, ChannelSelector<T> selector) {
-		super(taskBase, outputClass, selector, false);
+	public RecordWriter(final AbstractTask taskBase, final ChannelSelector<T> selector) {
+		super(taskBase, selector, false);
 	}
 
 	/**
@@ -52,8 +50,8 @@ public class RecordWriter<T extends Record> extends AbstractRecordWriter<T> {
 	 * @param outputClass
 	 *        the class of records that can be emitted with this record writer
 	 */
-	public RecordWriter(AbstractTask taskBase, Class<T> outputClass) {
-		super(taskBase, outputClass, null, false);
+	public RecordWriter(final AbstractTask taskBase) {
+		super(taskBase, null, false);
 	}
 
 	/**
@@ -62,11 +60,9 @@ public class RecordWriter<T extends Record> extends AbstractRecordWriter<T> {
 	 * 
 	 * @param inputBase
 	 *        the application that instantiated the record writer
-	 * @param outputClass
-	 *        the class of records that can be emitted with this record writer
 	 */
-	public RecordWriter(AbstractInputTask<?> inputBase, Class<T> outputClass) {
-		super(inputBase, outputClass, null, false);
+	public RecordWriter(final AbstractInputTask<?> inputBase) {
+		super(inputBase, null, false);
 	}
 
 	/**
@@ -74,12 +70,10 @@ public class RecordWriter<T extends Record> extends AbstractRecordWriter<T> {
 	 * 
 	 * @param inputBase
 	 *        the application that instantiated the record writer
-	 * @param outputClass
-	 *        the class of records that can be emitted with this record writer
 	 * @param selector
 	 *        the channel selector to be used to determine the output channel to be used for a record
 	 */
-	public RecordWriter(AbstractInputTask<?> inputBase, Class<T> outputClass, ChannelSelector<T> selector) {
-		super(inputBase, outputClass, selector, false);
+	public RecordWriter(final AbstractInputTask<?> inputBase, final ChannelSelector<T> selector) {
+		super(inputBase, selector, false);
 	}
 }

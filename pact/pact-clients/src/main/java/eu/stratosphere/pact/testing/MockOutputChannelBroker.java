@@ -21,9 +21,9 @@ import java.util.Queue;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
+import eu.stratosphere.nephele.io.channels.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
@@ -40,7 +40,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 	/**
 	 * The byte buffered output channel this context belongs to.
 	 */
-	private final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel;
+	private final AbstractOutputChannel<?> outputChannel;
 
 	private LocalBufferPool transitBufferPool;
 
@@ -50,9 +50,9 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 
 	private TransferEnvelope outgoingTransferEnvelope;
 
-	public MockOutputChannelBroker(AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel,
+	public MockOutputChannelBroker(AbstractOutputChannel<?> byteBufferedOutputChannel,
 			LocalBufferPool transitBufferPool, TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
-		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
+		this.outputChannel = byteBufferedOutputChannel;
 		this.transitBufferPool = transitBufferPool;
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 	}
@@ -72,8 +72,8 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 
 	protected TransferEnvelope newEnvelope() {
 		TransferEnvelope transferEnvelope = new TransferEnvelope(this.sequenceNumber++,
-			this.byteBufferedOutputChannel.getJobID(),
-			this.byteBufferedOutputChannel.getID());
+			this.outputChannel.getJobID(),
+			this.outputChannel.getID());
 
 		return transferEnvelope;
 	}
@@ -129,7 +129,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 			final AbstractEvent event = it.next();
 
 			if (event instanceof AbstractTaskEvent) {
-				this.byteBufferedOutputChannel.processEvent(event);
+				this.outputChannel.processEvent(event);
 			}
 		}
 	}
@@ -164,8 +164,8 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 	 * @see eu.stratosphere.pact.testing.MockChannelBroker#getChannel()
 	 */
 	@Override
-	public AbstractByteBufferedOutputChannel<?> getChannel() {
-		return this.byteBufferedOutputChannel;
+	public AbstractOutputChannel<?> getChannel() {
+		return this.outputChannel;
 	}
 
 	/*

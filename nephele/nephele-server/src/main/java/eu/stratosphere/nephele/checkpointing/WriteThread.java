@@ -34,8 +34,8 @@ import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
+import eu.stratosphere.nephele.io.channels.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 

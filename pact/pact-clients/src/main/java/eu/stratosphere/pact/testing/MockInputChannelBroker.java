@@ -21,9 +21,9 @@ import java.util.Queue;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.EventList;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
+import eu.stratosphere.nephele.io.channels.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -33,7 +33,8 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDisp
  * @author Arvid Heise
  */
 public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, MockChannelBroker {
-	private final AbstractByteBufferedInputChannel<?> bbic;
+	
+	private final AbstractInputChannel<?> inputChannel;
 
 	private TransferEnvelopeDispatcher transferEnvelopeDispatcher;
 
@@ -42,12 +43,12 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	/**
 	 * Initializes MockInputChannelBroker.
 	 * 
-	 * @param bbic
+	 * @param inputChannel
 	 * @param transitBufferPool
 	 */
-	public MockInputChannelBroker(AbstractByteBufferedInputChannel<?> bbic,
+	public MockInputChannelBroker(AbstractInputChannel<?> inputChannel,
 			TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
-		this.bbic = bbic;
+		this.inputChannel = inputChannel;
 		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
 	}
 
@@ -103,7 +104,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 				if (!eventList.isEmpty()) {
 					final Iterator<AbstractEvent> it = eventList.iterator();
 					while (it.hasNext())
-						this.bbic.processEvent(it.next());
+						this.inputChannel.processEvent(it.next());
 				}
 
 			return null;
@@ -117,7 +118,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 			if (!eventList.isEmpty()) {
 				final Iterator<AbstractEvent> it = eventList.iterator();
 				while (it.hasNext())
-					this.bbic.processEvent(it.next());
+					this.inputChannel.processEvent(it.next());
 			}
 
 		return buffer;
@@ -131,8 +132,8 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	 */
 	@Override
 	public void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException {
-		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, this.bbic.getJobID(),
-			this.bbic.getID());
+		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, this.inputChannel.getJobID(),
+			this.inputChannel.getID());
 		ephemeralTransferEnvelope.addEvent(event);
 		this.transferEnvelopeDispatcher.processEnvelopeFromInputChannel(ephemeralTransferEnvelope);
 	}
@@ -150,7 +151,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 		}
 
 		// Notify the channel about the new data
-		this.bbic.checkForNetworkEvents();
+		this.inputChannel.checkForNetworkEvents();
 	}
 
 	/*
@@ -158,8 +159,8 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	 * @see eu.stratosphere.pact.testing.MockChannelBroker#getChannel()
 	 */
 	@Override
-	public AbstractByteBufferedInputChannel<?> getChannel() {
-		return this.bbic;
+	public AbstractInputChannel<?> getChannel() {
+		return this.inputChannel;
 	}
 
 	/*

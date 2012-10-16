@@ -77,7 +77,7 @@ public final class ExecutionGate {
 	}
 
 	void replaceAllEdges(final Collection<ExecutionEdge> newEdges) {
-		
+
 		this.edges.clear();
 		this.edges.addAll(newEdges);
 	}
@@ -90,6 +90,11 @@ public final class ExecutionGate {
 	public CompressionLevel getCompressionLevel() {
 
 		return this.groupEdge.getCompressionLevel();
+	}
+
+	public boolean allowSpanningRecords() {
+
+		return this.groupEdge.allowSpanningRecords();
 	}
 
 	ExecutionGroupEdge getGroupEdge() {

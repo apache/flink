@@ -21,12 +21,11 @@ import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpointForwarder;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Compressor;
@@ -42,11 +41,11 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 
 	private final RuntimeTaskContext taskContext;
 
-	private final OutputGate<? extends Record> outputGate;
+	private final RuntimeOutputGate<? extends Record> outputGate;
 
 	private Compressor compressor = null;
 
-	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final OutputGate<? extends Record> outputGate) {
+	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final RuntimeOutputGate<? extends Record> outputGate) {
 
 		this.taskContext = taskContext;
 		this.outputGate = outputGate;
@@ -147,13 +146,13 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 			throw new IllegalArgumentException("Cannot find output channel with ID " + channelID);
 		}
 
-		if (!(channel instanceof AbstractByteBufferedOutputChannel)) {
+		if (!(channel instanceof AbstractOutputChannel)) {
 			throw new IllegalStateException("Channel with ID" + channelID
 				+ " is not of type AbstractByteBufferedOutputChannel");
 		}
 
 		// The output channel for this context
-		final AbstractByteBufferedOutputChannel<? extends Record> outputChannel = (AbstractByteBufferedOutputChannel<? extends Record>) channel;
+		final AbstractOutputChannel<? extends Record> outputChannel = (AbstractOutputChannel<? extends Record>) channel;
 
 		// Construct the forwarding chain
 		RuntimeOutputChannelBroker outputChannelBroker;

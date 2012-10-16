@@ -466,10 +466,12 @@ public class ExecutionGraph implements ExecutionListener {
 
 				final DistributionPattern distributionPattern = edge.getDistributionPattern();
 
+				final boolean allowSpanningRecords = edge.spanningRecordsAllowed();
+
 				// Connect the corresponding group vertices and copy the user settings from the job edge
 				final ExecutionGroupEdge groupEdge = sgv.wireTo(tgv, edge.getIndexOfInputGate(), i, channelType,
 					userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern,
-					isBroadcast);
+					isBroadcast, allowSpanningRecords);
 
 				final ExecutionGate outputGate = new ExecutionGate(new GateID(), sev, groupEdge, false);
 				sev.insertOutputGate(i, outputGate);

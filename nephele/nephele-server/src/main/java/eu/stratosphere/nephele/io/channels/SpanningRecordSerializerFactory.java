@@ -13,25 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.bytebuffered;
+package eu.stratosphere.nephele.io.channels;
 
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
-public final class NetworkOutputChannel<T extends Record> extends AbstractByteBufferedOutputChannel<T> {
+/**
+ * This class implements a factory for the {@link SpanningRecordSerializer}, a special serializer for records which are
+ * too big to fit into a single {@link Buffer} at runtime.
+ * 
+ * @author warneke
+ * @param <T>
+ *        the type of record to be serialized by the record serializer
+ */
+public final class SpanningRecordSerializerFactory<T extends Record> implements RecordSerializerFactory<T> {
 
-	public NetworkOutputChannel(OutputGate<T> outputGate, int channelIndex, ChannelID channelID,
-			ChannelID connectedChannelID, CompressionLevel compressionLevel) {
-		super(outputGate, channelIndex, channelID, connectedChannelID, compressionLevel);
-	}
-
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public ChannelType getType() {
-
-		return ChannelType.NETWORK;
+	public RecordSerializer<T> createSerializer() {
+		return new SpanningRecordSerializer<T>();
 	}
 
 }

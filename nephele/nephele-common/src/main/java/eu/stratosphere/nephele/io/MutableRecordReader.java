@@ -21,8 +21,7 @@ import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.nephele.types.Record;
 
-public class MutableRecordReader<T extends Record> extends AbstractRecordReader<T> implements MutableReader<T>
-{
+public class MutableRecordReader<T extends Record> extends AbstractRecordReader<T> implements MutableReader<T> {
 	/**
 	 * Constructs a new mutable record reader and registers a new input gate with the application's environment.
 	 * 
@@ -30,8 +29,7 @@ public class MutableRecordReader<T extends Record> extends AbstractRecordReader<
 	 *        The application that instantiated the record reader.
 	 */
 	public MutableRecordReader(final AbstractTask taskBase) {
-
-		super(taskBase, MutableRecordDeserializerFactory.<T>get(), 0);
+		super(taskBase, null);
 	}
 
 	/**
@@ -40,96 +38,14 @@ public class MutableRecordReader<T extends Record> extends AbstractRecordReader<
 	 * @param outputBase
 	 *        The application that instantiated the record reader.
 	 */
-	public MutableRecordReader(final AbstractOutputTask outputBase)
-	{
-		super(outputBase, MutableRecordDeserializerFactory.<T>get(), 0);
+	public MutableRecordReader(final AbstractOutputTask outputBase) {
+		super(outputBase, null);
 	}
 
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        the application that instantiated the record reader
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	public MutableRecordReader(final AbstractTask taskBase, final int inputGateID) {
-
-		super(taskBase, MutableRecordDeserializerFactory.<T>get(), inputGateID);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        the application that instantiated the record reader
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	public MutableRecordReader(final AbstractOutputTask outputBase, final int inputGateID) {
-
-		super(outputBase, MutableRecordDeserializerFactory.<T>get(), inputGateID);
-	}
-	
-	/**
-	 * Constructs a new mutable record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        The application that instantiated the record reader.
-	 * @param deserializerFactory
-	 *        The factory used to create the record deserializer.
-	 */
-	public MutableRecordReader(final AbstractTask taskBase, final RecordDeserializerFactory<T> deserializerFactory) {
-
-		super(taskBase, deserializerFactory, 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        The application that instantiated the record reader.
-	 * @param deserializerFactory
-	 *        The factory used to create the record deserializer.
-	 */
-	public MutableRecordReader(final AbstractOutputTask outputBase, final RecordDeserializerFactory<T> deserializerFactory)
-	{
-		super(outputBase, deserializerFactory, 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        the application that instantiated the record reader
-	 * @param deserializerFactory
-	 *        The factory used to create the record deserializer.
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	public MutableRecordReader(final AbstractTask taskBase, final RecordDeserializerFactory<T> deserializerFactory, final int inputGateID) {
-
-		super(taskBase, deserializerFactory, inputGateID);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        the application that instantiated the record reader
-	 * @param deserializerFactory
-	 *        The factory used to create the record deserializer.
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	public MutableRecordReader(final AbstractOutputTask outputBase, final RecordDeserializerFactory<T> deserializerFactory, final int inputGateID) {
-
-		super(outputBase, deserializerFactory, inputGateID);
-	}
-	
 	// --------------------------------------------------------------------------------------------
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.MutableReader#next(eu.stratosphere.nephele.types.Record)
 	 */
 	@Override

@@ -57,7 +57,7 @@ public final class ExecutionGroupVertex {
 	 * failed.
 	 */
 	private static final int DEFAULT_EXECUTION_RETRIES = GlobalConfiguration.getInteger(
-			ConfigConstants.JOB_EXECUTION_RETRIES_KEY, ConfigConstants.DEFAULT_JOB_EXECUTION_RETRIES);
+		ConfigConstants.JOB_EXECUTION_RETRIES_KEY, ConfigConstants.DEFAULT_JOB_EXECUTION_RETRIES);
 
 	/**
 	 * The name of the vertex.
@@ -395,18 +395,21 @@ public final class ExecutionGroupVertex {
 	 *        the distribution pattern to create the wiring between the group members
 	 * @param isBroadcast
 	 *        indicates that the edge is part of broadcast group
-	 * @return the created edge.
+	 * @param allowSpanningRecords
+	 *        indicates that the edge shall allow spanning records at runtime
+	 * @return the created edge
 	 */
 	ExecutionGroupEdge wireTo(final ExecutionGroupVertex groupVertex, final int indexOfInputGate,
 			final int indexOfOutputGate, final ChannelType channelType, final boolean userDefinedChannelType,
 			final CompressionLevel compressionLevel, final boolean userDefinedCompressionLevel,
-			final DistributionPattern distributionPattern, final boolean isBroadcast) throws GraphConversionException {
+			final DistributionPattern distributionPattern, final boolean isBroadcast, final boolean allowSpanningRecords)
+			throws GraphConversionException {
 
 		try {
 			final ExecutionGroupEdge previousEdge = this.forwardLinks.get(indexOfOutputGate);
 			if (previousEdge != null) {
 				throw new GraphConversionException("Output gate " + indexOfOutputGate + " of" + getName()
-						+ " already has an outgoing edge");
+					+ " already has an outgoing edge");
 			}
 		} catch (ArrayIndexOutOfBoundsException e) {
 			// Ignore exception
@@ -414,7 +417,7 @@ public final class ExecutionGroupVertex {
 
 		final ExecutionGroupEdge edge = new ExecutionGroupEdge(this, indexOfOutputGate, groupVertex, indexOfInputGate,
 			channelType, userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern,
-			isBroadcast);
+			isBroadcast, allowSpanningRecords);
 
 		this.forwardLinks.add(edge);
 

@@ -48,7 +48,7 @@ public class GateDeploymentDescriptorTest {
 		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
 
-		final GateDeploymentDescriptor gdd = new GateDeploymentDescriptor(gateID, channelType, compressionLevel,
+		final GateDeploymentDescriptor gdd = new GateDeploymentDescriptor(gateID, channelType, compressionLevel, false,
 			channels);
 
 		assertEquals(gateID, gdd.getGateID());
@@ -74,25 +74,25 @@ public class GateDeploymentDescriptorTest {
 		boolean forthExceptionCaught = false;
 
 		try {
-			new GateDeploymentDescriptor(null, channelType, compressionLevel, channels);
+			new GateDeploymentDescriptor(null, channelType, compressionLevel, false, channels);
 		} catch (IllegalArgumentException e) {
 			firstExceptionCaught = true;
 		}
 
 		try {
-			new GateDeploymentDescriptor(gateID, null, compressionLevel, channels);
+			new GateDeploymentDescriptor(gateID, null, compressionLevel, false, channels);
 		} catch (IllegalArgumentException e) {
 			secondExceptionCaught = true;
 		}
 
 		try {
-			new GateDeploymentDescriptor(gateID, channelType, null, channels);
+			new GateDeploymentDescriptor(gateID, channelType, null, false, channels);
 		} catch (IllegalArgumentException e) {
 			thirdExceptionCaught = true;
 		}
 
 		try {
-			new GateDeploymentDescriptor(gateID, channelType, compressionLevel, null);
+			new GateDeploymentDescriptor(gateID, channelType, compressionLevel, false, null);
 		} catch (IllegalArgumentException e) {
 			forthExceptionCaught = true;
 		}
@@ -128,7 +128,7 @@ public class GateDeploymentDescriptorTest {
 		channels.add(cdd);
 
 		final GateDeploymentDescriptor orig = new GateDeploymentDescriptor(gateID, channelType, compressionLevel,
-			channels);
+			false, channels);
 
 		final GateDeploymentDescriptor copy = ServerTestUtils.createCopy(orig);
 		
