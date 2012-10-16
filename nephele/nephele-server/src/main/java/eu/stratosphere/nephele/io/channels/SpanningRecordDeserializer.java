@@ -23,9 +23,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.RecordFactory;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.nephele.types.Record;
 
 /**
  * A class for deserializing a portion of binary data into records of type <code>T</code>. The internal
@@ -35,7 +35,7 @@ import eu.stratosphere.nephele.services.memorymanager.DataInputView;
  * @param <T>
  *        The type of the record this deserialization buffer can be used for.
  */
-public class SpanningRecordDeserializer<T extends IOReadableWritable> implements RecordDeserializer<T> {
+public class SpanningRecordDeserializer<T extends Record> implements RecordDeserializer<T> {
 	/**
 	 * The size of an integer in byte.
 	 */
@@ -81,7 +81,7 @@ public class SpanningRecordDeserializer<T extends IOReadableWritable> implements
 	 * @param recordFactory
 	 *        the record factory to instantiate new records
 	 */
-	public SpanningRecordDeserializer(final RecordFactory<T> recordFactory) {
+	SpanningRecordDeserializer(final RecordFactory<T> recordFactory) {
 		this(recordFactory, false);
 	}
 
@@ -94,7 +94,7 @@ public class SpanningRecordDeserializer<T extends IOReadableWritable> implements
 	 *        <code>True</code>, if end of stream notifications during the
 	 *        deserialization process shall be propagated to the caller, <code>false</code> otherwise.
 	 */
-	public SpanningRecordDeserializer(final RecordFactory<T> recordFactory, final boolean propagateEndOfStream) {
+	SpanningRecordDeserializer(final RecordFactory<T> recordFactory, final boolean propagateEndOfStream) {
 		this.recordFactory = recordFactory;
 		this.propagateEndOfStream = propagateEndOfStream;
 

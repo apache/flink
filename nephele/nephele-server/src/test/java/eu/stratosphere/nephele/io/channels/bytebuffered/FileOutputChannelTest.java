@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.io.channels.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileInputChannel;
 import eu.stratosphere.nephele.io.channels.FileOutputChannel;
-import eu.stratosphere.nephele.io.channels.SerializationBuffer;
+import eu.stratosphere.nephele.io.channels.SpanningRecordSerializer;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.StringRecord;
 
@@ -55,7 +55,7 @@ public class FileOutputChannelTest {
 	private Buffer uncompressedDataBuffer;
 
 	@Mock
-	SerializationBuffer<StringRecord> serializationBuffer;
+	SpanningRecordSerializer<StringRecord> recordSerializer;
 
 	@Mock
 	ChannelID id;
@@ -97,7 +97,7 @@ public class FileOutputChannelTest {
 
 		when(outputBroker.hasDataLeftToTransmit()).thenReturn(true);
 
-		when(this.serializationBuffer.dataLeftFromPreviousSerialization()).thenReturn(false, false, true, true, false,
+		when(this.recordSerializer.dataLeftFromPreviousSerialization()).thenReturn(false, false, true, true, false,
 			false);
 		// try {
 		// when(this.serializationBuffer.readData(Matchers.any(ReadableByteChannel.class))).thenReturn(null, record);
@@ -108,10 +108,10 @@ public class FileOutputChannelTest {
 
 		// setup test-object
 		FileOutputChannel<StringRecord> fileOutputChannel = new FileOutputChannel<StringRecord>(outGate, 1,
-			new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION);
+			new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION, new SpanningRecordSerializer<StringRecord>());
 		fileOutputChannel.setByteBufferedOutputChannelBroker(outputBroker);
 
-		Whitebox.setInternalState(fileOutputChannel, "serializationBuffer", this.serializationBuffer);
+		Whitebox.setInternalState(fileOutputChannel, "recordSerializer", this.recordSerializer);
 
 		// correct run
 		try {

@@ -59,7 +59,7 @@ public class FileInputChannelTest {
 	private Buffer uncompressedDataBuffer;
 
 	@Mock
-	SpanningRecordDeserializer<StringRecord> deserializationBuffer;
+	SpanningRecordDeserializer<StringRecord> recordDeserializer;
 
 	@Mock
 	ChannelID id;
@@ -96,7 +96,7 @@ public class FileInputChannelTest {
 		when(inputBroker.getReadBufferToConsume()).thenReturn(this.uncompressedDataBuffer);
 		try {
 			when(
-				this.deserializationBuffer.readData(Matchers.any(StringRecord.class),
+				this.recordDeserializer.readData(Matchers.any(StringRecord.class),
 					Matchers.any(ReadableByteChannel.class))).thenReturn(null, record);
 		} catch (IOException e) {
 
@@ -105,10 +105,10 @@ public class FileInputChannelTest {
 
 		// setup test-object
 		final FileInputChannel<StringRecord> fileInputChannel = new FileInputChannel<StringRecord>(inGate, 1,
-			this.deserializationBuffer, new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION);
+			new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION, this.recordDeserializer);
 		fileInputChannel.setInputChannelBroker(inputBroker);
 
-		Whitebox.setInternalState(fileInputChannel, "deserializer", this.deserializationBuffer);
+		Whitebox.setInternalState(fileInputChannel, "deserializer", this.recordDeserializer);
 
 		// correct run
 		try {

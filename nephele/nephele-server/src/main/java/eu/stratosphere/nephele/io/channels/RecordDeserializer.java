@@ -18,6 +18,8 @@ package eu.stratosphere.nephele.io.channels;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 
+import eu.stratosphere.nephele.types.Record;
+
 /**
  * This interface must be implemented by classes which transfer bytes streams back into {@link Record} objects.
  * 
@@ -25,7 +27,7 @@ import java.nio.channels.ReadableByteChannel;
  * @param <T>
  *        The type of record this record deserializer works with.
  */
-public interface RecordDeserializer<T> {
+public interface RecordDeserializer<T extends Record> {
 
 	/**
 	 * Transforms a record back from a readable byte channel. The deserialization might not complete, because the
