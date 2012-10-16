@@ -55,7 +55,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.util.SerializableHashMap;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -296,7 +295,7 @@ public class ClusterManager implements InstanceManager {
 
 		this.instanceAccommodationMatrix = calculateInstanceAccommodationMatrix();
 
-		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
+		this.instanceTypeDescriptionMap = new HashMap<InstanceType, InstanceTypeDescription>();
 
 		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
 

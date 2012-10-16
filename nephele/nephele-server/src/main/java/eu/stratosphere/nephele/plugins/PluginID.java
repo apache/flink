@@ -18,45 +18,29 @@ package eu.stratosphere.nephele.plugins;
 import eu.stratosphere.nephele.io.AbstractID;
 
 /**
- * This class provides IDs to uniquely identify Nephele plugins.
+ * A class for statistically unique Nephele plugin IDs.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
 public final class PluginID extends AbstractID {
 
 	/**
-	 * Constructs a new plugin ID from the given byte array.
-	 * 
-	 * @param byteArray
-	 *        the byte array to construct the plugin ID from
+	 * Default constructor required by kryo.
 	 */
-	private PluginID(final byte[] byteArray) {
-		super(byteArray);
+	private PluginID() {
 	}
 
 	/**
-	 * Default constructor required for the deserialization.
-	 */
-	public PluginID() {
-		super();
-	}
-
-	/**
-	 * Constructs a new plugin ID from the given byte array.
+	 * Constructs a new plugin ID.
 	 * 
-	 * @param byteArray
-	 *        the byte array to construct the plugin ID from
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
 	 */
-	public static PluginID fromByteArray(final byte[] byteArray) {
-
-		if (byteArray == null) {
-			throw new IllegalArgumentException("Argument byteArray must not be null");
-		}
-
-		if (byteArray.length != SIZE) {
-			throw new IllegalArgumentException("Provided byte array must have a length of " + SIZE);
-		}
-
-		return new PluginID(byteArray);
+	private PluginID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
 	}
 }

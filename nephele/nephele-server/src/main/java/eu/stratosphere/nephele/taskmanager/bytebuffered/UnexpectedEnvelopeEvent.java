@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
@@ -35,7 +31,7 @@ public final class UnexpectedEnvelopeEvent extends AbstractEvent {
 	/**
 	 * The expected sequence number.
 	 */
-	private int expectedSequenceNumber;
+	private final int expectedSequenceNumber;
 
 	/**
 	 * Constructs a new unexpected envelope event.
@@ -53,9 +49,11 @@ public final class UnexpectedEnvelopeEvent extends AbstractEvent {
 	}
 
 	/**
-	 * Default constructor for serialization/deserialization.
+	 * Default constructor required by kryo.
 	 */
-	public UnexpectedEnvelopeEvent() {
+	@SuppressWarnings("unused")
+	private UnexpectedEnvelopeEvent() {
+		this.expectedSequenceNumber = 0;
 	}
 
 	/**
@@ -64,26 +62,6 @@ public final class UnexpectedEnvelopeEvent extends AbstractEvent {
 	 * @return the expected sequence number
 	 */
 	public int getExpectedSequenceNumber() {
-
 		return this.expectedSequenceNumber;
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		out.writeInt(this.expectedSequenceNumber);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.expectedSequenceNumber = in.readInt();
-	}
-
 }

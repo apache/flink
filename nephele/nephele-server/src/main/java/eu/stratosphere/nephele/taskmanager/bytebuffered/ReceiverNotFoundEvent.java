@@ -15,12 +15,9 @@
 
 package eu.stratosphere.nephele.taskmanager.bytebuffered;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -28,6 +25,8 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 /**
  * An unknown receiver event can be used by the framework to inform a sender task that the delivery of a
  * {@link TransferEnvelope} has failed since the receiver could not be found.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -41,12 +40,12 @@ public final class ReceiverNotFoundEvent extends AbstractEvent {
 	/**
 	 * The ID of the receiver which could not be found
 	 */
-	private ChannelID receiverID;
+	private final ChannelID receiverID;
 
 	/**
 	 * The sequence number of the envelope this event refers to
 	 */
-	private int sequenceNumber;
+	private final int sequenceNumber;
 
 	/**
 	 * Constructs a new unknown receiver event.
@@ -71,11 +70,13 @@ public final class ReceiverNotFoundEvent extends AbstractEvent {
 	}
 
 	/**
-	 * Default constructor for serialization/deserialization.
+	 * Default constructor required by kryo.
 	 */
-	public ReceiverNotFoundEvent() {
+	@SuppressWarnings("unused")
+	private ReceiverNotFoundEvent() {
 
-		this.receiverID = new ChannelID();
+		this.receiverID = null;
+		this.sequenceNumber = 0;
 	}
 
 	/**
@@ -96,26 +97,6 @@ public final class ReceiverNotFoundEvent extends AbstractEvent {
 	public int getSequenceNumber() {
 
 		return this.sequenceNumber;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		this.receiverID.write(out);
-		out.writeInt(this.sequenceNumber);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.receiverID.read(in);
-		this.sequenceNumber = in.readInt();
 	}
 
 	/**
@@ -158,7 +139,7 @@ public final class ReceiverNotFoundEvent extends AbstractEvent {
 			return false;
 		}
 
-		final EventList eventList = transferEnvelope.getEventList();
+		final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 		if (eventList == null) {
 			return false;
 		}

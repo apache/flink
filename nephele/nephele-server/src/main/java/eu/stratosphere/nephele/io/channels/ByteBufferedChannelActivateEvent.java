@@ -15,22 +15,7 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 
-public class ByteBufferedChannelActivateEvent extends AbstractEvent {
-
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		// Nothing to do here
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-		// Nothing to do here
-	}
+public final class ByteBufferedChannelActivateEvent extends AbstractEvent {
 }

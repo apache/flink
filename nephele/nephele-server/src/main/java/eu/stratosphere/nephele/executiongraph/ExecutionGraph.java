@@ -72,8 +72,6 @@ import eu.stratosphere.nephele.util.StringUtils;
  */
 public class ExecutionGraph implements ExecutionListener {
 
-
-
 	/**
 	 * The log object used for debugging.
 	 */
@@ -366,8 +364,8 @@ public class ExecutionGraph implements ExecutionListener {
 				if (DistributionPatternProvider.createWire(groupEdge.getDistributionPattern(),
 					i, j, currentNumberOfSourceNodes, currentNumberOfTargetNodes)) {
 
-					final ChannelID outputChannelID = new ChannelID();
-					final ChannelID inputChannelID = new ChannelID();
+					final ChannelID outputChannelID = ChannelID.generate();
+					final ChannelID inputChannelID = ChannelID.generate();
 
 					final ExecutionEdge edge = new ExecutionEdge(outputGate, inputGate, groupEdge, outputChannelID,
 						inputChannelID, outputGate.getNumberOfEdges(), inputGate.getNumberOfEdges());
@@ -1468,7 +1466,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 		this.executorService.execute(command);
 	}
-	
+
 	/**
 	 * Creates deamon threads.<br />
 	 * Is used to allow the JVM to shutdown without closing the executorService of the {@link ExecutionGraph}.<br />

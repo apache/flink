@@ -127,7 +127,6 @@ import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -1037,7 +1036,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private void removeAllCheckpoints(final ExecutionGraph executionGraph) {
 
 		// Group vertex IDs by assigned instance
-		final Map<AbstractInstance, SerializableArrayList<ExecutionVertexID>> instanceMap = new HashMap<AbstractInstance, SerializableArrayList<ExecutionVertexID>>();
+		final Map<AbstractInstance, ArrayList<ExecutionVertexID>> instanceMap = new HashMap<AbstractInstance, ArrayList<ExecutionVertexID>>();
 		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
 		while (it.hasNext()) {
 
@@ -1052,20 +1051,20 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				continue;
 			}
 
-			SerializableArrayList<ExecutionVertexID> vertexIDs = instanceMap.get(abstractInstance);
+			ArrayList<ExecutionVertexID> vertexIDs = instanceMap.get(abstractInstance);
 			if (vertexIDs == null) {
-				vertexIDs = new SerializableArrayList<ExecutionVertexID>();
+				vertexIDs = new ArrayList<ExecutionVertexID>();
 				instanceMap.put(abstractInstance, vertexIDs);
 			}
 			vertexIDs.add(vertex.getID());
 		}
 
 		// Finally, trigger the removal of the checkpoints at each instance
-		final Iterator<Map.Entry<AbstractInstance, SerializableArrayList<ExecutionVertexID>>> it2 = instanceMap
+		final Iterator<Map.Entry<AbstractInstance, ArrayList<ExecutionVertexID>>> it2 = instanceMap
 			.entrySet().iterator();
 		while (it2.hasNext()) {
 
-			final Map.Entry<AbstractInstance, SerializableArrayList<ExecutionVertexID>> entry = it2.next();
+			final Map.Entry<AbstractInstance, ArrayList<ExecutionVertexID>> entry = it2.next();
 			final AbstractInstance abstractInstance = entry.getKey();
 			if (abstractInstance == null) {
 				LOG.error("Cannot remove checkpoint: abstractInstance is null");

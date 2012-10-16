@@ -15,43 +15,25 @@
 
 package eu.stratosphere.nephele.io.compression;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 
-public class CompressionEvent extends AbstractEvent {
+public final class CompressionEvent extends AbstractEvent {
 
-	private int internalCompressionLibraryIndex = 0;
+	private final int internalCompressionLibraryIndex;
 
 	public CompressionEvent(final int internalCompressionLibraryIndex) {
 		this.internalCompressionLibraryIndex = internalCompressionLibraryIndex;
 	}
 
-	public CompressionEvent() {
-	}
-
 	/**
-	 * {@inheritDoc}
+	 * Default constructor required by kryo.
 	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.internalCompressionLibraryIndex = in.readInt();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		out.writeInt(this.internalCompressionLibraryIndex);
+	@SuppressWarnings("unused")
+	private CompressionEvent() {
+		this.internalCompressionLibraryIndex = 0;
 	}
 
 	public int getCurrentInternalCompressionLibraryIndex() {
-
 		return this.internalCompressionLibraryIndex;
 	}
 }

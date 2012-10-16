@@ -57,7 +57,7 @@ public class MockEnvironment implements Environment
 
 	private final List<RuntimeOutputGate<PactRecord>> outputs;
 
-	private final JobID jobID = new JobID();
+	private final JobID jobID = JobID.generate();
 
 	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider)
 {

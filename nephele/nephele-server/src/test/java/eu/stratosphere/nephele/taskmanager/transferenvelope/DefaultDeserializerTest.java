@@ -59,12 +59,12 @@ public class DefaultDeserializerTest {
 	/**
 	 * The job ID to be used during the tests.
 	 */
-	private static final JobID JOB_ID = new JobID();
+	private static final JobID JOB_ID = JobID.generate();
 
 	/**
 	 * The channel ID to be used during the tests.
 	 */
-	private static final ChannelID CHANNEL_ID = new ChannelID();
+	private static final ChannelID CHANNEL_ID = ChannelID.generate();
 
 	/**
 	 * A dummy implementation of a {@link BufferProvider} which is used in this test.

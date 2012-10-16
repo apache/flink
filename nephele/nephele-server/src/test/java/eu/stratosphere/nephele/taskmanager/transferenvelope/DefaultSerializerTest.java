@@ -74,12 +74,12 @@ public class DefaultSerializerTest {
 	/**
 	 * The job ID used during the serialization process.
 	 */
-	private final JobID jobID = new JobID();
+	private final JobID jobID = JobID.generate();
 
 	/**
 	 * The target channel ID used during the serialization process.
 	 */
-	private final ChannelID sourceChannelID = new ChannelID();
+	private final ChannelID sourceChannelID = ChannelID.generate();
 
 	/**
 	 * Auxiliary class to explicitly access the internal buffer of an ID object.

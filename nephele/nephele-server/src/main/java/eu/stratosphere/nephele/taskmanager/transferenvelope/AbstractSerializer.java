@@ -18,13 +18,11 @@ package eu.stratosphere.nephele.taskmanager.transferenvelope;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.List;
 
-import eu.stratosphere.nephele.event.task.EventList;
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.AbstractID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.SerializationBuffer;
-import eu.stratosphere.nephele.io.channels.SpanningRecordSerializer;
 
 public abstract class AbstractSerializer {
 
@@ -43,7 +41,7 @@ public abstract class AbstractSerializer {
 
 	private SerializationState serializationState;
 
-	private final SpanningRecordSerializer<IOReadableWritable> serializationBuffer = new SpanningRecordSerializer<IOReadableWritable>();
+	private final ObjectSerializer serializationBuffer = new ObjectSerializer();
 
 	private final ByteBuffer tempBuffer = ByteBuffer.allocate(64); // TODO: Make this configurable
 
@@ -59,7 +57,7 @@ public abstract class AbstractSerializer {
 		reset();
 	}
 
-	protected final SerializationBuffer<IOReadableWritable> getSerializationBuffer() {
+	protected final ObjectSerializer getSerializationBuffer() {
 
 		return this.serializationBuffer;
 	}
@@ -129,7 +127,7 @@ public abstract class AbstractSerializer {
 
 	private boolean writeID(WritableByteChannel writableByteChannel, AbstractID id) throws IOException {
 
-		if (!writeIOReadableWritable(writableByteChannel, id)) {
+		if (!writeObject(writableByteChannel, id)) {
 			// We're done, all the data has been written to the channel
 			if (this.serializationState == SerializationState.SEQUENCENUMBERSERIALIZED) {
 				// System.out.println("OUTGOING Serialized source: " + channelID);
@@ -144,12 +142,11 @@ public abstract class AbstractSerializer {
 		return true;
 	}
 
-	private boolean writeIOReadableWritable(WritableByteChannel writableByteChannel,
-			IOReadableWritable ioReadableWritable) throws IOException {
+	private boolean writeObject(WritableByteChannel writableByteChannel, Object object) throws IOException {
 
 		if (!this.serializationStarted) {
 			this.serializationBuffer.clear();
-			this.serializationBuffer.serialize(ioReadableWritable);
+			this.serializationBuffer.serialize(object);
 			this.serializationStarted = true;
 		}
 
@@ -163,7 +160,7 @@ public abstract class AbstractSerializer {
 		return true;
 	}
 
-	private boolean writeNotification(WritableByteChannel writableByteChannel, EventList notificationList)
+	private boolean writeNotification(WritableByteChannel writableByteChannel, List<AbstractEvent> notificationList)
 			throws IOException {
 
 		if (!this.eventListExistanceSerialized) {
@@ -184,7 +181,7 @@ public abstract class AbstractSerializer {
 		}
 
 		if (notificationList != null) {
-			if (writeIOReadableWritable(writableByteChannel, notificationList)) {
+			if (writeObject(writableByteChannel, notificationList)) {
 				return true;
 			}
 		}

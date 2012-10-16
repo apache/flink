@@ -47,7 +47,7 @@ public class TaskDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithValidArguments() {
 
-		final JobID jobID = new JobID();
+		final JobID jobID = JobID.generate();
 		final ExecutionVertexID vertexID = new ExecutionVertexID();
 		final String taskName = "task name";
 		final int indexInSubtaskGroup = 0;
@@ -82,7 +82,7 @@ public class TaskDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithInvalidArguments() {
 
-		final JobID jobID = new JobID();
+		final JobID jobID = JobID.generate();
 		final ExecutionVertexID vertexID = new ExecutionVertexID();
 		final String taskName = "task name";
 		final int indexInSubtaskGroup = 0;
@@ -245,7 +245,7 @@ public class TaskDeploymentDescriptorTest {
 	@Test
 	public void testSerialization() {
 
-		final JobID jobID = new JobID();
+		final JobID jobID = JobID.generate();
 		final ExecutionVertexID vertexID = new ExecutionVertexID();
 		final String taskName = "task name";
 		final int indexInSubtaskGroup = 0;

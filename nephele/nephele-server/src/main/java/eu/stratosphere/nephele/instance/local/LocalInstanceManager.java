@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.instance.local;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,6 @@ import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.util.SerializableHashMap;
 
 /**
  * The local instance manager is designed to manage instance allocation/deallocation for a single-node setup. It spans a
@@ -148,7 +148,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 		this.networkTopology = NetworkTopology.createEmptyTopology();
 
-		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
+		this.instanceTypeDescriptionMap = new HashMap<InstanceType, InstanceTypeDescription>();
 
 		this.localTaskManagerThread = new LocalTaskManagerThread(configDir);
 		this.localTaskManagerThread.start();

@@ -37,7 +37,7 @@ public final class InputSplitWrapper implements KryoSerializable {
 	/**
 	 * The ID of the job this input split belongs to.
 	 */
-	private final JobID jobID;
+	private JobID jobID;
 
 	/**
 	 * The wrapped input split.
@@ -66,7 +66,7 @@ public final class InputSplitWrapper implements KryoSerializable {
 	 * Default constructor for serialization/deserialization.
 	 */
 	public InputSplitWrapper() {
-		this.jobID = new JobID();
+		this.jobID = null;
 		this.inputSplit = null;
 	}
 
@@ -77,7 +77,7 @@ public final class InputSplitWrapper implements KryoSerializable {
 	public void write(final Kryo kryo, final Output output) {
 
 		// Write the job ID
-		this.jobID.write(kryo, output);
+		kryo.writeObject(output, this.jobID);
 
 		if (this.inputSplit == null) {
 			output.writeBoolean(false);
@@ -99,7 +99,7 @@ public final class InputSplitWrapper implements KryoSerializable {
 	public void read(final Kryo kryo, final Input input) {
 
 		// Read the job ID
-		this.jobID.read(kryo, input);
+		this.jobID = kryo.readObject(input, JobID.class);
 
 		if (input.readBoolean()) {
 

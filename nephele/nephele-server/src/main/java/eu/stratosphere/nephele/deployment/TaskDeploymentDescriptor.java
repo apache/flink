@@ -44,12 +44,12 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 	/**
 	 * The ID of the job the tasks belongs to.
 	 */
-	private final JobID jobID;
+	private JobID jobID;
 
 	/**
 	 * The task's execution vertex ID.
 	 */
-	private final ExecutionVertexID vertexID;
+	private ExecutionVertexID vertexID;
 
 	/**
 	 * The task's name.
@@ -192,8 +192,8 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 	 */
 	public TaskDeploymentDescriptor() {
 
-		this.jobID = new JobID();
-		this.vertexID = new ExecutionVertexID();
+		this.jobID = null;
+		this.vertexID = null;
 		this.taskName = null;
 		this.indexInSubtaskGroup = -1;
 		this.currentNumberOfSubtasks = -1;
@@ -211,8 +211,8 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 	@Override
 	public void write(final Kryo kryo, final Output output) {
 
-		this.jobID.write(kryo, output);
-		this.vertexID.write(kryo, output);
+		kryo.writeObject(output, this.jobID);
+		kryo.writeObject(output, this.vertexID);
 		output.writeString(this.taskName);
 		output.writeInt(this.indexInSubtaskGroup);
 		output.writeInt(this.currentNumberOfSubtasks);
@@ -252,8 +252,8 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 	@Override
 	public void read(final Kryo kryo, final Input input) {
 
-		this.jobID.read(kryo, input);
-		this.vertexID.read(kryo, input);
+		this.jobID = kryo.readObject(input, JobID.class);
+		this.vertexID = kryo.readObject(input, ExecutionVertexID.class);
 		this.taskName = input.readString();
 		this.indexInSubtaskGroup = input.readInt();
 		this.currentNumberOfSubtasks = input.readInt();

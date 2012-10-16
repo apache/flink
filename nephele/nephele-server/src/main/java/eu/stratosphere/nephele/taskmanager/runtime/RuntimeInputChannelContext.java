@@ -18,13 +18,13 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ByteBufferedChannelCloseEvent;
@@ -101,7 +101,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		if (transferEnvelope.getBuffer() == null) {
 
 			// No buffers necessary
-			final EventList eventList = transferEnvelope.getEventList();
+			final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 			if (eventList != null) {
 				if (!eventList.isEmpty()) {
 					final Iterator<AbstractEvent> it = eventList.iterator();
@@ -140,7 +140,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		}
 
 		// Process events
-		final EventList eventList = transferEnvelope.getEventList();
+		final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 		if (eventList != null) {
 			if (!eventList.isEmpty()) {
 				final Iterator<AbstractEvent> it = eventList.iterator();
@@ -268,7 +268,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	 */
 	private AbstractEvent lookForCloseEvent(final TransferEnvelope envelope) {
 
-		final EventList eventList = envelope.getEventList();
+		final List<AbstractEvent> eventList = envelope.getEventList();
 		if (eventList == null) {
 			return null;
 		}

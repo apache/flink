@@ -40,9 +40,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
 import eu.stratosphere.nephele.types.IntegerRecord;
-import eu.stratosphere.nephele.util.SerializableArrayList;
-import eu.stratosphere.nephele.util.SerializableHashMap;
-import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
  * This utility class provides a list of types frequently used by the RPC protocols included in this package.
@@ -87,9 +84,6 @@ public class CommonTypeUtils {
 		types.add(LibraryCacheProfileResponse.class);
 		types.add(LibraryCacheUpdate.class);
 		types.add(Path.class);
-		types.add(SerializableArrayList.class);
-		types.add(SerializableHashMap.class);
-		types.add(SerializableHashSet.class);
 		types.add(Set.class);
 		types.add(VertexEvent.class);
 

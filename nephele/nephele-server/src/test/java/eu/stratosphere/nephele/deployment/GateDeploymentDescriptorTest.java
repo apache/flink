@@ -124,14 +124,15 @@ public class GateDeploymentDescriptorTest {
 		final ChannelType channelType = ChannelType.INMEMORY;
 		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
-		final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(new ChannelID(), new ChannelID());
+		final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(ChannelID.generate(),
+			ChannelID.generate());
 		channels.add(cdd);
 
 		final GateDeploymentDescriptor orig = new GateDeploymentDescriptor(gateID, channelType, compressionLevel,
 			false, channels);
 
 		final GateDeploymentDescriptor copy = ServerTestUtils.createCopy(orig);
-		
+
 		assertFalse(orig.getGateID() == copy.getGateID());
 
 		assertEquals(orig.getGateID(), copy.getGateID());

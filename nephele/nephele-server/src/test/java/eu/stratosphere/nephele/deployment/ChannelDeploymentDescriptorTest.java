@@ -37,8 +37,8 @@ public class ChannelDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithValidArguments() {
 
-		final ChannelID outputChannelID = new ChannelID();
-		final ChannelID inputChannelID = new ChannelID();
+		final ChannelID outputChannelID = ChannelID.generate();
+		final ChannelID inputChannelID = ChannelID.generate();
 
 		final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(outputChannelID, inputChannelID);
 
@@ -52,7 +52,7 @@ public class ChannelDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithInvalidArguments() {
 
-		final ChannelID channelID = new ChannelID();
+		final ChannelID channelID = ChannelID.generate();
 
 		boolean firstExceptionCaught = false;
 		boolean secondExceptionCaught = false;
@@ -88,8 +88,8 @@ public class ChannelDeploymentDescriptorTest {
 	@Test
 	public void testSerialization() {
 
-		final ChannelID outputChannelID = new ChannelID();
-		final ChannelID inputChannelID = new ChannelID();
+		final ChannelID outputChannelID = ChannelID.generate();
+		final ChannelID inputChannelID = ChannelID.generate();
 
 		final ChannelDeploymentDescriptor orig = new ChannelDeploymentDescriptor(outputChannelID, inputChannelID);
 		final ChannelDeploymentDescriptor copy = ServerTestUtils.createCopy(orig);

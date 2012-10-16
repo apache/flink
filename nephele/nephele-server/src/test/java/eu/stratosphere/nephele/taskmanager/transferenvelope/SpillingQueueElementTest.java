@@ -46,8 +46,8 @@ public class SpillingQueueElementTest {
 
 		final Queue<ByteBuffer> queue = new ArrayDeque<ByteBuffer>();
 
-		final JobID jobID = new JobID();
-		final ChannelID source = new ChannelID();
+		final JobID jobID = JobID.generate();
+		final ChannelID source = ChannelID.generate();
 
 		final BufferPoolConnector connector = new BufferPoolConnector(queue);
 

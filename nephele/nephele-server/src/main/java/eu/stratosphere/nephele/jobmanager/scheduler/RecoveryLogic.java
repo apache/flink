@@ -40,7 +40,6 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
-import eu.stratosphere.nephele.util.SerializableHashSet;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -99,7 +98,7 @@ public final class RecoveryLogic {
 				final TaskCancelResult cancelResult = vertex.cancelTask();
 
 				if (cancelResult.getReturnCode() != ReturnCode.SUCCESS
-						&& cancelResult.getReturnCode() != ReturnCode.TASK_NOT_FOUND) {
+					&& cancelResult.getReturnCode() != ReturnCode.TASK_NOT_FOUND) {
 
 					verticesToBeRestarted.remove(vertex.getID());
 					LOG.error("Unable to cancel vertex" + cancelResult.getDescription());
@@ -259,7 +258,7 @@ public final class RecoveryLogic {
 
 				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
 				if (channelIDs == null) {
-					channelIDs = new SerializableHashSet<ChannelID>();
+					channelIDs = new HashSet<ChannelID>();
 					entriesToInvalidate.put(instance, channelIDs);
 				}
 
@@ -291,7 +290,7 @@ public final class RecoveryLogic {
 
 				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
 				if (channelIDs == null) {
-					channelIDs = new SerializableHashSet<ChannelID>();
+					channelIDs = new HashSet<ChannelID>();
 					entriesToInvalidate.put(instance, channelIDs);
 				}
 
