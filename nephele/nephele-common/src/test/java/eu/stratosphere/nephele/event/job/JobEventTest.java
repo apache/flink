@@ -54,7 +54,7 @@ public class JobEventTest {
 	@Test
 	public void testVertexEvent() {
 
-		final VertexEvent orig = new VertexEvent(23423423L, new JobVertexID(), "Test Vertex", 2, 0,
+		final VertexEvent orig = new VertexEvent(23423423L, JobVertexID.generate(), "Test Vertex", 2, 0,
 			ExecutionState.READY, "Test Description");
 		final VertexEvent copy = (VertexEvent) CommonTestUtils.createCopy(orig);
 

@@ -87,7 +87,7 @@ public class ProfilingTypesTest {
 
 		final InstanceSummaryProfilingEvent orig = new InstanceSummaryProfilingEvent(PROFILING_INTERVAL, IOWAIT_CPU,
 			IDLE_CPU, USER_CPU, SYSTEM_CPU, HARD_IRQ_CPU, SOFT_IRQ_CPU, TOTAL_MEMORY, FREE_MEMORY, BUFFERED_MEMORY,
-			CACHED_MEMORY, CACHED_SWAP_MEMORY, RECEIVED_BYTES, TRANSMITTED_BYTES, new JobID(), TIMESTAMP,
+			CACHED_MEMORY, CACHED_SWAP_MEMORY, RECEIVED_BYTES, TRANSMITTED_BYTES, JobID.generate(), TIMESTAMP,
 			PROFILING_TIMESTAMP);
 
 		final InstanceSummaryProfilingEvent copy = (InstanceSummaryProfilingEvent) ManagementTestUtils.createCopy(orig);
@@ -121,7 +121,7 @@ public class ProfilingTypesTest {
 
 		final SingleInstanceProfilingEvent orig = new SingleInstanceProfilingEvent(PROFILING_INTERVAL, IOWAIT_CPU,
 			IDLE_CPU, USER_CPU, SYSTEM_CPU, HARD_IRQ_CPU, SOFT_IRQ_CPU, TOTAL_MEMORY, FREE_MEMORY, BUFFERED_MEMORY,
-			CACHED_MEMORY, CACHED_SWAP_MEMORY, RECEIVED_BYTES, TRANSMITTED_BYTES, new JobID(), TIMESTAMP,
+			CACHED_MEMORY, CACHED_SWAP_MEMORY, RECEIVED_BYTES, TRANSMITTED_BYTES, JobID.generate(), TIMESTAMP,
 			PROFILING_TIMESTAMP, INSTANCE_NAME);
 
 		final SingleInstanceProfilingEvent copy = (SingleInstanceProfilingEvent) ManagementTestUtils.createCopy(orig);
@@ -156,7 +156,7 @@ public class ProfilingTypesTest {
 	public void testInputGateProfilingEvent() {
 
 		final InputGateProfilingEvent orig = new InputGateProfilingEvent(GATE_INDEX, NO_RECORD_AVAILABLE_COUNTER,
-			new ManagementVertexID(), PROFILING_INTERVAL, new JobID(), TIMESTAMP, PROFILING_TIMESTAMP);
+			ManagementVertexID.generate(), PROFILING_INTERVAL, JobID.generate(), TIMESTAMP, PROFILING_TIMESTAMP);
 
 		final InputGateProfilingEvent copy = (InputGateProfilingEvent) ManagementTestUtils.createCopy(orig);
 
@@ -178,7 +178,7 @@ public class ProfilingTypesTest {
 	public void testOutputGateProfilingEvent() {
 
 		final OutputGateProfilingEvent orig = new OutputGateProfilingEvent(GATE_INDEX, CHANNEL_CAPACITY_EXHAUSTED,
-			new ManagementVertexID(), PROFILING_INTERVAL, new JobID(), TIMESTAMP, PROFILING_TIMESTAMP);
+			ManagementVertexID.generate(), PROFILING_INTERVAL, JobID.generate(), TIMESTAMP, PROFILING_TIMESTAMP);
 
 		final OutputGateProfilingEvent copy = (OutputGateProfilingEvent) ManagementTestUtils.createCopy(orig);
 
@@ -200,7 +200,7 @@ public class ProfilingTypesTest {
 	public void testThreadProfilingEvent() {
 
 		final ThreadProfilingEvent orig = new ThreadProfilingEvent(USER_TIME, SYSTEM_TIME, BLOCKED_TIME, WAITED_TIME,
-			new ManagementVertexID(), PROFILING_INTERVAL, new JobID(), TIMESTAMP, PROFILING_TIMESTAMP);
+			ManagementVertexID.generate(), PROFILING_INTERVAL, JobID.generate(), TIMESTAMP, PROFILING_TIMESTAMP);
 
 		final ThreadProfilingEvent copy = (ThreadProfilingEvent) ManagementTestUtils.createCopy(orig);
 

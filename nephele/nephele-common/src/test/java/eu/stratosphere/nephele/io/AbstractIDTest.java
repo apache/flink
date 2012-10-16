@@ -30,26 +30,12 @@ import eu.stratosphere.nephele.util.CommonTestUtils;
 public class AbstractIDTest {
 
 	/**
-	 * Tests the setID method of an abstract ID.
-	 */
-	@Test
-	public void testSetID() {
-
-		final ChannelID id1 = new ChannelID();
-		final ChannelID id2 = new ChannelID();
-		id1.setID(id2);
-
-		assertEquals(id1.hashCode(), id2.hashCode());
-		assertEquals(id1, id2);
-	}
-
-	/**
 	 * Tests the serialization/deserialization of an abstract ID.
 	 */
 	@Test
 	public void testSerialization() {
 
-		final ChannelID origID = new ChannelID();
+		final ChannelID origID = ChannelID.generate();
 		final ChannelID copyID = (ChannelID) CommonTestUtils.createCopy(origID);
 
 		assertEquals(origID.hashCode(), copyID.hashCode());

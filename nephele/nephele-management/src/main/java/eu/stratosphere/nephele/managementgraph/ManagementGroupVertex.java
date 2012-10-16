@@ -77,7 +77,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 	 *        the name of the new management group vertex
 	 */
 	public ManagementGroupVertex(final ManagementStage stage, final String name) {
-		this(stage, new ManagementGroupVertexID(), name);
+		this(stage, ManagementGroupVertexID.generate(), name);
 	}
 
 	/**
@@ -111,7 +111,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 	/**
 	 * Returns the name of this management group vertex.
 	 * 
-	 * @return the anme of this management group vertex, possibly <code>null</code>
+	 * @return the name of this management group vertex, possibly <code>null</code>
 	 */
 	public String getName() {
 		return name;
@@ -352,8 +352,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 
 		int numberOfForwardLinks = input.readInt();
 		for (int i = 0; i < numberOfForwardLinks; i++) {
-			final ManagementGroupVertexID targetGroupVertexID = new ManagementGroupVertexID();
-			targetGroupVertexID.read(kryo, input);
+			final ManagementGroupVertexID targetGroupVertexID = kryo.readObject(input, ManagementGroupVertexID.class);
 			final ManagementGroupVertex targetGroupVertex = getGraph().getGroupVertexByID(targetGroupVertexID);
 			final int sourceIndex = input.readInt();
 			final int targetIndex = input.readInt();
@@ -375,7 +374,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 		final Iterator<ManagementGroupEdge> it = this.forwardEdges.iterator();
 		while (it.hasNext()) {
 			final ManagementGroupEdge groupEdge = it.next();
-			groupEdge.getTarget().getID().write(kryo, output);
+			kryo.writeObject(output, groupEdge.getTarget().getID());
 			output.writeInt(groupEdge.getSourceIndex());
 			output.writeInt(groupEdge.getTargetIndex());
 			EnumUtils.writeEnum(output, groupEdge.getChannelType());

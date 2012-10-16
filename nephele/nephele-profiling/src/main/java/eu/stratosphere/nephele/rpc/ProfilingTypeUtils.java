@@ -15,12 +15,10 @@
 
 package eu.stratosphere.nephele.rpc;
 
-import java.util.ArrayDeque;
 import java.util.List;
 
 import eu.stratosphere.nephele.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
-import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
 
 /**
  * This utility class provides a list of types frequently used by the RPC protocols included in this package.
@@ -44,8 +42,6 @@ public class ProfilingTypeUtils {
 
 		final List<Class<?>> types = ServerTypeUtils.getRPCTypesToRegister();
 
-		types.add(ArrayDeque.class);
-		types.add(ProfilingDataContainer.class);
 		types.add(InternalExecutionVertexThreadProfilingData.class);
 		types.add(InternalInstanceProfilingData.class);
 

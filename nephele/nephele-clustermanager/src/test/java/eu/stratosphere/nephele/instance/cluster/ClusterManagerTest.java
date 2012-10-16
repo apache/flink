@@ -255,7 +255,7 @@ public class ClusterManagerTest {
 			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
 
 			// now we should be able to request two instances of type small and one of type medium
-			final JobID jobID = new JobID();
+			final JobID jobID = JobID.generate();
 			final Configuration conf = new Configuration();
 
 			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
@@ -351,7 +351,7 @@ public class ClusterManagerTest {
 				8L * 1024L * 1024L * 1024L, 8L * 1024L * 1024L * 1024L);
 			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
 
-			final JobID jobID = new JobID();
+			final JobID jobID = JobID.generate();
 			final Configuration conf = new Configuration();
 
 			try {

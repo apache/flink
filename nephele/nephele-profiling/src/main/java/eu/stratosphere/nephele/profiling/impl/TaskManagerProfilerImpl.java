@@ -20,8 +20,10 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -39,7 +41,7 @@ import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
-import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
+import eu.stratosphere.nephele.profiling.impl.types.InternalProfilingData;
 import eu.stratosphere.nephele.rpc.ProfilingTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
@@ -59,7 +61,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	private final long timerInterval;
 
-	private final ProfilingDataContainer profilingDataContainer = new ProfilingDataContainer();
+	private final List<InternalProfilingData> profilingDataContainer = new ArrayList<InternalProfilingData>();
 
 	private final InstanceProfiler instanceProfiler;
 
@@ -150,7 +152,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 				final InternalExecutionVertexThreadProfilingData threadProfilingData = environmentThreadSet
 					.captureCPUUtilization(environment.getJobID(), this.tmx, timestamp);
 				if (threadProfilingData != null) {
-					this.profilingDataContainer.addProfilingData(threadProfilingData);
+					this.profilingDataContainer.add(threadProfilingData);
 				}
 			}
 
@@ -168,7 +170,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		synchronized (this.profilingDataContainer) {
 
 			if (instanceProfilingData != null) {
-				this.profilingDataContainer.addProfilingData(instanceProfilingData);
+				this.profilingDataContainer.add(instanceProfilingData);
 			}
 
 			if (!this.profilingDataContainer.isEmpty()) {

@@ -16,45 +16,44 @@
 package eu.stratosphere.nephele.managementgraph;
 
 import eu.stratosphere.nephele.io.AbstractID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
 
 /**
- * A management edge ID uniquely identifies a {@link ManagementEdge}.
+ * A class for statistically unique management edge IDs.
  * <p>
- * This class is not thread-safe.
+ * This class is thread-safe.
  * 
- * @author Bjoern Lohrmann
+ * @author warneke
  */
-public class ManagementEdgeID extends AbstractID {
+public final class ManagementEdgeID extends AbstractID {
 
 	/**
-	 * Initializes ManagementEdgeID.
+	 * Default constructor required by kryo.
 	 */
-	ManagementEdgeID() {
+	private ManagementEdgeID() {
 	}
 
 	/**
-	 * A ManagementEdgeID is derived from the #{@link ChannelID} of the corresponding
-	 * output channel in the execution graph.
+	 * Constructs a new management edge ID.
 	 * 
-	 * @param source
-	 *        ID of the corresponding output channel
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
 	 */
-	public ManagementEdgeID(ChannelID source) {
-		super();
-		this.setID(source);
+	private ManagementEdgeID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
 	}
 
 	/**
-	 * Converts the management edge ID into a {@link ChannelID}.
+	 * Generates a new statistically unique management edge ID.
 	 * 
-	 * @return the corresponding channelID.
+	 * @return a new statistically unique management edge ID
 	 */
-	public ChannelID toChannelID() {
+	public static ManagementEdgeID generate() {
 
-		final ChannelID channelID = new ChannelID();
-		channelID.setID(this);
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
 
-		return channelID;
+		return new ManagementEdgeID(lowerPart, upperPart);
 	}
 }

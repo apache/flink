@@ -15,17 +15,13 @@
 
 package eu.stratosphere.nephele.profiling.impl.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 
 public class InternalInstanceProfilingData implements InternalProfilingData {
 
-	private InstanceConnectionInfo instanceConnectionInfo;
+	private final InstanceConnectionInfo instanceConnectionInfo;
 
-	private int profilingInterval;
+	private final int profilingInterval;
 
 	private int ioWaitCPU;
 
@@ -53,37 +49,46 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 
 	private long transmittedBytes;
 
-	public InternalInstanceProfilingData() {
-		this.freeMemory = -1;
+	/**
+	 * Default constructor required by kryo.
+	 */
+	@SuppressWarnings("unused")
+	private InternalInstanceProfilingData() {
+		this.freeMemory = -1L;
 		this.ioWaitCPU = -1;
 		this.idleCPU = -1;
-		this.instanceConnectionInfo = new InstanceConnectionInfo();
+		this.instanceConnectionInfo = null;
 		this.profilingInterval = -1;
 		this.systemCPU = -1;
-		this.totalMemory = -1;
-		this.bufferedMemory = -1;
-		this.cachedMemory = -1;
-		this.cachedSwapMemory = -1;
+		this.hardIrqCPU = -1;
+		this.softIrqCPU = -1;
+		this.totalMemory = -1L;
+		this.bufferedMemory = -1L;
+		this.cachedMemory = -1L;
+		this.cachedSwapMemory = -1L;
 		this.userCPU = -1;
-		this.receivedBytes = -1;
-		this.transmittedBytes = -1;
+		this.receivedBytes = -1L;
+		this.transmittedBytes = -1L;
 	}
 
-	public InternalInstanceProfilingData(InstanceConnectionInfo instanceConnectionInfo, int profilingInterval) {
+	public InternalInstanceProfilingData(final InstanceConnectionInfo instanceConnectionInfo,
+			final int profilingInterval) {
 
 		this.instanceConnectionInfo = instanceConnectionInfo;
 		this.profilingInterval = profilingInterval;
-		this.freeMemory = -1;
+		this.freeMemory = -1L;
 		this.ioWaitCPU = -1;
 		this.idleCPU = -1;
 		this.systemCPU = -1;
-		this.totalMemory = -1;
-		this.bufferedMemory = -1;
-		this.cachedMemory = -1;
-		this.cachedSwapMemory = -1;
+		this.hardIrqCPU = -1;
+		this.softIrqCPU = -1;
+		this.totalMemory = -1L;
+		this.bufferedMemory = -1L;
+		this.cachedMemory = -1L;
+		this.cachedSwapMemory = -1L;
 		this.userCPU = -1;
-		this.receivedBytes = -1;
-		this.transmittedBytes = -1;
+		this.receivedBytes = -1L;
+		this.transmittedBytes = -1L;
 	}
 
 	public long getFreeMemory() {
@@ -144,48 +149,6 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 
 	public long getTransmittedBytes() {
 		return this.transmittedBytes;
-	}
-
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		this.freeMemory = in.readLong();
-		this.ioWaitCPU = in.readInt();
-		this.idleCPU = in.readInt();
-		this.instanceConnectionInfo.read(in);
-		this.profilingInterval = in.readInt();
-		this.systemCPU = in.readInt();
-		this.totalMemory = in.readLong();
-		this.bufferedMemory = in.readLong();
-		this.cachedMemory = in.readLong();
-		this.cachedSwapMemory = in.readLong();
-		this.userCPU = in.readInt();
-		this.receivedBytes = in.readLong();
-		this.transmittedBytes = in.readLong();
-		this.hardIrqCPU = in.readInt();
-		this.softIrqCPU = in.readInt();
-
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		out.writeLong(this.freeMemory);
-		out.writeInt(this.ioWaitCPU);
-		out.writeInt(this.idleCPU);
-		this.instanceConnectionInfo.write(out);
-		out.writeInt(this.profilingInterval);
-		out.writeInt(this.systemCPU);
-		out.writeLong(this.totalMemory);
-		out.writeLong(this.bufferedMemory);
-		out.writeLong(this.cachedMemory);
-		out.writeLong(this.cachedSwapMemory);
-		out.writeInt(this.userCPU);
-		out.writeLong(this.receivedBytes);
-		out.writeLong(this.transmittedBytes);
-		out.writeInt(this.hardIrqCPU);
-		out.writeInt(this.softIrqCPU);
-
 	}
 
 	public void setFreeMemory(long freeMemory) {

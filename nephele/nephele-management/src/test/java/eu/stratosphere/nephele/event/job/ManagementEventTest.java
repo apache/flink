@@ -49,7 +49,7 @@ public class ManagementEventTest {
 	@Test
 	public void testExecutionStateChangeEvent() {
 
-		final ExecutionStateChangeEvent orig = new ExecutionStateChangeEvent(TIMESTAMP, new ManagementVertexID(),
+		final ExecutionStateChangeEvent orig = new ExecutionStateChangeEvent(TIMESTAMP, ManagementVertexID.generate(),
 			ExecutionState.READY);
 
 		final ExecutionStateChangeEvent copy = (ExecutionStateChangeEvent) ManagementTestUtils.createCopy(orig);
@@ -67,7 +67,7 @@ public class ManagementEventTest {
 	@Test
 	public void testRecentJobEvent() {
 
-		final RecentJobEvent orig = new RecentJobEvent(new JobID(), JOBNAME, JobStatus.SCHEDULED, true, TIMESTAMP,
+		final RecentJobEvent orig = new RecentJobEvent(JobID.generate(), JOBNAME, JobStatus.SCHEDULED, true, TIMESTAMP,
 			TIMESTAMP);
 
 		final RecentJobEvent copy = (RecentJobEvent) ManagementTestUtils.createCopy(orig);
@@ -88,7 +88,7 @@ public class ManagementEventTest {
 	@Test
 	public void testVertexAssignmentEvent() {
 
-		final VertexAssignmentEvent orig = new VertexAssignmentEvent(TIMESTAMP, new ManagementVertexID(), "test",
+		final VertexAssignmentEvent orig = new VertexAssignmentEvent(TIMESTAMP, ManagementVertexID.generate(), "test",
 			"standard");
 		final VertexAssignmentEvent copy = (VertexAssignmentEvent) ManagementTestUtils.createCopy(orig);
 

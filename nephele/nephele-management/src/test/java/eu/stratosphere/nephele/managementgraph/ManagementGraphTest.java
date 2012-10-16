@@ -245,7 +245,7 @@ public class ManagementGraphTest {
 		 */
 
 		// Graph
-		final ManagementGraph graph = new ManagementGraph(new JobID());
+		final ManagementGraph graph = new ManagementGraph(JobID.generate());
 
 		// Stages
 		final ManagementStage lowerStage = new ManagementStage(graph, 0);
@@ -258,15 +258,15 @@ public class ManagementGraphTest {
 		final ManagementGroupVertex groupVertex4 = new ManagementGroupVertex(upperStage, "Group Vertex 4");
 
 		// Vertices
-		final ManagementVertex vertex1_1 = new ManagementVertex(groupVertex1, new ManagementVertexID(), "Host 1",
+		final ManagementVertex vertex1_1 = new ManagementVertex(groupVertex1, ManagementVertexID.generate(), "Host 1",
 			"small", CHECKPOINT_STATE, 0);
-		final ManagementVertex vertex2_1 = new ManagementVertex(groupVertex2, new ManagementVertexID(), "Host 2",
+		final ManagementVertex vertex2_1 = new ManagementVertex(groupVertex2, ManagementVertexID.generate(), "Host 2",
 			"medium", CHECKPOINT_STATE, 0);
-		final ManagementVertex vertex2_2 = new ManagementVertex(groupVertex2, new ManagementVertexID(), "Host 2",
+		final ManagementVertex vertex2_2 = new ManagementVertex(groupVertex2, ManagementVertexID.generate(), "Host 2",
 			"medium", CHECKPOINT_STATE, 1);
-		final ManagementVertex vertex3_1 = new ManagementVertex(groupVertex3, new ManagementVertexID(), "Host 2",
+		final ManagementVertex vertex3_1 = new ManagementVertex(groupVertex3, ManagementVertexID.generate(), "Host 2",
 			"medium", CHECKPOINT_STATE, 0);
-		final ManagementVertex vertex4_1 = new ManagementVertex(groupVertex4, new ManagementVertexID(), "Host 2",
+		final ManagementVertex vertex4_1 = new ManagementVertex(groupVertex4, ManagementVertexID.generate(), "Host 2",
 			"medium", CHECKPOINT_STATE, 0);
 
 		// Input/output gates
@@ -289,15 +289,15 @@ public class ManagementGraphTest {
 		new ManagementGroupEdge(groupVertex3, 0, groupVertex4, 0, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 		// Edges
-		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate1_1, 0, inputGate2_1, 0,
+		new ManagementEdge(ManagementEdgeID.generate(), ManagementEdgeID.generate(), outputGate1_1, 0, inputGate2_1, 0,
 			ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate1_1, 1, inputGate2_2, 0,
+		new ManagementEdge(ManagementEdgeID.generate(), ManagementEdgeID.generate(), outputGate1_1, 1, inputGate2_2, 0,
 			ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate2_1, 0, inputGate3_1, 0,
+		new ManagementEdge(ManagementEdgeID.generate(), ManagementEdgeID.generate(), outputGate2_1, 0, inputGate3_1, 0,
 			ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate2_2, 0, inputGate3_1, 1,
+		new ManagementEdge(ManagementEdgeID.generate(), ManagementEdgeID.generate(), outputGate2_2, 0, inputGate3_1, 1,
 			ChannelType.FILE, CompressionLevel.NO_COMPRESSION);
-		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate3_1, 0, inputGate4_1, 0,
+		new ManagementEdge(ManagementEdgeID.generate(), ManagementEdgeID.generate(), outputGate3_1, 0, inputGate4_1, 0,
 			ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION);
 
 		return graph;

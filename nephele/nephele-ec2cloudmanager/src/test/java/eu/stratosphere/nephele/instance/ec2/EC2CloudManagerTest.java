@@ -206,7 +206,7 @@ public class EC2CloudManagerTest {
 		EC2CloudManager cm = new EC2CloudManager(null);
 		cm.setInstanceListener(myInstanceListener);
 
-		JobID jobID = new JobID();
+		JobID jobID = JobID.generate();
 		Configuration conf = new Configuration();
 
 		// check whether EC2 account XML file exists

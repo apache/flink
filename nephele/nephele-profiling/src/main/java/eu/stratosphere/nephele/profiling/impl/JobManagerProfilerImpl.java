@@ -38,7 +38,6 @@ import eu.stratosphere.nephele.profiling.impl.types.InternalInputGateProfilingDa
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalOutputGateProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalProfilingData;
-import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
 import eu.stratosphere.nephele.profiling.types.InputGateProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.InstanceSummaryProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.OutputGateProfilingEvent;
@@ -249,12 +248,12 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 	}
 
 	@Override
-	public void reportProfilingData(ProfilingDataContainer profilingDataContainer) {
+	public void reportProfilingData(final List<InternalProfilingData> profilingData) {
 
 		final long timestamp = System.currentTimeMillis();
 
 		// Process the received profiling data
-		final Iterator<InternalProfilingData> dataIterator = profilingDataContainer.getIterator();
+		final Iterator<InternalProfilingData> dataIterator = profilingData.iterator();
 		while (dataIterator.hasNext()) {
 
 			final InternalProfilingData internalProfilingData = dataIterator.next();

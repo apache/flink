@@ -113,7 +113,7 @@ public class HostInClusterTest {
 	public void testAccounting() {
 		// check whether the accounting of capacity works correctly
 		final ClusterInstance host = createTestClusterInstance();
-		final JobID jobID = new JobID();
+		final JobID jobID = JobID.generate();
 		final int numComputeUnits = 8 / 8;
 		final int numCores = 8 / 8;
 		final int memorySize = 32 * 1024 / 8;
@@ -151,7 +151,7 @@ public class HostInClusterTest {
 
 		// check whether the accounting of capacity works correctly if terminateAllInstances is called
 		final ClusterInstance host = createTestClusterInstance();
-		final JobID jobID = new JobID();
+		final JobID jobID = JobID.generate();
 		final int numComputeUnits = 8 / 8;
 		final int numCores = 8 / 8;
 		final int memorySize = 32 * 1024 / 8;

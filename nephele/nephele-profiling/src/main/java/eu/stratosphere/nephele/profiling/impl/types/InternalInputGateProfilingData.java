@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.profiling.impl.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
@@ -28,15 +24,19 @@ public class InternalInputGateProfilingData implements InternalProfilingData {
 
 	private final JobID jobId;
 
-	private int gateIndex;
+	private final int gateIndex;
 
-	private int profilingInternval;
+	private final int profilingInternval;
 
-	private int noRecordsAvailableCounter;
+	private final int noRecordsAvailableCounter;
 
-	public InternalInputGateProfilingData() {
-		this.jobId = new JobID();
-		this.executionVertexID = new ExecutionVertexID();
+	/**
+	 * Default constructor required by kryo.
+	 */
+	@SuppressWarnings("unused")
+	private InternalInputGateProfilingData() {
+		this.jobId = null;
+		this.executionVertexID = null;
 		this.gateIndex = 0;
 		this.profilingInternval = 0;
 		this.noRecordsAvailableCounter = 0;
@@ -49,26 +49,6 @@ public class InternalInputGateProfilingData implements InternalProfilingData {
 		this.gateIndex = gateIndex;
 		this.profilingInternval = profilingInterval;
 		this.noRecordsAvailableCounter = noRecordsAvailableCounter;
-	}
-
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		this.jobId.read(in);
-		this.executionVertexID.read(in);
-		this.gateIndex = in.readInt();
-		this.profilingInternval = in.readInt();
-		this.noRecordsAvailableCounter = in.readInt();
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		this.jobId.write(out);
-		this.executionVertexID.write(out);
-		out.writeInt(this.gateIndex);
-		out.writeInt(this.profilingInternval);
-		out.writeInt(this.noRecordsAvailableCounter);
 	}
 
 	public JobID getJobID() {

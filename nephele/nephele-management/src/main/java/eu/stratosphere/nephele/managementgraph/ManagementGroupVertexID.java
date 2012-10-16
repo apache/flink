@@ -18,11 +18,42 @@ package eu.stratosphere.nephele.managementgraph;
 import eu.stratosphere.nephele.io.AbstractID;
 
 /**
- * A management group vertex ID uniquely identifies a {@link ManagementGroupVertex}.
+ * A class for statistically unique management group vertex IDs.
  * <p>
- * This class is not thread-safe.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
 public final class ManagementGroupVertexID extends AbstractID {
+
+	/**
+	 * Default constructor required by kryo.
+	 */
+	private ManagementGroupVertexID() {
+	}
+
+	/**
+	 * Constructs a new management group vertex ID.
+	 * 
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
+	 */
+	private ManagementGroupVertexID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	/**
+	 * Generates a new statistically unique management group vertex ID.
+	 * 
+	 * @return a new statistically unique management group vertex ID
+	 */
+	public static ManagementGroupVertexID generate() {
+
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
+
+		return new ManagementGroupVertexID(lowerPart, upperPart);
+	}
 }

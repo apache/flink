@@ -54,7 +54,7 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 	/**
 	 * The ID of the job this graph describes.
 	 */
-	private final JobID jobID;
+	private JobID jobID;
 
 	/**
 	 * A map of vertices this graph consists of.
@@ -80,7 +80,7 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 	 * Constructs a new management graph with a random job ID.
 	 */
 	public ManagementGraph() {
-		this.jobID = new JobID();
+		this.jobID = JobID.generate();
 	}
 
 	/**
@@ -415,7 +415,7 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 	public void read(final Kryo kryo, final Input input) {
 
 		// Read job ID
-		this.jobID.read(kryo, input);
+		this.jobID = kryo.readObject(input, JobID.class);
 
 		// Recreate stages
 		final int numberOfStages = input.readInt();
@@ -427,16 +427,14 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 		final int numberOfGroupVertices = input.readInt();
 		for (int i = 0; i < numberOfGroupVertices; i++) {
 
-			final ManagementGroupVertexID groupVertexID = new ManagementGroupVertexID();
-			groupVertexID.read(kryo, input);
+			final ManagementGroupVertexID groupVertexID = kryo.readObject(input, ManagementGroupVertexID.class);
 			final ManagementStage stage = this.stages.get(input.readInt());
 			final String groupVertexName = input.readString();
 			new ManagementGroupVertex(stage, groupVertexID, groupVertexName);
 		}
 
 		for (int i = 0; i < numberOfGroupVertices; i++) {
-			final ManagementGroupVertexID groupVertexID = new ManagementGroupVertexID();
-			groupVertexID.read(kryo, input);
+			final ManagementGroupVertexID groupVertexID = kryo.readObject(input, ManagementGroupVertexID.class);
 			final ManagementGroupVertex groupVertex = this.groupVertices.get(groupVertexID);
 			groupVertex.read(kryo, input);
 		}
@@ -445,10 +443,8 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 		int numberOfVertices = input.readInt();
 		for (int i = 0; i < numberOfVertices; i++) {
 
-			final ManagementVertexID vertexID = new ManagementVertexID();
-			vertexID.read(kryo, input);
-			final ManagementGroupVertexID groupVertexID = new ManagementGroupVertexID();
-			groupVertexID.read(kryo, input);
+			final ManagementVertexID vertexID = kryo.readObject(input, ManagementVertexID.class);
+			final ManagementGroupVertexID groupVertexID = kryo.readObject(input, ManagementGroupVertexID.class);
 			final ManagementGroupVertex groupVertex = this.getGroupVertexByID(groupVertexID);
 			final String instanceName = input.readString();
 			final String instanceType = input.readString();
@@ -461,21 +457,16 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 
 		for (int i = 0; i < numberOfVertices; i++) {
 
-			final ManagementVertexID sourceID = new ManagementVertexID();
-			sourceID.read(kryo, input);
+			final ManagementVertexID sourceID = kryo.readObject(input, ManagementVertexID.class);
 			final ManagementVertex sourceVertex = getVertexByID(sourceID);
 			for (int j = 0; j < sourceVertex.getNumberOfOutputGates(); j++) {
 				final ManagementGate sourceGate = sourceVertex.getOutputGate(j);
 				int numberOfForwardEdges = input.readInt();
 				for (int k = 0; k < numberOfForwardEdges; k++) {
-					final ManagementEdgeID sourceEdgeID = new ManagementEdgeID();
-					sourceEdgeID.read(kryo, input);
+					final ManagementEdgeID sourceEdgeID = kryo.readObject(input, ManagementEdgeID.class);
+					final ManagementEdgeID targetEdgeID = kryo.readObject(input, ManagementEdgeID.class);
 
-					final ManagementEdgeID targetEdgeID = new ManagementEdgeID();
-					targetEdgeID.read(kryo, input);
-
-					final ManagementVertexID targetID = new ManagementVertexID();
-					targetID.read(kryo, input);
+					final ManagementVertexID targetID = kryo.readObject(input, ManagementVertexID.class);
 					final ManagementVertex targetVertex = getVertexByID(targetID);
 					final int targetGateIndex = input.readInt();
 					final ManagementGate targetGate = targetVertex.getInputGate(targetGateIndex);
@@ -500,7 +491,7 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 	public void write(final Kryo kryo, final Output output) {
 
 		// Write job ID
-		this.jobID.write(kryo, output);
+		kryo.writeObject(output, this.jobID);
 
 		// Write number of stages
 		output.writeInt(this.stages.size());
@@ -512,7 +503,7 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 		while (it.hasNext()) {
 
 			final ManagementGroupVertex groupVertex = it.next();
-			groupVertex.getID().write(kryo, output);
+			kryo.writeObject(output, groupVertex.getID());
 			output.writeInt(groupVertex.getStage().getStageNumber());
 			output.writeString(groupVertex.getName());
 		}
@@ -521,7 +512,7 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 		while (it.hasNext()) {
 
 			final ManagementGroupVertex groupVertex = it.next();
-			groupVertex.getID().write(kryo, output);
+			kryo.writeObject(output, groupVertex.getID());
 			groupVertex.write(kryo, output);
 		}
 
@@ -531,8 +522,8 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 		while (it2.hasNext()) {
 
 			final ManagementVertex managementVertex = it2.next();
-			managementVertex.getID().write(kryo, output);
-			managementVertex.getGroupVertex().getID().write(kryo, output);
+			kryo.writeObject(output, managementVertex.getID());
+			kryo.writeObject(output, managementVertex.getGroupVertex().getID());
 			output.writeString(managementVertex.getInstanceName());
 			output.writeString(managementVertex.getInstanceType());
 			output.writeString(managementVertex.getCheckpointState());
@@ -545,18 +536,18 @@ public final class ManagementGraph extends ManagementAttachment implements KryoS
 		while (it2.hasNext()) {
 
 			final ManagementVertex managementVertex = it2.next();
-			managementVertex.getID().write(kryo, output);
+			kryo.writeObject(output, managementVertex.getID());
 			for (int i = 0; i < managementVertex.getNumberOfOutputGates(); i++) {
 				final ManagementGate outputGate = managementVertex.getOutputGate(i);
 				output.writeInt(outputGate.getNumberOfForwardEdges());
 				for (int j = 0; j < outputGate.getNumberOfForwardEdges(); j++) {
 					final ManagementEdge edge = outputGate.getForwardEdge(j);
 
-					edge.getSourceEdgeID().write(kryo, output);
-					edge.getTargetEdgeID().write(kryo, output);
+					kryo.writeObject(output, edge.getSourceEdgeID());
+					kryo.writeObject(output, edge.getTargetEdgeID());
 
 					// This identifies the target gate
-					edge.getTarget().getVertex().getID().write(kryo, output);
+					kryo.writeObject(output, edge.getTarget().getVertex().getID());
 					output.writeInt(edge.getTarget().getIndex());
 
 					output.writeInt(edge.getSourceIndex());
