@@ -41,7 +41,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
+import eu.stratosphere.nephele.io.channels.SpanningRecordDeserializer;
 import eu.stratosphere.nephele.io.channels.FileInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.StringRecord;
@@ -60,7 +60,7 @@ public class FileInputChannelTest {
 	private Buffer uncompressedDataBuffer;
 
 	@Mock
-	DefaultDeserializer<StringRecord> deserializationBuffer;
+	SpanningRecordDeserializer<StringRecord> deserializationBuffer;
 
 	@Mock
 	ChannelID id;

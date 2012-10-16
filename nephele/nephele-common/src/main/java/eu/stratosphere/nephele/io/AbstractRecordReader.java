@@ -43,10 +43,9 @@ public abstract class AbstractRecordReader<T extends Record> {
 
 	// --------------------------------------------------------------------------------------------
 
-	protected AbstractRecordReader(final AbstractInvokable invokable, final RecordFactory<T> recordFactory,
-			final int inputGateID) {
+	protected AbstractRecordReader(final AbstractInvokable invokable, final RecordFactory<T> recordFactory) {
 		this.environment = invokable.getEnvironment();
-		connectInputGate(recordFactory, inputGateID);
+		connectInputGate(recordFactory);
 	}
 
 	/**
@@ -55,16 +54,11 @@ public abstract class AbstractRecordReader<T extends Record> {
 	 * @param recordFactory
 	 *        A factory to instantiate new records
 	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
+	 *        the ID of the input gate that the reader reads from.
 	 */
-	private void connectInputGate(final RecordFactory<T> recordFactory, final int inputGateID) {
+	private void connectInputGate(final RecordFactory<T> recordFactory) {
 
-		GateID gateID = this.environment.getNextUnboundInputGateID();
-		if (gateID == null) {
-			gateID = new GateID();
-		}
-
-		this.inputGate = this.environment.createInputGate(gateID, recordFactory);
+		this.inputGate = this.environment.createInputGate(recordFactory);
 		this.environment.registerInputGate(this.inputGate);
 	}
 

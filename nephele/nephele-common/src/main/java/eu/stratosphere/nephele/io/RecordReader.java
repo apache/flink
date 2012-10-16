@@ -64,7 +64,7 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 */
 	public RecordReader(final AbstractTask taskBase, final Class<T> inputClass) {
 
-		super(taskBase, new DefaultRecordFactory<T>(inputClass), 0);
+		super(taskBase, new DefaultRecordFactory<T>(inputClass));
 	}
 
 	/**
@@ -77,7 +77,7 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 */
 	public RecordReader(final AbstractOutputTask outputBase, final Class<T> inputClass) {
 
-		super(outputBase, new DefaultRecordFactory<T>(inputClass), 0);
+		super(outputBase, new DefaultRecordFactory<T>(inputClass));
 	}
 
 	/**
@@ -90,22 +90,7 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 */
 	public RecordReader(final AbstractTask taskBase, final RecordFactory<T> recordFactory) {
 
-		super(taskBase, recordFactory, 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        the application that instantiated the record reader
-	 * @param recordFactory
-	 *        a factory to instantiate new record records
-	 * @param inputGateID
-	 *        the ID of the input gate that the reader reads from
-	 */
-	public RecordReader(final AbstractTask taskBase, final RecordFactory<T> recordFactory, final int inputGateID) {
-
-		super(taskBase, recordFactory, inputGateID);
+		super(taskBase, recordFactory);
 	}
 
 	/**
@@ -118,22 +103,7 @@ public class RecordReader<T extends Record> extends AbstractRecordReader<T> impl
 	 */
 	public RecordReader(final AbstractOutputTask outputBase, final RecordFactory<T> recordFactory) {
 
-		super(outputBase, recordFactory, 0);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        the application that instantiated the record reader
-	 * @param recordFactory
-	 *        a factory to instantiate the record deserializer.
-	 * @param inputGateID
-	 *        the ID of the input gate that the reader reads from.
-	 */
-	public RecordReader(final AbstractOutputTask outputBase, final RecordFactory<T> recordFactory, int inputGateID) {
-
-		super(outputBase, recordFactory, inputGateID);
+		super(outputBase, recordFactory);
 	}
 
 	// --------------------------------------------------------------------------------------------

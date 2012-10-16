@@ -26,8 +26,8 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RecordFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.RecordDeserializerFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -35,6 +35,7 @@ import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.Record;
 
 final class CheckpointEnvironment implements Environment {
+
 	private final ExecutionVertexID vertexID;
 
 	private final Environment environment;
@@ -176,24 +177,6 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public GateID getNextUnboundInputGateID() {
-
-		throw new IllegalStateException("Checkpoint replay task called getNextUnboundInputGateID");
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public GateID getNextUnboundOutputGateID() {
-
-		throw new IllegalStateException("Checkpoint replay task called getNextUnboundOutputGateID");
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public int getNumberOfOutputGates() {
 
 		return this.environment.getNumberOfOutputGates();
@@ -230,8 +213,8 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID,
-			final Class<T> outputClass, final ChannelSelector<T> selector, final boolean isBroadcast) {
+	public <T extends Record> OutputGate<T> createOutputGate(final ChannelSelector<T> selector,
+			final boolean isBroadcast) {
 
 		throw new IllegalStateException("Checkpoint replay task called createOutputGate");
 	}
@@ -240,8 +223,7 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
-			final RecordDeserializerFactory<T> deserializer) {
+	public <T extends Record> InputGate<T> createInputGate(final RecordFactory<T> recordFactory) {
 
 		throw new IllegalStateException("Checkpoint replay task called createInputGate");
 	}

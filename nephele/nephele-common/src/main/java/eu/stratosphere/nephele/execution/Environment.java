@@ -120,20 +120,6 @@ public interface Environment {
 	String getTaskName();
 
 	/**
-	 * Returns the next unbound input gate ID or <code>null</code> if no such ID exists
-	 * 
-	 * @return the next unbound input gate ID or <code>null</code> if no such ID exists
-	 */
-	GateID getNextUnboundInputGateID();
-
-	/**
-	 * Returns the next unbound output gate ID or <code>null</code> if no such ID exists
-	 * 
-	 * @return the next unbound output gate ID or <code>null</code> if no such ID exists
-	 */
-	GateID getNextUnboundOutputGateID();
-
-	/**
 	 * Returns the number of output gates registered with this environment.
 	 * 
 	 * @return the number of output gates registered with this environment
@@ -164,25 +150,23 @@ public interface Environment {
 	/**
 	 * Creates an output gate.
 	 * 
-	 * @param gateID
 	 * @param selector
 	 * @param isBroadcast
 	 * @param <T>
 	 *        The type of the record consumed by the output gate.
 	 * @return The created output gate.
 	 */
-	<T extends Record> OutputGate<T> createOutputGate(GateID gateID, ChannelSelector<T> selector, boolean isBroadcast);
+	<T extends Record> OutputGate<T> createOutputGate(ChannelSelector<T> selector, boolean isBroadcast);
 
 	/**
 	 * Creates an input gate.
 	 * 
-	 * @param gateID
 	 * @param recordFactory
 	 * @param <T>
 	 *        The type of the record read from the input gate.
 	 * @return The created input gate.
 	 */
-	<T extends Record> InputGate<T> createInputGate(GateID gateID, RecordFactory<T> recordFactory);
+	<T extends Record> InputGate<T> createInputGate(RecordFactory<T> recordFactory);
 
 	/**
 	 * Registers an output gate with this environment.

@@ -53,7 +53,8 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 *        <code>true</code> if this record writer shall broadcast the records to all connected channels,
 	 *        <code>false/<code> otherwise
 	 */
-	public AbstractRecordWriter(final AbstractInvokable invokable, final ChannelSelector<T> selector, final boolean isBroadcast) {
+	public AbstractRecordWriter(final AbstractInvokable invokable, final ChannelSelector<T> selector,
+			final boolean isBroadcast) {
 
 		this.environment = invokable.getEnvironment();
 		connectOutputGate(selector, isBroadcast);
@@ -69,13 +70,8 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 *        <code>false/<code> otherwise
 	 */
 	private void connectOutputGate(final ChannelSelector<T> selector, final boolean isBroadcast) {
-		
-		GateID gateID = this.environment.getNextUnboundOutputGateID();
-		if (gateID == null) {
-			gateID = new GateID();
-		}
 
-		this.outputGate = this.environment.createOutputGate(gateID, selector, isBroadcast);
+		this.outputGate = this.environment.createOutputGate(selector, isBroadcast);
 		this.environment.registerOutputGate(this.outputGate);
 	}
 

@@ -146,13 +146,13 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 			throw new IllegalArgumentException("Cannot find output channel with ID " + channelID);
 		}
 
-		if (!(channel instanceof AbstractByteBufferedOutputChannel)) {
+		if (!(channel instanceof AbstractOutputChannel)) {
 			throw new IllegalStateException("Channel with ID" + channelID
 				+ " is not of type AbstractByteBufferedOutputChannel");
 		}
 
 		// The output channel for this context
-		final AbstractByteBufferedOutputChannel<? extends Record> outputChannel = (AbstractByteBufferedOutputChannel<? extends Record>) channel;
+		final AbstractOutputChannel<? extends Record> outputChannel = (AbstractOutputChannel<? extends Record>) channel;
 
 		// Construct the forwarding chain
 		RuntimeOutputChannelBroker outputChannelBroker;

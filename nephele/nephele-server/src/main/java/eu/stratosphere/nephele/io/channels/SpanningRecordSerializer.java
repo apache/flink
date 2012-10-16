@@ -7,7 +7,7 @@ import eu.stratosphere.nephele.io.DataOutputBuffer;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.types.Record;
 
-final class BufferSpanningRecordSerializer<T extends Record> implements RecordSerializer<T> {
+final class SpanningRecordSerializer<T extends Record> implements RecordSerializer<T> {
 
 	private static final int SIZEOFINT = 4;
 

@@ -189,13 +189,13 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 			throw new IllegalArgumentException("Cannot find input channel with ID " + channelID);
 		}
 
-		if (!(channel instanceof AbstractByteBufferedInputChannel)) {
+		if (!(channel instanceof AbstractInputChannel)) {
 			throw new IllegalStateException("Channel with ID" + channelID
 				+ " is not of type AbstractByteBufferedInputChannel");
 		}
 
 		return new RuntimeInputChannelContext(this, this.transferEnvelopeDispatcher,
-			(AbstractByteBufferedInputChannel<? extends Record>) channel, this.envelopeConsumptionLog);
+			(AbstractInputChannel<? extends Record>) channel, this.envelopeConsumptionLog);
 	}
 
 	/**

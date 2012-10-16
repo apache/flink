@@ -94,7 +94,7 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
-	 * @param recordDeserializer
+	 * @param deserializer
 	 *        the record deserializer to be used
 	 */
 	protected AbstractInputChannel(final InputGate<T> inputGate, final int channelIndex, final ChannelID channelID,
@@ -103,7 +103,7 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 		super(channelIndex, channelID, connectedChannelID, compressionLevel);
 
 		this.inputGate = inputGate;
-		this.deserializer = new TestRecordDeserializer<T>();
+		this.deserializer = deserializer;
 	}
 
 	/**

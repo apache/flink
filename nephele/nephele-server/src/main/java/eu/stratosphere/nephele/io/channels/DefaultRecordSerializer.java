@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.types.Record;
 /**
  * This is the default implementation to transform {@link Record} objects into sequences of bytes. The implementation is
  * optimized for speed. As a result, it does not consider special cases in which individual records may not fit into a
- * single buffer. In these cases, the {@link BufferSpanningRecordSerializer} should be used.
+ * single buffer. In these cases, the {@link SpanningRecordSerializer} should be used.
  * <p>
  * This class is not thread-safe.
  * 

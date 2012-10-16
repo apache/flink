@@ -180,6 +180,16 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	}
 
 	/**
+	 * Returns <code>true</code> if the gate shall allow spanning records, <code>false</code> otherwise.
+	 * 
+	 * @return <code>true</code> if the gate shall allow spanning records, <code>false</code> otherwise
+	 */
+	public boolean spanningRecordsAllowed() {
+
+		return this.allowSpanningRecords;
+	}
+
+	/**
 	 * Returns the number of channel deployment descriptors attached to this gate descriptor.
 	 * 
 	 * @return the number of channel deployment descriptors

@@ -62,7 +62,7 @@ public class QueueSchedulerTest {
 		 */
 		@Override
 		public void registerInputOutput() {
-			new RecordWriter<StringRecord>(this, StringRecord.class);
+			new RecordWriter<StringRecord>(this);
 		}
 
 		/**

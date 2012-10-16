@@ -41,6 +41,12 @@ import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.channels.DefaultRecordDeserializerFactory;
+import eu.stratosphere.nephele.io.channels.DefaultRecordSerializerFactory;
+import eu.stratosphere.nephele.io.channels.RecordDeserializerFactory;
+import eu.stratosphere.nephele.io.channels.RecordSerializerFactory;
+import eu.stratosphere.nephele.io.channels.SpanningRecordDeserializerFactory;
+import eu.stratosphere.nephele.io.channels.SpanningRecordSerializerFactory;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -83,16 +89,14 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	private final List<InputGate<? extends Record>> inputGates = new CopyOnWriteArrayList<InputGate<? extends Record>>();
 
 	/**
-	 * Queue of unbound output gate IDs which are required for deserializing an environment in the course of an RPC
-	 * call.
+	 * Queue of gate deployment descriptors for yet to be bound output gates.
 	 */
-	private final Queue<GateID> unboundOutputGateIDs = new ArrayDeque<GateID>();
+	private final Queue<GateDeploymentDescriptor> unboundOutputGates;
 
 	/**
-	 * Queue of unbound input gate IDs which are required for deserializing an environment in the course of an RPC
-	 * call.
+	 * Queue of gate deployment descriptors for yet to be bound input gates.
 	 */
-	private final Queue<GateID> unboundInputGateIDs = new ArrayDeque<GateID>();
+	private final Queue<GateDeploymentDescriptor> unboundInputGates;
 
 	/**
 	 * The memory manager of the current environment (currently the one associated with the executing TaskManager).
@@ -191,6 +195,9 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.ioManager = null;
 		this.inputSplitProvider = null;
 
+		this.unboundOutputGates = null;
+		this.unboundInputGates = null;
+
 		this.invokable = this.invokableClass.newInstance();
 		this.invokable.setEnvironment(this);
 		this.invokable.registerInputOutput();
@@ -225,19 +232,33 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.ioManager = ioManager;
 		this.inputSplitProvider = inputSplitProvider;
 
+		// Prepare the unbound gate deployment descriptors
+		final int noogdd = tdd.getNumberOfOutputGateDescriptors();
+		final int noigdd = tdd.getNumberOfInputGateDescriptors();
+
+		this.unboundOutputGates = new ArrayDeque<GateDeploymentDescriptor>(noogdd);
+		this.unboundInputGates = new ArrayDeque<GateDeploymentDescriptor>(noigdd);
+		for (int i = 0; i < noogdd; ++i) {
+			this.unboundOutputGates.add(tdd.getOutputGateDescriptor(i));
+		}
+		for (int i = 0; i < noigdd; ++i) {
+			this.unboundInputGates.add(tdd.getInputGateDescriptor(i));
+		}
+
 		this.invokable = this.invokableClass.newInstance();
 		this.invokable.setEnvironment(this);
 		this.invokable.registerInputOutput();
 
-		if (!this.unboundOutputGateIDs.isEmpty() && LOG.isErrorEnabled()) {
-			LOG.error("Inconsistency: " + this.unboundOutputGateIDs.size() + " unbound output gate IDs left");
+		if (!this.unboundOutputGates.isEmpty() && LOG.isErrorEnabled()) {
+			LOG.error("Inconsistency: " + this.unboundOutputGates.size()
+				+ " unbound output gate deployment descriptors left");
 		}
 
-		if (!this.unboundInputGateIDs.isEmpty() && LOG.isErrorEnabled()) {
-			LOG.error("Inconsistency: " + this.unboundInputGateIDs.size() + " unbound output gate IDs left");
+		if (!this.unboundInputGates.isEmpty() && LOG.isErrorEnabled()) {
+			LOG.error("Inconsistency: " + this.unboundInputGates.size()
+				+ " unbound input gate deployment descriptors left");
 		}
 
-		final int noogdd = tdd.getNumberOfOutputGateDescriptors();
 		for (int i = 0; i < noogdd; ++i) {
 			final GateDeploymentDescriptor gdd = tdd.getOutputGateDescriptor(i);
 			final OutputGate og = this.outputGates.get(i);
@@ -266,7 +287,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			}
 		}
 
-		final int noigdd = tdd.getNumberOfInputGateDescriptors();
 		for (int i = 0; i < noigdd; ++i) {
 			final GateDeploymentDescriptor gdd = tdd.getInputGateDescriptor(i);
 			final InputGate ig = this.inputGates.get(i);
@@ -311,23 +331,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	@Override
 	public JobID getJobID() {
 		return this.jobID;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public GateID getNextUnboundInputGateID() {
-
-		return this.unboundInputGateIDs.poll();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	public GateID getNextUnboundOutputGateID() {
-
-		return this.unboundOutputGateIDs.poll();
 	}
 
 	/**
@@ -462,20 +465,55 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID, final ChannelSelector<T> selector, final boolean isBroadcast) {
-		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gateID, getNumberOfOutputGates(), selector, isBroadcast);
-		return rog;
+	public <T extends Record> OutputGate<T> createOutputGate(final ChannelSelector<T> selector,
+			final boolean isBroadcast) {
+
+		if (this.unboundOutputGates == null) {
+			return new RuntimeOutputGate<T>(getJobID(), null, getNumberOfOutputGates(), ChannelType.NETWORK,
+				CompressionLevel.NO_COMPRESSION, selector, isBroadcast, null);
+		}
+
+		final GateDeploymentDescriptor gdd = this.unboundOutputGates.poll();
+		if (gdd == null) {
+			throw new IllegalStateException("No unbound output gate deployment descriptor left");
+		}
+
+		RecordSerializerFactory<T> serializerFactory;
+		if (gdd.spanningRecordsAllowed()) {
+			serializerFactory = new SpanningRecordSerializerFactory<T>();
+		} else {
+			serializerFactory = new DefaultRecordSerializerFactory<T>();
+		}
+
+		return new RuntimeOutputGate<T>(getJobID(), gdd.getGateID(), getNumberOfInputGates(), gdd.getChannelType(),
+			gdd.getCompressionLevel(), selector, isBroadcast, serializerFactory);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(final GateID gateID, final RecordFactory<T> recordFactory) {
+	public <T extends Record> InputGate<T> createInputGate(final RecordFactory<T> recordFactory) {
 
-		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory,
-			getNumberOfInputGates());
-		return rig;
+		if (this.unboundInputGates == null) {
+			return new RuntimeInputGate<T>(getJobID(), null, getNumberOfInputGates(), ChannelType.NETWORK,
+				CompressionLevel.NO_COMPRESSION, null);
+		}
+
+		final GateDeploymentDescriptor gdd = this.unboundInputGates.poll();
+		if (gdd == null) {
+			throw new IllegalStateException("No unbound input gate deployment descriptor left");
+		}
+
+		RecordDeserializerFactory<T> deserializerFactory;
+		if (gdd.spanningRecordsAllowed()) {
+			deserializerFactory = new SpanningRecordDeserializerFactory<T>(recordFactory);
+		} else {
+			deserializerFactory = new DefaultRecordDeserializerFactory<T>(recordFactory);
+		}
+
+		return new RuntimeInputGate<T>(getJobID(), gdd.getGateID(), getNumberOfInputGates(), gdd.getChannelType(),
+			gdd.getCompressionLevel(), deserializerFactory);
 	}
 
 	@Override
@@ -815,7 +853,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<ChannelID> outputChannelIDs = new HashSet<ChannelID>();
 
-		final Iterator<RuntimeOutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
+		final Iterator<OutputGate<? extends Record>> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
 
 			final OutputGate<? extends Record> outputGate = gateIterator.next();
