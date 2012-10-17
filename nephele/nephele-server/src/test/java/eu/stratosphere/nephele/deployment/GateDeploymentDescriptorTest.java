@@ -43,7 +43,7 @@ public class GateDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithValidArguments() {
 
-		final GateID gateID = new GateID();
+		final GateID gateID = GateID.generate();
 		final ChannelType channelType = ChannelType.INMEMORY;
 		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
@@ -63,7 +63,7 @@ public class GateDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithInvalidArguments() {
 
-		final GateID gateID = new GateID();
+		final GateID gateID = GateID.generate();
 		final ChannelType channelType = ChannelType.INMEMORY;
 		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
@@ -120,7 +120,7 @@ public class GateDeploymentDescriptorTest {
 	@Test
 	public void testSerialization() {
 
-		final GateID gateID = new GateID();
+		final GateID gateID = GateID.generate();
 		final ChannelType channelType = ChannelType.INMEMORY;
 		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);

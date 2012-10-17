@@ -241,12 +241,12 @@ public final class ExecutionVertex {
 
 		// Duplicate gates
 		for (int i = 0; i < this.outputGates.length; ++i) {
-			duplicatedVertex.outputGates[i] = new ExecutionGate(new GateID(), duplicatedVertex,
+			duplicatedVertex.outputGates[i] = new ExecutionGate(GateID.generate(), duplicatedVertex,
 				this.outputGates[i].getGroupEdge(), false);
 		}
 
 		for (int i = 0; i < this.inputGates.length; ++i) {
-			duplicatedVertex.inputGates[i] = new ExecutionGate(new GateID(), duplicatedVertex,
+			duplicatedVertex.inputGates[i] = new ExecutionGate(GateID.generate(), duplicatedVertex,
 				this.inputGates[i].getGroupEdge(), true);
 		}
 

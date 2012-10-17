@@ -17,9 +17,41 @@ package eu.stratosphere.nephele.io;
 
 /**
  * A class for statistically unique gate IDs.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
 public final class GateID extends AbstractID {
 
+	/**
+	 * Default constructor required by kryo.
+	 */
+	private GateID() {
+	}
+
+	/**
+	 * Constructs a new gate ID.
+	 * 
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
+	 */
+	private GateID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	/**
+	 * Generates a new statistically unique gate ID.
+	 * 
+	 * @return a new statistically unique gate ID
+	 */
+	public static GateID generate() {
+
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
+
+		return new GateID(lowerPart, upperPart);
+	}
 }

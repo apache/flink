@@ -471,9 +471,9 @@ public class ExecutionGraph implements ExecutionListener {
 					userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern,
 					isBroadcast, allowSpanningRecords);
 
-				final ExecutionGate outputGate = new ExecutionGate(new GateID(), sev, groupEdge, false);
+				final ExecutionGate outputGate = new ExecutionGate(GateID.generate(), sev, groupEdge, false);
 				sev.insertOutputGate(i, outputGate);
-				final ExecutionGate inputGate = new ExecutionGate(new GateID(), tev, groupEdge, true);
+				final ExecutionGate inputGate = new ExecutionGate(GateID.generate(), tev, groupEdge, true);
 				tev.insertInputGate(edge.getIndexOfInputGate(), inputGate);
 			}
 		}
