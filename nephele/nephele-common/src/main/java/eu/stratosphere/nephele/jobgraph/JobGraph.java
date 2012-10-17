@@ -770,7 +770,7 @@ public class JobGraph implements KryoSerializable {
 	public void read(final Kryo kryo, final Input input) {
 
 		// Read job id
-		this.jobID = kryo.readObjectOrNull(input, JobID.class);
+		this.jobID = kryo.readObject(input, JobID.class);
 
 		// Read the job name
 		this.jobName = input.readString();
