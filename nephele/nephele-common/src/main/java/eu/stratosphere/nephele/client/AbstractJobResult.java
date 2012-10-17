@@ -16,9 +16,10 @@
 package eu.stratosphere.nephele.client;
 
 /**
- * A <code>AbstractJobResult</code> is the super class of all results
- * to report the job operation. It contains a return code and an
- * optional description.
+ * An abstract job result is the super class of all results to report the job operation. It contains a return code and
+ * an optional description.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author Alexander Stanik
  */
@@ -45,12 +46,12 @@ public abstract class AbstractJobResult {
 	/**
 	 * The return codes for the job operation.
 	 */
-	private ReturnCode returnCode = ReturnCode.ERROR;
+	private final ReturnCode returnCode;
 
 	/**
 	 * An optional description which can provide further information in case of an error.
 	 */
-	private String description = null;
+	private final String description;
 
 	/**
 	 * Constructs a new abstract job result object and sets the description.
@@ -66,10 +67,11 @@ public abstract class AbstractJobResult {
 	}
 
 	/**
-	 * Construct a new abstract job result object. This constructor is required
-	 * for the deserialization process.
+	 * Default constructor required by kryo.
 	 */
-	public AbstractJobResult() {
+	protected AbstractJobResult() {
+		this.returnCode = null;
+		this.description = null;
 	}
 
 	/**
@@ -115,16 +117,10 @@ public abstract class AbstractJobResult {
 			}
 		}
 
-		if (this.description == null) {
-
-			// Do nothing.
-			
-		} else {
-
+		if (this.description != null) {
 			if (!this.description.equals(ajr.getDescription())) {
 				return false;
 			}
-
 		}
 
 		return true;

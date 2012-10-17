@@ -16,20 +16,20 @@
 package eu.stratosphere.nephele.client;
 
 /**
- * A <code>JobSubmissionResult</code> is used to report the results
- * of a job submission. It contains a return code and a description.
- * In case of a submission error the description includes an error message.
+ * A job submission result is used to report the results of a job submission. It contains a return code and a
+ * description. In case of a submission error the description includes an error message.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public class JobSubmissionResult extends AbstractJobResult {
+public final class JobSubmissionResult extends AbstractJobResult {
 
 	/**
-	 * Constructs a new <code>JobSubmissionResult</code> object with
-	 * the given return code.
+	 * Constructs a new job submission result object with the given return code.
 	 * 
 	 * @param returnCode
-	 *        the return code of the submission result.
+	 *        the return code of the submission result
 	 * @param description
 	 *        the error description
 	 */
@@ -38,11 +38,9 @@ public class JobSubmissionResult extends AbstractJobResult {
 	}
 
 	/**
-	 * Constructs an empty <code>JobSubmissionResult</code> object.
-	 * This constructor is used for object deserialization only and
-	 * should not be called directly.
+	 * Default constructor required by kryo.
 	 */
-	public JobSubmissionResult() {
-		super();
+	@SuppressWarnings("unused")
+	private JobSubmissionResult() {
 	}
 }

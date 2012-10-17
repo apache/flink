@@ -16,20 +16,20 @@
 package eu.stratosphere.nephele.client;
 
 /**
- * A <code>JobCancelResult</code> is used to report the result
- * of a job cancel request. It contains a return code and a description.
- * In case of a submission error the description includes an error message.
+ * A job cancel result is used to report the result of a job cancel request. It contains a return code and a
+ * description. In case of a submission error the description includes an error message.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public class JobCancelResult extends AbstractJobResult {
+public final class JobCancelResult extends AbstractJobResult {
 
 	/**
-	 * Constructs a new <code>JobCancelResult</code> object with
-	 * the given return code.
+	 * Constructs a new job cancel result object with the given return code.
 	 * 
 	 * @param returnCode
-	 *        the return code of the submission result.
+	 *        the return code of the submission result
 	 * @param description
 	 *        the optional error description
 	 */
@@ -38,11 +38,9 @@ public class JobCancelResult extends AbstractJobResult {
 	}
 
 	/**
-	 * Constructs an empty <code>JobCancelResult</code> object.
-	 * This constructor is used for object deserialization only and
-	 * should not be called.
+	 * Default constructor required by kryo.
 	 */
-	public JobCancelResult() {
-		super();
+	@SuppressWarnings("unused")
+	private JobCancelResult() {
 	}
 }

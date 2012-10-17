@@ -19,14 +19,16 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
+import eu.stratosphere.nephele.util.UnmodifiableIterator;
 
 /**
- * A <code>JobProgressResult</code> is used to report the current progress
- * of a job.
+ * A job progress result is used to report the current progress of a job.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public class JobProgressResult extends AbstractJobResult {
+public final class JobProgressResult extends AbstractJobResult {
 
 	/**
 	 * The list containing the events.
@@ -52,12 +54,11 @@ public class JobProgressResult extends AbstractJobResult {
 	}
 
 	/**
-	 * Empty constructor used for object deserialization.
+	 * Default constructor required by kryo.
 	 */
-	public JobProgressResult() {
-		super();
-
-		this.events = new ArrayList<AbstractEvent>();
+	@SuppressWarnings("unused")
+	private JobProgressResult() {
+		this.events = null;
 	}
 
 	/**
@@ -67,7 +68,7 @@ public class JobProgressResult extends AbstractJobResult {
 	 */
 	public Iterator<AbstractEvent> getEvents() {
 
-		return this.events.iterator();
+		return new UnmodifiableIterator<AbstractEvent>(this.events.iterator());
 	}
 
 	/**
