@@ -236,7 +236,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		LOG.info("Starting job manager in " + executionMode + " mode");
 
 		// Load the plugins
-		this.jobManagerPlugins = PluginManager.getJobManagerPlugins(this, configDir);
+		this.jobManagerPlugins = PluginManager.getJobManagerPlugins(configDir);
 
 		// Try to load the instance manager for the given execution mode
 		// Try to load the scheduler for the given execution mode

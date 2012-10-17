@@ -16,6 +16,7 @@
 package eu.stratosphere.nephele.managementgraph;
 
 import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.io.channels.ChannelID;
 
 /**
  * A class for statistically unique management edge IDs.
@@ -45,6 +46,16 @@ public final class ManagementEdgeID extends AbstractID {
 	}
 
 	/**
+	 * Constructs a new management edge ID from the given channel ID.
+	 * 
+	 * @param channelID
+	 *        the channel ID to construct the management edge ID from
+	 */
+	private ManagementEdgeID(final ChannelID channelID) {
+		super(channelID);
+	}
+
+	/**
 	 * Generates a new statistically unique management edge ID.
 	 * 
 	 * @return a new statistically unique management edge ID
@@ -55,5 +66,16 @@ public final class ManagementEdgeID extends AbstractID {
 		final long upperPart = AbstractID.generateRandomBytes();
 
 		return new ManagementEdgeID(lowerPart, upperPart);
+	}
+
+	/**
+	 * Converts the channel ID into a management edge ID. The new management edge ID will be equal to the channel ID in
+	 * the sense that the <code>equals</code> method will return <code>true</code> when both IDs are compared.
+	 * 
+	 * @return the new management edge ID
+	 */
+	public static ManagementEdgeID fromChannelID(final ChannelID channelID) {
+
+		return new ManagementEdgeID(channelID);
 	}
 }

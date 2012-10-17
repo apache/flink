@@ -48,7 +48,7 @@ public class TaskDeploymentDescriptorTest {
 	public void testConstructorWithValidArguments() {
 
 		final JobID jobID = JobID.generate();
-		final ExecutionVertexID vertexID = new ExecutionVertexID();
+		final ExecutionVertexID vertexID = ExecutionVertexID.generate();
 		final String taskName = "task name";
 		final int indexInSubtaskGroup = 0;
 		final int currentNumberOfSubtasks = 1;
@@ -83,7 +83,7 @@ public class TaskDeploymentDescriptorTest {
 	public void testConstructorWithInvalidArguments() {
 
 		final JobID jobID = JobID.generate();
-		final ExecutionVertexID vertexID = new ExecutionVertexID();
+		final ExecutionVertexID vertexID = ExecutionVertexID.generate();
 		final String taskName = "task name";
 		final int indexInSubtaskGroup = 0;
 		final int currentNumberOfSubtasks = 1;
@@ -246,7 +246,7 @@ public class TaskDeploymentDescriptorTest {
 	public void testSerialization() {
 
 		final JobID jobID = JobID.generate();
-		final ExecutionVertexID vertexID = new ExecutionVertexID();
+		final ExecutionVertexID vertexID = ExecutionVertexID.generate();
 		final String taskName = "task name";
 		final int indexInSubtaskGroup = 0;
 		final int currentNumberOfSubtasks = 1;

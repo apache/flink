@@ -18,7 +18,9 @@ package eu.stratosphere.nephele.event.task;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -68,10 +70,10 @@ public class TaskEventTest {
 	@Test
 	public void testEventList() {
 
-		final EventList orig = new EventList();
+		final List<AbstractEvent> orig = new ArrayList<AbstractEvent>();
 		orig.add(new StringTaskEvent("Test 2"));
 		orig.add(new IntegerTaskEvent(70));
-		final EventList copy = (EventList) CommonTestUtils.createCopy(orig);
+		final List<AbstractEvent> copy = (List<AbstractEvent>) CommonTestUtils.createCopy(orig);
 
 		assertEquals(orig.size(), copy.size());
 		final Iterator<AbstractEvent> origIt = orig.iterator();

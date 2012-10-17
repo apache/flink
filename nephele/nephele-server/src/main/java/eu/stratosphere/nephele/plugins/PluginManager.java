@@ -39,7 +39,6 @@ import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -69,12 +68,12 @@ public final class PluginManager {
 
 	private final Map<String, AbstractPluginLoader> plugins;
 
-	private PluginManager(final String configDir, final PluginLookupService pluginLookupService) {
+	private PluginManager(final String configDir) {
 
 		// Check if the configuration file exists
 		final File configFile = new File(configDir + File.separator + PLUGIN_CONFIG_FILE);
 		if (configFile.exists()) {
-			this.plugins = loadPlugins(configFile, pluginLookupService);
+			this.plugins = loadPlugins(configFile);
 		} else {
 			this.plugins = Collections.emptyMap();
 			LOG.warn("Unable to load plugins: configuration file " + configFile.getAbsolutePath() + " not found");
@@ -98,8 +97,7 @@ public final class PluginManager {
 	}
 
 	@SuppressWarnings("unchecked")
-	private Map<String, AbstractPluginLoader> loadPlugins(final File configFile,
-			final PluginLookupService pluginLookupService) {
+	private Map<String, AbstractPluginLoader> loadPlugins(final File configFile) {
 
 		final Map<String, AbstractPluginLoader> tmpPluginList = new LinkedHashMap<String, AbstractPluginLoader>();
 
@@ -273,7 +271,7 @@ public final class PluginManager {
 				Constructor<? extends AbstractPluginLoader> constructor;
 				try {
 					constructor = (Constructor<? extends AbstractPluginLoader>) loaderClass
-						.getConstructor(String.class, Configuration.class, PluginLookupService.class);
+						.getConstructor(String.class, Configuration.class);
 				} catch (SecurityException e) {
 					LOG.error("Unable to load plugin " + pluginName + ": " + StringUtils.stringifyException(e));
 					continue;
@@ -290,7 +288,7 @@ public final class PluginManager {
 				AbstractPluginLoader pluginLoader = null;
 
 				try {
-					pluginLoader = constructor.newInstance(pluginName, pluginConfiguration, pluginLookupService);
+					pluginLoader = constructor.newInstance(pluginName, pluginConfiguration);
 				} catch (IllegalArgumentException e) {
 					LOG.error("Unable to load plugin " + pluginName + ": " + StringUtils.stringifyException(e));
 					continue;
@@ -325,11 +323,10 @@ public final class PluginManager {
 		return Collections.unmodifiableMap(tmpPluginList);
 	}
 
-	private static synchronized PluginManager getInstance(final String configDir,
-			final PluginLookupService pluginLookupService) {
+	private static synchronized PluginManager getInstance(final String configDir) {
 
 		if (INSTANCE == null) {
-			INSTANCE = new PluginManager(configDir, pluginLookupService);
+			INSTANCE = new PluginManager(configDir);
 		}
 
 		return INSTANCE;
@@ -381,16 +378,12 @@ public final class PluginManager {
 
 	public static Map<PluginID, JobManagerPlugin> getJobManagerPlugins(final String configDir) {
 
-		final JobManagerLookupService lookupService = new JobManagerLookupService(jobManager);
-
-		return getInstance(configDir, lookupService).getJobManagerPluginsInternal();
+		return getInstance(configDir).getJobManagerPluginsInternal();
 	}
 
 	public static Map<PluginID, TaskManagerPlugin> getTaskManagerPlugins(final TaskManager taskManager,
 			final String configDir) {
 
-		final TaskManagerLookupService lookupService = new TaskManagerLookupService(taskManager);
-
-		return getInstance(configDir, lookupService).getTaskManagerPluginsInternal();
+		return getInstance(configDir).getTaskManagerPluginsInternal();
 	}
 }

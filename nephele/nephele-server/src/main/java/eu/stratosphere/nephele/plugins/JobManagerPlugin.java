@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.profiling.ProfilingListener;
  * 
  * @author warneke
  */
-public interface JobManagerPlugin extends PluginCommunication {
+public interface JobManagerPlugin {
 
 	/**
 	 * Checks whether the plugin requires a job to be executed with profiling enabled in order to work properly.

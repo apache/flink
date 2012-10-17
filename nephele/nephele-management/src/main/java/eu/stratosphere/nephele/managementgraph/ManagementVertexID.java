@@ -45,6 +45,16 @@ public final class ManagementVertexID extends AbstractID {
 	}
 
 	/**
+	 * Constructs a management vertex ID from another abstract ID.
+	 * 
+	 * @param id
+	 *        the abstract ID to construct the management vertex ID from
+	 */
+	private ManagementVertexID(final AbstractID id) {
+		super(id);
+	}
+
+	/**
 	 * Generates a new statistically unique management vertex ID.
 	 * 
 	 * @return a new statistically unique management vertex ID
@@ -55,5 +65,17 @@ public final class ManagementVertexID extends AbstractID {
 		final long upperPart = AbstractID.generateRandomBytes();
 
 		return new ManagementVertexID(lowerPart, upperPart);
+	}
+
+	/**
+	 * Constructs a management vertex ID from another ID.
+	 * 
+	 * @param id
+	 *        the ID create the new management vertex ID from
+	 * @return the newly created ID
+	 */
+	public static ManagementVertexID fromOtherID(final AbstractID id) {
+
+		return new ManagementVertexID(id);
 	}
 }

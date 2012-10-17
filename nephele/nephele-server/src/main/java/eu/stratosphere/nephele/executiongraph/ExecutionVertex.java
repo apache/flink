@@ -162,7 +162,7 @@ public final class ExecutionVertex {
 	 */
 	public ExecutionVertex(final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
 			final int numberOfOutputGates, final int numberOfInputGates) {
-		this(new ExecutionVertexID(), executionGraph, groupVertex, numberOfOutputGates, numberOfInputGates);
+		this(ExecutionVertexID.generate(), executionGraph, groupVertex, numberOfOutputGates, numberOfInputGates);
 
 		this.groupVertex.addInitialSubtask(this);
 
@@ -233,7 +233,7 @@ public final class ExecutionVertex {
 		if (preserveVertexID) {
 			newVertexID = this.vertexID;
 		} else {
-			newVertexID = new ExecutionVertexID();
+			newVertexID = ExecutionVertexID.generate();
 		}
 
 		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.executionGraph,

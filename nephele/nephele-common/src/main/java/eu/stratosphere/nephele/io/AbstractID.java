@@ -62,6 +62,19 @@ public abstract class AbstractID {
 	}
 
 	/**
+	 * Creates a new abstract ID from the given one. The given and the newly created abtract ID will be identical, i.e.
+	 * a comparison by <code>equals</code> will return <code>true</code> and both objects will have the same hash code.
+	 * 
+	 * @param id
+	 *        the abstract ID to copy
+	 */
+	protected AbstractID(final AbstractID id) {
+
+		this.lowerPart = id.lowerPart;
+		this.upperPart = id.upperPart;
+	}
+
+	/**
 	 * Default constructor required by kryo.
 	 */
 	protected AbstractID() {
