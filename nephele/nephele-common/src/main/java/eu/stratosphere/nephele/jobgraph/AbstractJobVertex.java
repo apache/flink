@@ -479,6 +479,7 @@ public abstract class AbstractJobVertex implements KryoSerializable {
 				EnumUtils.writeEnum(output, edge.getCompressionLevel());
 				EnumUtils.writeEnum(output, edge.getDistributionPattern());
 				output.writeInt(edge.getIndexOfInputGate());
+				output.writeBoolean(edge.spanningRecordsAllowed());
 			}
 		}
 
