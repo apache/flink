@@ -2,9 +2,9 @@ package eu.stratosphere.nephele.io.channels;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 
 import eu.stratosphere.nephele.io.DataOutputBuffer;
-import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.types.Record;
 
 final class SpanningRecordSerializer<T extends Record> implements RecordSerializer<T> {
@@ -48,14 +48,14 @@ final class SpanningRecordSerializer<T extends Record> implements RecordSerializ
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean read(final Buffer buffer) throws IOException {
+	public boolean read(final WritableByteChannel writableByteChannel) throws IOException {
 
 		// Deal with length buffer first
 		if (this.lengthBuf.hasRemaining()) { // There is data from the length buffer to be written
-			buffer.write(this.lengthBuf);
+			writableByteChannel.write(this.lengthBuf);
 		}
 
-		final int bytesReadFromSerializationBuf = buffer.write(this.serializationBuffer.getData());
+		final int bytesReadFromSerializationBuf = writableByteChannel.write(this.serializationBuffer.getData());
 		// byteBuffer.put(this.serializationBuffer.getData(), this.bytesReadFromBuffer, length);
 		this.bytesReadFromBuffer += bytesReadFromSerializationBuf;
 
@@ -64,7 +64,7 @@ final class SpanningRecordSerializer<T extends Record> implements RecordSerializ
 			this.bytesReadFromBuffer = 0;
 		}
 
-		return buffer.hasRemaining();
+		return (bytesReadFromSerializationBuf > 0);
 	}
 
 	/**

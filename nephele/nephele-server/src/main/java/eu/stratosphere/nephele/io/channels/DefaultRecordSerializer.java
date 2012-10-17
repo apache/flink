@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
@@ -304,9 +305,9 @@ final class DefaultRecordSerializer<T extends Record> implements RecordSerialize
 	private T nextRecordToSerialize = null;
 
 	/**
-	 * Stores the last buffer that was written to.
+	 * Stores the last channel that was written to.
 	 */
-	private Buffer lastBuffer = null;
+	private WritableByteChannel lastWritableByteChannel = null;
 
 	/**
 	 * The current data output wrapper.
@@ -338,21 +339,23 @@ final class DefaultRecordSerializer<T extends Record> implements RecordSerialize
 	 * {@inheritDoc}
 	 */
 	@Override
-	public boolean read(final Buffer buffer) throws IOException {
+	public boolean read(final WritableByteChannel writableByteChannel) throws IOException {
 
 		final T record = this.nextRecordToSerialize;
 		if (record == null) {
 			return true;
 		}
 
-		if (buffer != this.lastBuffer) {
+		if (writableByteChannel != this.lastWritableByteChannel) {
+
+			final Buffer buffer = (Buffer) writableByteChannel;
 
 			if (!buffer.isBackedByMemory()) {
 				throw new IllegalStateException("This record serializer only works with memory backed buffers");
 			}
 
 			this.wrapper = new DataOutputWrapper(((MemoryBuffer) buffer).getByteBuffer());
-			this.lastBuffer = buffer;
+			this.lastWritableByteChannel = writableByteChannel;
 		}
 
 		try {
@@ -381,7 +384,7 @@ final class DefaultRecordSerializer<T extends Record> implements RecordSerialize
 	@Override
 	public void clear() {
 		this.nextRecordToSerialize = null;
-		this.lastBuffer = null;
+		this.lastWritableByteChannel = null;
 		this.wrapper = null;
 	}
 

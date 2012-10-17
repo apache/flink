@@ -26,11 +26,170 @@ import eu.stratosphere.nephele.types.Record;
 
 public class DefaultRecordDeserializer<T extends Record> implements RecordDeserializer<T> {
 
-	private static final class DataInputWrapper implements DataInput {
+	private static final class FileInputWrapper implements DataInput {
+
+		private ByteBuffer buf;
+
+		private final ReadableByteChannel readableByteChannel;
+
+		private FileInputWrapper(final ReadableByteChannel readableByteChannel) {
+			this.readableByteChannel = readableByteChannel;
+			this.buf = ByteBuffer.allocate(1024);
+			this.buf.limit(0);
+		}
+
+		private void ensureAvailable(final int numberOfBytes) throws IOException {
+			
+			// Check if buffer is large enough
+			if (this.buf.capacity() < numberOfBytes) {
+				final ByteBuffer newBuf = ByteBuffer.allocate(numberOfBytes);
+				newBuf.put(this.buf);
+				newBuf.flip();
+				this.buf = newBuf;
+			}
+
+			// Check if enough bytes are remaining in buffer
+			final int remaining = this.buf.remaining();
+			if (remaining < numberOfBytes) {
+
+				final int offset = this.buf.position();
+				if (offset > 0) {
+					for (int i = 0; i < remaining; ++i) {
+						this.buf.put(i, this.buf.get(offset + i));
+					}
+				}
+				this.buf.position(remaining);
+				this.buf.limit(this.buf.capacity());
+
+				final int read = this.readableByteChannel.read(this.buf);
+				
+
+				this.buf.flip();
+			}
+		}
+
+		@Override
+		public void readFully(byte[] b) throws IOException {
+
+			ensureAvailable(b.length);
+			this.buf.get(b);
+		}
+
+		@Override
+		public void readFully(byte[] b, int off, int len) throws IOException {
+
+			ensureAvailable(len);
+			this.buf.get(b, off, len);
+		}
+
+		@Override
+		public int skipBytes(int n) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean readBoolean() throws IOException {
+
+			System.out.println("READ BOOLEAN");
+
+			return false;
+		}
+
+		@Override
+		public byte readByte() throws IOException {
+
+			System.out.println("READ BYTE");
+
+			return 0;
+		}
+
+		@Override
+		public int readUnsignedByte() throws IOException {
+
+			System.out.println("READ UNSIGNED BYTE");
+
+			return 0;
+		}
+
+		@Override
+		public short readShort() throws IOException {
+
+			System.out.println("SHORT");
+
+			return 0;
+		}
+
+		@Override
+		public int readUnsignedShort() throws IOException {
+
+			System.out.println("UNSIGNED SHORT");
+
+			return 0;
+		}
+
+		@Override
+		public char readChar() throws IOException {
+
+			System.out.println("CHAR");
+
+			return 0;
+		}
+
+		@Override
+		public int readInt() throws IOException {
+
+			System.out.println("INT");
+
+			return 0;
+		}
+
+		@Override
+		public long readLong() throws IOException {
+
+			System.out.println("LONG");
+
+			return 0;
+		}
+
+		@Override
+		public float readFloat() throws IOException {
+
+			System.out.println("FLOAT");
+
+			return 0;
+		}
+
+		@Override
+		public double readDouble() throws IOException {
+
+			System.out.println("DOUBLE");
+
+			return 0;
+		}
+
+		@Override
+		public String readLine() throws IOException {
+
+			System.out.println("LINE");
+
+			return null;
+		}
+
+		@Override
+		public String readUTF() throws IOException {
+
+			System.out.println("UTF8");
+
+			return null;
+		}
+
+	}
+
+	private static final class MemoryInputWrapper implements DataInput {
 
 		private final ByteBuffer buffer;
 
-		private DataInputWrapper(final ByteBuffer buffer) {
+		private MemoryInputWrapper(final ByteBuffer buffer) {
 			this.buffer = buffer;
 		}
 
@@ -113,9 +272,9 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 
 	private final RecordFactory<T> recordFactory;
 
-	private Buffer lastBuffer = null;
+	private ReadableByteChannel lastReadableByteChannel = null;
 
-	private DataInputWrapper wrapper = null;
+	private DataInput dataInput = null;
 
 	public DefaultRecordDeserializer(final RecordFactory<T> recordFactory) {
 		this.recordFactory = recordFactory;
@@ -127,18 +286,21 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 	@Override
 	public T readData(T target, final ReadableByteChannel readableByteChannel) throws IOException {
 
-		final Buffer buffer = (Buffer) readableByteChannel;
-
-		if (buffer != this.lastBuffer) {
-			this.wrapper = new DataInputWrapper(((MemoryBuffer) buffer).getByteBuffer());
-			this.lastBuffer = buffer;
+		if (readableByteChannel != this.lastReadableByteChannel) {
+			final Buffer buffer = (Buffer) readableByteChannel;
+			if (buffer.isBackedByMemory()) {
+				this.dataInput = new MemoryInputWrapper(((MemoryBuffer) buffer).getByteBuffer());
+			} else {
+				this.dataInput = new FileInputWrapper(buffer);
+			}
+			this.lastReadableByteChannel = readableByteChannel;
 		}
 
 		if (target == null) {
 			target = this.recordFactory.createRecord();
 		}
 
-		target.read(this.wrapper);
+		target.read(this.dataInput);
 
 		return target;
 	}
