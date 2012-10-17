@@ -469,8 +469,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			final boolean isBroadcast) {
 
 		if (this.unboundOutputGates == null) {
-			return new RuntimeOutputGate<T>(getJobID(), null, getNumberOfOutputGates(), ChannelType.NETWORK,
-				CompressionLevel.NO_COMPRESSION, selector, isBroadcast, null);
+			final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), null, getNumberOfOutputGates(),
+				ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, selector, isBroadcast, null);
+
+			this.outputGates.add(rog);
+			return rog;
 		}
 
 		final GateDeploymentDescriptor gdd = this.unboundOutputGates.poll();
@@ -485,8 +488,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			serializerFactory = new DefaultRecordSerializerFactory<T>();
 		}
 
-		return new RuntimeOutputGate<T>(getJobID(), gdd.getGateID(), getNumberOfInputGates(), gdd.getChannelType(),
-			gdd.getCompressionLevel(), selector, isBroadcast, serializerFactory);
+		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gdd.getGateID(), getNumberOfInputGates(),
+			gdd.getChannelType(), gdd.getCompressionLevel(), selector, isBroadcast, serializerFactory);
+
+		this.outputGates.add(rog);
+		return rog;
 	}
 
 	/**
