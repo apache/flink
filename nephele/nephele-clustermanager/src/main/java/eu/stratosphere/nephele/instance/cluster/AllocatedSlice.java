@@ -68,7 +68,7 @@ class AllocatedSlice {
 	public AllocatedSlice(final ClusterInstance hostingInstance, final InstanceType type, final JobID jobID,
 			final long allocationTime) {
 
-		this.allocationID = new AllocationID();
+		this.allocationID = AllocationID.generate();
 		this.hostingInstance = hostingInstance;
 		this.type = type;
 		this.jobID = jobID;

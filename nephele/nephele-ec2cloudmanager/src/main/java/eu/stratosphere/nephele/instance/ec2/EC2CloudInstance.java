@@ -91,7 +91,7 @@ public class EC2CloudInstance extends AbstractInstance {
 			final String awsSecretKey) {
 		super(type, instanceConnectionInfo, rpcService, parentNode, networkTopology, hardwareDescription);
 
-		this.allocatedResource = new AllocatedResource(this, type, new AllocationID());
+		this.allocatedResource = new AllocatedResource(this, type, AllocationID.generate());
 
 		this.instanceID = instanceID;
 

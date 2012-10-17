@@ -18,12 +18,44 @@ package eu.stratosphere.nephele.instance;
 import eu.stratosphere.nephele.io.AbstractID;
 
 /**
- * An allocation ID unambiguously identifies the allocated resources
- * within an {@link AbstractInstance}. The ID is necessary if an {@link InstanceManager} decides to partition
- * {@link AbstractInstance}s
- * without the knowledge of Nephele's scheduler.
+ * An allocation ID unambiguously identifies the allocated resources within an {@link AbstractInstance}. The ID is
+ * necessary if an {@link InstanceManager} decides to partition {@link AbstractInstance}s without the knowledge of
+ * Nephele's scheduler.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
 public class AllocationID extends AbstractID {
+
+	/**
+	 * Default constructor required by kryo.
+	 */
+	private AllocationID() {
+	}
+
+	/**
+	 * Constructs a new allocation ID.
+	 * 
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
+	 */
+	private AllocationID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	/**
+	 * Generates a new statistically unique allocation ID.
+	 * 
+	 * @return a new statistically unique allocation ID
+	 */
+	public static AllocationID generate() {
+
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
+
+		return new AllocationID(lowerPart, upperPart);
+	}
 }

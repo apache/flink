@@ -609,7 +609,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 							.getInstance()
 							.getType());
 						final AllocatedResource dummyResource = new AllocatedResource(dummyInstance,
-							allocatedResource.getInstanceType(), new AllocationID());
+							allocatedResource.getInstanceType(), AllocationID.generate());
 
 						while (vertexIter.hasNext()) {
 							final ExecutionVertex vertex = vertexIter.next();
