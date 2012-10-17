@@ -29,6 +29,9 @@ import java.util.Deque;
 
 import org.junit.Test;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
@@ -62,11 +65,6 @@ public class DefaultSerializerTest {
 	private static final int SIZE_OF_SEQ_NR = 4;
 
 	/**
-	 * The size of an ID.
-	 */
-	private static final int SIZE_OF_ID = 16;
-
-	/**
 	 * The size of an integer number.
 	 */
 	private static final int SIZE_OF_INTEGER = 4;
@@ -80,24 +78,6 @@ public class DefaultSerializerTest {
 	 * The target channel ID used during the serialization process.
 	 */
 	private final ChannelID sourceChannelID = ChannelID.generate();
-
-	/**
-	 * Auxiliary class to explicitly access the internal buffer of an ID object.
-	 * 
-	 * @author warneke
-	 */
-	private static class SerializationTestID extends AbstractID {
-
-		/**
-		 * Constructs a new ID.
-		 * 
-		 * @param content
-		 *        a byte buffer representing the ID
-		 */
-		private SerializationTestID(byte[] content) {
-			super(content);
-		}
-	}
 
 	/**
 	 * This test checks the correctness of the serialization of {@link TransferEnvelope} objects.
@@ -293,12 +273,16 @@ public class DefaultSerializerTest {
 
 		final int sizeOfID = bufferToInteger(temp); // ID has fixed size and therefore does not announce its size
 
-		assertEquals(sizeOfID, SIZE_OF_ID);
+		final byte[] id = new byte[sizeOfID];
 
-		byte[] id = new byte[sizeOfID];
 		fileInputStream.read(id);
 
-		final AbstractID channelID = new SerializationTestID(id);
+		final Input input = new Input(id);
+
+		final Kryo kryo = new Kryo();
+
+		final ChannelID channelID = kryo.readObject(input, ChannelID.class);
+
 		assertEquals(expectedID, channelID);
 	}
 
