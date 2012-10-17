@@ -459,7 +459,6 @@ public class ExecutionGraphTest {
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
-			System.out.println("URI " + inputFile.toURI());
 			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex
