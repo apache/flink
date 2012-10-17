@@ -122,6 +122,7 @@ final class ObjectSerializer {
 		this.kryo.writeObject(this.output, object);
 
 		this.lengthBuf.putInt(this.output.total());
+		this.lengthBuf.flip();
 	}
 
 	void clear() {
