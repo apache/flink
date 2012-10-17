@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.io.channels.serialization;
+package eu.stratosphere.nephele.io.channels;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -31,9 +31,22 @@ import java.util.Random;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
-import eu.stratosphere.nephele.io.channels.SerializationBuffer;
-
+import eu.stratosphere.nephele.io.channels.SpanningRecordDeserializer;
+import eu.stratosphere.nephele.io.channels.SpanningRecordSerializer;
+import eu.stratosphere.nephele.io.channels.serialization.BooleanType;
+import eu.stratosphere.nephele.io.channels.serialization.ByteArrayType;
+import eu.stratosphere.nephele.io.channels.serialization.ByteSubArrayType;
+import eu.stratosphere.nephele.io.channels.serialization.ByteType;
+import eu.stratosphere.nephele.io.channels.serialization.CharType;
+import eu.stratosphere.nephele.io.channels.serialization.DoubleType;
+import eu.stratosphere.nephele.io.channels.serialization.FloatType;
+import eu.stratosphere.nephele.io.channels.serialization.IntType;
+import eu.stratosphere.nephele.io.channels.serialization.LongType;
+import eu.stratosphere.nephele.io.channels.serialization.SerializationTestType;
+import eu.stratosphere.nephele.io.channels.serialization.ShortType;
+import eu.stratosphere.nephele.io.channels.serialization.UTFStringType;
+import eu.stratosphere.nephele.io.channels.serialization.UnsignedByteType;
+import eu.stratosphere.nephele.io.channels.serialization.UnsignedShortType;
 
 /**
  * @author Stephan Ewen
@@ -196,8 +209,8 @@ public class DeSerializerTest
 		final ArrayDeque<SerializationTestType> elements = new ArrayDeque<SerializationTestType>(512);
 		
 		final PipeChannel channel = new PipeChannel(bufferSize);
-		final SerializationBuffer<SerializationTestType> serBuffer = new SerializationBuffer<SerializationTestType>();
-		final DefaultDeserializer<SerializationTestType> deserBuffer = new DefaultDeserializer<SerializationTestType>(null);
+		final SpanningRecordSerializer<SerializationTestType> serBuffer = new SpanningRecordSerializer<SerializationTestType>();
+		final SpanningRecordDeserializer<SerializationTestType> deserBuffer = new SpanningRecordDeserializer<SerializationTestType>(null);
 		
 		while (sequence.hasNext()) {
 			final SerializationTestType type = sequence.next();

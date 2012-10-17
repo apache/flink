@@ -17,12 +17,12 @@ package eu.stratosphere.nephele.io.channels.serialization;
 
 import java.util.Random;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.types.Record;
 
 /**
  * @author Stephan Ewen
  */
-public interface SerializationTestType extends IOReadableWritable
+public interface SerializationTestType extends Record
 {
 	public SerializationTestType getRandom(Random rnd);
 
