@@ -722,22 +722,6 @@ public class TaskConfig
 		// --------------------------------------------------------------------------------------------
 
 		@Override
-		public void read(DataInput in) throws IOException
-		{
-			this.prefix = in.readUTF();
-			this.backingConfig.read(in);
-		}
-
-		@Override
-		public void write(DataOutput out) throws IOException
-		{
-			out.writeUTF(this.prefix);
-			this.backingConfig.write(out);
-		}
-		
-		// --------------------------------------------------------------------------------------------
-
-		@Override
 		public int hashCode()
 		{
 			return this.prefix.hashCode() ^ this.backingConfig.hashCode();

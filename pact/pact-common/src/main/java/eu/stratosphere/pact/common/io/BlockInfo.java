@@ -14,13 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.common.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-
-public class BlockInfo implements IOReadableWritable {
+public class BlockInfo {
 
 	private long recordCount;
 
@@ -49,28 +43,6 @@ public class BlockInfo implements IOReadableWritable {
 	 */
 	public void setFirstRecordStart(long firstRecordStart) {
 		this.firstRecordStart = firstRecordStart;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-		out.writeLong(this.recordCount);
-		out.writeLong(this.accumulatedRecordCount);
-		out.writeLong(this.firstRecordStart);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-		this.recordCount = in.readLong();
-		this.accumulatedRecordCount = in.readLong();
-		this.firstRecordStart = in.readLong();
 	}
 
 	/**

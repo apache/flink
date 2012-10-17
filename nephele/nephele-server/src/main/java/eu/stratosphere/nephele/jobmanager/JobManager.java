@@ -90,7 +90,6 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -113,7 +112,6 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagementProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
-import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.rpc.ServerTypeUtils;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
@@ -139,7 +137,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * @author warneke
  */
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
-		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, PluginCommunicationProtocol {
+		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
@@ -1343,35 +1341,5 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
 		executionGraph.executeCommand(taskStateChangeRunnable);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void sendData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
-
-		final JobManagerPlugin jmp = this.jobManagerPlugins.get(pluginID);
-		if (jmp == null) {
-			LOG.error("Cannot find job manager plugin for plugin ID " + pluginID);
-			return;
-		}
-
-		jmp.sendData(data);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public IOReadableWritable requestData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
-
-		final JobManagerPlugin jmp = this.jobManagerPlugins.get(pluginID);
-		if (jmp == null) {
-			LOG.error("Cannot find job manager plugin for plugin ID " + pluginID);
-			return null;
-		}
-
-		return jmp.requestData(data);
 	}
 }

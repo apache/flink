@@ -15,13 +15,6 @@
 
 package eu.stratosphere.nephele.execution.librarycache;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-
 /**
  * A library cache profile request includes a set of library names and issues a task manager to report which of these
  * libraries
@@ -29,7 +22,7 @@ import eu.stratosphere.nephele.types.StringRecord;
  * 
  * @author warneke
  */
-public class LibraryCacheProfileRequest implements IOReadableWritable {
+public class LibraryCacheProfileRequest {
 
 	/**
 	 * List of the required libraries' names.
@@ -53,37 +46,5 @@ public class LibraryCacheProfileRequest implements IOReadableWritable {
 	 */
 	public void setRequiredLibraries(final String[] requiredLibraries) {
 		this.requiredLibraries = requiredLibraries;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		// Read required jar files
-		this.requiredLibraries = new String[in.readInt()];
-
-		for (int i = 0; i < this.requiredLibraries.length; i++) {
-			this.requiredLibraries[i] = StringRecord.readString(in);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		if (this.requiredLibraries == null) {
-			throw new IOException("requiredLibraries is null");
-		}
-
-		// Number of required jar files
-		out.writeInt(this.requiredLibraries.length);
-
-		for (int i = 0; i < this.requiredLibraries.length; i++) {
-			StringRecord.writeString(out, this.requiredLibraries[i]);
-		}
 	}
 }

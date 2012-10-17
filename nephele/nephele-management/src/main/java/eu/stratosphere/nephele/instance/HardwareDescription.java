@@ -15,12 +15,6 @@
 
 package eu.stratosphere.nephele.instance;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-
 /**
  * A hardware description reflects the hardware environment which is actually present on the task manager's compute
  * nodes. Unlike the {@link InstanceType} the hardware description is determined by the compute node itself and not
@@ -31,27 +25,31 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  * 
  * @author warneke
  */
-public final class HardwareDescription implements IOReadableWritable {
+public final class HardwareDescription {
 
 	/**
 	 * The number of CPU cores available to the JVM on the compute node.
 	 */
-	private int numberOfCPUCores = 0;
+	private final int numberOfCPUCores;
 
 	/**
 	 * The size of physical memory in bytes available on the compute node.
 	 */
-	private long sizeOfPhysicalMemory = 0;
+	private long sizeOfPhysicalMemory;
 
 	/**
 	 * The size of free memory in bytes available to the JVM on the compute node.
 	 */
-	private long sizeOfFreeMemory = 0;
+	private long sizeOfFreeMemory;
 
 	/**
-	 * Public default constructor used for serialization process.
+	 * Default constructor required by kryo.
 	 */
-	public HardwareDescription() {
+	@SuppressWarnings("unused")
+	private HardwareDescription() {
+		this.numberOfCPUCores = 0;
+		this.sizeOfPhysicalMemory = 0L;
+		this.sizeOfFreeMemory = 0L;
 	}
 
 	/**
@@ -68,28 +66,6 @@ public final class HardwareDescription implements IOReadableWritable {
 		this.numberOfCPUCores = numberOfCPUCores;
 		this.sizeOfPhysicalMemory = sizeOfPhysicalMemory;
 		this.sizeOfFreeMemory = sizeOfFreeMemory;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		out.writeInt(this.numberOfCPUCores);
-		out.writeLong(this.sizeOfPhysicalMemory);
-		out.writeLong(this.sizeOfFreeMemory);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.numberOfCPUCores = in.readInt();
-		this.sizeOfPhysicalMemory = in.readLong();
-		this.sizeOfFreeMemory = in.readLong();
 	}
 
 	/**

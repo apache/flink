@@ -154,20 +154,6 @@ public class GlobalSortingMixedOrderITCase extends TestBase {
 		}
 		
 		public TripleIntDistribution() {}
-		
-		@Override
-		public void write(DataOutput out) throws IOException {
-			out.writeBoolean(this.ascendingI1);
-			out.writeBoolean(this.ascendingI2);
-			out.writeBoolean(this.ascendingI3);
-		}
-
-		@Override
-		public void read(DataInput in) throws IOException {
-			this.ascendingI1 = in.readBoolean();
-			this.ascendingI2 = in.readBoolean();
-			this.ascendingI3 = in.readBoolean();
-		}
 
 		@Override
 		public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets)

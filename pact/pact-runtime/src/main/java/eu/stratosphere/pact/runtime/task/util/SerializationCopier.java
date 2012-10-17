@@ -24,16 +24,16 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.types.Record;
 
 /**
- * Creates deep copies of {@link IOReadableWritable} objects.
+ * Creates deep copies of {@link Record} objects.
  * Objects are serialized into a byte array and later deserialized from there.
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  * @param <T>
  */
-public class SerializationCopier<T extends IOReadableWritable> {
+public class SerializationCopier<T extends Record> {
 
 	private byte[] serializedCopy;
 

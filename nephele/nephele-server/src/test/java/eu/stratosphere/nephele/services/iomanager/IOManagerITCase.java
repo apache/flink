@@ -31,13 +31,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.services.iomanager.Channel;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.types.Record;
 
 
 /**
@@ -258,7 +258,7 @@ public class IOManagerITCase {
 	
 	// ------------------------------------------------------------------------
 	
-	protected static class Value implements IOReadableWritable {
+	protected static class Value implements Record {
 
 		String value;
 

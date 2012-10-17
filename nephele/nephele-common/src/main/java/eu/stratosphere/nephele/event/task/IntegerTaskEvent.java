@@ -32,12 +32,10 @@
 
 package eu.stratosphere.nephele.event.task;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 /**
  * This class provides a simple implementation of an event that holds an integer value.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author casp
  */
@@ -46,14 +44,14 @@ public class IntegerTaskEvent extends AbstractTaskEvent {
 	/**
 	 * The integer value transported by this integer task event.
 	 */
-	private int value = -1;
+	private final int value;
 
 	/**
-	 * Default constructor (should only be used for deserialization).
+	 * Default constructor required by kryo.
 	 */
-	public IntegerTaskEvent() {
-		// default constructor implementation.
-		// should only be used for deserialization
+	@SuppressWarnings("unused")
+	private IntegerTaskEvent() {
+		this.value = 0;
 	}
 
 	/**
@@ -73,22 +71,6 @@ public class IntegerTaskEvent extends AbstractTaskEvent {
 	 */
 	public int getInteger() {
 		return this.value;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		out.writeInt(this.value);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		this.value = in.readInt();
 	}
 
 	/**

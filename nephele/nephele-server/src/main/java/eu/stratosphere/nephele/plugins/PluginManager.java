@@ -379,8 +379,7 @@ public final class PluginManager {
 		return Collections.unmodifiableMap(taskManagerPluginMap);
 	}
 
-	public static Map<PluginID, JobManagerPlugin> getJobManagerPlugins(final PluginCommunicationProtocol jobManager,
-			final String configDir) {
+	public static Map<PluginID, JobManagerPlugin> getJobManagerPlugins(final String configDir) {
 
 		final JobManagerLookupService lookupService = new JobManagerLookupService(jobManager);
 

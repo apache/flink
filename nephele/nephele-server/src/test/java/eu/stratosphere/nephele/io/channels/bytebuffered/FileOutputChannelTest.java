@@ -108,7 +108,8 @@ public class FileOutputChannelTest {
 
 		// setup test-object
 		FileOutputChannel<StringRecord> fileOutputChannel = new FileOutputChannel<StringRecord>(outGate, 1,
-			new ChannelID(), new ChannelID(), CompressionLevel.NO_COMPRESSION, new SpanningRecordSerializer<StringRecord>());
+			ChannelID.generate(), ChannelID.generate(), CompressionLevel.NO_COMPRESSION,
+			new SpanningRecordSerializer<StringRecord>());
 		fileOutputChannel.setByteBufferedOutputChannelBroker(outputBroker);
 
 		Whitebox.setInternalState(fileOutputChannel, "recordSerializer", this.recordSerializer);

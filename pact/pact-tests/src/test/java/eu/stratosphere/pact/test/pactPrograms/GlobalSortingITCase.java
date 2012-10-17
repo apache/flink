@@ -15,9 +15,6 @@
 
 package eu.stratosphere.pact.test.pactPrograms;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -142,14 +139,6 @@ public class GlobalSortingITCase extends TestBase {
 	public static class UniformDistribution implements DataDistribution {
 
 		public UniformDistribution() { 	}
-		
-		@Override
-		public void write(DataOutput out) throws IOException {
-		}
-
-		@Override
-		public void read(DataInput in) throws IOException {
-		}
 
 		@Override
 		public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets) {

@@ -119,7 +119,7 @@ public class MockEnvironment implements Environment
 		private MutableObjectIterator<PactRecord> it;
 
 		public MockInputGate(int id, MutableObjectIterator<PactRecord> it) {
-			super(new JobID(), new GateID(), id, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, null);
+			super(JobID.generate(), new GateID(), id, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, null);
 			this.it = it;
 		}
 
@@ -139,7 +139,7 @@ public class MockEnvironment implements Environment
 		private List<PactRecord> out;
 
 		public MockOutputGate(int index, List<PactRecord> outList) {
-			super(new JobID(), new GateID(), index, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, null, false, null);
+			super(JobID.generate(), new GateID(), index, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, null, false, null);
 			this.out = outList;
 		}
 

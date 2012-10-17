@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -27,7 +28,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.fs.FileChannelWrapper;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -323,7 +323,7 @@ final class WriteThread extends Thread {
 		// At this point, all resources are either recycled or saved to firstSerializedFileBuffer
 
 		// Look for close event
-		final EventList eventList = transferEnvelope.getEventList();
+		final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 		if (eventList != null) {
 			final Iterator<AbstractEvent> it = eventList.iterator();
 			while (it.hasNext()) {

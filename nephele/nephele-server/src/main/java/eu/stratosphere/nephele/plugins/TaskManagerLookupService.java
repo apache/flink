@@ -18,7 +18,6 @@ package eu.stratosphere.nephele.plugins;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 
 public final class TaskManagerLookupService implements PluginLookupService {

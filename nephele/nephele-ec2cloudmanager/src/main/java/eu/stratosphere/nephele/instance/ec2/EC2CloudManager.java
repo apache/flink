@@ -62,7 +62,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.util.SerializableHashMap;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -1058,7 +1057,7 @@ public final class EC2CloudManager extends TimerTask implements InstanceManager 
 	@Override
 	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
 
-		final Map<InstanceType, InstanceTypeDescription> availableinstances = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
+		final Map<InstanceType, InstanceTypeDescription> availableinstances = new HashMap<InstanceType, InstanceTypeDescription>();
 
 		for (final InstanceType t : this.availableInstanceTypes) {
 			// TODO: Number of available instances is set to 1000 to improve interaction with PACT layer, must be -1

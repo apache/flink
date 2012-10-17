@@ -15,26 +15,21 @@
 
 package eu.stratosphere.nephele.instance;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-
 /**
  * An instance type describes the hardware resources a task manager runs on. According
  * to its type an instance has a specific number of CPU cores, computation units, a certain
  * amount of main memory and disk space. In addition, it has a specific price per hour.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public final class InstanceType implements IOReadableWritable {
+public final class InstanceType {
 
 	/**
 	 * The identifier for this instance type.
 	 */
-	private String identifier;
+	private final String identifier;
 
 	/**
 	 * The number of computational units of this instance type.
@@ -44,32 +39,39 @@ public final class InstanceType implements IOReadableWritable {
 	 * specified number of compute units expresses the fraction of the
 	 * CPU capacity promised to a user.
 	 */
-	private int numberOfComputeUnits = 0;
+	private final int numberOfComputeUnits;
 
 	/**
 	 * The number of CPU cores of this instance type.
 	 */
-	private int numberOfCores = 0;
+	private final int numberOfCores;
 
 	/**
 	 * The amount of main memory of this instance type (in MB).
 	 */
-	private int memorySize = 0;
+	private final int memorySize;
 
 	/**
 	 * The disk capacity of this instance type (in GB).
 	 */
-	private int diskCapacity = 0;
+	private final int diskCapacity;
 
 	/**
 	 * The price per hour that is charged for running instances of this type.
 	 */
-	private int pricePerHour = 0;
+	private final int pricePerHour;
 
 	/**
-	 * Public constructor required for the serialization process.
+	 * Default constructor required by kryo.
 	 */
-	public InstanceType() {
+	@SuppressWarnings("unused")
+	private InstanceType() {
+		this.identifier = null;
+		this.numberOfComputeUnits = 0;
+		this.numberOfCores = 0;
+		this.memorySize = 0;
+		this.diskCapacity = 0;
+		this.pricePerHour = 0;
 	}
 
 	/**
@@ -176,33 +178,5 @@ public final class InstanceType implements IOReadableWritable {
 		bld.append(')');
 
 		return bld.toString();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		StringRecord.writeString(out, this.identifier);
-		out.writeInt(this.numberOfComputeUnits);
-		out.writeInt(this.numberOfCores);
-		out.writeInt(this.memorySize);
-		out.writeInt(this.diskCapacity);
-		out.writeInt(this.pricePerHour);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.identifier = StringRecord.readString(in);
-		this.numberOfComputeUnits = in.readInt();
-		this.numberOfCores = in.readInt();
-		this.memorySize = in.readInt();
-		this.diskCapacity = in.readInt();
-		this.pricePerHour = in.readInt();
 	}
 }

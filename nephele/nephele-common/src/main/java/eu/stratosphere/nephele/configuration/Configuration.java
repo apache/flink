@@ -15,9 +15,6 @@
 
 package eu.stratosphere.nephele.configuration;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -33,9 +30,6 @@ import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-
 /**
  * Lightweight configuration object which can store key/value pairs. Configuration objects
  * can be extracted from or integrated into the {@link GlobalConfiguration} object. They can
@@ -44,7 +38,7 @@ import eu.stratosphere.nephele.types.StringRecord;
  * 
  * @author warneke
  */
-public class Configuration implements IOReadableWritable, KryoSerializable {
+public class Configuration implements KryoSerializable {
 
 	/**
 	 * Used to log warnings on error originating from this class.
@@ -441,44 +435,6 @@ public class Configuration implements IOReadableWritable, KryoSerializable {
 					bld.append(entry.getKey());
 					this.confData.put(bld.toString(), entry.getValue());
 				}
-			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		synchronized (this.confData) {
-
-			final int numberOfProperties = in.readInt();
-
-			for (int i = 0; i < numberOfProperties; i++) {
-				final String key = StringRecord.readString(in);
-				final String value = StringRecord.readString(in);
-				this.confData.put(key, value);
-			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		synchronized (this.confData) {
-
-			out.writeInt(this.confData.size());
-
-			final Iterator<String> it = this.confData.keySet().iterator();
-			while (it.hasNext()) {
-				final String key = it.next();
-				final String value = this.confData.get(key);
-				StringRecord.writeString(out, key);
-				StringRecord.writeString(out, value);
 			}
 		}
 	}

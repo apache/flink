@@ -63,7 +63,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.plugins.PluginID;
@@ -74,7 +73,6 @@ import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
-import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.rpc.ServerTypeUtils;
@@ -95,7 +93,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class TaskManager implements TaskOperationProtocol, PluginCommunicationProtocol {
+public class TaskManager implements TaskOperationProtocol {
 
 	private static final Log LOG = LogFactory.getLog(TaskManager.class);
 
@@ -104,8 +102,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	private final InputSplitProviderProtocol globalInputSplitProvider;
 
 	private final ChannelLookupProtocol lookupService;
-
-	private final PluginCommunicationProtocol pluginCommunicationService;
 
 	private final ExecutorService executorService = Executors.newCachedThreadPool();
 
@@ -248,16 +244,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 			throw new Exception("Failed to initialize channel lookup protocol. " + e.getMessage(), e);
 		}
 		this.lookupService = lookupService;
-
-		// Try to create local stub for the plugin communication service
-		PluginCommunicationProtocol pluginCommunicationService = null;
-		try {
-			pluginCommunicationService = this.rpcService.getProxy(jobManagerAddress, PluginCommunicationProtocol.class);
-		} catch (IOException e) {
-			LOG.error(StringUtils.stringifyException(e));
-			throw new Exception("Failed to initialize plugin communication protocol. " + e.getMessage(), e);
-		}
-		this.pluginCommunicationService = pluginCommunicationService;
 
 		// Load profiler if it should be used
 		if (GlobalConfiguration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false)) {
@@ -919,74 +905,6 @@ public class TaskManager implements TaskOperationProtocol, PluginCommunicationPr
 	public void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
 
 		this.byteBufferedChannelManager.invalidateLookupCacheEntries(channelIDs);
-	}
-
-	/**
-	 * Sends data from the plugin with the given ID to the respective component of the plugin running at the job
-	 * manager.
-	 * 
-	 * @param pluginID
-	 *        the ID of plugin
-	 * @param data
-	 *        the data to be sent
-	 * @throws IOException
-	 *         thrown if an I/O error occurs during the RPC call
-	 */
-	public void sendDataToJobManager(final PluginID pluginID, final IOReadableWritable data) throws IOException {
-
-		synchronized (this.pluginCommunicationService) {
-			this.pluginCommunicationService.sendData(pluginID, data);
-		}
-	}
-
-	/**
-	 * Requests data for the plugin with the given ID from the respective plugin component running at the job manager.
-	 * 
-	 * @param pluginID
-	 *        the ID of the plugin
-	 * @param data
-	 *        the data to specify the request
-	 * @return the requested data
-	 * @throws IOException
-	 *         thrown if an I/O error occurs during the RPC call
-	 */
-	public IOReadableWritable requestDataFromJobManager(final PluginID pluginID, final IOReadableWritable data)
-			throws IOException {
-
-		synchronized (this.pluginCommunicationService) {
-			return this.pluginCommunicationService.requestData(pluginID, data);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void sendData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
-
-		final TaskManagerPlugin tmp = this.taskManagerPlugins.get(pluginID);
-		if (tmp == null) {
-			LOG.error("Cannot find task manager plugin for plugin ID " + pluginID);
-			return;
-		}
-
-		tmp.sendData(data);
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public IOReadableWritable requestData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
-
-		final TaskManagerPlugin tmp = this.taskManagerPlugins.get(pluginID);
-		if (tmp == null) {
-			LOG.error("Cannot find task manager plugin for plugin ID " + pluginID);
-			return null;
-		}
-
-		return tmp.requestData(data);
 	}
 
 	/**

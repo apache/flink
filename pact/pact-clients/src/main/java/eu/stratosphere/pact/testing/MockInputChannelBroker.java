@@ -17,10 +17,10 @@ package eu.stratosphere.pact.testing;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ByteBufferedInputChannelBroker;
@@ -99,7 +99,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 		if (transferEnvelope.getBuffer() == null) {
 
 			// No buffers necessary
-			final EventList eventList = transferEnvelope.getEventList();
+			final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 			if (eventList != null)
 				if (!eventList.isEmpty()) {
 					final Iterator<AbstractEvent> it = eventList.iterator();
@@ -113,7 +113,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 		final Buffer buffer = transferEnvelope.getBuffer(); // No need to copy anything
 
 		// Process events
-		final EventList eventList = transferEnvelope.getEventList();
+		final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 		if (eventList != null)
 			if (!eventList.isEmpty()) {
 				final Iterator<AbstractEvent> it = eventList.iterator();

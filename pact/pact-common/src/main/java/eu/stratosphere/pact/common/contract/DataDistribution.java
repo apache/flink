@@ -15,10 +15,9 @@
 
 package eu.stratosphere.pact.common.contract;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.pact.common.type.PactRecord;
 
-public interface DataDistribution extends IOReadableWritable
+public interface DataDistribution 
 {
 	/**
 	 * Returns the i'th bucket's upper bound, given that the distribution is to be

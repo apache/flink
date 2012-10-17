@@ -15,13 +15,6 @@
 
 package eu.stratosphere.nephele.execution.librarycache;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-
 /**
  * A library cache profile response is the response to a library cache profile request. It contains the set of
  * library names originally included in the request message and additionally a bit vector stating which of them
@@ -29,7 +22,7 @@ import eu.stratosphere.nephele.types.StringRecord;
  * 
  * @author warneke
  */
-public class LibraryCacheProfileResponse implements IOReadableWritable {
+public class LibraryCacheProfileResponse {
 
 	/**
 	 * List of the requires libraries' names.
@@ -92,53 +85,4 @@ public class LibraryCacheProfileResponse implements IOReadableWritable {
 
 		return false;
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		// Read the names of the required jar files
-		this.requiredLibraries = new String[in.readInt()];
-		for (int i = 0; i < this.requiredLibraries.length; i++) {
-			this.requiredLibraries[i] = StringRecord.readString(in);
-		}
-
-		// Read cache status
-		this.cached = new boolean[in.readInt()];
-		for (int i = 0; i < this.cached.length; i++) {
-			this.cached[i] = in.readBoolean();
-		}
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		if (this.requiredLibraries == null) {
-			throw new IOException("requiredLibraries is null");
-		}
-
-		if (this.cached == null) {
-			throw new IOException("cached is null");
-		}
-
-		// Write the names of the required jar files
-		out.writeInt(this.requiredLibraries.length);
-		for (int i = 0; i < this.requiredLibraries.length; i++) {
-			StringRecord.writeString(out, this.requiredLibraries[i]);
-		}
-
-		// Write out cache status
-		out.writeInt(this.cached.length);
-		for (int i = 0; i < this.cached.length; i++) {
-			out.writeBoolean(this.cached[i]);
-		}
-
-	}
-
 }

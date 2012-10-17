@@ -39,7 +39,7 @@ import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.ClassUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -791,7 +791,7 @@ public class JobGraph implements KryoSerializable {
 			final JobVertexID id = kryo.readObject(input, JobVertexID.class);
 			final String vertexName = input.readString();
 
-			Class<? extends IOReadableWritable> c;
+			Class<? extends Record> c;
 			try {
 				c = ClassUtils.getRecordByName(className);
 			} catch (ClassNotFoundException cnfe) {
@@ -799,7 +799,7 @@ public class JobGraph implements KryoSerializable {
 			}
 
 			// Find constructor
-			Constructor<? extends IOReadableWritable> cst;
+			Constructor<? extends Record> cst;
 			try {
 				cst = c.getConstructor(String.class, JobVertexID.class, JobGraph.class);
 
