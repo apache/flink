@@ -19,8 +19,16 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.compiler.plan.SingleInputNode;
+import eu.stratosphere.pact.compiler.plan.TwoInputNode;
+import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 
 /**
@@ -28,12 +36,149 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
  *
  * @author Stephan Ewen
  */
-public abstract class DualInputPlanNode extends PlanNode
+public class DualInputPlanNode extends PlanNode
 {
-	protected final Channel input1 = null;
-	protected final Channel input2 = null;
+	protected final Channel input1;
+	protected final Channel input2;
+	
+	protected final FieldList keys1;
+	protected final FieldList keys2;
+	
+	protected final boolean[] sortOrders;
+	
+	private TypeSerializerFactory<?> serializer1;
+	private TypeSerializerFactory<?> serializer2;
+	
+	private TypeComparatorFactory<?> comparator1;
+	private TypeComparatorFactory<?> comparator2;
+	
+	public Object postPassHelper1;
+	public Object postPassHelper2;
+	
+	// --------------------------------------------------------------------------------------------
+
+	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, DriverStrategy localStrategy)
+	{
+		this(template, input1, input2, localStrategy, null, null);
+	}
+	
+	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2,
+			DriverStrategy localStrategy, FieldList driverKeyFields1, FieldList driverKeyFields2)
+	{
+		this(template, input1, input2, localStrategy, driverKeyFields1, driverKeyFields2, null);
+	}
+	
+	public DualInputPlanNode(OptimizerNode template, Channel input1, Channel input2, 
+			DriverStrategy localStrategy, FieldList driverKeyFields1, FieldList driverKeyFields2, 
+			boolean[] driverSortOrders)
+	{
+		super(template, localStrategy);
+		this.input1 = input1;
+		this.input2 = input2;
+		this.keys1 = driverKeyFields1;
+		this.keys2 = driverKeyFields2;
+		this.sortOrders = driverSortOrders;
+		
+		if (this.input1.getShipStrategy() == ShipStrategyType.BROADCAST) {
+			this.input1.setReplicationFactor(getDegreeOfParallelism());
+		}
+		if (this.input2.getShipStrategy() == ShipStrategyType.BROADCAST) {
+			this.input2.setReplicationFactor(getDegreeOfParallelism());
+		}
+		
+		// adjust the global properties
+		this.globalProps = input.getGlobalProperties().clone();
+		this.globalProps.clearUniqueFieldSets();
+		this.globalProps.filterByNodesConstantSet(template, 0);
+		
+		
+		// adjust the local properties
+		this.localProps = input.getLocalProperties().clone();
+		switch (this.getDriverStrategy()) {
+			case NONE:
+			case GROUP:
+				break;
+			default:
+				throw new CompilerException("Unrecognized diver strategy impacting local properties.");
+		}
+		this.localProps.clearUniqueFieldSets();
+		this.localProps.filterByNodesConstantSet(template, 0);
+		
+		// add the new unique information
+		updatePropertiesWithUniqueSets(template.getUniqueFields());
+	}
 
 	// --------------------------------------------------------------------------------------------
+	
+	public TwoInputNode getTwoInputNode() {
+		if (this.template instanceof TwoInputNode) {
+			return (TwoInputNode) this.template;
+		} else {
+			throw new RuntimeException();
+		}
+	}
+	
+	public FieldList getKeysForInput1() {
+		return this.keys1;
+	}
+	
+	public FieldList getKeysForInput2() {
+		return this.keys2;
+	}
+	
+	public boolean[] getSortOrders() {
+		return this.sortOrders;
+	}
+	
+	public TypeSerializerFactory<?> getSerializer1() {
+		return this.serializer1;
+	}
+	
+	public TypeSerializerFactory<?> getSerializer2() {
+		return this.serializer2;
+	}
+	
+	public void setSerializer1(TypeSerializerFactory<?> serializer) {
+		this.serializer1 = serializer;
+	}
+	
+	public void setSerializer2(TypeSerializerFactory<?> serializer) {
+		this.serializer2 = serializer;
+	}
+	
+	public TypeComparatorFactory<?> getComparator1() {
+		return this.comparator1;
+	}
+	
+	public TypeComparatorFactory<?> getComparator2() {
+		return this.comparator2;
+	}
+	
+	public void setComparator1(TypeComparatorFactory<?> comparator) {
+		this.comparator1 = comparator;
+	}
+	
+	public void setComparator2(TypeComparatorFactory<?> comparator) {
+		this.comparator2 = comparator;
+	}
+	
+	/**
+	 * Gets the first input channel to this node.
+	 * 
+	 * @return The first input channel to this node.
+	 */
+	public Channel getInput1() {
+		return this.input1;
+	}
+	
+	/**
+	 * Gets the second input channel to this node.
+	 * 
+	 * @return The second input channel to this node.
+	 */
+	public Channel getInput2() {
+		return this.input2;
+	}
 	
 	/**
 	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.pact.compiler.plan.candidate.PlanNode}.
@@ -47,13 +192,12 @@ public abstract class DualInputPlanNode extends PlanNode
 		super.setCosts(nodeCosts);
 		
 		// check, if this node has no branch beneath it, no double-counted cost then
-		if (this.lastJoinedBranchNode == null) {
+		if (this.template.getLastJoinedBranchNode() == null) {
 			return;
 		}
 
-		// TODO: Check this!
 		// get the cumulative costs of the last joined branching node
-		PlanNode lastCommonChild = this.input1.getSource().branchPlan.get(this.lastJoinedBranchNode);
+		PlanNode lastCommonChild = this.input1.getSource().branchPlan.get(this.template.getLastJoinedBranchNode());
 		Costs douleCounted = lastCommonChild.getCumulativeCosts();
 		getCumulativeCosts().subtractCosts(douleCounted);
 		
@@ -92,6 +236,35 @@ public abstract class DualInputPlanNode extends PlanNode
 				} else if (this.hasLeft == 1) {
 					this.hasLeft = 0;
 					return DualInputPlanNode.this.input2.getSource();
+				} else
+					throw new NoSuchElementException();
+			}
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+		};
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getInputs()
+	 */
+	@Override
+	public Iterator<Channel> getInputs() {
+		return new Iterator<Channel>() {
+			private int hasLeft = 2;
+			@Override
+			public boolean hasNext() {
+				return this.hasLeft > 0;
+			}
+			@Override
+			public Channel next() {
+				if (this.hasLeft == 2) {
+					this.hasLeft = 1;
+					return DualInputPlanNode.this.input1;
+				} else if (this.hasLeft == 1) {
+					this.hasLeft = 0;
+					return DualInputPlanNode.this.input2;
 				} else
 					throw new NoSuchElementException();
 			}

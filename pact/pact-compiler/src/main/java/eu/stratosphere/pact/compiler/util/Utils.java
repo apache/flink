@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler;
+package eu.stratosphere.pact.compiler.util;
 
 import java.util.Arrays;
 
@@ -44,6 +44,14 @@ public class Utils
 		final Ordering o = new Ordering();
 		for (int i = 0; i < fields.size(); i++) {
 			o.appendOrdering(fields.get(i), null, directions == null || directions[i] ? Order.ASCENDING : Order.DESCENDING);
+		}
+		return o;
+	}
+	
+	public static final Ordering createOrdering(FieldList fields) {
+		final Ordering o = new Ordering();
+		for (int i = 0; i < fields.size(); i++) {
+			o.appendOrdering(fields.get(i), null, Order.ANY);
 		}
 		return o;
 	}

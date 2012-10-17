@@ -160,6 +160,21 @@ public class Ordering
 		return true;
 	}
 	
+	public boolean isOrderEqualOnFirstNFields(Ordering other, int n) {
+		if (n > getNumberOfFields() || n > other.getNumberOfFields()) {
+			throw new IndexOutOfBoundsException();
+		}
+		
+		for (int i = 0; i < n; i++) {
+			final Order o = this.orders.get(i);
+			if (o == Order.NONE || o == Order.ANY || o != other.orders.get(i)) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
 	/**
 	 * Creates a new ordering the represents an ordering on a prefix of the fields. If the
 	 * exclusive index up to which to create the ordering is <code>0</code>, then there is

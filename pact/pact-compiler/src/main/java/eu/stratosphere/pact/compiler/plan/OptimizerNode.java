@@ -725,6 +725,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		return this.openBranches != null && !this.openBranches.isEmpty();
 	}
 	
+	public OptimizerNode getLastJoinedBranchNode() {
+		return this.lastJoinedBranchNode;
+	}
+	
 	/**
 	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
 	 * alternative plans are comparable, if
@@ -746,8 +750,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			return true;
 		}
 
-		final PlanNode nodeToCompare = plan1.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
-		return nodeToCompare == plan2.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
+		final PlanNode branch1Cand = plan1.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
+		final PlanNode branch2Cand = plan2.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
+		return branch1Cand == branch2Cand;
 	}
 
 	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent) {

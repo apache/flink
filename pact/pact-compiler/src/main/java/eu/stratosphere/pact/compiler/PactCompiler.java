@@ -205,24 +205,6 @@ public class PactCompiler {
 	 */
 	public static final String HINT_LOCAL_STRATEGY_MERGE = "LOCAL_STRATEGY_MERGE";
 
-	/**
-	 * Value for the local strategy compiler hint that enforces a <b>sort based</b> local strategy with self crossing.
-	 * For example, a <i>Match</i> contract whose inputs are identical will use this strategy to find pairs 
-	 * of matching keys.
-	 * 
-	 * @see #HINT_LOCAL_STRATEGY
-	 */
-	public static final String HINT_LOCAL_STRATEGY_SORT_SELF_NESTEDLOOP = "LOCAL_STRATEGY_SORT_SELF_NESTEDLOOP";
-	
-	/**
-	 * Value for the local strategy compiler hint that enforces a self crossing local strategy.
-	 * For example, a <i>Match</i> contract whose inputs are identical and already grouped will use this strategy to find pairs 
-	 * of matching keys.
-	 * 
-	 * @see #HINT_LOCAL_STRATEGY
-	 */
-	public static final String HINT_LOCAL_STRATEGY_SELF_NESTEDLOOP = "LOCAL_STRATEGY_SELF_NESTEDLOOP";
-
 	
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>hash based</b> local strategy.
@@ -243,30 +225,6 @@ public class PactCompiler {
 	 * @see #HINT_LOCAL_STRATEGY
 	 */
 	public static final String HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND = "LOCAL_STRATEGY_HASH_BUILD_SECOND";
-
-	/**
-	 * Value for the local strategy compiler hint that enforces a <b>in-memory hash based</b> local strategy.
-	 * For example, a <i>Match</i> contract will use a hash-join strategy where the hash-table is kept entirely
-	 * in main memory. The <b>first</b> input will be used to build the hash table, the second input will be
-	 * used to probe the table.
-	 * <p>
-	 * NOTE: Tasks with this this local strategy may fail, if there is not enough main memory for the hash-table.
-	 * 
-	 * @see #HINT_LOCAL_STRATEGY
-	 */
-	public static final String HINT_LOCAL_STRATEGY_INMEM_HASH_BUILD_FIRST = "LOCAL_STRATEGY_INMEM_HASH_BUILD_FIRST";
-
-	/**
-	 * Value for the local strategy compiler hint that enforces a <b>in-memory hash based</b> local strategy.
-	 * For example, a <i>Match</i> contract will use a hash-join strategy where the hash-table is kept entirely
-	 * in main memory. The <b>second</b> input will be used to build the hash table, the first input will be
-	 * used to probe the table.
-	 * <p>
-	 * NOTE: Tasks with this this local strategy may fail, if there is not enough main memory for the hash-table.
-	 * 
-	 * @see #HINT_LOCAL_STRATEGY
-	 */
-	public static final String HINT_LOCAL_STRATEGY_INMEM_HASH_BUILD_SECOND = "LOCAL_STRATEGY_INMEM_HASH_BUILD_SECOND";
 
 	/**
 	 * Value for the local strategy compiler hint that chooses the outer side of the <b>nested-loop</b> local strategy.

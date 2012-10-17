@@ -79,6 +79,10 @@ public abstract class TwoInputNode extends OptimizerNode
 
 		this.keySet1 = new FieldList(pactContract.getKeyColumns(0));
 		this.keySet2 = new FieldList(pactContract.getKeyColumns(1));
+		
+		if (this.keySet1.size() != this.keySet2.size()) {
+			throw new CompilerException("Unequal number of key fields on the two inputs.");
+		}
 	}
 
 //	/**
