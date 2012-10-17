@@ -541,7 +541,7 @@ public class CliFrontend {
 		try {
 			
 			ExtendedManagementProtocol jmConn = getJMConnection(rpcService);
-			jmConn.cancelJob(new JobID(StringUtils.hexStringToByte(jobId)));
+			jmConn.cancelJob(JobID.fromByteArray(StringUtils.hexStringToByte(jobId)));
 		} catch (Throwable t) {
 			handleError(t);
 		} finally {

@@ -48,6 +48,19 @@ public abstract class AbstractID {
 	private final long lowerPart;
 
 	/**
+	 * Constructs a new ID with a specific bytes value.
+	 */
+	public AbstractID(final byte[] bytes) {
+
+		if (bytes.length != SIZE) {
+			throw new IllegalArgumentException("Argument bytes must by an array of " + SIZE + " bytes");
+		}
+
+		this.lowerPart = byteArrayToLong(bytes, 0);
+		this.upperPart = byteArrayToLong(bytes, SIZE_OF_LONG);
+	}
+
+	/**
 	 * Constructs a new abstract ID.
 	 * 
 	 * @param lowerPart
@@ -109,6 +122,26 @@ public abstract class AbstractID {
 			final int shift = i << 3; // i * 8
 			ba[offset + SIZE_OF_LONG - 1 - i] = (byte) ((l & (0xffL << shift)) >>> shift);
 		}
+	}
+
+	/**
+	 * Converts the given byte array to a long.
+	 * 
+	 * @param ba
+	 *        the byte array to be converted
+	 * @param offset
+	 *        the offset indicating at which byte inside the array the conversion shall begin
+	 * @return the long variable
+	 */
+	private static long byteArrayToLong(final byte[] ba, final int offset) {
+
+		long l = 0;
+
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
+			l |= (ba[offset + SIZE_OF_LONG - 1 - i] & 0xffL) << (i << 3);
+		}
+
+		return l;
 	}
 
 	/**
