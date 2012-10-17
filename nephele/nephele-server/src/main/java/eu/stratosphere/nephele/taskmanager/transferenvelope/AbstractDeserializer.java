@@ -19,6 +19,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
@@ -210,7 +211,7 @@ public abstract class AbstractDeserializer {
 			}
 		}
 
-		this.deserializedEventList = this.objectDeserializer.deserialize(readableByteChannel, List.class);
+		this.deserializedEventList = this.objectDeserializer.deserialize(readableByteChannel, ArrayList.class);
 		if (this.deserializedEventList == null) {
 			return true;
 		} else {
