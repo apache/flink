@@ -367,6 +367,7 @@ public final class ExecutionVertex {
 	 *        the new execution state
 	 * @param optionalMessage
 	 *        an optional message related to the state change
+	 * @return the previous execution state
 	 */
 	public ExecutionState updateExecutionState(ExecutionState newExecutionState, final String optionalMessage) {
 

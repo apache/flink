@@ -31,6 +31,7 @@ import eu.stratosphere.nephele.checkpointing.CheckpointUtils;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
@@ -41,6 +42,7 @@ import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.InputSplit;
+import eu.stratosphere.nephele.util.AtomicEnum;
 
 /**
  * An ExecutionGroupVertex is created for every JobVertex of the initial job graph. It represents a number of execution
@@ -78,6 +80,11 @@ public final class ExecutionGroupVertex {
 	 * The list of execution vertices which are managed by this group vertex.
 	 */
 	private final CopyOnWriteArrayList<ExecutionVertex> groupMembers = new CopyOnWriteArrayList<ExecutionVertex>();
+
+	/**
+	 * A list of {@link GroupExecutionListener} objects to be notified about state changes of this group vertex.
+	 */
+	private final CopyOnWriteArrayList<GroupExecutionListener> groupExecutionListeners = new CopyOnWriteArrayList<GroupExecutionListener>();
 
 	/**
 	 * Maximum number of execution vertices this group vertex can manage.
@@ -174,6 +181,12 @@ public final class ExecutionGroupVertex {
 	 * The environment created to execute the vertex's task.
 	 */
 	private final RuntimeEnvironment environment;
+
+	/**
+	 * The execution state of a group vertex summarizes the state of all of its group members.
+	 */
+	private final AtomicEnum<ExecutionState> groupExecutionState = new AtomicEnum<ExecutionState>(
+		ExecutionState.CREATED);
 
 	/**
 	 * Constructs a new group vertex.
@@ -1045,5 +1058,128 @@ public final class ExecutionGroupVertex {
 	Class<? extends AbstractInvokable> getInvokableClass() {
 
 		return this.invokableClass;
+	}
+
+	/**
+	 * Registers the {@link GroupExecutionListener} object for this vertex. This object will be notified about
+	 * changes to the execution state of this group vertex.
+	 * 
+	 * @param groupExecutionListener
+	 *        the object to be notified about execution state changes
+	 */
+	public void registerGroupExecutionListener(final GroupExecutionListener groupExecutionListener) {
+
+		this.groupExecutionListeners.addIfAbsent(groupExecutionListener);
+	}
+
+	/**
+	 * Unregisters the {@link GroupExecutionListener} object for this vertex. This object will no longer be
+	 * notified about changes to the execution state of this group vertex.
+	 * 
+	 * @param groupExecutionListener
+	 *        the listener to be unregistered
+	 */
+	public void unregisterGroupExecutionListener(final GroupExecutionListener groupExecutionListener) {
+
+		this.groupExecutionListeners.remove(groupExecutionListener);
+	}
+
+	/**
+	 * Returns this execution state of this group vertex. The execution state of a group vertex summarizes the execution
+	 * state of all of its members.
+	 * 
+	 * @return the execution state of this group vertex
+	 */
+	ExecutionState getGroupExecutionState() {
+
+		return this.groupExecutionState.get();
+	}
+
+	/**
+	 * Checks if the given new execution state of the {@link ExecutionVertex} also leads to a new execution state of the
+	 * this group vertex. If so, the group vertex will update it's execution state and notify the registered
+	 * {@link GroupExecutionListener} objects about the state change.
+	 * 
+	 * @param newExecutionState
+	 *        the new execution state of the {@link ExecutionVertex}
+	 * @param optionalMessage
+	 *        an optional message providing additional information about the state change
+	 */
+	void updateGroupExecutionState(final ExecutionState newExecutionState, final String optionalMessage) {
+
+		if (newExecutionState == null) {
+			throw new IllegalArgumentException("Argument newExecutionState must not be null");
+		}
+
+		// Check if all member must share the state before it can become a valid group execution state
+		if (allMembersMustShareState(newExecutionState)) {
+
+			final Iterator<ExecutionVertex> it = this.groupMembers.iterator();
+			while (it.hasNext()) {
+				if (it.next().getExecutionState() != newExecutionState) {
+					return;
+				}
+			}
+		}
+
+		// Update the execution state, return if it has already been set
+		if (this.groupExecutionState.getAndSet(newExecutionState) == newExecutionState) {
+			return;
+		}
+
+		// Notify the listener objects
+		final Iterator<GroupExecutionListener> it = this.groupExecutionListeners.iterator();
+		while (it.hasNext()) {
+			it.next().groupExecutionStateChanged(this, newExecutionState, optionalMessage);
+		}
+	}
+
+	/**
+	 * Utility method which determines if all members of a group vertex must share the given execution state in order
+	 * for the state of the group vertex to properly summarize it.
+	 * 
+	 * @param executionState
+	 *        the execution state to make the decision for
+	 * @return <code>true<code> to indicate that all members of the group vertex must have the given state before the state of the group vertex can be updated, <code>false</code>
+	 *         if a single vertex is already sufficient
+	 */
+	private static boolean allMembersMustShareState(final ExecutionState executionState) {
+
+		switch (executionState) {
+
+		case SCHEDULED:
+			return true;
+		case ASSIGNED:
+			return true;
+		case READY:
+			return true;
+		case STARTING:
+			return false;
+		case RUNNING:
+			return false;
+		case FINISHING:
+			return false;
+		case FINISHED:
+			return true;
+		case CANCELING:
+			return false;
+		case CANCELED:
+			return true;
+		case FAILED:
+			return false;
+		case REPLAYING:
+			return true;
+		}
+
+		throw new IllegalStateException("No mapping for execution state " + executionState);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public String toString() {
+
+		return this.name;
 	}
 }

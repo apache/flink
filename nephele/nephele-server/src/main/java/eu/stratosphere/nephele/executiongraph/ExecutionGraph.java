@@ -70,7 +70,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class ExecutionGraph implements ExecutionListener {
+public class ExecutionGraph implements ExecutionListener, GroupExecutionListener {
 
 	/**
 	 * The log object used for debugging.
@@ -538,7 +538,6 @@ public class ExecutionGraph implements ExecutionListener {
 			jobVertex.getJobGraph().getJobID());
 
 		// Create a group vertex for the job vertex
-
 		ExecutionGroupVertex groupVertex = null;
 		try {
 			groupVertex = new ExecutionGroupVertex(jobVertex.getName(), jobVertex.getID(), this,
@@ -549,6 +548,9 @@ public class ExecutionGraph implements ExecutionListener {
 		} catch (Throwable t) {
 			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
+
+		// Register execution graph as listener for execution state changes of the group vertex
+		groupVertex.registerGroupExecutionListener(this);
 
 		// Run the configuration check the user has provided for the vertex
 		try {
@@ -864,11 +866,11 @@ public class ExecutionGraph implements ExecutionListener {
 			return true;
 		}
 
-		final ExecutionGraphIterator it = new ExecutionGraphIterator(this, this.indexToCurrentExecutionStage, true,
-			true);
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true,
+			this.indexToCurrentExecutionStage);
 		while (it.hasNext()) {
-			final ExecutionVertex vertex = it.next();
-			if (vertex.getExecutionState() != ExecutionState.FINISHED) {
+			final ExecutionGroupVertex groupVertex = it.next();
+			if (groupVertex.getGroupExecutionState() != ExecutionState.FINISHED) {
 				return false;
 			}
 		}
@@ -1110,11 +1112,11 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private boolean jobHasFinishedStatus() {
 
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
 
 		while (it.hasNext()) {
 
-			if (it.next().getExecutionState() != ExecutionState.FINISHED) {
+			if (it.next().getGroupExecutionState() != ExecutionState.FINISHED) {
 				return false;
 			}
 		}
@@ -1129,11 +1131,11 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private boolean jobHasScheduledStatus() {
 
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
 
 		while (it.hasNext()) {
 
-			final ExecutionState s = it.next().getExecutionState();
+			final ExecutionState s = it.next().getGroupExecutionState();
 			if (s != ExecutionState.CREATED && s != ExecutionState.SCHEDULED && s != ExecutionState.READY) {
 				return false;
 			}
@@ -1151,11 +1153,11 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private boolean jobHasFailedOrCanceledStatus() {
 
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
 
 		while (it.hasNext()) {
 
-			final ExecutionState state = it.next().getExecutionState();
+			final ExecutionState state = it.next().getGroupExecutionState();
 
 			if (state != ExecutionState.CANCELED && state != ExecutionState.FAILED && state != ExecutionState.FINISHED) {
 				return false;
@@ -1195,11 +1197,11 @@ public class ExecutionGraph implements ExecutionListener {
 			}
 			if (latestStateChange == ExecutionState.FAILED) {
 
-				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
+				final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(eg, true, -1);
 				while (it.hasNext()) {
 
-					final ExecutionVertex vertex = it.next();
-					if (vertex.getExecutionState() == ExecutionState.FAILED) {
+					final ExecutionGroupVertex vertex = it.next();
+					if (vertex.getGroupExecutionState() == ExecutionState.FAILED) {
 						return InternalJobStatus.FAILING;
 					}
 				}
@@ -1259,27 +1261,9 @@ public class ExecutionGraph implements ExecutionListener {
 			return;
 		}
 
+		// Check if we need to update the group execution state
 		final ExecutionState actualExecutionState = vertex.getExecutionState();
-
-		final InternalJobStatus newJobStatus = determineNewJobStatus(this, actualExecutionState);
-
-		if (actualExecutionState == ExecutionState.FINISHED) {
-			// It is worth checking if the current stage has complete
-			if (this.isCurrentStageCompleted()) {
-				// Increase current execution stage
-				++this.indexToCurrentExecutionStage;
-
-				if (this.indexToCurrentExecutionStage < this.stages.size()) {
-					final Iterator<ExecutionStageListener> it = this.executionStageListeners.iterator();
-					final ExecutionStage nextExecutionStage = getCurrentExecutionStage();
-					while (it.hasNext()) {
-						it.next().nextExecutionStageEntered(jobID, nextExecutionStage);
-					}
-				}
-			}
-		}
-
-		updateJobStatus(newJobStatus, optionalMessage);
+		vertex.getGroupVertex().updateGroupExecutionState(actualExecutionState, optionalMessage);
 	}
 
 	/**
@@ -1476,10 +1460,35 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private static final class DeamonThreadFactory implements ThreadFactory {
 		@Override
-		public Thread newThread(Runnable r) {
+		public Thread newThread(final Runnable r) {
 			final Thread thread = new Thread(r);
 			thread.setDaemon(true);
 			return thread;
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void groupExecutionStateChanged(final ExecutionGroupVertex groupVertex,
+			final ExecutionState newExecutionState, final String optionalMessage) {
+
+		final InternalJobStatus newJobStatus = determineNewJobStatus(this, newExecutionState);
+		if (newExecutionState == ExecutionState.FINISHED) {
+			// It is worth checking if the current stage has complete
+			if (this.isCurrentStageCompleted()) {
+				// Increase current execution stage
+				++this.indexToCurrentExecutionStage;
+				if (this.indexToCurrentExecutionStage < this.stages.size()) {
+					final Iterator<ExecutionStageListener> it = this.executionStageListeners.iterator();
+					final ExecutionStage nextExecutionStage = getCurrentExecutionStage();
+					while (it.hasNext()) {
+						it.next().nextExecutionStageEntered(this.jobID, nextExecutionStage);
+					}
+				}
+			}
+		}
+		updateJobStatus(newJobStatus, optionalMessage);
 	}
 }
