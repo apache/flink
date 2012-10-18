@@ -1,68 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
     <artifactId>pact</artifactId>
     <groupId>eu.stratosphere</groupId>
-    <version>0.2</version>
+    <version>0.2.1</version>
   </parent>
-
   <artifactId>pact-examples</artifactId>
   <name>pact-examples</name>
-  
   <packaging>jar</packaging>
-
   <dependencies>
-
     <dependency>
-    	<groupId>eu.stratosphere</groupId>
-    	<artifactId>pact-common</artifactId>
-    	<version>${version}</version>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-common</artifactId>
+      <version>${version}</version>
     </dependency>
-    
   </dependencies>
-
   <reporting>
     <plugins>
     </plugins>
   </reporting>
-
   <build>
     <plugins>
-      
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
-        
-      <!-- KMeansIteration -->
+          <!-- KMeansIteration -->
           <execution>
             <id>KMeansIteration</id>
             <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
-
             <configuration>
               <classifier>KMeansIteration</classifier>
-
               <archive>
                 <manifestEntries>
                   <Pact-Assembler-Class>eu.stratosphere.pact.example.datamining.KMeansIteration</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
-
               <includes>
                 <include>**/datamining/KMeansIteration.class</include>
                 <include>**/datamining/KMeansIteration$*.class</include>
               </includes>
             </configuration>
           </execution>
-
-	  <!-- Pairwise Shortest Paths -->
+          <!-- Pairwise Shortest Paths -->
           <execution>
             <id>PairwiseSP</id>
             <phase>package</phase>
@@ -71,21 +55,18 @@
             </goals>
             <configuration>
               <classifier>PairwiseSP</classifier>
-
               <archive>
                 <manifestEntries>
                   <Pact-Assembler-Class>eu.stratosphere.pact.example.graph.PairwiseSP</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
-
               <includes>
                 <include>**/graph/PairwiseSP.class</include>
                 <include>**/graph/PairwiseSP$*.class</include>
               </includes>
             </configuration>
           </execution>
-
-      <!-- EnumTriangles -->
+          <!-- EnumTriangles -->
           <execution>
             <id>EnumTriangles</id>
             <phase>package</phase>
@@ -94,21 +75,18 @@
             </goals>
             <configuration>
               <classifier>EnumTriangles</classifier>
-
               <archive>
                 <manifestEntries>
                   <Pact-Assembler-Class>eu.stratosphere.pact.example.graph.EnumTriangles</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
-
               <includes>
                 <include>**/graph/EnumTriangles.class</include>
                 <include>**/graph/EnumTriangles$*.class</include>
               </includes>
             </configuration>
           </execution>
-
-      <!-- TPCHQuery3 -->
+          <!-- TPCHQuery3 -->
           <execution>
             <id>TPCHQuery3</id>
             <phase>package</phase>
@@ -117,20 +95,17 @@
             </goals>
             <configuration>
               <classifier>TPCHQuery3</classifier>
-
               <archive>
                 <manifestEntries>
                   <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQuery3</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
-
               <includes>
                 <include>**/relational/TPCHQuery3.class</include>
                 <include>**/relational/TPCHQuery3$*.class</include>
               </includes>
             </configuration>
           </execution>
-          
           <execution>
             <id>TPCHQueryAsterix</id>
             <phase>package</phase>
@@ -139,21 +114,18 @@
             </goals>
             <configuration>
               <classifier>TPCHQueryAsterix</classifier>
-
               <archive>
                 <manifestEntries>
                   <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.TPCHQueryAsterix</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
-
               <includes>
                 <include>**/relational/TPCHQueryAsterix.class</include>
                 <include>**/relational/TPCHQueryAsterix$*.class</include>
               </includes>
             </configuration>
           </execution>
-
-      <!-- WebLogAnalysis -->
+          <!-- WebLogAnalysis -->
           <execution>
             <id>WebLogAnalysis</id>
             <phase>package</phase>
@@ -162,21 +134,18 @@
             </goals>
             <configuration>
               <classifier>WebLogAnalysis</classifier>
-
               <archive>
                 <manifestEntries>
                   <Pact-Assembler-Class>eu.stratosphere.pact.example.relational.WebLogAnalysis</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
-
               <includes>
                 <include>**/relational/WebLogAnalysis.class</include>
                 <include>**/relational/WebLogAnalysis$*.class</include>
               </includes>
             </configuration>
           </execution>
-
-      <!-- WordCount -->
+          <!-- WordCount -->
           <execution>
             <id>WordCount</id>
             <phase>package</phase>
@@ -185,21 +154,18 @@
             </goals>
             <configuration>
               <classifier>WordCount</classifier>
-
               <archive>
                 <manifestEntries>
                   <Pact-Assembler-Class>eu.stratosphere.pact.example.wordcount.WordCount</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
-
               <includes>
                 <include>**/wordcount/*.class</include>
                 <include>**/util/AsciiUtils*.class</include>
               </includes>
             </configuration>
           </execution>
-          
-      <!-- TeraSort -->
+          <!-- TeraSort -->
           <execution>
             <id>TeraSort</id>
             <phase>package</phase>
@@ -208,21 +174,18 @@
             </goals>
             <configuration>
               <classifier>TeraSort</classifier>
-
               <archive>
                 <manifestEntries>
                   <Pact-Assembler-Class>eu.stratosphere.pact.example.sort.TeraSort</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
-
               <includes>
                 <include>**/sort/TeraSort.class</include>
                 <include>**/sort/terasort/Tera*.class</include>
               </includes>
             </configuration>
           </execution>
-
-      <!-- ReduceGroupSort -->
+          <!-- ReduceGroupSort -->
           <execution>
             <id>ReduceGroupSort</id>
             <phase>package</phase>
@@ -231,23 +194,19 @@
             </goals>
             <configuration>
               <classifier>ReduceGroupSort</classifier>
-
               <archive>
                 <manifestEntries>
                   <Pact-Assembler-Class>eu.stratosphere.pact.example.sort.ReduceGroupSort</Pact-Assembler-Class>
                 </manifestEntries>
               </archive>
-
               <includes>
                 <include>**/sort/ReduceGroupSort.class</include>
                 <include>**/sort/ReduceGroupSort$*.class</include>
               </includes>
             </configuration>
           </execution>
-          
         </executions>
       </plugin>
-      
     </plugins>
   </build>
 </project>

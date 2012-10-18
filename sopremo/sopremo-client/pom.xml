@@ -1,62 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-
-	<modelVersion>4.0.0</modelVersion>
-
-	<parent>
-		<artifactId>sopremo</artifactId>
-		<groupId>eu.stratosphere</groupId>
-		<version>0.2</version>
-	</parent>
-
-	<artifactId>sopremo-client</artifactId>
-	<name>sopremo-client</name>
-
-	<packaging>jar</packaging>
-
-	<dependencies>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-query</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-base</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-server</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-server</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>pact-tests</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
-
-	<reporting>
-		<plugins>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <artifactId>sopremo</artifactId>
+    <groupId>eu.stratosphere</groupId>
+    <version>0.2.1</version>
+  </parent>
+  <artifactId>sopremo-client</artifactId>
+  <name>sopremo-client</name>
+  <packaging>jar</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>sopremo-query</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>sopremo-base</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>sopremo-server</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>sopremo-server</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>eu.stratosphere</groupId>
+      <artifactId>pact-tests</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+  <reporting>
+    <plugins>
 		</plugins>
-	</reporting>
-
-	<build>
-		<plugins>
+  </reporting>
+  <build>
+    <plugins>
 		</plugins>
-	</build>
-
+  </build>
 </project>

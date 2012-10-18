@@ -1,55 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
-    <modelVersion>4.0.0</modelVersion>
-
-    <parent>
-        <artifactId>nephele</artifactId>
-        <groupId>eu.stratosphere</groupId>
-        <version>0.2</version>
-    </parent>
-
-    <artifactId>nephele-ec2cloudmanager</artifactId>
-    <name>nephele-ec2cloudmanager</name>
-    <packaging>jar</packaging>
-
-    <dependencies>
-      <dependency>
-        <artifactId>nephele-server</artifactId>
-        <groupId>eu.stratosphere</groupId>
-        <version>${version}</version>
-      </dependency>
-        
-        
-	  <dependency>
-         <groupId>commons-httpclient</groupId>
-         <artifactId>commons-httpclient</artifactId>
-         <version>3.0</version>
-      </dependency>
-        
-    	
-      <dependency>
-	    <groupId>com.amazonaws</groupId>
-	    <artifactId>aws-java-sdk</artifactId>
-	    <version>1.3.20</version>
-	</dependency>
-	
-    </dependencies>
-    
-    <build>
-  	    <plugins>
-  	        <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <!-- we need to execute tests in target/test-classes so that the config files are found -->
-                    <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
-                </configuration>  	  	
-  	        </plugin>
-  	    </plugins>
-  	    
-    </build>
-    
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <artifactId>nephele</artifactId>
+    <groupId>eu.stratosphere</groupId>
+    <version>0.2.1</version>
+  </parent>
+  <artifactId>nephele-ec2cloudmanager</artifactId>
+  <name>nephele-ec2cloudmanager</name>
+  <packaging>jar</packaging>
+  <dependencies>
+    <dependency>
+      <artifactId>nephele-server</artifactId>
+      <groupId>eu.stratosphere</groupId>
+      <version>${version}</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-httpclient</groupId>
+      <artifactId>commons-httpclient</artifactId>
+      <version>3.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk</artifactId>
+      <version>1.3.20</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- we need to execute tests in target/test-classes so that the config files are found -->
+          <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
-
