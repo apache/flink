@@ -31,7 +31,6 @@ import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.protocols.JobManagementProtocol;
 import eu.stratosphere.nephele.rpc.CommonTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
-import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -282,8 +281,8 @@ public class JobClient {
 
 		long sleep = 0;
 		try {
-			final IntegerRecord interval = this.jobSubmitClient.getRecommendedPollingInterval();
-			sleep = interval.getValue() * 1000;
+			final int interval = this.jobSubmitClient.getRecommendedPollingInterval();
+			sleep = interval * 1000;
 		} catch (IOException ioe) {
 			Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 			// Rethrow error
@@ -379,7 +378,7 @@ public class JobClient {
 	public int getRecommendedPollingInterval() throws IOException {
 
 		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.getRecommendedPollingInterval().getValue();
+			return this.jobSubmitClient.getRecommendedPollingInterval();
 		}
 	}
 

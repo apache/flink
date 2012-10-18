@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.template.InputSplitProvider;
-import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -64,7 +63,7 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 
 			synchronized (this.globalInputSplitProvider) {
 				final InputSplitWrapper wrapper = this.globalInputSplitProvider.requestNextInputSplit(this.jobID,
-					this.executionVertexID, new IntegerRecord(this.sequenceNumber.getAndIncrement()));
+					this.executionVertexID, this.sequenceNumber.getAndIncrement());
 				return wrapper.getInputSplit();
 			}
 

@@ -39,7 +39,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
-import eu.stratosphere.nephele.types.IntegerRecord;
 
 /**
  * This utility class provides a list of types frequently used by the RPC protocols included in this package.
@@ -71,7 +70,6 @@ public class CommonTypeUtils {
 		types.add(ExecutionState.class);
 		types.add(GateID.class);
 		types.add(HashMap.class);
-		types.add(IntegerRecord.class);
 		types.add(JobCancelResult.class);
 		types.add(JobEvent.class);
 		types.add(JobGraph.class);

@@ -23,7 +23,6 @@ import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.rpc.RPCProtocol;
-import eu.stratosphere.nephele.types.IntegerRecord;
 
 /**
  * The JobManagementProtocol specifies methods required to manage
@@ -76,5 +75,5 @@ public interface JobManagementProtocol extends RPCProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
 	 */
-	IntegerRecord getRecommendedPollingInterval() throws IOException;
+	int getRecommendedPollingInterval() throws IOException;
 }

@@ -21,7 +21,6 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.rpc.RPCProtocol;
-import eu.stratosphere.nephele.types.IntegerRecord;
 
 /**
  * The input split provider protocol is used to facilitate RPC calls related to the lazy split assignment which Nephele
@@ -45,6 +44,6 @@ public interface InputSplitProviderProtocol extends RPCProtocol {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while retrieving the new input split
 	 */
-	InputSplitWrapper requestNextInputSplit(JobID jobID, ExecutionVertexID vertexID, IntegerRecord sequenceNumber)
+	InputSplitWrapper requestNextInputSplit(JobID jobID, ExecutionVertexID vertexID, int sequenceNumber)
 			throws IOException;
 }

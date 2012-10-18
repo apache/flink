@@ -88,7 +88,7 @@ public class SWTVisualization {
 			jobManager = rpcService.getProxy(inetaddr, ExtendedManagementProtocol.class);
 
 			// Get the query interval
-			queryInterval = jobManager.getRecommendedPollingInterval().getValue();
+			queryInterval = jobManager.getRecommendedPollingInterval();
 
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -123,7 +123,6 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -920,9 +919,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * {@inheritDoc}
 	 */
 	@Override
-	public IntegerRecord getRecommendedPollingInterval() throws IOException {
+	public int getRecommendedPollingInterval() throws IOException {
 
-		return new IntegerRecord(this.recommendedClientPollingInterval);
+		return this.recommendedClientPollingInterval;
 	}
 
 	/**
@@ -1291,7 +1290,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	@Override
 	public InputSplitWrapper requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID,
-			final IntegerRecord sequenceNumber) throws IOException {
+			final int sequenceNumber) throws IOException {
 
 		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
 		if (graph == null) {
@@ -1305,7 +1304,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			return null;
 		}
 
-		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex, sequenceNumber.getValue()));
+		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex, sequenceNumber));
 	}
 
 	/**
