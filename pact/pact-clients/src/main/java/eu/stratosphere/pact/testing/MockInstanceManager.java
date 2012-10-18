@@ -70,7 +70,7 @@ class MockInstanceManager implements InstanceManager {
 	// }
 
 	private final AllocatedResource allocatedResource = new AllocatedResource(
-		new MockInstance(DEFAULT_INSTANCE_TYPE, NETWORK_TOPOLOGY), DEFAULT_INSTANCE_TYPE, new AllocationID());
+		new MockInstance(DEFAULT_INSTANCE_TYPE, NETWORK_TOPOLOGY), DEFAULT_INSTANCE_TYPE, AllocationID.generate());
 
 	private InstanceListener instanceListener;
 
@@ -104,7 +104,7 @@ class MockInstanceManager implements InstanceManager {
 		final DummyInstance dummyInstance =
 			DummyInstance.createDummyInstance(allocatedResource.getInstance().getType());
 		final AllocatedResource dummyResource = new AllocatedResource(dummyInstance,
-			allocatedResource.getInstanceType(), new AllocationID());
+			allocatedResource.getInstanceType(), AllocationID.generate());
 		final Iterator<ExecutionVertex> assignedVertices = allocatedResource.assignedVertices();
 		while (assignedVertices.hasNext()) {
 			ExecutionVertex executionVertex = assignedVertices.next();

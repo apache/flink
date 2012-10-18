@@ -15,6 +15,10 @@
 
 package eu.stratosphere.pact.common.contract;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 import eu.stratosphere.pact.common.type.PactRecord;
 
 public interface DataDistribution 
@@ -40,4 +44,10 @@ public interface DataDistribution
 	 * @return
 	 */
 	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets); 
+	
+	@Deprecated
+	public void write(DataOutput out) throws IOException;
+
+	@Deprecated
+	public void read(DataInput in) throws IOException;
 }

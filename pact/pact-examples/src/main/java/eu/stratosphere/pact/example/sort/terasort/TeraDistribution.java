@@ -15,6 +15,10 @@
 
 package eu.stratosphere.pact.example.sort.terasort;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 import eu.stratosphere.pact.common.contract.DataDistribution;
 import eu.stratosphere.pact.common.type.PactRecord;
 
@@ -49,4 +53,18 @@ public class TeraDistribution implements DataDistribution
 		splitRec.setField(0, split);
 		return splitRec;
 	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.DataDistribution#write(java.io.DataOutput)
+	 */
+	@Override
+	public void write(DataOutput out) throws IOException
+	{}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.contract.DataDistribution#read(java.io.DataOutput)
+	 */
+	@Override
+	public void read(DataInput in) throws IOException
+	{}
 }

@@ -14,6 +14,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.common.io;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 public class BlockInfo {
 
 	private long recordCount;
@@ -81,5 +85,19 @@ public class BlockInfo {
 	 */
 	public void setRecordCount(long recordCount) {
 		this.recordCount = recordCount;
+	}
+
+	@Deprecated
+	public void write(DataOutput out) throws IOException {
+		out.writeLong(this.recordCount);
+		out.writeLong(this.accumulatedRecordCount);
+		out.writeLong(this.firstRecordStart);
+	}
+
+	@Deprecated
+	public void read(DataInput in) throws IOException {
+		this.recordCount = in.readLong();
+		this.accumulatedRecordCount = in.readLong();
+		this.firstRecordStart = in.readLong();
 	}
 }
