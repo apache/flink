@@ -6,10 +6,8 @@
     <groupId>eu.stratosphere</groupId>
     <version>0.2.1</version>
   </parent>
-  <groupId>eu.stratosphere</groupId>
   <artifactId>meteor</artifactId>
   <packaging>pom</packaging>
-  <version>0.2.1</version>
   <name>meteor</name>
   <inceptionYear>2011</inceptionYear>
   <licenses>
