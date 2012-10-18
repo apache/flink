@@ -14,18 +14,17 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.execution;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * A response from a {@link SopremoExecutionProtocol} that reflects the state of a job.
  * 
  * @author Arvid Heise
  */
-public class ExecutionResponse implements IOReadableWritable {
+public class ExecutionResponse implements KryoSerializable {
 
 	private ExecutionState state;
 
@@ -82,27 +81,18 @@ public class ExecutionResponse implements IOReadableWritable {
 		return this.state;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
 	@Override
-	public void read(DataInput in) throws IOException {
-		this.jobId = new SopremoID();
-		this.jobId.read(in);
-		this.state = ExecutionState.values()[in.readInt()];
-		this.details = in.readUTF();
+	public void read(Kryo kryo, Input input) {
+		this.jobId = kryo.readObject(input, SopremoID.class);
+		this.state = ExecutionState.values()[input.readInt()];
+		this.details = input.readString();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		this.jobId.write(out);
-		out.writeInt(this.state.ordinal());
-		out.writeUTF(this.details);
+	public void write(Kryo kryo, Output output) {
+		kryo.writeObject(output, this.jobId);
+		output.writeInt(this.state.ordinal());
+		output.writeString(this.details);
 	}
 
 	public static enum ExecutionState {

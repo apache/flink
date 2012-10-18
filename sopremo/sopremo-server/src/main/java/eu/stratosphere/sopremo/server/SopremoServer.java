@@ -99,7 +99,7 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	 */
 	@Override
 	public ExecutionResponse execute(ExecutionRequest request) {
-		SopremoID jobId = new SopremoID();
+		SopremoID jobId = SopremoID.generate();
 		LOG.info("Receive execution request for job " + jobId);
 		final SopremoJobInfo info = new SopremoJobInfo(jobId, request, this.configuration);
 		this.meteorInfo.put(jobId, info);

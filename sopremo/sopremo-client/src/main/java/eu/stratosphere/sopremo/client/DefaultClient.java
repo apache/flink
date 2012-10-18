@@ -20,7 +20,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import com.esotericsoftware.kryo.io.Input;
@@ -204,7 +203,7 @@ public class DefaultClient implements Closeable {
 	}
 
 	private boolean transferLibraries(SopremoPlan plan, ProgressListener progressListener) {
-		final JobID dummyKey = new JobID();
+		final JobID dummyKey = JobID.generate();
 		List<String> requiredLibraries = new ArrayList<String>(plan.getRequiredPackages());
 		try {
 			progressListener.progressUpdate(ExecutionState.SETUP, "");

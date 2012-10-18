@@ -14,14 +14,16 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.execution;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.sopremo.operator.SopremoPlan;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -31,7 +33,7 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
  * 
  * @author Arvid Heise
  */
-public class ExecutionRequest implements IOReadableWritable {
+public class ExecutionRequest implements KryoSerializable {
 	private SopremoPlan query;
 
 	private ExecutionMode mode = ExecutionMode.RUN;
@@ -69,7 +71,7 @@ public class ExecutionRequest implements IOReadableWritable {
 		if (this.query != null || this.planBuffer == null)
 			return this.query;
 
-		final JobID dummId = new JobID();
+		final JobID dummId = JobID.generate();
 		try {
 			LibraryCacheManager.register(dummId,
 				this.requiredPackages.toArray(new String[this.requiredPackages.size()]));
@@ -86,21 +88,17 @@ public class ExecutionRequest implements IOReadableWritable {
 		return this.query;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
 	@Override
-	public void read(DataInput in) throws IOException {
-		this.mode = ExecutionMode.values()[in.readInt()];
+	public void read(Kryo kryo, Input input)  {
+		this.mode = ExecutionMode.values()[input.readInt()];
 
 		this.requiredPackages = new ArrayList<String>();
-		for (int count = in.readInt(); count > 0; count--)
-			this.requiredPackages.add(in.readUTF());
+		for (int count = input.readInt(); count > 0; count--)
+			this.requiredPackages.add(input.readString());
 		this.query = null;
 
-		this.planBuffer = new byte[in.readInt()];
-		in.readFully(this.planBuffer);
+		this.planBuffer = new byte[input.readInt()];
+		input.readBytes(this.planBuffer);
 	}
 
 	public void setMode(ExecutionMode mode) {
@@ -110,22 +108,18 @@ public class ExecutionRequest implements IOReadableWritable {
 		this.mode = mode;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
 	@Override
-	public void write(DataOutput out) throws IOException {
-		out.writeInt(this.mode.ordinal());
+	public void write(Kryo kryo, Output output) {
+		output.writeInt(this.mode.ordinal());
 
 		final List<String> requiredPackages = this.query.getRequiredPackages();
-		out.writeInt(requiredPackages.size());
+		output.writeInt(requiredPackages.size());
 		for (String packageName : requiredPackages)
-			out.writeUTF(packageName);
+			output.writeString(packageName);
 
 		final byte[] planBuffer = SopremoUtil.serializableToByteArray(this.query);
-		out.writeInt(planBuffer.length);
-		out.write(planBuffer);
+		output.writeInt(planBuffer.length);
+		output.writeBytes(planBuffer);
 	}
 
 	public enum ExecutionMode {

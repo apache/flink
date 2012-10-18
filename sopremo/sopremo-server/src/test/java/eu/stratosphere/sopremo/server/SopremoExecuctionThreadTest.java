@@ -55,7 +55,7 @@ public class SopremoExecuctionThreadTest {
 
 	@Before
 	public void setup() throws Exception {
-		this.jobInfo = new SopremoJobInfo(new SopremoID(),
+		this.jobInfo = new SopremoJobInfo(SopremoID.generate(),
 			new ExecutionRequest(SopremoServerTest.createPlan()), new Configuration());
 		this.thread = new SopremoExecutionThread(this.jobInfo, new InetSocketAddress(0)) {
 			/*
