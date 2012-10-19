@@ -75,7 +75,7 @@ public class JobClient {
 	/**
 	 * The sequence number of the last processed event received from the job manager.
 	 */
-	private long lastProcessedEventSequenceNumber = -1;
+	private volatile long lastProcessedEventSequenceNumber = -1;
 
 	/**
 	 * Inner class used to perform clean up tasks when the
@@ -197,9 +197,7 @@ public class JobClient {
 	 */
 	public void close() {
 
-		synchronized (this.rpcService) {
-			this.rpcService.shutDown();
-		}
+		this.rpcService.shutDown();
 	}
 
 	/**
@@ -221,10 +219,7 @@ public class JobClient {
 	 */
 	public JobSubmissionResult submitJob() throws IOException {
 
-		synchronized (this.jobSubmitClient) {
-
-			return this.jobSubmitClient.submitJob(this.jobGraph);
-		}
+		return this.jobSubmitClient.submitJob(this.jobGraph);
 	}
 
 	/**
@@ -236,9 +231,7 @@ public class JobClient {
 	 */
 	public JobCancelResult cancelJob() throws IOException {
 
-		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.cancelJob(this.jobGraph.getJobID());
-		}
+		return this.jobSubmitClient.cancelJob(this.jobGraph.getJobID());
 	}
 
 	/**
@@ -250,9 +243,7 @@ public class JobClient {
 	 */
 	public JobProgressResult getJobProgress() throws IOException {
 
-		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.getJobProgress(this.jobGraph.getJobID());
-		}
+		return this.jobSubmitClient.getJobProgress(this.jobGraph.getJobID());
 	}
 
 	/**
@@ -267,17 +258,14 @@ public class JobClient {
 	 */
 	public long submitJobAndWait() throws IOException, JobExecutionException {
 
-		synchronized (this.jobSubmitClient) {
-
-			final JobSubmissionResult submissionResult = this.jobSubmitClient.submitJob(this.jobGraph);
-			if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
-				LOG.error("ERROR: " + submissionResult.getDescription());
-				throw new JobExecutionException(submissionResult.getDescription(), false);
-			}
-
-			// Make sure the job is properly terminated when the user shut's down the client
-			Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
+		final JobSubmissionResult submissionResult = this.jobSubmitClient.submitJob(this.jobGraph);
+		if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
+			LOG.error("ERROR: " + submissionResult.getDescription());
+			throw new JobExecutionException(submissionResult.getDescription(), false);
 		}
+
+		// Make sure the job is properly terminated when the user shut's down the client
+		Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
 
 		long sleep = 0;
 		try {
@@ -343,11 +331,13 @@ public class JobClient {
 						startTimestamp = jobEvent.getTimestamp();
 					}
 					if (jobStatus == JobStatus.FINISHED) {
+						close();
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						final long jobDuration = jobEvent.getTimestamp() - startTimestamp;
 						System.out.println("Job duration (in ms): " + jobDuration);
 						return jobDuration;
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
+						close();
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());
 						if (jobStatus == JobStatus.CANCELED) {
@@ -377,9 +367,7 @@ public class JobClient {
 	 */
 	public int getRecommendedPollingInterval() throws IOException {
 
-		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.getRecommendedPollingInterval();
-		}
+		return this.jobSubmitClient.getRecommendedPollingInterval();
 	}
 
 	/**
