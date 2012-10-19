@@ -50,8 +50,8 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 			}
 
 			// Check if enough bytes are remaining in buffer
-			final int remaining = this.buf.remaining();
-			if (remaining < numberOfBytes) {
+			int remaining = this.buf.remaining();
+			while (remaining < numberOfBytes) {
 
 				final int offset = this.buf.position();
 				if (offset > 0) {
@@ -63,8 +63,12 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 				this.buf.limit(this.buf.capacity());
 
 				final int read = this.readableByteChannel.read(this.buf);
+				if (read < 0) {
+					throw new BufferUnderflowException();
+				}
 
 				this.buf.flip();
+				remaining = this.buf.remaining();
 			}
 		}
 
@@ -90,97 +94,121 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 		@Override
 		public boolean readBoolean() throws IOException {
 
-			System.out.println("READ BOOLEAN");
-
-			return false;
+			ensureAvailable(1);
+			return (this.buf.get() == 1);
 		}
 
 		@Override
 		public byte readByte() throws IOException {
 
-			System.out.println("READ BYTE");
+			ensureAvailable(1);
 
-			return 0;
+			return this.buf.get();
 		}
 
 		@Override
 		public int readUnsignedByte() throws IOException {
 
-			System.out.println("READ UNSIGNED BYTE");
+			ensureAvailable(1);
 
-			return 0;
+			return (this.buf.get() & 0xFF);
 		}
 
 		@Override
 		public short readShort() throws IOException {
 
-			System.out.println("SHORT");
+			ensureAvailable(2);
 
-			return 0;
+			return this.buf.getShort();
 		}
 
 		@Override
 		public int readUnsignedShort() throws IOException {
 
-			System.out.println("UNSIGNED SHORT");
+			ensureAvailable(2);
 
-			return 0;
+			return (this.buf.getShort() & 0xFFFF);
 		}
 
 		@Override
 		public char readChar() throws IOException {
 
-			System.out.println("CHAR");
+			ensureAvailable(2);
 
-			return 0;
+			return this.buf.getChar();
 		}
 
 		@Override
 		public int readInt() throws IOException {
 
-			System.out.println("INT");
+			ensureAvailable(4);
 
-			return 0;
+			return this.buf.getInt();
 		}
 
 		@Override
 		public long readLong() throws IOException {
 
-			System.out.println("LONG");
+			ensureAvailable(8);
 
-			return 0;
+			return this.buf.getLong();
 		}
 
 		@Override
 		public float readFloat() throws IOException {
 
-			System.out.println("FLOAT");
+			ensureAvailable(4);
 
-			return 0;
+			return this.buf.getFloat();
 		}
 
 		@Override
 		public double readDouble() throws IOException {
 
-			System.out.println("DOUBLE");
+			ensureAvailable(8);
 
-			return 0;
+			return this.buf.getDouble();
 		}
 
 		@Override
 		public String readLine() throws IOException {
-
-			System.out.println("LINE");
-
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public String readUTF() throws IOException {
 
-			System.out.println("UTF8");
+			final int utf8Length = readUnsignedShort();
+			final char[] data = new char[utf8Length];
+			int count = 0;
 
-			return null;
+			if (utf8Length == 0) {
+				return "";
+			}
+
+			ensureAvailable(utf8Length);
+
+			final ByteBuffer buf = this.buf;
+
+			int char1, char2, char3;
+			for (int i = 0; i < utf8Length; ++i) {
+
+				char1 = (int) (buf.get() & 0xFF);
+				if ((char1 & 0x80) == 0) {
+					data[count++] = (char) char1;
+				} else if ((char1 & 0x20) == 0) {
+					char2 = (int) (buf.get() & 0xFF);
+					data[count++] = (char) (((char1 & 0x1F) << 6) | (char2 & 0x3F));
+					++i;
+				} else {
+					char2 = (int) (buf.get() & 0xFF);
+					char3 = (int) (buf.get() & 0xFF);
+					data[count++] = (char) (((char1 & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F) << 0));
+					i += 2;
+				}
+			}
+
+			return new String(data, 0, count);
 		}
 
 	}
@@ -341,6 +369,8 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 	 */
 	@Override
 	public void clear() {
+		this.dataInput = null;
+		this.lastReadableByteChannel = null;
 	}
 
 	/**
