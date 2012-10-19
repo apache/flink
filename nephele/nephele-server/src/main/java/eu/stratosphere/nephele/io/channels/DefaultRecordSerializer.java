@@ -21,10 +21,6 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.CoderResult;
-import java.nio.charset.CodingErrorAction;
 
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.types.Record;
@@ -52,36 +48,6 @@ final class DefaultRecordSerializer<T extends Record> implements RecordSerialize
 	private static final class DataOutputWrapper implements DataOutput {
 
 		/**
-		 * Character set encoder to convert strings into byte sequences with one byte per character.
-		 */
-		private static final ThreadLocal<CharsetEncoder> ASCII_ENCODER = new ThreadLocal<CharsetEncoder>() {
-
-			/**
-			 * {@inheritDoc}
-			 */
-			@Override
-			protected CharsetEncoder initialValue() {
-				return Charset.forName("US-ASCII").newEncoder().onMalformedInput(CodingErrorAction.REPLACE)
-					.onUnmappableCharacter(CodingErrorAction.REPLACE);
-			}
-		};
-
-		/**
-		 * Character set encoder to convert strings into byte sequences using UTF-8.
-		 */
-		private static final ThreadLocal<CharsetEncoder> UTF8_ENCODER = new ThreadLocal<CharsetEncoder>() {
-
-			/**
-			 * {@inheritDoc}
-			 */
-			@Override
-			protected CharsetEncoder initialValue() {
-				return Charset.forName("UTF-8").newEncoder().onMalformedInput(CodingErrorAction.REPLACE)
-					.onUnmappableCharacter(CodingErrorAction.REPLACE);
-			}
-		};
-
-		/**
 		 * The wrapped byte buffer.
 		 */
 		private final ByteBuffer buffer;
@@ -90,16 +56,6 @@ final class DefaultRecordSerializer<T extends Record> implements RecordSerialize
 		 * The number of bytes written to the buffer during the serialization of a single record.
 		 */
 		private int written = 0;
-
-		/**
-		 * Cached reference to the thread local ASCII encoder.
-		 */
-		private CharsetEncoder asciiEncoder = null;
-
-		/**
-		 * Cached reference to the thread local UTF-8 encoder.
-		 */
-		private CharsetEncoder utf8Encoder = null;
 
 		/**
 		 * Constructs a new data output wrapper.
@@ -161,7 +117,7 @@ final class DefaultRecordSerializer<T extends Record> implements RecordSerialize
 		 */
 		@Override
 		public void writeShort(final int v) throws IOException {
-			this.buffer.putShort((short) v);
+			this.buffer.putShort((short) (v & 0xFFFF));
 			this.written += 2;
 		}
 
@@ -220,30 +176,23 @@ final class DefaultRecordSerializer<T extends Record> implements RecordSerialize
 				throw new NullPointerException();
 			}
 
-			if (this.asciiEncoder == null) {
-				this.asciiEncoder = ASCII_ENCODER.get();
-			}
+			final int len = s.length();
+			final ByteBuffer buf = this.buffer;
 
-			final int oldPosition = this.buffer.position();
-			final CharBuffer charBuf = CharBuffer.wrap(s);
-			final CoderResult result = this.asciiEncoder.encode(charBuf, this.buffer, true);
-
-			if (result.isError()) {
-				this.buffer.position(oldPosition);
-				throw new IOException("Unexpected error while encoding string");
-			}
-
-			if (result.isUnderflow()) {
-				this.buffer.position(oldPosition);
-				throw new IOException("Unexpected buffer underflow");
-			}
-
-			if (result.isOverflow()) {
-				this.buffer.position(oldPosition);
+			if ((len + 2) > buf.remaining()) {
 				throw new BufferOverflowException();
 			}
 
-			this.written = this.buffer.position() - oldPosition;
+			// Write length
+			buf.put((byte) ((len >>> 8) & 0xFF));
+			buf.put((byte) (len & 0xFF));
+
+			// Write string
+			for (int i = 0; i < len; ++i) {
+				buf.put((byte) (s.charAt(i) & 0xFF));
+			}
+
+			this.written += len + 2;
 		}
 
 		/**
@@ -256,10 +205,19 @@ final class DefaultRecordSerializer<T extends Record> implements RecordSerialize
 				throw new NullPointerException();
 			}
 
-			final int oldPosition = this.buffer.position();
+			final ByteBuffer buf = this.buffer;
+
+			final int len = s.length();
+			if ((len * 2 + 2) > buf.remaining()) {
+				throw new BufferOverflowException();
+			}
+
+			// Write length
+			buf.put((byte) ((len >>> 8) & 0xFF));
+			buf.put((byte) (len & 0xFF));
+
 			final CharBuffer charBuffer = CharBuffer.wrap(s);
-			this.buffer.asCharBuffer().put(charBuffer);
-			this.written = this.buffer.position() - oldPosition;
+			buf.asCharBuffer().put(charBuffer);
 		}
 
 		/**
@@ -272,30 +230,50 @@ final class DefaultRecordSerializer<T extends Record> implements RecordSerialize
 				throw new NullPointerException();
 			}
 
-			if (this.utf8Encoder == null) {
-				this.utf8Encoder = UTF8_ENCODER.get();
+			final int len = s.length();
+			final ByteBuffer buf = this.buffer;
+			int ch, uft8Length = 0;
+
+			// Compute length of encoded string
+			for (int i = 0; i < len; ++i) {
+				ch = s.charAt(i);
+				if ((ch >= 0x0001) && (ch <= 0x007F)) {
+					++uft8Length;
+				} else if (ch > 0x07FF) {
+					uft8Length += 3;
+				} else {
+					uft8Length += 2;
+				}
 			}
 
-			final int oldPosition = this.buffer.position();
-			final CharBuffer charBuf = CharBuffer.wrap(s);
-			final CoderResult result = this.utf8Encoder.encode(charBuf, this.buffer, true);
-
-			if (result.isError()) {
-				this.buffer.position(oldPosition);
-				throw new IOException("Unexpected error while encoding string");
+			if (uft8Length > 65535) {
+				throw new IOException("String too long to encode in UTF-8");
 			}
 
-			if (result.isUnderflow()) {
-				this.buffer.position(oldPosition);
-				throw new IOException("Unexpected buffer underflow");
-			}
-
-			if (result.isOverflow()) {
-				this.buffer.position(oldPosition);
+			if ((uft8Length + 2) > buf.remaining()) {
 				throw new BufferOverflowException();
 			}
 
-			this.written = this.buffer.position() - oldPosition;
+			// Write length
+			buf.put((byte) ((uft8Length >>> 8) & 0xFF));
+			buf.put((byte) (uft8Length & 0xFF));
+
+			// Encode actual string
+			for (int i = 0; i < len; i++) {
+				ch = s.charAt(i);
+				if ((ch >= 0x0001) && (ch <= 0x007F)) {
+					buf.put((byte) ch);
+				} else if (ch > 0x07FF) {
+					buf.put((byte) (0xE0 | ((ch >> 12) & 0x0F)));
+					buf.put((byte) (0x80 | ((ch >> 6) & 0x3F)));
+					buf.put((byte) (0x80 | (ch & 0x3F)));
+				} else {
+					buf.put((byte) (0xC0 | ((ch >> 6) & 0x1F)));
+					buf.put((byte) (0x80 | (ch & 0x3F)));
+				}
+			}
+
+			this.written += uft8Length + 2;
 		}
 	}
 

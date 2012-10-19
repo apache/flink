@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.io.channels;
 
 import java.io.DataInput;
 import java.io.IOException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 
@@ -39,7 +40,7 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 		}
 
 		private void ensureAvailable(final int numberOfBytes) throws IOException {
-			
+
 			// Check if buffer is large enough
 			if (this.buf.capacity() < numberOfBytes) {
 				final ByteBuffer newBuf = ByteBuffer.allocate(numberOfBytes);
@@ -62,7 +63,6 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 				this.buf.limit(this.buf.capacity());
 
 				final int read = this.readableByteChannel.read(this.buf);
-				
 
 				this.buf.flip();
 			}
@@ -220,7 +220,7 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 
 		@Override
 		public int readUnsignedByte() throws IOException {
-			throw new UnsupportedOperationException();
+			return (this.buffer.get() & 0xFF);
 		}
 
 		@Override
@@ -230,7 +230,7 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 
 		@Override
 		public int readUnsignedShort() throws IOException {
-			throw new UnsupportedOperationException();
+			return (this.buffer.getShort() & 0xFFFF);
 		}
 
 		@Override
@@ -265,9 +265,36 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 
 		@Override
 		public String readUTF() throws IOException {
-			throw new UnsupportedOperationException();
-		}
 
+			final ByteBuffer buf = this.buffer;
+			final int utf8Length = readUnsignedShort();
+			final char[] data = new char[utf8Length];
+			int count = 0;
+
+			if (utf8Length == 0) {
+				return "";
+			}
+
+			int char1, char2, char3;
+			for (int i = 0; i < utf8Length; ++i) {
+
+				char1 = (int) (buf.get() & 0xFF);
+				if ((char1 & 0x80) == 0) {
+					data[count++] = (char) char1;
+				} else if ((char1 & 0x20) == 0) {
+					char2 = (int) (buf.get() & 0xFF);
+					data[count++] = (char) (((char1 & 0x1F) << 6) | (char2 & 0x3F));
+					++i;
+				} else {
+					char2 = (int) (buf.get() & 0xFF);
+					char3 = (int) (buf.get() & 0xFF);
+					data[count++] = (char) (((char1 & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F) << 0));
+					i += 2;
+				}
+			}
+
+			return new String(data, 0, count);
+		}
 	}
 
 	private final RecordFactory<T> recordFactory;
@@ -300,7 +327,11 @@ public class DefaultRecordDeserializer<T extends Record> implements RecordDeseri
 			target = this.recordFactory.createRecord();
 		}
 
-		target.read(this.dataInput);
+		try {
+			target.read(this.dataInput);
+		} catch (BufferUnderflowException e) {
+			return null;
+		}
 
 		return target;
 	}
