@@ -33,7 +33,8 @@ public class DataOutputCollector<T extends Record> implements Collector<T> {
   private final TypeSerializer<T> typeSerializer;
   private final List<AbstractRecordWriter<T>> writers;
 
-  public DataOutputCollector(DataOutputView outputView, TypeSerializer<T> typeSerializer, List<AbstractRecordWriter<T>> writers) {
+  public DataOutputCollector(DataOutputView outputView, TypeSerializer<T> typeSerializer,
+      List<AbstractRecordWriter<T>> writers) {
     this.outputView = outputView;
     this.typeSerializer = typeSerializer;
     this.writers = writers;
@@ -43,8 +44,9 @@ public class DataOutputCollector<T extends Record> implements Collector<T> {
   public void collect(T record) {
     try {
       typeSerializer.serialize(record, outputView);
-      for (AbstractRecordWriter<T> writer : writers) {
-        writer.emit(record);
+      int numWriters = writers.size();
+      for (int writerIndex = 0; writerIndex < numWriters; writerIndex++) {
+        writers.get(writerIndex).emit(record);
       }
     }
     catch (IOException e) {

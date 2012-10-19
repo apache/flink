@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.runtime.iterative.convergence;
 
 /** A workset iteration is by definition converged if no records have been inserted into the workset */
-public class WorksetEmptyConvergenceCriterion<T> implements ConvergenceCriterion<T> {
+public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<Long> {
 
   private boolean worksetEmpty;
 
@@ -26,8 +26,10 @@ public class WorksetEmptyConvergenceCriterion<T> implements ConvergenceCriterion
   }
 
   @Override
-  public void analyze(T record) {
-    worksetEmpty = false;
+  public void analyze(Long elementsInWorkset) {
+    if (elementsInWorkset.longValue() != 0) {
+      worksetEmpty = false;
+    }
   }
 
   @Override

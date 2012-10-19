@@ -714,20 +714,24 @@ public class TaskConfig
     return numberOfIterations;
   }
 
+  @Deprecated
   public boolean isCachedInputGate(int inputGateIndex) {
     return config.getBoolean(INPUT_GATE_CACHED + inputGateIndex, false);
   }
 
+  @Deprecated
   public void setGateCached(int inputGateIndex) {
     config.setBoolean(INPUT_GATE_CACHED + inputGateIndex, true);
   }
 
+  @Deprecated
   public float getInputGateCacheMemoryFraction() {
     float inputGateCacheMemoryFraction = config.getFloat(INPUT_GATE_CACHE_MEMORY_FRACTION, 0);
     Preconditions.checkState(inputGateCacheMemoryFraction > 0);
     return inputGateCacheMemoryFraction;
   }
 
+  @Deprecated
   public void setInputGateCacheMemoryFraction(float fraction) {
     Preconditions.checkArgument(fraction > 0 && fraction < 1);
     config.setFloat(INPUT_GATE_CACHE_MEMORY_FRACTION, fraction);

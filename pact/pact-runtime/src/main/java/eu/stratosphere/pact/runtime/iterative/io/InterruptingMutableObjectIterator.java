@@ -19,8 +19,10 @@ import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.task.Terminable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -43,18 +45,28 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
   private final Terminable owningIterativeTask;
   private final int gateIndex;
 
+  private final AtomicInteger workerDoneEventCounter;
+  //TODO factor this out!
+  private final ConvergenceCriterion<Long> aggregator;
+
   private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
 
   public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
-      String name, Terminable owningIterativeTask, int gateIndex) {
+                                           String name, Terminable owningIterativeTask, int gateIndex) {
+    this(delegate, numberOfEventsUntilInterrupt, name, owningIterativeTask, gateIndex, null);
+  }
+  public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
+      String name, Terminable owningIterativeTask, int gateIndex, ConvergenceCriterion<Long> aggregator) {
     Preconditions.checkArgument(numberOfEventsUntilInterrupt > 0);
     this.delegate = delegate;
     this.numberOfEventsUntilInterrupt = numberOfEventsUntilInterrupt;
     this.name = name;
     this.owningIterativeTask = owningIterativeTask;
     this.gateIndex = gateIndex;
+    this.aggregator = aggregator;
 
     endOfSuperstepEventCounter = new AtomicInteger(0);
+    workerDoneEventCounter = new AtomicInteger(0);
     terminationEventCounter = new AtomicInteger(0);
   }
 
@@ -66,7 +78,12 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
       return;
     }
 
-    if (TerminationEvent.class.equals(event.getClass()))   {
+    if (WorkerDoneEvent.class.equals(event.getClass())) {
+      onWorkerDoneEvent((WorkerDoneEvent) event);
+      return;
+    }
+
+    if (TerminationEvent.class.equals(event.getClass())) {
       onTermination();
       return;
     }
@@ -93,6 +110,22 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
     if (log.isInfoEnabled()) {
       log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] received EndOfSuperstep event (" +
           numberOfEventsSeen +")");
+    }
+
+    if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  private void onWorkerDoneEvent(WorkerDoneEvent workerDoneEvent) {
+    int numberOfEventsSeen = workerDoneEventCounter.incrementAndGet();
+    if (log.isInfoEnabled()) {
+      log.info("InterruptibleIterator of " + name + " on gate [" + gateIndex + "] received WorkerDoneEvent event (" +
+          numberOfEventsSeen +")");
+    }
+
+    if (aggregator != null) {
+      aggregator.analyze(workerDoneEvent.aggregate());
     }
 
     if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {

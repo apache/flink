@@ -37,11 +37,13 @@ import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
+import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
@@ -213,6 +215,11 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
   @Override
   public void invoke() throws Exception {
 
+
+    int indexInSubtaskGroup = getEnvironment().getIndexInSubtaskGroup();
+    IterationContext iterationContext = IterationContext.instance();
+    iterationContext.initCount(indexInSubtaskGroup);
+
     /** used for receiving the current iteration result from iteration tail */
     BlockingBackChannel backChannel = initBackChannel();
 
@@ -251,8 +258,10 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
         log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
       }
 
-      sendEventToSync(endOfSuperstepEvent);
+      sendEventToSync(new WorkerDoneEvent(iterationContext.count(indexInSubtaskGroup)));
+      //sendEventToSync(endOfSuperstepEvent);
       notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
+      iterationContext.resetCount(indexInSubtaskGroup);
 
       notifyMonitor(IterationMonitoring.Event.HEAD_WAITING_FOR_OTHERS);
       if (log.isInfoEnabled()) {
@@ -347,9 +356,10 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     }
   }
 
-  private void sendEventToSync(AbstractTaskEvent event) throws IOException, InterruptedException {
+  private void sendEventToSync(WorkerDoneEvent event) throws IOException, InterruptedException {
     if (log.isInfoEnabled()) {
-      log.info(formatLogString("sending " + event.getClass().getSimpleName() + " to sync"));
+      log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " with count [" + event.aggregate()
+          + "] to sync"));
     }
     getSyncOutput().publishEvent(event);
   }

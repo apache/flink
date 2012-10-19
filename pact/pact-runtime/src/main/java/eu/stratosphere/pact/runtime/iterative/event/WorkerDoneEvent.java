@@ -13,17 +13,36 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.convergence;
+package eu.stratosphere.pact.runtime.iterative.event;
 
-/** Used to check for convergence */
-public interface ConvergenceCriterion<T> {
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 
-  /** Prepare for the start of an iteration */
-  void prepareForNextIteration();
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-  /** Called for each aggregate sent to the synchronization task */
-  void analyze(T aggregate);
+public class WorkerDoneEvent extends AbstractTaskEvent {
 
-  /** Decide whether the iterative algorithm has converged */
-  boolean isConverged();
+  //TODO generalize
+  private long aggregate;
+
+  public WorkerDoneEvent() {}
+
+  public WorkerDoneEvent(long aggregate) {
+    this.aggregate = aggregate;
+  }
+
+  public long aggregate() {
+    return aggregate;
+  }
+
+  @Override
+  public void write(DataOutput out) throws IOException {
+    out.writeLong(aggregate);
+  }
+
+  @Override
+  public void read(DataInput in) throws IOException {
+    aggregate = in.readLong();
+  }
 }

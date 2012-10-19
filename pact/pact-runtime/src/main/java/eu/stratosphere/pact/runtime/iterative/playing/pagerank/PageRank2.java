@@ -48,7 +48,7 @@ public class PageRank2 {
       numIterations = Integer.parseInt(args[7]);
     }
 
-    JobGraph jobGraph = new JobGraph("PageRank");
+    JobGraph jobGraph = new JobGraph("PageRank2");
 
     JobInputVertex pageWithRankInput = JobGraphUtils.createInput(PageWithRankInputFormat.class, pageWithRankInputPath,
         "PageWithRankInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
