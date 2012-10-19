@@ -26,21 +26,21 @@ import java.util.Random;
 public class UTFStringType implements SerializationTestType
 {
 	private static final int MAX_LEN = 1500;
-	
+
 	private String value;
-	
 
 	public UTFStringType()
 	{
 		this.value = "";
 	}
-	
+
 	private UTFStringType(String value)
 	{
 		this.value = value;
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.channels.serialization.SerializationTestType#getRandom(java.util.Random)
 	 */
 	@Override
@@ -48,15 +48,16 @@ public class UTFStringType implements SerializationTestType
 	{
 		final StringBuilder bld = new StringBuilder();
 		final int len = rnd.nextInt(MAX_LEN + 1);
-		
+
 		for (int i = 0; i < len; i++) {
-			bld.append((char) rnd.nextInt(Character.MAX_VALUE));
+			bld.append((char) (rnd.nextInt(Character.MAX_VALUE - 1) + 1));
 		}
-		
+
 		return new UTFStringType(bld.toString());
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override
@@ -65,7 +66,8 @@ public class UTFStringType implements SerializationTestType
 		out.writeUTF(this.value);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
@@ -74,7 +76,8 @@ public class UTFStringType implements SerializationTestType
 		this.value = in.readUTF();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see java.lang.Object#hashCode()
 	 */
 	@Override
@@ -83,7 +86,8 @@ public class UTFStringType implements SerializationTestType
 		return this.value.hashCode();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
 	@Override
