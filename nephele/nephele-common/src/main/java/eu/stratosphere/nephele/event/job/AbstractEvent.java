@@ -37,7 +37,16 @@ public abstract class AbstractEvent {
 	/**
 	 * Auxiliary object which helps to convert a {@link Date} object to the given string representation.
 	 */
-	private static final SimpleDateFormat DATA_FORMATTER = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+	private static final ThreadLocal<SimpleDateFormat> DATA_FORMATTER = new ThreadLocal<SimpleDateFormat>() {
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		protected SimpleDateFormat initialValue() {
+			return new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+		}
+	};
 
 	/**
 	 * The timestamp of the event.
@@ -91,8 +100,7 @@ public abstract class AbstractEvent {
 	 */
 	public static String timestampToString(final long timestamp) {
 
-		return DATA_FORMATTER.format(new Date(timestamp));
-
+		return DATA_FORMATTER.get().format(new Date(timestamp));
 	}
 
 	/**

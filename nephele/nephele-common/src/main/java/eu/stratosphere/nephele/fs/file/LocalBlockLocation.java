@@ -70,4 +70,43 @@ public class LocalBlockLocation implements BlockLocation {
 		return 0;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+
+		if (!(obj instanceof LocalBlockLocation)) {
+			return false;
+		}
+
+		final LocalBlockLocation lbl = (LocalBlockLocation) obj;
+
+		if (this.length != lbl.length) {
+			return false;
+		}
+
+		if (this.hosts[0] == null) {
+			if (lbl.hosts[0] != null) {
+				return false;
+			} else {
+				return true;
+			}
+		} else {
+			if (lbl.hosts[0] == null) {
+				return false;
+			} else {
+				return this.hosts[0].equals(lbl.hosts[0]);
+			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return (int) (this.length % Integer.MAX_VALUE);
+	}
 }

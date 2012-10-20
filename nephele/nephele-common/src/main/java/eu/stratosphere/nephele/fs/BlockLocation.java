@@ -18,8 +18,7 @@ package eu.stratosphere.nephele.fs;
 import java.io.IOException;
 
 /**
- * A BlockLocation lists hosts, offset and length
- * of block.
+ * A BlockLocation lists hosts, offset and length of block.
  * 
  * @author warneke
  */

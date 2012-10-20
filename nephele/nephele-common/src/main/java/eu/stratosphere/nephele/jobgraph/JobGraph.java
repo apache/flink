@@ -455,8 +455,8 @@ public class JobGraph implements KryoSerializable {
 			final HashMap<AbstractJobVertex, Integer> indexMap, final HashMap<AbstractJobVertex, Integer> lowLinkMap,
 			final Stack<AbstractJobVertex> stack) {
 
-		indexMap.put(jv, Integer.valueOf(index));
-		lowLinkMap.put(jv, Integer.valueOf(index));
+		indexMap.put(jv, index);
+		lowLinkMap.put(jv, index);
 		index = Integer.valueOf(index.intValue() + 1);
 		stack.push(jv);
 
@@ -470,7 +470,7 @@ public class JobGraph implements KryoSerializable {
 					}
 				}
 				if (lowLinkMap.get(jv) > lowLinkMap.get(jv2)) {
-					lowLinkMap.put(jv, Integer.valueOf(lowLinkMap.get(jv2)));
+					lowLinkMap.put(jv, lowLinkMap.get(jv2));
 				}
 			}
 		}
@@ -779,7 +779,7 @@ public class JobGraph implements KryoSerializable {
 		try {
 			readRequiredJarFiles(kryo, input);
 		} catch (IOException ioe) {
-			new RuntimeException(ioe);
+			throw new RuntimeException(ioe);
 		}
 
 		// First read total number of vertices;
