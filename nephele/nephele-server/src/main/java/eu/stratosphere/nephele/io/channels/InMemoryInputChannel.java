@@ -16,8 +16,6 @@
 package eu.stratosphere.nephele.io.channels;
 
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
 
