@@ -54,7 +54,7 @@ public class SerializationDelegate<T> implements Record
 	}
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 * @see eu.stratosphere.nephele.types.Record#write(java.io.DataOutput)
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException
@@ -64,7 +64,7 @@ public class SerializationDelegate<T> implements Record
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 * @see eu.stratosphere.nephele.types.Record#read(java.io.DataInput)
 	 */
 	@Override
 	public void read(DataInput in) throws IOException

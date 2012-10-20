@@ -25,7 +25,7 @@ package eu.stratosphere.pact.common.type;
  * the serialization of its value.
  * 
  * @see eu.stratosphere.pact.common.type.Value
- * @see eu.stratosphere.nephele.io.IOReadableWritable
+ * @see eu.stratosphere.nephele.types.Record
  * @see java.lang.Comparable
  */
 public interface Key extends Value, Comparable<Key>

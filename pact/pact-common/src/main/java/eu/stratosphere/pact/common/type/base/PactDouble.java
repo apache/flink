@@ -81,7 +81,7 @@ public class PactDouble implements Key {
 	
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 * @see eu.stratosphere.nephele.types.Record#read(java.io.DataInput)
 	 */
 	@Override
 	public void read(final DataInput in) throws IOException {
@@ -90,7 +90,7 @@ public class PactDouble implements Key {
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 * @see eu.stratosphere.nephele.types.Record#write(java.io.DataOutput)
 	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
