@@ -360,6 +360,7 @@ public class Configuration implements KryoSerializable {
 	 *        The default value which is returned in case there is no value associated with the given key.
 	 * @return the (default) value associated with the given key.
 	 */
+	@Deprecated
 	public byte[] getBytes(final String key, final byte[] defaultValue) {
 		final String encoded;
 		synchronized (this.confData) {
@@ -380,6 +381,7 @@ public class Configuration implements KryoSerializable {
 	 * @param bytes
 	 *        The bytes to be added.
 	 */
+	@Deprecated
 	public void setBytes(final String key, final byte[] bytes) {
 		if (key == null) {
 			LOG.warn("Cannot set bytes: Given key is null!");
