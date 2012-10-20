@@ -523,13 +523,10 @@ public final class ExecutionGroupVertex {
 		}
 
 		// If the number of group vertices is user defined, prevent overwriting
-		if (this.userDefinedNumberOfMembers != -1) {
-			if (this.userDefinedNumberOfMembers == getCurrentNumberOfGroupMembers()) { // Note that
-				// this.userDefinedNumberOfMembers
-				// is final and requires no
-				// locking!
-				throw new GraphConversionException("Cannot overwrite user defined number of group members");
-			}
+		if (this.userDefinedNumberOfMembers != -1
+			&& this.userDefinedNumberOfMembers == getCurrentNumberOfGroupMembers()) {
+			// Note that this.userDefinedNumberOfMembers is final and requires no locking!
+			throw new GraphConversionException("Cannot overwrite user defined number of group members");
 		}
 
 		// Make sure the value of newNumber is valid

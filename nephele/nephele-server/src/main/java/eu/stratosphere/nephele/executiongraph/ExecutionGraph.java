@@ -300,7 +300,7 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 		final AbstractJobVertex[] all = jobGraph.getAllJobVertices();
 		for (int i = 0; i < all.length; i++) {
 			final ExecutionVertex createdVertex = createVertex(all[i], instanceManager, initialExecutionStage,
-				jobGraph.getJobConfiguration(), jobClassLoader);
+				jobClassLoader);
 			temporaryVertexMap.put(all[i], createdVertex);
 			temporaryGroupVertexMap.put(all[i], createdVertex.getGroupVertex());
 		}
@@ -488,8 +488,6 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	 *        the instanceManager
 	 * @param initialExecutionStage
 	 *        the initial execution stage all group vertices are added to
-	 * @param jobConfiguration
-	 *        the configuration object originally attached to the {@link JobGraph}
 	 * @param jobClassLoader
 	 *        the class loader of the job
 	 * @return the new execution vertex
@@ -498,8 +496,8 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	 */
 	@SuppressWarnings("unchecked")
 	private ExecutionVertex createVertex(final AbstractJobVertex jobVertex, final InstanceManager instanceManager,
-			final ExecutionStage initialExecutionStage, final Configuration jobConfiguration,
-			final ClassLoader jobClassLoader) throws GraphConversionException {
+			final ExecutionStage initialExecutionStage, final ClassLoader jobClassLoader)
+			throws GraphConversionException {
 
 		// If the user has requested instance type, check if the type is known by the current instance manager
 		InstanceType instanceType = null;

@@ -243,10 +243,8 @@ public class DiscoveryService implements Runnable {
 	 */
 	public static synchronized void stopDiscoveryService() {
 
-		if (discoveryService != null) {
-			if (discoveryService.isRunning()) {
-				discoveryService.stopService();
-			}
+		if (discoveryService != null && discoveryService.isRunning()) {
+			discoveryService.stopService();
 		}
 
 	}

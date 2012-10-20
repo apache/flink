@@ -21,8 +21,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.instance.AllocationID;
 
 /**
  * An allocated resource object unambiguously defines the
