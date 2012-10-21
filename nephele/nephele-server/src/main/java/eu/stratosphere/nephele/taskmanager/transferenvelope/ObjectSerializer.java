@@ -126,6 +126,7 @@ final class ObjectSerializer {
 	}
 
 	void clear() {
+		this.kryo.reset();
 		this.bytesReadFromBuffer = 0;
 		this.lengthBuf.clear();
 		this.output.clear();

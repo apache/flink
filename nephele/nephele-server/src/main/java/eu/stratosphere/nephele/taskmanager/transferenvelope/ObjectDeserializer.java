@@ -114,6 +114,7 @@ class ObjectDeserializer {
 	}
 
 	void clear() {
+		this.kryo.reset();
 		this.recordLength = -1;
 		this.tempBuffer.clear();
 		this.lengthBuf.clear();

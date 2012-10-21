@@ -192,6 +192,7 @@ public abstract class AbstractSerializer {
 
 	public void reset() {
 		this.serializationState = SerializationState.NOTSERIALIZED;
+		this.serializationBuffer.clear();
 		this.serializationStarted = false;
 		this.bufferExistanceSerialized = false;
 		this.eventListExistanceSerialized = false;
