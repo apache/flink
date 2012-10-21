@@ -331,7 +331,7 @@ public final class LibraryCacheManager {
 				}
 			}
 
-			final LibraryManagerEntry entry = new LibraryManagerEntry(id, requiredJarFiles, urls);
+			final LibraryManagerEntry entry = new LibraryManagerEntry(requiredJarFiles, urls);
 
 			this.libraryManagerEntries.put(id, entry);
 
@@ -695,15 +695,13 @@ public final class LibraryCacheManager {
 		 * Constructs a <code>LibraryManagerEntry</code> object from the given job ID and array of required library
 		 * files.
 		 * 
-		 * @param id
-		 *        the ID of the job to create a <code>LibraryManagerEntry</code> for.
 		 * @param requiredJarFiles
 		 *        an array with the names of required libraries by the corresponding job (plain names)
 		 * @param urls
 		 *        an array with the names of required libraries by the corresponding job (URL objects required by the
 		 *        class loader)
 		 */
-		public LibraryManagerEntry(final JobID id, final String[] requiredJarFiles, URL[] urls) {
+		public LibraryManagerEntry(final String[] requiredJarFiles, URL[] urls) {
 
 			String[] temp = requiredJarFiles;
 			if (temp == null) {

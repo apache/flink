@@ -41,6 +41,7 @@ import eu.stratosphere.nephele.util.StringUtils;
 /**
  * Global configuration object in Nephele. Similar to a Java properties configuration
  * objects it includes key-value pairs which represent the framework's settings/configuration.
+ * <p>
  * This class is thread-safe.
  * 
  * @author warneke
@@ -379,22 +380,20 @@ public final class GlobalConfiguration {
 
 						final Node propChild = propChildren.item(j);
 						if (propChild instanceof Element) {
-							if ("key".equals(propChild.getNodeName())) {
-								if (propChild.getChildNodes() != null && propChild.getChildNodes().getLength() == 1) {
-									if (propChild.getChildNodes().item(0) instanceof Text) {
-										final Text t = (Text) propChild.getChildNodes().item(0);
-										key = t.getTextContent();
-									}
-								}
+							if ("key".equals(propChild.getNodeName()) && propChild.getChildNodes() != null
+								&& propChild.getChildNodes().getLength() == 1
+								&& propChild.getChildNodes().item(0) instanceof Text) {
+
+								final Text t = (Text) propChild.getChildNodes().item(0);
+								key = t.getTextContent();
 							}
 
-							if ("value".equals(propChild.getNodeName())) {
-								if (propChild.getChildNodes() != null && propChild.getChildNodes().getLength() == 1) {
-									if (propChild.getChildNodes().item(0) instanceof Text) {
-										final Text t = (Text) propChild.getChildNodes().item(0);
-										value = t.getTextContent();
-									}
-								}
+							if ("value".equals(propChild.getNodeName()) && propChild.getChildNodes() != null
+								&& propChild.getChildNodes().getLength() == 1
+								&& propChild.getChildNodes().item(0) instanceof Text) {
+
+								final Text t = (Text) propChild.getChildNodes().item(0);
+								value = t.getTextContent();
 							}
 						}
 					}
