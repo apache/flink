@@ -34,6 +34,30 @@ import eu.stratosphere.nephele.util.StringUtils;
 public class OutgoingConnectionThread extends Thread {
 
 	/**
+	 * A connection request is a request to establish a TCP connection to a specific host at a certain point in time.
+	 * 
+	 * @author warneke
+	 */
+	private static final class ConnectionRequest {
+
+		/**
+		 * The outgoing connection representing the local end point of the TCP connection to be established.
+		 */
+		private final OutgoingConnection outgoingConnection;
+
+		/**
+		 * The earliest point in time, stated as milliseconds since January 1st, 1970, at which the connection shall be
+		 * established or -1 to establish the connection immediately.
+		 */
+		private final long earliestConnectionTime;
+
+		private ConnectionRequest(final OutgoingConnection outgoingConnection, final long earliestConnectionTime) {
+			this.outgoingConnection = outgoingConnection;
+			this.earliestConnectionTime = earliestConnectionTime;
+		}
+	}
+
+	/**
 	 * The minimum time a TCP connection must be idle it is closed.
 	 */
 	private static final long MIN_IDLE_TIME_BEFORE_CLOSE = 80000L; // 80 seconds
@@ -42,7 +66,7 @@ public class OutgoingConnectionThread extends Thread {
 
 	private final Selector selector;
 
-	private final Queue<OutgoingConnection> pendingConnectionRequests = new ArrayDeque<OutgoingConnection>();
+	private final Queue<ConnectionRequest> pendingConnectionRequests = new ArrayDeque<ConnectionRequest>();
 
 	private final Queue<SelectionKey> pendingWriteEventSubscribeRequests = new ArrayDeque<SelectionKey>();
 
@@ -66,23 +90,31 @@ public class OutgoingConnectionThread extends Thread {
 
 				if (!this.pendingConnectionRequests.isEmpty()) {
 
-					final OutgoingConnection outgoingConnection = this.pendingConnectionRequests.poll();
-					try {
-						final SocketChannel socketChannel = SocketChannel.open();
-						socketChannel.configureBlocking(false);
-						final SelectionKey key = socketChannel.register(this.selector, SelectionKey.OP_CONNECT);
-						socketChannel.connect(outgoingConnection.getConnectionAddress());
-						key.attach(outgoingConnection);
-					} catch (final IOException ioe) {
-						// IOException is reported by separate thread to avoid deadlocks
-						final Runnable reporterThread = new Runnable() {
+					final long now = System.currentTimeMillis();
+					final ConnectionRequest connectionRequest = this.pendingConnectionRequests.peek();
+					final long earliest = connectionRequest.earliestConnectionTime;
+					if (earliest == -1L || earliest <= now) {
+						this.pendingConnectionRequests.poll();
+						final OutgoingConnection outgoingConnection = connectionRequest.outgoingConnection;
 
-							@Override
-							public void run() {
-								outgoingConnection.reportConnectionProblem(ioe);
-							}
-						};
-						new Thread(reporterThread).start();
+						try {
+							final SocketChannel socketChannel = SocketChannel.open();
+							socketChannel.configureBlocking(false);
+							final SelectionKey key = socketChannel.register(this.selector, SelectionKey.OP_CONNECT);
+							socketChannel.connect(outgoingConnection.getConnectionAddress());
+							key.attach(outgoingConnection);
+						} catch (final IOException ioe) {
+							ioe.printStackTrace();
+							// IOException is reported by separate thread to avoid deadlocks
+							final Runnable reporterThread = new Runnable() {
+
+								@Override
+								public void run() {
+									outgoingConnection.reportConnectionProblem(ioe);
+								}
+							};
+							new Thread(reporterThread).start();
+						}
 					}
 				}
 			}
@@ -242,8 +274,15 @@ public class OutgoingConnectionThread extends Thread {
 
 	public void triggerConnect(OutgoingConnection outgoingConnection) {
 
+		triggerConnect(outgoingConnection, -1L);
+	}
+
+	public void triggerConnect(OutgoingConnection outgoingConnection, final long earliestConnectionTime) {
+
+		final ConnectionRequest connectionRequest = new ConnectionRequest(outgoingConnection, earliestConnectionTime);
+
 		synchronized (this.pendingConnectionRequests) {
-			this.pendingConnectionRequests.add(outgoingConnection);
+			this.pendingConnectionRequests.add(connectionRequest);
 		}
 	}
 

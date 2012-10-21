@@ -94,11 +94,6 @@ public class OutgoingConnection {
 	private int retriesLeft = 0;
 
 	/**
-	 * The timestamp of the last connection retry.
-	 */
-	private long timstampOfLastRetry = 0;
-
-	/**
 	 * The current selection key representing the interest set of the underlying TCP NIO connection. This variable may
 	 * only be accessed the the outgoing connection thread.
 	 */
@@ -152,7 +147,6 @@ public class OutgoingConnection {
 			if (!this.isConnected) {
 
 				this.retriesLeft = this.numberOfConnectionRetries;
-				this.timstampOfLastRetry = System.currentTimeMillis();
 				this.connectionThread.triggerConnect(this);
 				this.isConnected = true;
 				this.isSubscribedToWriteEvent = true;
@@ -195,10 +189,7 @@ public class OutgoingConnection {
 	public void reportConnectionProblem(IOException ioe) {
 
 		// First, write exception to log
-		final long currentTime = System.currentTimeMillis();
-		if (currentTime - this.timstampOfLastRetry >= RETRYINTERVAL) {
-			LOG.error("Cannot connect to " + this.remoteReceiver + ", " + this.retriesLeft + " retries left");
-		}
+		LOG.error("Cannot connect to " + this.remoteReceiver + ", " + this.retriesLeft + " retries left");
 
 		synchronized (this.queuedEnvelopes) {
 
@@ -219,8 +210,8 @@ public class OutgoingConnection {
 				this.isSubscribedToWriteEvent = false;
 			}
 
-			if (hasRetriesLeft(currentTime)) {
-				this.connectionThread.triggerConnect(this);
+			if (hasRetriesLeft()) {
+				this.connectionThread.triggerConnect(this, System.currentTimeMillis() + RETRYINTERVAL);
 				this.isConnected = true;
 				this.isSubscribedToWriteEvent = true;
 				return;
@@ -297,7 +288,7 @@ public class OutgoingConnection {
 				this.isConnected = false;
 				this.isSubscribedToWriteEvent = false;
 			} else {
-				this.connectionThread.triggerConnect(this);
+				this.connectionThread.triggerConnect(this, System.currentTimeMillis() + RETRYINTERVAL);
 				this.isConnected = true;
 				this.isSubscribedToWriteEvent = true;
 			}
@@ -315,18 +306,13 @@ public class OutgoingConnection {
 	/**
 	 * Checks whether further retries are left for establishing the underlying TCP connection.
 	 * 
-	 * @param currentTime
-	 *        the current system time in milliseconds since January 1st, 1970
 	 * @return <code>true</code> if there are retries left, <code>false</code> otherwise
 	 */
-	private boolean hasRetriesLeft(long currentTime) {
+	private boolean hasRetriesLeft() {
 
-		if (currentTime - this.timstampOfLastRetry >= RETRYINTERVAL) {
-			this.retriesLeft--;
-			this.timstampOfLastRetry = currentTime;
-			if (this.retriesLeft == 0) {
-				return false;
-			}
+		this.retriesLeft--;
+		if (this.retriesLeft == 0) {
+			return false;
 		}
 
 		return true;
