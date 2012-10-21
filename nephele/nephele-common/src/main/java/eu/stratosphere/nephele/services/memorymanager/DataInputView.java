@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.services.memorymanager;
 
 
 import java.io.DataInput;
-import java.io.EOFException;
 import java.io.IOException;
 
 

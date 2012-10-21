@@ -121,7 +121,7 @@ public final class GlobalConfiguration {
 			return this.confData.get(key);
 		}
 	}
-	
+
 	/**
 	 * Returns the value associated with the given key as a long integer.
 	 * 
@@ -380,23 +380,19 @@ public final class GlobalConfiguration {
 						final Node propChild = propChildren.item(j);
 						if (propChild instanceof Element) {
 							if ("key".equals(propChild.getNodeName())) {
-								if (propChild.getChildNodes() != null) {
-									if (propChild.getChildNodes().getLength() == 1) {
-										if (propChild.getChildNodes().item(0) instanceof Text) {
-											final Text t = (Text) propChild.getChildNodes().item(0);
-											key = t.getTextContent();
-										}
+								if (propChild.getChildNodes() != null && propChild.getChildNodes().getLength() == 1) {
+									if (propChild.getChildNodes().item(0) instanceof Text) {
+										final Text t = (Text) propChild.getChildNodes().item(0);
+										key = t.getTextContent();
 									}
 								}
 							}
 
 							if ("value".equals(propChild.getNodeName())) {
-								if (propChild.getChildNodes() != null) {
-									if (propChild.getChildNodes().getLength() == 1) {
-										if (propChild.getChildNodes().item(0) instanceof Text) {
-											final Text t = (Text) propChild.getChildNodes().item(0);
-											value = t.getTextContent();
-										}
+								if (propChild.getChildNodes() != null && propChild.getChildNodes().getLength() == 1) {
+									if (propChild.getChildNodes().item(0) instanceof Text) {
+										final Text t = (Text) propChild.getChildNodes().item(0);
+										value = t.getTextContent();
 									}
 								}
 							}

@@ -67,7 +67,7 @@ public final class MutableUnionRecordReader<T extends Record> implements RecordA
 	}
 
 	@Override
-	public final boolean next(final T target) throws IOException, InterruptedException {
+	public boolean next(final T target) throws IOException, InterruptedException {
 
 		while (true) {
 

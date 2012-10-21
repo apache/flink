@@ -167,10 +167,12 @@ public class Configuration implements KryoSerializable {
 	 */
 	public void setString(final String key, final String value) {
 
-		if (key == null || value == null) {
-			// TODO: should probably throw an NullPointerException
-			LOG.warn("Key/value pair " + key + ", " + value + " not added to configuration");
-			return;
+		if (key == null) {
+			throw new NullPointerException("Given key is null");
+		}
+
+		if (value == null) {
+			throw new NullPointerException("Given value is null");
 		}
 
 		synchronized (this.confData) {

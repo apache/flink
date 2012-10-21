@@ -104,16 +104,21 @@ public class JarFileCreator {
 
 			jos.putNextEntry(new JarEntry(entry));
 
-			final InputStream classInputStream = clazz.getResourceAsStream(clazz.getSimpleName() + CLASS_EXTENSION);
+			InputStream classInputStream = null;
+			try {
+				classInputStream = clazz.getResourceAsStream(clazz.getSimpleName() + CLASS_EXTENSION);
 
-			int num = classInputStream.read(buf);
-			while (num != -1) {
-				jos.write(buf, 0, num);
-				num = classInputStream.read(buf);
+				int num = classInputStream.read(buf);
+				while (num != -1) {
+					jos.write(buf, 0, num);
+					num = classInputStream.read(buf);
+				}
+
+				classInputStream.close();
+				jos.closeEntry();
+			} finally {
+				CloseableUtils.closeSilently(classInputStream);
 			}
-
-			classInputStream.close();
-			jos.closeEntry();
 		}
 
 		jos.close();

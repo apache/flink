@@ -437,10 +437,8 @@ public class JobGraph implements KryoSerializable {
 		final Integer index = Integer.valueOf(0);
 
 		for (int i = 0; i < reachable.length; i++) {
-			if (!indexMap.containsKey(reachable[i])) {
-				if (!tarjan(reachable[i], index, indexMap, lowLinkMap, stack)) {
-					return false;
-				}
+			if (!indexMap.containsKey(reachable[i]) && !tarjan(reachable[i], index, indexMap, lowLinkMap, stack)) {
+				return false;
 			}
 		}
 
@@ -464,10 +462,8 @@ public class JobGraph implements KryoSerializable {
 
 			final AbstractJobVertex jv2 = jv.getForwardConnection(i).getConnectedVertex();
 			if (!indexMap.containsKey(jv2) || stack.contains(jv2)) {
-				if (!indexMap.containsKey(jv2)) {
-					if (!tarjan(jv2, index, indexMap, lowLinkMap, stack)) {
-						return false;
-					}
+				if (!indexMap.containsKey(jv2) && !tarjan(jv2, index, indexMap, lowLinkMap, stack)) {
+					return false;
 				}
 				if (lowLinkMap.get(jv) > lowLinkMap.get(jv2)) {
 					lowLinkMap.put(jv, lowLinkMap.get(jv2));
@@ -546,13 +542,10 @@ public class JobGraph implements KryoSerializable {
 	 *        the kryo object
 	 * @param out
 	 *        the output stream to write the JAR files to
-	 * @param jobVertices
-	 *        array of job vertices whose required JAR file are to be written to the output stream
 	 * @throws IOException
 	 *         thrown if an error occurs while writing to the stream
 	 */
-	private void writeRequiredJarFiles(final Kryo kryo, final Output out, final AbstractJobVertex[] jobVertices)
-			throws IOException {
+	private void writeRequiredJarFiles(final Kryo kryo, final Output out) throws IOException {
 
 		// Now check if all the collected jar files really exist
 		final FileSystem fs = FileSystem.getLocalFileSystem();
@@ -735,7 +728,7 @@ public class JobGraph implements KryoSerializable {
 
 		// Write out all required jar files
 		try {
-			writeRequiredJarFiles(kryo, output, allVertices);
+			writeRequiredJarFiles(kryo, output);
 		} catch (IOException ioe) {
 			throw new RuntimeException(ioe);
 		}
