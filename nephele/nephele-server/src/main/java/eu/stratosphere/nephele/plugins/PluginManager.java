@@ -263,11 +263,6 @@ public final class PluginManager {
 					continue;
 				}
 
-				if (loaderClass == null) {
-					LOG.error("Unable to load plugin " + pluginName + ": loaderClass is null");
-					continue;
-				}
-
 				Constructor<? extends AbstractPluginLoader> constructor;
 				try {
 					constructor = (Constructor<? extends AbstractPluginLoader>) loaderClass

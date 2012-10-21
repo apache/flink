@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.AbstractID;
+import eu.stratosphere.nephele.util.FileUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -134,7 +135,7 @@ public final class FileBufferManager {
 		final FileBufferManager fbm = getInstance();
 		final File f = fbm.constructLocalFile(ownerID);
 		if (f.exists()) {
-			f.delete();
+			FileUtils.deleteSilently(f);
 			return true;
 		}
 

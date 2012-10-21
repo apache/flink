@@ -34,6 +34,7 @@ import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.nephele.util.AtomicEnumerator;
+import eu.stratosphere.nephele.util.FileUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public final class EnvelopeConsumptionLog {
@@ -85,7 +86,7 @@ public final class EnvelopeConsumptionLog {
 			final long length = this.logFile.length();
 			if (length % SIZE_OF_INTEGER != 0) {
 				LOG.error("Channel consumption log " + fileName + " appears to be corrupt, discarding it...");
-				this.logFile.delete();
+				FileUtils.deleteSilently(this.logFile);
 				this.numberOfInitialLogEntries = 0L;
 			} else {
 				this.numberOfInitialLogEntries = length / SIZE_OF_INTEGER;
@@ -472,6 +473,6 @@ public final class EnvelopeConsumptionLog {
 			throw new IllegalArgumentException("Argument vertexID must not be null");
 		}
 
-		new File(constructFileName(vertexID)).delete();
+		FileUtils.deleteSilently(new File(constructFileName(vertexID)));
 	}
 }

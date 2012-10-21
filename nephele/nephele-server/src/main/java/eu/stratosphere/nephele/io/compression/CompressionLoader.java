@@ -158,11 +158,6 @@ public class CompressionLoader {
 			return null;
 		}
 
-		if (compressionLibraryClass == null) {
-			LOG.error("Cannot load compression library " + libraryClass);
-			return null;
-		}
-
 		Constructor<? extends CompressionLibrary> constructor;
 		try {
 			constructor = compressionLibraryClass.getConstructor(String.class);

@@ -92,7 +92,11 @@ public class JarFileCreator {
 
 		// If output file already exists, delete it
 		if (this.outputFile.exists()) {
-			this.outputFile.delete();
+			try {
+				this.outputFile.delete();
+			} catch (SecurityException se) {
+				throw new IOException(se);
+			}
 		}
 
 		final JarOutputStream jos = new JarOutputStream(new FileOutputStream(this.outputFile), new Manifest());
