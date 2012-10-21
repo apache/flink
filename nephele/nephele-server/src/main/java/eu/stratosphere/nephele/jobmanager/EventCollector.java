@@ -544,10 +544,10 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 				if ((entry.getValue().getTimestamp() + this.timerTaskInterval) < currentTime) {
 					it.remove();
 					synchronized (this.recentManagementGraphs) {
-						this.recentManagementGraphs.remove(entry.getValue());
+						this.recentManagementGraphs.remove(entry.getValue().getJobID());
 					}
 					synchronized (this.recentNetworkTopologies) {
-						this.recentNetworkTopologies.remove(entry.getValue());
+						this.recentNetworkTopologies.remove(entry.getValue().getJobID());
 					}
 				}
 			}

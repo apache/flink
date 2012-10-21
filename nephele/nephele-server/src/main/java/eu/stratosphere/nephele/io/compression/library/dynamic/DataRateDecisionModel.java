@@ -45,7 +45,7 @@ public final class DataRateDecisionModel implements DecisionModel {
 
 	private long sumOfBufferSizes = 0;
 
-	private final double DELTA = 0.2f;
+	private static final double DELTA = 0.2f;
 
 	public DataRateDecisionModel(int numberOfAvailableCompressionLibraries) {
 		this.numberOfAvailableCompressionLibraries = numberOfAvailableCompressionLibraries;

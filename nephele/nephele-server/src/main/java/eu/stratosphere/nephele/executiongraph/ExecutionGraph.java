@@ -30,6 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
@@ -112,7 +113,7 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	/**
 	 * Index to the current execution stage.
 	 */
-	private volatile int indexToCurrentExecutionStage = 0;
+	private final AtomicInteger indexToCurrentExecutionStage = new AtomicInteger(0);
 
 	/**
 	 * The job configuration that was originally attached to the JobGraph.
@@ -860,12 +861,12 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	 */
 	private boolean isCurrentStageCompleted() {
 
-		if (this.indexToCurrentExecutionStage >= this.stages.size()) {
+		if (this.indexToCurrentExecutionStage.get() >= this.stages.size()) {
 			return true;
 		}
 
 		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true,
-			this.indexToCurrentExecutionStage);
+			this.indexToCurrentExecutionStage.get());
 		while (it.hasNext()) {
 			final ExecutionGroupVertex groupVertex = it.next();
 			if (groupVertex.getGroupExecutionState() != ExecutionState.FINISHED) {
@@ -901,7 +902,7 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	 * @return the index of the current execution stage
 	 */
 	public int getIndexOfCurrentExecutionStage() {
-		return this.indexToCurrentExecutionStage;
+		return this.indexToCurrentExecutionStage.get();
 	}
 
 	/**
@@ -912,7 +913,7 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	public ExecutionStage getCurrentExecutionStage() {
 
 		try {
-			return this.stages.get(this.indexToCurrentExecutionStage);
+			return this.stages.get(this.indexToCurrentExecutionStage.get());
 		} catch (ArrayIndexOutOfBoundsException e) {
 			return null;
 		}
@@ -1477,8 +1478,8 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 			// It is worth checking if the current stage has complete
 			if (this.isCurrentStageCompleted()) {
 				// Increase current execution stage
-				++this.indexToCurrentExecutionStage;
-				if (this.indexToCurrentExecutionStage < this.stages.size()) {
+				final int index = this.indexToCurrentExecutionStage.incrementAndGet();
+				if (index < this.stages.size()) {
 					final Iterator<ExecutionStageListener> it = this.executionStageListeners.iterator();
 					final ExecutionStage nextExecutionStage = getCurrentExecutionStage();
 					while (it.hasNext()) {
