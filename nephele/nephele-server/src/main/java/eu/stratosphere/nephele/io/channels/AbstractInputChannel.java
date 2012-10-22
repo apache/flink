@@ -169,7 +169,7 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 		 */
 		final ChannelType type = getType();
 		if (type == ChannelType.NETWORK || type == ChannelType.INMEMORY) {
-			transferEvent(new ByteBufferedChannelCloseEvent());
+			transferEvent(new ChannelCloseEvent());
 		}
 	}
 
@@ -239,7 +239,7 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	 */
 	public void activate() throws IOException, InterruptedException {
 
-		transferEvent(new ByteBufferedChannelActivateEvent());
+		transferEvent(new ChannelActivateEvent());
 	}
 
 	/**
@@ -311,7 +311,7 @@ public abstract class AbstractInputChannel<T extends Record> extends AbstractCha
 	@Override
 	public void processEvent(AbstractEvent event) {
 
-		if (ByteBufferedChannelCloseEvent.class.isInstance(event)) {
+		if (ChannelCloseEvent.class.isInstance(event)) {
 			// System.out.println("Received close event");
 			this.brokerAggreedToCloseChannel = true;
 			// Make sure the application wake's up to check this

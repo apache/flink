@@ -17,5 +17,5 @@ package eu.stratosphere.nephele.io.channels;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 
-public final class ByteBufferedChannelActivateEvent extends AbstractEvent {
+public final class ChannelActivateEvent extends AbstractEvent {
 }

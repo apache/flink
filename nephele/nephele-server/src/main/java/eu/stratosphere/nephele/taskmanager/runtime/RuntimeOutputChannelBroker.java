@@ -21,7 +21,7 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ByteBufferedChannelCloseEvent;
+import eu.stratosphere.nephele.io.channels.ChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionException;
@@ -116,7 +116,7 @@ final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder im
 	@Override
 	public void processEvent(final AbstractEvent event) {
 
-		if (event instanceof ByteBufferedChannelCloseEvent) {
+		if (event instanceof ChannelCloseEvent) {
 			this.closeAcknowledgmentReceived = true;
 		} else if (event instanceof ReceiverNotFoundEvent) {
 			this.lastSequenceNumberWithReceiverNotFound = ((ReceiverNotFoundEvent) event).getSequenceNumber();

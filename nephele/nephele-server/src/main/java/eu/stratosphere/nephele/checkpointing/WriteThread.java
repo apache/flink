@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
-import eu.stratosphere.nephele.io.channels.ByteBufferedChannelCloseEvent;
+import eu.stratosphere.nephele.io.channels.ChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -327,7 +327,7 @@ final class WriteThread extends Thread {
 		if (eventList != null) {
 			final Iterator<AbstractEvent> it = eventList.iterator();
 			while (it.hasNext()) {
-				if (it.next() instanceof ByteBufferedChannelCloseEvent) {
+				if (it.next() instanceof ChannelCloseEvent) {
 					++this.numberOfClosedChannels;
 				}
 			}

@@ -27,7 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.ByteBufferedChannelCloseEvent;
+import eu.stratosphere.nephele.io.channels.ChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -259,11 +259,11 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	}
 
 	/**
-	 * Looks for a {@link ByteBufferedChannelCloseEvent} in the given envelope returns it if it is found.
+	 * Looks for a {@link ChannelCloseEvent} in the given envelope returns it if it is found.
 	 * 
 	 * @param envelope
 	 *        the envelope to be inspected
-	 * @return the found {@link ByteBufferedChannelCloseEvent} or <code>null</code> if no such event was stored inside
+	 * @return the found {@link ChannelCloseEvent} or <code>null</code> if no such event was stored inside
 	 *         the given envelope
 	 */
 	private AbstractEvent lookForCloseEvent(final TransferEnvelope envelope) {
@@ -278,7 +278,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 			final AbstractEvent event = it.next();
 
-			if (event instanceof ByteBufferedChannelCloseEvent) {
+			if (event instanceof ChannelCloseEvent) {
 				return event;
 			}
 		}

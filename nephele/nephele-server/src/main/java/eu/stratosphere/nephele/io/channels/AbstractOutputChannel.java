@@ -265,7 +265,7 @@ public abstract class AbstractOutputChannel<T extends Record> extends AbstractCh
 			}
 
 			if (!isBroadcastChannel() || getChannelIndex() == 0) {
-				transferEvent(new ByteBufferedChannelCloseEvent());
+				transferEvent(new ChannelCloseEvent());
 				flush();
 			}
 		}
