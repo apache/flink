@@ -83,7 +83,7 @@ public class ConnectionInfoLookupResponse implements KryoSerializable {
 			return Collections.emptyList();
 		}
 
-		return this.remoteTargets;
+		return Collections.unmodifiableList(this.remoteTargets);
 	}
 
 	public List<ChannelID> getLocalTargets() {
@@ -92,7 +92,7 @@ public class ConnectionInfoLookupResponse implements KryoSerializable {
 			return Collections.emptyList();
 		}
 
-		return this.localTargets;
+		return Collections.unmodifiableList(this.localTargets);
 	}
 
 	public boolean receiverNotFound() {

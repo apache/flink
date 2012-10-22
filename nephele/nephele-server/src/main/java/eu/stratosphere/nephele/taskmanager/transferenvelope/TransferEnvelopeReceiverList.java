@@ -43,8 +43,8 @@ public class TransferEnvelopeReceiverList {
 
 	public TransferEnvelopeReceiverList(final ConnectionInfoLookupResponse cilr) {
 
-		this.localReceivers = Collections.unmodifiableList(cilr.getLocalTargets());
-		this.remoteReceivers = Collections.unmodifiableList(cilr.getRemoteTargets());
+		this.localReceivers = cilr.getLocalTargets();
+		this.remoteReceivers = cilr.getRemoteTargets();
 	}
 
 	public TransferEnvelopeReceiverList(final ChannelContext channelContext) {

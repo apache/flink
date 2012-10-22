@@ -15,40 +15,44 @@
 
 package eu.stratosphere.nephele.multicast;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionEdge;
 import eu.stratosphere.nephele.executiongraph.ExecutionGate;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
 
 /**
  * The MulticastManager is responsible for the creation and storage of application-layer multicast trees used to
  * broadcast records to multiple target vertices.
  * 
  * @author casp
+ * @author warneke
  */
 
 public final class MulticastManager implements ChannelLookupProtocol {
@@ -56,32 +60,7 @@ public final class MulticastManager implements ChannelLookupProtocol {
 	/**
 	 * The log object used to report errors and warnings.
 	 */
-	private static final Log LOG = LogFactory.getLog(JobManager.class);
-
-	/**
-	 * Indicates if the arrangement of nodes within the overlay-tree should be randomized or not. If set to false,
-	 * arrangement of the same set of receiver nodes is guaranteed to be the same
-	 */
-	private final boolean randomized;
-
-	/**
-	 * Indicates if the tree should be constructed with a given topology stored in a file.
-	 */
-	private final boolean useHardCodedTree;
-
-	/**
-	 * File containing the hard-coded tree topology, if desired should contain node names (e.g. hostnames) with
-	 * corresponding children per line.
-	 * For example, a line "vm1.local vm2.local vm3.local" would result in vm1.local connecting to vm2.local and
-	 * vm3.local as children no further checking for connectivity of the given topology is done!
-	 */
-	private final String hardCodedTreeFilePath;
-
-	/**
-	 * Indicates the desired branching of the generated multicast-tree. 0 means unicast transmisison, 1 sequential tree,
-	 * 2 binomial tree, 3+ clustered tree
-	 */
-	private final int treeBranching;
+	private static final Log LOG = LogFactory.getLog(MulticastManager.class);
 
 	/**
 	 * Reference to the scheduler.
@@ -91,7 +70,7 @@ public final class MulticastManager implements ChannelLookupProtocol {
 	/**
 	 * Map caching already computed multicast forwarding tables.
 	 */
-	private final Map<ChannelID, MulticastForwardingTable> cachedTrees = new HashMap<ChannelID, MulticastForwardingTable>();
+	private final ConcurrentMap<ChannelID, MulticastForwardingTable> cachedTrees = new ConcurrentHashMap<ChannelID, MulticastForwardingTable>();
 
 	/**
 	 * Constructs a new multicast manager.
@@ -102,11 +81,6 @@ public final class MulticastManager implements ChannelLookupProtocol {
 	public MulticastManager(final AbstractScheduler scheduler) {
 
 		this.scheduler = scheduler;
-
-		this.randomized = GlobalConfiguration.getBoolean("multicast.randomize", false);
-		this.treeBranching = GlobalConfiguration.getInteger("multicast.branching", 1);
-		this.useHardCodedTree = GlobalConfiguration.getBoolean("multicast.usehardcodedtree", false);
-		this.hardCodedTreeFilePath = GlobalConfiguration.getString("multicast.hardcodedtreefile", null);
 	}
 
 	/**
@@ -121,213 +95,121 @@ public final class MulticastManager implements ChannelLookupProtocol {
 	 *        the ID of the channel to resolve
 	 * @return the lookup response containing the connection info and a return code
 	 */
-	public synchronized ConnectionInfoLookupResponse lookupConnectionInfo(final InstanceConnectionInfo caller,
+	public ConnectionInfoLookupResponse lookupConnectionInfo(final InstanceConnectionInfo caller,
 			final JobID jobID, final ChannelID sourceChannelID) {
 
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Receiving multicast receiver request from " + caller + " channel ID: " + sourceChannelID);
-		}
-
 		// Check if the tree is already created and cached
-		if (this.cachedTrees.containsKey(sourceChannelID)) {
-
-			LOG.info("Replying with cached entry...");
-			return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
-
-		} else {
-
-			// No tree exists, so we assume that this is the sending node initiating a multicast
-
-			if (!checkIfAllTargetVerticesReady(caller, jobID, sourceChannelID)) {
-				LOG.info("Received multicast request but not all receivers ready.");
-
-				return ConnectionInfoLookupResponse.createReceiverNotReady();
-			}
-
-			// Receivers are up and running.. extract tree nodes...
-			LinkedList<TreeNode> treeNodes = extractTreeNodes(caller, jobID, sourceChannelID, this.randomized);
-
-			// Do we want to use a hard-coded tree topology?
-			if (this.useHardCodedTree) {
-				LOG.info("Creating a hard-coded tree topology from file: " + hardCodedTreeFilePath);
-				cachedTrees.put(sourceChannelID, createHardCodedTree(treeNodes));
-				return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
-			}
-
-			// Otherwise we create a default tree and put it into the tree-cache
-			cachedTrees.put(sourceChannelID, createDefaultTree(treeNodes, this.treeBranching));
-			return cachedTrees.get(sourceChannelID).getConnectionInfo(caller);
-
+		MulticastForwardingTable mft = this.cachedTrees.get(sourceChannelID);
+		if (mft != null) {
+			return mft.getConnectionInfo(caller);
 		}
-
-	}
-
-	/**
-	 * Returns and removes the TreeNode which is closest to the given indicator.
-	 * 
-	 * @param indicator
-	 * @param nodes
-	 * @return
-	 */
-	private TreeNode pollClosestNode(final TreeNode indicator, final LinkedList<TreeNode> nodes) {
-
-		TreeNode closestnode = getClosestNode(indicator, nodes);
-
-		nodes.remove(closestnode);
-
-		return closestnode;
-
-	}
-
-	/**
-	 * Returns the TreeNode which is closest to the given indicator Node. Proximity is determined
-	 * either using topology-information (if given), penalty information (if given) or it returns
-	 * the first node in the list.
-	 * 
-	 * @param indicator
-	 * @param nodes
-	 * @return
-	 */
-	private TreeNode getClosestNode(final TreeNode indicator, final LinkedList<TreeNode> nodes) {
-
-		if (indicator == null) {
-			return nodes.getFirst();
-		}
-
-		TreeNode closestNode = null;
-		for (TreeNode n : nodes) {
-			if (closestNode == null || n.getDistance(indicator) < closestNode.getDistance(indicator)) {
-				closestNode = n;
-			}
-		}
-
-		return closestNode;
-	}
-
-	/**
-	 * This method creates a tree with an arbitrary fan out (two means binary tree).
-	 * If topology information or penalties are available, it considers that.
-	 * If fanout is set to 1, it creates a sequential tree.
-	 * if fanout is set to Integer.MAXVALUE, it creates a unicast tree.
-	 * 
-	 * @param nodes
-	 * @param fanout
-	 * @return
-	 */
-	private MulticastForwardingTable createDefaultTree(LinkedList<TreeNode> nodes, int fanout) {
-
-		// Store nodes that already have a parent, but no children
-		LinkedList<TreeNode> connectedNodes = new LinkedList<TreeNode>();
-
-		final TreeNode rootnode = nodes.pollFirst();
-		TreeNode actualnode = rootnode;
-
-		while (nodes.size() > 0) { // We still have unconnected nodes...
-
-			for (int i = 0; i < fanout; i++) {
-
-				if (nodes.size() > 0) {
-					// pick the closest one and attach to actualnode
-					TreeNode child = pollClosestNode(actualnode, nodes);
-					actualnode.addChild(child);
-
-					// The child is now connected and can be used as forwarder in the next iteration..
-					connectedNodes.add(child);
-				} else {
-					break;
-				}
-			}
-
-			// OK.. take the next node to attach children to it..
-			// TODO: Optimization? "pollBest()" ?
-			actualnode = connectedNodes.pollFirst();
-
-		}
-		LOG.info("created multicast tree with following topology:\n" + rootnode.printTree());
-
-		return rootnode.createForwardingTable();
-
-	}
-
-	/**
-	 * Reads a hard-coded tree topology from file and creates a tree according to the hard-coded
-	 * topology from the file.
-	 * 
-	 * @param nodes
-	 * @return
-	 */
-	private MulticastForwardingTable createHardCodedTree(LinkedList<TreeNode> nodes) {
-		try {
-			FileInputStream fstream = new FileInputStream(this.hardCodedTreeFilePath);
-			DataInputStream in = new DataInputStream(fstream);
-			BufferedReader br = new BufferedReader(new InputStreamReader(in));
-			String strLine;
-			while ((strLine = br.readLine()) != null) {
-				String[] values = strLine.split(" ");
-				String actualhostname = values[0];
-				for (TreeNode n : nodes) {
-					if (n.toString().equals(actualhostname)) {
-						// we found the node.. connect the children
-						for (int i = 1; i < values.length; i++) {
-							for (TreeNode childnode : nodes) {
-								if (childnode.toString().equals(values[i])) {
-									n.addChild(childnode);
-								}
-							}
-						}
-					}
-				}
-			}
-			br.close();
-			// First node is root.. create tree. easy
-			return nodes.getFirst().createForwardingTable();
-
-		} catch (Exception e) {
-			System.out.println("Error reading hard-coded topology file for multicast tree: " + e.getMessage());
-			return null;
-		}
-	}
-
-	/**
-	 * Checks, if all target vertices for multicast transmisison are ready. If vertices are in state ASSIGNED, it will
-	 * deploy those vertices.
-	 * 
-	 * @param caller
-	 * @param jobID
-	 * @param sourceChannelID
-	 * @return
-	 */
-	private boolean checkIfAllTargetVerticesReady(InstanceConnectionInfo caller, JobID jobID, ChannelID sourceChannelID) {
 
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
+		if (eg == null) {
+			LOG.error("Cannot find execution graph with jod ID " + jobID);
+			return ConnectionInfoLookupResponse.createReceiverNotFound();
+		}
 
 		final ExecutionEdge outputChannel = eg.getEdgeByID(sourceChannelID);
+		if (outputChannel == null) {
+			LOG.error("Cannot find execution edge with ID " + sourceChannelID);
+			return ConnectionInfoLookupResponse.createReceiverNotFound();
+		}
 
-		final ExecutionGate broadcastGate = outputChannel.getOutputGate();
+		// Perform a series of sanity checks
+		if (!verifySource(caller, outputChannel)) {
+			return ConnectionInfoLookupResponse.createReceiverNotFound();
+		}
+
+		// Check if all receivers are ready and do some sanity checks
+		if (!checkIfAllTargetVerticesAreReady(outputChannel)) {
+			LOG.info("Received multicast request but not all receivers ready.");
+			return ConnectionInfoLookupResponse.createReceiverNotReady();
+		}
+
+		// Create new multicast forwarding table
+		mft = createForwardingTable(outputChannel);
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info(mft);
+		}
+
+		// Otherwise we create a default tree and put it into the tree-cache
+		this.cachedTrees.put(sourceChannelID, mft);
+
+		return mft.getConnectionInfo(caller);
+	}
+
+	private static boolean verifySource(final InstanceConnectionInfo caller, ExecutionEdge outputChannel) {
+
+		// Sanity check
+		if (!outputChannel.isBroadcast()) {
+			LOG.error("Received multicast request tree from a non-broadcast edge");
+			return false;
+		}
+
+		final ExecutionGate outputGate = outputChannel.getOutputGate();
+		if (outputGate == null) {
+			LOG.error("Cannot find output gate for output channel " + outputChannel.getOutputChannelID());
+			return false;
+		}
+
+		final ExecutionVertex sourceVertex = outputGate.getVertex();
+		if (sourceVertex == null) {
+			LOG.error("Cannot find source vertex for output channel " + outputChannel.getOutputChannelID());
+			return false;
+		}
+
+		final AbstractInstance instance = sourceVertex.getAllocatedResource().getInstance();
+		if (instance == null) {
+			LOG.error("Source vertex " + sourceVertex + " is not assigned to an instance");
+			return false;
+		}
+
+		if (instance instanceof DummyInstance) {
+			LOG.error("Source vertex " + sourceVertex + " is assigned to a dummy instance");
+			return false;
+		}
+
+		if (!caller.equals(instance.getInstanceConnectionInfo())) {
+			LOG.error(caller + " is not the source of the multicast tree");
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Checks, if all target vertices for a multicast transmission are ready. If vertices are in state ASSIGNED, those
+	 * vertices will automatically be deployed.
+	 * 
+	 * @param outputChannel
+	 *        the edge over which this multicast transmission is about to be initiated
+	 */
+	private boolean checkIfAllTargetVerticesAreReady(final ExecutionEdge outputChannel) {
+
+		final ExecutionGate outputGate = outputChannel.getOutputGate();
 
 		List<ExecutionVertex> verticesToDeploy = null;
 
-		// get all broadcast output channels
-		final int numberOfOutputChannels = broadcastGate.getNumberOfEdges();
+		// Iterator over all broadcast edges and check the receivers' state.
+		final int numberOfOutputChannels = outputGate.getNumberOfEdges();
 		for (int i = 0; i < numberOfOutputChannels; ++i) {
 
-			final ExecutionEdge c = broadcastGate.getEdge(i);
+			final ExecutionEdge c = outputGate.getEdge(i);
 
-			if (c.isBroadcast()) {
+			final ExecutionVertex targetVertex = c.getInputGate().getVertex();
 
-				final ExecutionVertex targetVertex = c.getInputGate().getVertex();
+			if (targetVertex.getExecutionState() == ExecutionState.ASSIGNED) {
+				if (verticesToDeploy == null) {
+					verticesToDeploy = new ArrayList<ExecutionVertex>();
+				}
+				verticesToDeploy.add(targetVertex);
+			} else {
 
-				if (targetVertex.getExecutionState() == ExecutionState.ASSIGNED) {
-					if (verticesToDeploy == null) {
-						verticesToDeploy = new ArrayList<ExecutionVertex>();
-					}
-					verticesToDeploy.add(targetVertex);
-				} else {
-
-					if (targetVertex.getExecutionState() != ExecutionState.RUNNING
-						&& targetVertex.getExecutionState() != ExecutionState.FINISHING) {
-						return false;
-					}
+				if (targetVertex.getExecutionState() != ExecutionState.RUNNING
+					&& targetVertex.getExecutionState() != ExecutionState.FINISHING) {
+					return false;
 				}
 			}
 		}
@@ -340,127 +222,103 @@ public final class MulticastManager implements ChannelLookupProtocol {
 		return true;
 	}
 
-	/**
-	 * Returns a list of (physical) Nodes (=hosts) within the multicast tree. Each node contains the local ChannelIDs,
-	 * records
-	 * must be forwarded to. The first node in the List is the only multicast sender.
-	 * 
-	 * @param sourceChannelID
-	 * @return
-	 */
-	private LinkedList<TreeNode> extractTreeNodes(final InstanceConnectionInfo source, final JobID jobID,
-			final ChannelID sourceChannelID, final boolean randomize) {
+	private static List<AbstractInstance> getClosestReceiverInstances(final AbstractInstance currentRequester,
+			final Set<AbstractInstance> remainingReceiverInstances) {
 
-		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
+		if (remainingReceiverInstances.isEmpty()) {
+			return Collections.emptyList();
+		}
 
-		final ExecutionEdge outputChannel = eg.getEdgeByID(sourceChannelID);
+		final List<AbstractInstance> closestReceivers = new ArrayList<AbstractInstance>(
+			remainingReceiverInstances.size());
+		int minimumDistance = Integer.MAX_VALUE;
+		Iterator<AbstractInstance> it = remainingReceiverInstances.iterator();
+		while (it.hasNext()) {
 
-		final ExecutionGate broadcastGate = outputChannel.getOutputGate();
-
-		final LinkedList<ExecutionEdge> outputChannels = new LinkedList<ExecutionEdge>();
-
-		// Get all broadcast output channels
-		final int numberOfOutputChannels = broadcastGate.getNumberOfEdges();
-		for (int i = 0; i < numberOfOutputChannels; ++i) {
-			final ExecutionEdge c = broadcastGate.getEdge(i);
-
-			if (c.isBroadcast()) {
-				outputChannels.add(c);
+			final int distance = currentRequester.getDistance(it.next());
+			if (distance < minimumDistance) {
+				minimumDistance = distance;
 			}
 		}
 
-		final LinkedList<TreeNode> treeNodes = new LinkedList<TreeNode>();
+		it = remainingReceiverInstances.iterator();
+		while (it.hasNext()) {
 
-		LinkedList<ChannelID> actualLocalTargets = new LinkedList<ChannelID>();
-
-		int firstConnectionID = 0;
-		// search for local targets for the tree node
-		for (Iterator<ExecutionEdge> iter = outputChannels.iterator(); iter.hasNext();) {
-
-			final ExecutionEdge actualOutputChannel = iter.next();
-
-			// the connection ID should not be needed for the root node (as it is not set as remote receiver)
-			// but in order to maintain consistency, it also gets the connectionID of the first channel pointing to it
-			firstConnectionID = actualOutputChannel.getConnectionID();
-
-			final ExecutionVertex targetVertex = actualOutputChannel.getInputGate().getVertex();
-
-			// is the target vertex running on the same instance?
-			if (targetVertex.getAllocatedResource().getInstance().getInstanceConnectionInfo().equals(source)) {
-
-				actualLocalTargets.add(actualOutputChannel.getInputChannelID());
-				iter.remove();
+			final AbstractInstance instance = it.next();
+			if (currentRequester.getDistance(instance) == minimumDistance) {
+				closestReceivers.add(instance);
 			}
-
 		}
 
-		// create sender node (root) with source instance
-		TreeNode actualNode = new TreeNode(eg.getVertexByChannelID(sourceChannelID).getAllocatedResource()
-			.getInstance(), source, firstConnectionID, actualLocalTargets);
-
-		treeNodes.add(actualNode);
-
-		// now we have the root-node.. lets extract all other nodes
-
-		LinkedList<TreeNode> receiverNodes = new LinkedList<TreeNode>();
-
-		while (outputChannels.size() > 0) {
-
-			final ExecutionEdge firstChannel = outputChannels.pollFirst();
-
-			// each receiver nodes' endpoint is associated with the connection ID
-			// of the first channel pointing to this node.
-			final int connectionID = firstChannel.getConnectionID();
-
-			final ExecutionVertex firstTarget = firstChannel.getInputGate().getVertex();
-
-			final InstanceConnectionInfo actualInstance = firstTarget.getAllocatedResource().getInstance()
-				.getInstanceConnectionInfo();
-
-			actualLocalTargets = new LinkedList<ChannelID>();
-
-			// add first local target
-			actualLocalTargets.add(firstChannel.getInputChannelID());
-
-			// now we iterate through the remaining channels to find other local targets...
-			for (Iterator<ExecutionEdge> iter = outputChannels.iterator(); iter.hasNext();) {
-
-				final ExecutionEdge actualOutputChannel = iter.next();
-
-				final ExecutionVertex actualTarget = actualOutputChannel.getInputGate().getVertex();
-
-				// is the target vertex running on the same instance?
-				if (actualTarget.getAllocatedResource().getInstance().getInstanceConnectionInfo()
-					.equals(actualInstance)) {
-					actualLocalTargets.add(actualOutputChannel.getInputChannelID());
-
-					iter.remove();
-
-				}
-
-			}// end for
-
-			// create tree node for current instance
-			actualNode = new TreeNode(firstTarget.getAllocatedResource().getInstance(), actualInstance, connectionID,
-				actualLocalTargets);
-
-			receiverNodes.add(actualNode);
-
-		}// end while
-
-		// Do we want to shuffle the receiver nodes?
-		// Only randomize the receivers, as the sender (the first one) has to stay the same
-		if (randomize) {
-			Collections.shuffle(receiverNodes);
-		} else {
-			// Sort Tree Nodes according to host name..
-			Collections.sort(receiverNodes);
-		}
-
-		treeNodes.addAll(receiverNodes);
-
-		return treeNodes;
-
+		return closestReceivers;
 	}
 
+	private static MulticastForwardingTable createForwardingTable(final ExecutionEdge outputChannel) {
+
+		final Map<InstanceConnectionInfo, ConnectionInfoLookupResponse> forwardingTable = new HashMap<InstanceConnectionInfo, ConnectionInfoLookupResponse>();
+		final ExecutionGate outputGate = outputChannel.getOutputGate();
+		final List<ExecutionEdge> remainingReceivers = new ArrayList<ExecutionEdge>(outputGate.getNumberOfEdges());
+		final Queue<AbstractInstance> requesters = new LinkedList<AbstractInstance>();
+		final Set<AbstractInstance> remainingReceiverInstances = new HashSet<AbstractInstance>();
+
+		// Initialize data structures
+		final int numberOfOutputChannels = outputGate.getNumberOfEdges();
+		for (int i = 0; i < numberOfOutputChannels; ++i) {
+			final ExecutionEdge edge = outputGate.getEdge(i);
+			final ExecutionVertex targetVertex = edge.getInputGate().getVertex();
+			remainingReceivers.add(edge);
+			remainingReceiverInstances.add(targetVertex.getAllocatedResource().getInstance());
+		}
+		final ExecutionVertex sourceVertex = outputChannel.getOutputGate().getVertex();
+		requesters.add(sourceVertex.getAllocatedResource().getInstance());
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Creating new multicast forwarding table for " + sourceVertex + ", output channel ID: "
+				+ outputChannel.getOutputChannelID());
+		}
+
+		while (!requesters.isEmpty()) {
+
+			final AbstractInstance currentRequester = requesters.poll();
+			final Iterator<ExecutionEdge> it = remainingReceivers.iterator();
+			final List<ChannelID> localTargets = new ArrayList<ChannelID>(16);
+			// Find local targets
+			while (it.hasNext()) {
+
+				final ExecutionEdge edge = it.next();
+				final ExecutionVertex targetVertex = edge.getInputGate().getVertex();
+				if (targetVertex.getAllocatedResource().getInstance().equals(currentRequester)) {
+					localTargets.add(edge.getInputChannelID());
+					it.remove();
+				}
+			}
+			remainingReceiverInstances.remove(currentRequester);
+
+			final List<AbstractInstance> closestReceiverInstances = getClosestReceiverInstances(currentRequester,
+				remainingReceiverInstances);
+			requesters.addAll(closestReceiverInstances);
+
+			// Construct lookup connection response and add it to the multicast forwarding fable
+			final ConnectionInfoLookupResponse cilr = ConnectionInfoLookupResponse.createReceiverFoundAndReady();
+			final Iterator<ChannelID> localIt = localTargets.iterator();
+			while (localIt.hasNext()) {
+				cilr.addLocalTarget(localIt.next());
+			}
+			final Iterator<AbstractInstance> remoteIt = closestReceiverInstances.iterator();
+			while (remoteIt.hasNext()) {
+				final InstanceConnectionInfo ici = remoteIt.next().getInstanceConnectionInfo();
+				cilr.addRemoteTarget(new RemoteReceiver(new InetSocketAddress(ici.getAddress(), ici.getDataPort()),
+					outputChannel.getConnectionID()));
+			}
+
+			forwardingTable.put(currentRequester.getInstanceConnectionInfo(), cilr);
+		}
+
+		if (!remainingReceivers.isEmpty()) {
+			throw new IllegalStateException("There are still " + remainingReceivers.size()
+				+ " unprocessed receivers left");
+		}
+
+		return new MulticastForwardingTable(forwardingTable);
+	}
 }
