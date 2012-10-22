@@ -26,7 +26,7 @@ public class UpdateCompontentIDMatch extends MatchStub {
 //    long cid2 = currentVertexWithComponent.getField(1, PactLong.class).getValue();
 
 //    String match = "(" + vid1 + "," + cid1 + ")<->(" + vid2 + "," + cid2 + ") ";
-    long vertexID = currentVertexWithComponent.getField(0, PactLong.class).getValue();
+//    long vertexID = currentVertexWithComponent.getField(0, PactLong.class).getValue();
 
     long candidateComponentID = newVertexWithComponent.getField(1, PactLong.class).getValue();
     long currentComponentID = currentVertexWithComponent.getField(1, PactLong.class).getValue();

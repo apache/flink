@@ -41,14 +41,18 @@ public class IterationContext {
     counts.put(index, new AtomicLong(0));
   }
 
-  public void resetCount(int index) {
-    counts.get(index).set(0);
+//  public void resetCount(int index) {
+//    counts.get(index).set(0);
+//  }
+
+  public void setCount(int index, long count) {
+    counts.get(index).set(count);
   }
 
 
-  public void incrementCount(int index, long delta) {
-    counts.get(index).addAndGet(delta);
-  }
+//  public void incrementCount(int index, long delta) {
+//    counts.get(index).addAndGet(delta);
+//  }
 
   public long count(int index) {
     return counts.get(index).get();

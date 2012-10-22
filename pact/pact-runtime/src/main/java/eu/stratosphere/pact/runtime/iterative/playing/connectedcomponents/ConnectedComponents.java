@@ -171,7 +171,7 @@ public class ConnectedComponents {
     JobGraphUtils.connect(initialSolutionset, intermediateSolutionSetUpdate, ChannelType.NETWORK,
         DistributionPattern.BIPARTITE, ShipStrategyType.PARTITION_HASH);
 
-    JobGraphUtils.connect(intermediateSolutionSetUpdate, tail, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+    JobGraphUtils.connect(intermediateSolutionSetUpdate, tail, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
         ShipStrategyType.FORWARD);
     JobGraphUtils.connect(graph, tail, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
         ShipStrategyType.PARTITION_HASH);

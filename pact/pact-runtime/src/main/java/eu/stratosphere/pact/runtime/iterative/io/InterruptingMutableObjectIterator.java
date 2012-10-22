@@ -125,7 +125,9 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
     }
 
     if (aggregator != null) {
-      aggregator.analyze(workerDoneEvent.aggregate());
+      int workerIndex = workerDoneEvent.workerIndex();
+      long aggregate = workerDoneEvent.aggregate();
+      aggregator.analyze(workerIndex, aggregate);
     }
 
     if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {

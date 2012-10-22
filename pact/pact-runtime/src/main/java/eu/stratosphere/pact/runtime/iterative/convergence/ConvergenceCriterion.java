@@ -22,7 +22,7 @@ public interface ConvergenceCriterion<T> {
   void prepareForNextIteration();
 
   /** Called for each aggregate sent to the synchronization task */
-  void analyze(T aggregate);
+  void analyze(int workerIndex, T aggregate);
 
   /** Decide whether the iterative algorithm has converged */
   boolean isConverged();

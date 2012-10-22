@@ -215,10 +215,10 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
   @Override
   public void invoke() throws Exception {
 
+    int workerIndex = getEnvironment().getIndexInSubtaskGroup();
 
-    int indexInSubtaskGroup = getEnvironment().getIndexInSubtaskGroup();
     IterationContext iterationContext = IterationContext.instance();
-    iterationContext.initCount(indexInSubtaskGroup);
+    iterationContext.initCount(workerIndex);
 
     /** used for receiving the current iteration result from iteration tail */
     BlockingBackChannel backChannel = initBackChannel();
@@ -258,10 +258,9 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
         log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
       }
 
-      sendEventToSync(new WorkerDoneEvent(iterationContext.count(indexInSubtaskGroup)));
-      //sendEventToSync(endOfSuperstepEvent);
+      sendEventToSync(new WorkerDoneEvent(workerIndex, iterationContext.count(workerIndex)));
+
       notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
-      iterationContext.resetCount(indexInSubtaskGroup);
 
       notifyMonitor(IterationMonitoring.Event.HEAD_WAITING_FOR_OTHERS);
       if (log.isInfoEnabled()) {

@@ -33,11 +33,14 @@ public class DataOutputCollector<T extends Record> implements Collector<T> {
   private final TypeSerializer<T> typeSerializer;
   private final List<AbstractRecordWriter<T>> writers;
 
+  private long elementsCollected;
+
   public DataOutputCollector(DataOutputView outputView, TypeSerializer<T> typeSerializer,
       List<AbstractRecordWriter<T>> writers) {
     this.outputView = outputView;
     this.typeSerializer = typeSerializer;
     this.writers = writers;
+    elementsCollected = 0;
   }
 
   @Override
@@ -48,12 +51,17 @@ public class DataOutputCollector<T extends Record> implements Collector<T> {
       for (int writerIndex = 0; writerIndex < numWriters; writerIndex++) {
         writers.get(writerIndex).emit(record);
       }
+      elementsCollected++;
     }
     catch (IOException e) {
       throw new RuntimeException("Unable to serialize the record", e);
     } catch (InterruptedException e) {
       throw new RuntimeException("Unable to serialize the record", e);
     }
+  }
+
+  public long elementsCollected() {
+    return elementsCollected;
   }
 
   @Override

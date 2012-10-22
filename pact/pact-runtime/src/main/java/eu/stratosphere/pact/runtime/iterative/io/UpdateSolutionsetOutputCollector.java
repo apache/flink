@@ -25,9 +25,11 @@ public class UpdateSolutionsetOutputCollector<T> implements Collector<T> {
   private final Collector<T> delegate;
   //TODO type safety
   private MutableHashTable.HashBucketIterator hashBucket;
+  private long numUpdatedElements;
 
   public UpdateSolutionsetOutputCollector(Collector<T> delegate) {
     this.delegate = delegate;
+    numUpdatedElements = 0;
   }
 
   public void setHashBucket(MutableHashTable.HashBucketIterator hashBucket) {
@@ -42,6 +44,13 @@ public class UpdateSolutionsetOutputCollector<T> implements Collector<T> {
       throw new RuntimeException(e);
     }
     delegate.collect(record);
+    numUpdatedElements++;
+  }
+
+  public long getNumUpdatedElementsAndReset() {
+    long numUpdatedElementsToReturn = numUpdatedElements;
+    numUpdatedElements = 0;
+    return numUpdatedElementsToReturn;
   }
 
   @Override

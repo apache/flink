@@ -39,7 +39,7 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
 
     boolean isJoinOnConstantDataPath = driver instanceof RepeatableHashJoinMatchDriver || driver instanceof RepeatableHashJoinMatchDriver2;
 
-    while (!terminationRequested() && currentIteration() < 7) {
+    while (!terminationRequested()) {
 
       notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_STARTING);
       if (log.isInfoEnabled()) {

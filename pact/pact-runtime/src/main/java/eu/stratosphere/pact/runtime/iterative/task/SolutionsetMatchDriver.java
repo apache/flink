@@ -17,19 +17,21 @@ package eu.stratosphere.pact.runtime.iterative.task;
 
 import com.google.common.base.Preconditions;
 import eu.stratosphere.pact.common.generic.GenericMatcher;
-import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 import eu.stratosphere.pact.runtime.iterative.io.UpdateSolutionsetOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT> {
 
   protected PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
 
-  private Collector<OT> collector;
+  private UpdateSolutionsetOutputCollector<OT> collector;
 
   private boolean firstIteration = true;
 
@@ -37,6 +39,8 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
   private volatile MutableHashTable hashJoin;
 
   private volatile boolean running;
+
+  private static final Log log = LogFactory.getLog(SolutionsetMatchDriver.class);
 
   void injectHashJoin(MutableHashTable hashJoin) {
     this.hashJoin = hashJoin;
@@ -81,7 +85,7 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
 
     final GenericMatcher<IT1, IT2, OT> matchStub = taskContext.getStub();
     //TODO type safety
-    final UpdateSolutionsetOutputCollector<OT> collector = (UpdateSolutionsetOutputCollector<OT>) this.collector;
+    final UpdateSolutionsetOutputCollector<OT> collector = this.collector;
     final MutableObjectIterator<IT1> probeSide = taskContext.getInput(0);
     final MutableObjectIterator<IT2> buildSide = taskContext.getInput(1);
 
@@ -94,15 +98,26 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
     final IT1 probeSideRecord = taskContext.<IT1>getInputSerializer(0).createInstance();
     final IT2 buildSideRecord = taskContext.<IT2>getInputSerializer(1).createInstance();
 
+    long possibleUpdates = 0;
     while (running && probeSide.next(probeSideRecord)) {
       MutableHashTable.HashBucketIterator<IT2, IT1> bucket = hashJoin.getMatchesFor(probeSideRecord);
 
-      boolean matched = bucket.next(buildSideRecord);
-      //Preconditions.checkState(matched);
-
+      bucket.next(buildSideRecord);
       collector.setHashBucket(bucket);
+
       matchStub.match(probeSideRecord, buildSideRecord, collector);
+      possibleUpdates++;
     }
+
+    long numUpdatedElements = collector.getNumUpdatedElementsAndReset();
+    int workerIndex = taskContext.getOwningNepheleTask().getIndexInSubtaskGroup();
+
+    if (log.isInfoEnabled()) {
+      log.info("[" + numUpdatedElements + "] elements updated in the solutionset partition of worker " +
+          "[" + workerIndex + "], possible updates [" + possibleUpdates + "]");
+    }
+
+    IterationContext.instance().setCount(workerIndex, numUpdatedElements);
   }
 
   @Override

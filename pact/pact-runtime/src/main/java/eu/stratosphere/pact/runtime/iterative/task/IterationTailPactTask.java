@@ -71,9 +71,11 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 
     // redirect output to the backchannel
     //TODO type safety
-    output = new DataOutputCollector(backChannel.getWriteEnd(), createOutputTypeSerializer(), validOutputs);
+    DataOutputCollector outputCollector = new DataOutputCollector(backChannel.getWriteEnd(),
+        createOutputTypeSerializer(), validOutputs);
+    output = outputCollector;
 
-    while (!terminationRequested() && currentIteration() < 7) {
+    while (!terminationRequested()) {
 
       notifyMonitor(IterationMonitoring.Event.TAIL_STARTING);
       if (log.isInfoEnabled()) {
@@ -87,6 +89,12 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 
       super.invoke();
       notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
+
+      if (log.isInfoEnabled()) {
+        log.info("IterationTail [" + getEnvironment().getIndexInSubtaskGroup() +"] inserted [" +
+            outputCollector.elementsCollected() + "] elements into backchannel in iteration [" + currentIteration() +
+            "]");
+      }
 
       if (log.isInfoEnabled()) {
         log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));

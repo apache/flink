@@ -23,13 +23,19 @@ import java.io.IOException;
 
 public class WorkerDoneEvent extends AbstractTaskEvent {
 
+  private int workerIndex;
   //TODO generalize
   private long aggregate;
 
   public WorkerDoneEvent() {}
 
-  public WorkerDoneEvent(long aggregate) {
+  public WorkerDoneEvent(int workerIndex, long aggregate) {
+    this.workerIndex = workerIndex;
     this.aggregate = aggregate;
+  }
+
+  public int workerIndex() {
+    return workerIndex;
   }
 
   public long aggregate() {
@@ -38,11 +44,13 @@ public class WorkerDoneEvent extends AbstractTaskEvent {
 
   @Override
   public void write(DataOutput out) throws IOException {
+    out.writeInt(workerIndex);
     out.writeLong(aggregate);
   }
 
   @Override
   public void read(DataInput in) throws IOException {
+    workerIndex = in.readInt();
     aggregate = in.readLong();
   }
 }

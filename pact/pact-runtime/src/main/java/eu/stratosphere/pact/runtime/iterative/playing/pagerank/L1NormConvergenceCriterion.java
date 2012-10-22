@@ -37,7 +37,7 @@ public class L1NormConvergenceCriterion implements ConvergenceCriterion<PactReco
   }
 
   @Override
-  public void analyze(PactRecord record) {
+  public void analyze(int workerIndex, PactRecord record) {
     double diff = record.getField(1, PactDouble.class).getValue();
 
     sum += diff;
