@@ -86,6 +86,16 @@ constructPactWebFrontendClassPath() {
 			add=1			
 		elif [[ "$jarfile" =~ 'servlet-api' ]]; then
 			add=1
+		elif [[ "$jarfile" =~ 'kryo' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'reflectasm' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'minlog' ]]; then
+                        add=1
+		elif [[ "$jarfile" =~ 'asm' ]]; then
+			add=1
+		elif [[ "$jarfile" =~ 'objenesis' ]]; then
+			add=1
 		fi
 
 		if [[ "$add" = "1" ]]; then
