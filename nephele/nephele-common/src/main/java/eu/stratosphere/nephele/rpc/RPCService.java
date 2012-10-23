@@ -109,11 +109,9 @@ public final class RPCService {
 
 	private final ConcurrentHashMap<String, RPCProtocol> callbackHandlers = new ConcurrentHashMap<String, RPCProtocol>();
 
-	private final ConcurrentHashMap<Integer, RPCRequest> pendingRequests = new ConcurrentHashMap<Integer, RPCRequest>();
+	private final ConcurrentHashMap<Integer, RPCRequestMonitor> pendingRequests = new ConcurrentHashMap<Integer, RPCRequestMonitor>();
 
 	private final ConcurrentHashMap<Integer, RPCRequest> requestsBeingProcessed = new ConcurrentHashMap<Integer, RPCRequest>();
-
-	private final ConcurrentHashMap<Integer, RPCResponse> pendingResponses = new ConcurrentHashMap<Integer, RPCResponse>();
 
 	private final ConcurrentHashMap<Integer, CachedResponse> cachedResponses = new ConcurrentHashMap<Integer, CachedResponse>();
 
@@ -249,6 +247,11 @@ public final class RPCService {
 			this.creationTime = creationTime;
 			this.packets = packets;
 		}
+	}
+
+	private static final class RPCRequestMonitor {
+
+		private RPCResponse rpcResponse = null;
 	}
 
 	private final class RPCInvocationHandler implements InvocationHandler {
@@ -465,15 +468,23 @@ public final class RPCService {
 		DatagramPacket[] packets = messageToPackets(remoteSocketAddress, request);
 		final Integer messageID = Integer.valueOf(request.getMessageID());
 
-		this.pendingRequests.put(messageID, request);
+		final RPCRequestMonitor requestMonitor = new RPCRequestMonitor();
+
+		this.pendingRequests.put(messageID, requestMonitor);
 
 		for (int i = 0; i < RETRY_LIMIT; ++i) {
 
 			sendPackets(packets);
 
+			RPCResponse rpcResponse;
 			try {
-				synchronized (request) {
-					request.wait(TIMEOUT);
+				synchronized (requestMonitor) {
+
+					if (requestMonitor.rpcResponse == null) {
+						requestMonitor.wait(TIMEOUT);
+					}
+
+					rpcResponse = requestMonitor.rpcResponse;
 				}
 			} catch (InterruptedException ie) {
 				Log.debug("Caught interrupted exception while waiting for RPC request to complete: ", ie);
@@ -481,7 +492,6 @@ public final class RPCService {
 			}
 
 			// Check if response has arrived
-			final RPCResponse rpcResponse = this.pendingResponses.remove(messageID);
 			if (rpcResponse == null) {
 				// Report timeout and resend message
 				this.statistics.reportRequestTimeout(packets.length, i);
@@ -491,8 +501,6 @@ public final class RPCService {
 
 			// Request is no longer pending
 			this.pendingRequests.remove(messageID);
-
-			// TODO: Consider pendingResponses here again
 
 			packets = messageToPackets(remoteSocketAddress, new RPCCleanup(request.getMessageID()));
 			sendPackets(packets);
@@ -504,8 +512,6 @@ public final class RPCService {
 		}
 
 		this.pendingRequests.remove(messageID);
-
-		// TODO: Consider pendingResponses here again
 
 		throw new IOException("Unable to complete RPC of method " + request.getMethodName() + " on "
 			+ remoteSocketAddress);
@@ -559,7 +565,7 @@ public final class RPCService {
 				if (msg instanceof RPCRequest) {
 					processIncomingRPCRequest(remoteSocketAddress, (RPCRequest) msg);
 				} else if (msg instanceof RPCResponse) {
-					processIncomingRPCResponse(remoteSocketAddress, (RPCResponse) msg);
+					processIncomingRPCResponse((RPCResponse) msg);
 				} else {
 					processIncomingRPCCleanup(remoteSocketAddress, (RPCCleanup) msg);
 				}
@@ -644,19 +650,26 @@ public final class RPCService {
 		return mpos.createPackets(remoteSocketAddress);
 	}
 
-	void processIncomingRPCResponse(final InetSocketAddress remoteSocketAddress, final RPCResponse rpcResponse) {
+	/**
+	 * Processes an incoming RPC response.
+	 * 
+	 * @param rpcResponse
+	 *        the RPC response to be processed
+	 */
+	void processIncomingRPCResponse(final RPCResponse rpcResponse) {
 
 		final Integer messageID = Integer.valueOf(rpcResponse.getMessageID());
 
-		final RPCRequest request = this.pendingRequests.get(messageID);
-		if (request == null) {
+		final RPCRequestMonitor requestMonitor = this.pendingRequests.get(messageID);
+
+		// The caller has already timed out or received an earlier response
+		if (requestMonitor == null) {
 			return;
 		}
 
-		this.pendingResponses.put(messageID, rpcResponse);
-
-		synchronized (request) {
-			request.notify();
+		synchronized (requestMonitor) {
+			requestMonitor.rpcResponse = rpcResponse;
+			requestMonitor.notify();
 		}
 	}
 
