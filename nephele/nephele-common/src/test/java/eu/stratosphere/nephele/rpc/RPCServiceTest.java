@@ -20,7 +20,10 @@ import static org.junit.Assert.assertEquals;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
@@ -31,11 +34,14 @@ public class RPCServiceTest implements RPCTestProtocol {
 
 	private static final int RPC_TEST_PORT = 8000;
 
-	private static final int NUMBER_OF_RPC_HANDLERS = 2;
+	private static final int NUMBER_OF_RPC_HANDLERS = 4;
 
 	private static final int NUMBER_OF_TEST_STRINGS = 100;
 
-	private static final int NUMBER_OF_RPC_CALLS = 100;
+	private static final int NUMBER_OF_RPC_CALLS = 1000;
+
+	private final Set<Integer> processedRequestsSet = Collections
+		.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
 
 	private final AtomicInteger counter = new AtomicInteger(0);
 
@@ -50,6 +56,7 @@ public class RPCServiceTest implements RPCTestProtocol {
 	public void testSingleClientRPCService() {
 
 		this.counter.set(0);
+		this.processedRequestsSet.clear();
 
 		final List<String> par3 = new ArrayList<String>(NUMBER_OF_TEST_STRINGS);
 		for (int i = 0; i < NUMBER_OF_TEST_STRINGS; ++i) {
@@ -83,6 +90,7 @@ public class RPCServiceTest implements RPCTestProtocol {
 	public void testMultiClientRPCService() {
 
 		this.counter.set(0);
+		this.processedRequestsSet.clear();
 
 		final List<String> par3 = new ArrayList<String>(NUMBER_OF_TEST_STRINGS);
 		for (int i = 0; i < NUMBER_OF_TEST_STRINGS; ++i) {
@@ -146,6 +154,10 @@ public class RPCServiceTest implements RPCTestProtocol {
 		assertEquals(NUMBER_OF_TEST_STRINGS, par3.size());
 		for (int i = 0; i < NUMBER_OF_TEST_STRINGS; ++i) {
 			assertEquals(constructTestString(i), par3.get(i));
+		}
+
+		if (!this.processedRequestsSet.add(Integer.valueOf(par2))) {
+			fail("Request with ID " + par2 + " is processed more than once");
 		}
 
 		return par2;
