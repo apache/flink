@@ -98,6 +98,11 @@ public final class RPCService {
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
 
 	/**
+	 * The statistics module collects statistics on the operation of the RPC service.
+	 */
+	private final RPCStatistics statistics = new RPCStatistics();
+
+	/**
 	 * Periodic timer to handle clean-up tasks in the background.
 	 */
 	private final Timer cleanupTimer = new Timer();
@@ -440,6 +445,17 @@ public final class RPCService {
 			new RPCInvocationHandler(remoteAddress, protocol.getName()));
 	}
 
+	/**
+	 * Sends an RPC request to the given {@link InetSocketAddress}.
+	 * 
+	 * @param remoteSocketAddress
+	 *        the remote address to send the request to
+	 * @param request
+	 *        the RPC request to send
+	 * @return the return value of the RPC call, possibly <code>null</code>
+	 * @throws Throwable
+	 *         any exception that is thrown by the remote receiver of the RPC call
+	 */
 	Object sendRPCRequest(final InetSocketAddress remoteSocketAddress, final RPCRequest request) throws Throwable {
 
 		if (this.shutdownRequested.get()) {
@@ -467,13 +483,16 @@ public final class RPCService {
 			// Check if response has arrived
 			final RPCResponse rpcResponse = this.pendingResponses.remove(messageID);
 			if (rpcResponse == null) {
-				// Resend message
+				// Report timeout and resend message
+				this.statistics.reportRequestTimeout(packets.length, i);
 				Log.debug("Timeout, retransmitting request " + request.getMessageID());
 				continue;
 			}
 
 			// Request is no longer pending
 			this.pendingRequests.remove(messageID);
+
+			// TODO: Consider pendingResponses here again
 
 			packets = messageToPackets(remoteSocketAddress, new RPCCleanup(request.getMessageID()));
 			sendPackets(packets);
@@ -485,6 +504,8 @@ public final class RPCService {
 		}
 
 		this.pendingRequests.remove(messageID);
+
+		// TODO: Consider pendingResponses here again
 
 		throw new IOException("Unable to complete RPC of method " + request.getMethodName() + " on "
 			+ remoteSocketAddress);
