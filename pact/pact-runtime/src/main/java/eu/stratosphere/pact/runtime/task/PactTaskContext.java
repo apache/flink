@@ -52,8 +52,6 @@ public interface PactTaskContext<S extends Stub, OT>
 	
 	<X> TypeComparator<X> getInputComparator(int index);
 	
-	<X> TypeComparator<X> getSecondarySortComparator(int index);
-	
 	S getStub();
 	
 	Collector<OT> getOutputCollector();
@@ -61,5 +59,4 @@ public interface PactTaskContext<S extends Stub, OT>
 	AbstractInvokable getOwningNepheleTask();
 	
 	String formatLogString(String message);
-	
 }

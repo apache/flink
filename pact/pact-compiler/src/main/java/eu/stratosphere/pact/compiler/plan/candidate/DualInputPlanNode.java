@@ -23,13 +23,11 @@ import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
-import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-
 
 /**
  *
@@ -86,26 +84,78 @@ public class DualInputPlanNode extends PlanNode
 			this.input2.setReplicationFactor(getDegreeOfParallelism());
 		}
 		
-		// adjust the global properties
-		this.globalProps = input.getGlobalProperties().clone();
-		this.globalProps.clearUniqueFieldSets();
-		this.globalProps.filterByNodesConstantSet(template, 0);
-		
-		
-		// adjust the local properties
-		this.localProps = input.getLocalProperties().clone();
-		switch (this.getDriverStrategy()) {
-			case NONE:
-			case GROUP:
-				break;
-			default:
-				throw new CompilerException("Unrecognized diver strategy impacting local properties.");
-		}
-		this.localProps.clearUniqueFieldSets();
-		this.localProps.filterByNodesConstantSet(template, 0);
+		mergeBranchPlanMaps();
+		computePropertiesAfterStrategies();
 		
 		// add the new unique information
 		updatePropertiesWithUniqueSets(template.getUniqueFields());
+	}
+	
+	private void computePropertiesAfterStrategies() {
+		// adjust the global properties
+		final GlobalProperties gp1 = this.input1.getGlobalProperties().clone().filterByNodesConstantSet(this.template, 0);
+		final GlobalProperties gp2 = this.input2.getGlobalProperties().clone().filterByNodesConstantSet(this.template, 1);
+		this.globalProps = GlobalProperties.combine(gp1, gp2);
+		
+		// adjust the local properties
+		final LocalProperties lp1 = this.input1.getLocalProperties().clone().filterByNodesConstantSet(this.template, 0);
+		final LocalProperties lp2 = this.input2.getLocalProperties().clone().filterByNodesConstantSet(this.template, 1);
+		
+		switch (getDriverStrategy()) {
+		case HYBRIDHASH_FIRST:
+		case HYBRIDHASH_SECOND:
+		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
+		case NESTEDLOOP_BLOCKED_OUTER_SECOND:
+			lp1.reset();
+			this.localProps = lp1;
+			break;
+		case MERGE:
+			this.localProps = lp1;
+			break;
+		case NESTEDLOOP_STREAMED_OUTER_FIRST:
+			this.localProps = lp1;
+			lp1.clearUniqueFieldSets();
+			break;
+		case NESTEDLOOP_STREAMED_OUTER_SECOND:
+			this.localProps = lp2;
+			lp2.clearUniqueFieldSets();
+		default:
+			throw new CompilerException("Unrecognized Driver Strategy for two-input plan node: " + getDriverStrategy());
+		}
+	}
+	
+	private void mergeBranchPlanMaps() {
+//		// merge the branchPlan maps according the the template's uncloseBranchesStack
+//		if (this.template.hasUnclosedBranches()) {
+//			if (this.branchPlan == null) {
+//				this.branchPlan = new HashMap<OptimizerNode, PlanNode>(8);
+//			}
+//			
+//			final PlanNode pred1 = this.input1.getSource();
+//			final PlanNode pred2 = this.input2.getSource();
+//	
+//			for (UnclosedBranchDescriptor uc : template.openBranches) {
+//				OptimizerNode brancher = uc.branchingNode;
+//				OptimizerNode selectedCandidate = null;
+//	
+//				if(pred1.branchPlan != null) {
+//					// predecessor 1 has branching children, see if it got the branch we are looking for
+//					selectedCandidate = pred1.branchPlan.get(brancher);
+//					this.branchPlan.put(brancher, selectedCandidate);
+//				}
+//				
+//				if (selectedCandidate == null && pred2.branchPlan != null) {
+//					// predecessor 2 has branching children, see if it got the branch we are looking for
+//					selectedCandidate = pred2.branchPlan.get(brancher);
+//					this.branchPlan.put(brancher, selectedCandidate);
+//				}
+//	
+//				if (selectedCandidate == null) {
+//					throw new CompilerException(
+//						"Candidates for a node with open branches are missing information about the selected candidate ");
+//				}
+//			}
+//		}
 	}
 
 	// --------------------------------------------------------------------------------------------

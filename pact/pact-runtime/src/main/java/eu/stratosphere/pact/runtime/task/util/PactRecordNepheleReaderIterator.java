@@ -28,17 +28,15 @@ import eu.stratosphere.pact.common.util.MutableObjectIterator;
 */
 public final class PactRecordNepheleReaderIterator implements MutableObjectIterator<PactRecord>
 {
-
- private final MutableReader<PactRecord> reader;		// the source
- private final ReaderInterruptionBehavior interruptionBehavior;
+	private final MutableReader<PactRecord> reader;		// the source
+	private final ReaderInterruptionBehavior interruptionBehavior;
 
 	/**
 	 * Creates a new iterator, wrapping the given reader.
 	 * 
 	 * @param reader The reader to wrap.
 	 */
-	public PactRecordNepheleReaderIterator(MutableReader<PactRecord> reader)
-	{
+	public PactRecordNepheleReaderIterator(MutableReader<PactRecord> reader) {
 		this(reader, ReaderInterruptionBehaviors.EXCEPTION_ON_INTERRUPT);
 	}
 

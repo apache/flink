@@ -905,7 +905,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	/**
 	 *
 	 */
-	protected static final class UnclosedBranchDescriptor
+	public static final class UnclosedBranchDescriptor
 	{
 		protected OptimizerNode branchingNode;
 

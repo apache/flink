@@ -26,9 +26,5 @@ public interface TypeComparatorFactory<T>
 	
 	void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException;
 	
-	Class<T> getDataType();
-	
 	TypeComparator<T> createComparator();
-	
-//	TypeComparator<T> createSecondarySortComparator();
 }

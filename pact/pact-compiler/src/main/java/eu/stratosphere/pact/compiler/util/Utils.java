@@ -21,6 +21,7 @@ import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.CompilerException;
 
 
 /**
@@ -54,6 +55,19 @@ public class Utils
 			o.appendOrdering(fields.get(i), null, Order.ANY);
 		}
 		return o;
+	}
+	
+	public static boolean[] getDirections(Ordering o, int numFields) {
+		final boolean[] dirs = o.getFieldSortDirections();
+		if (dirs.length == numFields) {
+			return dirs;
+		} else if (dirs.length > numFields) {
+			final boolean[] subSet = new boolean[numFields];
+			System.arraycopy(dirs, 0, subSet, 0, numFields);
+			return subSet;
+		} else {
+			throw new CompilerException();
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -32,7 +32,7 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
-import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
+import eu.stratosphere.pact.runtime.sort.MergeMatchIterator;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -173,7 +173,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 		case SORT_FIRST_MERGE:
 		case SORT_SECOND_MERGE:
 		case MERGE:
-			this.matchIterator = new SortMergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
+			this.matchIterator = new MergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
 					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
 					memoryManager, ioManager, availableMemory, maxFileHandles, spillThreshold, ls,
 					this.taskContext.getOwningNepheleTask());

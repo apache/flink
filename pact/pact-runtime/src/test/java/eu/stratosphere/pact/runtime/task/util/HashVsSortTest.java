@@ -35,7 +35,7 @@ import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
-import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
+import eu.stratosphere.pact.runtime.sort.MergeMatchIterator;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -127,8 +127,8 @@ public class HashVsSortTest {
 			input2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(input1, input2, 
+			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(input1, input2, 
 						this.serializer1, this.comparator1, this.serializer2, this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, this.parentTask);

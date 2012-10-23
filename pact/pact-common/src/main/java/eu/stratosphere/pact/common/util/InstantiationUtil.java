@@ -54,34 +54,23 @@ public class InstantiationUtil
 		try {
 			return clazz.newInstance();
 		}
-		catch (InstantiationException iex)
-		{
-			// check what the cause was
-			final String errorMessage;
-			if (!isProperClass(clazz)) {
-				errorMessage = "The class is no proper class, it is either abstract, an interface, or a primitive type.";
-			}
-			else if (!hasPublicNullaryConstructor(clazz)) {
-				errorMessage = "The class is missing a public nullary constructor (constructor without arguments).";
-			}
-			else {
-				// the error was most likely an exception in the constructor or field initialization
-				throw new RuntimeException("Could not instantiate type '" + clazz.getName() + 
-					"' due to an unspecified exception: " + iex.getMessage(), iex);
-			}
+		catch (InstantiationException iex) {
+			// check for the common problem causes
+			checkForInstantiation(clazz);
+			
+			// here we are, if non of the common causes was the problem. then the error was
+			// most likely an exception in the constructor or field initialization
 			throw new RuntimeException("Could not instantiate type '" + clazz.getName() + 
-				"': " + errorMessage);
+					"' due to an unspecified exception: " + iex.getMessage(), iex);
 		}
 		catch (IllegalAccessException iaex) {
-			final String errorMessage;
-			if (!isPublic(clazz)) {
-				errorMessage = "The class is not public.";
-			}
-			else {
-				errorMessage = "The nullary constructor is not public.";
-			}
+			// check for the common problem causes
+			checkForInstantiation(clazz);
+			
+			// here we are, if non of the common causes was the problem. then the error was
+			// most likely an exception in the constructor or field initialization
 			throw new RuntimeException("Could not instantiate type '" + clazz.getName() + 
-				"': " + errorMessage);
+					"' due to an unspecified exception: " + iaex.getMessage(), iaex);
 		}
 		catch (Throwable t) {
 			String message = t.getMessage();
@@ -97,11 +86,11 @@ public class InstantiationUtil
 	 * @param clazz The class to check.
 	 * @return True, if the class has a public nullary constructor, false if not.
 	 */
-	public static boolean hasPublicNullaryConstructor(Class<?> clazz)
-	{
+	public static boolean hasPublicNullaryConstructor(Class<?> clazz) {
 		Constructor<?>[] constructors = clazz.getConstructors();
 		for (int i = 0; i < constructors.length; i++) {
-			if (constructors[i].getParameterTypes().length == 0) {
+			if (constructors[i].getParameterTypes().length == 0 && 
+					Modifier.isPublic(constructors[i].getModifiers())) {
 				return true;
 			}
 		}
@@ -114,8 +103,7 @@ public class InstantiationUtil
 	 * @param clazz The class to check.
 	 * @return True, if the class is public, false if not.
 	 */
-	public static boolean isPublic(Class<?> clazz)
-	{
+	public static boolean isPublic(Class<?> clazz) {
 		return Modifier.isPublic(clazz.getModifiers());
 	}
 	
@@ -125,10 +113,58 @@ public class InstantiationUtil
 	 * @param clazz The class to check.
 	 * @return True, if the class is a proper class, false otherwise.
 	 */
-	public static boolean isProperClass(Class<?> clazz)
-	{
+	public static boolean isProperClass(Class<?> clazz) {
 		int mods = clazz.getModifiers();
 		return !(Modifier.isAbstract(mods) || Modifier.isInterface(mods) || Modifier.isNative(mods));
+	}
+
+	/**
+	 * Checks, whether the class is an inner class that is not statically accessible. That is especially true for
+	 * anonymous inner classes.
+	 * 
+	 * @param clazz The class to check.
+	 * @return True, if the class is a non-statically accessible inner class.
+	 */
+	public static boolean isNonStaticInnerClass(Class<?> clazz) {
+		if (clazz.getEnclosingClass() == null) {
+			// no inner class
+			return false;
+		} else {
+			// inner class
+			if (clazz.getDeclaringClass() != null) {
+				// named inner class
+				return !Modifier.isStatic(clazz.getModifiers());
+			} else {
+				// anonymous inner class
+				return true;
+			}
+		}
+	}
+	
+	/**
+	 * Performs a standard check whether the class can be instantiated by {@code Class#newInstance()}.
+	 * 
+	 * @param clazz The class to check.
+	 * @throws RuntimeException Thrown, if the class cannot be instantiated by {@code Class#newInstance()}.
+	 */
+	public static void checkForInstantiation(Class<?> clazz) {
+		final String errorMessage;
+		
+		if (!isPublic(clazz)) {
+			errorMessage = "The class is not public.";
+		} else if (!isProperClass(clazz)) {
+			errorMessage = "The class is no proper class, it is either abstract, an interface, or a primitive type.";
+		} else if (isNonStaticInnerClass(clazz)) {
+			errorMessage = "The class is an inner class, but not statically accessible.";
+		} else if (!hasPublicNullaryConstructor(clazz)) {
+			errorMessage = "The class has no (implicit) public nullary constructor, i.e. a constructor without arguments.";
+		} else {
+			errorMessage = null; 
+		}
+		
+		if (errorMessage != null) {
+			throw new RuntimeException("The class '" + clazz.getName() + "' is not instantiable: " + errorMessage);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -136,8 +172,7 @@ public class InstantiationUtil
 	/**
 	 * Private constructor to prevent instantiation.
 	 */
-	private InstantiationUtil()
-	{
+	private InstantiationUtil() {
 		throw new RuntimeException();
 	}
 }

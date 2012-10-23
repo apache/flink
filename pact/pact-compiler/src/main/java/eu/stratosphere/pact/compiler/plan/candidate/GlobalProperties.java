@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -162,34 +162,6 @@ public final class GlobalProperties implements Cloneable
 	public boolean isFullyReplicated() {
 		return this.partitioning == PartitioningProperty.FULL_REPLICATION;
 	}
-	
-//	
-//	/**
-//	 * Gets the partitioning property.
-//	 * 
-//	 * @return The partitioning property.
-//	 */
-//	public PartitioningProperty getPartitioning() {
-//		return partitioning;
-//	}
-//	
-//	/**
-//	 * Gets the fields on which the data is partitioned.
-//	 * 
-//	 * @return The partitioning fields.
-//	 */
-//	public FieldSet getPartitionedFields() {
-//		return this.partitioningFields;
-//	}
-//	
-//	/**
-//	 * Gets the key order.
-//	 * 
-//	 * @return The key order.
-//	 */
-//	public Ordering getOrdering() {
-//		return this.ordering;
-//	}
 
 	/**
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
@@ -214,8 +186,10 @@ public final class GlobalProperties implements Cloneable
 	 *        The output contract.
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
-	public GlobalProperties filterByNodesConstantSet(OptimizerNode node, int input)
-	{
+	public GlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
+			return null;
+		}
 		// check if partitioning survives
 		if (this.ordering != null) {
 			for (int col : this.ordering.getInvolvedIndexes()) {
@@ -300,5 +274,37 @@ public final class GlobalProperties implements Cloneable
 		newProps.ordering = this.ordering;
 		newProps.uniqueFieldCombinations = this.uniqueFieldCombinations == null ? null : new HashSet<FieldSet>(this.uniqueFieldCombinations);
 		return newProps;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public static final GlobalProperties combine(GlobalProperties gp1, GlobalProperties gp2) {
+		if (gp1.isFullyReplicated()) {
+			if (gp2.isFullyReplicated()) {
+				return new GlobalProperties();
+			} else {
+				return gp2;
+			}
+		} else if (gp2.isFullyReplicated()) {
+			return gp1;
+		} else if (gp1.ordering != null) {
+			return gp1; 
+		} else if (gp2.ordering != null) {
+			return gp2;
+		} else if (gp1.partitioningFields != null) {
+			return gp1;
+		} else if (gp2.partitioningFields != null) {
+			return gp2;
+		} else if (gp1.uniqueFieldCombinations != null) {
+			return gp1;
+		} else if (gp2.uniqueFieldCombinations != null) {
+			return gp2;
+		} else if (gp1.getPartitioning().isPartitioned()) {
+			return gp1;
+		} else if (gp2.getPartitioning().isPartitioned()) {
+			return gp2;
+		} else {
+			return gp1;
+		}
 	}
 }

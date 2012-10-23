@@ -142,8 +142,8 @@ public class SortMergeMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-					new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+					new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
 						input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 						this.pairComparator, this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, this.parentTask);
@@ -191,8 +191,8 @@ public class SortMergeMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator, this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_FIRST_MERGE, parentTask);
@@ -240,8 +240,8 @@ public class SortMergeMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator, this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_SECOND_MERGE, parentTask);
@@ -289,8 +289,8 @@ public class SortMergeMatchIteratorITCase
 			input2.reset();
 	
 			// compare with iterator values
-			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator, this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
@@ -377,8 +377,8 @@ public class SortMergeMatchIteratorITCase
 			
 			// we create this sort-merge iterator with little memory for the block-nested-loops fall-back to make sure it
 			// needs to spill for the duplicate keys
-			SortMergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new SortMergeMatchIterator<PactRecord, PactRecord, PactRecord>(
+			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
+				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator, this.memoryManager, this.ioManager, 
 						MEMORY_SIZE, 64, 0.7f, 0.00016f, LocalStrategy.SORT_BOTH_MERGE, parentTask);

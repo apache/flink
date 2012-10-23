@@ -35,30 +35,23 @@ import eu.stratosphere.pact.generic.types.TypePairComparator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableIterator;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
 
 /**
- * An implementation of the {@link eu.stratosphere.pact.runtime.task.util.MatchTaskIterator} that realizes the
+ * An implementation of the {@link MatchTaskIterator} that realizes the
  * matching through a sort-merge join strategy.
  *
  * @author Stephan Ewen
  * @author Fabian Hueske
  */
-public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, O>
+public class MergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, O>
 {
 	/**
 	 * The log used by this iterator to log messages.
 	 */
-	private static final Log LOG = LogFactory.getLog(SortMergeMatchIterator.class);
-	
-	/**
-	 * The fraction of the memory that is dedicated to the spilling resettable iterator, which is used in cases where
-	 * the cross product of values with the same key becomes very large. 
-	 */
-	private static final float DEFAULT_MEMORY_SHARE_RATIO = 0.05f;
+	private static final Log LOG = LogFactory.getLog(MergeMatchIterator.class);
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -84,61 +77,25 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 	
 	private final List<MemorySegment> memoryForSpillingIterator;
 	
-	private final MutableObjectIterator<T1> reader1;
-
-	private final MutableObjectIterator<T2> reader2;
-	
-	private final TypeComparator<T1> comparator1;
-	
-	private final TypeComparator<T2> comparator2;
-	
-	private Sorter<T1> sortMerger1;
-
-	private Sorter<T2> sortMerger2;
-	
 	private final MemoryManager memoryManager;
 
 	private final IOManager ioManager;
 	
-	private final LocalStrategy localStrategy;
+	// --------------------------------------------------------------------------------------------
 	
-	private final AbstractInvokable parentTask;
-
-	private final long memoryPerChannel;
-
-	private final int fileHandlesPerChannel;
-	
-	private final float spillingThreshold;
-	
-
-	
-	public SortMergeMatchIterator(MutableObjectIterator<T1> reader1, MutableObjectIterator<T2> reader2,
+	public MergeMatchIterator(MutableObjectIterator<T1> input1, MutableObjectIterator<T2> input2,
 			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
 			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2, TypePairComparator<T1, T2> pairComparator,
-			MemoryManager memoryManager, IOManager ioManager,
-			long memory, int maxNumFileHandles, float spillingThreshold,
-			LocalStrategy localStrategy, AbstractInvokable parentTask)
+			MemoryManager memoryManager, IOManager ioManager, int pagesForBNLJ, AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
-		this(reader1, reader2, serializer1, comparator1, serializer2, comparator2, pairComparator,
-			memoryManager, ioManager, 
-			memory, maxNumFileHandles, spillingThreshold, DEFAULT_MEMORY_SHARE_RATIO, 
-			localStrategy, parentTask);
-	}
-	
-	public SortMergeMatchIterator(MutableObjectIterator<T1> reader1, MutableObjectIterator<T2> reader2,
-			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
-			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2, TypePairComparator<T1, T2> pairComparator,
-			MemoryManager memoryManager, IOManager ioManager,
-			long memory, int maxNumFileHandles, float spillingThreshold, float memPercentageForBlockNL,
-			LocalStrategy localStrategy, AbstractInvokable parentTask)
-	throws MemoryAllocationException
-	{
+		if (pagesForBNLJ < 2) {
+			throw new IllegalArgumentException("Merger needs at least 2 memory pages.");
+		}
+		
 		this.comp = pairComparator;
 		this.serializer1 = serializer1;
 		this.serializer2 = serializer2;
-		this.comparator1 = comparator1;
-		this.comparator2 = comparator2;
 		
 		this.copy1 = serializer1.createInstance();
 		this.spillHeadCopy = serializer1.createInstance();
@@ -148,22 +105,12 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		
-		this.reader1 = reader1;
-		this.reader2 = reader2;
+		this.iterator1 = new KeyGroupedIterator<T1>(input1, this.serializer1, comparator1.duplicate());
+		this.iterator2 = new KeyGroupedIterator<T2>(input2, this.serializer2, comparator2.duplicate());
 		
-		final int pageSize = memoryManager.getPageSize();
-		long memoryForBlockNestedLoops = Math.max((long) (memory * memPercentageForBlockNL), 2 * pageSize);
-		long  pagesForBlockNL = memoryForBlockNestedLoops / pageSize;
-		int numPagesForSpiller = pagesForBlockNL > 20 ? 2 : 1;
-		
-		this.memoryPerChannel = (memory - memoryForBlockNestedLoops) / 2;
-		this.fileHandlesPerChannel = (maxNumFileHandles / 2) < 2 ? 2 : (maxNumFileHandles / 2);
-		this.localStrategy = localStrategy;
-		this.parentTask = parentTask;
-		this.spillingThreshold = spillingThreshold;
-		
-		this.blockIt = new BlockResettableIterator<T2>(this.memoryManager, this.serializer2, 
-			memoryForBlockNestedLoops - (numPagesForSpiller * pageSize), parentTask);
+		final int numPagesForSpiller = pagesForBNLJ > 20 ? 2 : 1;
+		this.blockIt = new BlockResettableIterator<T2>(this.memoryManager, this.serializer2,
+			(pagesForBNLJ - numPagesForSpiller) * memoryManager.getPageSize(), parentTask);
 		this.memoryForSpillingIterator = memoryManager.allocatePages(parentTask, numPagesForSpiller);
 	}
 
@@ -171,89 +118,19 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#open()
 	 */
 	@Override
-	public void open() throws IOException, MemoryAllocationException, InterruptedException
-	{	
-		// ================================================================
-		//                   PERFORMANCE NOTICE
-		//
-		// It is important to instantiate the sort-mergers both before 
-		// obtaining the iterator from one of them. The reason is that
-		// the getIterator() method freezes until the first value is
-		// available and both sort-mergers should be instantiated and
-		// running in the background before this thread waits.
-		// ================================================================
-
-		// iterator 1
-		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_FIRST_MERGE)
-		{
-			this.sortMerger1 = new UnilateralSortMerger<T1>(this.memoryManager, this.ioManager,
-					this.reader1, this.parentTask, this.serializer1, this.comparator1, 
-					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
-		}
-
-		if(this.localStrategy == LocalStrategy.SORT_BOTH_MERGE || this.localStrategy == LocalStrategy.SORT_SECOND_MERGE)
-		{
-			this.sortMerger2 = new UnilateralSortMerger<T2>(this.memoryManager, this.ioManager,
-					this.reader2, this.parentTask, this.serializer2, this.comparator2, 
-					this.memoryPerChannel, this.fileHandlesPerChannel, this.spillingThreshold);
-		}
-			
-		// =============== These calls freeze until the data is actually available ============ 
-		
-		switch (this.localStrategy) {
-			case SORT_BOTH_MERGE:
-				this.iterator1 = new KeyGroupedIterator<T1>(this.sortMerger1.getIterator(), this.serializer1, this.comparator1.duplicate());
-				this.iterator2 = new KeyGroupedIterator<T2>(this.sortMerger2.getIterator(), this.serializer2, this.comparator2.duplicate());
-				break;
-			case SORT_FIRST_MERGE:
-				this.iterator1 = new KeyGroupedIterator<T1>(this.sortMerger1.getIterator(), this.serializer1, this.comparator1.duplicate());
-				this.iterator2 = new KeyGroupedIterator<T2>(this.reader2, this.serializer2, this.comparator2.duplicate());
-				break;
-			case SORT_SECOND_MERGE:
-				this.iterator1 = new KeyGroupedIterator<T1>(this.reader1, this.serializer1, this.comparator1.duplicate());
-				this.iterator2 = new KeyGroupedIterator<T2>(this.sortMerger2.getIterator(), this.serializer2, this.comparator2.duplicate());
-				break;
-			case MERGE:
-				this.iterator1 = new KeyGroupedIterator<T1>(this.reader1, this.serializer1, this.comparator1.duplicate());
-				this.iterator2 = new KeyGroupedIterator<T2>(this.reader2, this.serializer2, this.comparator2.duplicate());
-				break;
-			default:
-				throw new RuntimeException("Unsupported Local Strategy in SortMergeMatchIterator: "+this.localStrategy);
-		}
-		
-	}
+	public void open() throws IOException {}
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#close()
 	 */
 	@Override
-	public void close()
-	{
+	public void close() {
 		if (this.blockIt != null) {
 			try {
 				this.blockIt.close();
 			}
 			catch (Throwable t) {
 				LOG.error("Error closing block memory iterator: " + t.getMessage(), t);
-			}
-		}
-		
-		// close the two sort/merger to release the memory segments
-		if (this.sortMerger1 != null) {
-			try {
-				this.sortMerger1.close();
-			}
-			catch (Throwable t) {
-				LOG.error("Error closing sort/merger for first input: " + t.getMessage(), t);
-			}
-		}
-		
-		if (this.sortMerger2 != null) {
-			try {
-				this.sortMerger2.close();
-			}
-			catch (Throwable t) {
-				LOG.error("Error closing sort/merger for second input: " + t.getMessage(), t);
 			}
 		}
 		
@@ -264,8 +141,7 @@ public class SortMergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, 
 	 * @see eu.stratosphere.pact.runtime.task.util.MatchTaskIterator#abort()
 	 */
 	@Override
-	public void abort()
-	{
+	public void abort() {
 		close();
 	}
 

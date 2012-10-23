@@ -20,34 +20,36 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.CoGroupContract;
 import eu.stratosphere.pact.common.contract.CompilerHints;
-import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.GlobalProperties;
+import eu.stratosphere.pact.compiler.plan.candidate.LocalProperties;
+import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.util.Utils;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.GenericCoGroupContract;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ForwardSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionHashSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.PartitionRangeSS;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The Optimizer representation of a <i>CoGroup</i> contract node.
  * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
-public class CoGroupNode extends TwoInputNode {
-
+public class CoGroupNode extends TwoInputNode
+{
+	private final LocalStrategy acceptedLocalFirst, acceptedLocalSecond;
+	
+	private final Ordering keys1Order, keys2Order;
+	
 	/**
 	 * Creates a new CoGroupNode for the given contract.
 	 * 
@@ -63,19 +65,30 @@ public class CoGroupNode extends TwoInputNode {
 
 		if (localStrategy != null) {
 			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy)) {
-				setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+				setDriverStrategy(DriverStrategy.MERGE);
+				this.acceptedLocalFirst = LocalStrategy.SORT;
+				this.acceptedLocalSecond = LocalStrategy.SORT;
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy)) {
-				setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
+				setDriverStrategy(DriverStrategy.MERGE);
+				this.acceptedLocalFirst = LocalStrategy.SORT;
+				this.acceptedLocalSecond = LocalStrategy.NONE;
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy)) {
-				setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
+				setDriverStrategy(DriverStrategy.MERGE);
+				this.acceptedLocalFirst = LocalStrategy.NONE;
+				this.acceptedLocalSecond = LocalStrategy.SORT;
 			} else if (PactCompiler.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy)) {
-				setLocalStrategy(LocalStrategy.MERGE);
+				setDriverStrategy(DriverStrategy.MERGE);
+				this.acceptedLocalFirst = LocalStrategy.NONE;
+				this.acceptedLocalSecond = LocalStrategy.NONE;
 			} else {
 				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
 			}
 		} else {
-			setLocalStrategy(LocalStrategy.NONE);
+			this.acceptedLocalFirst = this.acceptedLocalSecond = null;
 		}
+		
+		this.keys1Order = Utils.createOrdering(this.keySet1);
+		this.keys2Order = Utils.createOrdering(this.keySet2);
 	}
 
 	// ------------------------------------------------------------------------
@@ -122,477 +135,71 @@ public class CoGroupNode extends TwoInputNode {
 	 */
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-		// first, get all incoming interesting properties and see, how they can be propagated to the
-		// children, depending on the output contract.
-		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props1 = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
-			this, 0);
-		List<InterestingProperties> props2 = InterestingProperties.createInterestingPropertiesForInput(thisNodesIntProps,
-				this, 1);
+		List<InterestingProperties> inheritedIntProps = getInterestingProperties();	
+		List<InterestingProperties> props1 = 
+			InterestingProperties.filterInterestingPropertiesForInput(inheritedIntProps, this, 0);
+		List<InterestingProperties> props2 = 
+			InterestingProperties.filterInterestingPropertiesForInput(inheritedIntProps, this, 0);
 
-		// a co-group is always interested in the following properties from both inputs:
-		// 1) any-partition and order
-		// 2) partition only
-		createInterestingProperties(this.input1, props1, estimator, 0);
+		createInterestingProperties(this.input1, this.keySet1, this.keys1Order, props1, estimator);
 		this.input1.addAllInterestingProperties(props1);
-
-		createInterestingProperties(this.input2, props2, estimator, 1);
+		
+		createInterestingProperties(this.input2, this.keySet2, this.keys2Order, props2, estimator);
 		this.input2.addAllInterestingProperties(props2);
-		
 	}
 
-	/**
-	 * Utility method that generates for the given input interesting properties about partitioning and
-	 * order.
-	 * 
-	 * @param input
-	 *        The input to generate the interesting properties for.
-	 * @param target
-	 *        The list to add the interesting properties to.
-	 * @param estimator
-	 *        The cost estimator to estimate the maximal costs for the interesting properties.
-	 */
-	private void createInterestingProperties(PactConnection input, List<InterestingProperties> target,
-			CostEstimator estimator, int inputNum) {
-		
+	private void createInterestingProperties(PactConnection input, FieldList keys, Ordering order, List<InterestingProperties> target,
+			CostEstimator estimator)
+	{
+		// create
+		// 1) Partitioned and sorted
 		InterestingProperties p = new InterestingProperties();
-
-		FieldList keyFields;
-		switch (inputNum) {
-		case 0:
-			keyFields = this.keySet1;
-			break;
-		case 1:
-			keyFields = this.keySet2;
-			break;
-		default:
-			throw new CompilerException("Invalid input number "+inputNum+" for CoGroup");
-		}
-				
-		// partition and any order
-		p.getGlobalProperties().setPartitioning(PartitioningProperty.ANY, (FieldList)keyFields.clone());
+		p.getGlobalProperties().setAnyPartitioning(keys);
+		p.getLocalProperties().setOrdering(order);
+		estimator.addHashPartitioningCost(input, p.getMaximalCosts());
+		estimator.addLocalSortCost(input, getTotalMemoryAcrossAllSubTasks(), p.getMaximalCosts());
+		target.add(p);
 		
-		Ordering ordering = new Ordering();
-		for (Integer index : getPactContract().getKeyColumnNumbers(inputNum)) {
-			ordering.appendOrdering(index, null, Order.ANY);
-		}
-		
-		p.getLocalProperties().setOrdering(ordering);
-
-		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
-		Costs c = new Costs();
-		estimator.getLocalSortCost(this, input, c);
-		p.getMaximalCosts().addCosts(c);
-		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
-
-		// partition only
+		// 2) partitioned
 		p = new InterestingProperties();
-		p.getGlobalProperties().setPartitioning(PartitioningProperty.ANY, (FieldList)keyFields.clone());
-		estimator.getHashPartitioningCost(input, p.getMaximalCosts());
-		InterestingProperties.mergeUnionOfInterestingProperties(target, p);
+		p.getGlobalProperties().setAnyPartitioning(keys);
+		estimator.addHashPartitioningCost(input, p.getMaximalCosts());
+		target.add(p);
 	}
 
-	@Override
-	protected void computeValidPlanAlternatives(List<? extends OptimizerNode> altSubPlans1,
-			List<? extends OptimizerNode> altSubPlans2, CostEstimator estimator, List<OptimizerNode> outputPlans)
-	{
-
-		for(OptimizerNode subPlan1 : altSubPlans1) {
-			for(OptimizerNode subPlan2 : altSubPlans2) {
-
-				// check, whether the two children have the same
-				// sub-plan in the common part before the branches
-				if (!areBranchCompatible(subPlan1, subPlan2)) {
-					continue;
-				}
-
-				ShipStrategy ss1 = this.input1.getShipStrategy();
-				ShipStrategy ss2 = this.input2.getShipStrategy();
-				
-				InterestingGlobalProperties gp1;
-				InterestingGlobalProperties gp2;
-
-				// test which degree of freedom we have in choosing the shipping strategies
-				// some may be fixed a priori by compiler hints
-				if (ss1.type() == ShipStrategyType.NONE) {
-					// the first connection is free to choose for the compiler
-					gp1 = subPlan1.getGlobalPropertiesForParent(this);
-
-					if (ss2.type() == ShipStrategyType.NONE) {
-						// case: both are free to choose
-						gp2 = subPlan2.getGlobalPropertiesForParent(this);
-
-						// test, if one side is pre-partitioned
-						// if that is the case, partitioning the other side accordingly is
-						// the cheapest thing to do
-						if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning().isComputablyPartitioned()) {
-							ss1 = new ForwardSS();
-						}
-						if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning().isComputablyPartitioned()) {
-							// input is partitioned
-							// check, whether that partitioning is the same as the one of input one!
-							if (!partitioningIsOnRightFields(gp1, 0) || !gp1.getPartitioning().isComputablyPartitioned()) {
-								ss2 = new ForwardSS();
-							}
-							else {
-								if (gp1.getPartitioning() == gp2.getPartitioning() && 
-										partitioningIsOnSameSubkey(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
-									ss2 = new ForwardSS();
-								} else {
-									// both sides are partitioned, but in an incompatible way
-									// 2 alternatives:
-									// 1) re-partition 2 the same way as 1
-									// 2) re-partition 1 the same way as 2
-									if (gp1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED
-										&& gp2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
-										createCoGroupAlternative(outputPlans, subPlan1, subPlan2, new ForwardSS(),
-												new PartitionHashSS(this.keySet2), estimator);
-										createCoGroupAlternative(outputPlans, subPlan1, subPlan2, new PartitionRangeSS(this.keySet1),
-												new ForwardSS(), estimator);
-									} else if (gp1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED
-										&& gp2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
-										createCoGroupAlternative(outputPlans, subPlan1, subPlan2, new ForwardSS(),
-												new PartitionRangeSS(this.keySet2), estimator);
-										createCoGroupAlternative(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
-												new ForwardSS(), estimator);
-									}
-	
-									// do not go through the remaining logic of the loop!
-									continue;
-								}
-							}
-						}
-
-						// create the alternative nodes. the strategies to create depend on the different
-						// combinations of pre-existing partitionings
-						if (ss1.type() == ShipStrategyType.FORWARD) {
-							if (ss2.type() == ShipStrategyType.FORWARD) {
-								// both are equally pre-partitioned
-								// we need not use any special shipping step
-								createCoGroupAlternative(outputPlans, subPlan1, subPlan2, ss1, ss2, estimator);
-
-								// we create an additional plan with a range partitioning
-								// if this is not already a range partitioning
-								if (gp1.getPartitioning() != PartitioningProperty.RANGE_PARTITIONED) {
-									// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
-									// ShipStrategy.PARTITION_RANGE, estimator);
-								}
-							} else {
-								// input 1 is local-forward
-
-								// add two plans:
-								// 1) make input 2 the same partitioning as input 1
-								// 2) partition both inputs with a different partitioning function (hash <-> range)
-								if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, subPlan1, subPlan2, ss1,
-											new PartitionHashSS(this.keySet2), estimator);
-									// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
-									// ShipStrategy.PARTITION_RANGE, estimator);
-								} else if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
-									createCoGroupAlternative(outputPlans, subPlan1, subPlan2, ss1,
-										new PartitionRangeSS(this.keySet2), estimator);
-									createCoGroupAlternative(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
-											new PartitionHashSS(this.keySet2), estimator);
-								} else {
-									throw new CompilerException(
-										"Invalid partitioning property for input 1 of CoGroup '"
-											+ getPactContract().getName() + "'.");
-								}
-							}
-						} else if (ss2.type() == ShipStrategyType.FORWARD) {
-							// input 2 is local-forward
-
-							// add two plans:
-							// 1) make input 1 the same partitioning as input 2
-							// 2) partition both inputs with a different partitioning function (hash <-> range)
-							if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
-								createCoGroupAlternative(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1), ss2,
-									estimator);
-								// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
-								// ShipStrategy.PARTITION_RANGE, estimator);
-							} else if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
-								createCoGroupAlternative(outputPlans, subPlan1, subPlan2, new PartitionRangeSS(this.keySet1), ss2,
-									estimator);
-								createCoGroupAlternative(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
-										new PartitionHashSS(this.keySet2), estimator);
-							} else {
-								throw new CompilerException("Invalid partitioning property for input 2 of CoGroup '"
-									+ getPactContract().getName() + "'.");
-							}
-						} else {
-							// all of the shipping strategies are free to choose.
-							// none has a pre-existing partitioning. create the options:
-							// 1) re-partition both by hash
-							// 2) re-partition both by range
-							createCoGroupAlternative(outputPlans, subPlan1, subPlan2, new PartitionHashSS(this.keySet1),
-									new PartitionHashSS(this.keySet2), estimator);
-							// createCoGroupAlternative(outputPlans, predList1, predList2, ShipStrategy.PARTITION_RANGE,
-							// ShipStrategy.PARTITION_RANGE, estimator);
-						}
-					} else {
-						
-						gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, input2.getShipStrategy());							
-
-						// first connection free to choose, but second one is fixed
-						// 1) input 2 is forward. if it is partitioned, adapt to the partitioning
-						// 2) input 2 is hash-partition -> other side must be re-partition by hash as well
-						// 3) input 2 is range-partition -> other side must be re-partition by range as well
-						switch (ss2.type()) {
-						case FORWARD:
-							if (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning().isPartitioned()) {
-								// adapt to the partitioning
-								if (gp2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
-									//TODO check other input for partitioining
-									ss1 = new PartitionHashSS(this.keySet1);
-								} else if (gp2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
-									ss1 = new PartitionRangeSS(this.keySet1);
-								} else {
-									throw new CompilerException();
-								}
-							} else {
-								// cannot create a valid plan. skip this candidate
-								continue;
-							}
-							break;
-						case PARTITION_HASH:
-							ss1 = (partitioningIsOnSameSubkey(gp1.getPartitionedFields(), this.keySet2) && gp1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) ? new ForwardSS()
-								: new PartitionHashSS(this.keySet1);
-							break;
-						case PARTITION_RANGE:
-							ss1 = (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) ? new ForwardSS()
-								: new PartitionRangeSS(this.keySet1);
-							break;
-						default:
-							throw new CompilerException("Invalid fixed shipping strategy '" + ss2.name()
-								+ "' for CoGroup contract '" + getPactContract().getName() + "'.");
-						}
-
-						createCoGroupAlternative(outputPlans, subPlan1, subPlan2, ss1, ss2, estimator);
-					}
-
-				} else if (ss2.type() == ShipStrategyType.NONE) {
-					// second connection free to choose, but first one is fixed
-
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, input1.getShipStrategy());
-					gp2 = subPlan2.getGlobalPropertiesForParent(this);
-					
-					// 1) input 1 is forward. if it is partitioned, adapt to the partitioning
-					// 2) input 1 is hash-partition -> other side must be re-partition by hash as well
-					// 3) input 1 is range-partition -> other side must be re-partition by range as well
-					switch (ss1.type()) {
-					case FORWARD:
-						if (partitioningIsOnRightFields(gp1, 0) && gp1.getPartitioning().isPartitioned()) {
-							// adapt to the partitioning
-							if (gp1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
-								ss2 = new PartitionHashSS(this.keySet2);
-							} else if (gp1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
-								ss2 = new PartitionRangeSS(this.keySet2);
-							} else {
-								throw new CompilerException();
-							}
-						} else {
-							// cannot create a valid plan. skip this candidate
-							continue;
-						}
-						break;
-					case PARTITION_HASH:
-						ss2 = (partitioningIsOnSameSubkey(this.keySet1, gp2.getPartitionedFields()) && gp2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) ? new ForwardSS()
-							: new PartitionHashSS(this.keySet2);
-						break;
-					case PARTITION_RANGE:
-						ss2 = (partitioningIsOnRightFields(gp2, 1) && gp2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) ? new ForwardSS()
-							: new PartitionRangeSS(this.keySet2);
-						break;
-					default:
-						throw new CompilerException("Invalid fixed shipping strategy '" + ss1.name()
-							+ "' for match contract '" + getPactContract().getName() + "'.");
-					}
-
-					createCoGroupAlternative(outputPlans, subPlan1, subPlan2, ss1, ss2, estimator);
-				} else {
-					// both are fixed
-					// check, if they produce a valid plan. for that, we need to have an equal partitioning
-
-					gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, input1.getShipStrategy());
-					gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, input2.getShipStrategy());
-					
-					if (gp1.getPartitioning().isComputablyPartitioned() && gp1.getPartitioning() == gp2.getPartitioning() &&
-							partitioningIsOnSameSubkey(gp1.getPartitionedFields(),gp2.getPartitionedFields())) {
-						// partitioning there and equal
-						createCoGroupAlternative(outputPlans, subPlan1, subPlan2, ss1, ss2, estimator);
-					} else {
-						// no valid plan possible with that combination of shipping strategies and pre-existing
-						// properties
-						continue;
-					}
-				}
-			}
-
-		}
-	}
-
-	/**
-	 * Private utility method that generates the alternative CoGroup nodes, given fixed shipping strategies
-	 * for the inputs.
-	 * 
-	 * @param target
-	 *        The list to put the alternatives in.
-	 * @param subPlan1
-	 *        The subplan for the first input.
-	 * @param subPlan2
-	 *        The subplan for the second input.
-	 * @param ss1
-	 *        The shipping strategy for the first input.
-	 * @param ss2
-	 *        The shipping strategy for the second input.
-	 * @param estimator
-	 *        The cost estimator.
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.TwoInputNode#createPlanAlternative(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.candidate.Channel, java.util.List)
 	 */
-	private void createCoGroupAlternative(List<OptimizerNode> target, OptimizerNode subPlan1, OptimizerNode subPlan2,
-			ShipStrategy ss1, ShipStrategy ss2, CostEstimator estimator)
-	{
-		// compute the given properties of the incoming data
-		InterestingGlobalProperties gp1, gp2;
-		InterestingLocalProperties lp1, lp2;
-		
-		gp1 = PactConnection.getGlobalPropertiesAfterConnection(subPlan1, this, 0, ss1);
-		lp1 = PactConnection.getLocalPropertiesAfterConnection(subPlan1, this, ss1);
-		
-		gp2 = PactConnection.getGlobalPropertiesAfterConnection(subPlan2, this, 1, ss2);
-		lp2 = PactConnection.getLocalPropertiesAfterConnection(subPlan2, this, ss2);
-		
-		int[] scrambledKeyOrder1 = null;
-		int[] scrambledKeyOrder2 = null;
-		
-		if (ss1.type() == ShipStrategyType.FORWARD && ss2.type() == ShipStrategyType.PARTITION_HASH) {
-			// first input is already partitioned
-			// we need to scramble the key order of the second input according to key order used to partition the first input
-			scrambledKeyOrder1 = getScrambledKeyOrder(this.keySet1, gp1.getPartitionedFields());
-			// scramble key order for gp2
-			if (scrambledKeyOrder1 != null) {
-				FieldList scrambledKeys2 = new FieldList();
-				for (int i = 0; i < scrambledKeyOrder1.length; i++) {
-					scrambledKeys2.add(this.keySet2.get(scrambledKeyOrder1[i]));
-				}
-				gp2.setPartitioning(gp2.getPartitioning(), scrambledKeys2);
-				ss2 = new PartitionHashSS(scrambledKeys2);
-			}
-			
+	@Override
+	protected void createPlanAlternative(Channel candidate1, Channel candidate2, List<PlanNode> outputPlans) {
+		// discard candidates that do not match the required local strategies
+		if ( (this.acceptedLocalFirst != null && candidate1.getLocalStrategy() != this.acceptedLocalFirst) ||
+		     (this.acceptedLocalSecond != null && candidate2.getLocalStrategy() != this.acceptedLocalSecond) ) {
+			return;
 		}
 		
-		if (ss2.type() == ShipStrategyType.FORWARD && ss1.type() == ShipStrategyType.PARTITION_HASH) {
-			// the second input is already partitioned
-			// we need to scramble the key order of the first input according to the key order used to partition the second input
-			scrambledKeyOrder2 = getScrambledKeyOrder(this.keySet2, gp2.getPartitionedFields());
-			//scramble key order for gp1
-			if (scrambledKeyOrder2 != null) {
-				FieldList scrambledKeys1 = new FieldList();
-				for (int i = 0; i < scrambledKeyOrder2.length; i++) {
-					scrambledKeys1.add(this.keySet1.get(scrambledKeyOrder2[i]));
-				}
-				
-				gp1.setPartitioning(gp1.getPartitioning(), scrambledKeys1);
-				ss1 = new PartitionHashSS(scrambledKeys1);
-			}
-		}
-
+		final GlobalProperties gp1 = candidate1.getGlobalProperties();
+		final GlobalProperties gp2 = candidate2.getGlobalProperties();
 		
-		int[] keyColumns1 = getPactContract().getKeyColumnNumbers(0);
-		
-		Ordering ordering1 = new Ordering();
-		for (int keyColumn : keyColumns1) {
-			ordering1.appendOrdering(keyColumn, null, Order.ASCENDING);
+		// check if the global properties are as needed
+		if ( ! (gp1.isPartitionedOnFields(this.keySet1) && gp2.isPartitionedOnFields(this.keySet2) &&
+					 gp1.getPartitioning() == gp2.getPartitioning()) ) {
+			return;
 		}
 		
-		int[] keyColumns2 = getPactContract().getKeyColumnNumbers(1);
+		final LocalProperties lp1 = candidate1.getLocalProperties();
+		final LocalProperties lp2 = candidate2.getLocalProperties();
+		final int numKeys = this.keySet1.size();
 		
-		Ordering ordering2 = new Ordering();
-		for (int keyColumn : keyColumns2) {
-			ordering2.appendOrdering(keyColumn, null, Order.ASCENDING);
+		// check if this is a candidate for merge
+		if ( (this.driverStrategy == null || this.driverStrategy == DriverStrategy.MERGE) &&
+				lp1.getOrdering() != null && lp2.getOrdering() != null &&
+				this.keys1Order.isMetBy(lp1.getOrdering()) && this.keys2Order.isMetBy(lp2.getOrdering()) &&
+				lp1.getOrdering().isOrderEqualOnFirstNFields(lp2.getOrdering(), numKeys))
+		{
+			outputPlans.add(new DualInputPlanNode(this, candidate1, candidate2, DriverStrategy.MERGE,
+				this.keySet1, this.keySet2, Utils.getDirections(lp1.getOrdering(), numKeys)));
 		}
-		
-		// determine the properties of the data before it goes to the user code
-		InterestingGlobalProperties outGp = new InterestingGlobalProperties();
-		outGp.setPartitioning(gp1.getPartitioning(), gp1.getPartitionedFields());
-		
-		// create a new cogroup node for this input
-		CoGroupNode n = new CoGroupNode(this, subPlan1, subPlan2, this.input1, this.input2, outGp, new InterestingLocalProperties());
-		n.input1.setShipStrategy(ss1);
-		n.input2.setShipStrategy(ss2);
-
-		// output will have ascending order
-		n.getLocalProperties().setOrdering(ordering1);
-		n.getLocalProperties().setGroupedFields(new FieldSet(keyColumns1));
-		
-		if(n.getLocalStrategy() == LocalStrategy.NONE) {
-			// local strategy was NOT set with compiler hint
-			
-			// set local strategy according to pre-existing ordering
-			if (ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
-				// both inputs have ascending order
-				n.setLocalStrategy(LocalStrategy.MERGE);
-			} else if (!ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
-				// input 2 has ascending order, input 1 does not
-				n.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
-			} else if (ordering1.isMetBy(lp1.getOrdering()) && !ordering2.isMetBy(lp2.getOrdering())) {
-				// input 1 has ascending order, input 2 does not
-				n.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
-			} else {
-				// none of the inputs has ascending order
-				n.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-			}
-		}
-
-		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByNodesConstantSet(this, 0);
-		n.getLocalProperties().filterByNodesConstantSet(this, 0);
-		
-		// compute the costs
-		estimator.costOperator(n);
-
-		target.add(n);
-		
-		// determine the properties of the data before it goes to the user code
-		outGp = new InterestingGlobalProperties();
-		outGp.setPartitioning(gp2.getPartitioning(), gp2.getPartitionedFields());
-		
-		// create a new cogroup node for this input
-		n = new CoGroupNode(this, subPlan1, subPlan2, input1, input2, outGp, new InterestingLocalProperties());
-
-		n.input1.setShipStrategy(ss1);
-		n.input2.setShipStrategy(ss2);
-
-		// output will have ascending order
-		n.getLocalProperties().setOrdering(ordering2);
-		n.getLocalProperties().setGroupedFields(new FieldSet(keyColumns2));
-		
-		if(n.getLocalStrategy() == LocalStrategy.NONE) {
-			// local strategy was NOT set with compiler hint
-			
-			// set local strategy according to pre-existing ordering
-			if (ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
-				// both inputs have ascending order
-				n.setLocalStrategy(LocalStrategy.MERGE);
-			} else if (!ordering1.isMetBy(lp1.getOrdering()) && ordering2.isMetBy(lp2.getOrdering())) {
-				// input 2 has ascending order, input 1 does not
-				n.setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
-			} else if (ordering1.isMetBy(lp1.getOrdering()) && !ordering2.isMetBy(lp2.getOrdering())) {
-				// input 1 has ascending order, input 2 does not
-				n.setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
-			} else {
-				// none of the inputs has ascending order
-				n.setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-			}
-		}
-
-		// compute, which of the properties survive, depending on the output contract
-		n.getGlobalProperties().filterByNodesConstantSet(this, 1);
-		n.getLocalProperties().filterByNodesConstantSet(this ,1);
-		
-		// compute the costs
-		estimator.costOperator(n);
-
-		target.add(n);
 	}
 
 	/**
@@ -601,9 +208,8 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return the number of keys processed by the PACT.
 	 */
 	protected long computeNumberOfProcessedKeys() {
-		
-		long numKey1 = this.getFirstPredNode().getEstimatedCardinality(new FieldSet(this.keySet1));
-		long numKey2 = this.getSecondPredNode().getEstimatedCardinality(new FieldSet(this.keySet2));
+		long numKey1 = this.getFirstPredecessorNode().getEstimatedCardinality(new FieldSet(this.keySet1));
+		long numKey2 = this.getSecondPredecessorNode().getEstimatedCardinality(new FieldSet(this.keySet2));
 
 		if(numKey1 == -1 && numKey2 == -1)
 			// key card of both inputs unknown. Return -1
@@ -627,7 +233,6 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return the number of stub calls for one processed key.
 	 */
 	protected double computeStubCallsPerProcessedKey() {
-
 		// the stub is called once for each key.
 		return 1;
 	}
@@ -638,7 +243,6 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return the number of stub calls.
 	 */
 	protected long computeNumberOfStubCalls() {
-
 		// the stub is called once per key
 		return this.computeNumberOfProcessedKeys();
 	}
@@ -680,122 +284,6 @@ public class CoGroupNode extends TwoInputNode {
 		super.computeOutputEstimates(statistics);
 	}
 	
-	
-	/**
-	 * TODO Write java doc
-	 * TODO Move to FieldList ?
-	 * 
-	 * @param gp
-	 * @param inputNum
-	 * @return
-	 */
-	private boolean partitioningIsOnRightFields(InterestingGlobalProperties gp, int inputNum) {
-		FieldList partitionedFields = gp.getPartitionedFields();
-		if (partitionedFields == null || partitionedFields.size() == 0) {
-			return false;
-		}
-		FieldList keyFields;
-		switch (inputNum) {
-		case 0: 
-			keyFields = this.keySet1;
-			break;
-		case 1:
-			keyFields = this.keySet2;
-			break;
-		default:
-			throw new CompilerException("Invalid input number "+inputNum+" for CoGroup.");
-		}
-		
-		if (gp.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
-			return keyFields.equals(partitionedFields);
-		}
-		
-		for (int partitionedField : partitionedFields) {
-			boolean foundField = false;
-			for (int keyField : keyFields){
-				if (keyField == partitionedField) {
-					foundField = true;
-					break;
-				}
-			}
-			if (foundField == false) {
-				return false;
-			}
-		}
-		
-		return true;
-	}
-	
-	/**
-	 * TODO add java doc
-	 * TODO check function!
-	 * TODO Move to FieldList ?
-	 * 
-	 * @param subkey1
-	 * @param subkey2
-	 * @return
-	 */
-	private boolean partitioningIsOnSameSubkey(FieldList subkey1, FieldList subkey2) {
-		if (subkey1 == null && subkey2 == null) {
-			return true;
-		}
-		if (subkey1 == null || subkey2 == null || subkey1.size() != subkey2.size()) {
-			return false;
-		}
-		
-		for (int i = 0; i < subkey1.size(); i++) {
-			boolean found = false;
-			for (int j = 0; j < this.keySet1.size(); j++) {
-				if (subkey1.get(i) == this.keySet1.get(j)) {
-					if (subkey2.get(i) != this.keySet2.get(j)) {
-						return false;
-					}
-					found = true;
-					break;
-				}
-			}
-			if (found == false) {
-				throw new RuntimeException("Partitioned field is no subset of the key");
-			}
-		}
-		
-		return true;
-	}
-	
-	/**
-	 * TODO write java doc
-	 * TODO Move to FieldList ?
-	 * 
-	 * Returns an array that specifies how the actual key order differs from the specified order.
-	 * 
-	 * @param specifiedOrder
-	 * @param actualOrder
-	 * @return
-	 */
-	private int[] getScrambledKeyOrder(FieldList specifiedOrder, FieldList actualOrder) {
-		if (specifiedOrder.equals(actualOrder)) {
-			return null;
-		}
-		
-		int[] keyScrambleOrder = new int[actualOrder.size()];
-		for (int actPos = 0; actPos < actualOrder.size(); actPos++) {
-			boolean foundKey = false;
-			for (int specPos = 0; specPos < specifiedOrder.size(); specPos++) {
-				if (actualOrder.get(actPos) == specifiedOrder.get(specPos)) {
-					keyScrambleOrder[actPos] = specPos;
-					foundKey = true;
-					break;
-				}
-			}
-			
-			if (foundKey == false) {
-				throw new RuntimeException("Partitioned fields are not subset of the key");
-			}
-		}
-		
-		return keyScrambleOrder;
-	}
-	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#createUniqueFieldsForNode()
@@ -806,7 +294,7 @@ public class CoGroupNode extends TwoInputNode {
 		if (keySet1 != null) {
 			boolean isKept = true;
 			for (int keyField : keySet1) {
-				if (isFieldKept(0, keyField) == false) {
+				if (!isFieldConstant(0, keyField)) {
 					isKept = false;
 					break;
 				}
@@ -821,7 +309,7 @@ public class CoGroupNode extends TwoInputNode {
 		if (keySet2 != null) {
 			boolean isKept = true;
 			for (int keyField : keySet2) {
-				if (isFieldKept(1, keyField) == false) {
+				if (!isFieldConstant(1, keyField)) {
 					isKept = false;
 					break;
 				}

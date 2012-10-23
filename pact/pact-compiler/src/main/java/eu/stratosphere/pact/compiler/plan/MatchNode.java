@@ -221,7 +221,7 @@ public class MatchNode extends TwoInputNode
 				lp1.getOrdering().isOrderEqualOnFirstNFields(lp2.getOrdering(), numKeys))
 		{
 			outputPlans.add(new DualInputPlanNode(this, candidate1, candidate2, DriverStrategy.MERGE,
-				this.keySet1, this.keySet2, getDirections(lp1.getOrdering(), numKeys)));
+				this.keySet1, this.keySet2, Utils.getDirections(lp1.getOrdering(), numKeys)));
 		}
 		
 		// create the hash join candidates
@@ -230,19 +230,6 @@ public class MatchNode extends TwoInputNode
 		}
 		if (this.driverStrategy == null || this.driverStrategy == DriverStrategy.HYBRIDHASH_SECOND) {
 			outputPlans.add(new DualInputPlanNode(this, candidate1, candidate2, DriverStrategy.HYBRIDHASH_SECOND, this.keySet1, this.keySet2));
-		}
-	}
-	
-	private boolean[] getDirections(Ordering o, int numFields) {
-		final boolean[] dirs = o.getFieldSortDirections();
-		if (dirs.length == numFields) {
-			return dirs;
-		} else if (dirs.length > numFields) {
-			final boolean[] subSet = new boolean[numFields];
-			System.arraycopy(dirs, 0, subSet, 0, numFields);
-			return subSet;
-		} else {
-			throw new CompilerException();
 		}
 	}
 

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -38,42 +38,28 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 
 /**
  * Configuration class which stores all relevant parameters required to set up the Pact tasks.
- * 
- * @author Erik Nijkamp
- * @author Fabian Hueske
- * @author Stephan Ewen
  */
 public class TaskConfig
-{
-	private static final String DRIVER_CLASS = "pact.driver.class";
+{	
+	// ------------------------------------ User Code ---------------------------------------------
 	
 	private static final String STUB_CLASS = "pact.stub.class";
-
+	
 	private static final String STUB_PARAM_PREFIX = "pact.stub.param.";
 	
-	private static final String LOCAL_STRATEGY = "pact.local.strategy";
+	// -------------------------------------- Driver ----------------------------------------------
+	
+	private static final String DRIVER_CLASS = "pact.driver.class";
+	
+	private static final String DRIVER_COMPARATOR_FACTORY_PREFIX = "pact.driver.comp.";
+	
+	private static final String DRIVER_COMPARATOR_PARAMETERS_PREFIX = "pact.driver.comp.params.";
+	
+	private static final String DRIVER_PAIR_COMPARATOR_FACTORY = "pact.driver.paircomp";
 
-	private static final String NUM_OUTPUTS = "pact.outputs.num";
-	
-	private static final String OUTPUT_SHIP_STRATEGY_PREFIX = "pact.out.shipstrategy.";
-	
-	private static final String OUTPUT_TYPE_SERIALIZER_FACTORY = "pact.out.serializer";
-	
-	private static final String OUTPUT_DATA_DISTRIBUTION_CLASS = "pact.out.distribution.class";
-	
-	private static final String OUTPUT_DATA_DISTRIBUTION_STATE = "pact.out.distribution.state";
-	
-	private static final String OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX = "pact.out.comparator.";
-	
-	private static final String OUTPUT_PARAMETERS_PREFIX = "pact.out.param.";
-	
-	private static final String INPUT_TYPE_SERIALIZER_FACTORY_PREFIX = "pact.in.serializer.";
-	
-	private static final String INPUT_TYPE_COMPARATOR_FACTORY_PREFIX = "pact.in.comparator.";
-	
-	private static final String INPUT_PARAMETERS_PREFIX = "pact.in.param.";
-	
-	private static final String INPUT_PAIR_COMPARATOR_FACTORY = "pact.in.paircomp";
+	// -------------------------------------- Inputs ----------------------------------------------
+
+	private static final String NUM_INPUTS = "pact.in.num";
 	
 	/*
 	 * If one input has multiple predecessors (bag union), multiple
@@ -86,9 +72,43 @@ public class TaskConfig
 	 * Hence, "pact.inputs.number" would be 3, "pact.size.inputGroup.1"
 	 * would be 2, and "pact.size.inputGroup.2" would be 1.
 	 */
-	private static final String INPUT_GROUP_SIZE_PREFIX = "pact.size.inputGroup.";
+	private static final String INPUT_GROUP_SIZE_PREFIX = "pact.in.groupsize.";
 	
-	private static final String NUM_INPUTS = "pact.inputs.number";
+	private static final String INPUT_TYPE_SERIALIZER_FACTORY_PREFIX = "pact.in.serializer.";
+	
+	private static final String INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "pact.in.serializer.param.";
+	
+	private static final String INPUT_LOCAL_STRATEGY_PREFIX = "pact.in.strategy.";
+	
+	private static final String INPUT_STRATEGY_COMPARATOR_FACTORY_PREFIX = "pact.in.comparator.";
+	
+	private static final String INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX = "pact.in.comparator.param.";
+	
+	private static final String INPUT_TEMP_PREFIX = "pact.in.temp.";
+	
+	private static final String INPUT_TEMP_MEMORY_PREFIX = "pact.in.temp.mem.";
+	
+	private static final String INPUT_TEMP_PERSISTENT_PREFIX = "pact.in.temp.persistent.";
+	
+	// -------------------------------------- Outputs ---------------------------------------------
+	
+	private static final String OUTPUTS_NUM = "pact.out.num";
+	
+	private static final String OUTPUT_TYPE_SERIALIZER_FACTORY = "pact.out.serializer";
+	
+	private static final String OUTPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX = "pact.out.serializer.param.";
+	
+	private static final String OUTPUT_SHIP_STRATEGY_PREFIX = "pact.out.shipstrategy.";
+	
+	private static final String OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX = "pact.out.comp.";
+	
+	private static final String OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX = "pact.out.comp.param.";
+	
+	private static final String OUTPUT_DATA_DISTRIBUTION_CLASS = "pact.out.distribution.class";
+	
+	private static final String OUTPUT_DATA_DISTRIBUTION_STATE = "pact.out.distribution.state";
+	
+	// ------------------------------------- Chaining ---------------------------------------------
 	
 	private static final String CHAINING_NUM_STUBS = "pact.chaining.num";
 	
@@ -98,36 +118,91 @@ public class TaskConfig
 	
 	private static final String CHAINING_TASKNAME_PREFIX = "pact.chaining.taskname.";
 	
-	private static final String SIZE_MEMORY = "pact.memory.size";
-
-	private static final String NUM_FILEHANDLES = "pact.filehandles.num";
+	// ------------------------------------ Memory & Co -------------------------------------------
 	
-	private static final String SORT_SPILLING_THRESHOLD = "pact.sort.spillthreshold";
+	private static final String MEMORY_DRIVER = "pact.memory.driver";
+	
+	private static final String MEMORY_INPUT_PREFIX = "pact.memory.input.";
+	
+	private static final String FILEHANDLES_DRIVER = "pact.filehandles.driver";
+	
+	private static final String FILEHANDLES_INPUT_PREFIX = "pact.filehandles.input.";
+	
+	private static final String SORT_SPILLING_THRESHOLD_DRIVER = "pact.sort-spill-threshold.driver";
+	
+	private static final String SORT_SPILLING_THRESHOLD_INPUT_PREFIX = "pact.sort-spill-threshold.input.";
+	
+	// ---------------------------------- Miscellaneous -------------------------------------------
+	
+	private static final char SEPERATOR = '.';
 
+	// --------------------------------------------------------------------------------------------
+	//                         Members, Constructors, and Accessors
 	// --------------------------------------------------------------------------------------------
 	
 	protected final Configuration config;			// the actual configuration holding the values
-
 	
-	public TaskConfig(Configuration config)
-	{
+	/**
+	 * Creates a new Task Config that wraps the given configuration.
+	 * 
+	 * @param config The configuration holding the actual values.
+	 */
+	public TaskConfig(Configuration config) {
 		this.config = config;
 	}
 	
+	/**
+	 * Gets the configuration that holds the actual values encoded.
+	 * 
+	 * @return The configuration that holds the actual values
+	 */
 	public Configuration getConfiguration() {
 		return this.config;
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                                     Pact Driver
+	//                                       User Code
+	// --------------------------------------------------------------------------------------------
+
+	public void setStubClass(Class<?> stubClass) {
+		this.config.setString(STUB_CLASS, stubClass.getName());
+	}
+
+	public <T> Class<? extends T> getStubClass(Class<T> superClass, ClassLoader cl)
+		throws ClassNotFoundException, ClassCastException
+	{
+		final String stubClassName = this.config.getString(STUB_CLASS, null);
+		if (stubClassName == null) {
+			throw new CorruptConfigurationException("The stub class is missing.");
+		}
+		return Class.forName(stubClassName, true, cl).asSubclass(superClass);
+	}
+	
+	public void setStubParameters(Configuration parameters) {
+		this.config.addAll(parameters, STUB_PARAM_PREFIX);
+	}
+
+	public Configuration getStubParameters() {
+		return new DelegatingConfiguration(this.config, STUB_PARAM_PREFIX);
+	}
+	
+	public void setStubParameter(String key, String value) {
+		this.config.setString(STUB_PARAM_PREFIX + key, value);
+	}
+
+	public String getStubParameter(String key, String defaultValue) {
+		return this.config.getString(STUB_PARAM_PREFIX + key, defaultValue);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                      Driver
 	// --------------------------------------------------------------------------------------------
 	
 	public void setDriver(@SuppressWarnings("rawtypes") Class<? extends PactDriver> driver) {
 		this.config.setString(DRIVER_CLASS, driver.getName());
 	}
 	
-	public <S extends Stub, OT> Class<? extends PactDriver<S, OT>> getDriver()
-	{
+	public <S extends Stub, OT> Class<? extends PactDriver<S, OT>> getDriver() {
 		final String className = this.config.getString(DRIVER_CLASS, null);
 		if (className == null) {
 			throw new CorruptConfigurationException("The pact driver class is missing.");
@@ -144,59 +219,54 @@ public class TaskConfig
 		}
 	}
 	
-	// --------------------------------------------------------------------------------------------
-	//                                User code class Access
-	// --------------------------------------------------------------------------------------------
-
-	public void setStubClass(Class<?> stubClass) {
-		this.config.setString(STUB_CLASS, stubClass.getName());
+	public void setDriverComparator(TypeComparatorFactory<?> factory, int inputNum) {
+		setTypeComparatorFactory(factory, DRIVER_COMPARATOR_FACTORY_PREFIX + inputNum,
+			DRIVER_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPERATOR);
 	}
-
-	public <T> Class<? extends T> getStubClass(Class<T> stubClass, ClassLoader cl)
-		throws ClassNotFoundException, ClassCastException
-	{
-		final String stubClassName = this.config.getString(STUB_CLASS, null);
-		if (stubClassName == null) {
-			throw new CorruptConfigurationException("The stub class is missing.");
+	
+	public <T> TypeComparatorFactory<T> getDriverComparator(int inputNum, ClassLoader cl) {
+		return getTypeComparatorFactory(DRIVER_COMPARATOR_FACTORY_PREFIX + inputNum,
+			DRIVER_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPERATOR, cl);
+	}
+	
+	public void setDriverPairComparator(TypePairComparatorFactory<?, ?> factory) {
+		final Class<?> clazz = factory.getClass();
+		InstantiationUtil.checkForInstantiation(clazz);
+		this.config.setString(DRIVER_PAIR_COMPARATOR_FACTORY, clazz.getName());
+	}
+			
+	public <T1, T2> TypePairComparatorFactory<T1, T2> getPairComparatorFactory(ClassLoader cl) {
+		final String className = this.config.getString(DRIVER_PAIR_COMPARATOR_FACTORY, null);
+		if (className == null) {
+			return null;
 		}
-		return Class.forName(stubClassName, true, cl).asSubclass(stubClass);
+		
+		@SuppressWarnings("unchecked")
+		final Class<TypePairComparatorFactory<T1, T2>> superClass = (Class<TypePairComparatorFactory<T1, T2>>) (Class<?>) TypePairComparatorFactory.class;
+		try {
+			final Class<? extends TypePairComparatorFactory<T1, T2>> clazz = Class.forName(className, true, cl).asSubclass(superClass);
+			return InstantiationUtil.instantiate(clazz, superClass);
+		}
+		catch (ClassNotFoundException cnfex) {
+			throw new RuntimeException("The class '" + className + "', noted in the configuration as " +
+				"pair comparator factory, could not be found. It is not part of the user code's class loader resources.");
+		}
+		catch (ClassCastException ccex) {
+			throw new CorruptConfigurationException("The class noted in the configuration as the pair comparator factory " +
+				"is no subclass of TypePairComparatorFactory.");
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                                User Code Parameters
-	// --------------------------------------------------------------------------------------------
-
-	public void setStubParameters(Configuration parameters)
-	{
-		this.config.addAll(parameters, STUB_PARAM_PREFIX);
-	}
-
-	public Configuration getStubParameters()
-	{
-		return new DelegatingConfiguration(this.config, STUB_PARAM_PREFIX);
-	}
-	
-	public void setStubParameter(String key, String value)
-	{
-		this.config.setString(STUB_PARAM_PREFIX + key, value);
-	}
-
-	public String getStubParameter(String key, String defaultValue)
-	{
-		return this.config.getString(STUB_PARAM_PREFIX + key, defaultValue);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//                                 Local Strategies
+	//                                        Inputs
 	// --------------------------------------------------------------------------------------------
 	
-	public void setLocalStrategy(LocalStrategy strategy) {
-		this.config.setInteger(LOCAL_STRATEGY, strategy.ordinal());
+	public void setInputLocalStrategy(int inputNum, LocalStrategy strategy) {
+		this.config.setInteger(INPUT_LOCAL_STRATEGY_PREFIX + inputNum, strategy.ordinal());
 	}
-
-	public LocalStrategy getLocalStrategy()
-	{
-		final int ls = this.config.getInteger(LOCAL_STRATEGY, -1);
+	
+	public LocalStrategy getInputLocalStrategy(int inputNum) {
+		final int ls = this.config.getInteger(INPUT_LOCAL_STRATEGY_PREFIX + inputNum, -1);
 		if (ls == -1) {
 			return LocalStrategy.NONE;
 		} else if (ls < 0 || ls >= LocalStrategy.values().length) {
@@ -206,183 +276,120 @@ public class TaskConfig
 		}
 	}
 	
-	// --------------------------------------------------------------------------------------------
-	//                               Inputs and dependent Parameters
-	// --------------------------------------------------------------------------------------------
-	
-	public void setSerializerFactoryForInput(Class<? extends TypeSerializerFactory<?>> clazz, int inputNum)
-	{
-		this.config.setString(INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum, clazz.getName());
+	public void setInputSerializer(TypeSerializerFactory<?> factory, int inputNum) {
+		setTypeSerializerFactory(factory, INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum,
+			INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPERATOR);
 	}
 	
-	public void setComparatorFactoryForInput(Class<? extends TypeComparatorFactory<?>> clazz, int inputNum)
-	{
-		this.config.setString(INPUT_TYPE_COMPARATOR_FACTORY_PREFIX + inputNum, clazz.getName());
+	public <T> TypeSerializerFactory<T> getInputSerializer(int inputNum, ClassLoader cl) {
+		return getTypeSerializerFactory(INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum,
+			INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPERATOR, cl);
 	}
 	
-	public void setPairComparatorFactory(Class<? extends TypePairComparatorFactory<?, ?>> clazz)
-	{
-		this.config.setString(INPUT_PAIR_COMPARATOR_FACTORY, clazz.getName());
+	public void setInputComparator(TypeComparatorFactory<?> factory, int inputNum) {
+		setTypeComparatorFactory(factory, INPUT_STRATEGY_COMPARATOR_FACTORY_PREFIX + inputNum,
+			INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPERATOR);
 	}
 	
-	public <T> Class<? extends TypeSerializerFactory<T>> getSerializerFactoryForInput(int inputNum, ClassLoader cl)
-	throws ClassNotFoundException
-	{
-		final String className = this.config.getString(INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum, null);
-		if (className == null) {
-			return null;
-		} else {
-			@SuppressWarnings("unchecked")
-			final Class<TypeSerializerFactory<T>> superClass = (Class<TypeSerializerFactory<T>>) (Class<?>) TypeSerializerFactory.class;
-			try {
-				return Class.forName(className, true, cl).asSubclass(superClass);
-			} catch (ClassCastException ccex) {
-				throw new CorruptConfigurationException("The class noted in the configuration as the serializer factory " +
-						"is no subclass of TypeSerializerFactory.");
-			}
-		}
+	public <T> TypeComparatorFactory<T> getInputComparator(int inputNum, ClassLoader cl) {
+		return getTypeComparatorFactory(INPUT_STRATEGY_COMPARATOR_FACTORY_PREFIX + inputNum,
+			INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPERATOR, cl);
 	}
 	
-	public <T> Class<? extends TypeComparatorFactory<T>> getComparatorFactoryForInput(int inputNum, ClassLoader cl)
-	throws ClassNotFoundException
-	{
-		final String className = this.config.getString(INPUT_TYPE_COMPARATOR_FACTORY_PREFIX + inputNum, null);
-		if (className == null) {
-			return null;
-		} else {
-			@SuppressWarnings("unchecked")
-			final Class<TypeComparatorFactory<T>> superClass = (Class<TypeComparatorFactory<T>>) (Class<?>) TypeComparatorFactory.class;
-			try {
-				return Class.forName(className, true, cl).asSubclass(superClass);
-			} catch (ClassCastException ccex) {
-				throw new CorruptConfigurationException("The class noted in the configuration as the comparator factory " +
-						"is no subclass of TypeComparatorFactory.");
-			}
-		}
+	public int getNumInputs() {
+		return this.config.getInteger(NUM_INPUTS, -1);
 	}
 	
-	public <T1, T2> Class<? extends TypePairComparatorFactory<T1, T2>> getPairComparatorFactory(ClassLoader cl)
-		throws ClassNotFoundException
-		{
-			final String className = this.config.getString(INPUT_PAIR_COMPARATOR_FACTORY, null);
-			if (className == null) {
-				return null;
-			} else {
-				@SuppressWarnings("unchecked")
-				final Class<TypePairComparatorFactory<T1, T2>> superClass = (Class<TypePairComparatorFactory<T1, T2>>) (Class<?>) TypePairComparatorFactory.class;
-				try {
-					return Class.forName(className, true, cl).asSubclass(superClass);
-				} catch (ClassCastException ccex) {
-					throw new CorruptConfigurationException("The class noted in the configuration as the pair comparator factory " +
-							"is no subclass of TypePairComparatorFactory.");
-				}
-			}
-		}
+	public int getGroupSize(int groupIndex) {
+		return this.config.getInteger(INPUT_GROUP_SIZE_PREFIX + groupIndex, -1);
+	}
 	
-	public Configuration getConfigForInputParameters(int inputNum)
-	{
-		return new DelegatingConfiguration(this.config, INPUT_PARAMETERS_PREFIX + inputNum + '.');
+	public void addInputToGroup(int groupIndex) {
+		final String grp = INPUT_GROUP_SIZE_PREFIX + groupIndex;
+		this.config.setInteger(grp, this.config.getInteger(grp, 0) + 1);
+		this.config.setInteger(NUM_INPUTS, this.config.getInteger(NUM_INPUTS, 0) + 1);
+	}
+	
+	public void setInputTemped(int inputNum, boolean temp) {
+		this.config.setBoolean(INPUT_TEMP_PREFIX + inputNum, temp);
+	}
+	
+	public boolean isInputTemped(int inputNum) {
+		return this.config.getBoolean(INPUT_TEMP_PREFIX + inputNum, false);
+	}
+	
+	public void setInputTempPersistent(int inputNum, boolean persistent) {
+		this.config.setBoolean(INPUT_TEMP_PERSISTENT_PREFIX + inputNum, persistent);
+	}
+	
+	public boolean isInputTempPersistent(int inputNum) {
+		return this.config.getBoolean(INPUT_TEMP_PERSISTENT_PREFIX + inputNum, false);
+	}
+	
+	public void setInputTempMemory(int inputNum, long memory) {
+		this.config.setLong(INPUT_TEMP_MEMORY_PREFIX + inputNum, memory);
+	}
+	
+	public long getInputTempMemory(int inputNum) {
+		return this.config.getLong(INPUT_TEMP_MEMORY_PREFIX + inputNum, -1);
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                          Parameters for the output shipping
+	//                                        Outputs
 	// --------------------------------------------------------------------------------------------
-
-	public void addOutputShipStrategy(ShipStrategyType strategy)
-	{
-		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, 0);
+	
+	public void addOutputShipStrategy(ShipStrategyType strategy) {
+		final int outputCnt = this.config.getInteger(OUTPUTS_NUM, 0);
 		this.config.setInteger(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt, strategy.ordinal());
-		this.config.setInteger(NUM_OUTPUTS, outputCnt + 1);
+		this.config.setInteger(OUTPUTS_NUM, outputCnt + 1);
 	}
 	
-	public int getNumOutputs()
-	{
-		return this.config.getInteger(NUM_OUTPUTS, -1);
+	public int getNumOutputs() {
+		return this.config.getInteger(OUTPUTS_NUM, -1);
 	}
 
-	public ShipStrategyType getOutputShipStrategy(int outputId)
-	{
+	public ShipStrategyType getOutputShipStrategy(int outputNum) {
 		// check how many outputs are encoded in the config
-		final int outputCnt = this.config.getInteger(NUM_OUTPUTS, -1);
+		final int outputCnt = this.config.getInteger(OUTPUTS_NUM, -1);
 		if (outputCnt < 1) {
 			throw new CorruptConfigurationException("No output ship strategies are specified in the configuration.");
 		}
 		
 		// sanity range checks
-		if (outputId < 0 || outputId >= outputCnt) {
+		if (outputNum < 0 || outputNum >= outputCnt) {
 			throw new IllegalArgumentException("Invalid index for output shipping strategy.");
 		}
 		
-		final int strategy = this.config.getInteger(OUTPUT_SHIP_STRATEGY_PREFIX + outputId, -1);
+		final int strategy = this.config.getInteger(OUTPUT_SHIP_STRATEGY_PREFIX + outputNum, -1);
 		if (strategy == -1) {
-			throw new CorruptConfigurationException("No output shipping strategy in configuration for output "
-																			+ outputId);
+			throw new CorruptConfigurationException("No output shipping strategy in configuration for output " + outputNum);
 		} else if (strategy < 0 || strategy >= ShipStrategyType.values().length) {
 			throw new CorruptConfigurationException("Illegal output shipping strategy in configuration for output "
-																			+ outputId + ": " + strategy);
+																			+ outputNum + ": " + strategy);
 		} else {
 			return ShipStrategyType.values()[strategy];
 		}
 	}
 	
-	public void setSerializerFactoryForOutput(Class<? extends TypeSerializerFactory<?>> clazz)
-	{
-		this.config.setString(OUTPUT_TYPE_SERIALIZER_FACTORY, clazz.getName());
+	public void setOutputSerializert(TypeSerializerFactory<?> factory) {
+		setTypeSerializerFactory(factory, OUTPUT_TYPE_SERIALIZER_FACTORY, OUTPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX);
 	}
 	
-	public void setComparatorFactoryForOutput(Class<? extends TypeComparatorFactory<?>> clazz, int outputNum)
-	{
-		this.config.setString(OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX + outputNum, clazz.getName());
+	public <T> TypeSerializerFactory<T> getOutputSerializer(ClassLoader cl) {
+		return getTypeSerializerFactory(OUTPUT_TYPE_SERIALIZER_FACTORY, OUTPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX, cl);
 	}
 	
-	public <T> Class<? extends TypeSerializerFactory<T>> getSerializerFactoryForOutput(ClassLoader cl)
-		throws ClassNotFoundException
-	{
-		final String className = this.config.getString(OUTPUT_TYPE_SERIALIZER_FACTORY, null);
-		if (className == null) {
-			return null;
-		} else {
-			@SuppressWarnings("unchecked")
-			final Class<TypeSerializerFactory<T>> superClass = (Class<TypeSerializerFactory<T>>) (Class<?>) TypeSerializerFactory.class;
-			try {
-				return Class.forName(className, true, cl).asSubclass(superClass);
-			} catch (ClassCastException ccex) {
-				throw new CorruptConfigurationException("The class noted in the configuration as the serializer factory " +
-						"is no subclass of TypeSerializerFactory.");
-			}
-		}
-	}
-		
-	public <T> Class<? extends TypeComparatorFactory<T>> getComparatorFactoryForOutput(int outputNum, ClassLoader cl)
-		throws ClassNotFoundException
-	{
-		final String className = this.config.getString(OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX + outputNum, null);
-		if (className == null) {
-			return null;
-		} else {
-			@SuppressWarnings("unchecked")
-			final Class<TypeComparatorFactory<T>> superClass = (Class<TypeComparatorFactory<T>>) (Class<?>) TypeComparatorFactory.class;
-			try {
-				return Class.forName(className, true, cl).asSubclass(superClass);
-			} catch (ClassCastException ccex) {
-				throw new CorruptConfigurationException("The class noted in the configuration as the comparator factory " +
-						"is no subclass of TypeComparatorFactory.");
-			}
-		}
+	public void setOutputComparator(TypeComparatorFactory<?> factory, int outputNum) {
+		setTypeComparatorFactory(factory, OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX + outputNum,
+			OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX + outputNum + SEPERATOR);
 	}
 	
-	public Configuration getConfigForOutputParameters(int outputNum)
-	{
-		return new DelegatingConfiguration(this.config, OUTPUT_PARAMETERS_PREFIX + outputNum + '.');
+	public <T> TypeComparatorFactory<T> getOutputComparator(int outputNum, ClassLoader cl) {
+		return getTypeComparatorFactory(OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX + outputNum,
+			OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX + outputNum + SEPERATOR, cl);
 	}
 	
-	public String getPrefixForOutputParameters(int outputNum)
-	{
-		return OUTPUT_PARAMETERS_PREFIX + outputNum + '.';
-	}
-	
-	public void setOutputDataDistribution(DataDistribution distribution)
-	{
+	public void setOutputDataDistribution(DataDistribution distribution) {
 		this.config.setString(OUTPUT_DATA_DISTRIBUTION_CLASS, distribution.getClass().getName());
 		
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -396,8 +403,7 @@ public class TaskConfig
 		this.config.setBytes(OUTPUT_DATA_DISTRIBUTION_STATE, baos.toByteArray());
 	}
 	
-	public DataDistribution getOutputDataDistribution(final ClassLoader cl) throws ClassNotFoundException
-	{
+	public DataDistribution getOutputDataDistribution(final ClassLoader cl) throws ClassNotFoundException {
 		final String className = this.config.getString(OUTPUT_DATA_DISTRIBUTION_CLASS, null);
 		if (className == null) {
 			return null;
@@ -435,91 +441,68 @@ public class TaskConfig
 	//                       Parameters to configure the memory and I/O behavior
 	// --------------------------------------------------------------------------------------------
 
-	public int getNumInputs() {
-		return config.getInteger(NUM_INPUTS, -1);
-	}
-	
-	public int getGroupSize(int groupIndex) {
-		return this.config.getInteger(INPUT_GROUP_SIZE_PREFIX + groupIndex, -1);
-	}
-	
-	public void addInputToGroup(int groupIndex) {
-		String grp = INPUT_GROUP_SIZE_PREFIX + groupIndex;
-		this.config.setInteger(grp, this.config.getInteger(grp, 0)+1);
-		this.config.setInteger(NUM_INPUTS, this.config.getInteger(NUM_INPUTS, 0)+1);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//                       Parameters to configure the memory and I/O behavior
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Sets the amount of memory dedicated to the task's input preparation (sorting / hashing).
-	 * 
-	 * @param memSize The memory size in bytes.
-	 */
-	public void setMemorySize(long memorySize) {
-		this.config.setLong(SIZE_MEMORY, memorySize);
+	public void setMemoryDriver(long memorySize) {
+		this.config.setLong(MEMORY_DRIVER, memorySize);
 	}
 
-	/**
-	 * Sets the maximum number of open files.
-	 * 
-	 * @param numFileHandles Maximum number of open files.
-	 */
-	public void setNumFilehandles(int numFileHandles) {
-		if (numFileHandles < 2) {
-			throw new IllegalArgumentException();
-		}
-		
-		this.config.setInteger(NUM_FILEHANDLES, numFileHandles);
+	public long getMemoryDriver() {
+		return this.config.getLong(MEMORY_DRIVER, -1);
 	}
 	
-	/**
-	 * Sets the threshold that triggers spilling to disk of intermediate sorted results. This value defines the
-	 * fraction of the buffers that must be full before the spilling is triggered.
-	 * 
-	 * @param threshold The value for the threshold.
-	 */
-	public void setSortSpillingTreshold(float threshold) {
+	public void setMemoryInput(int inputNum, long memorySize) {
+		this.config.setLong(MEMORY_INPUT_PREFIX + inputNum, memorySize);
+	}
+
+	public long getMemoryInput(int inputNum) {
+		return this.config.getLong(MEMORY_INPUT_PREFIX + inputNum, -1);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public void setFilehandlesDriver(int filehandles) {
+		if (filehandles < 2) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(FILEHANDLES_DRIVER, filehandles);
+	}
+
+	public int getFilehandlesDriver() {
+		return this.config.getInteger(FILEHANDLES_DRIVER, -1);
+	}
+	
+	public void setFilehandlesInput(int inputNum, int filehandles) {
+		if (filehandles < 2) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setInteger(FILEHANDLES_INPUT_PREFIX + inputNum, filehandles);
+	}
+
+	public int getFilehandlesInput(int inputNum) {
+		return this.config.getInteger(FILEHANDLES_INPUT_PREFIX + inputNum, -1);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public void setSpillingThresholdDriver(float threshold) {
 		if (threshold < 0.0f || threshold > 1.0f) {
 			throw new IllegalArgumentException();
 		}
-		
-		this.config.setFloat(SORT_SPILLING_THRESHOLD, threshold);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Gets the amount of memory dedicated to the task's input preparation (sorting / hashing).
-	 * Returns <tt>-1</tt> if the value is not specified.
-	 * 
-	 * @return The memory size in bytes.
-	 */
-	public long getMemorySize() {
-		return this.config.getLong(SIZE_MEMORY, -1);
+		this.config.setFloat(SORT_SPILLING_THRESHOLD_DRIVER, threshold);
 	}
 
-	/**
-	 * Gets the maximum number of open files. Returns <tt>-1</tt>, if the value has not been set.
-	 * 
-	 * @return Maximum number of open files.
-	 */
-	public int getNumFilehandles() {
-		return this.config.getInteger(NUM_FILEHANDLES, -1);
+	public float getSpillingThresholdDriver() {
+		return this.config.getFloat(SORT_SPILLING_THRESHOLD_DRIVER, 0.7f);
 	}
 	
-	/**
-	 * Gets the threshold that triggers spilling to disk of intermediate sorted results. This value defines the
-	 * fraction of the buffers that must be full before the spilling is triggered.
-	 * <p>
-	 * If the value is not set, this method returns a default value if <code>0.7f</code>.
-	 * 
-	 * @return The threshold that triggers spilling to disk of sorted intermediate results.
-	 */
-	public float getSortSpillingTreshold() {
-		return this.config.getFloat(SORT_SPILLING_THRESHOLD, 0.7f);
+	public void setSpillingThresholdInput(int inputNum, float threshold) {
+		if (threshold < 0.0f || threshold > 1.0f) {
+			throw new IllegalArgumentException();
+		}
+		this.config.setFloat(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum, threshold);
+	}
+
+	public float getSpillingThresholdInput(int inputNum) {
+		return this.config.getFloat(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum, 0.7f);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -535,38 +518,145 @@ public class TaskConfig
 		int numChainedYet = this.config.getInteger(CHAINING_NUM_STUBS, 0);
 		
 		this.config.setString(CHAINING_TASK_PREFIX + numChainedYet, chainedTaskClass.getName());
-		this.config.addAll(conf.config, CHAINING_TASKCONFIG_PREFIX + numChainedYet + '.');
+		this.config.addAll(conf.config, CHAINING_TASKCONFIG_PREFIX + numChainedYet + SEPERATOR);
 		this.config.setString(CHAINING_TASKNAME_PREFIX + numChainedYet, taskName);
 		
 		this.config.setInteger(CHAINING_NUM_STUBS, ++numChainedYet);
 	}
 	
-	public TaskConfig getChainedStubConfig(int chainPos)
-	{
-		return new TaskConfig(new DelegatingConfiguration(this.config, CHAINING_TASKCONFIG_PREFIX + chainPos + '.'));
+	public TaskConfig getChainedStubConfig(int chainPos) {
+		return new TaskConfig(new DelegatingConfiguration(this.config, CHAINING_TASKCONFIG_PREFIX + chainPos + SEPERATOR));
 	}
 
-	public Class<? extends ChainedDriver<?, ?>> getChainedTask(int chainPos)
-	throws ClassNotFoundException, ClassCastException
-	{
-		String className = this.config.getString(CHAINING_TASK_PREFIX + chainPos, null);
+	public Class<? extends ChainedDriver<?, ?>> getChainedTask(int chainPos) {
+		final String className = this.config.getString(CHAINING_TASK_PREFIX + chainPos, null);
 		if (className == null)
 			throw new IllegalStateException("Chained Task Class missing");
 		
 		@SuppressWarnings("unchecked")
 		final Class<ChainedDriver<?, ?>> clazz = (Class<ChainedDriver<?, ?>>) (Class<?>) ChainedDriver.class;
-		return Class.forName(className).asSubclass(clazz);
+		try {
+			return Class.forName(className).asSubclass(clazz);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
 	}
 	
-	public String getChainedTaskName(int chainPos)
-	{
+	public String getChainedTaskName(int chainPos) {
 		return this.config.getString(CHAINING_TASKNAME_PREFIX + chainPos, null);
 	}
+
+	// --------------------------------------------------------------------------------------------
+	//                                    Miscellaneous
+	// --------------------------------------------------------------------------------------------
+	
+	private final void setTypeSerializerFactory(TypeSerializerFactory<?> factory, 
+			String classNameKey, String parametersPrefix)
+	{
+		// sanity check the factory type
+		InstantiationUtil.checkForInstantiation(factory.getClass());
+		
+		// store the type
+		this.config.setString(classNameKey, factory.getClass().getName());
+		// store the parameters
+		final DelegatingConfiguration parameters = new DelegatingConfiguration(this.config, parametersPrefix);
+		factory.writeParametersToConfig(parameters);
+	}
+	
+	private final <T> TypeSerializerFactory<T> getTypeSerializerFactory(String classNameKey, String parametersPrefix, ClassLoader cl)
+	{
+		// check the class name
+		final String className = this.config.getString(classNameKey, null);
+		if (className == null) {
+			return null;
+		}
+		
+		// instantiate the class
+		@SuppressWarnings("unchecked")
+		final Class<TypeSerializerFactory<T>> superClass = (Class<TypeSerializerFactory<T>>) (Class<?>) TypeSerializerFactory.class;
+		final TypeSerializerFactory<T> factory;
+		try {
+			Class<? extends TypeSerializerFactory<T>> clazz = Class.forName(className, true, cl).asSubclass(superClass);
+			factory = InstantiationUtil.instantiate(clazz, superClass);
+		}
+		catch (ClassNotFoundException cnfex) {
+			throw new RuntimeException("The class '" + className + "', noted in the configuration as " +
+					"serializer factory, could not be found. It is not part of the user code's class loader resources.");
+		}
+		catch (ClassCastException ccex) {
+			throw new CorruptConfigurationException("The class noted in the configuration as the serializer factory " +
+					"is no subclass of TypeSerializerFactory.");
+		}
+		
+		// parameterize the comparator factory
+		final Configuration parameters = new DelegatingConfiguration(this.config, parametersPrefix);
+		try {
+			factory.readParametersFromConfig(parameters, cl);
+		} catch (ClassNotFoundException cnfex) {
+			throw new RuntimeException("The type serializer factory could not load its parameters from the " +
+					"configuration due to missing classes.", cnfex);
+		}
+		
+		return factory;
+	}
+	
+	private final void setTypeComparatorFactory(TypeComparatorFactory<?> factory, 
+			String classNameKey, String parametersPrefix)
+	{
+		// sanity check the factory type
+		InstantiationUtil.checkForInstantiation(factory.getClass());
+		
+		// store the type
+		this.config.setString(classNameKey, factory.getClass().getName());
+		// store the parameters
+		final DelegatingConfiguration parameters = new DelegatingConfiguration(this.config, parametersPrefix);
+		factory.writeParametersToConfig(parameters);
+	}
+	
+	private final <T> TypeComparatorFactory<T> getTypeComparatorFactory(String classNameKey, String parametersPrefix, ClassLoader cl)
+	{
+		// check the class name
+		final String className = this.config.getString(classNameKey, null);
+		if (className == null) {
+			return null;
+		}
+		
+		// instantiate the class
+		@SuppressWarnings("unchecked")
+		final Class<TypeComparatorFactory<T>> superClass = (Class<TypeComparatorFactory<T>>) (Class<?>) TypeComparatorFactory.class;
+		final TypeComparatorFactory<T> factory;
+		try {
+			Class<? extends TypeComparatorFactory<T>> clazz = Class.forName(className, true, cl).asSubclass(superClass);
+			factory = InstantiationUtil.instantiate(clazz, superClass);
+		}
+		catch (ClassNotFoundException cnfex) {
+			throw new RuntimeException("The class '" + className + "', noted in the configuration as " +
+					"comparator factory, could not be found. It is not part of the user code's class loader resources.");
+		}
+		catch (ClassCastException ccex) {
+			throw new CorruptConfigurationException("The class noted in the configuration as the comparator factory " +
+					"is no subclass of TypeComparatorFactory.");
+		}
+		
+		// parameterize the comparator factory
+		final Configuration parameters = new DelegatingConfiguration(this.config, parametersPrefix);
+		try {
+			factory.readParametersFromConfig(parameters, cl);
+		} catch (ClassNotFoundException cnfex) {
+			throw new RuntimeException("The type serializer factory could not load its parameters from the " +
+					"configuration due to missing classes.", cnfex);
+		}
+		
+		return factory;
+	}
 	
 	// --------------------------------------------------------------------------------------------
-	//                              Utility class for nested Configurations
+	//                          Utility class for nested Configurations
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * A configuration that manages a subset of keys with a common prefix from a given configuration.
+	 */
 	public static final class DelegatingConfiguration extends Configuration
 	{
 		private final Configuration backingConfig;		// the configuration actually storing the data
@@ -578,9 +668,9 @@ public class TaskConfig
 		/**
 		 * Default constructor for serialization. Creates an empty delegating configuration.
 		 */
-		public DelegatingConfiguration()
-		{
+		public DelegatingConfiguration() {
 			this.backingConfig = new Configuration();
+			this.prefix = "";
 		}
 		
 		/**
@@ -602,6 +692,11 @@ public class TaskConfig
 		public String getString(String key, String defaultValue) {
 			return this.backingConfig.getString(this.prefix + key, defaultValue);
 		}
+		
+		@Override
+		public void setString(String key, String value) {
+			this.backingConfig.setString(this.prefix + key, value);
+		}
 
 		@Override
 		public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<T> ancestor) {
@@ -616,11 +711,6 @@ public class TaskConfig
 		@Override
 		public void setClass(String key, Class<?> klazz) {
 			this.backingConfig.setClass(this.prefix + key, klazz);
-		}
-
-		@Override
-		public void setString(String key, String value) {
-			this.backingConfig.setString(this.prefix + key, value);
 		}
 
 		@Override
@@ -662,7 +752,22 @@ public class TaskConfig
 		public void setFloat(String key, float value) {
 			this.backingConfig.setFloat(this.prefix + key, value);
 		}
-
+		
+		@Override
+		public byte[] getBytes(final String key, final byte[] defaultValue) {
+			return this.backingConfig.getBytes(this.prefix + key, defaultValue);
+		}
+		
+		@Override
+		public void setBytes(final String key, final byte[] bytes) {
+			this.backingConfig.setBytes(this.prefix + key, bytes);
+		}
+		
+		@Override
+		public void addAll(Configuration other, String prefix) {
+			this.backingConfig.addAll(other, this.prefix + prefix);
+		}
+		
 		@Override
 		public Set<String> keySet()
 		{
@@ -696,14 +801,12 @@ public class TaskConfig
 		// --------------------------------------------------------------------------------------------
 
 		@Override
-		public int hashCode()
-		{
+		public int hashCode() {
 			return this.prefix.hashCode() ^ this.backingConfig.hashCode();
 		}
 
 		@Override
-		public boolean equals(Object obj)
-		{
+		public boolean equals(Object obj) {
 			if (obj instanceof DelegatingConfiguration) {
 				DelegatingConfiguration other = (DelegatingConfiguration) obj;
 				return this.prefix.equals(other.prefix) && this.backingConfig.equals(other.backingConfig);
