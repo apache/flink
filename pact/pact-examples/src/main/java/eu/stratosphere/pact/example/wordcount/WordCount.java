@@ -17,6 +17,7 @@ package eu.stratosphere.pact.example.wordcount;
 
 import java.util.Iterator;
 
+import eu.stratosphere.pact.client.LocalPlanExecutor;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -163,6 +164,18 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	@Override
 	public String getDescription() {
 		return "Parameters: [noSubStasks] [input] [output]";
+	}
+	
+	public static void main(String[] args) throws Exception {
+		WordCount wc = new WordCount();
+		if (args.length < 3) {
+			System.out.println(wc.getDescription());
+			return;
+		}
+		Plan plan = wc.getPlan(args);
+		LocalPlanExecutor ex = new LocalPlanExecutor();
+		ex.executePlan(plan);
+		ex.stopNephele();
 	}
 
 }
