@@ -15,8 +15,6 @@
 
 package eu.stratosphere.nephele.rpc;
 
-import java.net.DatagramPacket;
-
 /**
  * The RPCStatistics class collects statistics on the operation of the RPC service, e.g. packet loss, request retries,
  * etc.
@@ -28,14 +26,12 @@ import java.net.DatagramPacket;
 public class RPCStatistics {
 
 	/**
-	 * Reports a request timeout to the RPC statistics module.
-	 * 
-	 * @param numberOfPackets
-	 *        the number of {@link DatagramPacket} objects the request consisted of
-	 * @param retry
-	 *        the retry counter
+	 * The base timeout interval in milliseconds.
 	 */
-	void reportRequestTimeout(int numberOfPackets, int retry) {
+	private static final int BASE_TIMEOUT = 10;
 
+	int calculateTimeout(int numberOfPackets, int retry) {
+
+		return BASE_TIMEOUT * numberOfPackets * (retry + 1);
 	}
 }

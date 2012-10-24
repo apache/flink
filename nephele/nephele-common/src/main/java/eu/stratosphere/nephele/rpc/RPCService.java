@@ -58,19 +58,14 @@ public final class RPCService {
 	private static final int DEFAULT_NUM_RPC_HANDLERS = 1;
 
 	/**
-	 * The request timeout in milliseconds.
-	 */
-	private static final int TIMEOUT = 100;
-
-	/**
 	 * The maximum number of retries in case the response does not arrive on time.
 	 */
-	private static final int RETRY_LIMIT = 30;
+	private static final int RETRY_LIMIT = 300;
 
 	/**
 	 * Interval in which the background clean-up routine runs in milliseconds.
 	 */
-	private static final int CLEANUP_INTERVAL = 20000;
+	private static final int CLEANUP_INTERVAL = 180000;
 
 	/**
 	 * The executor service managing the RPC handler threads.
@@ -131,7 +126,6 @@ public final class RPCService {
 			if (kryoTypesToRegister != null) {
 				kryo.setAutoReset(false);
 				kryo.setRegistrationRequired(true);
-				kryo.setReferences(false);
 
 				for (final Class<?> kryoType : kryoTypesToRegister) {
 					kryo.register(kryoType);
@@ -381,6 +375,7 @@ public final class RPCService {
 	private static void addBasicRPCTypes(final List<Class<?>> typesToRegister) {
 
 		typesToRegister.add(ArrayList.class);
+		typesToRegister.add(AssertionError.class);
 		typesToRegister.add(boolean[].class);
 		typesToRegister.add(Class.class);
 		typesToRegister.add(Class[].class);
@@ -481,7 +476,7 @@ public final class RPCService {
 				synchronized (requestMonitor) {
 
 					if (requestMonitor.rpcResponse == null) {
-						requestMonitor.wait(TIMEOUT);
+						requestMonitor.wait(this.statistics.calculateTimeout(packets.length, i));
 					}
 
 					rpcResponse = requestMonitor.rpcResponse;
@@ -494,7 +489,6 @@ public final class RPCService {
 			// Check if response has arrived
 			if (rpcResponse == null) {
 				// Report timeout and resend message
-				this.statistics.reportRequestTimeout(packets.length, i);
 				Log.debug("Timeout, retransmitting request " + request.getMessageID());
 				continue;
 			}
@@ -577,8 +571,15 @@ public final class RPCService {
 
 	private void sendPackets(final DatagramPacket[] packets) throws IOException {
 
-		for (int i = 0; i < packets.length; ++i) {
-			this.socket.send(packets[i]);
+		try {
+			for (int i = 0; i < packets.length; ++i) {
+				this.socket.send(packets[i]);
+			}
+		} catch (SocketException se) {
+			// Drop exception when the service has already been shut down
+			if (!this.shutdownRequested.get()) {
+				throw se;
+			}
 		}
 	}
 
