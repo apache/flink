@@ -22,18 +22,14 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-
 import eu.stratosphere.pact.generic.stub.GenericMatcher;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
-import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.sort.MergeMatchIterator;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -52,8 +48,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1, IT2, OT>, OT>
 {
 	private static final Log LOG = LogFactory.getLog(MatchDriver.class);
-	
-	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;	// minimal memory for the task to operate
 	
 	
 	private PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
@@ -107,31 +101,16 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	{
 		final TaskConfig config = this.taskContext.getTaskConfig();
 		
+		// obtain task manager's memory manager and I/O manager
+		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
+		final IOManager ioManager = this.taskContext.getIOManager();
+		
 		// set up memory and I/O parameters
-		final long availableMemory = config.getMemorySize();
-		final int maxFileHandles = config.getNumFilehandles();
-		final float spillThreshold = config.getSortSpillingTreshold();
+		final long availableMemory = config.getMemoryDriver();
+		final int numPages = memoryManager.computeNumberOfPages(availableMemory);
 		
 		// test minimum memory requirements
-		final LocalStrategy ls = config.getLocalStrategy();
-		long strategyMinMem = 0;
-		
-		switch (ls) {
-			case SORT_BOTH_MERGE:
-				strategyMinMem = MIN_REQUIRED_MEMORY * 2;
-				break;
-			case SORT_FIRST_MERGE: 
-			case SORT_SECOND_MERGE:
-			case MERGE:
-			case HYBRIDHASH_FIRST:
-			case HYBRIDHASH_SECOND:
-				strategyMinMem = MIN_REQUIRED_MEMORY;
-				break;
-		}
-		if (availableMemory < strategyMinMem) {
-			throw new Exception("The Match task was initialized with too little memory for local strategy " +
-					ls.name() + ": " + availableMemory + " bytes. Required is at least " + strategyMinMem + " bytes.");
-		}
+		final DriverStrategy ls = config.getDriverStrategy();
 		
 		final MutableObjectIterator<IT1> in1 = this.taskContext.getInput(0);
 		final MutableObjectIterator<IT2> in2 = this.taskContext.getInput(1);
@@ -142,41 +121,18 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 		final TypeComparator<IT1> comparator1 = this.taskContext.getInputComparator(0);
 		final TypeComparator<IT2> comparator2 = this.taskContext.getInputComparator(1);
 		
-		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
-		try {
-			final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
-				config.getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
-			
-			if (factoryClass == null) {
-				@SuppressWarnings("unchecked")
-				TypePairComparatorFactory<IT1, IT2> pactRecordFactory = 
-									(TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
-				pairComparatorFactory = pactRecordFactory;
-			} else {
-				@SuppressWarnings("unchecked")
-				final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
-				pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
-			}
-		} catch (ClassNotFoundException cnfex) {
-			throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", cnfex);
+		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = config.getPairComparatorFactory(
+				this.taskContext.getUserCodeClassLoader());
+		if (pairComparatorFactory == null) {
+			throw new Exception("Missing pair comparator factory for Match driver");
 		}
-		
-		// obtain task manager's memory manager
-		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
-		// obtain task manager's I/O manager
-		final IOManager ioManager = this.taskContext.getIOManager();
 
 		// create and return MatchTaskIterator according to provided local strategy.
-		switch (ls)
-		{
-		case SORT_BOTH_MERGE:
-		case SORT_FIRST_MERGE:
-		case SORT_SECOND_MERGE:
+		switch (ls) {
 		case MERGE:
 			this.matchIterator = new MergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
 					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
-					memoryManager, ioManager, availableMemory, maxFileHandles, spillThreshold, ls,
-					this.taskContext.getOwningNepheleTask());
+					memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
 			break;
 		case HYBRIDHASH_FIRST:
 			this.matchIterator = new BuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
@@ -189,7 +145,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 					memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), availableMemory);
 			break;
 		default:
-			throw new Exception("Unsupported local strategy for MatchTask: " + ls.name());
+			throw new Exception("Unsupported driver strategy for Match driver: " + ls.name());
 		}
 		
 		// open MatchTaskIterator - this triggers the sorting or hash-table building
@@ -204,8 +160,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
 	 */
 	@Override
-	public void run() throws Exception
-	{
+	public void run() throws Exception {
 		final GenericMatcher<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		final MatchTaskIterator<IT1, IT2, OT> matchIterator = this.matchIterator;
@@ -217,8 +172,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
 	 */
 	@Override
-	public void cleanup() throws Exception
-	{
+	public void cleanup() throws Exception {
 		if (this.matchIterator != null) {
 			this.matchIterator.close();
 			this.matchIterator = null;
@@ -229,8 +183,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cancel()
 	 */
 	@Override
-	public void cancel()
-	{
+	public void cancel() {
 		this.running = false;
 		if (this.matchIterator != null) {
 			this.matchIterator.abort();

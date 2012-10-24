@@ -33,6 +33,7 @@ import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 
@@ -50,6 +51,8 @@ public class TaskConfig
 	// -------------------------------------- Driver ----------------------------------------------
 	
 	private static final String DRIVER_CLASS = "pact.driver.class";
+	
+	private static final String DRIVER_STRATEGY = "pact.driver.strategy";
 	
 	private static final String DRIVER_COMPARATOR_FACTORY_PREFIX = "pact.driver.comp.";
 	
@@ -216,6 +219,21 @@ public class TaskConfig
 			throw new CorruptConfigurationException("The given driver class cannot be found.");
 		} catch (ClassCastException ccex) {
 			throw new CorruptConfigurationException("The given driver class does not implement the pact driver interface.");
+		}
+	}
+	
+	public void setDriverStrategy(DriverStrategy strategy) {
+		this.config.setInteger(DRIVER_STRATEGY, strategy.ordinal());
+	}
+	
+	public DriverStrategy getDriverStrategy() {
+		final int ls = this.config.getInteger(DRIVER_STRATEGY, -1);
+		if (ls == -1) {
+			return DriverStrategy.NONE;
+		} else if (ls < 0 || ls >= LocalStrategy.values().length) {
+			throw new CorruptConfigurationException("Illegal driver strategy in configuration: " + ls);
+		} else {
+			return DriverStrategy.values()[ls];
 		}
 	}
 	

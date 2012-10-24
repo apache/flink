@@ -18,19 +18,12 @@ package eu.stratosphere.pact.runtime.task;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.stub.GenericReducer;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
-import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
-import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
-import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.pact.runtime.task.util.SimpleCloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
@@ -49,12 +42,10 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, OT>
 {
 	private static final Log LOG = LogFactory.getLog(ReduceDriver.class);
-	
-	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;		// minimal memory for the task to operate
 
 	private PactTaskContext<GenericReducer<IT, OT>, OT> taskContext;
 	
-	private CloseableInputProvider<IT> input;
+	private MutableObjectIterator<IT> input;
 
 	private TypeSerializer<IT> serializer;
 
@@ -116,59 +107,12 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 	public void prepare() throws Exception
 	{
 		final TaskConfig config = this.taskContext.getTaskConfig();
-		
-		// set up memory and I/O parameters
-		final long availableMemory = config.getMemorySize();
-		final int maxFileHandles = config.getNumFilehandles();
-		final float spillThreshold = config.getSortSpillingTreshold();
-
-		// test minimum memory requirements
-		final LocalStrategy ls = config.getLocalStrategy();
-		if ((ls == LocalStrategy.SORT || ls == LocalStrategy.COMBININGSORT) && availableMemory < MIN_REQUIRED_MEMORY) {
-			throw new Exception("The Reduce task was initialized with too little memory for local strategy " +
-					config.getLocalStrategy() + " : " + availableMemory + " bytes." +
-					"Required is at least " + MIN_REQUIRED_MEMORY + " bytes.");
+		if (config.getDriverStrategy() != DriverStrategy.GROUP) {
+			throw new Exception("Unrecognized driver strategy for Reduce driver: " + config.getDriverStrategy().name());
 		}
 
-		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
-		final IOManager ioManager = this.taskContext.getIOManager();
-
-		final MutableObjectIterator<IT> in = this.taskContext.getInput(0);
 		this.serializer = this.taskContext.getInputSerializer(0);
 		this.comparator = this.taskContext.getInputComparator(0);
-		
-		TypeComparator<IT> sortComparator = this.taskContext.getSecondarySortComparator(0);
-		if (sortComparator == null) {
-			sortComparator = this.comparator.duplicate();
-		}
-
-		// obtain grouped iterator defined by local strategy
-		switch (config.getLocalStrategy()) {
-		case NONE:
-			// local strategy is NONE
-			// input is already grouped, an iterator that wraps the reader is created and returned
-			this.input = new SimpleCloseableInputProvider<IT>(in);
-			break;
-
-		// local strategy is SORT
-		// The input is grouped using a sort-merge strategy. An iterator on the sorted pairs is created and returned.
-		case SORT:
-			// instantiate a sort-merger
-			this.input = new UnilateralSortMerger<IT>(memoryManager, ioManager, in,
-						this.taskContext.getOwningNepheleTask(), this.serializer, sortComparator,
-						availableMemory, maxFileHandles,
-				spillThreshold);
-			break;
-
-		case COMBININGSORT:
-			// instantiate a combining sort-merger
-			this.input = new CombiningUnilateralSortMerger<IT>(this.taskContext.getStub(), memoryManager,
-						ioManager, in, this.taskContext.getOwningNepheleTask(), this.serializer,
-						sortComparator, availableMemory, maxFileHandles, spillThreshold, false);
-			break;
-		default:
-			throw new Exception("Invalid local strategy provided for ReduceTask: " + ls.name());
-		}
 	}
 
 	/*
@@ -183,8 +127,7 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 			LOG.debug(this.taskContext.formatLogString("Reducer preprocessing done. Running Reducer code."));
 		}
 
-		final KeyGroupedIterator<IT> iter = new KeyGroupedIterator<IT>(
-				this.input.getIterator(), this.serializer, this.comparator);
+		final KeyGroupedIterator<IT> iter = new KeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
 
 		// cache references on the stack
 		final GenericReducer<IT, OT> stub = this.taskContext.getStub();
@@ -203,10 +146,6 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 	 */
 	@Override
 	public void cleanup() throws Exception {
-		if (this.input != null) {
-			this.input.close();
-			this.input = null;
-		}
 	}
 
 	/* (non-Javadoc)

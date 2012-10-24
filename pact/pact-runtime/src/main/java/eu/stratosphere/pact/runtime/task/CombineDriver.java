@@ -27,7 +27,6 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorter;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
@@ -42,17 +41,11 @@ import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
  * 
  * @see eu.stratosphere.pact.common.stub.ReduceStub
  * 
- * @author Stephan Ewen
- * @author Fabian Hueske
- * @author Matthias Ringwald
- * 
  * @param <T> The data type consumed and produced by the combiner.
  */
 public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 {
 	private static final Log LOG = LogFactory.getLog(CoGroupDriver.class);
-	
-	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024;	// minimal memory for the task to operate
 
 	
 	private PactTaskContext<GenericReducer<T, ?>, T> taskContext;
@@ -117,29 +110,10 @@ public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 	public void prepare() throws Exception
 	{
 		final TaskConfig config = this.taskContext.getTaskConfig();
-		
-		// set up memory and I/O parameters
-		final long availableMemory = config.getMemorySize();
+		final DriverStrategy ls = config.getDriverStrategy();
 
-		// test minimum memory requirements
-		LocalStrategy ls = config.getLocalStrategy();
+		final long availableMemory = config.getMemoryDriver();
 
-		long strategyMinMem = 0;
-
-		switch (ls) {
-		case COMBININGSORT:
-			strategyMinMem = MIN_REQUIRED_MEMORY;
-			break;
-		}
-
-		if (availableMemory < strategyMinMem) {
-			throw new RuntimeException(
-					"The Combine task was initialized with too little memory for local strategy " +
-							config.getLocalStrategy() + " : " + availableMemory + " bytes." +
-							"Required is at least " + strategyMinMem + " bytes.");
-		}
-
-		// obtain the TaskManager's MemoryManager
 		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
 
 		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
@@ -151,7 +125,7 @@ public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 		// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
 		// the combine() method of the ReduceStub.
 		// An iterator on the sorted, grouped, and combined pairs is created and returned
-		case COMBININGSORT:
+		case GROUP:
 			input = new AsynchronousPartialSorter<T>(memoryManager, in, this.taskContext.getOwningNepheleTask(),
 						this.serializer, this.comparator.duplicate(), availableMemory);
 			break;

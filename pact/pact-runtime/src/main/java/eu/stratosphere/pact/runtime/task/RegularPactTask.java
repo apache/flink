@@ -22,8 +22,6 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.google.common.base.Preconditions;
-
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
@@ -53,7 +51,6 @@ import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
@@ -771,56 +768,33 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<AbstractRecordWriter<?>> eventualOutputs, int numOutputs)
 	throws Exception
 	{
+		if (numOutputs <= 0) {
+			throw new Exception("BUG: The task must have at least one output");
+		}
+		
 		// get the factory for the serializer
-		final Class<? extends TypeSerializerFactory<T>> serializerFactoryClass;
-		try {
-			serializerFactoryClass = config.getSerializerFactoryForOutput(cl);
-		} catch (ClassNotFoundException cnfex) {
-			throw new Exception("The class registered as output serializer factory could not be loaded.", cnfex);
-		}
-		final TypeSerializerFactory<T> serializerFactory;
-
-		if (serializerFactoryClass == null) {
-			@SuppressWarnings("unchecked")
-			TypeSerializerFactory<T> pf = (TypeSerializerFactory<T>) PactRecordSerializerFactory.get();
-			serializerFactory = pf;
-		} else {
-			serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
-		}
+		final TypeSerializerFactory<T> serializerFactory = config.getOutputSerializer(cl);
 
 		// special case the PactRecord
-		if (serializerFactory.getDataType().equals(PactRecord.class))
-		{
-			Preconditions.checkArgument(numOutputs > 0, "must have at least one output");
+		if (serializerFactory.getDataType().equals(PactRecord.class)) {
 			final List<AbstractRecordWriter<PactRecord>> writers = new ArrayList<AbstractRecordWriter<PactRecord>>(numOutputs);
 
 			// create a writer for each output
-			for (int i = 0; i < numOutputs; i++)
-			{
+			for (int i = 0; i < numOutputs; i++) {
 				// create the OutputEmitter from output ship strategy
 				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
-				final Class<? extends TypeComparatorFactory<PactRecord>> comparatorFactoryClass;
-				try {
-					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
-				} catch (ClassNotFoundException cnfex) {
-					throw new Exception("The class registered as comparator factory for output " + i +
-																				" could not be loaded.", cnfex);
-				}
-
+				final TypeComparatorFactory<?> compFact = config.getOutputComparator(i, cl);
 				final PactRecordOutputEmitter oe;
-				if (comparatorFactoryClass == null) {
+				if (compFact == null) {
 					oe = new PactRecordOutputEmitter(strategy);
 				} else {
-					try {
-						final PactRecordComparator comparator = PactRecordComparatorFactory.get().createComparator(
-												config.getConfigForOutputParameters(i), cl);
+					if (compFact instanceof PactRecordComparatorFactory) {
+						final PactRecordComparator comparator = ((PactRecordComparatorFactory) compFact).createComparator();
 						final DataDistribution distribution = config.getOutputDataDistribution(cl);
 						oe = new PactRecordOutputEmitter(strategy, comparator, distribution);
-					} catch (ClassNotFoundException cnfex) {
-						throw new Exception("The comparator for output " + i +
-									" could not be created, because it could not load dependent classes.", cnfex);
+					} else {
+						throw new Exception("Incompatibe serializer-/comparator factories.");
 					}
-
 				}
 
 				if (strategy == ShipStrategyType.BROADCAST) {
@@ -856,27 +830,14 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			{
 				// create the OutputEmitter from output ship strategy
 				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
-				final Class<? extends TypeComparatorFactory<T>> comparatorFactoryClass;
-				try {
-					comparatorFactoryClass = config.getComparatorFactoryForOutput(i, cl);
-				} catch (ClassNotFoundException cnfex) {
-					throw new Exception("The class registered as comparator factory for output " + i +
-																				" could not be loaded.", cnfex);
-				}
+				final TypeComparatorFactory<T> compFactory = config.getOutputComparator(i, cl);
 
 				final ChannelSelector<SerializationDelegate<T>> oe;
-				if (comparatorFactoryClass == null) {
+				if (compFactory == null) {
 					oe = new OutputEmitter<T>(strategy);
 				} else {
-					final TypeComparatorFactory<T> compFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
-					try {
-						final TypeComparator<T> comparator = compFactory.createComparator(config.getConfigForOutputParameters(i), cl);
-
-						oe = new OutputEmitter<T>(strategy, comparator);
-					} catch (ClassNotFoundException cnfex) {
-						throw new Exception("The comparator for output " + i +
-									" could not be created, because it could not load dependent classes.", cnfex);
-					}
+					final TypeComparator<T> comparator = compFactory.createComparator();
+					oe = new OutputEmitter<T>(strategy, comparator);
 				}
 
 				if (strategy == ShipStrategyType.BROADCAST) {

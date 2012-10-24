@@ -25,7 +25,6 @@ import eu.stratosphere.pact.generic.stub.GenericCrosser;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.resettable.BlockResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -44,8 +43,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2, OT>, OT>
 {
 	private static final Log LOG = LogFactory.getLog(CrossDriver.class);
-
-	private static final long MIN_NUM_PAGES = 2;		// the minimal amount of memory for the task to operate
 	
 	
 	private PactTaskContext<GenericCrosser<T1, T2, OT>, OT> taskContext;
@@ -110,9 +107,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 	public void prepare() throws Exception
 	{
 		final TaskConfig config = this.taskContext.getTaskConfig();
-		
-		// test minimum memory requirements
-		final LocalStrategy ls = config.getLocalStrategy();
+		final DriverStrategy ls = config.getDriverStrategy();
 		
 		switch (ls)
 		{
@@ -137,16 +132,16 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		}
 		
 		this.memManager = this.taskContext.getMemoryManager();
-		final long totalAvailableMemory = config.getMemorySize();
+		final long totalAvailableMemory = config.getMemoryDriver();
 		final int numPages = this.memManager.computeNumberOfPages(totalAvailableMemory);
 		
-		if (numPages < MIN_NUM_PAGES) {
+		if (numPages < 2) {
 			throw new RuntimeException(	"The Cross task was initialized with too little memory. " +
-					"Cross requires at least " + MIN_NUM_PAGES + " memory pages.");
+					"Cross requires at least 2 memory pages.");
 		}
 		
 		// divide memory between spilling and blocking side
-		if (ls == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST || ls == LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
+		if (ls == DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST || ls == DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND) {
 			this.memForSpillingSide = totalAvailableMemory;
 			this.memForBlockSide = 0;
 		} else {
