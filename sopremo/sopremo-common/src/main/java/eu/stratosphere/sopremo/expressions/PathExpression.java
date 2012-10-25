@@ -4,12 +4,13 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.ListChildIterator;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.CollectionUtil;
 
@@ -18,7 +19,7 @@ import eu.stratosphere.util.CollectionUtil;
  * next one.
  */
 @OptimizerHints(scope = { Scope.OBJECT, Scope.ARRAY })
-public class PathExpression extends ContainerExpression implements Cloneable {
+public class PathExpression extends EvaluationExpression implements ExpressionParent {
 
 	/**
 	 * 
@@ -160,20 +161,11 @@ public class PathExpression extends ContainerExpression implements Cloneable {
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	public List<EvaluationExpression> getChildren() {
-		return Collections.unmodifiableList(this.fragments);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
-	 */
-	@Override
-	public void setChildren(final List<? extends EvaluationExpression> children) {
-		this.fragments = normalize(children);
+	public ChildIterator iterator() {
+		return new ListChildIterator(this.fragments.listIterator());
 	}
 
 	// @Override

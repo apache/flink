@@ -19,6 +19,8 @@ import java.util.List;
 
 import eu.stratosphere.pact.common.util.ReflectionUtil;
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 /**
@@ -27,7 +29,8 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * 
  * @author Arvid Heise
  */
-public abstract class CachingExpression<CacheType extends IJsonNode> extends EvaluationExpression {
+public abstract class CachingExpression<CacheType extends IJsonNode> extends EvaluationExpression implements
+		ExpressionParent {
 	/**
 	 * 
 	 */
@@ -70,8 +73,9 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 	public EvaluationExpression getInnerExpression() {
 		return this.innerExpression;
 	}
-	
-	/* (non-Javadoc)
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#clone()
 	 */
 	@SuppressWarnings("unchecked")
@@ -104,23 +108,30 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 
 	/*
 	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
+	 */
+	@Override
+	public ChildIterator iterator() {
+		return new NamedChildIterator("innerExpression") {
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				CachingExpression.this.innerExpression = childExpression;
+			}
+	
+			@Override
+			protected EvaluationExpression get(int index) {
+				return CachingExpression.this.innerExpression;
+			}
+		};
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#toString(java.lang.StringBuilder)
 	 */
 	@Override
 	public void toString(final StringBuilder builder) {
 		this.innerExpression.toString(builder);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
-	 */
-	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.innerExpression = this.innerExpression.transformRecursively(function);
-		return function.call(this);
 	}
 
 	/**

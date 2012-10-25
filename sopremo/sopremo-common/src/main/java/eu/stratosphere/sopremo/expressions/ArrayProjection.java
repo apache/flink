@@ -1,6 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -10,7 +12,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * Projects an array onto another one.
  */
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
-public class ArrayProjection extends EvaluationExpression {
+public class ArrayProjection extends EvaluationExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -60,16 +62,23 @@ public class ArrayProjection extends EvaluationExpression {
 
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.expression = this.expression.transformRecursively(function);
-		return function.call(this);
+	public ChildIterator iterator() {
+		return new NamedChildIterator("expression") {
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				ArrayProjection.this.expression = childExpression;
+			}
+	
+			@Override
+			protected EvaluationExpression get(int index) {
+				return ArrayProjection.this.expression;
+			}
+		};
 	}
-
+	
 	@Override
 	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
 		final IArrayNode arrayNode = (ArrayNode) node;

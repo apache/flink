@@ -4,6 +4,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -12,7 +14,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * Determines a set contains an element or not.
  */
 @OptimizerHints(scope = Scope.ANY, iterating = true)
-public class ElementInSetExpression extends BinaryBooleanExpression {
+public class ElementInSetExpression extends BinaryBooleanExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -50,15 +52,27 @@ public class ElementInSetExpression extends BinaryBooleanExpression {
 
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.elementExpr = this.elementExpr.transformRecursively(function);
-		this.setExpr = this.setExpr.transformRecursively(function);
-		return function.call(this);
+	public ChildIterator iterator() {
+		return new NamedChildIterator("elementExpr", "setExpr") {
+
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				if (index == 0)
+					ElementInSetExpression.this.elementExpr = childExpression;
+				else
+					ElementInSetExpression.this.setExpr = childExpression;
+			}
+
+			@Override
+			protected EvaluationExpression get(int index) {
+				if (index == 0)
+					return ElementInSetExpression.this.elementExpr;
+				return ElementInSetExpression.this.setExpr;
+			}
+		};
 	}
 
 	// @Override

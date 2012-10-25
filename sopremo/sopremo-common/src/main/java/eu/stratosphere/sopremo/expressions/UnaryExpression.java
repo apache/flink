@@ -1,6 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.TypeCoercer;
@@ -9,7 +11,7 @@ import eu.stratosphere.sopremo.type.TypeCoercer;
  * Represents a unary boolean expression.
  */
 @OptimizerHints(scope = Scope.ANY)
-public class UnaryExpression extends BooleanExpression {
+public class UnaryExpression extends BooleanExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -64,6 +66,26 @@ public class UnaryExpression extends BooleanExpression {
 		return result;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
+	 */
+	@Override
+	public ChildIterator iterator() {
+		return new NamedChildIterator("expr") {
+
+			@Override
+			protected void set(int index, EvaluationExpression e) {
+				UnaryExpression.this.expr = e;
+			}
+
+			@Override
+			protected EvaluationExpression get(int index) {
+				return UnaryExpression.this.expr;
+			}
+		};
+	}
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -79,17 +101,4 @@ public class UnaryExpression extends BooleanExpression {
 			builder.append("!");
 		builder.append(this.expr);
 	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
-	 */
-	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.expr = this.expr.transformRecursively(function);
-		return function.call(this);
-	}
-
 }
