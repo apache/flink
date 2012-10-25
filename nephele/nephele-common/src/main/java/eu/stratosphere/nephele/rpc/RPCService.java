@@ -44,6 +44,7 @@ import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.minlog.Log;
 
 import eu.stratosphere.nephele.util.NumberUtils;
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class implements a lightweight, UDP-based RPC service.
@@ -432,10 +433,57 @@ public final class RPCService {
 	public void setProtocolCallbackHandler(final Class<? extends RPCProtocol> protocol,
 			final RPCProtocol callbackHandler) {
 
+		// Check signature of interface before adding it
+		checkRPCProtocol(protocol);
+
 		if (this.callbackHandlers.putIfAbsent(protocol.getName(), callbackHandler) != null) {
 			Log.error("There is already a protocol call back handler set for protocol " + protocol.getName());
 		}
 
+	}
+
+	/**
+	 * Checks the signature of the methods contained in the given protocol.
+	 * 
+	 * @param protocol
+	 *        the protocol to be checked
+	 */
+	private static final void checkRPCProtocol(final Class<? extends RPCProtocol> protocol) {
+
+		if (!protocol.isInterface()) {
+			throw new IllegalArgumentException("Provided protocol " + protocol + " is not an interface");
+		}
+
+		try {
+			final Method[] methods = protocol.getMethods();
+			for (int i = 0; i < methods.length; ++i) {
+
+				final Method method = methods[i];
+				final Class<?>[] exceptionTypes = method.getExceptionTypes();
+				boolean ioExceptionFound = false;
+				boolean interruptedExceptionFound = false;
+				for (int j = 0; j < exceptionTypes.length; ++j) {
+					if (IOException.class.equals(exceptionTypes[j])) {
+						ioExceptionFound = true;
+					} else if (InterruptedException.class.equals(exceptionTypes[j])) {
+						interruptedExceptionFound = true;
+					}
+				}
+
+				if (!ioExceptionFound) {
+					throw new IllegalArgumentException("Method " + method.getName()
+						+ " must be declared to throw an IOException");
+				}
+				if (!interruptedExceptionFound) {
+					throw new IllegalArgumentException("Method " + method.getName()
+						+ " must be declared to throw an InterruptedException");
+				}
+			}
+		} catch (SecurityException se) {
+			if (Log.DEBUG) {
+				Log.debug(StringUtils.stringifyException(se));
+			}
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -477,18 +525,13 @@ public final class RPCService {
 			sendPackets(packets);
 
 			RPCResponse rpcResponse;
-			try {
-				synchronized (requestMonitor) {
+			synchronized (requestMonitor) {
 
-					if (requestMonitor.rpcResponse == null) {
-						requestMonitor.wait(this.statistics.calculateTimeout(packets.length, i));
-					}
-
-					rpcResponse = requestMonitor.rpcResponse;
+				if (requestMonitor.rpcResponse == null) {
+					requestMonitor.wait(this.statistics.calculateTimeout(packets.length, i));
 				}
-			} catch (InterruptedException ie) {
-				Log.debug("Caught interrupted exception while waiting for RPC request to complete: ", ie);
-				return null;
+
+				rpcResponse = requestMonitor.rpcResponse;
 			}
 
 			// Check if response has arrived

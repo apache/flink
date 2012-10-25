@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.rpc;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -24,5 +25,5 @@ import java.util.List;
  */
 public interface RPCTestProtocol extends RPCProtocol {
 
-	int testMethod(boolean par1, int par2, List<String> par3);
+	int testMethod(boolean par1, int par2, List<String> par3) throws IOException, InterruptedException;
 }

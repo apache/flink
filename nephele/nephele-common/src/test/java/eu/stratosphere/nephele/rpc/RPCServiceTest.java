@@ -115,7 +115,11 @@ public class RPCServiceTest implements RPCTestProtocol {
 
 					@Override
 					public void run() {
-						assertEquals(par2, proxy.testMethod(false, par2, par3));
+						try {
+							assertEquals(par2, proxy.testMethod(false, par2, par3));
+						} catch (Exception e) {
+							fail(StringUtils.stringifyException(e));
+						}
 					}
 				};
 				threads[i] = new Thread(runnable);
