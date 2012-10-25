@@ -281,6 +281,9 @@ public final class RPCService {
 		@Override
 		public void run() {
 
+			// Process the collected data
+			statistics.processCollectedData();
+
 			final long now = System.currentTimeMillis();
 			final Iterator<Map.Entry<Integer, CachedResponse>> it = cachedResponses.entrySet().iterator();
 			while (it.hasNext()) {
@@ -496,6 +499,9 @@ public final class RPCService {
 			// Request is no longer pending
 			this.pendingRequests.remove(messageID);
 
+			// Report the successful call to the statistics module
+			this.statistics.reportSuccessfulCall(request.getMethodName(), packets.length, i);
+
 			packets = messageToPackets(remoteSocketAddress, new RPCCleanup(request.getMessageID()));
 			sendPackets(packets);
 
@@ -537,6 +543,9 @@ public final class RPCService {
 		}
 
 		this.cleanupTimer.cancel();
+
+		// Finally, process the last collected data
+		this.statistics.processCollectedData();
 	}
 
 	void processIncomingRPCMessage(final InetSocketAddress remoteSocketAddress, final Input input) {
