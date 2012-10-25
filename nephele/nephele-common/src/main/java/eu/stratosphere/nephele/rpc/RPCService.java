@@ -67,7 +67,7 @@ public final class RPCService {
 	/**
 	 * Interval in which the background clean-up routine runs in milliseconds.
 	 */
-	private static final int CLEANUP_INTERVAL = 180000;
+	private static final int CLEANUP_INTERVAL = 10000;
 
 	/**
 	 * The executor service managing the RPC handler threads.
@@ -116,7 +116,7 @@ public final class RPCService {
 
 	private final List<Class<?>> kryoTypesToRegister;
 
-	final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>() {
+	private final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>() {
 
 		/**
 		 * {@inheritDoc}
@@ -128,6 +128,7 @@ public final class RPCService {
 			if (kryoTypesToRegister != null) {
 				kryo.setAutoReset(false);
 				kryo.setRegistrationRequired(true);
+				kryo.setReferences(false);
 
 				for (final Class<?> kryoType : kryoTypesToRegister) {
 					kryo.register(kryoType);
@@ -503,8 +504,12 @@ public final class RPCService {
 			// Report the successful call to the statistics module
 			this.statistics.reportSuccessfulCall(request.getMethodName(), packets.length, i);
 
-			packets = messageToPackets(remoteSocketAddress, new RPCCleanup(request.getMessageID()));
-			sendPackets(packets);
+			// Only send clean-up package if we did not resend the request, otherwise the clean-up packet might reach
+			// the receiver before the resent request.
+			if (i == 0) {
+				packets = messageToPackets(remoteSocketAddress, new RPCCleanup(request.getMessageID()));
+				sendPackets(packets);
+			}
 
 			if (rpcResponse instanceof RPCReturnValue) {
 				return ((RPCReturnValue) rpcResponse).getRetVal();
@@ -552,8 +557,6 @@ public final class RPCService {
 	void processIncomingRPCMessage(final InetSocketAddress remoteSocketAddress, final Input input,
 			final int fragmentationID) {
 
-		final ThreadLocal<Kryo> threadLocalKryo = this.kryo;
-
 		final Runnable runnable = new Runnable() {
 
 			/**
@@ -562,9 +565,9 @@ public final class RPCService {
 			@Override
 			public void run() {
 
-				final Kryo kryo = threadLocalKryo.get();
-				kryo.reset();
-				final RPCEnvelope envelope = kryo.readObject(input, RPCEnvelope.class);
+				final Kryo k = kryo.get();
+				k.reset();
+				final RPCEnvelope envelope = k.readObject(input, RPCEnvelope.class);
 				final RPCMessage msg = envelope.getRPCMessage();
 
 				// Sanity check
