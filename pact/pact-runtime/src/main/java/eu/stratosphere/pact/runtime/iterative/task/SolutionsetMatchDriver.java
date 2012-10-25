@@ -102,7 +102,10 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
     while (running && probeSide.next(probeSideRecord)) {
       MutableHashTable.HashBucketIterator<IT2, IT1> bucket = hashJoin.getMatchesFor(probeSideRecord);
 
-      bucket.next(buildSideRecord);
+      boolean matched = bucket.next(buildSideRecord);
+      if (!matched) {
+        throw new IllegalStateException("Unknown record supplied to solutionset");
+      }
       collector.setHashBucket(bucket);
 
       matchStub.match(probeSideRecord, buildSideRecord, collector);

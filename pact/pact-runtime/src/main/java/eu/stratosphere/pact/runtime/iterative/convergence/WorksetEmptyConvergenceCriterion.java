@@ -21,32 +21,35 @@ import org.apache.commons.logging.LogFactory;
 /** A workset iteration is by definition converged if no records have been inserted into the workset */
 public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<Long> {
 
-  private boolean worksetEmpty;
+  private long updatesInSolutionset;
   private int iteration = 0;
 
   private static final Log log = LogFactory.getLog(WorksetEmptyConvergenceCriterion.class);
 
   @Override
   public void prepareForNextIteration() {
-    worksetEmpty = true;
+    updatesInSolutionset = 0;
     iteration++;
   }
 
   @Override
-  public void analyze(int workerIndex, Long elementsInWorkset) {
+  public void analyze(int workerIndex, Long updates) {
 
     if (log.isInfoEnabled()) {
-      log.info("Received payload [" + elementsInWorkset + "] from worker [" + workerIndex + "] in iteration [" +
-          iteration + "]");
+      log.info("solutionset of worker [" + workerIndex + "] had [" + updates + "] updates in iteration " +
+          "[" + iteration + "]");
     }
 
-    if (elementsInWorkset.longValue() != 0) {
-      worksetEmpty = false;
-    }
+    this.updatesInSolutionset += updates.longValue();
   }
 
   @Override
   public boolean isConverged() {
-    return worksetEmpty;
+
+    if (log.isInfoEnabled()) {
+      log.info("[" + updatesInSolutionset + "] solutionset updates in iteration [" + iteration + "]");
+    }
+
+    return updatesInSolutionset == 0;
   }
 }

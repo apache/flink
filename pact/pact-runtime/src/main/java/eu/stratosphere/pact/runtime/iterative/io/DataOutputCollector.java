@@ -60,8 +60,10 @@ public class DataOutputCollector<T extends Record> implements Collector<T> {
     }
   }
 
-  public long elementsCollected() {
-    return elementsCollected;
+  public long getElementsCollectedAndReset() {
+    long elementsCollectedToReturn = elementsCollected;
+    elementsCollected = 0;
+    return elementsCollectedToReturn;
   }
 
   @Override

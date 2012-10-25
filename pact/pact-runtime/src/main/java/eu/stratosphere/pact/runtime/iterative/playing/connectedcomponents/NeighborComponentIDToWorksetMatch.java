@@ -25,7 +25,7 @@ public class NeighborComponentIDToWorksetMatch extends MatchStub {
 //    long sourceVertexID = edge.getField(0, PactLong.class).getValue();
 //    long targetVertexID = edge.getField(1, PactLong.class).getValue();
 //    long candidateComponentID = vertexWithComponent.getField(1, PactLong.class).getValue();
-
+//
 //    System.out.println("-------------- Sending component " + candidateComponentID +" of vertex " + sourceVertexID +  " to " + targetVertexID);
 
     out.collect(result);

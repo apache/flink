@@ -66,6 +66,8 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
   @Override
   public void invoke() throws Exception {
 
+    boolean isJoinOnConstantDataPath = driver instanceof RepeatableHashJoinMatchDriver || driver instanceof RepeatableHashJoinMatchDriver2;
+
     // Initially retreive the backchannel from the iteration head
     final BlockingBackChannel backChannel = retrieveBackChannel();
 
@@ -83,17 +85,17 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
       }
 
       notifyMonitor(IterationMonitoring.Event.TAIL_PACT_STARTING);
-      if (!inFirstIteration()) {
+      if (!inFirstIteration() && !isJoinOnConstantDataPath) {
         reinstantiateDriver();
       }
 
       super.invoke();
       notifyMonitor(IterationMonitoring.Event.TAIL_PACT_FINISHED);
 
+      long elementsCollected = outputCollector.getElementsCollectedAndReset();
       if (log.isInfoEnabled()) {
         log.info("IterationTail [" + getEnvironment().getIndexInSubtaskGroup() +"] inserted [" +
-            outputCollector.elementsCollected() + "] elements into backchannel in iteration [" + currentIteration() +
-            "]");
+            elementsCollected + "] elements into backchannel in iteration [" + currentIteration() + "]");
       }
 
       if (log.isInfoEnabled()) {
@@ -108,6 +110,15 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
         propagateEvent(new TerminationEvent());
       }
       notifyMonitor(IterationMonitoring.Event.TAIL_FINISHED);
+    }
+
+    if (isJoinOnConstantDataPath) {
+
+      if (driver instanceof RepeatableHashJoinMatchDriver) {
+        ((RepeatableHashJoinMatchDriver) driver).finalCleanup();
+      } else {
+        ((RepeatableHashJoinMatchDriver2) driver).finalCleanup();
+      }
     }
   }
 
