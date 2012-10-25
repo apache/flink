@@ -55,7 +55,7 @@ public class MultiPacketOutputStreamTest {
 			fail(StringUtils.stringifyException(ioe));
 		}
 
-		final DatagramPacket[] packets = mpos.createPackets(TEST_REMOTE_ADDRESS);
+		final DatagramPacket[] packets = mpos.createPackets(TEST_REMOTE_ADDRESS, 0);
 		assertNotNull(packets);
 		assertEquals(1, packets.length);
 
@@ -92,7 +92,7 @@ public class MultiPacketOutputStreamTest {
 			fail(StringUtils.stringifyException(ioe));
 		}
 
-		final DatagramPacket[] packets = mpos.createPackets(TEST_REMOTE_ADDRESS);
+		final DatagramPacket[] packets = mpos.createPackets(TEST_REMOTE_ADDRESS, 0);
 		assertNotNull(packets);
 		assertEquals(2, packets.length);
 

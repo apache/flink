@@ -204,13 +204,13 @@ public final class RPCService {
 				final int length = dp.getLength() - RPCMessage.METADATA_SIZE;
 				final byte[] dbbuf = dp.getData();
 				final short numberOfPackets = byteArrayToShort(dbbuf, length + 2);
+				final short fragmentationID = byteArrayToShort(dbbuf, length + 4);
 
 				if (numberOfPackets == 1) {
 					this.rpcService.processIncomingRPCMessage(remoteSocketAddress, new Input(
-						new SinglePacketInputStream(dbbuf, length)));
+						new SinglePacketInputStream(dbbuf, length)), fragmentationID);
 				} else {
 					final short packetIndex = byteArrayToShort(dbbuf, length);
-					final short fragmentationID = byteArrayToShort(dbbuf, length + 4);
 					final MultiPacketInputStream mpis = this.rpcService.getIncompleteInputStream(remoteSocketAddress,
 						fragmentationID, numberOfPackets);
 
@@ -220,7 +220,7 @@ public final class RPCService {
 					}
 
 					this.rpcService.removeIncompleteInputStream(remoteSocketAddress, fragmentationID);
-					this.rpcService.processIncomingRPCMessage(remoteSocketAddress, new Input(mpis));
+					this.rpcService.processIncomingRPCMessage(remoteSocketAddress, new Input(mpis), fragmentationID);
 				}
 			}
 		}
@@ -548,7 +548,8 @@ public final class RPCService {
 		this.statistics.processCollectedData();
 	}
 
-	void processIncomingRPCMessage(final InetSocketAddress remoteSocketAddress, final Input input) {
+	void processIncomingRPCMessage(final InetSocketAddress remoteSocketAddress, final Input input,
+			final short fragmentationID) {
 
 		final ThreadLocal<Kryo> threadLocalKryo = this.kryo;
 
@@ -564,6 +565,12 @@ public final class RPCService {
 				kryo.reset();
 				final RPCEnvelope envelope = kryo.readObject(input, RPCEnvelope.class);
 				final RPCMessage msg = envelope.getRPCMessage();
+
+				// Sanity check
+				if (fragmentationID != (short) (msg.getMessageID() & 0xFFFF)) {
+					Log.error("Received message with invalid fragmentation ID");
+					return;
+				}
 
 				if (msg instanceof RPCRequest) {
 					processIncomingRPCRequest(remoteSocketAddress, (RPCRequest) msg);
@@ -657,7 +664,7 @@ public final class RPCService {
 		output.close();
 		mpos.close();
 
-		return mpos.createPackets(remoteSocketAddress);
+		return mpos.createPackets(remoteSocketAddress, rpcMessage.getMessageID());
 	}
 
 	/**

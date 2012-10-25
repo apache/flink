@@ -107,7 +107,7 @@ final class MultiPacketOutputStream extends OutputStream {
 		this.totalLen = 0;
 	}
 
-	DatagramPacket[] createPackets(final InetSocketAddress remoteAddress) {
+	DatagramPacket[] createPackets(final InetSocketAddress remoteAddress, final int messageID) {
 
 		if (this.totalLen == 0) {
 			return new DatagramPacket[0];
@@ -117,11 +117,7 @@ final class MultiPacketOutputStream extends OutputStream {
 
 		final int maximumPacketSize = RPCMessage.MAXIMUM_MSG_SIZE + RPCMessage.METADATA_SIZE;
 		final short numberOfPackets = (short) (this.totalLen / maximumPacketSize + 1);
-
-		short fragmentationID = 0;
-		if (numberOfPackets > 1) {
-			fragmentationID = (short) ((double) Short.MIN_VALUE + (Math.random() * 2.0 * (double) Short.MAX_VALUE));
-		}
+		final short fragmentationID = (short) (messageID & 0xFFFF);
 
 		final DatagramPacket[] packets = new DatagramPacket[numberOfPackets];
 
