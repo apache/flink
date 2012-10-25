@@ -29,12 +29,12 @@ abstract class RPCMessage {
 	/**
 	 * The largest amount of data to be put in a single {@link DatagramPacket}.
 	 */
-	public static final int MAXIMUM_MSG_SIZE = 1018;
+	public static final int MAXIMUM_MSG_SIZE = 1016;
 
 	/**
 	 * The amount of data reserved for meta data in each {@link DatagramPacket}.
 	 */
-	public static final int METADATA_SIZE = 6;
+	public static final int METADATA_SIZE = 8;
 
 	/**
 	 * The message ID.

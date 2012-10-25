@@ -37,6 +37,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
+import eu.stratosphere.nephele.util.NumberUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -299,9 +300,9 @@ public class DiscoveryService implements Runnable {
 	private static DatagramPacket createJobManagerLookupRequestPacket(final int magicNumber) {
 
 		final byte[] bytes = new byte[12];
-		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
-		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
-		integerToByteArray(JM_LOOKUP_REQUEST_ID, PACKET_TYPE_ID_OFFSET, bytes);
+		NumberUtils.integerToByteArray(magicNumber, bytes, MAGIC_NUMBER_OFFSET);
+		NumberUtils.integerToByteArray(generateRandomPacketID(), bytes, PACKET_ID_OFFSET);
+		NumberUtils.integerToByteArray(JM_LOOKUP_REQUEST_ID, bytes, PACKET_TYPE_ID_OFFSET);
 
 		return new DatagramPacket(bytes, bytes.length);
 	}
@@ -318,10 +319,10 @@ public class DiscoveryService implements Runnable {
 	private static DatagramPacket createJobManagerLookupReplyPacket(final int ipcPort, final int magicNumber) {
 
 		final byte[] bytes = new byte[16];
-		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
-		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
-		integerToByteArray(JM_LOOKUP_REPLY_ID, PACKET_TYPE_ID_OFFSET, bytes);
-		integerToByteArray(ipcPort, PAYLOAD_OFFSET, bytes);
+		NumberUtils.integerToByteArray(magicNumber, bytes, MAGIC_NUMBER_OFFSET);
+		NumberUtils.integerToByteArray(generateRandomPacketID(), bytes, PACKET_ID_OFFSET);
+		NumberUtils.integerToByteArray(JM_LOOKUP_REPLY_ID, bytes, PACKET_TYPE_ID_OFFSET);
+		NumberUtils.integerToByteArray(ipcPort, bytes, PAYLOAD_OFFSET);
 
 		return new DatagramPacket(bytes, bytes.length);
 	}
@@ -336,9 +337,9 @@ public class DiscoveryService implements Runnable {
 	private static DatagramPacket createTaskManagerAddressRequestPacket(final int magicNumber) {
 
 		final byte[] bytes = new byte[12];
-		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
-		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
-		integerToByteArray(TM_ADDRESS_REQUEST_ID, PACKET_TYPE_ID_OFFSET, bytes);
+		NumberUtils.integerToByteArray(magicNumber, bytes, MAGIC_NUMBER_OFFSET);
+		NumberUtils.integerToByteArray(generateRandomPacketID(), bytes, PACKET_ID_OFFSET);
+		NumberUtils.integerToByteArray(TM_ADDRESS_REQUEST_ID, bytes, PACKET_TYPE_ID_OFFSET);
 
 		return new DatagramPacket(bytes, bytes.length);
 	}
@@ -357,10 +358,10 @@ public class DiscoveryService implements Runnable {
 
 		final byte[] addr = taskManagerAddress.getAddress();
 		final byte[] bytes = new byte[20 + addr.length];
-		integerToByteArray(magicNumber, MAGIC_NUMBER_OFFSET, bytes);
-		integerToByteArray(generateRandomPacketID(), PACKET_ID_OFFSET, bytes);
-		integerToByteArray(TM_ADDRESS_REPLY_ID, PACKET_TYPE_ID_OFFSET, bytes);
-		integerToByteArray(addr.length, PAYLOAD_OFFSET, bytes);
+		NumberUtils.integerToByteArray(magicNumber, bytes, MAGIC_NUMBER_OFFSET);
+		NumberUtils.integerToByteArray(generateRandomPacketID(), bytes, PACKET_ID_OFFSET);
+		NumberUtils.integerToByteArray(TM_ADDRESS_REPLY_ID, bytes, PACKET_TYPE_ID_OFFSET);
+		NumberUtils.integerToByteArray(addr.length, bytes, PAYLOAD_OFFSET);
 		System.arraycopy(addr, 0, bytes, PAYLOAD_OFFSET + 4, addr.length);
 
 		return new DatagramPacket(bytes, bytes.length);
@@ -561,7 +562,7 @@ public class DiscoveryService implements Runnable {
 			return -1;
 		}
 
-		return byteArrayToInteger(data, PAYLOAD_OFFSET);
+		return NumberUtils.byteArrayToInteger(data, PAYLOAD_OFFSET);
 	}
 
 	/**
@@ -584,7 +585,7 @@ public class DiscoveryService implements Runnable {
 			return null;
 		}
 
-		final int len = byteArrayToInteger(data, PAYLOAD_OFFSET);
+		final int len = NumberUtils.byteArrayToInteger(data, PAYLOAD_OFFSET);
 
 		final byte[] addr = new byte[len];
 		System.arraycopy(data, PAYLOAD_OFFSET + 4, addr, 0, len);
@@ -752,44 +753,6 @@ public class DiscoveryService implements Runnable {
 	}
 
 	/**
-	 * Serializes and writes the given integer number to the provided byte array.
-	 * 
-	 * @param integerToSerialize
-	 *        the integer number of serialize
-	 * @param offset
-	 *        the offset at which to start writing inside the byte array
-	 * @param byteArray
-	 *        the byte array to write to
-	 */
-	private static void integerToByteArray(final int integerToSerialize, final int offset, final byte[] byteArray) {
-
-		for (int i = 0; i < 4; ++i) {
-			final int shift = i << 3; // i * 8
-			byteArray[(offset + 3) - i] = (byte) ((integerToSerialize & (0xff << shift)) >>> shift);
-		}
-	}
-
-	/**
-	 * Reads and deserializes an integer number from the given byte array.
-	 * 
-	 * @param byteArray
-	 *        the byte array to read from
-	 * @param offset
-	 *        the offset at which to start reading the byte array
-	 * @return the deserialized integer number
-	 */
-	private static int byteArrayToInteger(final byte[] byteArray, final int offset) {
-
-		int integer = 0;
-
-		for (int i = 0; i < 4; ++i) {
-			integer |= (byteArray[(offset + 3) - i] & 0xff) << (i << 3);
-		}
-
-		return integer;
-	}
-
-	/**
 	 * Extracts the datagram packet's magic number and checks it matches with the local magic number.
 	 * 
 	 * @param packet
@@ -811,7 +774,7 @@ public class DiscoveryService implements Runnable {
 			return false;
 		}
 
-		if (byteArrayToInteger(data, MAGIC_NUMBER_OFFSET) != magicNumber) {
+		if (NumberUtils.byteArrayToInteger(data, MAGIC_NUMBER_OFFSET) != magicNumber) {
 			return false;
 		}
 
@@ -837,7 +800,7 @@ public class DiscoveryService implements Runnable {
 			return -1;
 		}
 
-		return byteArrayToInteger(data, PACKET_TYPE_ID_OFFSET);
+		return NumberUtils.byteArrayToInteger(data, PACKET_TYPE_ID_OFFSET);
 	}
 
 	/**
@@ -869,6 +832,6 @@ public class DiscoveryService implements Runnable {
 			return -1;
 		}
 
-		return byteArrayToInteger(data, PACKET_ID_OFFSET);
+		return NumberUtils.byteArrayToInteger(data, PACKET_ID_OFFSET);
 	}
 }

@@ -20,6 +20,8 @@ import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 
+import eu.stratosphere.nephele.util.NumberUtils;
+
 final class MultiPacketOutputStream extends OutputStream {
 
 	private byte[] buf;
@@ -117,7 +119,6 @@ final class MultiPacketOutputStream extends OutputStream {
 
 		final int maximumPacketSize = RPCMessage.MAXIMUM_MSG_SIZE + RPCMessage.METADATA_SIZE;
 		final short numberOfPackets = (short) (this.totalLen / maximumPacketSize + 1);
-		final short fragmentationID = (short) (messageID & 0xFFFF);
 
 		final DatagramPacket[] packets = new DatagramPacket[numberOfPackets];
 
@@ -130,9 +131,9 @@ final class MultiPacketOutputStream extends OutputStream {
 			} else {
 				offset = (i + 1) * maximumPacketSize - RPCMessage.METADATA_SIZE;
 			}
-			RPCService.shortToByteArray(i, this.buf, offset);
-			RPCService.shortToByteArray(numberOfPackets, this.buf, offset + 2);
-			RPCService.shortToByteArray(fragmentationID, this.buf, offset + 4);
+			NumberUtils.shortToByteArray(i, this.buf, offset);
+			NumberUtils.shortToByteArray(numberOfPackets, this.buf, offset + 2);
+			NumberUtils.integerToByteArray(messageID, this.buf, offset + 4);
 
 			DatagramPacket packet;
 			if (lastPacket) {

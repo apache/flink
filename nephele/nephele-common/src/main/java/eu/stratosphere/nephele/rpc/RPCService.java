@@ -43,6 +43,8 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.minlog.Log;
 
+import eu.stratosphere.nephele.util.NumberUtils;
+
 /**
  * This class implements a lightweight, UDP-based RPC service.
  * <p>
@@ -203,14 +205,14 @@ public final class RPCService {
 				final InetSocketAddress remoteSocketAddress = (InetSocketAddress) dp.getSocketAddress();
 				final int length = dp.getLength() - RPCMessage.METADATA_SIZE;
 				final byte[] dbbuf = dp.getData();
-				final short numberOfPackets = byteArrayToShort(dbbuf, length + 2);
-				final short fragmentationID = byteArrayToShort(dbbuf, length + 4);
+				final short numberOfPackets = NumberUtils.byteArrayToShort(dbbuf, length + 2);
+				final int fragmentationID = NumberUtils.byteArrayToInteger(dbbuf, length + 4);
 
 				if (numberOfPackets == 1) {
 					this.rpcService.processIncomingRPCMessage(remoteSocketAddress, new Input(
 						new SinglePacketInputStream(dbbuf, length)), fragmentationID);
 				} else {
-					final short packetIndex = byteArrayToShort(dbbuf, length);
+					final short packetIndex = NumberUtils.byteArrayToShort(dbbuf, length);
 					final MultiPacketInputStream mpis = this.rpcService.getIncompleteInputStream(remoteSocketAddress,
 						fragmentationID, numberOfPackets);
 
@@ -270,7 +272,6 @@ public final class RPCService {
 
 			return sendRPCRequest(this.remoteSocketAddress, rpcRequest);
 		}
-
 	}
 
 	private final class CleanupTask extends TimerTask {
@@ -311,9 +312,9 @@ public final class RPCService {
 
 		private final SocketAddress socketAddress;
 
-		private final short fragmentationID;
+		private final int fragmentationID;
 
-		private MultiPacketInputStreamKey(final SocketAddress socketAddress, final short fragmentationID) {
+		private MultiPacketInputStreamKey(final SocketAddress socketAddress, final int fragmentationID) {
 			this.socketAddress = socketAddress;
 			this.fragmentationID = fragmentationID;
 		}
@@ -549,7 +550,7 @@ public final class RPCService {
 	}
 
 	void processIncomingRPCMessage(final InetSocketAddress remoteSocketAddress, final Input input,
-			final short fragmentationID) {
+			final int fragmentationID) {
 
 		final ThreadLocal<Kryo> threadLocalKryo = this.kryo;
 
@@ -567,7 +568,7 @@ public final class RPCService {
 				final RPCMessage msg = envelope.getRPCMessage();
 
 				// Sanity check
-				if (fragmentationID != (short) (msg.getMessageID() & 0xFFFF)) {
+				if (fragmentationID != msg.getMessageID()) {
 					Log.error("Received message with invalid fragmentation ID");
 					return;
 				}
@@ -700,7 +701,7 @@ public final class RPCService {
 		return this.rpcPort;
 	}
 
-	MultiPacketInputStream getIncompleteInputStream(final SocketAddress socketAddress, final short fragmentationID,
+	MultiPacketInputStream getIncompleteInputStream(final SocketAddress socketAddress, final int fragmentationID,
 			final short numberOfPackets) {
 
 		final MultiPacketInputStreamKey key = new MultiPacketInputStreamKey(socketAddress, fragmentationID);
@@ -716,19 +717,8 @@ public final class RPCService {
 		return mpis;
 	}
 
-	void removeIncompleteInputStream(final SocketAddress socketAddress, final short fragmentationID) {
+	void removeIncompleteInputStream(final SocketAddress socketAddress, final int fragmentationID) {
 
 		this.incompleteInputStreams.remove(new MultiPacketInputStreamKey(socketAddress, fragmentationID));
-	}
-
-	static short byteArrayToShort(final byte[] arr, final int offset) {
-
-		return (short) (((arr[offset] << 8)) | ((arr[offset + 1] & 0xFF)));
-	}
-
-	static void shortToByteArray(final short val, final byte[] arr, final int offset) {
-
-		arr[offset] = (byte) ((val & 0xFF00) >> 8);
-		arr[offset + 1] = (byte) (val & 0x00FF);
 	}
 }

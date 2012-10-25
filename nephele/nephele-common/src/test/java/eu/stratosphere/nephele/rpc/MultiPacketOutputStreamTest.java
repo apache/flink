@@ -55,7 +55,7 @@ public class MultiPacketOutputStreamTest {
 			fail(StringUtils.stringifyException(ioe));
 		}
 
-		final DatagramPacket[] packets = mpos.createPackets(TEST_REMOTE_ADDRESS, 0);
+		final DatagramPacket[] packets = mpos.createPackets(TEST_REMOTE_ADDRESS, 16);
 		assertNotNull(packets);
 		assertEquals(1, packets.length);
 
@@ -71,6 +71,10 @@ public class MultiPacketOutputStreamTest {
 		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 1]);
 		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 2]);
 		assertEquals(1, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 3]);
+		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 4]);
+		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 5]);
+		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 6]);
+		assertEquals(16, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 7]);
 	}
 
 	/**
@@ -92,7 +96,7 @@ public class MultiPacketOutputStreamTest {
 			fail(StringUtils.stringifyException(ioe));
 		}
 
-		final DatagramPacket[] packets = mpos.createPackets(TEST_REMOTE_ADDRESS, 0);
+		final DatagramPacket[] packets = mpos.createPackets(TEST_REMOTE_ADDRESS, 17);
 		assertNotNull(packets);
 		assertEquals(2, packets.length);
 
@@ -107,11 +111,15 @@ public class MultiPacketOutputStreamTest {
 			lastByte = packetBuf[i];
 			assertEquals((byte) (i % 23), lastByte);
 		}
-		assertEquals(5, lastByte);
+		assertEquals(3, lastByte);
 		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE]);
 		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 1]);
 		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 2]);
 		assertEquals(2, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 3]);
+		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 4]);
+		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 5]);
+		assertEquals(0, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 6]);
+		assertEquals(17, packetBuf[offset + length - RPCMessage.METADATA_SIZE + 7]);
 
 		// Inspect second package
 		offset = packets[1].getOffset();
