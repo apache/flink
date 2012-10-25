@@ -159,6 +159,26 @@ public class PactString implements Key, NormalizableKey, CharSequence, Appendabl
 		this.len = len;
 		this.hashCode = 0;
 	}
+
+	/**
+	 * Sets the value of the PactString to the given string.
+	 * 
+	 * @param value The new string value.
+	 * @param offset The position to start the substring.
+	 * @param len The length of the substring.
+	 */
+	public void setValue(final CharSequence value, int offset, int len)
+	{
+		if (value == null)
+			throw new NullPointerException("Value must not be null");
+
+		ensureSize(len);
+		this.len = len;		
+		for (int i = 0; i < len; i++) 
+			this.value[i] = value.charAt(i);
+		this.len = len;
+		this.hashCode = 0;
+	}
 	
 	/**
 	 * Sets the value of the PactString to the given string.
