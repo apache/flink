@@ -4,7 +4,7 @@ options {
     language=Java;
     output=AST;
     ASTLabelType=EvaluationExpression;
-    //backtrack=true;
+    backtrack=false;
     //memoize=true;
     superClass=MeteorParserBase;
 }
@@ -31,9 +31,15 @@ import java.math.*;
 import java.util.IdentityHashMap;
 }
 
-@rulecatch { }
+@rulecatch {
+catch (RecognitionException e) {
+  throw e;
+}
+}
 
 @parser::members {
+  private Stack<String> paraphrase = new Stack<String>();
+
   private boolean setInnerOutput(Token VAR, Operator<?> op) {
 	  JsonStreamExpression output = new JsonStreamExpression($operator::result.getOutput($objectCreation::mappings.size()));
 	  $objectCreation::mappings.add(new ObjectCreation.TagMapping(output, new JsonStreamExpression(op)));
@@ -65,7 +71,7 @@ statement
 packageImport
   :  'using' packageName=ID { getPackageManager().importPackage($packageName.text); } 
      (',' additionalPackage=ID { getPackageManager().importPackage($additionalPackage.text); })* ->;
-	
+
 assignment
 	:	target=VAR '=' source=operator { putVariable($target, new JsonStreamExpression($source.op)); } -> ;
 
@@ -166,7 +172,9 @@ contextAwarePathExpression[EvaluationExpression context]
   
 pathExpression
 scope {  List<EvaluationExpression> fragments; }
-@init { $pathExpression::fragments = new ArrayList<EvaluationExpression>(); }
+@init { $pathExpression::fragments = new ArrayList<EvaluationExpression>();
+        paraphrase.push("a path expression"); }
+@after { paraphrase.pop(); }
   : // add .field or [index] to path
     ( (('?.')=> '?.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text, true)); } )) 
         | (('.')=> '.' (field=ID { $pathExpression::fragments.add(new ObjectAccess($field.text)); } )) 
@@ -191,15 +199,17 @@ parenthesesExpression
 	:	('(' expression ')') -> expression;
 
 methodCall [EvaluationExpression targetExpr]
-@init { List<EvaluationExpression> params = new ArrayList(); }
+@init { List<EvaluationExpression> params = new ArrayList();
+        paraphrase.push("a method call"); }
+@after { paraphrase.pop(); }
 	:	(packageName=ID ':')? name=ID '('	
 	(param=expression { params.add($param.tree); }
 	(',' param=expression { params.add($param.tree); })*)? 
 	')' -> { createCheckedMethodCall($packageName.text, $name, $targetExpr, params.toArray(new EvaluationExpression[params.size()])) };
 	
 fieldAssignment
-	:	ID ':' expression 
-    { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($ID.text, $expression.tree)); } ->
+	:	((ID ':')=> ID ':' expression 
+    { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment($ID.text, $expression.tree)); } -> )
   | VAR 
     ( '.' STAR { $objectCreation::mappings.add(new ObjectCreation.CopyFields(makePath($VAR))); } ->
       | '=' op=operator { setInnerOutput($VAR, $op.op) }?=>
@@ -208,13 +218,18 @@ fieldAssignment
         | /* empty */ { $objectCreation::mappings.add(new ObjectCreation.FieldAssignment(getAssignmentName($p.tree), $p.tree)); } ->
       )
     );
+  catch [NoViableAltException re] { explainUsage("inside of a json object {...} only <field: expression>, <\$var.path>, <\$var = operator> or <\$var: expression> are allowed", re); }
 
 objectCreation
 scope {  List<ObjectCreation.Mapping> mappings; }
-@init { $objectCreation::mappings = new ArrayList<ObjectCreation.Mapping>(); }
+@init { $objectCreation::mappings = new ArrayList<ObjectCreation.Mapping>(); 
+        paraphrase.push("a json object"); }
+@after { paraphrase.pop(); }
 	:	'{' (fieldAssignment (',' fieldAssignment)* ','?)? '}' -> ^(EXPRESSION["ObjectCreation"] { $objectCreation::mappings });
 
 literal
+@init { paraphrase.push("a literal"); }
+@after { paraphrase.pop(); }
 	: val='true' -> ^(EXPRESSION["ConstantExpression"] { Boolean.TRUE })
 	| val='false' -> ^(EXPRESSION["ConstantExpression"] { Boolean.FALSE })
 	| val=DECIMAL -> ^(EXPRESSION["ConstantExpression"] { new BigDecimal($val.text) })
@@ -236,6 +251,8 @@ streamIndexAccess
   -> { new StreamIndexExpression(getVariable($op).getStream(), $path.tree) };
 	
 arrayCreation
+@init { paraphrase.push("a json array"); }
+@after { paraphrase.pop(); }
 	:	 '[' elems+=expression (',' elems+=expression)* ','? ']' -> ^(EXPRESSION["ArrayCreation"] { $elems.toArray(new EvaluationExpression[$elems.size()]) });
 
 operator returns [Operator<?> op=null]
