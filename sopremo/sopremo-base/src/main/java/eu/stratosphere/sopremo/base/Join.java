@@ -184,7 +184,7 @@ public class Join extends CompositeOperator<Join> {
 		if (outerJoinSources instanceof InputSelection)
 			expressions = Collections.singleton(outerJoinSources);
 		else if (outerJoinSources instanceof ArrayCreation)
-			expressions = ((ArrayCreation) outerJoinSources).getChildren();
+			expressions = (ArrayCreation) outerJoinSources;
 		else
 			throw new IllegalArgumentException(String.format("Cannot interpret %s", outerJoinSources));
 

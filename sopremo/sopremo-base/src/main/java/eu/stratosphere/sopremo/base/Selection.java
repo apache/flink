@@ -77,6 +77,5 @@ public class Selection extends ElementaryOperator<Selection> {
 			if (this.condition.evaluate(value, null, this.getContext()) == BooleanNode.TRUE)
 				out.collect(value);
 		}
-
 	}
 }

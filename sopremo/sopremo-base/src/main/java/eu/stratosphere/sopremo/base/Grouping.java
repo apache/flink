@@ -3,6 +3,9 @@ package eu.stratosphere.sopremo.base;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.common.contract.ReduceContract;
+import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
@@ -15,11 +18,13 @@ import eu.stratosphere.sopremo.operator.JsonStream;
 import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.operator.Operator;
 import eu.stratosphere.sopremo.operator.OutputCardinality;
+import eu.stratosphere.sopremo.operator.PactBuilderUtil;
 import eu.stratosphere.sopremo.operator.Property;
 import eu.stratosphere.sopremo.operator.SopremoModule;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
+import eu.stratosphere.sopremo.serialization.Schema;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IStreamArrayNode;
 import eu.stratosphere.sopremo.type.JsonUtil;
@@ -213,6 +218,38 @@ public class Grouping extends CompositeOperator<Grouping> {
 
 		public GroupProjection(final EvaluationExpression projection) {
 			this.projection = projection;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see
+		 * eu.stratosphere.sopremo.operator.ElementaryOperator#getContract(eu.stratosphere.sopremo.serialization.Schema)
+		 */
+		@Override
+		protected Contract getContract(Schema globalSchema) {
+			ReduceContract.Builder builder =
+				ReduceContract.builder(isCombinable() ? CombinableImplementation.class : Implementation.class);
+			if (!getKeyExpressions(0).contains(GROUP_ALL)) {
+				int[] keyIndices = this.getKeyIndices(globalSchema, this.getKeyExpressions(0));
+				PactBuilderUtil.addKeys(builder, this.getKeyClasses(globalSchema, keyIndices), keyIndices);
+			}
+			builder.name(this.toString());
+			return builder.build();
+		}
+
+		private boolean isCombinable() {
+			// TODO: make grouping combinable if all functions are transitive
+			return false;
+		}
+
+		@Combinable
+		public static class CombinableImplementation extends SopremoReduce {
+			private CachingExpression<IJsonNode> projection;
+
+			@Override
+			protected void reduce(final IStreamArrayNode values, final JsonCollector out) {
+				out.collect(this.projection.evaluate(values, this.getContext()));
+			}
 		}
 
 		public static class Implementation extends SopremoReduce {
