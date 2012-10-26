@@ -683,6 +683,8 @@ public class TestPlan implements Closeable {
 			e1.printStackTrace();
 		} catch (JobExecutionException e1) {
 			e1.printStackTrace();
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
 		}
 
 		try {

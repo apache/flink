@@ -266,6 +266,9 @@ public class Client {
 				throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
 			}
 		}
+		catch (InterruptedException ie) {
+			throw new ProgramInvocationException("The program has been interrupted: " + ie.getMessage());
+		}
 		finally {
 			program.deleteExtractedLibraries();
 		}

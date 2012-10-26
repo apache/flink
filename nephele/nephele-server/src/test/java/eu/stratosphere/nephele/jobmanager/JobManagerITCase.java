@@ -291,15 +291,9 @@ public class JobManagerITCase {
 
 			bufferedReader.close();
 
-		} catch (NumberFormatException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		} catch (JobExecutionException e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		} catch (IOException ioe) {
-			ioe.printStackTrace();
-			fail(ioe.getMessage());
 		} finally {
 			// Remove temporary files
 			if (inputFile1 != null) {
@@ -396,6 +390,8 @@ public class JobManagerITCase {
 			fail(jgde.getMessage());
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -486,6 +482,8 @@ public class JobManagerITCase {
 			fail(jgde.getMessage());
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -587,6 +585,8 @@ public class JobManagerITCase {
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 			if (jobClient != null) {
 				jobClient.close();
@@ -607,6 +607,9 @@ public class JobManagerITCase {
 	private void test(final int limit) {
 
 		JobClient jobClient = null;
+		File inputFile = null;
+		File outputFile = null;
+		File jarFile = null;
 
 		try {
 
@@ -614,10 +617,10 @@ public class JobManagerITCase {
 			final String forwardClassName = ForwardTask.class.getSimpleName();
 
 			// Create input and jar files
-			final File inputFile = ServerTestUtils.createInputFile(limit);
-			final File outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+			inputFile = ServerTestUtils.createInputFile(limit);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
 				+ ServerTestUtils.getRandomFilename());
-			final File jarFile = ServerTestUtils.createJarFile(forwardClassName);
+			jarFile = ServerTestUtils.createJarFile(forwardClassName);
 
 			// Create job graph
 			final JobGraph jg = new JobGraph("Job Graph 1");
@@ -678,15 +681,26 @@ public class JobManagerITCase {
 
 			bufferedReader.close();
 
-			// Remove temporary files
-			inputFile.delete();
-			outputFile.delete();
-			jarFile.delete();
-
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
+
+			// Remove temporary files
+			if (inputFile != null) {
+				inputFile.delete();
+			}
+
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+
 			if (jobClient != null) {
 				jobClient.close();
 			}
@@ -749,12 +763,8 @@ public class JobManagerITCase {
 
 			jobClient.submitJobAndWait();
 
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(e.getMessage());
-		} catch (JobGraphDefinitionException jgde) {
-			fail(jgde.getMessage());
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -821,12 +831,8 @@ public class JobManagerITCase {
 			jobClient = new JobClient(jg, configuration);
 			jobClient.submitJobAndWait();
 
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(e.getMessage());
-		} catch (JobGraphDefinitionException jgde) {
-			fail(jgde.getMessage());
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -981,6 +987,8 @@ public class JobManagerITCase {
 			fail(jgde.getMessage());
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -1092,6 +1100,8 @@ public class JobManagerITCase {
 			fail(jgde.getMessage());
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 
 			// Remove temporary files

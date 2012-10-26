@@ -117,15 +117,13 @@ public class JobClient {
 						+ ":\tJobClient is shutting down, canceling job...");
 					this.jobClient.cancelJob();
 				}
-
-				// Close the RPC object
-				this.jobClient.close();
-
-			} catch (IOException ioe) {
-				LOG.warn(StringUtils.stringifyException(ioe));
+			} catch (Exception e) {
+				LOG.debug(StringUtils.stringifyException(e));
 			}
-		}
 
+			// Close the RPC object
+			this.jobClient.close();
+		}
 	}
 
 	/**
@@ -216,8 +214,10 @@ public class JobClient {
 	 * @return a <code>JobSubmissionResult</code> object encapsulating the results of the job submission
 	 * @throws IOException
 	 *         thrown in case of submission errors while transmitting the data to the job manager
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public JobSubmissionResult submitJob() throws IOException {
+	public JobSubmissionResult submitJob() throws IOException, InterruptedException {
 
 		return this.jobSubmitClient.submitJob(this.jobGraph);
 	}
@@ -228,8 +228,10 @@ public class JobClient {
 	 * @return a <code>JobCancelResult</code> object encapsulating the result of the job cancel request
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request to the job manager
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public JobCancelResult cancelJob() throws IOException {
+	public JobCancelResult cancelJob() throws IOException, InterruptedException {
 
 		return this.jobSubmitClient.cancelJob(this.jobGraph.getJobID());
 	}
@@ -240,8 +242,10 @@ public class JobClient {
 	 * @return a <code>JobProgressResult</code> object including the current job progress
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public JobProgressResult getJobProgress() throws IOException {
+	public JobProgressResult getJobProgress() throws IOException, InterruptedException {
 
 		return this.jobSubmitClient.getJobProgress(this.jobGraph.getJobID());
 	}
@@ -253,10 +257,12 @@ public class JobClient {
 	 * @return the duration of the job execution in milliseconds
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @throws JobExecutionException
 	 *         thrown if the job has been aborted either by the user or as a result of an error
 	 */
-	public long submitJobAndWait() throws IOException, JobExecutionException {
+	public long submitJobAndWait() throws IOException, InterruptedException, JobExecutionException {
 
 		final JobSubmissionResult submissionResult = this.jobSubmitClient.submitJob(this.jobGraph);
 		if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
@@ -364,8 +370,10 @@ public class JobClient {
 	 * @return the interval in seconds
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public int getRecommendedPollingInterval() throws IOException {
+	public int getRecommendedPollingInterval() throws IOException, InterruptedException {
 
 		return this.jobSubmitClient.getRecommendedPollingInterval();
 	}

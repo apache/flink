@@ -202,7 +202,7 @@ public class BroadcastJob {
 	 *        writer object to write the duration results for each run
 	 */
 	private static void runJob(final int run, final BufferedWriter throughputWriter, final BufferedWriter durationWriter)
-			throws JobGraphDefinitionException, IOException, JobExecutionException {
+			throws JobGraphDefinitionException, IOException, InterruptedException, JobExecutionException {
 
 		// Construct job graph
 		final JobGraph jobGraph = new JobGraph("Broadcast Job (Run " + run + ")");

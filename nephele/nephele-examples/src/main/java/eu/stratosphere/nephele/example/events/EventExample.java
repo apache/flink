@@ -46,8 +46,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 
-import java.io.IOException;
-
 /**
  * @author casp
  */
@@ -91,8 +89,8 @@ public class EventExample {
 			JobClient jobClient = new JobClient(jobGraph, conf);
 			JobSubmissionResult result = jobClient.submitJob();
 			System.out.println(result.getDescription());
-		} catch (IOException ioe) {
-			ioe.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 	}

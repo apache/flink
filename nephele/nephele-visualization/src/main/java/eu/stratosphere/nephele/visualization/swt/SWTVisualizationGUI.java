@@ -864,6 +864,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 				msgBox.setText("Canceling job " + visualizationData.getJobID() + " failed");
 				msgBox.setMessage("Canceling job " + visualizationData.getJobID()
 					+ " failed:\r\n\r\n" + ioe.getMessage());
+			} catch (InterruptedException ie) {
+				return;
 			}
 		}
 

@@ -565,9 +565,7 @@ public class FailingJobITCase {
 		try {
 			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
 		} finally {
 			if (jobClient != null) {
@@ -624,9 +622,7 @@ public class FailingJobITCase {
 		try {
 			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
 		} finally {
 			if (jobClient != null) {
@@ -690,9 +686,7 @@ public class FailingJobITCase {
 		try {
 			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
 		} finally {
 			if (jobClient != null) {
@@ -763,9 +757,7 @@ public class FailingJobITCase {
 		try {
 			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
 		} finally {
 			if (jobClient != null) {
@@ -840,9 +832,7 @@ public class FailingJobITCase {
 		try {
 			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
 		} finally {
 			if (jobClient != null) {
@@ -917,6 +907,8 @@ public class FailingJobITCase {
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
+		} catch (InterruptedException ie) {
+			fail(StringUtils.stringifyException(ie));
 		} catch (JobExecutionException e) {
 			// This is expected here
 			assert (e.isJobCanceledByUser() == false);
@@ -995,9 +987,7 @@ public class FailingJobITCase {
 		try {
 			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
 		} finally {
 			if (jobClient != null) {
@@ -1070,9 +1060,7 @@ public class FailingJobITCase {
 		try {
 			jobClient = new JobClient(jobGraph, configuration);
 			jobClient.submitJobAndWait();
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
 		} finally {
 			if (jobClient != null) {

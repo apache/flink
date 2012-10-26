@@ -90,7 +90,7 @@ public class SWTVisualization {
 			// Get the query interval
 			queryInterval = jobManager.getRecommendedPollingInterval();
 
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			rpcService.shutDown();
 			System.exit(1);

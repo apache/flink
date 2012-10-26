@@ -108,7 +108,7 @@ public class ClientTest {
 	}
 	
 	@Test
-	public void shouldSubmitToJobClient() throws ProgramInvocationException, ErrorInPlanAssemblerException, IOException
+	public void shouldSubmitToJobClient() throws ProgramInvocationException, ErrorInPlanAssemblerException, IOException, InterruptedException
 	{
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.SUCCESS);
 		
