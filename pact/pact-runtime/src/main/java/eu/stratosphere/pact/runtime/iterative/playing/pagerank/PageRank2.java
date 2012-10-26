@@ -15,7 +15,7 @@ import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.RepeatableHashJoinMatchDriver2;
+import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedAndSortedProbeside;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -35,7 +35,7 @@ public class PageRank2 {
     int memoryPerTask = 25;
     int numIterations = 5;
 
-    //Utils.ensureLogging();
+    //TypeUtils.ensureLogging();
 
     if (args.length == 8) {
       degreeOfParallelism = Integer.parseInt(args[0]);
@@ -75,7 +75,8 @@ public class PageRank2 {
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
-    intermediateConfig.setDriver(RepeatableHashJoinMatchDriver2.class);
+    //intermediateConfig.setDriver(RepeatableHashJoinMatchDriver2.class);
+    intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedAndSortedProbeside.class);
     intermediateConfig.setStubClass(DotProductMatch2.class);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });

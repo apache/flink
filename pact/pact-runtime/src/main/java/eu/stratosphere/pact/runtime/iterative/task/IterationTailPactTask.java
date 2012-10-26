@@ -22,6 +22,7 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
+import eu.stratosphere.pact.runtime.iterative.driver.AbstractRepeatableMatchDriver;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.DataOutputCollector;
@@ -66,7 +67,7 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
   @Override
   public void invoke() throws Exception {
 
-    boolean isJoinOnConstantDataPath = driver instanceof RepeatableHashJoinMatchDriver || driver instanceof RepeatableHashJoinMatchDriver2;
+    //boolean isJoinOnConstantDataPath = driver instanceof RepeatableHashJoinMatchDriver || driver instanceof RepeatableHashJoinMatchDriver2;
 
     // Initially retreive the backchannel from the iteration head
     final BlockingBackChannel backChannel = retrieveBackChannel();
@@ -85,7 +86,7 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
       }
 
       notifyMonitor(IterationMonitoring.Event.TAIL_PACT_STARTING);
-      if (!inFirstIteration() && !isJoinOnConstantDataPath) {
+      if (!inFirstIteration() && !isJoinOnConstantDataPath()) {
         reinstantiateDriver();
       }
 
@@ -112,13 +113,14 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
       notifyMonitor(IterationMonitoring.Event.TAIL_FINISHED);
     }
 
-    if (isJoinOnConstantDataPath) {
+    if (isJoinOnConstantDataPath()) {
 
-      if (driver instanceof RepeatableHashJoinMatchDriver) {
+      ((AbstractRepeatableMatchDriver)driver).finalCleanup();
+      /*if (driver instanceof RepeatableHashJoinMatchDriver) {
         ((RepeatableHashJoinMatchDriver) driver).finalCleanup();
       } else {
         ((RepeatableHashJoinMatchDriver2) driver).finalCleanup();
-      }
+      }       */
     }
   }
 

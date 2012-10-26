@@ -27,16 +27,14 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
-import eu.stratosphere.pact.runtime.iterative.playing.pagerank.DotProductMatch;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.DotProductReducer;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.IdentityMap;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankInputFormat;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankOutFormat;
-import eu.stratosphere.pact.runtime.iterative.playing.pagerank.TransitionMatrixInputFormat;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.RepeatableHashJoinMatchDriver;
+import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -57,8 +55,6 @@ public class ScopedPageRank {
     int memoryPerTask = 25;
     int memoryForMatch = memoryPerTask;
     int numIterations = 5;
-
-    //Utils.ensureLogging();
 
     if (args.length == 9) {
       degreeOfParallelism = Integer.parseInt(args[0]);
@@ -100,7 +96,7 @@ public class ScopedPageRank {
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
-    intermediateConfig.setDriver(RepeatableHashJoinMatchDriver.class);
+    intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
     intermediateConfig.setStubClass(DotProductRowMatch.class);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });

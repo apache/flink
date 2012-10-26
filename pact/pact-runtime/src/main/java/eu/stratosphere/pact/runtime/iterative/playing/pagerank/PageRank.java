@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 
-import com.sun.servicetag.SystemEnvironment;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.io.DistributionPattern;
@@ -31,7 +30,7 @@ import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.RepeatableHashJoinMatchDriver;
+import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -51,8 +50,6 @@ public class PageRank {
     int memoryPerTask = 25;
     int memoryForMatch = memoryPerTask;
     int numIterations = 5;
-
-    //Utils.ensureLogging();
 
     if (args.length == 9) {
       degreeOfParallelism = Integer.parseInt(args[0]);
@@ -93,7 +90,7 @@ public class PageRank {
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
-    intermediateConfig.setDriver(RepeatableHashJoinMatchDriver.class);
+    intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
     intermediateConfig.setStubClass(DotProductMatch.class);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });

@@ -153,10 +153,6 @@ public class TaskConfig
 
   private static final String NUMBER_OF_EVENTS_UNTIL_INTERRUPT = "pact.iterative.numberOfEventsUntilInterrupt.";
 
-  private static final String INPUT_GATE_CACHED = "pact.iterative.inputGateCached.";
-
-  private static final String INPUT_GATE_CACHE_MEMORY_FRACTION = "pact.iterative.inputGateCacheMemoryFraction";
-
   private static final String NUMBER_OF_ITERATIONS = "pact.iterative.numberOfIterations";
 
   private static final String BACKCHANNEL_MEMORY_FRACTION = "pact.iterative.backChannelMemoryFraction";
@@ -712,29 +708,6 @@ public class TaskConfig
     int numberOfIterations = config.getInteger(NUMBER_OF_ITERATIONS, 0);
     Preconditions.checkState(numberOfIterations > 0);
     return numberOfIterations;
-  }
-
-  @Deprecated
-  public boolean isCachedInputGate(int inputGateIndex) {
-    return config.getBoolean(INPUT_GATE_CACHED + inputGateIndex, false);
-  }
-
-  @Deprecated
-  public void setGateCached(int inputGateIndex) {
-    config.setBoolean(INPUT_GATE_CACHED + inputGateIndex, true);
-  }
-
-  @Deprecated
-  public float getInputGateCacheMemoryFraction() {
-    float inputGateCacheMemoryFraction = config.getFloat(INPUT_GATE_CACHE_MEMORY_FRACTION, 0);
-    Preconditions.checkState(inputGateCacheMemoryFraction > 0);
-    return inputGateCacheMemoryFraction;
-  }
-
-  @Deprecated
-  public void setInputGateCacheMemoryFraction(float fraction) {
-    Preconditions.checkArgument(fraction > 0 && fraction < 1);
-    config.setFloat(INPUT_GATE_CACHE_MEMORY_FRACTION, fraction);
   }
 
   public boolean isIterativeInputGate(int inputGateIndex) {

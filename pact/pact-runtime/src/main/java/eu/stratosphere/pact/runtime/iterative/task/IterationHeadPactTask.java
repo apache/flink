@@ -23,17 +23,15 @@ import eu.stratosphere.nephele.io.Writer;
 import eu.stratosphere.nephele.services.memorymanager.DataInputView;
 import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.pact.common.generic.types.TypeComparator;
-import eu.stratosphere.pact.common.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
-import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
+import eu.stratosphere.pact.runtime.iterative.TypeUtils;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
@@ -46,12 +44,8 @@ import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -105,52 +99,6 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     return backChannel;
   }
 
-  //TODO refactor up into RegularPactTask
-  private <T> TypeSerializer<T> instantiateTypeSerializer(
-      Class<? extends TypeSerializerFactory<?>> serializerFactoryClass) {
-    final TypeSerializerFactory<?> serializerFactory;
-    if (serializerFactoryClass == null) {
-      // fall back to PactRecord
-      serializerFactory = PactRecordSerializerFactory.get();
-    } else {
-      serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
-    }
-    return (TypeSerializer<T>) serializerFactory.getSerializer();
-  }
-
-  //TODO refactor up into RegularPactTask
-  private <T> TypeComparator<T> instantiateTypeComparator(
-      Class<? extends TypeComparatorFactory<?>> comparatorFactoryClass, String keyPrefix)
-      throws ClassNotFoundException {
-    final TypeComparatorFactory<?> comparatorFactory;
-    if (comparatorFactoryClass == null) {
-      // fall back to PactRecord
-      comparatorFactory = PactRecordComparatorFactory.get();
-    } else {
-      comparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
-    }
-    return (TypeComparator<T>) comparatorFactory.createComparator(
-        new TaskConfig.DelegatingConfiguration(getTaskConfiguration(), keyPrefix), userCodeClassLoader);
-  }
-
-  private <T1, T2> TypePairComparatorFactory<T1, T2> instantiateTypePairComparator(
-      Class<? extends TypePairComparatorFactory<T1, T2>> comparatorFactoryClass) throws ClassNotFoundException {
-
-    TypePairComparatorFactory<T1, T2> pairComparatorFactory;
-    if (comparatorFactoryClass == null) {
-      @SuppressWarnings("unchecked")
-      TypePairComparatorFactory<T1, T2> pactRecordFactory =
-          (TypePairComparatorFactory<T1, T2>) PactRecordPairComparatorFactory.get();
-      pairComparatorFactory = pactRecordFactory;
-    } else {
-      @SuppressWarnings("unchecked")
-      final Class<TypePairComparatorFactory<T1, T2>> clazz =
-          (Class<TypePairComparatorFactory<T1, T2>>) (Class<?>) TypePairComparatorFactory.class;
-      pairComparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, clazz);
-    }
-    return pairComparatorFactory;
-  }
-
   //TODO type safety
   private <IT1, IT2> MutableHashTable initHashJoin() throws Exception {
 
@@ -159,22 +107,22 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     long hashjoinMemorySize = (long) (completeMemorySize * config.getWorksetHashjoinMemoryFraction());
     config.setMemorySize(completeMemorySize - hashjoinMemorySize);
 
-
-    TypeSerializer<IT1> probesideSerializer = instantiateTypeSerializer(
+    TypeSerializer<IT1> probesideSerializer = TypeUtils.instantiateTypeSerializer(
         config.getWorksetHashjoinProbesideSerializerFactoryClass(userCodeClassLoader));
-    TypeSerializer<IT2> buildsideSerializer = instantiateTypeSerializer(
+    TypeSerializer<IT2> buildsideSerializer = TypeUtils.instantiateTypeSerializer(
         config.getWorksetHashjoinBuildsideSerializerFactoryClass(userCodeClassLoader));
 
-    TypeComparator<IT1> probesideComparator = instantiateTypeComparator(
-        config.getWorksetHashJoinProbeSideComparatorFactoryClass(userCodeClassLoader),
+    TypeComparator<IT1> probesideComparator = TypeUtils.instantiateTypeComparator(config.getConfiguration(),
+        userCodeClassLoader, config.getWorksetHashJoinProbeSideComparatorFactoryClass(userCodeClassLoader),
         config.getWorksetHashjoinProbesideComparatorPrefix());
 
-    TypeComparator<IT2> buildSideComparator = instantiateTypeComparator(
-        config.getWorksetHashJoinBuildSideComparatorFactoryClass(userCodeClassLoader),
+    TypeComparator<IT2> buildSideComparator = TypeUtils.instantiateTypeComparator(config.getConfiguration(),
+        userCodeClassLoader, config.getWorksetHashJoinBuildSideComparatorFactoryClass(userCodeClassLoader),
         config.getWorksetHashjoinBuildsideComparatorPrefix());
 
-    TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = (TypePairComparatorFactory<IT1, IT2>)
-        instantiateTypePairComparator(config.getWorksetHashJoinTypePairComparatorFactoryClass(userCodeClassLoader));
+    TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = TypeUtils.instantiateTypePairComparator(
+        (Class<? extends TypePairComparatorFactory<IT1,IT2>>)
+        config.getWorksetHashJoinTypePairComparatorFactoryClass(userCodeClassLoader));
 
     List<MemorySegment> memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), hashjoinMemorySize);
 

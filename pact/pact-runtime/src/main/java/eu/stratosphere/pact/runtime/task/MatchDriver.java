@@ -36,6 +36,7 @@ import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
+import sun.java2d.SunGraphicsEnvironment;
 
 /**
  * Match task which is executed by a Nephele task manager. The task has two inputs and one or multiple outputs.
@@ -56,11 +57,11 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 	private static final long MIN_REQUIRED_MEMORY = 3 * 1024 * 1024;	// minimal memory for the task to operate
 	
 	
-	private PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
+	protected PactTaskContext<GenericMatcher<IT1, IT2, OT>, OT> taskContext;
 	
 	private volatile MatchTaskIterator<IT1, IT2, OT> matchIterator;		// the iterator that does the actual matching
 	
-	private volatile boolean running;
+	protected volatile boolean running;
 	
 	// ------------------------------------------------------------------------
 
@@ -144,24 +145,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 		final TypeComparator<IT1> comparator1 = this.taskContext.getInputComparator(0);
 		final TypeComparator<IT2> comparator2 = this.taskContext.getInputComparator(1);
 		
-		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
-		try {
-			final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
-				config.getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
-			
-			if (factoryClass == null) {
-				@SuppressWarnings("unchecked")
-				TypePairComparatorFactory<IT1, IT2> pactRecordFactory = 
-									(TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
-				pairComparatorFactory = pactRecordFactory;
-			} else {
-				@SuppressWarnings("unchecked")
-				final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>) (Class<?>) TypePairComparatorFactory.class;
-				pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
-			}
-		} catch (ClassNotFoundException cnfex) {
-			throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", cnfex);
-		}
+		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = instantiateTypeComparatorFactory();
 		
 		// obtain task manager's memory manager
 		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
@@ -201,6 +185,30 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 		if (LOG.isDebugEnabled())
 			LOG.debug(this.taskContext.formatLogString("Match task iterator ready."));
 	}
+
+  protected TypePairComparatorFactory<IT1, IT2> instantiateTypeComparatorFactory() throws Exception {
+    final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory;
+    try {
+
+      final Class<? extends TypePairComparatorFactory<IT1, IT2>> factoryClass =
+          this.taskContext.getTaskConfig().getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
+
+      if (factoryClass == null) {
+        @SuppressWarnings("unchecked")
+        TypePairComparatorFactory<IT1, IT2> pactRecordFactory =
+            (TypePairComparatorFactory<IT1, IT2>) PactRecordPairComparatorFactory.get();
+        pairComparatorFactory = pactRecordFactory;
+      } else {
+        @SuppressWarnings("unchecked")
+        final Class<TypePairComparatorFactory<IT1, IT2>> clazz = (Class<TypePairComparatorFactory<IT1, IT2>>)
+            (Class<?>) TypePairComparatorFactory.class;
+        pairComparatorFactory = InstantiationUtil.instantiate(factoryClass, clazz);
+      }
+    } catch (ClassNotFoundException cnfex) {
+      throw new Exception("The class registered as TypePairComparatorFactory cloud not be loaded.", cnfex);
+    }
+    return pairComparatorFactory;
+  }
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()

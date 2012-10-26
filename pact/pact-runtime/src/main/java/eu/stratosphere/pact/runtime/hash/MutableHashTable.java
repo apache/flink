@@ -702,7 +702,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource
 			p.finalizeBuildPhase(this.ioManager, this.currentEnumerator, this.writeBehindBuffers);
 		}
 
-    System.out.println("inserted " + recordsInserted + " records into build side of HybridHashJoin");
     if (LOG.isInfoEnabled()) {
       LOG.info("inserted " + recordsInserted + " records into build side of HybridHashJoin");
     }

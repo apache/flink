@@ -18,6 +18,7 @@ package eu.stratosphere.pact.runtime.iterative.task;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
+import eu.stratosphere.pact.runtime.iterative.driver.AbstractRepeatableMatchDriver;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
@@ -37,7 +38,7 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
   @Override
   public void invoke() throws Exception {
 
-    boolean isJoinOnConstantDataPath = driver instanceof RepeatableHashJoinMatchDriver || driver instanceof RepeatableHashJoinMatchDriver2;
+    //boolean isJoinOnConstantDataPath = driver instanceof RepeatableHashJoinMatchDriver || driver instanceof RepeatableHashJoinMatchDriver2 || driver instanceof AbstractRepeatableMatchDriver;
 
     while (!terminationRequested()) {
 
@@ -47,7 +48,7 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
       }
 
       notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_PACT_STARTING);
-      if (!inFirstIteration() && !isJoinOnConstantDataPath) {
+      if (!inFirstIteration() && !isJoinOnConstantDataPath()) {
         reinstantiateDriver();
       }
 
@@ -67,13 +68,15 @@ public class IterationIntermediatePactTask<S extends Stub, OT> extends AbstractI
       notifyMonitor(IterationMonitoring.Event.INTERMEDIATE_FINISHED);
     }
 
-    if (isJoinOnConstantDataPath) {
+    if (isJoinOnConstantDataPath()) {
 
-      if (driver instanceof RepeatableHashJoinMatchDriver) {
+      ((AbstractRepeatableMatchDriver) driver).finalCleanup();
+
+     /* if (driver instanceof RepeatableHashJoinMatchDriver) {
         ((RepeatableHashJoinMatchDriver) driver).finalCleanup();
       } else {
         ((RepeatableHashJoinMatchDriver2) driver).finalCleanup();
-      }
+      }                                              */
     }
   }
 

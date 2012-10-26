@@ -32,8 +32,8 @@ import eu.stratosphere.pact.runtime.iterative.playing.pagerank.IdentityMap;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.RepeatableHashJoinMatchDriver;
-import eu.stratosphere.pact.runtime.iterative.task.SolutionsetMatchDriver;
+import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
+import eu.stratosphere.pact.runtime.iterative.driver.SolutionsetMatchDriver;
 import eu.stratosphere.pact.runtime.iterative.task.WorksetIterationSolutionsetJoinTask;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
@@ -135,7 +135,8 @@ public class ConnectedComponents {
     JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Tail-NeighborComponentIDToWorkset",
         jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
-    tailConfig.setDriver(RepeatableHashJoinMatchDriver.class);
+//    tailConfig.setDriver(RepeatableHashJoinMatchDriver.class);
+    tailConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
     tailConfig.setStubClass(NeighborComponentIDToWorksetMatch.class);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });

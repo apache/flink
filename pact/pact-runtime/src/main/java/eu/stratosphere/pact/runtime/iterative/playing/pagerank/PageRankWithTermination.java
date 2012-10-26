@@ -26,12 +26,12 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.type.base.PactNull;
+import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.RepeatableHashJoinMatchDriver;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
 import eu.stratosphere.pact.runtime.task.MapDriver;
@@ -88,7 +88,7 @@ public class PageRankWithTermination {
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
-    intermediateConfig.setDriver(RepeatableHashJoinMatchDriver.class);
+    intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
     intermediateConfig.setStubClass(DotProductMatch.class);
     intermediateConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),

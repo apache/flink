@@ -26,9 +26,9 @@ import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.io.SpillingBuffer;
+import eu.stratosphere.pact.runtime.iterative.driver.AbstractRepeatableMatchDriver;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
-import eu.stratosphere.pact.runtime.iterative.io.CachingMutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.io.InterruptingMutableObjectIterator;
 import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
@@ -39,7 +39,6 @@ import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -57,6 +56,10 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
 
   protected boolean inFirstIteration() {
     return numIterations == 1;
+  }
+
+  protected boolean isJoinOnConstantDataPath() {
+    return driver instanceof AbstractRepeatableMatchDriver;
   }
 
   protected int currentIteration() {
@@ -131,16 +134,7 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   public <X> MutableObjectIterator<X> getInput(int inputGateIndex) {
 
     if (wrappedInputs[inputGateIndex] != null) {
-
-      if (getTaskConfig().isCachedInputGate(inputGateIndex)) {
-        enableReadingOnCachingIterator(inputGateIndex);
-      }
-
       return (MutableObjectIterator<X>) wrappedInputs[inputGateIndex];
-    }
-
-    if (getTaskConfig().isCachedInputGate(inputGateIndex)) {
-      return wrapWithCachingIterator(inputGateIndex);
     }
 
     if (getTaskConfig().isIterativeInputGate(inputGateIndex)) {
@@ -148,31 +142,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     }
 
     return super.getInput(inputGateIndex);
-  }
-
-  private <X> MutableObjectIterator<X> wrapWithCachingIterator(int inputGateIndex) {
-    if (log.isInfoEnabled()) {
-      log.info(formatLogString("wrapping input [" + inputGateIndex + "] with a caching iterator"));
-    }
-
-    SpillingBuffer spillingBuffer = reserveMemoryForCaching(getTaskConfig().getInputGateCacheMemoryFraction());
-    //TODO type safety
-    CachingMutableObjectIterator<X> wrappedIterator = new CachingMutableObjectIterator<X>((MutableObjectIterator<X>)
-        super.getInput(inputGateIndex), spillingBuffer, (TypeSerializer<X>) getInputSerializer(inputGateIndex),
-        identifier());
-
-    wrappedInputs[inputGateIndex] = wrappedIterator;
-
-    return wrappedIterator;
-  }
-
-  private void enableReadingOnCachingIterator(int inputGateIndex) {
-    CachingMutableObjectIterator<?> cachingInput = (CachingMutableObjectIterator<?>) wrappedInputs[inputGateIndex];
-    try {
-      cachingInput.enableReading();
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to enable reading on cached input [" + inputGateIndex + "]", e);
-    }
   }
 
   private <X> MutableObjectIterator<X> wrapWithInterruptingIterator(int inputGateIndex) {

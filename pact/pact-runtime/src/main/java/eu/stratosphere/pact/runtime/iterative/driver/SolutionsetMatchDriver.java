@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.task;
+package eu.stratosphere.pact.runtime.iterative.driver;
 
 import com.google.common.base.Preconditions;
 import eu.stratosphere.pact.common.generic.GenericMatcher;
@@ -42,7 +42,7 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
 
   private static final Log log = LogFactory.getLog(SolutionsetMatchDriver.class);
 
-  void injectHashJoin(MutableHashTable hashJoin) {
+  public void injectHashJoin(MutableHashTable hashJoin) {
     this.hashJoin = hashJoin;
   }
 

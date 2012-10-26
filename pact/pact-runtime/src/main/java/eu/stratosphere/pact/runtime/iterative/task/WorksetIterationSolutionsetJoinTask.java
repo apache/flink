@@ -21,6 +21,7 @@ import eu.stratosphere.nephele.io.AbstractRecordWriter;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionsetBroker;
+import eu.stratosphere.pact.runtime.iterative.driver.SolutionsetMatchDriver;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import org.apache.commons.logging.Log;
@@ -34,7 +35,7 @@ import java.io.IOException;
  * {@link eu.stratosphere.pact.common.stubs.MatchStub} that runs inside this task will be inserted into the build-side of the hash-join, which
  * will form the final output of the workset iteration.
  *
- * This implementation is only allowed to run a {@link SolutionsetMatchDriver} inside!
+ * This implementation is only allowed to run a {@link eu.stratosphere.pact.runtime.iterative.driver.SolutionsetMatchDriver} inside!
  *
  * @param <S>
  * @param <OT>
