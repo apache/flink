@@ -472,6 +472,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			errorBox.setText("Error");
 			errorBox.setMessage(StringUtils.stringifyException(ioe));
 			errorBox.open();
+		} catch (InterruptedException ie) {
+			LOG.debug(StringUtils.stringifyException(ie));
 		}
 	}
 
@@ -491,6 +493,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			errorBox.setText("Error");
 			errorBox.setMessage(StringUtils.stringifyException(ioe));
 			errorBox.open();
+		} catch (InterruptedException ie) {
+			LOG.debug(StringUtils.stringifyException(ie));
 		}
 
 	}
@@ -570,6 +574,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
+		} catch (InterruptedException ie) {
+			LOG.debug(StringUtils.stringifyException(ie));
+			return;
 		}
 
 		if (viewUpdateRequired) {
@@ -599,7 +606,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	}
 
 	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable, final long submissionTimestamp,
-			final long referenceTime) throws IOException {
+			final long referenceTime) throws IOException, InterruptedException {
 
 		synchronized (this.recentJobs) {
 
@@ -801,6 +808,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 				msgBox.setText("Logging failed for job " + visualizationData.getJobID());
 				msgBox.setMessage("Logging of buffer utilization failed for job " + visualizationData.getJobID()
 					+ ":\r\n\r\n" + ioe.getMessage());
+			} catch (InterruptedException ie) {
+				LOG.debug(StringUtils.stringifyException(ie));
+				return;
 			}
 		}
 

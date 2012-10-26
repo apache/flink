@@ -43,7 +43,9 @@ public interface InputSplitProviderProtocol extends RPCProtocol {
 	 *         no more input splits shall be consumed by the task with the given execution vertex ID
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while retrieving the new input split
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
 	InputSplitWrapper requestNextInputSplit(JobID jobID, ExecutionVertexID vertexID, int sequenceNumber)
-			throws IOException;
+			throws IOException, InterruptedException;
 }

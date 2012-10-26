@@ -71,6 +71,9 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 			// Convert IOException into a RuntimException and let the regular fault tolerance routines take care of the
 			// rest
 			throw new RuntimeException(StringUtils.stringifyException(ioe));
+		} catch (InterruptedException ie) {
+			// The thread was interrupted, return <code>null</code> to indicate there is no more data that follows
+			return null;
 		}
 	}
 }

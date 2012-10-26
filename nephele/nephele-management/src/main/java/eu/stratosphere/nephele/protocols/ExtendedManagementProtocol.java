@@ -48,8 +48,10 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @return the management graph for the job
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the management graph
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	ManagementGraph getManagementGraph(JobID jobID) throws IOException;
+	ManagementGraph getManagementGraph(JobID jobID) throws IOException, InterruptedException;
 
 	/**
 	 * Retrieves the current network topology for the job with
@@ -60,8 +62,10 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @return the network topology for the job
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the network topology
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	NetworkTopology getNetworkTopology(JobID jobID) throws IOException;
+	NetworkTopology getNetworkTopology(JobID jobID) throws IOException, InterruptedException;
 
 	/**
 	 * Retrieves a list of jobs which have either running or have been started recently.
@@ -69,8 +73,10 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @return a (possibly) empty list of recent jobs
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the job list
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	List<RecentJobEvent> getRecentJobs() throws IOException;
+	List<RecentJobEvent> getRecentJobs() throws IOException, InterruptedException;
 
 	/**
 	 * Retrieves the collected events for the job with the given job ID.
@@ -81,8 +87,10 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *         are not older than the query interval
 	 * @throws IOException
 	 *         thrown if an error occurs while retrieving the list of events
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	List<AbstractEvent> getEvents(JobID jobID) throws IOException;
+	List<AbstractEvent> getEvents(JobID jobID) throws IOException, InterruptedException;
 
 	/**
 	 * Kills the task with the given vertex ID.
@@ -93,8 +101,10 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *        the vertex ID which identified the task be killed
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the kill request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void killTask(JobID jobID, ManagementVertexID id) throws IOException;
+	void killTask(JobID jobID, ManagementVertexID id) throws IOException, InterruptedException;
 
 	/**
 	 * Kills the instance with the given name (i.e. shuts down its task manager).
@@ -103,8 +113,10 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *        the name of the instance to be killed
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the kill request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void killInstance(StringRecord instanceName) throws IOException;
+	void killInstance(StringRecord instanceName) throws IOException, InterruptedException;
 
 	/**
 	 * Returns a map of all instance types which are currently available to Nephele. The map contains a description of
@@ -116,8 +128,11 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @return a list of all instance types available to Nephele
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the list
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() throws IOException;
+	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() throws IOException,
+			InterruptedException;
 
 	/**
 	 * Triggers all task managers involved in processing the job with the given job ID to write the utilization of
@@ -127,6 +142,8 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *        the ID of the job to print the buffer distribution for
 	 * @throws IOException
 	 *         throws if an error occurs while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void logBufferUtilization(JobID jobID) throws IOException;
+	void logBufferUtilization(JobID jobID) throws IOException, InterruptedException;
 }

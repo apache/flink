@@ -104,6 +104,9 @@ public final class JobFailurePatternExecutor implements Runnable {
 					this.jobManager.killTask(this.jobID, vertexID);
 				} catch (IOException ioe) {
 					LOG.error(StringUtils.stringifyException(ioe));
+				} catch (InterruptedException ie) {
+					LOG.debug(StringUtils.stringifyException(ie));
+					return;
 				}
 			}
 
@@ -112,6 +115,9 @@ public final class JobFailurePatternExecutor implements Runnable {
 				this.jobManager.killInstance(new StringRecord(this.nextEvent.getName()));
 			} catch (IOException ioe) {
 				LOG.error(StringUtils.stringifyException(ioe));
+			} catch (InterruptedException ie) {
+				LOG.debug(StringUtils.stringifyException(ie));
+				return;
 			}
 		}
 
