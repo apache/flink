@@ -472,11 +472,11 @@ public final class RPCService {
 
 				if (!ioExceptionFound) {
 					throw new IllegalArgumentException("Method " + method.getName()
-						+ " must be declared to throw an IOException");
+						+ " of protocol " + protocol.getName() + " must be declared to throw an IOException");
 				}
 				if (!interruptedExceptionFound) {
 					throw new IllegalArgumentException("Method " + method.getName()
-						+ " must be declared to throw an InterruptedException");
+						+ " of protocol " + protocol.getName() + " must be declared to throw an InterruptedException");
 				}
 			}
 		} catch (SecurityException se) {

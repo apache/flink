@@ -60,7 +60,7 @@ public final class RecoveryLogic {
 
 	public static boolean recover(final ExecutionVertex failedVertex,
 			final Map<ExecutionVertexID, ExecutionVertex> verticesToBeRestarted,
-			final Set<ExecutionVertex> assignedVertices) {
+			final Set<ExecutionVertex> assignedVertices) throws InterruptedException {
 
 		// Perform initial sanity check
 		if (failedVertex.getExecutionState() != ExecutionState.FAILED) {
@@ -151,7 +151,7 @@ public final class RecoveryLogic {
 
 	private static void findVerticesToRestart(final ExecutionVertex failedVertex,
 			final Set<ExecutionVertex> verticesToBeCanceled,
-			final Set<ExecutionVertex> checkpointsToBeReplayed) {
+			final Set<ExecutionVertex> checkpointsToBeReplayed) throws InterruptedException {
 
 		final Queue<ExecutionVertex> verticesToTest = new ArrayDeque<ExecutionVertex>();
 		final Set<ExecutionVertex> visited = new HashSet<ExecutionVertex>();
@@ -203,7 +203,7 @@ public final class RecoveryLogic {
 	}
 
 	private static final boolean invalidateReceiverLookupCaches(final ExecutionVertex failedVertex,
-			final Set<ExecutionVertex> verticesToBeCanceled) {
+			final Set<ExecutionVertex> verticesToBeCanceled) throws InterruptedException {
 
 		final Map<AbstractInstance, Set<ChannelID>> entriesToInvalidate = new HashMap<AbstractInstance, Set<ChannelID>>();
 

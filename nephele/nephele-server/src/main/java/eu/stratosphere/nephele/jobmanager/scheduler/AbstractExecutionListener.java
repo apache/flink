@@ -120,8 +120,15 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 
 				final Set<ExecutionVertex> assignedVertices = new HashSet<ExecutionVertex>();
 
-				if (RecoveryLogic.recover(this.executionVertex, this.scheduler.getVerticesToBeRestarted(),
-					assignedVertices)) {
+				boolean recover = false;
+				try {
+					recover = RecoveryLogic.recover(this.executionVertex, this.scheduler.getVerticesToBeRestarted(),
+						assignedVertices);
+				} catch (InterruptedException ie) {
+					return;
+				}
+
+				if (recover) {
 
 					if (RecoveryLogic.hasInstanceAssigned(this.executionVertex)) {
 						// Run through the deployment procedure

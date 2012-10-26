@@ -703,9 +703,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			@Override
 			public void run() {
 				eg.updateJobStatus(InternalJobStatus.CANCELING, "Job canceled by user");
-				final TaskCancelResult cancelResult = cancelJob(eg);
-				if (cancelResult != null) {
-					LOG.error(cancelResult.getDescription());
+				try {
+					final TaskCancelResult cancelResult = cancelJob(eg);
+					if (cancelResult != null) {
+						LOG.error(cancelResult.getDescription());
+					}
+				} catch (InterruptedException ie) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(StringUtils.stringifyException(ie));
+					}
 				}
 			}
 		};
@@ -725,8 +731,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 *        the execution graph representing the job to cancel.
 	 * @return <code>null</code> if no error occurred during the cancel attempt,
 	 *         otherwise the returned object will describe the error
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of a remote procedure call
 	 */
-	private TaskCancelResult cancelJob(final ExecutionGraph eg) {
+	private TaskCancelResult cancelJob(final ExecutionGraph eg) throws InterruptedException {
 
 		TaskCancelResult errorResult = null;
 
@@ -735,6 +743,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		 */
 		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
 			false, true);
+
 		while (it.hasNext()) {
 
 			final ExecutionVertex vertex = it.next();
@@ -983,7 +992,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			@Override
 			public void run() {
 
-				final TaskKillResult result = vertex.killTask();
+				TaskKillResult result;
+				try {
+					result = vertex.killTask();
+				} catch (InterruptedException ie) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(StringUtils.stringifyException(ie));
+					}
+					return;
+				}
 				if (result.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
 					LOG.error(result.getDescription());
 				}
@@ -1015,6 +1032,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					instance.killTaskManager();
 				} catch (IOException ioe) {
 					LOG.error(StringUtils.stringifyException(ioe));
+				} catch (InterruptedException ie) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(StringUtils.stringifyException(ie));
+					}
 				}
 			}
 		};
@@ -1081,6 +1102,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 						abstractInstance.removeCheckpoints(entry.getValue());
 					} catch (IOException ioe) {
 						LOG.error(StringUtils.stringifyException(ioe));
+					} catch (InterruptedException ie) {
+						if (LOG.isDebugEnabled()) {
+							LOG.debug(StringUtils.stringifyException(ie));
+						}
 					}
 				}
 			};
@@ -1126,7 +1151,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		if (newJobStatus == InternalJobStatus.FAILING) {
 
 			// Cancel all remaining tasks
-			cancelJob(executionGraph);
+			try {
+				cancelJob(executionGraph);
+			} catch (InterruptedException ie) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(StringUtils.stringifyException(ie));
+				}
+			}
 		}
 
 		if (newJobStatus == InternalJobStatus.CANCELED || newJobStatus == InternalJobStatus.FAILED
@@ -1181,6 +1212,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					}
 				} catch (IOException ioe) {
 					LOG.error(StringUtils.stringifyException(ioe));
+				} catch (InterruptedException ie) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(StringUtils.stringifyException(ie));
+					}
 				}
 
 			}
@@ -1227,6 +1262,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					instance.checkLibraryAvailability(jobID);
 				} catch (IOException ioe) {
 					LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
+				} catch (InterruptedException ie) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(StringUtils.stringifyException(ie));
+					}
+					return;
 				}
 
 				final List<TaskDeploymentDescriptor> submissionList = new ArrayList<TaskDeploymentDescriptor>();
@@ -1243,11 +1283,16 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 				try {
 					submissionResultList = instance.submitTasks(submissionList);
-				} catch (final IOException ioe) {
+				} catch (IOException ioe) {
 					final String errorMsg = StringUtils.stringifyException(ioe);
 					for (final ExecutionVertex vertex : verticesToBeDeployed) {
 						vertex.updateExecutionStateAsynchronously(ExecutionState.FAILED, errorMsg);
 					}
+				} catch (InterruptedException ie) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(StringUtils.stringifyException(ie));
+					}
+					return;
 				}
 
 				if (verticesToBeDeployed.size() != submissionResultList.size()) {

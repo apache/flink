@@ -14,7 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.testing;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -92,9 +91,9 @@ public class MockDeployManager implements DeploymentManager {
 
 				try {
 					submissionResultList = instance.submitTasks(submissionList);
-				} catch (final IOException ioe) {
+				} catch (final Exception e) {
 					for (final ExecutionVertex vertex : verticesToBeDeployed)
-						Assert.fail(ioe.getMessage() + " @ " + vertex);
+						Assert.fail(e.getMessage() + " @ " + vertex);
 					return;
 				}
 

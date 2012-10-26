@@ -446,11 +446,15 @@ public final class ExecutionVertex {
 	private void checkCancelRequestedFlag() {
 
 		if (this.cancelRequested.compareAndSet(true, false)) {
-			final TaskCancelResult tsr = cancelTask();
-			if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS
-				&& tsr.getReturnCode() != AbstractTaskResult.ReturnCode.TASK_NOT_FOUND) {
-				LOG.error("Unable to cancel vertex " + this + ": " + tsr.getReturnCode().toString()
-					+ ((tsr.getDescription() != null) ? (" (" + tsr.getDescription() + ")") : ""));
+			try {
+				final TaskCancelResult tsr = cancelTask();
+				if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS
+					&& tsr.getReturnCode() != AbstractTaskResult.ReturnCode.TASK_NOT_FOUND) {
+					LOG.error("Unable to cancel vertex " + this + ": " + tsr.getReturnCode().toString()
+						+ ((tsr.getDescription() != null) ? (" (" + tsr.getDescription() + ")") : ""));
+				}
+			} catch (InterruptedException ie) {
+				LOG.debug(StringUtils.stringifyException(ie));
 			}
 		}
 	}
@@ -724,12 +728,13 @@ public final class ExecutionVertex {
 	}
 
 	/**
-	 * Deploys and starts the task represented by this vertex
-	 * on the assigned instance.
+	 * Deploys and starts the task represented by this vertex on the assigned instance.
 	 * 
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the task submission attempt
 	 */
-	public TaskSubmissionResult startTask() {
+	public TaskSubmissionResult startTask() throws InterruptedException {
 
 		final AllocatedResource ar = this.allocatedResource.get();
 
@@ -759,12 +764,13 @@ public final class ExecutionVertex {
 	/**
 	 * Kills and removes the task represented by this vertex from the instance it is currently running on. If the
 	 * corresponding task is not in the state <code>RUNNING</code>, this call will be ignored. If the call has been
-	 * executed
-	 * successfully, the task will change the state <code>FAILED</code>.
+	 * executed successfully, the task will change the state <code>FAILED</code>.
 	 * 
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the task kill attempt
 	 */
-	public TaskKillResult killTask() {
+	public TaskKillResult killTask() throws InterruptedException {
 
 		final ExecutionState state = this.executionState.get();
 
@@ -791,7 +797,7 @@ public final class ExecutionVertex {
 		}
 	}
 
-	public TaskCheckpointResult requestCheckpointDecision() {
+	public TaskCheckpointResult requestCheckpointDecision() throws InterruptedException {
 
 		final AllocatedResource ar = this.allocatedResource.get();
 
@@ -814,14 +820,14 @@ public final class ExecutionVertex {
 	}
 
 	/**
-	 * Cancels and removes the task represented by this vertex
-	 * from the instance it is currently running on. If the task
-	 * is not currently running, its execution state is simply
-	 * updated to <code>CANCELLED</code>.
+	 * Cancels and removes the task represented by this vertex from the instance it is currently running on. If the task
+	 * is not currently running, its execution state is simply updated to <code>CANCELLED</code>.
 	 * 
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the task cancel attempt
 	 */
-	public TaskCancelResult cancelTask() {
+	public TaskCancelResult cancelTask() throws InterruptedException {
 
 		while (true) {
 

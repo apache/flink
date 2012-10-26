@@ -141,16 +141,17 @@ public abstract class AbstractInstance extends NetworkNode {
 	}
 
 	/**
-	 * Checks if all the libraries required to run the job with the given
-	 * job ID are available on this instance. Any libary that is missing
-	 * is transferred to the instance as a result of this call.
+	 * Checks if all the libraries required to run the job with the given job ID are available on this instance. Any
+	 * libary that is missing is transferred to the instance as a result of this call.
 	 * 
 	 * @param jobID
 	 *        the ID of the job whose libraries are to be checked for
 	 * @throws IOException
 	 *         thrown if an error occurs while checking for the libraries
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void checkLibraryAvailability(final JobID jobID) throws IOException {
+	public synchronized void checkLibraryAvailability(final JobID jobID) throws IOException, InterruptedException {
 
 		// Now distribute the required libraries for the job
 		String[] requiredLibraries = LibraryCacheManager.getRequiredJarFiles(jobID);
@@ -181,9 +182,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @return the result of the submission attempt
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the task
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
 	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskDeploymentDescriptor> tasks)
-			throws IOException {
+			throws IOException, InterruptedException {
 
 		return getTaskManagerProxy().submitTasks(tasks);
 	}
@@ -196,14 +199,18 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the ID identifying the task to be canceled
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request or receiving the response
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the cancel attempt
 	 */
-	public synchronized TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
+	public synchronized TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException,
+			InterruptedException {
 
 		return getTaskManagerProxy().cancelTask(id);
 	}
 
-	public synchronized TaskCheckpointResult requestCheckpointDecision(final ExecutionVertexID id) throws IOException {
+	public synchronized TaskCheckpointResult requestCheckpointDecision(final ExecutionVertexID id) throws IOException,
+			InterruptedException {
 
 		return getTaskManagerProxy().requestCheckpointDecision(id);
 	}
@@ -216,9 +223,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the ID identifying the task to be killed
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request or receiving the response
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the kill attempt
 	 */
-	public synchronized TaskKillResult killTask(final ExecutionVertexID id) throws IOException {
+	public synchronized TaskKillResult killTask(final ExecutionVertexID id) throws IOException, InterruptedException {
 
 		return getTaskManagerProxy().killTask(id);
 	}
@@ -231,8 +240,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the list of vertex IDs which identify the checkpoints to be removed
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException {
+	public synchronized void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException,
+			InterruptedException {
 
 		getTaskManagerProxy().removeCheckpoints(listOfVertexIDs);
 	}
@@ -276,8 +288,10 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * 
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void logBufferUtilization() throws IOException {
+	public synchronized void logBufferUtilization() throws IOException, InterruptedException {
 
 		getTaskManagerProxy().logBufferUtilization();
 	}
@@ -288,8 +302,10 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * 
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void killTaskManager() throws IOException {
+	public synchronized void killTaskManager() throws IOException, InterruptedException {
 
 		getTaskManagerProxy().killTaskManager();
 	}
@@ -301,8 +317,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the channel IDs identifying the cache entries to invalidate
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
+	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException,
+			InterruptedException {
 
 		getTaskManagerProxy().invalidateLookupCacheEntries(channelIDs);
 	}

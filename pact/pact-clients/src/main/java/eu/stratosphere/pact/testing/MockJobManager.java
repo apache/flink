@@ -33,11 +33,16 @@ public class MockJobManager implements JobStatusListener {
 	@Override
 	public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus,
 			String optionalMessage) {
-//		System.out.println("job graph " + executionGraph.getJobID() + " -> " + newJobStatus  + "; " + StringUtils.stringifyException(new Throwable()));
+		// System.out.println("job graph " + executionGraph.getJobID() + " -> " + newJobStatus + "; " +
+		// StringUtils.stringifyException(new Throwable()));
 
 		if (newJobStatus == InternalJobStatus.CANCELING || newJobStatus == InternalJobStatus.FAILING)
 			// Cancel all remaining tasks
-			this.cancelJob(executionGraph);
+			try {
+				this.cancelJob(executionGraph);
+			} catch (InterruptedException ie) {
+				return;
+			}
 
 		if (newJobStatus == InternalJobStatus.FINISHED || newJobStatus == InternalJobStatus.CANCELED
 			|| newJobStatus == InternalJobStatus.FAILED)
@@ -52,8 +57,10 @@ public class MockJobManager implements JobStatusListener {
 	 *        the execution graph representing the job to cancel.
 	 * @return <code>null</code> no error occurred during the cancel attempt,
 	 *         otherwise the returned object will describe the error
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	private TaskCancelResult cancelJob(final ExecutionGraph eg) {
+	private TaskCancelResult cancelJob(final ExecutionGraph eg) throws InterruptedException {
 
 		TaskCancelResult errorResult = null;
 
