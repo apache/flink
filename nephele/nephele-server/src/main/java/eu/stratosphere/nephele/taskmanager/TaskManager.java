@@ -366,16 +366,19 @@ public class TaskManager implements TaskOperationProtocol {
 			// Sleep
 			try {
 				Thread.sleep(interval);
-			} catch (InterruptedException e1) {
-				LOG.debug("Heartbeat thread was interrupted");
-				break;
-			}
 
-			// Send heartbeat
-			try {
-				this.jobManager.sendHeartbeat(this.localInstanceConnectionInfo, this.hardwareDescription);
-			} catch (IOException e) {
-				LOG.debug("sending the heart beat caused on IO Exception");
+				// Send heartbeat
+				try {
+					this.jobManager.sendHeartbeat(this.localInstanceConnectionInfo, this.hardwareDescription);
+				} catch (IOException ioe) {
+					LOG.error(StringUtils.stringifyException(ioe));
+				}
+
+			} catch (InterruptedException ie) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(StringUtils.stringifyException(ie));
+				}
+				break;
 			}
 
 			// Check the status of the task threads to detect unexpected thread terminations
@@ -739,23 +742,21 @@ public class TaskManager implements TaskOperationProtocol {
 			// Unregister the task (free all buffers, remove all channels, task-specific class loaders, etc...)
 			unregisterTask(id);
 		}
-		// Get lock on the jobManager object and propagate the state change
+
 		try {
 			this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
 				optionalDescription));
-		} catch (IOException e) {
+		} catch (Exception e) {
+			// TODO: Improve error handling here
 			LOG.error(StringUtils.stringifyException(e));
 		}
+
 	}
 
 	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id,
-			final CheckpointState newCheckpointState) {
+			final CheckpointState newCheckpointState) throws IOException, InterruptedException {
 
-		try {
-			this.jobManager.updateCheckpointState(new TaskCheckpointState(jobID, id, newCheckpointState));
-		} catch (IOException e) {
-			LOG.error(StringUtils.stringifyException(e));
-		}
+		this.jobManager.updateCheckpointState(new TaskCheckpointState(jobID, id, newCheckpointState));
 	}
 
 	/**

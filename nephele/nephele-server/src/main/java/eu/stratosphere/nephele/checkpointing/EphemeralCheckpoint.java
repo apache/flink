@@ -24,6 +24,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
+import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.io.channels.Buffer;
@@ -117,7 +118,11 @@ public class EphemeralCheckpoint implements CheckpointDecisionRequester {
 		}
 
 		if (this.checkpointingDecision == CheckpointingDecisionState.CHECKPOINTING) {
-			this.task.checkpointStateChanged(CheckpointState.PARTIAL);
+			try {
+				this.task.checkpointStateChanged(CheckpointState.PARTIAL);
+			} catch (Exception e) {
+				LOG.error(StringUtils.stringifyException(e));
+			}
 			this.writeThread = new WriteThread(FileBufferManager.getInstance(), this.task.getVertexID(),
 				this.totalNumberOfOutputChannels);
 			this.writeThread.start();

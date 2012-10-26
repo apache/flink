@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.taskmanager.runtime;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -254,8 +255,10 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 			try {
 				executingThread.join(1000);
-			} catch (InterruptedException e) {}
-			
+			} catch (InterruptedException e) {
+				break;
+			}
+
 			if (!executingThread.isAlive()) {
 				break;
 			}
@@ -285,7 +288,8 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		return this.isCanceled;
 	}
 
-	public void checkpointStateChanged(final CheckpointState newCheckpointState) {
+	public void checkpointStateChanged(final CheckpointState newCheckpointState) throws IOException,
+			InterruptedException {
 
 		// Propagate event to the job manager
 		this.taskManager.checkpointStateChanged(this.environment.getJobID(), this.vertexID, newCheckpointState);

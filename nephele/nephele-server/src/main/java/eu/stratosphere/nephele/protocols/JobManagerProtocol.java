@@ -41,9 +41,11 @@ public interface JobManagerProtocol extends RPCProtocol {
 	 *        a hardware description with details on the instance's compute resources.
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
 	void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription)
-			throws IOException;
+			throws IOException, InterruptedException;
 
 	/**
 	 * Reports an update of a task's execution state to the job manager.
@@ -52,8 +54,10 @@ public interface JobManagerProtocol extends RPCProtocol {
 	 *        the new task execution state
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void updateTaskExecutionState(TaskExecutionState taskExecutionState) throws IOException;
+	void updateTaskExecutionState(TaskExecutionState taskExecutionState) throws IOException, InterruptedException;
 
 	/**
 	 * Reports an update of a task's checkpoint state to the job manager.
@@ -62,6 +66,8 @@ public interface JobManagerProtocol extends RPCProtocol {
 	 *        the new checkpoint state of the task
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void updateCheckpointState(TaskCheckpointState taskCheckpointState) throws IOException;
+	void updateCheckpointState(TaskCheckpointState taskCheckpointState) throws IOException, InterruptedException;
 }
