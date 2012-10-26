@@ -23,5 +23,5 @@ import eu.stratosphere.nephele.rpc.RPCProtocol;
 
 public interface ProfilerImplProtocol extends RPCProtocol {
 
-	void reportProfilingData(List<InternalProfilingData> profilingData) throws IOException;
+	void reportProfilingData(List<InternalProfilingData> profilingData) throws IOException, InterruptedException;
 }
