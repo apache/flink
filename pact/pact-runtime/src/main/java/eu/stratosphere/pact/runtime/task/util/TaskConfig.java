@@ -87,11 +87,12 @@ public class TaskConfig
 	
 	private static final String INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX = "pact.in.comparator.param.";
 	
-	private static final String INPUT_TEMP_PREFIX = "pact.in.temp.";
+	private static final String INPUT_DAM_PREFIX = "pact.in.dam.";
 	
-	private static final String INPUT_TEMP_MEMORY_PREFIX = "pact.in.temp.mem.";
+	private static final String INPUT_REPLAYABLE_PREFIX = "pact.in.replay.";
 	
-	private static final String INPUT_TEMP_PERSISTENT_PREFIX = "pact.in.temp.persistent.";
+	private static final String INPUT_DAM_REPLAY_MEMORY_PREFIX = "pact.in.temp.mem.";
+	
 	
 	// -------------------------------------- Outputs ---------------------------------------------
 	
@@ -328,28 +329,28 @@ public class TaskConfig
 		this.config.setInteger(NUM_INPUTS, this.config.getInteger(NUM_INPUTS, 0) + 1);
 	}
 	
-	public void setInputTemped(int inputNum, boolean temp) {
-		this.config.setBoolean(INPUT_TEMP_PREFIX + inputNum, temp);
+	public void setInputDammed(int inputNum, boolean temp) {
+		this.config.setBoolean(INPUT_DAM_PREFIX + inputNum, temp);
 	}
 	
-	public boolean isInputTemped(int inputNum) {
-		return this.config.getBoolean(INPUT_TEMP_PREFIX + inputNum, false);
+	public boolean isInputDammed(int inputNum) {
+		return this.config.getBoolean(INPUT_DAM_PREFIX + inputNum, false);
 	}
 	
-	public void setInputTempPersistent(int inputNum, boolean persistent) {
-		this.config.setBoolean(INPUT_TEMP_PERSISTENT_PREFIX + inputNum, persistent);
+	public void setInputReplayable(int inputNum, boolean persistent) {
+		this.config.setBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, persistent);
 	}
 	
-	public boolean isInputTempPersistent(int inputNum) {
-		return this.config.getBoolean(INPUT_TEMP_PERSISTENT_PREFIX + inputNum, false);
+	public boolean isInputReplayable(int inputNum) {
+		return this.config.getBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, false);
 	}
 	
-	public void setInputTempMemory(int inputNum, long memory) {
-		this.config.setLong(INPUT_TEMP_MEMORY_PREFIX + inputNum, memory);
+	public void setInputDamReplayableMemory(int inputNum, long memory) {
+		this.config.setLong(INPUT_DAM_REPLAY_MEMORY_PREFIX + inputNum, memory);
 	}
 	
-	public long getInputTempMemory(int inputNum) {
-		return this.config.getLong(INPUT_TEMP_MEMORY_PREFIX + inputNum, -1);
+	public long getInputDamReplayableMemory(int inputNum) {
+		return this.config.getLong(INPUT_DAM_REPLAY_MEMORY_PREFIX + inputNum, -1);
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -15,6 +15,8 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import java.io.IOException;
+
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -47,6 +49,8 @@ public interface PactTaskContext<S extends Stub, OT>
 	IOManager getIOManager();
 	
 	<X> MutableObjectIterator<X> getInput(int index);
+	
+	void resetInput(int index) throws IOException, UnsupportedOperationException;
 	
 	<X> TypeSerializer<X> getInputSerializer(int index);
 	

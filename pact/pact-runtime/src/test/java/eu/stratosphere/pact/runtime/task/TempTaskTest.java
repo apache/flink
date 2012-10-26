@@ -54,7 +54,7 @@ public class TempTaskTest extends DriverTestBase<Stub>
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
 		super.addOutput(this.outList);
 		
-		TempDriver<PactRecord> testTask = new TempDriver<PactRecord>();
+		TempBarrier<PactRecord> testTask = new TempBarrier<PactRecord>();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		try {
@@ -74,7 +74,7 @@ public class TempTaskTest extends DriverTestBase<Stub>
 		super.addInput(new DelayingInfinitiveInputIterator(100));
 		super.addOutput(new NirvanaOutputList());
 		
-		final TempDriver<PactRecord> testTask = new TempDriver<PactRecord>();
+		final TempBarrier<PactRecord> testTask = new TempBarrier<PactRecord>();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		Thread taskRunner = new Thread() {

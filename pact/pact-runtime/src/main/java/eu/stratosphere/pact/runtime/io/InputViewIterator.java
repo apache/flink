@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,25 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.task.util;
+package eu.stratosphere.pact.runtime.io;
 
-import java.io.Closeable;
-import java.io.IOException;
-
+import eu.stratosphere.nephele.services.memorymanager.DataInputView;
+import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 
-/**
- * Utility interface for a provider of an input that can be closed.
- *
- * @author Stephan Ewen
- */
-public interface CloseableInputProvider<E> extends Closeable
+import java.io.EOFException;
+import java.io.IOException;
+
+public class InputViewIterator<E> implements MutableObjectIterator<E>
 {
-	/**
-	 * Gets the iterator over this input.
-	 * 
-	 * @return The iterator provided by this iterator provider.
-	 * @throws InterruptedException 
-	 */
-	public MutableObjectIterator<E> getIterator() throws InterruptedException, IOException;
+	private final DataInputView inputView;
+
+	private final TypeSerializer<E> serializer;
+
+	public InputViewIterator(DataInputView inputView, TypeSerializer<E> serializer) {
+		this.inputView = inputView;
+		this.serializer = serializer;
+	}
+
+	@Override
+	public boolean next(E target) throws IOException {
+		try {
+			this.serializer.deserialize(target, this.inputView);
+			return true;
+		} catch (EOFException e) {
+			return false;
+		}
+	}
 }

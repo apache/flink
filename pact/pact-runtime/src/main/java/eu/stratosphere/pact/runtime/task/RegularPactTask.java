@@ -52,6 +52,7 @@ import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
@@ -113,6 +114,17 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 	 * The local strategies that are applied on the inputs.
 	 */
 	protected volatile CloseableInputProvider<?>[] localStrategies;
+	
+	/**
+	 * The optional temp barriers on the inputs for dead-lock breaking. Are
+	 * optionally resettable.
+	 */
+	protected volatile TempBarrier<?>[] tempBarriers;
+	
+	/**
+	 * The resettable inputs in the case where no temp barrier is needed.
+	 */
+	protected volatile SpillingResettableMutableObjectIterator<?>[] resettableInputs;
 	
 	/**
 	 * The inputs to the driver. Return the readers' data after the application of the local strategy
@@ -441,6 +453,9 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		final MutableObjectIterator<?>[] inputs = new MutableObjectIterator[numInputs];
 		final TypeComparator<?>[] driverComparators = this.driver.requiresComparatorOnInput() ?
 			new TypeComparator[numInputs] : null;
+			
+		final MemoryManager memMan = getMemoryManager();
+		final IOManager ioMan = getIOManager();
 
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the serializer first ---------------------
@@ -475,7 +490,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					break;
 				case SORT:
 					@SuppressWarnings({ "rawtypes", "unchecked" })
-					UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
+					UnilateralSortMerger<?> sorter = new UnilateralSortMerger(memMan, ioMan,
 						inputIter, this, inputSerializers[i], getLocalStrategyComparator(i),
 						this.config.getMemoryInput(i), this.config.getFilehandlesInput(i),
 						this.config.getSpillingThresholdInput(i));
@@ -483,12 +498,14 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 					break;
 				case COMBININGSORT:
 					// sanity check this special case!
+					// this still breaks a bit of the abstraction!
+					// we should have nested configurations for the local strategies to solve that
 					if (i != 0 || !(this.stub instanceof GenericReducer)) {
 						throw new IllegalStateException("Performing combining sort outside a reduce task!");
 					}
 					@SuppressWarnings({ "rawtypes", "unchecked" })
 					CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-						(GenericReducer) this.stub, getMemoryManager(), getIOManager(), inputIter, this,
+						(GenericReducer) this.stub, memMan, ioMan, inputIter, this,
 						inputSerializers[i], getLocalStrategyComparator(i),
 						this.config.getMemoryInput(i), this.config.getFilehandlesInput(i),
 						this.config.getSpillingThresholdInput(i), false);
@@ -505,11 +522,36 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				driverComparators[i] = comparatorFactory.createComparator();
 			}
 		}
-
+		
 		this.inputSerializers = inputSerializers;
 		this.localStrategies = inputProviders;
 		this.inputs = inputs;
 		this.inputComparators = driverComparators;
+		
+		// we do another loop over the inputs, because we want to instantiate all
+		// sorters, etc before requesting the first input (as this call may block)
+		this.resettableInputs = new SpillingResettableMutableObjectIterator[numInputs];
+		this.tempBarriers = new TempBarrier[numInputs];
+		
+		for (int i = 0; i < numInputs; i++) {
+			if (this.config.isInputDammed(i)) {
+				final long memory = this.config.getInputDamReplayableMemory(i);
+				final int pages = memMan.computeNumberOfPages(memory);
+				
+				@SuppressWarnings({ "unchecked", "rawtypes" })
+				TempBarrier<?> barrier = new TempBarrier(this, getInput(i), inputSerializers[i], memMan, ioMan, pages);
+				barrier.startReading();
+				this.tempBarriers[i] = barrier;
+				this.inputs[i] = null;
+			} else if (this.config.isInputReplayable(i)) {
+				final long memory = this.config.getInputDamReplayableMemory(i);
+				@SuppressWarnings({ "unchecked", "rawtypes" })
+				SpillingResettableMutableObjectIterator<?> iter = new SpillingResettableMutableObjectIterator(
+					getInput(i), inputSerializers[i], getMemoryManager(), getIOManager(), memory, this);
+				this.resettableInputs[i] = iter;
+				this.inputs[i] = iter;
+			}
+		}
 	}
 	
 	private <T> TypeComparator<T> getLocalStrategyComparator(int inputNum) throws Exception {
@@ -622,18 +664,44 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 			MutableObjectIterator<X> in = (MutableObjectIterator<X>) this.inputs[index];
 			return in;
 		} else {
-			if (this.localStrategies[index] != null) {
-				try {
+			final MutableObjectIterator<X> in;
+			try {
+				if (this.tempBarriers[index] != null) {
 					@SuppressWarnings("unchecked")
-					MutableObjectIterator<X> in = (MutableObjectIterator<X>) this.localStrategies[index].getIterator();
-					this.inputs[index] = in;
-					return in;
-				} catch (InterruptedException iex) {
-					throw new RuntimeException("Interrupted while waiting for input to become available.");
+					MutableObjectIterator<X> iter = (MutableObjectIterator<X>) tempBarriers[index].getIterator();
+					in = iter;
+				} else if (this.localStrategies[index] != null) {
+					@SuppressWarnings("unchecked")
+					MutableObjectIterator<X> iter = (MutableObjectIterator<X>) this.localStrategies[index].getIterator();
+					in = iter;
+				} else {
+					throw new RuntimeException("Bug: null input iterator, null temp barrier, and null local strategy.");
 				}
-			} else {
-				throw new RuntimeException("Bug: null input iterator and null local strategy.");
+				this.inputs[index] = in;
+				return in;
+			} catch (InterruptedException iex) {
+				throw new RuntimeException("Interrupted while waiting for input " + index + " to become available.");
+			} catch (IOException ioex) {
+				throw new RuntimeException("An I/O Exception occurred whily obaining input " + index + ".");
 			}
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#resetInput(int)
+	 */
+	@Override
+	public void resetInput(int index) throws IOException, UnsupportedOperationException {
+		if (this.tempBarriers[index] != null) {
+			try {
+				this.inputs[index] = this.tempBarriers[index].getIterator();
+			} catch (InterruptedException iex) {
+				throw new RuntimeException(iex);
+			}
+		} else if (this.resettableInputs != null) {
+			this.resettableInputs[index].reset();
+		} else {
+			throw new UnsupportedOperationException("Input " + index + " was not configured to be resettable.");
 		}
 	}
 	

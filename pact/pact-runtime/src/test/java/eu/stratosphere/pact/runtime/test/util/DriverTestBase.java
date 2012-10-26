@@ -15,6 +15,7 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -208,6 +209,14 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 	}
 
 	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#resetInput(int)
+	 */
+	@Override
+	public void resetInput(int index) throws IOException, UnsupportedOperationException {
+		throw new UnsupportedOperationException();
+	}
+
+	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getInputSerializer(int)
 	 */
 	@Override
@@ -226,15 +235,6 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 		TypeComparator<X> comparator = (TypeComparator<X>) this.comparators.get(index);
 		return comparator;
 	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getSecondarySortComparator(int)
-	 */
-	@Override
-	public <X> TypeComparator<X> getSecondarySortComparator(int index) {
-		return null;
-	}
-
 
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.pact.runtime.task.PactTaskContext#getStub()

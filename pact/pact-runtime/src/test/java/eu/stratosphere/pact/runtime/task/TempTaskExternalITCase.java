@@ -51,7 +51,7 @@ public class TempTaskExternalITCase extends DriverTestBase<Stub>
 		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
 		super.addOutput(this.outList);
 		
-		TempDriver<PactRecord> testTask = new TempDriver<PactRecord>();
+		TempBarrier<PactRecord> testTask = new TempBarrier<PactRecord>();
 		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
 		
 		try {

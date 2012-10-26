@@ -76,7 +76,7 @@ import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.MatchDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.TempDriver;
+import eu.stratosphere.pact.runtime.task.TempBarrier;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
@@ -857,7 +857,7 @@ public class JobGraphGenerator implements Visitor<OptimizerNode> {
 		
 		// set task class
 		tempVertex.setTaskClass(RegularPactTask.class);
-		tempConfig.setDriver(TempDriver.class);
+		tempConfig.setDriver(TempBarrier.class);
 		
 		// set key and value classes
 		tempConfig.setStubClass(stubClass);
