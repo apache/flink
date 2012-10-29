@@ -1,5 +1,3 @@
-package eu.stratosphere.pact.runtime.iterative.driver;
-
 /***********************************************************************************************************************
  *
  * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
@@ -14,6 +12,8 @@ package eu.stratosphere.pact.runtime.iterative.driver;
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+
+package eu.stratosphere.pact.runtime.iterative.driver;
 
 import eu.stratosphere.pact.runtime.sort.Sorter;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
@@ -32,7 +32,7 @@ public class SortingTempDriver<T> implements PactDriver<Stub, T>
 {
   private static final Log LOG = LogFactory.getLog(SortingTempDriver.class);
 
-  private static final long MIN_REQUIRED_MEMORY = 512 * 1024;		// minimal memory for the task to operate
+  private static final long MIN_REQUIRED_MEMORY = 512 * 1024; // minimal memory for the task to operate
 
   private PactTaskContext<Stub, T> taskContext;
 
@@ -40,49 +40,31 @@ public class SortingTempDriver<T> implements PactDriver<Stub, T>
 
   private volatile boolean running;
 
-  // ------------------------------------------------------------------------
-
-
-  /* (non-Javadoc)
-    * @see eu.stratosphere.pact.runtime.task.PactDriver#setup(eu.stratosphere.pact.runtime.task.PactTaskContext)
-    */
   @Override
   public void setup(PactTaskContext<Stub, T> context) {
     this.taskContext = context;
     this.running = true;
   }
 
-  /* (non-Javadoc)
-    * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
-    */
   @Override
   public int getNumberOfInputs() {
     return 1;
   }
 
-  /* (non-Javadoc)
-    * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
-    */
   @Override
   public Class<Stub> getStubType() {
     return Stub.class;
   }
 
-  /* (non-Javadoc)
-    * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
-    */
   @Override
   public boolean requiresComparatorOnInput() {
     return true;
   }
 
-  /* (non-Javadoc)
-    * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
-    */
   @Override
-  public void prepare() throws Exception
-  {
-    final TaskConfig config = this.taskContext.getTaskConfig();
+  public void prepare() throws Exception {
+
+    final TaskConfig config = taskContext.getTaskConfig();
 
     // set up memory and I/O parameters
     final long availableMemory = config.getMemorySize();
@@ -98,43 +80,30 @@ public class SortingTempDriver<T> implements PactDriver<Stub, T>
         config.getSortSpillingTreshold());
   }
 
-
-  /* (non-Javadoc)
-    * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
-    */
   @Override
-  public void run() throws Exception
-  {
+  public void run() throws Exception {
     if (LOG.isDebugEnabled()) {
       LOG.debug(this.taskContext.formatLogString("Preprocessing done, iterator obtained."));
     }
 
     // cache references on the stack
-    final TypeSerializer<T> serializer = this.taskContext.getInputSerializer(0);
-    final Collector<T> output = this.taskContext.getOutputCollector();
+    final TypeSerializer<T> serializer = taskContext.getInputSerializer(0);
+    final Collector<T> output = taskContext.getOutputCollector();
 
     final T record = serializer.createInstance();
-    MutableObjectIterator<T> sorted = sorter.getIterator();
+    final MutableObjectIterator<T> sorted = sorter.getIterator();
 
-    while (this.running && sorted.next(record)) {
+    while (running && sorted.next(record)) {
       output.collect(record);
     }
-
   }
 
-  /* (non-Javadoc)
-    * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
-    */
   @Override
-  public void cleanup() throws Exception {
-  }
+  public void cleanup() throws Exception {}
 
-  /* (non-Javadoc)
-    * @see eu.stratosphere.pact.runtime.task.PactDriver#cancel()
-    */
   @Override
   public void cancel() {
-    this.running = false;
+    running = false;
   }
 }
 
