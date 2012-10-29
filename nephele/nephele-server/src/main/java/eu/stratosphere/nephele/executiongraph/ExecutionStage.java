@@ -272,10 +272,8 @@ public final class ExecutionStage {
 				if (vertex.getExecutionState() == executionState) {
 					final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
 
-					if (collectedInstances.contains(instance)) {
+					if (!collectedInstances.add(instance)) {
 						continue;
-					} else {
-						collectedInstances.add(instance);
 					}
 
 					if (instance instanceof DummyInstance) {
