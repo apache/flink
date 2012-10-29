@@ -15,43 +15,33 @@
 
 package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
 
-import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
+import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
+import eu.stratosphere.pact.runtime.iterative.aggregate.SumAggregator;
 import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-public class L1NormConvergenceCriterion implements ConvergenceCriterion<PactRecord> {
+public class L1NormConvergenceCriterion implements ConvergenceCriterion<PactDouble> {
 
-  private double sum;
-  private double numRecordsSeen;
-
-  private static final double EPSILON = 0.0001;
+  private static final double EPSILON = 0.01;
 
   private static final Log log = LogFactory.getLog(L1NormConvergenceCriterion.class);
 
   @Override
-  public void prepareForNextIteration() {
-    sum = 0;
-    numRecordsSeen = 0;
+  public Aggregator<PactDouble> createAggregator() {
+    return new SumAggregator();
   }
 
   @Override
-  public void analyze(int workerIndex, PactRecord record) {
-    double diff = record.getField(1, PactDouble.class).getValue();
+  public boolean isConverged(int iteration, PactDouble value) {
 
-    sum += diff;
-    numRecordsSeen++;
-  }
-
-  @Override
-  public boolean isConverged() {
-    double error = sum / numRecordsSeen;
+    double diff = value.getValue();
 
     if (log.isInfoEnabled()) {
-      log.info("L1 norm of the current vector difference: " + error);
+      log.info("L1 norm of the vector difference is [" + diff + "] in iteration [" + iteration + "]");
     }
 
-    return error < EPSILON;
+    return diff < EPSILON;
   }
 }

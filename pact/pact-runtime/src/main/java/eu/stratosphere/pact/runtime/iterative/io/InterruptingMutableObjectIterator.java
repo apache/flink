@@ -18,7 +18,9 @@ package eu.stratosphere.pact.runtime.iterative.io;
 import com.google.common.base.Preconditions;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
 import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
@@ -46,8 +48,8 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
   private final int gateIndex;
 
   private final AtomicInteger workerDoneEventCounter;
-  //TODO factor this out!
-  private final ConvergenceCriterion<Long> aggregator;
+  // TODO factor out!
+  private Aggregator aggregator;
 
   private static final Log log = LogFactory.getLog(InterruptingMutableObjectIterator.class);
 
@@ -56,7 +58,7 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
     this(delegate, numberOfEventsUntilInterrupt, name, owningIterativeTask, gateIndex, null);
   }
   public InterruptingMutableObjectIterator(MutableObjectIterator<E> delegate, int numberOfEventsUntilInterrupt,
-      String name, Terminable owningIterativeTask, int gateIndex, ConvergenceCriterion<Long> aggregator) {
+      String name, Terminable owningIterativeTask, int gateIndex, Aggregator aggregator) {
     Preconditions.checkArgument(numberOfEventsUntilInterrupt > 0);
     this.delegate = delegate;
     this.numberOfEventsUntilInterrupt = numberOfEventsUntilInterrupt;
@@ -125,9 +127,11 @@ public class InterruptingMutableObjectIterator<E> implements MutableObjectIterat
     }
 
     if (aggregator != null) {
-      int workerIndex = workerDoneEvent.workerIndex();
-      long aggregate = workerDoneEvent.aggregate();
-      aggregator.analyze(workerIndex, aggregate);
+      //int workerIndex = workerDoneEvent.workerIndex();
+      //long aggregate = workerDoneEvent.aggregate();
+      Value aggregate = workerDoneEvent.aggregate();
+      aggregator.aggregate(aggregate);
+      //analyze(workerIndex, aggregate);
     }
 
     if (numberOfEventsSeen % numberOfEventsUntilInterrupt == 0) {

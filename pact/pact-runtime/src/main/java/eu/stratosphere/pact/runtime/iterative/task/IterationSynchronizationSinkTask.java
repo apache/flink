@@ -20,7 +20,9 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
+import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
 import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
@@ -52,6 +54,7 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 
   //TODO typesafety
   private ConvergenceCriterion convergenceCriterion;
+  private Aggregator aggregator;
 
   private int currentIteration = 1;
 
@@ -80,18 +83,15 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
     if (taskConfig.usesConvergenceCriterion()) {
       convergenceCriterion = InstantiationUtil.instantiate(taskConfig.getConvergenceCriterion(),
           ConvergenceCriterion.class);
+      aggregator = convergenceCriterion.createAggregator();
     }
 
     headEventReader = new MutableRecordReader<PactRecord>(this, 0);
     headEventRecordIterator = new InterruptingMutableObjectIterator<PactRecord>(
         new PactRecordNepheleReaderIterator(headEventReader, ReaderInterruptionBehaviors.RELEASE_ON_INTERRUPT),
-        numberOfEventsUntilInterrupt, name, this, 0, convergenceCriterion);
+        numberOfEventsUntilInterrupt, name, this, 0, aggregator);
 
     headEventReader.subscribeToEvent(headEventRecordIterator, WorkerDoneEvent.class);
-    //TODO necessary???
-    headEventReader.subscribeToEvent(headEventRecordIterator, EndOfSuperstepEvent.class);
-    headEventReader.subscribeToEvent(headEventRecordIterator, TerminationEvent.class);
-
   }
 
   @Override
@@ -115,10 +115,6 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
       notifyMonitor(IterationMonitoring.Event.SYNC_STARTING, currentIteration);
       if (log.isInfoEnabled()) {
         log.info(formatLogString("starting iteration [" + currentIteration + "]"));
-      }
-
-      if (taskConfig.usesConvergenceCriterion()) {
-        convergenceCriterion.prepareForNextIteration();
       }
 
       readHeadEventChannel();
@@ -160,11 +156,17 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
   private boolean checkForConvergence() throws IOException, InterruptedException {
     Preconditions.checkState(taskConfig.getNumberOfIterations() > 0);
 
-    if (convergenceCriterion != null && convergenceCriterion.isConverged()) {
-      if (log.isInfoEnabled()) {
-        log.info(formatLogString("convergence reached after [" + currentIteration + "] iterations, terminating..."));
+    if (taskConfig.usesConvergenceCriterion()) {
+
+      Value aggregate = aggregator.getAggregate();
+      aggregator.reset();
+
+      if (convergenceCriterion.isConverged(currentIteration, aggregate)) {
+        if (log.isInfoEnabled()) {
+          log.info(formatLogString("convergence reached after [" + currentIteration + "] iterations, terminating..."));
+        }
+        return true;
       }
-      return true;
     }
 
     if (taskConfig.getNumberOfIterations() == currentIteration) {

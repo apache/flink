@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
+import eu.stratosphere.pact.runtime.iterative.convergence.SolutionsetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.IdentityMap;
@@ -147,7 +147,7 @@ public class ConnectedComponents {
     JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
     syncConfig.setNumberOfIterations(100);
-    syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.class);
+    syncConfig.setConvergenceCriterion(SolutionsetEmptyConvergenceCriterion.class);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism,
         numSubTasksPerInstance);

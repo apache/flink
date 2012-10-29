@@ -15,41 +15,32 @@
 
 package eu.stratosphere.pact.runtime.iterative.convergence;
 
+import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
+import eu.stratosphere.pact.runtime.iterative.aggregate.CountAggregator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-/** A workset iteration is by definition converged if no records have been inserted into the workset */
-public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<Long> {
+/** A workset iteration is by definition converged if no records have been updated in the solutionset */
+public class SolutionsetEmptyConvergenceCriterion implements ConvergenceCriterion<PactLong> {
 
-  private long updatesInSolutionset;
-  private int iteration = 0;
-
-  private static final Log log = LogFactory.getLog(WorksetEmptyConvergenceCriterion.class);
+  private static final Log log = LogFactory.getLog(SolutionsetEmptyConvergenceCriterion.class);
 
   @Override
-  public void prepareForNextIteration() {
-    updatesInSolutionset = 0;
-    iteration++;
+  public Aggregator<PactLong> createAggregator() {
+    return new CountAggregator();
   }
 
   @Override
-  public void analyze(int workerIndex, Long updates) {
+  public boolean isConverged(int iteration, PactLong value) {
+
+    long updatedElements = value.getValue();
 
     if (log.isInfoEnabled()) {
-      log.info("solutionset of worker [" + workerIndex + "] had [" + updates + "] updates in iteration " +
-          "[" + iteration + "]");
+      log.info("[" + updatedElements + "] elements updated in the solutionset in iteration [" + iteration + "]");
     }
 
-    this.updatesInSolutionset += updates.longValue();
+    return updatedElements == 0;
   }
 
-  @Override
-  public boolean isConverged() {
-
-    if (log.isInfoEnabled()) {
-      log.info("[" + updatesInSolutionset + "] solutionset updates in iteration [" + iteration + "]");
-    }
-
-    return updatesInSolutionset == 0;
-  }
 }

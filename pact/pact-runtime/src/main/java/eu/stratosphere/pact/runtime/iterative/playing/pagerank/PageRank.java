@@ -86,6 +86,9 @@ public class PageRank {
     headConfig.setStubClass(IdentityMap.class);
     headConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
+    headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(headConfig.getConfigForOutputParameters(0),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
 
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
@@ -128,11 +131,12 @@ public class PageRank {
     //TODO implicit order should be documented/configured somehow
     JobGraphUtils.connect(pageWithRankInput, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
         ShipStrategyType.PARTITION_HASH);
-    JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategyType.BROADCAST);
+    JobGraphUtils.connect(head, intermediate, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
+
     JobGraphUtils.connect(transitionMatrixInput, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
         ShipStrategyType.PARTITION_HASH);
-    intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+    intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
     JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE,
         ShipStrategyType.FORWARD);

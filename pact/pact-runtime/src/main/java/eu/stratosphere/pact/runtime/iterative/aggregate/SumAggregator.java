@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,16 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.convergence;
+package eu.stratosphere.pact.runtime.iterative.aggregate;
 
-import eu.stratosphere.pact.common.type.Value;
-import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
+import eu.stratosphere.pact.common.type.base.PactDouble;
 
-/** Used to check for convergence */
-public interface ConvergenceCriterion<T extends Value> {
+public class SumAggregator implements Aggregator<PactDouble> {
 
-  Aggregator<T> createAggregator();
+  private double sum = 0;
 
-  /** Decide whether the iterative algorithm has converged */
-  boolean isConverged(int iteration, T value);
+  @Override
+  public PactDouble getAggregate() {
+    return new PactDouble(sum);
+  }
+
+  @Override
+  public void aggregate(PactDouble element) {
+    sum += element.getValue();
+  }
+
+  @Override
+  public void reset() {
+    sum = 0;
+  }
 }

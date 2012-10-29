@@ -75,7 +75,6 @@ public class PageRank2 {
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
-    //intermediateConfig.setDriver(RepeatableHashJoinMatchDriver2.class);
     intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedAndSortedProbeside.class);
     intermediateConfig.setStubClass(DotProductMatch2.class);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),

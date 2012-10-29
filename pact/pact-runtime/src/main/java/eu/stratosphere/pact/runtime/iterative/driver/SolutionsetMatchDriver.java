@@ -17,9 +17,13 @@ package eu.stratosphere.pact.runtime.iterative.driver;
 
 import com.google.common.base.Preconditions;
 import eu.stratosphere.pact.common.generic.GenericMatcher;
+import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
+import eu.stratosphere.pact.runtime.iterative.aggregate.CountAggregator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
+import eu.stratosphere.pact.runtime.iterative.convergence.SolutionsetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.UpdateSolutionsetOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
@@ -39,6 +43,9 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
   private volatile MutableHashTable hashJoin;
 
   private volatile boolean running;
+
+  private static final int PROBESIDE_INDEX = 0;
+  private static final int BUILDSIDE_INDEX = 1;
 
   private static final Log log = LogFactory.getLog(SolutionsetMatchDriver.class);
 
@@ -86,8 +93,8 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
     final GenericMatcher<IT1, IT2, OT> matchStub = taskContext.getStub();
     //TODO type safety
     final UpdateSolutionsetOutputCollector<OT> collector = this.collector;
-    final MutableObjectIterator<IT1> probeSide = taskContext.getInput(0);
-    final MutableObjectIterator<IT2> buildSide = taskContext.getInput(1);
+    final MutableObjectIterator<IT1> probeSide = taskContext.getInput(PROBESIDE_INDEX);
+    final MutableObjectIterator<IT2> buildSide = taskContext.getInput(BUILDSIDE_INDEX);
 
     final MutableHashTable<IT2, IT1> hashJoin = Preconditions.checkNotNull(this.hashJoin);
 
@@ -95,8 +102,10 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
       hashJoin.open(buildSide, EmptyMutableObjectIterator.<IT1>get());
     }
 
-    final IT1 probeSideRecord = taskContext.<IT1>getInputSerializer(0).createInstance();
-    final IT2 buildSideRecord = taskContext.<IT2>getInputSerializer(1).createInstance();
+    final IT1 probeSideRecord = taskContext.<IT1>getInputSerializer(PROBESIDE_INDEX).createInstance();
+    final IT2 buildSideRecord = taskContext.<IT2>getInputSerializer(BUILDSIDE_INDEX).createInstance();
+
+    Aggregator<PactLong> updatedElements = new SolutionsetEmptyConvergenceCriterion().createAggregator();
 
     long possibleUpdates = 0;
     while (running && probeSide.next(probeSideRecord)) {
@@ -120,7 +129,12 @@ public class SolutionsetMatchDriver<IT1, IT2, OT> implements PactDriver<GenericM
           "[" + workerIndex + "], possible updates [" + possibleUpdates + "]");
     }
 
-    IterationContext.instance().setCount(workerIndex, numUpdatedElements);
+    //witzlos...
+    updatedElements.aggregate(new PactLong(numUpdatedElements));
+
+    IterationContext.instance().setAggregate(workerIndex, updatedElements.getAggregate());
+
+    updatedElements.reset();
   }
 
   @Override

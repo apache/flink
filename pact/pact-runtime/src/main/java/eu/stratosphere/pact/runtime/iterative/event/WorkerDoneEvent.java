@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.runtime.iterative.event;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.pact.common.type.Value;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -25,11 +26,12 @@ public class WorkerDoneEvent extends AbstractTaskEvent {
 
   private int workerIndex;
   //TODO generalize
-  private long aggregate;
+  //private long aggregate;
+  private Value aggregate;
 
   public WorkerDoneEvent() {}
 
-  public WorkerDoneEvent(int workerIndex, long aggregate) {
+  public WorkerDoneEvent(int workerIndex, Value aggregate) {
     this.workerIndex = workerIndex;
     this.aggregate = aggregate;
   }
@@ -38,19 +40,28 @@ public class WorkerDoneEvent extends AbstractTaskEvent {
     return workerIndex;
   }
 
-  public long aggregate() {
+  public Value aggregate() {
     return aggregate;
   }
 
   @Override
   public void write(DataOutput out) throws IOException {
     out.writeInt(workerIndex);
-    out.writeLong(aggregate);
+    out.writeUTF(aggregate.getClass().getName());
+    aggregate.write(out);
+    //out.writeLong(aggregate);
   }
 
   @Override
   public void read(DataInput in) throws IOException {
     workerIndex = in.readInt();
-    aggregate = in.readLong();
+    String classname = in.readUTF();
+    try {
+      aggregate = Class.forName(classname).asSubclass(Value.class).newInstance();
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
+    aggregate.read(in);
+    //aggregate = in.readLong();
   }
 }

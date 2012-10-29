@@ -28,6 +28,7 @@ import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.type.Value;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
@@ -166,7 +167,6 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
     int workerIndex = getEnvironment().getIndexInSubtaskGroup();
 
     IterationContext iterationContext = IterationContext.instance();
-    iterationContext.initCount(workerIndex);
 
     /** used for receiving the current iteration result from iteration tail */
     BlockingBackChannel backChannel = initBackChannel();
@@ -206,7 +206,8 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
         log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
       }
 
-      sendEventToSync(new WorkerDoneEvent(workerIndex, iterationContext.count(workerIndex)));
+      Value aggregate = iterationContext.getAggregateAndReset(workerIndex);
+      sendEventToSync(new WorkerDoneEvent(workerIndex, aggregate));
 
       notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
 
@@ -267,7 +268,9 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
       recordsPut++;
     }
 
-    System.out.println("Records to final out: " + recordsPut);
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("Sent [" + recordsPut +"] records to final output"));
+    }
   }
 
   private void streamOutFinalOutputWorkset(MutableHashTable hashJoin) throws IOException, InterruptedException {
@@ -286,7 +289,9 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
 
     hashJoin.close();
 
-    System.out.println("Records to final out (workset): " + recordsPut);
+    if (log.isInfoEnabled()) {
+      log.info(formatLogString("Sent [" + recordsPut +"] records to final output"));
+    }
   }
 
   private void feedBackSuperstepResult(DataInputView superstepResult, TypeSerializer serializer) {

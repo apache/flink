@@ -16,16 +16,12 @@
 package eu.stratosphere.pact.runtime.iterative.task;
 
 import eu.stratosphere.nephele.io.MutableReader;
-import eu.stratosphere.nephele.services.memorymanager.ListMemorySegmentSource;
-import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
-import eu.stratosphere.nephele.services.memorymanager.MemorySegment;
 import eu.stratosphere.nephele.types.Record;
 import eu.stratosphere.pact.common.generic.types.TypeSerializer;
 import eu.stratosphere.pact.common.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
-import eu.stratosphere.pact.runtime.io.SpillingBuffer;
 import eu.stratosphere.pact.runtime.iterative.driver.AbstractRepeatableMatchDriver;
 import eu.stratosphere.pact.runtime.iterative.event.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
@@ -39,7 +35,6 @@ import eu.stratosphere.pact.runtime.task.util.ReaderInterruptionBehaviors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** base class for all tasks able to participate in an iteration */
@@ -89,20 +84,6 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
   protected void reinstantiateDriver() {
     Class<? extends PactDriver<S, OT>> driverClass = config.getDriver();
     driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
-  }
-
-  private SpillingBuffer reserveMemoryForCaching(double fraction) {
-    //TODO ok to steal memory from match tasks, etc?
-    long completeMemorySize = getTaskConfig().getMemorySize();
-    long cacheMemorySize = (long) (completeMemorySize * fraction);
-    getTaskConfig().setMemorySize(completeMemorySize - cacheMemorySize);
-
-    try {
-      List<MemorySegment> memory = getMemoryManager().allocatePages(getOwningNepheleTask(), cacheMemorySize);
-      return new SpillingBuffer(getIOManager(), new ListMemorySegmentSource(memory), getMemoryManager().getPageSize());
-    } catch (MemoryAllocationException e) {
-      throw new IllegalStateException("Unable to allocate memory for input caching", e);
-    }
   }
 
   @Override

@@ -36,7 +36,6 @@ import eu.stratosphere.pact.runtime.sort.SortMergeMatchIterator;
 import eu.stratosphere.pact.runtime.task.util.MatchTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig.LocalStrategy;
-import sun.java2d.SunGraphicsEnvironment;
 
 /**
  * Match task which is executed by a Nephele task manager. The task has two inputs and one or multiple outputs.

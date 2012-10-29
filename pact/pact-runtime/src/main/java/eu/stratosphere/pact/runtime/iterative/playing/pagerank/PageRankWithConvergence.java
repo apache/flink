@@ -25,21 +25,22 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.common.type.base.PactNull;
-import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
+import eu.stratosphere.pact.runtime.iterative.driver.SortingTempDriver;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
+import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategy;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
+import eu.stratosphere.pact.runtime.task.CoGroupDriver;
 import eu.stratosphere.pact.runtime.task.MapDriver;
-import eu.stratosphere.pact.runtime.task.MatchDriver;
-import eu.stratosphere.pact.runtime.task.ReduceDriver;
+import eu.stratosphere.pact.runtime.task.RegularPactTask;
+import eu.stratosphere.pact.runtime.task.TempDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-public class PageRankWithTermination {
+public class PageRankWithConvergence {
 
   public static void main(String[] args) throws Exception {
 
@@ -50,8 +51,10 @@ public class PageRankWithTermination {
     String outputPath = "file:///tmp/stratosphere/iterations";
     String confPath = PlayConstants.PLAY_DIR + "local-conf";
     int memoryPerTask = 25;
+    int memoryForMatch = memoryPerTask;
+    int numIterations = 25;
 
-    if (args.length == 7) {
+    if (args.length == 9) {
       degreeOfParallelism = Integer.parseInt(args[0]);
       numSubTasksPerInstance = Integer.parseInt(args[1]);
       pageWithRankInputPath = args[2];
@@ -59,9 +62,11 @@ public class PageRankWithTermination {
       outputPath = args[4];
       confPath = args[5];
       memoryPerTask = Integer.parseInt(args[6]);
+      memoryForMatch = Integer.parseInt(args[7]);
+      numIterations = Integer.parseInt(args[8]);
     }
 
-    JobGraph jobGraph = new JobGraph("PageRankWithTermination");
+    JobGraph jobGraph = new JobGraph("PageRankWithConvergence");
 
     JobInputVertex pageWithRankInput = JobGraphUtils.createInput(PageWithRankInputFormat.class, pageWithRankInputPath,
         "PageWithRankInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
@@ -75,7 +80,19 @@ public class PageRankWithTermination {
     TaskConfig transitionMatrixInputConfig = new TaskConfig(transitionMatrixInput.getConfiguration());
     transitionMatrixInputConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(transitionMatrixInputConfig.getConfigForOutputParameters(0),
-        new int[] { 1 }, new Class[] { PactLong.class }, new boolean[] { true });
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
+
+    JobTaskVertex sortedPartitionedPageRank = JobGraphUtils.createTask(RegularPactTask.class,
+        "SortedPartitionedPageRank", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
+    TaskConfig sortedPartitionedPageRankConfig = new TaskConfig(sortedPartitionedPageRank.getConfiguration());
+    sortedPartitionedPageRankConfig.setDriver(SortingTempDriver.class);
+    sortedPartitionedPageRankConfig.setStubClass(IdentityMap.class);
+    sortedPartitionedPageRankConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
+    sortedPartitionedPageRankConfig.setNumFilehandles(10);
+    sortedPartitionedPageRankConfig.setComparatorFactoryForInput(PactRecordComparatorFactory.class, 0);
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(
+        sortedPartitionedPageRankConfig.getConfigForInputParameters(0),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
 
     JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "IterationHead", jobGraph,
         degreeOfParallelism, numSubTasksPerInstance);
@@ -84,51 +101,48 @@ public class PageRankWithTermination {
     headConfig.setStubClass(IdentityMap.class);
     headConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
+    headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(headConfig.getConfigForOutputParameters(0),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
+
+    JobTaskVertex tempIntermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class, "TempIntermediate",
+        jobGraph, degreeOfParallelism, numSubTasksPerInstance);
+    TaskConfig tempIntermediateConfig = new TaskConfig(tempIntermediate.getConfiguration());
+    tempIntermediateConfig.setDriver(TempDriver.class);
+    tempIntermediateConfig.setStubClass(IdentityMap.class);
+    tempIntermediateConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
 
     JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
         "IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
     intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
     intermediateConfig.setStubClass(DotProductMatch.class);
-    intermediateConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(1),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
-    intermediateConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
+    intermediateConfig.setMemorySize(memoryForMatch * JobGraphUtils.MEGABYTE);
     intermediateConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForOutputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
 
-    JobTaskVertex diffPerVertex = JobGraphUtils.createTask(IterationIntermediatePactTask.class, "DiffPerVertex",
-        jobGraph, degreeOfParallelism, numSubTasksPerInstance);
-    TaskConfig diffPerVertexConfig = new TaskConfig(diffPerVertex.getConfiguration());
-    diffPerVertexConfig.setDriver(MatchDriver.class);
-    diffPerVertexConfig.setStubClass(DiffPerVertexMatch.class);
-    diffPerVertexConfig.setLocalStrategy(TaskConfig.LocalStrategy.HYBRIDHASH_FIRST);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(diffPerVertexConfig.getConfigForInputParameters(0),
-        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(diffPerVertexConfig.getConfigForInputParameters(1),
-        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
-    diffPerVertexConfig.setMemorySize(20 * JobGraphUtils.MEGABYTE);
-    diffPerVertexConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(diffPerVertexConfig.getConfigForOutputParameters(0),
-        new int[] { 0 }, new Class[] { PactNull.class }, new boolean[] { true });
-
     JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph,
         degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
-    tailConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT);
-    tailConfig.setDriver(ReduceDriver.class);
-    tailConfig.setStubClass(DotProductReducer.class);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(0),
-        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
+    //TODO we need to combine!
+    tailConfig.setDriver(CoGroupDriver.class);
+    tailConfig.setLocalStrategy(TaskConfig.LocalStrategy.SORT_SECOND_MERGE);
+    tailConfig.setStubClass(DotProductCoGroup.class);
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(0), new int[] { 0 },
+        new Class[] { PactLong.class }, new boolean[] { true });
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(1), new int[] { 0 },
+        new Class[] { PactLong.class }, new boolean[] { true });
     tailConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
-    tailConfig.setNumFilehandles(2);
+    tailConfig.setNumFilehandles(10);
 
     JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-    syncConfig.setNumberOfIterations(5);
+    syncConfig.setNumberOfIterations(numIterations);
     syncConfig.setConvergenceCriterion(L1NormConvergenceCriterion.class);
 
     JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism,
@@ -141,45 +155,46 @@ public class PageRankWithTermination {
         numSubTasksPerInstance);
 
     //TODO implicit order should be documented/configured somehow
-    JobGraphUtils.connect(pageWithRankInput, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategy.ShipStrategyType.PARTITION_HASH);
-    JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategy.ShipStrategyType.BROADCAST);
+    JobGraphUtils.connect(pageWithRankInput, sortedPartitionedPageRank, ChannelType.NETWORK,
+        DistributionPattern.BIPARTITE, ShipStrategyType.PARTITION_HASH);
+    JobGraphUtils.connect(sortedPartitionedPageRank, head, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
+
+    JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
+    JobGraphUtils.connect(tempIntermediate, tail, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
+
+
+    JobGraphUtils.connect(head, tempIntermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
+    tempIntermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
+
     JobGraphUtils.connect(transitionMatrixInput, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategy.ShipStrategyType.PARTITION_HASH);
-    intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
-
-    JobGraphUtils.connect(intermediate, tail, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategy.ShipStrategyType.PARTITION_HASH);
-    tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
-
-    JobGraphUtils.connect(head, diffPerVertex, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategy.ShipStrategyType.BROADCAST);
-    JobGraphUtils.connect(tail, diffPerVertex, ChannelType.NETWORK, DistributionPattern.POINTWISE,
-        ShipStrategy.ShipStrategyType.FORWARD);
-    diffPerVertexConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
-    diffPerVertexConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(1, 1);
+        ShipStrategyType.PARTITION_HASH);
+    intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
     JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE,
-        ShipStrategy.ShipStrategyType.FORWARD);
-
-    JobGraphUtils.connect(diffPerVertex, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE,
-        ShipStrategy.ShipStrategyType.FORWARD);
-    syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(1, degreeOfParallelism);
-
+        ShipStrategyType.FORWARD);
     JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
-        ShipStrategy.ShipStrategyType.FORWARD);
+        ShipStrategyType.FORWARD);
     JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
-        ShipStrategy.ShipStrategyType.FORWARD);
+        ShipStrategyType.FORWARD);
+
+    JobGraphUtils.connect(intermediate, tail, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
+        ShipStrategyType.PARTITION_HASH);
+    tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
+    tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(1, degreeOfParallelism);
 
     fakeTailOutput.setVertexToShareInstancesWith(tail);
     tail.setVertexToShareInstancesWith(head);
     pageWithRankInput.setVertexToShareInstancesWith(head);
+    sortedPartitionedPageRank.setVertexToShareInstancesWith(head);
     transitionMatrixInput.setVertexToShareInstancesWith(head);
     intermediate.setVertexToShareInstancesWith(head);
     output.setVertexToShareInstancesWith(head);
     sync.setVertexToShareInstancesWith(head);
-    diffPerVertex.setVertexToShareInstancesWith(head);
+    tempIntermediate.setVertexToShareInstancesWith(head);
 
     GlobalConfiguration.loadConfiguration(confPath);
     Configuration conf = GlobalConfiguration.getConfiguration();
