@@ -1,9 +1,9 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.aggregation.Aggregation;
 import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
 import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
-import eu.stratosphere.sopremo.function.Aggregation;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IStreamArrayNode;
 
@@ -113,8 +113,8 @@ public class AggregationExpression extends EvaluationExpression implements Expre
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		super.toString(builder);
-		builder.append('.');
+//		super.toString(builder);
+//		builder.append('.');
 		this.function.toString(builder);
 		builder.append('(');
 		if (this.preprocessing.innerExpression != EvaluationExpression.VALUE)

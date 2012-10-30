@@ -38,6 +38,15 @@ public class ArrayProjection extends EvaluationExpression implements ExpressionP
 		return this.expression.equals(other.expression);
 	}
 
+	/**
+	 * Returns the expression.
+	 * 
+	 * @return the expression
+	 */
+	public EvaluationExpression getExpression() {
+		return this.expression;
+	}
+	
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		// lazy spread

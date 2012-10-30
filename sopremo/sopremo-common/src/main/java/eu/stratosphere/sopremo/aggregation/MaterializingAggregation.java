@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.sopremo.aggregation;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -6,7 +6,7 @@ import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-public class MaterializingAggregationFunction extends Aggregation<IJsonNode, ArrayNode> {
+public class MaterializingAggregation extends Aggregation<IJsonNode, ArrayNode> {
 
 	/**
 	 * 
@@ -14,19 +14,19 @@ public class MaterializingAggregationFunction extends Aggregation<IJsonNode, Arr
 	private static final long serialVersionUID = 3685213903416162250L;
 
 	/**
-	 * Initializes a new MaterializingAggregationFunction with the name <code>"&#60values&#62"</code>.
+	 * Initializes a new MaterializingAggregation with the name <code>"&#60values&#62"</code>.
 	 */
-	public MaterializingAggregationFunction() {
+	public MaterializingAggregation() {
 		super("<values>");
 	}
 
 	/**
-	 * Initializes a new MaterializingAggregationFunction with the given name.
+	 * Initializes a new MaterializingAggregation with the given name.
 	 * 
 	 * @param name
 	 *        the name that should be used
 	 */
-	protected MaterializingAggregationFunction(final String name) {
+	protected MaterializingAggregation(final String name) {
 		super(name);
 	}
 

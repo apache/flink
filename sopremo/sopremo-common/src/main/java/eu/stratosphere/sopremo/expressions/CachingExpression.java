@@ -134,6 +134,14 @@ public abstract class CachingExpression<CacheType extends IJsonNode> extends Eva
 		this.innerExpression.toString(builder);
 	}
 
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#printAsTree(java.lang.StringBuilder, int)
+	 */
+	@Override
+	protected void printAsTree(StringBuilder builder, int level) {
+		this.innerExpression.printAsTree(builder, level);
+	}
+	
 	/**
 	 * Creates an list of expressions that cache the resulting value with any type of the given expression. If an
 	 * expression already caches values, it is directly returned.

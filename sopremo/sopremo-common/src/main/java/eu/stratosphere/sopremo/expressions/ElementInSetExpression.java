@@ -22,7 +22,7 @@ public class ElementInSetExpression extends BinaryBooleanExpression implements E
 
 	private EvaluationExpression elementExpr;
 
-	private EvaluationExpression setExpr;;
+	private EvaluationExpression setExpr;
 
 	private final Quantor quantor;
 

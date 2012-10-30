@@ -317,6 +317,22 @@ public class PathExpression extends EvaluationExpression implements ExpressionPa
 		return fragment == EvaluationExpression.VALUE;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#simplify()
+	 */
+	@Override
+	public EvaluationExpression simplify() {
+		switch (this.fragments.size()) {
+		case 0:
+			return EvaluationExpression.VALUE;
+		case 1:
+			return this.fragments.get(0);
+		default:
+			return this;
+		}
+	}
+
 	/**
 	 * Creates a {@link PathExpression} which represents a sub path from this expressions path.
 	 * 

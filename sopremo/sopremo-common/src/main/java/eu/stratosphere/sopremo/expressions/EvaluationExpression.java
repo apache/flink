@@ -5,7 +5,6 @@ import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ISerializableSopremoType;
-import eu.stratosphere.sopremo.expressions.TraverseFunction.TraverseDirection;
 import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.util.IsEqualPredicate;
@@ -89,6 +88,11 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 		return (T) findFirst(new IsInstancePredicate(evaluableClass));
 	}
 
+	@SuppressWarnings("unchecked")
+	public <T extends EvaluationExpression> List<T> findAll(final Class<T> evaluableClass) {
+		return (List<T>) findAll(new IsInstancePredicate(evaluableClass));
+	}
+
 	public List<EvaluationExpression> findAll(final Predicate<? super EvaluationExpression> predicate) {
 		final ArrayList<EvaluationExpression> expressions = new ArrayList<EvaluationExpression>();
 		findAll(predicate, expressions);
@@ -123,30 +127,6 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 			}
 		}
 		return function.call(this);
-	}
-
-	/**
-	 * Recursively invokes the traverse function on all children and on the expression itself.<br>
-	 * In general, this method can modify this expression in-place.<br>
-	 * To retain the original expression, next to the transformed expression, use {@link #clone()}.
-	 * 
-	 * @param function
-	 *        the transformation function
-	 * @return the transformed expression
-	 */
-	public TraverseFunction.TraverseDirection traverseRecursively(final TraverseFunction function) {
-		switch (function.call(this)) {
-		case CONTINUE:
-			if (this instanceof ExpressionParent)
-				for (EvaluationExpression child : ((ExpressionParent) this))
-					if (child.traverseRecursively(function) == TraverseFunction.TraverseDirection.TERMINATE)
-						return TraverseFunction.TraverseDirection.TERMINATE;
-			// fall through
-		case SKIP_CHILDREN:
-			return TraverseDirection.CONTINUE;
-		default:
-			return TraverseDirection.TERMINATE;
-		}
 	}
 
 	/**
@@ -305,6 +285,17 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 		throw new UnsupportedOperationException(String.format(
 			"Cannot change the value with expression %s of node %s to %s", this, node, value));
 	}
+	
+	public EvaluationExpression simplify() {
+		if(this instanceof ExpressionParent) {
+			final ChildIterator iterator = ((ExpressionParent) this).iterator();
+			while (iterator.hasNext()) {
+				EvaluationExpression evaluationExpression = iterator.next();
+				iterator.set(evaluationExpression.simplify());
+			}
+		}
+		return this;
+	}
 
 	@Override
 	public String toString() {
@@ -322,6 +313,23 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 	 */
 	@Override
 	public void toString(final StringBuilder builder) {
+	}
+
+	public String printAsTree() {
+		StringBuilder builder = new StringBuilder();
+		printAsTree(builder, 0);
+		return builder.toString();
+	}
+
+	protected void printAsTree(StringBuilder builder, int level) {
+		for (int index = 0; index < level; index++)
+			builder.append(' ');
+		builder.append(getClass().getSimpleName()).append(' ');
+		toString(builder);
+		builder.append('\n');
+		if (this instanceof ExpressionParent)
+			for (EvaluationExpression child : ((ExpressionParent) this))
+				child.printAsTree(builder, level + 1);
 	}
 
 	protected void appendChildExpressions(final StringBuilder builder,

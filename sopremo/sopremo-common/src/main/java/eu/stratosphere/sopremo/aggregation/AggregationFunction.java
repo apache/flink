@@ -12,9 +12,10 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.sopremo.aggregation;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
@@ -41,6 +42,15 @@ public class AggregationFunction extends SopremoFunction {
 		this.aggregation = (Aggregation<IJsonNode, IJsonNode>) aggregation;
 	}
 
+	/**
+	 * Returns the aggregation.
+	 * 
+	 * @return the aggregation
+	 */
+	public Aggregation<IJsonNode, IJsonNode> getAggregation() {
+		return this.aggregation;
+	}
+	
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.function.Callable#call(java.lang.Object, java.lang.Object,
