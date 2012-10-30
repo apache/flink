@@ -10,6 +10,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.expressions.CachingExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.expressions.EvaluationExpressionUtil;
 import eu.stratosphere.sopremo.expressions.InputSelection;
 import eu.stratosphere.sopremo.operator.CompositeOperator;
 import eu.stratosphere.sopremo.operator.ElementaryOperator;
@@ -113,7 +114,9 @@ public class Grouping extends CompositeOperator<Grouping> {
 		if (resultProjection == null)
 			throw new NullPointerException("resultProjection must not be null");
 
-		this.resultProjection = resultProjection;
+		this.resultProjection =
+			EvaluationExpressionUtil.replaceAggregationWithBatchAggregation(
+				EvaluationExpressionUtil.replaceIndexAccessWithAggregation(resultProjection));
 	}
 
 	public Grouping withResultProjection(EvaluationExpression resultProjection) {
