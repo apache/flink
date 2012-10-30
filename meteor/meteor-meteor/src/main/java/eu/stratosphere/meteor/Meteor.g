@@ -226,6 +226,7 @@ scope {  List<ObjectCreation.Mapping> mappings; }
         paraphrase.push("a json object"); }
 @after { paraphrase.pop(); }
 	:	'{' (fieldAssignment (',' fieldAssignment)* ','?)? '}' -> ^(EXPRESSION["ObjectCreation"] { $objectCreation::mappings });
+  catch [MissingTokenException re] { explainUsage("expected <,> or <}> after a complete field assignment inside of a json object", re); }
 
 literal
 @init { paraphrase.push("a literal"); }

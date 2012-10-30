@@ -41,7 +41,7 @@ public class SyntaxTest extends MeteorTest {
 				e.printStackTrace();
 				Assert.fail("Generic fail message " + e);
 			} else
-				Assert.assertTrue(e.getRawMessage().contains(partialMessage));
+				Assert.assertTrue(String.format("Expected parse error message to contain %s, but was %s", partialMessage, e.getRawMessage()), e.getRawMessage().contains(partialMessage));
 		}
 	}
 }

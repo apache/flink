@@ -10,27 +10,21 @@
 		<version>0.2</version>
 	</parent>
 
-	<artifactId>meteor-meteor</artifactId>
-	<name>meteor-meteor</name>
+	<artifactId>meteor-client</artifactId>
+	<name>meteor-client</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-query</artifactId>
+			<artifactId>sopremo-client</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-base</artifactId>
+			<artifactId>meteor-meteor</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>sopremo-common</artifactId>
-			<version>${project.version}</version>
-			<classifier>test-jar</classifier>
 		</dependency>
 	</dependencies>
 

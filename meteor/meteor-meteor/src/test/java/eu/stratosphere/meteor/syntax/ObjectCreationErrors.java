@@ -29,5 +29,17 @@ public class ObjectCreationErrors extends SyntaxTest {
 
 		assertParserError(query, "json object");
 	}
+	
+	@Test
+	public void testGrouping2() {
+		String query = "$daily = read from 'NYSE_dividends.json';\n" +
+			"$grpd  = group $daily by $daily.symbol into { " +
+			"  mean: mean($daily) " +
+			"  count: count($daily) " +
+			"};\n" +
+			"write $grpd to 'hdfs://localhost:9000/grouped';\n";
+
+		assertParserError(query, "json object");
+	}
 
 }
