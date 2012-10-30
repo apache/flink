@@ -133,7 +133,7 @@ public abstract class SopremoTest<T> {
 		equalVerifier.verify();
 	}
 	
-	public static void assertEquals(SopremoPlan expectedPlan, SopremoPlan actualPlan) {
+	public static void assertPlanEquals(SopremoPlan expectedPlan, SopremoPlan actualPlan) {
 		final List<Operator<?>> unmatchingOperators = expectedPlan.getUnmatchingOperators(actualPlan);
 		
 		if(!unmatchingOperators.isEmpty())

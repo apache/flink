@@ -81,7 +81,7 @@ public class AggregationTest extends MeteorTest {
 		final Sink sink = new Sink("file:///q1.result").withInputs(grouping);
 		final SopremoPlan expectedPlan = new SopremoPlan();
 		expectedPlan.setSinks(sink);
-		SopremoTest.assertEquals(expectedPlan, actualPlan);
+		SopremoTest.assertPlanEquals(expectedPlan, actualPlan);
 		
 //		final Iterable<? extends Operator<?>> containedOperators = actualPlan.getContainedOperators();
 //		final ArrayList<Operator> ops = new ArrayList<Operator>();

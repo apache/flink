@@ -30,7 +30,8 @@
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>sopremo-common</artifactId>
 			<version>${project.version}</version>
-			<classifier>test-jar</classifier>
+		    <type>test-jar</type>
+		    <scope>test</scope>
 		</dependency>
 	</dependencies>
 
