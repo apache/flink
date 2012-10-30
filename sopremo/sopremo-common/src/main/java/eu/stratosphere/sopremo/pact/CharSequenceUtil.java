@@ -30,9 +30,9 @@ public class CharSequenceUtil {
 			boolean ignoreCase) {
 		if (start1 < 0 || start2 < 0)
 			throw new IllegalArgumentException();
-		if (seq1.length() > start1 + len)
+		if (seq1.length() < start1 + len)
 			throw new IllegalArgumentException();
-		if (seq2.length() > start2 + len)
+		if (seq2.length() < start2 + len)
 			throw new IllegalArgumentException();
 		return uncheckedRegionMatches(seq1, start1, seq2, start2, len, ignoreCase);
 	}
@@ -53,7 +53,7 @@ public class CharSequenceUtil {
 
 			return false;
 		}
-		return false;
+		return true;
 	}
 
 }

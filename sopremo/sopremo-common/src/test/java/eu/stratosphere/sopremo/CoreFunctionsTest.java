@@ -10,7 +10,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.function.Aggregation;
+import eu.stratosphere.sopremo.aggregation.Aggregation;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -203,25 +203,25 @@ public class CoreFunctionsTest {
 
 	@Test
 	public void shouldCalculateAvg() {
-		CoreFunctions.AverageState aggregator = CoreFunctions.AVERAGE.initialize(null);
-		CoreFunctions.AVERAGE.aggregate(IntNode.valueOf(50), aggregator, this.context);
-		CoreFunctions.AVERAGE.aggregate(IntNode.valueOf(25), aggregator, this.context);
-		CoreFunctions.AVERAGE.aggregate(IntNode.valueOf(75), aggregator, this.context);
+		CoreFunctions.AverageState aggregator = CoreFunctions.MEAN.initialize(null);
+		CoreFunctions.MEAN.aggregate(IntNode.valueOf(50), aggregator, this.context);
+		CoreFunctions.MEAN.aggregate(IntNode.valueOf(25), aggregator, this.context);
+		CoreFunctions.MEAN.aggregate(IntNode.valueOf(75), aggregator, this.context);
 
-		final IJsonNode result = CoreFunctions.AVERAGE.getFinalAggregate(aggregator, null);
+		final IJsonNode result = CoreFunctions.MEAN.getFinalAggregate(aggregator, null);
 		Assert.assertTrue(result instanceof INumericNode);
 		Assert.assertEquals(50.0, ((INumericNode) result).getDoubleValue());
 	}
 
 	@Test
 	public void shouldCalculateAvgWithDifferentNodes() {
-		CoreFunctions.AverageState aggregator = CoreFunctions.AVERAGE.initialize(null);
+		CoreFunctions.AverageState aggregator = CoreFunctions.MEAN.initialize(null);
 
 		for (int i = 1; i < 500; i++)
-			aggregator = CoreFunctions.AVERAGE.aggregate(
+			aggregator = CoreFunctions.MEAN.aggregate(
 				i % 2 == 0 ? IntNode.valueOf(i) : DoubleNode.valueOf(i), aggregator, this.context);
 
-		Assert.assertEquals(DoubleNode.valueOf(250), CoreFunctions.AVERAGE.getFinalAggregate(aggregator, null));
+		Assert.assertEquals(DoubleNode.valueOf(250), CoreFunctions.MEAN.getFinalAggregate(aggregator, null));
 	}
 
 	// Assertion failed: Expected <NaN> but was: <NaN>

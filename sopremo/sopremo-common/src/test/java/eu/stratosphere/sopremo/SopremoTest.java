@@ -19,6 +19,8 @@ import org.junit.Ignore;
 
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
+import eu.stratosphere.sopremo.operator.Operator;
+import eu.stratosphere.sopremo.operator.SopremoPlan;
 import eu.stratosphere.sopremo.testing.SopremoTestPlan;
 import eu.stratosphere.util.reflect.BoundTypeUtil;
 
@@ -129,6 +131,13 @@ public abstract class SopremoTest<T> {
 		final EqualsVerifier<T> equalVerifier = EqualsVerifier.forExamples(first, second, more);
 		this.initVerifier(equalVerifier);
 		equalVerifier.verify();
+	}
+	
+	public static void assertEquals(SopremoPlan expectedPlan, SopremoPlan actualPlan) {
+		final List<Operator<?>> unmatchingOperators = expectedPlan.getUnmatchingOperators(actualPlan);
+		
+		if(!unmatchingOperators.isEmpty())
+			Assert.failNotEquals(String.format("At least two operators do not match "), unmatchingOperators.get(0), unmatchingOperators.get(1));
 	}
 
 	public static String createTemporaryFile(String prefix) {
