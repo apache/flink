@@ -53,7 +53,7 @@ public class FilterTest extends MeteorTest {
 
 		// System.out.println(Sop);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 }

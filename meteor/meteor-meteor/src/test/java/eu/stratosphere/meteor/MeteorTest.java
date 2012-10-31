@@ -39,7 +39,7 @@ public class MeteorTest {
 	 */
 	protected static void assertEquals(final SopremoPlan expectedPlan, final SopremoPlan actualPlan) {
 		final List<Operator<?>> unmatchingOperators = actualPlan.getUnmatchingOperators(expectedPlan);
-		if (unmatchingOperators != null)
+		if (!unmatchingOperators.isEmpty())
 			if (unmatchingOperators.get(0).getClass() == unmatchingOperators.get(1).getClass())
 				Assert.failNotEquals("operators are different", "\n" + unmatchingOperators.get(1), "\n"
 					+ unmatchingOperators.get(0));

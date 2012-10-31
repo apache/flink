@@ -49,7 +49,7 @@ public class TransformTest extends MeteorTest {
 		final Sink output = new Sink("output.json").withInputs(projection);
 		expectedPlan.setSinks(output);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 }

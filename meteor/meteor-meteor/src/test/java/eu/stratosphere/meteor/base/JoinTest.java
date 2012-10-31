@@ -37,7 +37,7 @@ public class JoinTest extends MeteorTest {
 		final Sink result = new Sink("result.json").withInputs(join);
 		expectedPlan.setSinks(result);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 	@Test
@@ -63,7 +63,7 @@ public class JoinTest extends MeteorTest {
 		final Sink result = new Sink("result.json").withInputs(join);
 		expectedPlan.setSinks(result);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 	@Test
@@ -91,6 +91,6 @@ public class JoinTest extends MeteorTest {
 		final Sink result = new Sink("result.json").withInputs(join);
 		expectedPlan.setSinks(result);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 }
