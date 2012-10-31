@@ -134,11 +134,12 @@ public class ScopedPageRank {
     //TODO implicit order should be documented/configured somehow
     JobGraphUtils.connect(pageWithRankInput, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
         ShipStrategyType.PARTITION_HASH);
-    JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
-        ShipStrategyType.BROADCAST);
+    JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE,
+        ShipStrategyType.FORWARD);
+
     JobGraphUtils.connect(transitionMatrixInput, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
         ShipStrategyType.PARTITION_HASH);
-    intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+    intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
     JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE,
         ShipStrategyType.FORWARD);

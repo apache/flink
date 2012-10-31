@@ -310,8 +310,7 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
 
   private void sendEventToSync(WorkerDoneEvent event) throws IOException, InterruptedException {
     if (log.isInfoEnabled()) {
-      log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " with count [" + event.aggregate()
-          + "] to sync"));
+      log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " to sync"));
     }
     getSyncOutput().publishEvent(event);
   }

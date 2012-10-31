@@ -25,8 +25,6 @@ import java.io.IOException;
 public class WorkerDoneEvent extends AbstractTaskEvent {
 
   private int workerIndex;
-  //TODO generalize
-  //private long aggregate;
   private Value aggregate;
 
   public WorkerDoneEvent() {}
@@ -47,21 +45,29 @@ public class WorkerDoneEvent extends AbstractTaskEvent {
   @Override
   public void write(DataOutput out) throws IOException {
     out.writeInt(workerIndex);
-    out.writeUTF(aggregate.getClass().getName());
-    aggregate.write(out);
-    //out.writeLong(aggregate);
+    boolean hasAggregate = aggregate != null;
+    out.writeBoolean(hasAggregate);
+    if (hasAggregate) {
+      out.writeUTF(aggregate.getClass().getName());
+      aggregate.write(out);
+    }
   }
 
   @Override
   public void read(DataInput in) throws IOException {
     workerIndex = in.readInt();
-    String classname = in.readUTF();
-    try {
-      aggregate = Class.forName(classname).asSubclass(Value.class).newInstance();
-    } catch (Exception e) {
-      throw new IOException(e);
+
+    boolean hasAggregate = in.readBoolean();
+    if (hasAggregate) {
+      String classname = in.readUTF();
+      try {
+        aggregate = Class.forName(classname).asSubclass(Value.class).newInstance();
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
+      aggregate.read(in);
+    } else {
+      aggregate = null;
     }
-    aggregate.read(in);
-    //aggregate = in.readLong();
   }
 }
