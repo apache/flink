@@ -162,29 +162,30 @@ public class RPCStatistics {
 		 */
 		private void processCollectedData() {
 
-			final int numberOfRequests = this.requestCounter.get();
-			if (numberOfRequests == 0) {
-				return;
-			}
+			if (Log.DEBUG) {
 
-			final float avg = (float) this.sumOfRetries.get() / (float) numberOfRequests;
+				final int numberOfRequests = this.requestCounter.get();
+				if (numberOfRequests == 0) {
+					return;
+				}
 
-			final StringBuilder sb = new StringBuilder();
-			sb.append(this.numberOfPackets);
-			sb.append("\t: ");
-			sb.append(avg);
-			sb.append(" (min ");
-			sb.append(this.minMethodName);
-			sb.append(' ');
-			sb.append(this.minRetries.get());
-			sb.append(", max ");
-			sb.append(this.maxMethodName);
-			sb.append(' ');
-			sb.append(this.maxRetries.get());
-			sb.append(')');
+				final float avg = (float) this.sumOfRetries.get() / (float) numberOfRequests;
 
-			if (Log.INFO) {
-				Log.info(sb.toString());
+				final StringBuilder sb = new StringBuilder();
+				sb.append(this.numberOfPackets);
+				sb.append("\t: ");
+				sb.append(avg);
+				sb.append(" (min ");
+				sb.append(this.minMethodName);
+				sb.append(' ');
+				sb.append(this.minRetries.get());
+				sb.append(", max ");
+				sb.append(this.maxMethodName);
+				sb.append(' ');
+				sb.append(this.maxRetries.get());
+				sb.append(')');
+
+				Log.debug(sb.toString());
 			}
 		}
 	}

@@ -63,7 +63,7 @@ public final class RPCService {
 	/**
 	 * The maximum number of retries in case the response does not arrive on time.
 	 */
-	private static final int RETRY_LIMIT = 300;
+	private static final int RETRY_LIMIT = 3000;
 
 	/**
 	 * Interval in which the background clean-up routine runs in milliseconds.
