@@ -13,6 +13,7 @@ import org.junit.Test;
 import eu.stratosphere.sopremo.aggregation.Aggregation;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
@@ -90,7 +91,7 @@ public class CoreFunctionsTest {
 	 */
 	@Test
 	public void shouldSortArrays() {
-		final ArrayNode expected =
+		final IArrayNode expected =
 			createArrayNode(new Number[] { 1, 2.4 }, new Number[] { 1, 3.4 }, new Number[] { 2, 2.4 },
 				new Number[] { 2, 2.4, 3 });
 		shouldAggregate(expected, CoreFunctions.SORT, new Number[] { 1, 3.4 }, new Number[] { 2, 2.4 },
@@ -162,7 +163,7 @@ public class CoreFunctionsTest {
 	 */
 	@Test
 	public void shouldUnionAllCompactArrays() {
-		final ArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
+		final IArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
 		final ArrayNode result = new ArrayNode();
 		CoreFunctions.unionAll(result, createCompactArray(1, 2, 3), createCompactArray(4, 5), createCompactArray(6));
 		Assert.assertEquals(expectedResult, result);
@@ -173,7 +174,7 @@ public class CoreFunctionsTest {
 	 */
 	@Test
 	public void shouldUnionAllMixedArrayTypes() {
-		final ArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
+		final IArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
 		final ArrayNode result = new ArrayNode();
 		CoreFunctions.unionAll(result, createArrayNode(1, 2, 3), createCompactArray(4, 5), JsonUtil.createArrayNode(6));
 		Assert.assertEquals(expectedResult, result);
@@ -184,7 +185,7 @@ public class CoreFunctionsTest {
 	 */
 	@Test
 	public void shouldUnionAllNormalArrays() {
-		final ArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
+		final IArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
 		final ArrayNode result = new ArrayNode();
 		CoreFunctions.unionAll(result, createArrayNode(1, 2, 3), createArrayNode(4, 5, 6));
 		Assert.assertEquals(expectedResult, result);

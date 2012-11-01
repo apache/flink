@@ -18,6 +18,7 @@ import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.function.SopremoFunction;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 
 /**
  * @author Arvid Heise
@@ -62,7 +63,7 @@ public class AggregationFunction extends SopremoFunction {
 
 		IJsonNode aggregator = this.aggregation.initialize(target);
 
-		for (IJsonNode item : (IArrayNode) params.get(0))
+		for (IJsonNode item : (IStreamArrayNode) params.get(0))
 			aggregator = this.aggregation.aggregate(item, aggregator, context);
 
 		return target = this.aggregation.getFinalAggregate(aggregator, target);

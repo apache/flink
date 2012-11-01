@@ -7,6 +7,8 @@ import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
+import eu.stratosphere.sopremo.type.PullingStreamArrayNode;
 
 /**
  * Projects an array onto another one.
@@ -46,23 +48,19 @@ public class ArrayProjection extends EvaluationExpression implements ExpressionP
 	public EvaluationExpression getExpression() {
 		return this.expression;
 	}
-	
+
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
-		// lazy spread
-		// TODO
-		// if (node instanceof StreamArrayNode)
-		// return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
-		// @Override
-		// protected JsonNode convert(final JsonNode element) {
-		// return ArrayProjection.this.expression.evaluate(element, context);
-		// }
-		// }, ((StreamArrayNode) node).isResettable());
-		// spread
+		if (!(node instanceof IArrayNode)) {
+			// virtual projection
+			final PullingStreamArrayNode targetArray = SopremoUtil.ensureType(target, PullingStreamArrayNode.class);
+			targetArray.setSource((IStreamArrayNode) node);
+			targetArray.setExpressionAndContext(this.expression, context);
+			return targetArray;
+		}
+		// materialized projection
 		final IArrayNode array = (IArrayNode) node;
-
 		final IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
-
 		for (int index = 0, size = array.size(); index < size; index++)
 			targetArray.add(this.expression.evaluate(array.get(index), targetArray.get(index), context));
 
@@ -80,14 +78,14 @@ public class ArrayProjection extends EvaluationExpression implements ExpressionP
 			protected void set(int index, EvaluationExpression childExpression) {
 				ArrayProjection.this.expression = childExpression;
 			}
-	
+
 			@Override
 			protected EvaluationExpression get(int index) {
 				return ArrayProjection.this.expression;
 			}
 		};
 	}
-	
+
 	@Override
 	public IJsonNode set(final IJsonNode node, final IJsonNode value, final EvaluationContext context) {
 		final IArrayNode arrayNode = (ArrayNode) node;
