@@ -42,9 +42,9 @@ import eu.stratosphere.pact.runtime.util.MemoryBlockIterator;
  */
 abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 {
-	public static final Log LOG = LogFactory.getLog(AbstractBlockResettableIterator.class);
+	protected static final Log LOG = LogFactory.getLog(AbstractBlockResettableIterator.class);
 	
-	public static final int MIN_BUFFER_SIZE = 8 * 1024;
+	protected static final int MIN_BUFFER_SIZE = 8 * 1024;
 	
 	// ------------------------------------------------------------------------
 	

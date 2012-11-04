@@ -15,14 +15,11 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
@@ -32,299 +29,254 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
+import eu.stratosphere.pact.runtime.task.CoGroupTaskExternalITCase.MockCoGroupStub;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
-import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
 public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord, PactRecord, PactRecord>>
 {
-	private static final Log LOG = LogFactory.getLog(CoGroupTaskTest.class);
+	private static final long SORT_MEM = 3*1024*1024;
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();
-
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator1 = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator2 = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	
+	private final CountingOutputCollector output = new CountingOutputCollector();
+	
 	
 	public CoGroupTaskTest() {
-		super(6*1024*1024);
+		super(0, 2, SORT_MEM);
 	}
 	
 	@Test
 	public void testSortBoth1CoGroupTask() {
-
 		int keyCnt1 = 100;
 		int valCnt1 = 2;
 		
 		int keyCnt2 = 200;
 		int valCnt2 = 1;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + 
+			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
-		CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
+		setOutput(this.output);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-				
+		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testSortBoth2CoGroupTask() {
-
 		int keyCnt1 = 200;
 		int valCnt1 = 2;
 		
 		int keyCnt2 = 200;
 		int valCnt2 = 4;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + 
+			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
-		CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
+		setOutput(this.output);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-				
+		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testSortFirstCoGroupTask() {
-
 		int keyCnt1 = 200;
 		int valCnt1 = 2;
 		
 		int keyCnt2 = 200;
 		int valCnt2 = 4;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
-		super.addOutput(this.outList);
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + 
+			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
-		CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
+		setOutput(this.output);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-				
+		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testSortSecondCoGroupTask() {
-
 		int keyCnt1 = 200;
 		int valCnt1 = 2;
 		
 		int keyCnt2 = 200;
 		int valCnt2 = 4;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + 
+			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
-		CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
+		setOutput(this.output);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-				
+		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testMergeCoGroupTask() {
-
 		int keyCnt1 = 200;
 		int valCnt1 = 2;
 		
 		int keyCnt2 = 200;
 		int valCnt2 = 4;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
-		super.addOutput(this.outList);
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + 
+			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
-		CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
-		super.getTaskConfig().setMemorySize(0);
-		super.getTaskConfig().setNumFilehandles(4);
+		setOutput(this.output);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
 		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
+		
+		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-				
+		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testFailingSortCoGroupTask() {
-
 		int keyCnt1 = 100;
 		int valCnt1 = 2;
 		
 		int keyCnt2 = 200;
 		int valCnt2 = 1;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		setOutput(this.output);
 		
-		CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
-		
-		boolean stubFailed = false;
+		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockFailingCoGroupStub.class);
+			Assert.fail("Stub exception was not forwarded.");
+		} catch (ExpectedTestException etex) {
+			// good!
 		} catch (Exception e) {
-			stubFailed = true;
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
-		
-		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-		
-		this.outList.clear();
 	}
 	
 	@Test
 	public void testCancelCoGroupTaskWhileSorting1() {
-		
 		int keyCnt = 10;
 		int valCnt = 2;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(1000));
-		super.addOutput(new NirvanaOutputList());
+		setOutput(this.output);
+		
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
 		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		try {
+			addInputSorted(new DelayingInfinitiveInputIterator(1000), this.comparator1.duplicate());
+			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
+		}
 		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockCoGroupStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -335,44 +287,47 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
 	@Test
 	public void testCancelCoGroupTaskWhileSorting2() {
-		
 		int keyCnt = 10;
 		int valCnt = 2;
 		
-		super.addInput(new DelayingInfinitiveInputIterator(1000));
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addOutput(new NirvanaOutputList());
+		setOutput(this.output);
+		
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
 		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		try {
+			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+			addInputSorted(new DelayingInfinitiveInputIterator(1000), this.comparator2.duplicate());
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
+		}
 		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockCoGroupStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -383,11 +338,12 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
 	@Test
@@ -396,81 +352,60 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 		int keyCnt = 100;
 		int valCnt = 5;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addOutput(new NirvanaOutputList());
+		setOutput(this.output);
+		
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
 		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
+		try {
+			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
+		}
 		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockDelayingCoGroupStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
 		taskRunner.start();
 		
-		TaskCancelThread tct = new TaskCancelThread(2, taskRunner, this);
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
 		tct.start();
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
-	}
-	
-	public static class MockCoGroupStub extends CoGroupStub {
-
-		@Override
-		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector<PactRecord> out) {
-			int val1Cnt = 0;
-			
-			while (records1.hasNext()) {
-				val1Cnt++;
-				records1.next();
-			}
-			
-			while (records2.hasNext()) {
-				PactRecord record2 = records2.next();
-				
-				if (val1Cnt == 0) {
-					out.collect(record2);
-				} else {
-					for (int i=0; i<val1Cnt; i++) {
-						out.collect(record2);
-					}
-				}
-			}
-		}
-	
-	}
-	
-	public static class MockFailingCoGroupStub extends CoGroupStub {
 		
-		int cnt = 0;
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
+	}
+	
+	public static class MockFailingCoGroupStub extends CoGroupStub
+	{
+		private int cnt = 0;
 		
 		@Override
 		public void coGroup(Iterator<PactRecord> records1,
-				Iterator<PactRecord> records2, Collector<PactRecord> out) throws RuntimeException {
+				Iterator<PactRecord> records2, Collector<PactRecord> out) throws RuntimeException
+		{
 			int val1Cnt = 0;
 			
 			while (records1.hasNext()) {
@@ -483,7 +418,7 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 				if (val1Cnt == 0) {
 					
 					if(++this.cnt>=10) {
-						throw new RuntimeException("Expected Test Exception");
+						throw new ExpectedTestException();
 					}
 					
 					out.collect(record2);
@@ -491,7 +426,7 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 					for (int i=0; i<val1Cnt; i++) {
 						
 						if(++this.cnt>=10) {
-							throw new RuntimeException("Expected Test Exception");
+							throw new ExpectedTestException();
 						}
 						
 						out.collect(record2);
@@ -502,30 +437,25 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<PactRecord,
 	
 	}
 	
-	public static class MockDelayingCoGroupStub extends CoGroupStub {
-
+	public static final class MockDelayingCoGroupStub extends CoGroupStub
+	{
 		@Override
 		public void coGroup(Iterator<PactRecord> records1,
 				Iterator<PactRecord> records2, Collector<PactRecord> out) {
 			
-			while(records1.hasNext()) {
+			while (records1.hasNext()) {
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
 				records1.next();
 			}
 			
-			while(records2.hasNext()) {
+			while (records2.hasNext()) {
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
 				records2.next();
 			}
-			
 		}
-	
 	}
-	
-	
-		
 }

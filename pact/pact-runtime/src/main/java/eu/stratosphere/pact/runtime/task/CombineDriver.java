@@ -126,7 +126,7 @@ public class CombineDriver<T> implements PactDriver<GenericReducer<T, ?>, T>
 		// the combine() method of the ReduceStub.
 		// An iterator on the sorted, grouped, and combined pairs is created and returned
 		case GROUP:
-			input = new AsynchronousPartialSorter<T>(memoryManager, in, this.taskContext.getOwningNepheleTask(),
+			this.input = new AsynchronousPartialSorter<T>(memoryManager, in, this.taskContext.getOwningNepheleTask(),
 						this.serializer, this.comparator.duplicate(), availableMemory);
 			break;
 		// obtain and return a grouped iterator from the combining sort-merger

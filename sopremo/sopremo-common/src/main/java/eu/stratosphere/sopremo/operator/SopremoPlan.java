@@ -6,7 +6,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.common.contract.GenericDataSink;
 import eu.stratosphere.pact.common.plan.Plan;
 import eu.stratosphere.sopremo.CoreFunctions;

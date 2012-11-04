@@ -9,7 +9,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.contract.Contract;
+import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.plan.ContractNavigator;

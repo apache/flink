@@ -15,12 +15,8 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.util.ArrayList;
-
 import junit.framework.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -30,144 +26,127 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.generic.stub.GenericMatcher;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
 public class MatchTaskExternalITCase extends DriverTestBase<GenericMatcher<PactRecord, PactRecord, PactRecord>>
 {
-	private static final Log LOG = LogFactory.getLog(MatchTaskExternalITCase.class);
+	private static final long HASH_MEM = 4*1024*1024;
 	
-	private final ArrayList<PactRecord> outList = new ArrayList<PactRecord>();
-
+	private static final long SORT_MEM = 3*1024*1024;
+	
+	private static final long BNLJN_MEM = 10 * PAGE_SIZE;
+	
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator1 = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator2 = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	
+	private final CountingOutputCollector output = new CountingOutputCollector();
 	
 	public MatchTaskExternalITCase() {
-		super(6*1024*1024);
+		super(HASH_MEM, 2, SORT_MEM);
 	}
 	
 	@Test
 	public void testExternalSort1MatchTask() {
-
-		int keyCnt1 = 16384*2;
-		int valCnt1 = 2;
+		final int keyCnt1 = 16384*4;
+		final int valCnt1 = 2;
 		
-		int keyCnt2 = 8192;
-		int valCnt2 = 4*2;
+		final int keyCnt2 = 8192;
+		final int valCnt2 = 4*2;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		addOutput(this.outList);
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		
+		setOutput(this.output);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-
+		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testExternalHash1MatchTask() {
-
-		int keyCnt1 = 32768;
-		int valCnt1 = 8;
+		final int keyCnt1 = 32768;
+		final int valCnt1 = 8;
 		
-		int keyCnt2 = 65536;
-		int valCnt2 = 8;
+		final int keyCnt2 = 65536;
+		final int valCnt2 = 8;
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-		this.outList.ensureCapacity(expCnt);
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
 		
 		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		addOutput(outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(this.output);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setMemorySize(4*1024*1024);
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
 			e.printStackTrace();
-			Assert.fail("Invoke method caused exception.");
+			Assert.fail("Test caused an exception.");
 		}
 		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
-		
-		outList.clear();
-		
+		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testExternalHash2MatchTask() {
-
-		int keyCnt1 = 32768;
-		int valCnt1 = 8;
+		final int keyCnt1 = 32768;
+		final int valCnt1 = 8;
 		
-		int keyCnt2 = 65536;
-		int valCnt2 = 8;
+		final int keyCnt2 = 65536;
+		final int valCnt2 = 8;
+		
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
 		
 		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(this.output);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
-		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setMemorySize(4*1024*1024);
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
+			e.printStackTrace();
+			Assert.fail("Test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+outList.size()+". Expected was "+expCnt, outList.size() == expCnt);
-		
-		outList.clear();
-		
+		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static class MockMatchStub extends MatchStub
+	public static final class MockMatchStub extends MatchStub
 	{
 		@Override
 		public void match(PactRecord value1, PactRecord value2, Collector<PactRecord> out) throws Exception {

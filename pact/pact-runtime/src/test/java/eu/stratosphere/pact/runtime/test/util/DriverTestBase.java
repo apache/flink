@@ -36,12 +36,17 @@ import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRecord>
 {
+	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
+	
+	protected static final int PAGE_SIZE = 32 * 1024; 
+	
 	private final IOManager ioManager;
 	
 	private final MemoryManager memManager;
@@ -50,7 +55,7 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 	
 	private final List<TypeComparator<PactRecord>> comparators;
 	
-	private final ListOutputCollector output;
+	private final List<UnilateralSortMerger<PactRecord>> sorters;
 	
 	private final AbstractInvokable owner;
 	
@@ -58,21 +63,37 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 	
 	private final TaskConfig taskConfig;
 	
+	protected final long perSortMem;
+	
+	private Collector<PactRecord> output;
+	
+	protected int numFileHandles;
+	
 	private S stub;
 	
 	private PactDriver<S, PactRecord> driver;
 	
 	private volatile boolean running;
 	
+	protected DriverTestBase(long memory, int maxNumSorters) {
+		this(memory, maxNumSorters, DEFAULT_PER_SORT_MEM);
+	}
 	
-	protected DriverTestBase(long memory)
+	protected DriverTestBase(long memory, int maxNumSorters, long perSortMemory)
 	{
+		if (memory < 0 || maxNumSorters < 0 || perSortMemory < 0) {
+			throw new IllegalArgumentException();
+		}
+		
+		final long totalMem = Math.max(memory, 0) + (Math.max(maxNumSorters, 0) * perSortMemory);
+		
+		this.perSortMem = perSortMemory;
 		this.ioManager = new IOManager();
-		this.memManager = memory > 0 ? new DefaultMemoryManager(memory) : null;
+		this.memManager = totalMem > 0 ? new DefaultMemoryManager(totalMem) : null;
 		
 		this.inputs = new ArrayList<MutableObjectIterator<PactRecord>>();
 		this.comparators = new ArrayList<TypeComparator<PactRecord>>();
-		this.output = new ListOutputCollector();
+		this.sorters = new ArrayList<UnilateralSortMerger<PactRecord>>();
 		
 		this.owner = new DummyInvokable();
 		
@@ -80,21 +101,36 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 		this.taskConfig = new TaskConfig(this.config);
 	}
 
-
 	public void addInput(MutableObjectIterator<PactRecord> input) {
 		this.inputs.add(input);
+		this.sorters.add(null);
+	}
+	
+	public void addInputSorted(MutableObjectIterator<PactRecord> input, PactRecordComparator comp) throws Exception {
+		UnilateralSortMerger<PactRecord> sorter = new UnilateralSortMerger<PactRecord>(
+				this.memManager, this.ioManager, input, this.owner, PactRecordSerializer.get(), comp, this.perSortMem, 32, 0.8f);
+		this.sorters.add(sorter);
+		this.inputs.add(null);
 	}
 	
 	public void addInputComparator(PactRecordComparator comparator) {
 		this.comparators.add(comparator);
 	}
 
-	public void addOutput(List<PactRecord> output) {
-		this.output.addOuput(output);
+	public void setOutput(Collector<PactRecord> output) {
+		this.output = output;
+	}
+	public void setOutput(List<PactRecord> output) {
+		this.output = new ListOutputCollector(output);
+	}
+	
+	public int getNumFileHandlesForSort() {
+		return numFileHandles;
 	}
 
-	public Configuration getConfiguration() {
-		return this.config;
+	
+	public void setNumFileHandlesForSort(int numFileHandles) {
+		this.numFileHandles = numFileHandles;
 	}
 
 	public void testDriver(PactDriver<S, PactRecord> driver, Class<? extends S> stubClass)
@@ -203,6 +239,17 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 	 */
 	@Override
 	public <X> MutableObjectIterator<X> getInput(int index) {
+		MutableObjectIterator<PactRecord> in = this.inputs.get(index);
+		if (in == null) {
+			// waiting from sorter
+			try {
+				in = this.sorters.get(index).getIterator();
+			} catch (InterruptedException e) {
+				throw new RuntimeException("Interrupted");
+			}
+			this.inputs.set(index, in);
+		}
+		
 		@SuppressWarnings("unchecked")
 		MutableObjectIterator<X> input = (MutableObjectIterator<X>) this.inputs.get(index);
 		return input;
@@ -271,6 +318,16 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 	// --------------------------------------------------------------------------------------------
 	
 	@After
+	public void shutdownSorters() throws Exception
+	{
+		for (UnilateralSortMerger<?> sorter : this.sorters) {
+			if (sorter != null)
+				sorter.close();
+		}
+		this.sorters.clear();
+	}
+	
+	@After
 	public void shutdownIOManager() throws Exception
 	{
 		this.ioManager.shutdown();
@@ -291,32 +348,43 @@ public class DriverTestBase<S extends Stub> implements PactTaskContext<S, PactRe
 	
 	private static final class ListOutputCollector implements Collector<PactRecord>
 	{
-		private final List<List<PactRecord>> outputs;
+		private final List<PactRecord> output;
 		
 		
-		public ListOutputCollector() {
-			this.outputs = new ArrayList<List<PactRecord>>();
+		public ListOutputCollector(List<PactRecord> outputList) {
+			this.output = outputList;
 		}
 		
-		public void addOuput(List<PactRecord> targetList) {
-			this.outputs.add(targetList);
-		}
 
 		/* (non-Javadoc)
 		 * @see eu.stratosphere.pact.common.stubs.Collector#collect(java.lang.Object)
 		 */
 		@Override
 		public void collect(PactRecord record) {
-			for (List<PactRecord> list : this.outputs) {
-				list.add(record.createCopy());
-			}
+			this.output.add(record.createCopy());
 		}
 
 		/* (non-Javadoc)
 		 * @see eu.stratosphere.pact.common.stubs.Collector#close()
 		 */
 		@Override
-		public void close()
-		{}
+		public void close() {}
+	}
+	
+	public static final class CountingOutputCollector implements Collector<PactRecord>
+	{
+		private int num;
+
+		@Override
+		public void collect(PactRecord record) {
+			this.num++;
+		}
+
+		@Override
+		public void close() {}
+		
+		public int getNumberOfRecords() {
+			return this.num;
+		}
 	}
 }

@@ -15,14 +15,10 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 import junit.framework.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
@@ -32,67 +28,69 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.generic.stub.GenericCoGrouper;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
 public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<PactRecord, PactRecord, PactRecord>>
 {
-	private static final Log LOG = LogFactory.getLog(CoGroupTaskExternalITCase.class);
+	private static final long SORT_MEM = 3*1024*1024;
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator1 = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator2 = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	
+	private final CountingOutputCollector output = new CountingOutputCollector();
 	
 	public CoGroupTaskExternalITCase() {
-		super(6*1024*1024);
+		super(0, 2, SORT_MEM);
 	}
 
 	@Test
 	public void testExternalSortCoGroupTask() {
 
-		int keyCnt1 = 16384;
-		int valCnt1 = 4*2;
+		int keyCnt1 = 16384*8;
+		int valCnt1 = 32;
 		
-		int keyCnt2 = 65536*2;
-		int valCnt2 = 1;
+		int keyCnt2 = 65536*4;
+		int valCnt2 = 4;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		addOutput(this.outList);
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + 
+			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
-		CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
+		setOutput(this.output);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final CoGroupDriver<PactRecord, PactRecord, PactRecord> testTask = new CoGroupDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockCoGroupStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2) + Math.max(keyCnt1, keyCnt2) - Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-				
+		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static class MockCoGroupStub extends CoGroupStub
+	public static final class MockCoGroupStub extends CoGroupStub
 	{
+		private final PactRecord res = new PactRecord();
+		
 		@Override
 		public void coGroup(Iterator<PactRecord> records1, Iterator<PactRecord> records2, Collector<PactRecord> out)
 		{
 			int val1Cnt = 0;
+			int val2Cnt = 0;
 			
 			while (records1.hasNext()) {
 				val1Cnt++;
@@ -100,13 +98,21 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<P
 			}
 			
 			while (records2.hasNext()) {
-				PactRecord record2 = records2.next();
-				if (val1Cnt == 0) {
-					out.collect(record2);
-				} else {
-					for (int i=0; i<val1Cnt; i++) {
-						out.collect(record2);
-					}
+				val2Cnt++;
+				records2.next();
+			}
+			
+			if (val1Cnt == 0) {
+				for (int i = 0; i < val2Cnt; i++) {
+					out.collect(this.res);
+				}
+			} else if (val2Cnt == 0) {
+				for (int i = 0; i < val1Cnt; i++) {
+					out.collect(this.res);
+				}
+			} else {
+				for (int i = 0; i < val2Cnt * val1Cnt; i++) {
+					out.collect(this.res);
 				}
 			}
 		}

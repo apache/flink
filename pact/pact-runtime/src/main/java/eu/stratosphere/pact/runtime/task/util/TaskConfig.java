@@ -231,7 +231,7 @@ public class TaskConfig
 		final int ls = this.config.getInteger(DRIVER_STRATEGY, -1);
 		if (ls == -1) {
 			return DriverStrategy.NONE;
-		} else if (ls < 0 || ls >= LocalStrategy.values().length) {
+		} else if (ls < 0 || ls >= DriverStrategy.values().length) {
 			throw new CorruptConfigurationException("Illegal driver strategy in configuration: " + ls);
 		} else {
 			return DriverStrategy.values()[ls];

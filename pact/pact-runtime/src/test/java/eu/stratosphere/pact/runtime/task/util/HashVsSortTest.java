@@ -27,6 +27,7 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
+import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypePairComparator;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
@@ -36,6 +37,7 @@ import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.sort.MergeMatchIterator;
+import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -47,6 +49,12 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
 public class HashVsSortTest {
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 32;
+	
+	private static final int PAGE_SIZE = 32 * 1024;
+	
+	private static final int MEMORY_PAGES_FOR_MERGE = 10;
+	
+	private static final int MEMORY_FOR_SORTER = (MEMORY_SIZE - PAGE_SIZE * MEMORY_PAGES_FOR_MERGE) / 2;
 
 	// the size of the left and right inputs
 	private static final int INPUT_1_SIZE = 2000000;
@@ -83,7 +91,7 @@ public class HashVsSortTest {
 		this.comparator2 = new PactRecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 		this.pairComparator11 = new PactRecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
 		
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, PAGE_SIZE);
 		this.ioManager = new IOManager();
 	}
 
@@ -117,29 +125,34 @@ public class HashVsSortTest {
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			final MatchStub matcher = new NoOpMatcher();
-			
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
-	
-			// reset the generators
-			generator1.reset();
-			generator2.reset();
-			input1.reset();
-			input2.reset();
-	
+			
+			long start = System.nanoTime();
+			
+			final UnilateralSortMerger<PactRecord> sorter1 = new UnilateralSortMerger<PactRecord>(
+					this.memoryManager, this.ioManager, input1, this.parentTask, this.serializer1, 
+					this.comparator1.duplicate(), MEMORY_FOR_SORTER, 128, 0.8f);
+			
+			final UnilateralSortMerger<PactRecord> sorter2 = new UnilateralSortMerger<PactRecord>(
+					this.memoryManager, this.ioManager, input2, this.parentTask, this.serializer2, 
+					this.comparator2.duplicate(), MEMORY_FOR_SORTER, 128, 0.8f);
+			
+			final MutableObjectIterator<PactRecord> sortedInput1 = sorter1.getIterator();
+			final MutableObjectIterator<PactRecord> sortedInput2 = sorter2.getIterator();
+			
 			// compare with iterator values
 			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(input1, input2, 
+				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(sortedInput1, sortedInput2, 
 						this.serializer1, this.comparator1, this.serializer2, this.comparator2, this.pairComparator11,
-						this.memoryManager, this.ioManager, 
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, this.parentTask);
-	
-			long start = System.nanoTime();
+						this.memoryManager, this.ioManager, MEMORY_PAGES_FOR_MERGE, this.parentTask);
 			
 			iterator.open();
 			
 			while (iterator.callWithNextKey(matcher, collector));
 			
 			iterator.close();
+			sorter1.close();
+			sorter2.close();
 			
 			long elapsed = System.nanoTime() - start;
 			double msecs = elapsed / (1000 * 1000);
@@ -161,24 +174,18 @@ public class HashVsSortTest {
 			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
-			final MatchStub matcher =new NoOpMatcher();
+			final MatchStub matcher = new NoOpMatcher();
 			
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
-	
-			// reset the generators
-			generator1.reset();
-			generator2.reset();
-			input1.reset();
-			input2.reset();
-	
+			
+			long start = System.nanoTime();
+			
 			// compare with iterator values
 			final BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
 					new BuildFirstHashMatchIterator<PactRecord, PactRecord, PactRecord>(
 						input1, input2, this.serializer1, this.comparator1, 
 							this.serializer2, this.comparator2, this.pairComparator11,
 							this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
-	
-			long start = System.nanoTime();
 			
 			iterator.open();
 			
@@ -209,21 +216,15 @@ public class HashVsSortTest {
 			final MatchStub matcher = new NoOpMatcher();
 			
 			final Collector<PactRecord> collector = new DiscardingOutputCollector();
-	
-			// reset the generators
-			generator1.reset();
-			generator2.reset();
-			input1.reset();
-			input2.reset();
-	
+			
+			long start = System.nanoTime();
+			
 			// compare with iterator values
 			BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
 					new BuildSecondHashMatchIterator<PactRecord, PactRecord, PactRecord>(
 						input1, input2, this.serializer1, this.comparator1, 
 						this.serializer2, this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
-	
-			long start = System.nanoTime();
 			
 			iterator.open();
 			

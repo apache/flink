@@ -15,33 +15,25 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import junit.framework.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.stubs.Collector;
-import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.generic.stub.GenericCrosser;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.pact.runtime.task.CrossTaskTest.MockCrossStub;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
 
 public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<PactRecord, PactRecord, PactRecord>>
 {
-	private static final Log LOG = LogFactory.getLog(CrossTaskExternalITCase.class);
+	private static final long CROSS_MEM = 1024 * 1024;
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final CountingOutputCollector output = new CountingOutputCollector();
 
-	
 	public CrossTaskExternalITCase() {
-		super(1*1024*1024);
+		super(CROSS_MEM, 0);
 	}
 	
 	@Test
@@ -54,27 +46,26 @@ public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<PactR
 		int keyCnt2 = 43700;
 		int valCnt2 = 1;
 		
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
+		
+		setOutput(this.output);
+		
 		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		addOutput(this.outList);
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-		
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
@@ -87,37 +78,25 @@ public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<PactR
 		int keyCnt2 = 87385;
 		int valCnt2 = 1;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-		
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
 	}
-	
-	public static class MockCrossStub extends CrossStub {
-
-		@Override
-		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
-			
-			out.collect(record1);
-			
-		}
-	}
-	
 }

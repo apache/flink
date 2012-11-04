@@ -15,8 +15,7 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
@@ -28,22 +27,22 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.MapStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.generic.stub.GenericMapper;
+import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
+import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
-import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
 public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRecord>>
 {
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
 	
-	private List<PactRecord> outList;
+	private final CountingOutputCollector output = new CountingOutputCollector();
 	
 	
 	public MapTaskTest() {
-		super(0);
-		this.outList = new ArrayList<PactRecord>();
+		super(0, 0);
 	}
 	
 	@Test
@@ -53,7 +52,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		final int valCnt = 20;
 		
 		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		addOutput(this.outList);
+		setOutput(this.output);
 		
 		final MapDriver<PactRecord, PactRecord> testDriver = new MapDriver<PactRecord, PactRecord>();
 		
@@ -64,8 +63,7 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 			Assert.fail("Invoke method caused exception.");
 		}
 		
-		Assert.assertTrue(this.outList.size() == keyCnt*valCnt);
-		
+		Assert.assertEquals("Wrong result set size.", keyCnt*valCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
@@ -75,39 +73,38 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		final int valCnt = 20;
 		
 		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		addOutput(this.outList);
+		setOutput(new DiscardingOutputCollector());
 		
 		final MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
-		boolean stubFailed = false;
-		
 		try {
 			testDriver(testTask, MockFailingMapStub.class);
+			Assert.fail("Stub exception was not forwarded.");
+		} catch (ExpectedTestException e) {
+			// good!
 		} catch (Exception e) {
-			stubFailed = true;
+			e.printStackTrace();
+			Assert.fail("Exception in test.");
 		}
-		
-		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-		
 	}
 	
 	@Test
 	public void testCancelMapTask()
 	{
 		addInput(new InfiniteInputIterator());
-		addOutput(new NirvanaOutputList());
+		setOutput(new DiscardingOutputCollector());
 		
 		final MapDriver<PactRecord, PactRecord> testTask = new MapDriver<PactRecord, PactRecord>();
 		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
-		
-		Thread taskRunner = new Thread() {
+		final Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockMapStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -122,7 +119,8 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
-				
+		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
 	public static class MockMapStub extends MapStub
@@ -136,16 +134,14 @@ public class MapTaskTest extends DriverTestBase<GenericMapper<PactRecord, PactRe
 	
 	public static class MockFailingMapStub extends MapStub {
 
-		int cnt = 0;
+		private int cnt = 0;
 		
 		@Override
 		public void map(PactRecord record, Collector<PactRecord> out) throws Exception {
-			if(++this.cnt>=10) {
-				throw new RuntimeException("Expected Test Exception");
+			if (++this.cnt >= 10) {
+				throw new ExpectedTestException();
 			}
 			out.collect(record);
 		}
-		
 	}
-	
 }

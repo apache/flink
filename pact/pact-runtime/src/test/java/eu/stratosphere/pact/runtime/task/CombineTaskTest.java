@@ -17,69 +17,66 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract.Combinable;
 import eu.stratosphere.pact.generic.stub.GenericReducer;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
+import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
-import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
-
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
 public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?>>
 {
-	private static final Log LOG = LogFactory.getLog(CombineTaskTest.class);
+	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 	
-	final List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final ArrayList<PactRecord> outList = new ArrayList<PactRecord>();
+	
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
 
 	public CombineTaskTest() {
-		super(3*1024*1024);
+		super(COMBINE_MEM, 0);
 	}
 	
 	@Test
 	public void testCombineTask() {
-
 		int keyCnt = 100;
 		int valCnt = 20;
 		
 		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		addOutput(this.outList);
+		addInputComparator(this.comparator);
+		setOutput(this.outList);
 		
-		CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(2);
+		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP);
+		getTaskConfig().setMemoryDriver(COMBINE_MEM);
+		getTaskConfig().setFilehandlesDriver(2);
 		
-		final int[] keyPos = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
+		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
+			e.printStackTrace();
 			Assert.fail("Invoke method caused exception.");
 		}
 		
 		int expSum = 0;
-		for(int i=1;i<valCnt;i++) {
-			expSum+=i;
+		for (int i = 1;i < valCnt; i++) {
+			expSum += i;
 		}
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
@@ -89,66 +86,57 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		}
 		
 		this.outList.clear();
-		
 	}
 	
 	@Test
 	public void testFailingCombineTask() {
-
 		int keyCnt = 100;
 		int valCnt = 20;
 		
 		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		addOutput(this.outList);
+		addInputComparator(this.comparator);
+		setOutput(new DiscardingOutputCollector());
 		
-		CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(2);
+		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP);
+		getTaskConfig().setMemoryDriver(COMBINE_MEM);
+		getTaskConfig().setFilehandlesDriver(2);
 		
-		final int[] keyPos = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
-		
-		boolean stubFailed = false;
+		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
 		
 		try {
 			testDriver(testTask, MockFailingCombiningReduceStub.class);
+			Assert.fail("Exception not forwarded.");
+		} catch (ExpectedTestException etex) {
+			// good!
 		} catch (Exception e) {
-			stubFailed = true;
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
-		
-		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-				
-		this.outList.clear();
-		
 	}
 	
 	@Test
 	public void testCancelCombineTaskSorting()
 	{
 		addInput(new DelayingInfinitiveInputIterator(100));
-		addOutput(new NirvanaOutputList());
+		addInputComparator(this.comparator);
+		setOutput(new DiscardingOutputCollector());
+		
+		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP);
+		getTaskConfig().setMemoryDriver(COMBINE_MEM);
+		getTaskConfig().setFilehandlesDriver(2);
 		
 		final CombineDriver<PactRecord> testTask = new CombineDriver<PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(2);
 		
-		final int[] keyPos = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockFailingCombiningReduceStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -164,6 +152,7 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
 	}
 	
 	@Combinable
@@ -191,13 +180,12 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 		public void combine(Iterator<PactRecord> records, Collector<PactRecord> out) throws Exception {
 			reduce(records, out);
 		}
-		
 	}
 	
 	@Combinable
-	public static class MockFailingCombiningReduceStub extends ReduceStub {
+	public static final class MockFailingCombiningReduceStub extends ReduceStub {
 
-		int cnt = 0;
+		private int cnt = 0;
 		
 		private final PactInteger key = new PactInteger();
 		private final PactInteger value = new PactInteger();
@@ -232,15 +220,13 @@ public class CombineTaskTest extends DriverTestBase<GenericReducer<PactRecord, ?
 				sum += this.combineValue.getValue();
 			}
 			
-			if(++this.cnt>=10) {
-				throw new RuntimeException("Expected Test Exception");
+			if (++this.cnt >= 10) {
+				throw new ExpectedTestException();
 			}
 			
 			this.combineValue.setValue(sum);
 			element.setField(1, this.combineValue);
 			out.collect(element);
 		}
-		
 	}
-	
 }

@@ -15,17 +15,15 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-
 import eu.stratosphere.nephele.template.AbstractTask;
-
 
 /**
  * An invokable that does nothing.
  *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
+ * @author Stephan Ewen
  */
-public class DummyInvokable extends AbstractTask {
-
+public class DummyInvokable extends AbstractTask
+{
 	/* (non-Javadoc)
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#registerInputOutput()
 	 */
@@ -37,5 +35,4 @@ public class DummyInvokable extends AbstractTask {
 	 */
 	@Override
 	public void invoke() throws Exception {}
-
 }

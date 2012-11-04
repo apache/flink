@@ -42,14 +42,12 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparator;
 import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.ValueMode;
-import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 
 /**
  * @author Erik Nijkamp
@@ -59,6 +57,7 @@ public class SortMergeMatchIteratorITCase
 {
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 16;
+	private static final int PAGES_FOR_BNLJN = 2;
 
 	// the size of the left and right inputs
 	private static final int INPUT_1_SIZE = 20000;
@@ -116,152 +115,7 @@ public class SortMergeMatchIteratorITCase
 		}
 	}
 
-	@Test
-	public void testSortBothMerge() {
-		try {
-			
-			final TestData.Generator generator1 = new Generator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-			final TestData.Generator generator2 = new Generator(SEED2, 500, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 
-			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
-			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
-			
-			// collect expected data
-			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
-				collectData(input1),
-				collectData(input2));
-			
-			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
-			
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
-	
-			// reset the generators
-			generator1.reset();
-			generator2.reset();
-			input1.reset();
-			input2.reset();
-	
-			// compare with iterator values
-			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-					new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
-						input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
-						this.pairComparator, this.memoryManager, this.ioManager, 
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, this.parentTask);
-	
-			iterator.open();			
-			
-			while (iterator.callWithNextKey(matcher, collector));
-			
-			iterator.close();
-	
-			// assert that each expected match was seen
-			for (Entry<TestData.Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("An exception occurred during the test: " + e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testSortFirstMerge() {
-		try {
-			
-			final TestData.Generator generator1 = new Generator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-			final TestData.Generator generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
-
-			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
-			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
-			
-			// collect expected data
-			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
-				collectData(input1),
-				collectData(input2));
-			
-			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
-			
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
-	
-			// reset the generators
-			generator1.reset();
-			generator2.reset();
-			input1.reset();
-			input2.reset();
-	
-			// compare with iterator values
-			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
-					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
-					this.pairComparator, this.memoryManager, this.ioManager, 
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_FIRST_MERGE, parentTask);
-	
-			iterator.open();
-			
-			while (iterator.callWithNextKey(matcher, collector));
-			
-			iterator.close();
-	
-			// assert that each expected match was seen
-			for (Entry<TestData.Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("An exception occurred during the test: " + e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testSortSecondMerge() {
-		try {
-			
-			final TestData.Generator generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
-			final TestData.Generator generator2 = new Generator(SEED2, 500, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-
-			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
-			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
-			
-			// collect expected data
-			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
-				collectData(input1),
-				collectData(input2));
-			
-			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
-			
-			final Collector<PactRecord> collector = new DiscardingOutputCollector();
-	
-			// reset the generators
-			generator1.reset();
-			generator2.reset();
-			input1.reset();
-			input2.reset();
-	
-			// compare with iterator values
-			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
-				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
-					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
-					this.pairComparator, this.memoryManager, this.ioManager, 
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_SECOND_MERGE, parentTask);
-	
-			iterator.open();
-			
-			while (iterator.callWithNextKey(matcher, collector));
-			
-			iterator.close();
-	
-			// assert that each expected match was seen
-			for (Entry<TestData.Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail("An exception occurred during the test: " + e.getMessage());
-		}
-	}
 	
 	@Test
 	public void testMerge() {
@@ -292,8 +146,7 @@ public class SortMergeMatchIteratorITCase
 			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
 				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
-					this.pairComparator, this.memoryManager, this.ioManager, 
-						MEMORY_SIZE, 64, 0.7f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+					this.pairComparator, this.memoryManager, this.ioManager, PAGES_FOR_BNLJN, this.parentTask);
 	
 			iterator.open();
 			
@@ -324,8 +177,8 @@ public class SortMergeMatchIteratorITCase
 		final int DUPLICATE_KEY = 13;
 		
 		try {
-			final TestData.Generator generator1 = new Generator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-			final TestData.Generator generator2 = new Generator(SEED2, 500, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			final TestData.Generator generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+			final TestData.Generator generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
 			
 			final TestData.GeneratorIterator gen1Iter = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
 			final TestData.GeneratorIterator gen2Iter = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
@@ -341,8 +194,8 @@ public class SortMergeMatchIteratorITCase
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			MutableObjectIterator<PactRecord> input1 = new UnionIterator<PactRecord>(inList1);
-			MutableObjectIterator<PactRecord> input2 = new UnionIterator<PactRecord>(inList2);
+			MutableObjectIterator<PactRecord> input1 = new MergeIterator<PactRecord>(inList1, serializer1, comparator1.duplicate());
+			MutableObjectIterator<PactRecord> input2 = new MergeIterator<PactRecord>(inList2, serializer2, comparator2.duplicate());
 			
 			// collect expected data
 			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
@@ -367,8 +220,8 @@ public class SortMergeMatchIteratorITCase
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 	
-			input1 = new UnionIterator<PactRecord>(inList1);
-			input2 = new UnionIterator<PactRecord>(inList2);
+			input1 = new MergeIterator<PactRecord>(inList1, serializer1, comparator1.duplicate());
+			input2 = new MergeIterator<PactRecord>(inList2, serializer2, comparator2.duplicate());
 			
 			final MatchStub matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
@@ -380,8 +233,7 @@ public class SortMergeMatchIteratorITCase
 			MergeMatchIterator<PactRecord, PactRecord, PactRecord> iterator = 
 				new MergeMatchIterator<PactRecord, PactRecord, PactRecord>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
-					this.pairComparator, this.memoryManager, this.ioManager, 
-						MEMORY_SIZE, 64, 0.7f, 0.00016f, LocalStrategy.SORT_BOTH_MERGE, parentTask);
+					this.pairComparator, this.memoryManager, this.ioManager, PAGES_FOR_BNLJN, this.parentTask);
 	
 			iterator.open();
 			

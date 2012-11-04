@@ -27,11 +27,9 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.generic.io.InputFormat;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.PactRecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
@@ -48,7 +46,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * @author Fabian Hueske
  * @author Moritz Kaufmann
  */
-
 public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 {
 	// Obtain DataSourceTask Logger
@@ -92,6 +89,9 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 							getEnvironment().getJobID(), ioe);
 			}
 		}
+		
+		// obtain task configuration (including stub parameters)
+		this.config = new TaskConfig(getTaskConfiguration());
 		
 		initInputFormat(this.userCodeClassLoader);
 		
@@ -269,8 +269,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#cancel()
 	 */
 	@Override
-	public void cancel() throws Exception
-	{
+	public void cancel() throws Exception {
 		this.taskCanceled = true;
 		if (LOG.isWarnEnabled())
 			LOG.warn(getLogString("Cancelling PACT code"));
@@ -281,8 +280,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 * 
 	 * @param cl The class-loader to be used to load the user code.
 	 */
-	public void setUserCodeClassLoader(ClassLoader cl)
-	{
+	public void setUserCodeClassLoader(ClassLoader cl) {
 		this.userCodeClassLoader = cl;
 	}
 
@@ -293,31 +291,15 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 *         Throws if instance of InputFormat implementation can not be
 	 *         obtained.
 	 */
-	private void initInputFormat(ClassLoader cl)
-	{
-		// obtain task configuration (including stub parameters)
-		this.config = new TaskConfig(getTaskConfiguration());
-
+	private void initInputFormat(ClassLoader cl) {
 		// instantiate the stub
 		@SuppressWarnings("unchecked")
 		Class<InputFormat<OT, InputSplit>> superClass = (Class<InputFormat<OT, InputSplit>>) (Class<?>) InputFormat.class;
 		this.format = RegularPactTask.instantiateUserCode(this.config, cl, superClass);
 		
 		// get the factory for the type serializer
-		try {
-			final Class<? extends TypeSerializerFactory<OT>> serializerFactoryClass = this.config.getSerializerFactoryForOutput(cl);
-			if (serializerFactoryClass == null) {
-				@SuppressWarnings("unchecked")
-				TypeSerializer<OT> ps = (TypeSerializer<OT>) PactRecordSerializer.get();
-				this.serializer = ps;
-			} else {
-				TypeSerializerFactory<OT> serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, TypeSerializerFactory.class);
-				this.serializer = serializerFactory.getSerializer();
-			}
-			
-		} catch (ClassNotFoundException cnfex) {
-			throw new RuntimeException("The class registered as output serializer factory could not be loaded.", cnfex);
-		}
+		final TypeSerializerFactory<OT> serializerFactory = this.config.getOutputSerializer(cl);
+		this.serializer = serializerFactory.getSerializer();
 		
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
 		try {
@@ -326,16 +308,13 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		catch (Throwable t) {
 			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
 		}
-		
-
 	}
 
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategy.
 	 */
-	private void initOutputs(ClassLoader cl) throws Exception
-	{
+	private void initOutputs(ClassLoader cl) throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, null);
 	}
@@ -348,13 +327,11 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 * @see eu.stratosphere.nephele.template.AbstractInputTask#computeInputSplits(int)
 	 */
 	@Override
-	public InputSplit[] computeInputSplits(int requestedMinNumber) throws Exception
-	{
+	public InputSplit[] computeInputSplits(int requestedMinNumber) throws Exception {
 		// we have to be sure that the format is instantiated at this point
 		if (this.format == null) {
 			throw new IllegalStateException("BUG: Input format hast not been instantiated, yet.");
 		}
-		
 		return this.format.createInputSplits(requestedMinNumber);
 	}
 
@@ -363,8 +340,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public Class<InputSplit> getInputSplitType()
-	{
+	public Class<InputSplit> getInputSplitType() {
 		// we have to be sure that the format is instantiated at this point
 		if (this.format == null) {
 			throw new IllegalStateException("BUG: Input format hast not been instantiated, yet.");
@@ -381,8 +357,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#getMinimumNumberOfSubtasks()
 	 */
 	@Override
-	public int getMinimumNumberOfSubtasks()
-	{
+	public int getMinimumNumberOfSubtasks() {
 		return 1;
 	}
 
@@ -390,8 +365,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 * @see eu.stratosphere.nephele.template.AbstractInvokable#getMaximumNumberOfSubtasks()
 	 */
 	@Override
-	public int getMaximumNumberOfSubtasks()
-	{
+	public int getMaximumNumberOfSubtasks() {
 		// since splits can in theory be arbitrarily small, we report a possible infinite number of subtasks.
 		return -1;
 	}
@@ -407,8 +381,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 * @param message The main message for the log.
 	 * @return The string ready for logging.
 	 */
-	private String getLogString(String message)
-	{
+	private String getLogString(String message) {
 		return getLogString(message, this.getEnvironment().getTaskName());
 	}
 	
@@ -420,8 +393,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	 * @param taskName The name of the task.
 	 * @return The string ready for logging.
 	 */
-	private String getLogString(String message, String taskName)
-	{
+	private String getLogString(String message, String taskName) {
 		return RegularPactTask.constructLogString(message, taskName, this);
 	}
 }

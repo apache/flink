@@ -17,11 +17,10 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -31,65 +30,69 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
 import eu.stratosphere.pact.generic.stub.GenericMatcher;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.pact.runtime.plugable.PactRecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
+import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 
-
 public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, PactRecord, PactRecord>>
 {
-	private static final Log LOG = LogFactory.getLog(MatchTaskTest.class);
+	private static final long HASH_MEM = 6*1024*1024;
+	
+	private static final long SORT_MEM = 3*1024*1024;
+	
+	private static final long BNLJN_MEM = 10 * PAGE_SIZE;
+	
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator1 = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator2 = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
 	
 	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 	
 	
 	public MatchTaskTest() {
-		super(6*1024*1024);
+		super(HASH_MEM, 2, SORT_MEM);
 	}
 	
 	
 	@Test
 	public void testSortBoth1MatchTask() {
-
-		int keyCnt1 = 20;
-		int valCnt1 = 1;
+		final int keyCnt1 = 20;
+		final int valCnt1 = 1;
 		
-		int keyCnt2 = 10;
-		int valCnt2 = 2;
-				
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int keyCnt2 = 10;
+		final int valCnt2 = 2;
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
+		setOutput(this.outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-				
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		Assert.assertTrue("Resultset size was " + this.outList.size() + ". Expected was " + expCnt, this.outList.size() == expCnt);
 		
 		this.outList.clear();
-		
 	}
 	
 	@Test
@@ -101,28 +104,23 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
+		setOutput(this.outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
-		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -142,28 +140,23 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
+		setOutput(this.outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
-		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -183,28 +176,23 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
+		setOutput(this.outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
-		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -224,28 +212,23 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
+		setOutput(this.outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
-		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -265,28 +248,23 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
-		super.addOutput(this.outList);
+		setOutput(this.outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_FIRST_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+			addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
 			e.printStackTrace();
-			Assert.fail("Invoke method caused exception.");
+			Assert.fail("The test caused an exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -306,28 +284,23 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		setOutput(this.outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_SECOND_MERGE);
-		super.getTaskConfig().setMemorySize(5 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
+			addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
+			addInputSorted(new UniformPactRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
 			e.printStackTrace();
-			Assert.fail("Invoke method caused exception.");
+			Assert.fail("The test caused an exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -340,34 +313,30 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 	
 	@Test
 	public void testMergeMatchTask() {
-
 		int keyCnt1 = 20;
 		int valCnt1 = 20;
 		
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
-		super.addOutput(this.outList);
+		setOutput(this.outList);
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.MERGE);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
 		
 		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
@@ -379,76 +348,70 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 	}
 	
 	@Test
-	public void testFailingSortMatchTask() {
-
+	public void testFailingMatchTask() {
 		int keyCnt1 = 20;
 		int valCnt1 = 20;
 		
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
+		setOutput(new NirvanaOutputList());
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
 		
-		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
-		
-		boolean stubFailed = false;
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, true));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, true));
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
+			Assert.fail("Driver did not forward Exception.");
+		} catch (ExpectedTestException e) {
+			// good!
 		} catch (Exception e) {
-			stubFailed = true;
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
 		}
-		
-		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-		
-		this.outList.clear();
-		
 	}
 	
 	@Test
 	public void testCancelMatchTaskWhileSort1() {
-		
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addOutput(new NirvanaOutputList());
+		setOutput(new NirvanaOutputList());
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
 		
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		try {
+			addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
+			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
+		}
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockMatchStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -459,43 +422,47 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
+		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
 	@Test
 	public void testCancelMatchTaskWhileSort2() {
-		
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(new NirvanaOutputList());
+		setOutput(new NirvanaOutputList());
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		
+		try {
+			addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+			addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("The test caused an exception.");
+		}
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockMatchStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -506,43 +473,42 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
+		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
 	@Test
 	public void testCancelMatchTaskWhileMatching() {
-		
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addOutput(new NirvanaOutputList());
+		setOutput(new NirvanaOutputList());
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
+		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT_BOTH_MERGE);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, true));
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockDelayingMatchStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -553,329 +519,255 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
-	
 	
 	@Test
 	public void testHash1MatchTask() {
-
 		int keyCnt1 = 20;
 		int valCnt1 = 1;
 		
 		int keyCnt2 = 10;
 		int valCnt2 = 2;
 				
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(this.outList);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-		
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-				
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
 		this.outList.clear();
-		
 	}
 	
 	@Test
 	public void testHash2MatchTask() {
-
 		int keyCnt1 = 20;
 		int valCnt1 = 1;
 		
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(this.outList);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
 		this.outList.clear();
-		
 	}
 	
 	@Test
 	public void testHash3MatchTask() {
-
 		int keyCnt1 = 20;
 		int valCnt1 = 1;
 		
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(this.outList);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
 		this.outList.clear();
-		
 	}
 	
 	@Test
 	public void testHash4MatchTask() {
-
 		int keyCnt1 = 20;
 		int valCnt1 = 20;
 		
 		int keyCnt2 = 20;
 		int valCnt2 = 1;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(this.outList);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
 		this.outList.clear();
-		
 	}
 	
 	@Test
 	public void testHash5MatchTask() {
-
 		int keyCnt1 = 20;
 		int valCnt1 = 20;
 		
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(this.outList);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test caused an exception.");
 		}
 		
-		int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
+		final int expCnt = valCnt1*valCnt2*Math.min(keyCnt1, keyCnt2);
+		Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
 		this.outList.clear();
-		
 	}
 	
 	@Test
 	public void testFailingHashFirstMatchTask() {
-
 		int keyCnt1 = 20;
 		int valCnt1 = 20;
 		
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(new NirvanaOutputList());
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
-		
-		boolean stubFailed = false;
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
+			Assert.fail("Stub exception was not forwarded.");
+		} catch (ExpectedTestException etex) {
+			// good!
 		} catch (Exception e) {
-			stubFailed = true;
+			e.printStackTrace();
+			Assert.fail("Test caused an exception.");
 		}
-		
-		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-		
-		this.outList.clear();
 	}
 	
 	@Test
 	public void testFailingHashSecondMatchTask() {
-
 		int keyCnt1 = 20;
 		int valCnt1 = 20;
 		
 		int keyCnt2 = 20;
 		int valCnt2 = 20;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(new NirvanaOutputList());
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
-		
-		boolean stubFailed = false;
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
+			Assert.fail("Stub exception was not forwarded.");
+		} catch (ExpectedTestException etex) {
+			// good!
 		} catch (Exception e) {
-			stubFailed = true;
+			e.printStackTrace();
+			Assert.fail("Test caused an exception.");
 		}
-		
-		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-		
-		this.outList.clear();
 	}
 	
 	@Test
 	public void testCancelHashMatchTaskWhileBuildFirst() {
-		
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addOutput(new NirvanaOutputList());
+		addInput(new DelayingInfinitiveInputIterator(100));
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(new NirvanaOutputList());
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockMatchStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -886,43 +778,40 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
+		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
 	@Test
 	public void testHashCancelMatchTaskWhileBuildSecond() {
-		
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(new NirvanaOutputList());
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new DelayingInfinitiveInputIterator(100));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(new NirvanaOutputList());
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockMatchStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -933,43 +822,40 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
+		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
 	@Test
 	public void testHashFirstCancelMatchTaskWhileMatching() {
-		
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addOutput(new NirvanaOutputList());
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(new NirvanaOutputList());
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_FIRST);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
-					testDriver(testTask, MockDelayingMatchStub.class);
+					testDriver(testTask, MockMatchStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -980,44 +866,40 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
 	@Test
 	public void testHashSecondCancelMatchTaskWhileMatching() {
-		
 		int keyCnt = 20;
 		int valCnt = 20;
 		
-		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addOutput(new NirvanaOutputList());
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInputComparator(this.comparator1);
+		addInputComparator(this.comparator2);
+		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
+		setOutput(new NirvanaOutputList());
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.HYBRIDHASH_SECOND);
-		super.getTaskConfig().setMemorySize(6 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(4);
-
-		final int[] keyPos1 = new int[]{0};
-		final int[] keyPos2 = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos1, keyClasses));
-		addInputComparator(new PactRecordComparator(keyPos2, keyClasses));
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
-					testDriver(testTask, MockDelayingMatchStub.class);
+					testDriver(testTask, MockMatchStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -1028,52 +910,45 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
 	// =================================================================================================
 	
-	public static class MockMatchStub extends MatchStub {
-
+	public static final class MockMatchStub extends MatchStub
+	{
 		@Override
 		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) throws Exception {
 			out.collect(record1);
 		}
-		
 	}
 	
-	public static class MockFailingMatchStub extends MatchStub {
-
-		int cnt = 0;
+	public static final class MockFailingMatchStub extends MatchStub
+	{
+		private int cnt = 0;
 		
 		@Override
 		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
-			
-			if(++this.cnt>=10) {
-				throw new RuntimeException("Expected Test Exception");
+			if (++this.cnt >= 10) {
+				throw new ExpectedTestException();
 			}
 			
 			out.collect(record1);
-			
 		}
-		
 	}
 	
-	
-	public static class MockDelayingMatchStub extends MatchStub {
-
+	public static final class MockDelayingMatchStub extends MatchStub
+	{
 		@Override
 		public void match(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
-			
 			try {
 				Thread.sleep(100);
-			} catch (InterruptedException e) { }			
+			} catch (InterruptedException e) { }
 		}
-		
 	}
-	
 }

@@ -110,9 +110,9 @@ public class ReduceDriver<IT, OT> implements PactDriver<GenericReducer<IT, OT>, 
 		if (config.getDriverStrategy() != DriverStrategy.GROUP) {
 			throw new Exception("Unrecognized driver strategy for Reduce driver: " + config.getDriverStrategy().name());
 		}
-
 		this.serializer = this.taskContext.getInputSerializer(0);
 		this.comparator = this.taskContext.getInputComparator(0);
+		this.input = this.taskContext.getInput(0);
 	}
 
 	/*

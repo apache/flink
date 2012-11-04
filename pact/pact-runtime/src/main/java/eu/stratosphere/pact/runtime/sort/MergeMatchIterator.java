@@ -349,7 +349,7 @@ public class MergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, 
 				// create spilling iterator on first input
 				spillIt = new SpillingResettableIterator<T1>(spillVals, this.serializer1,
 						this.memoryManager, this.ioManager, this.memoryForSpillingIterator);
-				leftSideIter = spillIt;				
+				leftSideIter = spillIt;
 				spillIt.open();
 				
 				this.serializer1.copyTo(firstV1, this.spillHeadCopy);
@@ -375,7 +375,7 @@ public class MergeMatchIterator<T1, T2, O> implements MatchTaskIterator<T1, T2, 
 					
 					// get instances of key and block value
 					this.serializer1.copyTo(nextSpillVal, this.copy1);
-					matchFunction.match(this.copy1, nextBlockRec, collector);						
+					matchFunction.match(this.copy1, nextBlockRec, collector);
 				}
 				// reset block iterator
 				this.blockIt.reset();

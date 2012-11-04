@@ -15,33 +15,30 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.CrossStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.generic.stub.GenericCrosser;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
-import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
+import eu.stratosphere.pact.runtime.test.util.ExpectedTestException;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
+import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
 public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, PactRecord, PactRecord>>
 {
-	private static final Log LOG = LogFactory.getLog(CrossTaskTest.class);
+	private static final long CROSS_MEM = 1024 * 1024;
 	
-	private final List<PactRecord> outList = new ArrayList<PactRecord>();
+	private final CountingOutputCollector output = new CountingOutputCollector();
 
 	public CrossTaskTest() {
-		super(1*1024*1024);
+		super(CROSS_MEM, 0);
 	}
 	
 	@Test
@@ -53,60 +50,56 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		int keyCnt2 = 100;
 		int valCnt2 = 4;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-				
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testBlock2CrossTask() {
-
 		int keyCnt1 = 10;
 		int valCnt1 = 1;
 		
 		int keyCnt2 = 100;
 		int valCnt2 = 4;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-		
-	}
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());	}
 	
 	@Test
 	public void testFailingBlockCrossTask() {
@@ -117,30 +110,29 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		int keyCnt2 = 100;
 		int valCnt2 = 4;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		setOutput(this.output);
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
-		boolean stubFailed = false;
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockFailingCrossStub.class);
+			Assert.fail("Exception not forwarded.");
+		} catch (ExpectedTestException etex) {
+			// good!
 		} catch (Exception e) {
-			stubFailed = true;
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
-		
-		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-		
-		this.outList.clear();
-				
 	}
 	
 	@Test
-	public void testStream1CrossTask() {
+	public void testFailingBlockCrossTask2() {
 
 		int keyCnt1 = 10;
 		int valCnt1 = 1;
@@ -148,244 +140,293 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 		int keyCnt2 = 100;
 		int valCnt2 = 4;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		setOutput(this.output);
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		
+		try {
+			testDriver(testTask, MockFailingCrossStub.class);
+			Assert.fail("Exception not forwarded.");
+		} catch (ExpectedTestException etex) {
+			// good!
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
+		}
+	}
+	
+	@Test
+	public void testStream1CrossTask() {
+		int keyCnt1 = 10;
+		int valCnt1 = 1;
+		
+		int keyCnt2 = 100;
+		int valCnt2 = 4;
+		
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
+		
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
 		
 	}
 	
 	@Test
 	public void testStream2CrossTask() {
-
 		int keyCnt1 = 10;
 		int valCnt1 = 1;
 		
 		int keyCnt2 = 100;
 		int valCnt2 = 4;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-		
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
-	public void testStreamEmptyInnerCrossTask() {
+	public void testFailingStreamCrossTask() {
+		int keyCnt1 = 10;
+		int valCnt1 = 1;
+		
+		int keyCnt2 = 100;
+		int valCnt2 = 4;
+	
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		
+		try {
+			testDriver(testTask, MockFailingCrossStub.class);
+			Assert.fail("Exception not forwarded.");
+		} catch (ExpectedTestException etex) {
+			// good!
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
+		}
+	}
+	
+	@Test
+	public void testFailingStreamCrossTask2() {
+		int keyCnt1 = 10;
+		int valCnt1 = 1;
+		
+		int keyCnt2 = 100;
+		int valCnt2 = 4;
+	
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
+		
+		try {
+			testDriver(testTask, MockFailingCrossStub.class);
+			Assert.fail("Exception not forwarded.");
+		} catch (ExpectedTestException etex) {
+			// good!
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
+		}
+	}
 
+	@Test
+	public void testStreamEmptyInnerCrossTask() {
 		int keyCnt1 = 10;
 		int valCnt1 = 1;
 		
 		int keyCnt2 = 0;
 		int valCnt2 = 0;
 
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-		
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testStreamEmptyOuterCrossTask() {
-
 		int keyCnt1 = 10;
 		int valCnt1 = 1;
 		
 		int keyCnt2 = 0;
 		int valCnt2 = 0;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-		
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testBlockEmptyInnerCrossTask() {
-
 		int keyCnt1 = 10;
 		int valCnt1 = 1;
 		
 		int keyCnt2 = 0;
 		int valCnt2 = 0;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-		
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	@Test
 	public void testBlockEmptyOuterCrossTask() {
-
 		int keyCnt1 = 10;
 		int valCnt1 = 1;
 		
 		int keyCnt2 = 0;
 		int valCnt2 = 0;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
+		final int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
 		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
+		addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
+				
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		
+		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			e.printStackTrace();
+			Assert.fail("Test failed due to an exception.");
 		}
 		
-		int expCnt = keyCnt1*valCnt1*keyCnt2*valCnt2;
-		
-		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+expCnt, this.outList.size() == expCnt);
-		
-		this.outList.clear();
-		
+		Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
 	
 	
-	@Test
-	public void testFailingStreamCrossTask() {
-
-		int keyCnt1 = 10;
-		int valCnt1 = 1;
-		
-		int keyCnt2 = 100;
-		int valCnt2 = 4;
-
-		super.addInput(new UniformPactRecordGenerator(keyCnt1, valCnt1, false));
-		super.addInput(new UniformPactRecordGenerator(keyCnt2, valCnt2, false));
-		super.addOutput(this.outList);
-		
-		CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
-		
-		boolean stubFailed = false;
-		
-		try {
-			testDriver(testTask, MockFailingCrossStub.class);
-		} catch (Exception e) {
-			stubFailed = true;
-		}
-		
-		Assert.assertTrue("Stub exception was not forwarded.", stubFailed);
-		
-		this.outList.clear();
-		
-	}
-
 	@Test
 	public void testCancelBlockCrossTaskInit() {
-		
 		int keyCnt = 10;
 		int valCnt = 1;
+
+		setOutput(this.output);
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(this.outList);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new DelayingInfinitiveInputIterator(100));
+		
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
 		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockCrossStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -401,30 +442,34 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
 	}
 	
 	@Test
 	public void testCancelBlockCrossTaskCrossing() {
-		
 		int keyCnt = 10;
 		int valCnt = 1;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(this.outList);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new DelayingInfinitiveInputIterator(100));
+		
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
 		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockCrossStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -440,30 +485,34 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
 	}
 	
 	@Test
 	public void testCancelStreamCrossTaskInit() {
-		
 		int keyCnt = 10;
 		int valCnt = 1;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(this.outList);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new DelayingInfinitiveInputIterator(100));
+		
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
 		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockCrossStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -479,30 +528,34 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
 	}
 	
 	@Test
 	public void testCancelStreamCrossTaskCrossing() {
-		
 		int keyCnt = 10;
 		int valCnt = 1;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addInput(new DelayingInfinitiveInputIterator(100));
-		super.addOutput(this.outList);
+		setOutput(this.output);
+		
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
+		addInput(new DelayingInfinitiveInputIterator(100));
+		
+		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
+		getTaskConfig().setMemoryDriver(CROSS_MEM);
 		
 		final CrossDriver<PactRecord, PactRecord, PactRecord> testTask = new CrossDriver<PactRecord, PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
-		super.getTaskConfig().setMemorySize(1 * 1024 * 1024);
+		
+		final AtomicBoolean success = new AtomicBoolean(false);
 		
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
 				try {
 					testDriver(testTask, MockCrossStub.class);
+					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
 				}
 			}
 		};
@@ -518,32 +571,27 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<PactRecord, Pac
 			Assert.fail("Joining threads failed");
 		}
 		
+		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
 	}
 	
-	public static class MockCrossStub extends CrossStub {
-
+	public static final class MockCrossStub extends CrossStub
+	{
 		@Override
 		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
-			
 			out.collect(record1);
 		}
 	}
 	
-	public static class MockFailingCrossStub extends CrossStub {
-
-		int cnt = 0;
+	public static final class MockFailingCrossStub extends CrossStub
+	{
+		private int cnt = 0;
 		
 		@Override
 		public void cross(PactRecord record1, PactRecord record2, Collector<PactRecord> out) {
-			
-			if(++this.cnt>=10) {
-				throw new RuntimeException("Expected Test Exception");
+			if (++this.cnt >= 10) {
+				throw new ExpectedTestException();
 			}
-						
-			out.collect(record1);			
+			out.collect(record1);
 		}
 	}
-	
-	
-	
 }

@@ -25,15 +25,16 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
-import eu.stratosphere.pact.common.contract.ReduceContract.Combinable;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.ReduceStub;
 import eu.stratosphere.pact.common.type.Key;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
+import eu.stratosphere.pact.generic.contract.GenericReduceContract.Combinable;
 import eu.stratosphere.pact.generic.stub.GenericReducer;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparator;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializer;
+import eu.stratosphere.pact.runtime.sort.CombiningUnilateralSortMerger;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 
@@ -41,38 +42,38 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<Pact
 {
 	private static final Log LOG = LogFactory.getLog(ReduceTaskExternalITCase.class);
 	
+	@SuppressWarnings("unchecked")
+	private final PactRecordComparator comparator = new PactRecordComparator(
+		new int[]{0}, (Class<? extends Key>[])new Class[]{ PactInteger.class });
+	
 	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 	
 	
 	public ReduceTaskExternalITCase() {
-		super(3*1024*1024);
+		super(0, 1, 3*1024*1024);
 	}
 	
 	
 	@Test
 	public void testSingleLevelMergeReduceTask() {
-
-		int keyCnt = 8192;
-		int valCnt = 8;
+		final int keyCnt = 8192;
+		final int valCnt = 8;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		addOutput(this.outList);
+		setNumFileHandlesForSort(2);
 		
-		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(2);
-		
-		final int[] keyPos = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
+		addInputComparator(this.comparator);
+		setOutput(this.outList);
+		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP);
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
+			
+			ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+			
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			Assert.fail("Exception in Test.");
 		}
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
@@ -87,28 +88,24 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<Pact
 	
 	@Test
 	public void testMultiLevelMergeReduceTask() {
+		final int keyCnt = 32768;
+		final int valCnt = 8;
 
-		int keyCnt = 32768;
-		int valCnt = 8;
+		setNumFileHandlesForSort(2);
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		addOutput(this.outList);
-		
-		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(2);
-		
-		final int[] keyPos = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
+		addInputComparator(this.comparator);
+		setOutput(this.outList);
+		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP);
 		
 		try {
+			addInputSorted(new UniformPactRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
+			
+			ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+			
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
-			Assert.fail("Invoke method caused exception.");
+			Assert.fail("Exception in Test.");
 		}
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
@@ -124,42 +121,44 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<Pact
 	@Test
 	public void testSingleLevelMergeCombiningReduceTask()
 	{
-		int keyCnt = 8192;
-		int valCnt = 8;
+		final int keyCnt = 8192;
+		final int valCnt = 8;
 		
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		super.addOutput(this.outList);
+		addInputComparator(this.comparator);
+		setOutput(this.outList);
+		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP);
 		
-		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(2);
-		
-		final int[] keyPos = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
-		
+		CombiningUnilateralSortMerger<PactRecord> sorter = null;
 		try {
+			sorter = new CombiningUnilateralSortMerger<PactRecord>(new MockCombiningReduceStub(), 
+				getMemoryManager(), getIOManager(), new UniformPactRecordGenerator(keyCnt, valCnt, false), 
+				getOwningNepheleTask(), PactRecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 2, 0.8f, false);
+			addInput(sorter.getIterator());
+			
+			ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+		
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
+		} finally {
+			if (sorter != null) {
+				sorter.close();
+			}
 		}
 		
 		int expSum = 0;
-		for(int i=1;i<valCnt;i++) {
-			expSum+=i;
+		for (int i = 1; i < valCnt; i++) {
+			expSum += i;
 		}
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : this.outList) {
+		for (PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum-record.getField(0, PactInteger.class).getValue());
 		}
 		
 		this.outList.clear();
-		
 	}
 	
 	
@@ -169,34 +168,37 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericReducer<Pact
 		int keyCnt = 32768;
 		int valCnt = 8;
 		
-		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false));
-		addOutput(this.outList);
+		addInputComparator(this.comparator);
+		setOutput(this.outList);
+		getTaskConfig().setDriverStrategy(DriverStrategy.GROUP);
 		
-		ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.COMBININGSORT);
-		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-		super.getTaskConfig().setNumFilehandles(2);
-		
-		final int[] keyPos = new int[]{0};
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyClasses = (Class<? extends Key>[]) new Class[]{ PactInteger.class };
-		addInputComparator(new PactRecordComparator(keyPos, keyClasses));
-		
+		CombiningUnilateralSortMerger<PactRecord> sorter = null;
 		try {
+			sorter = new CombiningUnilateralSortMerger<PactRecord>(new MockCombiningReduceStub(), 
+				getMemoryManager(), getIOManager(), new UniformPactRecordGenerator(keyCnt, valCnt, false), 
+				getOwningNepheleTask(), PactRecordSerializer.get(), this.comparator.duplicate(), this.perSortMem, 2, 0.8f, false);
+			addInput(sorter.getIterator());
+			
+			ReduceDriver<PactRecord, PactRecord> testTask = new ReduceDriver<PactRecord, PactRecord>();
+		
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
 			LOG.debug(e);
 			Assert.fail("Invoke method caused exception.");
+		} finally {
+			if (sorter != null) {
+				sorter.close();
+			}
 		}
 		
 		int expSum = 0;
-		for(int i=1;i<valCnt;i++) {
-			expSum+=i;
+		for (int i = 1; i < valCnt; i++) {
+			expSum += i;
 		}
 		
 		Assert.assertTrue("Resultset size was "+this.outList.size()+". Expected was "+keyCnt, this.outList.size() == keyCnt);
 		
-		for(PactRecord record : this.outList) {
+		for (PactRecord record : this.outList) {
 			Assert.assertTrue("Incorrect result", record.getField(1, PactInteger.class).getValue() == expSum-record.getField(0, PactInteger.class).getValue());
 		}
 		
