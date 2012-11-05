@@ -165,7 +165,7 @@ public class Source extends ElementaryOperator<Source> {
 			try {
 				final URI validURI = new URI(inputPath);
 				if (validURI.getScheme() == null)
-					throw new IllegalStateException("Source does not have a valid file schema: " + inputPath);
+					throw new IllegalStateException("File name of source does not have a valid schema (such as hdfs or file): " + inputPath);
 			} catch (final URISyntaxException e) {
 				throw new IllegalStateException("Source does not have a valid path: " + inputPath, e);
 			}

@@ -21,7 +21,7 @@ public class TypeCoercer {
 		new IdentityHashMap<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer<?, ?>>>();
 
 	@SuppressWarnings("unchecked")
-	public static final List<Class<? extends AbstractNumericNode>> NUMERIC_TYPES = Arrays.asList(
+	public static final List<Class<? extends INumericNode>> NUMERIC_TYPES = Arrays.asList((Class<? extends INumericNode>)
 		IntNode.class, DoubleNode.class, LongNode.class, DecimalNode.class, BigIntegerNode.class);
 
 	private static final Coercer<IJsonNode, IJsonNode> NULL_COERCER = new Coercer<IJsonNode, IJsonNode>(null) {
@@ -57,7 +57,7 @@ public class TypeCoercer {
 		coercers.put(AbstractNumericNode.class, new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, ?>>());
 
 		// init number to number
-		for (final Class<? extends AbstractNumericNode> numericType : NUMERIC_TYPES) {
+		for (final Class<? extends INumericNode> numericType : NUMERIC_TYPES) {
 			final IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, ?>> typeCoercers =
 				new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, ?>>();
 			coercers.put(numericType, typeCoercers);

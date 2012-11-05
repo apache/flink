@@ -6,7 +6,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.CoreFunctions;
-import eu.stratosphere.sopremo.function.Aggregation;
+import eu.stratosphere.sopremo.aggregation.Aggregation;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 
@@ -27,7 +27,7 @@ public class AggregationExpressionTest extends EvaluableExpressionTest<Aggregati
 
 	@Test
 	public void shouldAggregate() {
-		final IJsonNode result = new AggregationExpression(CoreFunctions.AVERAGE).evaluate(createArrayNode(2, 4),
+		final IJsonNode result = new AggregationExpression(CoreFunctions.MEAN).evaluate(createArrayNode(2, 4),
 			null, this.context);
 		Assert.assertTrue(result instanceof INumericNode);
 		Assert.assertEquals(3.0, ((INumericNode) result).getDoubleValue());

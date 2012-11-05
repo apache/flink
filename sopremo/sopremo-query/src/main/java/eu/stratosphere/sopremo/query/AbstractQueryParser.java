@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.antlr.runtime.BitSet;
-import org.antlr.runtime.FailedPredicateException;
 import org.antlr.runtime.IntStream;
 import org.antlr.runtime.MismatchedTokenException;
 import org.antlr.runtime.MissingTokenException;
@@ -43,6 +42,11 @@ import eu.stratosphere.sopremo.query.OperatorInfo.OperatorPropertyInfo;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
 public abstract class AbstractQueryParser extends Parser implements ParsingScope {
+	/**
+	 * 
+	 */
+	public static final String DEFAULT_ERROR_MESSAGE = "Cannot parse script";
+
 	private PackageManager packageManager = new PackageManager();
 
 	private InputSuggestion inputSuggestion = new InputSuggestion().withMaxSuggestions(3).withMinSimilarity(0.5);
@@ -204,7 +208,7 @@ public abstract class AbstractQueryParser extends Parser implements ParsingScope
 		throw e;
 	}
 
-	public OperatorInfo<?> findOperatorGreedily(String packageName, Token firstWord) throws FailedPredicateException {
+	public OperatorInfo<?> findOperatorGreedily(String packageName, Token firstWord) throws RecognitionException {
 		StringBuilder name = new StringBuilder(firstWord.getText());
 		IntList wordBoundaries = new IntArrayList();
 		wordBoundaries.add(name.length());
@@ -227,7 +231,7 @@ public abstract class AbstractQueryParser extends Parser implements ParsingScope
 			this.input.consume();
 
 		if (info == null)
-			throw new FailedPredicateException(firstWord.getInputStream(), "operator name", String.format(
+			throw new RecognitionExceptionWithUsageHint(firstWord, String.format(
 				"Unknown operator %s; possible alternatives %s", name,
 				this.inputSuggestion.suggest(name, scope.getOperatorRegistry())));
 		/*
@@ -247,7 +251,7 @@ public abstract class AbstractQueryParser extends Parser implements ParsingScope
 		return scope;
 	}
 
-	public OperatorInfo.OperatorPropertyInfo findOperatorPropertyRelunctantly(OperatorInfo<?> info, Token firstWord) {
+	public OperatorInfo.OperatorPropertyInfo findOperatorPropertyRelunctantly(OperatorInfo<?> info, Token firstWord) throws RecognitionException {
 		String name = firstWord.getText();
 		OperatorInfo.OperatorPropertyInfo property;
 
@@ -260,10 +264,8 @@ public abstract class AbstractQueryParser extends Parser implements ParsingScope
 		}
 
 		if (property == null)
-			// return null;
-			// throw new FailedPredicateException();
-			throw new QueryParserException(String.format("Unknown property %s; possible alternatives %s", name,
-				this.inputSuggestion.suggest(name, propertyRegistry)), firstWord);
+			throw new RecognitionExceptionWithUsageHint(firstWord, String.format("Unknown property %s; possible alternatives %s", name,
+				this.inputSuggestion.suggest(name, propertyRegistry)));
 
 		// consume additional tokens
 		for (; lookAhead > 1; lookAhead--)
@@ -313,6 +315,12 @@ public abstract class AbstractQueryParser extends Parser implements ParsingScope
 		throw new MismatchedTokenException(ttype, input);
 	}
 
+	protected void explainUsage(String usage, RecognitionException e) throws RecognitionException {
+		final RecognitionExceptionWithUsageHint sre = new RecognitionExceptionWithUsageHint(this.input, usage);
+		sre.initCause(e);
+		throw sre;
+	}
+
 	protected abstract void parseSinks() throws RecognitionException;
 
 	public SopremoPlan parse() throws QueryParserException {
@@ -320,14 +328,16 @@ public abstract class AbstractQueryParser extends Parser implements ParsingScope
 		try {
 			// this.setupParser();
 			this.parseSinks();
+		} catch (RecognitionExceptionWithUsageHint e) {
+			throw new QueryParserException(e.getMessage());
 		} catch (RecognitionException e) {
-			throw new QueryParserException("Cannot parse script", e);
+			throw new QueryParserException(DEFAULT_ERROR_MESSAGE, e);
 		}
 		this.currentPlan.setSinks(this.sinks);
-		
-		for(PackageInfo info : this.packageManager.getImportedPackages())
+
+		for (PackageInfo info : this.packageManager.getImportedPackages())
 			this.currentPlan.addRequiredPackage(info.getPackagePath().getAbsolutePath());
-		
+
 		return this.currentPlan;
 	}
 

@@ -7,13 +7,13 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import eu.stratosphere.sopremo.aggregation.Aggregation;
+import eu.stratosphere.sopremo.aggregation.MaterializingAggregation;
+import eu.stratosphere.sopremo.aggregation.TransitiveAggregation;
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
 import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
-import eu.stratosphere.sopremo.function.Aggregation;
-import eu.stratosphere.sopremo.function.MaterializingAggregationFunction;
-import eu.stratosphere.sopremo.function.TransitiveAggregationFunction;
 import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.packages.BuiltinProvider;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
@@ -36,7 +36,7 @@ import eu.stratosphere.sopremo.type.TextNode;
 public class CoreFunctions implements BuiltinProvider {
 	@Name(verb = "concat", noun = "concatenation")
 	public static final Aggregation<IJsonNode, TextNode> CONCAT =
-		new TransitiveAggregationFunction<IJsonNode, TextNode>("concat", new TextNode()) {
+		new TransitiveAggregation<IJsonNode, TextNode>("concat", new TextNode()) {
 
 			/**
 		 * 
@@ -63,7 +63,7 @@ public class CoreFunctions implements BuiltinProvider {
 	 */
 	@Name(verb = "sum", noun = "sum")
 	public static final Aggregation<INumericNode, INumericNode> SUM =
-		new TransitiveAggregationFunction<INumericNode, INumericNode>(
+		new TransitiveAggregation<INumericNode, INumericNode>(
 			"sum", IntNode.ZERO) {
 			/**
 		 * 
@@ -77,7 +77,7 @@ public class CoreFunctions implements BuiltinProvider {
 		};
 
 	@Name(verb = "count", noun = "count")
-	public static final Aggregation<IJsonNode, IntNode> COUNT = new TransitiveAggregationFunction<IJsonNode, IntNode>(
+	public static final Aggregation<IJsonNode, IntNode> COUNT = new TransitiveAggregation<IJsonNode, IntNode>(
 		"count", IntNode.ZERO) {
 		/**
 		 * 
@@ -92,7 +92,7 @@ public class CoreFunctions implements BuiltinProvider {
 
 	@Name(noun = "first")
 	public static final Aggregation<IJsonNode, IJsonNode> FIRST =
-		new TransitiveAggregationFunction<IJsonNode, IJsonNode>(
+		new TransitiveAggregation<IJsonNode, IJsonNode>(
 			"first", NullNode.getInstance()) {
 			/**
 		 * 
@@ -106,7 +106,7 @@ public class CoreFunctions implements BuiltinProvider {
 		};
 
 	@Name(verb = "sort")
-	public static final Aggregation<IJsonNode, ArrayNode> SORT = new MaterializingAggregationFunction("sort") {
+	public static final Aggregation<IJsonNode, ArrayNode> SORT = new MaterializingAggregation("sort") {
 		/**
 		 * 
 		 */
@@ -122,7 +122,7 @@ public class CoreFunctions implements BuiltinProvider {
 	};
 
 	@Name(adjective = "all")
-	public static final Aggregation<IJsonNode, ArrayNode> ALL = new MaterializingAggregationFunction("all") {
+	public static final Aggregation<IJsonNode, ArrayNode> ALL = new MaterializingAggregation("all") {
 
 		/**
 		 * 
@@ -162,8 +162,8 @@ public class CoreFunctions implements BuiltinProvider {
 		}
 	}
 	
-	@Name(noun = "average")
-	public static final Aggregation<INumericNode, AverageState> AVERAGE = new Aggregation<INumericNode, AverageState>("avg") {
+	@Name(noun = "mean")
+	public static final Aggregation<INumericNode, AverageState> MEAN = new Aggregation<INumericNode, AverageState>("mean") {
 		/**
 		 * 
 		 */
@@ -200,7 +200,7 @@ public class CoreFunctions implements BuiltinProvider {
 
 	@Name(noun = "min")
 	public static final Aggregation<IJsonNode, IJsonNode> MIN =
-		new TransitiveAggregationFunction<IJsonNode, IJsonNode>("min", NullNode.getInstance()) {
+		new TransitiveAggregation<IJsonNode, IJsonNode>("min", NullNode.getInstance()) {
 			/**
 		 * 
 		 */
@@ -216,7 +216,7 @@ public class CoreFunctions implements BuiltinProvider {
 
 	@Name(noun = "max")
 	public static final Aggregation<IJsonNode, IJsonNode> MAX =
-		new TransitiveAggregationFunction<IJsonNode, IJsonNode>("max", NullNode.getInstance()) {
+		new TransitiveAggregation<IJsonNode, IJsonNode>("max", NullNode.getInstance()) {
 			/**
 		 * 
 		 */
@@ -237,7 +237,7 @@ public class CoreFunctions implements BuiltinProvider {
 		 */
 		@Name(verb = "assemble")
 		public static final Aggregation<IArrayNode, ArrayNode> ASSEMBLE_ARRAY =
-			new TransitiveAggregationFunction<IArrayNode, ArrayNode>(
+			new TransitiveAggregation<IArrayNode, ArrayNode>(
 				"assemble", new ArrayNode()) {
 				/**
 			 * 

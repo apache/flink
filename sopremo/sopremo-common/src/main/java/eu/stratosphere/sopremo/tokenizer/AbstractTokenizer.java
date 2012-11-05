@@ -26,7 +26,7 @@ public abstract class AbstractTokenizer implements Tokenizer {
 	 */
 	private static final long serialVersionUID = -3295762476980112124L;
 
-	protected void addToken(CachingArrayNode tokens, TextNode text, int tokenStart, int tokenEnd) {
+	protected void addToken(CachingArrayNode tokens, CharSequence text, int tokenStart, int tokenEnd) {
 		TextNode textNode = (TextNode) tokens.reuseUnusedNode();
 		if (textNode == null)
 			tokens.add(textNode = new TextNode());

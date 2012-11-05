@@ -24,7 +24,7 @@ public class IntersectionTest extends MeteorTest {
 		final Sink output = new Sink("newUsers.json").withInputs(intersection);
 		expectedPlan.setSinks(output);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 }

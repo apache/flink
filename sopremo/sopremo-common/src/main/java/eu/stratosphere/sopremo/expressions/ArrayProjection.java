@@ -1,16 +1,20 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
+import eu.stratosphere.sopremo.type.PullingStreamArrayNode;
 
 /**
  * Projects an array onto another one.
  */
 @OptimizerHints(scope = Scope.ARRAY, iterating = true)
-public class ArrayProjection extends EvaluationExpression {
+public class ArrayProjection extends EvaluationExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -36,22 +40,27 @@ public class ArrayProjection extends EvaluationExpression {
 		return this.expression.equals(other.expression);
 	}
 
+	/**
+	 * Returns the expression.
+	 * 
+	 * @return the expression
+	 */
+	public EvaluationExpression getExpression() {
+		return this.expression;
+	}
+
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
-		// lazy spread
-		// TODO
-		// if (node instanceof StreamArrayNode)
-		// return StreamArrayNode.valueOf(new ConversionIterator<JsonNode, JsonNode>(node.iterator()) {
-		// @Override
-		// protected JsonNode convert(final JsonNode element) {
-		// return ArrayProjection.this.expression.evaluate(element, context);
-		// }
-		// }, ((StreamArrayNode) node).isResettable());
-		// spread
+		if (!(node instanceof IArrayNode)) {
+			// virtual projection
+			final PullingStreamArrayNode targetArray = SopremoUtil.ensureType(target, PullingStreamArrayNode.class);
+			targetArray.setSource((IStreamArrayNode) node);
+			targetArray.setExpressionAndContext(this.expression, context);
+			return targetArray;
+		}
+		// materialized projection
 		final IArrayNode array = (IArrayNode) node;
-
 		final IArrayNode targetArray = SopremoUtil.reinitializeTarget(target, ArrayNode.class);
-
 		for (int index = 0, size = array.size(); index < size; index++)
 			targetArray.add(this.expression.evaluate(array.get(index), targetArray.get(index), context));
 
@@ -60,14 +69,21 @@ public class ArrayProjection extends EvaluationExpression {
 
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.expression = this.expression.transformRecursively(function);
-		return function.call(this);
+	public ChildIterator iterator() {
+		return new NamedChildIterator("expression") {
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				ArrayProjection.this.expression = childExpression;
+			}
+
+			@Override
+			protected EvaluationExpression get(int index) {
+				return ArrayProjection.this.expression;
+			}
+		};
 	}
 
 	@Override

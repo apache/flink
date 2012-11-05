@@ -32,6 +32,6 @@ public interface Tokenizer extends ISerializableSopremoType {
 	 * @param tokens
 	 *        the target array of {@link eu.stratosphere.sopremo.type.TextNode}s.
 	 */
-	void tokenizeInto(TextNode text, CachingArrayNode tokens);
+	void tokenizeInto(CharSequence text, CachingArrayNode tokens);
 
 }

@@ -17,12 +17,10 @@ package eu.stratosphere.meteor.base;
 import org.junit.Test;
 
 import eu.stratosphere.meteor.MeteorTest;
-import eu.stratosphere.sopremo.base.Selection;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression;
-import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
-import eu.stratosphere.sopremo.expressions.ConstantExpression;
-import eu.stratosphere.sopremo.expressions.OrExpression;
-import eu.stratosphere.sopremo.expressions.UnaryExpression;
+import eu.stratosphere.sopremo.base.Projection;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression;
+import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ObjectCreation;
 import eu.stratosphere.sopremo.io.Sink;
 import eu.stratosphere.sopremo.io.Source;
 import eu.stratosphere.sopremo.operator.SopremoPlan;
@@ -31,29 +29,27 @@ import eu.stratosphere.sopremo.type.JsonUtil;
 /**
  * @author Arvid Heise
  */
-public class SelectionTest extends MeteorTest {
+public class TransformTest extends MeteorTest {
 
 	@Test
-	public void testSelection1() {
+	public void testTransform() {
 		final SopremoPlan actualPlan = this.parseScript("$input = read from 'input.json';\n" +
-			"$result = filter $emp in $input where $emp.mgr or $emp.income > 30000;\n" +
-			"write $result to 'output.json';");
+			"$result = transform $input into {sum: $input.a + $input.b};\n" +
+			"write $result to 'output.json'; ");
 
 		final SopremoPlan expectedPlan = new SopremoPlan();
 		final Source input = new Source("input.json");
-		final Selection selection = new Selection().
-			withCondition(
-				new OrExpression(
-					new UnaryExpression(JsonUtil.createPath("0", "mgr")),
-					new ComparativeExpression(JsonUtil.createPath("0", "income"), BinaryOperator.GREATER,
-						new ConstantExpression(30000)))).
+		final Projection projection = new Projection().
+			withResultProjection(
+				new ObjectCreation(
+					new ObjectCreation.FieldAssignment("sum",
+						new ArithmeticExpression(JsonUtil.createPath("0", "a"), ArithmeticOperator.ADDITION,
+							JsonUtil.createPath("0", "b"))))).
 			withInputs(input);
-		final Sink output = new Sink("output.json").withInputs(selection);
+		final Sink output = new Sink("output.json").withInputs(projection);
 		expectedPlan.setSinks(output);
 
-		// System.out.println(Sop);
-
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 }

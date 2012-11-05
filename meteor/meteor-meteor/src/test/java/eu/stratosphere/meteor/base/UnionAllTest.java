@@ -24,6 +24,6 @@ public class UnionAllTest extends MeteorTest {
 		final Sink output = new Sink("allUsers.json").withInputs(union);
 		expectedPlan.setSinks(output);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 }

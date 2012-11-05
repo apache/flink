@@ -1,6 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.TypeCoercer;
@@ -8,7 +10,7 @@ import eu.stratosphere.sopremo.type.TypeCoercer;
 /**
  * Represents a if-then-else clause.
  */
-public class TernaryExpression extends EvaluationExpression {
+public class TernaryExpression extends EvaluationExpression implements ExpressionParent {
 
 	/**
 	 * 
@@ -124,17 +126,37 @@ public class TernaryExpression extends EvaluationExpression {
 
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.ifClause = (CachingExpression<IJsonNode>) function.call(this.ifClause);
-		this.ifExpression = function.call(this.ifExpression);
-		this.thenExpression = function.call(this.thenExpression);
-		return null;
+	public ChildIterator iterator() {
+		return new NamedChildIterator("ifClause", "ifExpression", "thenExpression") {
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				switch (index) {
+				case 0:
+					TernaryExpression.this.ifClause.innerExpression = childExpression;
+					break;
+				case 1:
+					TernaryExpression.this.ifExpression = childExpression;
+					break;
+				default:
+					TernaryExpression.this.thenExpression = childExpression;
+				}
+			}
+
+			@Override
+			protected EvaluationExpression get(int index) {
+				switch (index) {
+				case 0:
+					return TernaryExpression.this.ifClause.innerExpression;
+				case 1:
+					return TernaryExpression.this.ifExpression;
+				default:
+					return TernaryExpression.this.thenExpression;
+				}
+			}
+		};
 	}
 
 	@Override

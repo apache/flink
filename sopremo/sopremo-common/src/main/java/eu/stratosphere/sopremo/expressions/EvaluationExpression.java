@@ -1,18 +1,15 @@
 package eu.stratosphere.sopremo.expressions;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ISerializableSopremoType;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.util.IdentityList;
 import eu.stratosphere.util.IsEqualPredicate;
 import eu.stratosphere.util.IsInstancePredicate;
-import eu.stratosphere.util.IsSamePredicate;
 import eu.stratosphere.util.Predicate;
-import eu.stratosphere.util.Reference;
 
 /**
  * Represents all evaluable expressions.
@@ -74,36 +71,47 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 		return true;
 	}
 
-	@SuppressWarnings("unchecked")
-	public <T extends EvaluationExpression> T find(final Class<T> evaluableClass) {
-		final Reference<T> ref = new Reference<T>();
-		this.transformRecursively(new TransformFunction() {
-			@Override
-			public EvaluationExpression call(final EvaluationExpression evaluationExpression) {
-				if (ref.getValue() == null && evaluableClass.isInstance(evaluationExpression))
-					ref.setValue((T) evaluationExpression);
-				return evaluationExpression;
+	public EvaluationExpression findFirst(final Predicate<? super EvaluationExpression> predicate) {
+		if (predicate.isTrue(this))
+			return this;
+		if (this instanceof ExpressionParent)
+			for (EvaluationExpression child : ((ExpressionParent) this)) {
+				final EvaluationExpression expr = child.findFirst(predicate);
+				if (expr != null)
+					return child.findFirst(predicate);
 			}
-		});
-		return ref.getValue();
+		return null;
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T extends EvaluationExpression> T findFirst(final Class<T> evaluableClass) {
+		return (T) findFirst(new IsInstancePredicate(evaluableClass));
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T extends EvaluationExpression> List<T> findAll(final Class<T> evaluableClass) {
+		return (List<T>) findAll(new IsInstancePredicate(evaluableClass));
 	}
 
 	public List<EvaluationExpression> findAll(final Predicate<? super EvaluationExpression> predicate) {
 		final ArrayList<EvaluationExpression> expressions = new ArrayList<EvaluationExpression>();
-		this.transformRecursively(new TransformFunction() {
-			@Override
-			public EvaluationExpression call(final EvaluationExpression evaluationExpression) {
-				if (predicate.isTrue(evaluationExpression))
-					expressions.add(evaluationExpression);
-				return evaluationExpression;
-			}
-		});
+		findAll(predicate, expressions);
 		return expressions;
+	}
+
+	private void findAll(final Predicate<? super EvaluationExpression> predicate,
+			final ArrayList<EvaluationExpression> expressions) {
+		if (predicate.isTrue(this))
+			expressions.add(this);
+
+		if (this instanceof ExpressionParent)
+			for (EvaluationExpression child : ((ExpressionParent) this))
+				child.findAll(predicate, expressions);
 	}
 
 	/**
 	 * Recursively invokes the transformation function on all children and on the expression itself.<br>
-	 * In general, this method should not modify this expression.<br>
+	 * In general, this method can modify this expression in-place.<br>
 	 * To retain the original expression, next to the transformed expression, use {@link #clone()}.
 	 * 
 	 * @param function
@@ -111,6 +119,13 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 	 * @return the transformed expression
 	 */
 	public EvaluationExpression transformRecursively(final TransformFunction function) {
+		if (this instanceof ExpressionParent) {
+			final ChildIterator iterator = ((ExpressionParent) this).iterator();
+			while (iterator.hasNext()) {
+				EvaluationExpression evaluationExpression = iterator.next();
+				iterator.set(evaluationExpression.transformRecursively(function));
+			}
+		}
 		return function.call(this);
 	}
 
@@ -177,28 +192,27 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 	 * @return the expression without removed sub-expressions
 	 */
 	public EvaluationExpression remove(final Predicate<? super EvaluationExpression> predicate) {
-		// intermediate tag expression
-		final EvaluationExpression REMOVED = new UnevaluableExpression("Removed value");
+		if (predicate.isTrue(this))
+			return VALUE;
 
-		// remove in three steps
-		// 1. replace all removed expression with REMOVED
-		// 2. remove all REMOVED in containers
-		final EvaluationExpression taggedValues = this.transformRecursively(new TransformFunction() {
-			@Override
-			public EvaluationExpression call(final EvaluationExpression evaluationExpression) {
-				if (predicate.isTrue(evaluationExpression))
-					return REMOVED;
-				if (evaluationExpression instanceof ContainerExpression) {
-					final List<EvaluationExpression> children = new IdentityList<EvaluationExpression>();
-					children.addAll(((ContainerExpression) evaluationExpression).getChildren());
-					children.removeAll(Arrays.asList(REMOVED));
-					((ContainerExpression) evaluationExpression).setChildren(children);
-				}
-				return evaluationExpression;
-			}
-		});
-		// 3. replace all other REMOVED with VALUE
-		return taggedValues.replace(new IsSamePredicate(REMOVED), VALUE);
+		if (this instanceof ExpressionParent)
+			removeRecursively((ExpressionParent) this, predicate);
+		return this;
+	}
+
+	private void removeRecursively(final ExpressionParent expressionParent,
+			final Predicate<? super EvaluationExpression> predicate) {
+		final ChildIterator iterator = expressionParent.iterator();
+		while (iterator.hasNext()) {
+			EvaluationExpression child = iterator.next();
+			if (predicate.isTrue(child)) {
+				if (!iterator.canChildrenBeRemoved())
+					iterator.set(VALUE);
+				else
+					iterator.remove();
+			} else if (child instanceof ExpressionParent)
+				child.removeRecursively((ExpressionParent) this, predicate);
+		}
 	}
 
 	/**
@@ -271,6 +285,17 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 		throw new UnsupportedOperationException(String.format(
 			"Cannot change the value with expression %s of node %s to %s", this, node, value));
 	}
+	
+	public EvaluationExpression simplify() {
+		if(this instanceof ExpressionParent) {
+			final ChildIterator iterator = ((ExpressionParent) this).iterator();
+			while (iterator.hasNext()) {
+				EvaluationExpression evaluationExpression = iterator.next();
+				iterator.set(evaluationExpression.simplify());
+			}
+		}
+		return this;
+	}
 
 	@Override
 	public String toString() {
@@ -290,12 +315,21 @@ public abstract class EvaluationExpression implements ISerializableSopremoType, 
 	public void toString(final StringBuilder builder) {
 	}
 
-	protected List<EvaluationExpression> transformChildExpressions(final TransformFunction function,
-			final List<? extends EvaluationExpression> children2) {
-		final List<EvaluationExpression> children = new ArrayList<EvaluationExpression>(children2);
-		for (int index = 0; index < children.size(); index++)
-			children.set(index, children.get(index).transformRecursively(function));
-		return children;
+	public String printAsTree() {
+		StringBuilder builder = new StringBuilder();
+		printAsTree(builder, 0);
+		return builder.toString();
+	}
+
+	protected void printAsTree(StringBuilder builder, int level) {
+		for (int index = 0; index < level; index++)
+			builder.append(' ');
+		builder.append(getClass().getSimpleName()).append(' ');
+		toString(builder);
+		builder.append('\n');
+		if (this instanceof ExpressionParent)
+			for (EvaluationExpression child : ((ExpressionParent) this))
+				child.printAsTree(builder, level + 1);
 	}
 
 	protected void appendChildExpressions(final StringBuilder builder,

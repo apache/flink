@@ -1,9 +1,9 @@
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.sopremo.aggregation;
 
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
-public abstract class TransitiveAggregationFunction<ElementType extends IJsonNode, AggregatorType extends IJsonNode> extends Aggregation<ElementType, AggregatorType> {
+public abstract class TransitiveAggregation<ElementType extends IJsonNode, AggregatorType extends IJsonNode> extends Aggregation<ElementType, AggregatorType> {
 	/**
 	 * 
 	 */
@@ -11,7 +11,7 @@ public abstract class TransitiveAggregationFunction<ElementType extends IJsonNod
 
 	private final AggregatorType initialAggregate;
 
-	public TransitiveAggregationFunction(final String name, final AggregatorType initialAggregate) {
+	public TransitiveAggregation(final String name, final AggregatorType initialAggregate) {
 		super(name);
 		this.initialAggregate = initialAggregate;
 	}

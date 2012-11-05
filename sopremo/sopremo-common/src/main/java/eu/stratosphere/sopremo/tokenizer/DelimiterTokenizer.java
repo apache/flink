@@ -90,13 +90,11 @@ public class DelimiterTokenizer extends AbstractTokenizer implements Tokenizer {
 		builder.append("]");
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.cleansing.similarity.Tokenizer#tokenizeInto(java.lang.CharSequence,
-	 * eu.stratosphere.sopremo.type.CachingArrayNode)
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.tokenizer.Tokenizer#tokenizeInto(java.lang.CharSequence, eu.stratosphere.sopremo.type.CachingArrayNode)
 	 */
 	@Override
-	public void tokenizeInto(TextNode text, CachingArrayNode tokens) {
+	public void tokenizeInto(CharSequence text, CachingArrayNode tokens) {
 		tokens.setSize(0);
 
 		int textIndex = 0, tokenStart = 0;

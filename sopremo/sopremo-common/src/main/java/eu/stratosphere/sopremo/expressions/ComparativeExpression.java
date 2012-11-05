@@ -1,6 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -9,7 +11,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * Represents basic binary comparative expressions covering all operators specified in {@link BinaryOperator}.
  */
 @OptimizerHints(scope = Scope.ANY, minNodes = 2, maxNodes = 2)
-public class ComparativeExpression extends BinaryBooleanExpression {
+public class ComparativeExpression extends BinaryBooleanExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -70,17 +72,29 @@ public class ComparativeExpression extends BinaryBooleanExpression {
 			this.expr2.evaluate(node, null, context)));
 	}
 
+
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.expr1 = this.expr1.transformRecursively(function);
-		this.expr2 = this.expr2.transformRecursively(function);
-		return function.call(this);
+	public ChildIterator iterator() {
+		return new NamedChildIterator("expr1", "expr2") {
+
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				if(index == 0)
+					ComparativeExpression.this.expr1 = childExpression;
+				else ComparativeExpression.this.expr2 = childExpression;
+			}
+
+			@Override
+			protected EvaluationExpression get(int index) {
+				if(index == 0)
+					return ComparativeExpression.this.expr1;
+				return ComparativeExpression.this.expr2;
+			}
+		};
 	}
 
 	/**
