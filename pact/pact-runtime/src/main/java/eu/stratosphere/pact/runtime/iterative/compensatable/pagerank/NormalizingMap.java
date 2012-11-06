@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.runtime.iterative.compensatable;
+package eu.stratosphere.pact.runtime.iterative.compensatable.pagerank;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -7,7 +7,7 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
-public class CompensatingMap extends MapStub {
+public class NormalizingMap extends MapStub {
 
   private int workerIndex;
   private int currentIteration;
@@ -15,11 +15,12 @@ public class CompensatingMap extends MapStub {
   private PageRankStats stats;
   private long numVertices;
 
-  private double compensatedRank;
-
   private int failingIteration;
   private int failingWorker;
   private double messageLoss;
+
+  private double uniformRank;
+  private double rescaleFactor;
 
   @Override
   public void open(Configuration parameters) throws Exception {
@@ -33,7 +34,7 @@ public class CompensatingMap extends MapStub {
     }
     if (currentIteration > 1) {
       stats = (PageRankStats) IterationContext.instance().getGlobalAggregate(workerIndex);
-      System.out.println("CompensatingMap " + workerIndex + " " + currentIteration + "\n" + stats);
+      //System.out.println("NormalizingMap " + workerIndex + " " + currentIteration + "\n" + stats);
     }
 
     failingIteration = parameters.getInteger("compensation.failingIteration", -1);
@@ -54,22 +55,34 @@ public class CompensatingMap extends MapStub {
       throw new IllegalStateException();
     }
 
-    if (currentIteration == failingIteration + 1 && workerIndex == failingWorker) {
-      compensatedRank = (1d - stats.rank()) / (double) (numVertices - stats.numVertices());
+    if (currentIteration > 1) {
+      uniformRank = 1d / (double) numVertices;
+      double lostMassFactor = (numVertices - stats.numVertices()) / (double) numVertices;
+      rescaleFactor = (1 - lostMassFactor) / stats.rank();
     }
-
   }
 
   @Override
   public void map(PactRecord pageWithRank, Collector<PactRecord> out) throws Exception {
 
-    if (currentIteration == failingIteration + 1 && workerIndex == failingWorker) {
-      pageWithRank.setField(1, new PactDouble(compensatedRank));
-    }
+    if (currentIteration > 1) {
 
-    //long vertex = pageWithRank.getField(0, PactLong.class).getValue();
-    //System.out.println("Compensating value of vertex " + vertex + " with rank " + compensatedRank);
+      double rank = pageWithRank.getField(1, PactDouble.class).getValue();
+
+      if (currentIteration != failingIteration + 1) {
+        /* normalize */
+        rank /= stats.rank();
+      } else {
+           if (workerIndex == failingWorker) {
+             rank = uniformRank;
+           } else {
+            rank *= rescaleFactor;
+           }
+      }
+      pageWithRank.setField(1, new PactDouble(rank));
+    }
 
     out.collect(pageWithRank);
   }
+
 }

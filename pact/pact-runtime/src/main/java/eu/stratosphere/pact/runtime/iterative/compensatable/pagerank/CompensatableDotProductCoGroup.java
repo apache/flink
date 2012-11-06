@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.runtime.iterative.compensatable;
+package eu.stratosphere.pact.runtime.iterative.compensatable.pagerank;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
@@ -9,7 +9,6 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
 import java.util.Iterator;
-import java.util.Random;
 
 public class CompensatableDotProductCoGroup extends CoGroupStub {
 
@@ -22,11 +21,13 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
   private int failingWorker;
   private double messageLoss;
 
-  private PageRankStatsAggregator aggregator = (PageRankStatsAggregator) new DiffL1NormConvergenceCriterion()
-      .createAggregator();
+  private PageRankStatsAggregator aggregator =
+      (PageRankStatsAggregator) new DiffL1NormConvergenceCriterion().createAggregator();
 
   private long numVertices;
-  private static final double beta = 0.85;
+  private double dampingFactor;
+
+  private static final double BETA = 0.85;
 
   @Override
   public void open(Configuration parameters) throws Exception {
@@ -60,6 +61,7 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
       throw new IllegalStateException();
     }
 
+    dampingFactor = (1d - BETA) * (1d / (double) numVertices);
   }
 
   @Override
@@ -74,14 +76,10 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
     double rank = 0;
 
     while (partialRanks.hasNext()) {
-      PactRecord record = partialRanks.next();
-//      if (currentPageRank.getField(0, PactLong.class).getValue() != record.getField(0, PactLong.class).getValue()) {
-//        throw new IllegalStateException();
-//      }
-     rank += record.getField(1, PactDouble.class).getValue();
+      rank += partialRanks.next().getField(1, PactDouble.class).getValue();
     }
 
-    rank = beta * rank + (1d - beta) * (1d / numVertices) ;
+    rank = BETA * rank + dampingFactor;
 
     double currentRank = currentPageRank.getField(1, PactDouble.class).getValue();
 
@@ -97,7 +95,6 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
 
   @Override
   public void close() throws Exception {
-    //witzlos
     if (currentIteration == failingIteration && workerIndex == failingWorker) {
       aggregator.reset();
     }

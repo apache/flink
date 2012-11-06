@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.runtime.iterative.compensatable;
+package eu.stratosphere.pact.runtime.iterative.compensatable.pagerank;
 
 import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
 import eu.stratosphere.pact.runtime.iterative.convergence.ConvergenceCriterion;
@@ -7,10 +7,9 @@ import org.apache.commons.logging.LogFactory;
 
 public class DiffL1NormConvergenceCriterion implements ConvergenceCriterion<PageRankStats> {
 
-  private static final double EPSILON = 0.0001;
+  private static final double EPSILON = 0.00005;
 
   private static final Log log = LogFactory.getLog(DiffL1NormConvergenceCriterion.class);
-
 
   @Override
   public Aggregator<PageRankStats> createAggregator() {

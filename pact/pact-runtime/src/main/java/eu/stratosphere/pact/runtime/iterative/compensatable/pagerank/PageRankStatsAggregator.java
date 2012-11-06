@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.runtime.iterative.compensatable;
+package eu.stratosphere.pact.runtime.iterative.compensatable.pagerank;
 
 import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
 

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.compensatable;
+package eu.stratosphere.pact.runtime.iterative.compensatable.pagerank;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -28,10 +28,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.driver.SortingTempDriver;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
-import eu.stratosphere.pact.runtime.iterative.playing.pagerank.DotProductCoGroup;
-import eu.stratosphere.pact.runtime.iterative.playing.pagerank.DotProductMatch;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.IdentityMap;
-import eu.stratosphere.pact.runtime.iterative.playing.pagerank.L1NormConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankInputFormat;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankOutFormat;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.TransitionMatrixInputFormat;
@@ -114,7 +111,7 @@ public class CompensatablePageRank {
         degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig headConfig = new TaskConfig(head.getConfiguration());
     headConfig.setDriver(MapDriver.class);
-    headConfig.setStubClass(CompensatingMap.class);
+    headConfig.setStubClass(NormalizingMap.class);
     headConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     headConfig.setBackChannelMemoryFraction(0.8f);
     headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
