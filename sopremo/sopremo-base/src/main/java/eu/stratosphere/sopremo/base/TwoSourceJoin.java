@@ -22,8 +22,10 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.TransformFunction;
 import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.operator.Property;
+import eu.stratosphere.util.IsInstancePredicate;
 
 public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 	private static final long serialVersionUID = 3299811281318600335L;
@@ -46,7 +48,16 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
-		this.strategy.setResultProjection(this.getResultProjection());
+		if (this.inverseInputs)
+			this.strategy.setResultProjection(this.getResultProjection().clone().replace(
+				new IsInstancePredicate(InputSelection.class), new TransformFunction() {
+					@Override
+					public EvaluationExpression call(EvaluationExpression argument) {
+						return new InputSelection(1 - ((InputSelection) argument).getIndex());
+					}
+				}));
+		else
+			this.strategy.setResultProjection(this.getResultProjection());
 		if (!this.outerJoinSources.isEmpty() && this.strategy instanceof OuterJoin)
 			((OuterJoin) this.strategy).withMode(
 				this.outerJoinSources.contains(this.inverseInputs ? 1 : 0),
@@ -203,7 +214,8 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 			}
 		} else if (this.condition instanceof ElementInSetExpression) {
 			ElementInSetExpression elementInSetExpression = (ElementInSetExpression) this.condition.clone();
-			this.inverseInputs = elementInSetExpression.getElementExpr().findFirst(InputSelection.class).getIndex() == 1;
+			this.inverseInputs =
+				elementInSetExpression.getElementExpr().findFirst(InputSelection.class).getIndex() == 1;
 			switch (elementInSetExpression.getQuantor()) {
 			case EXISTS_NOT_IN:
 				this.strategy = new AntiJoin().
