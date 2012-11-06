@@ -6,6 +6,8 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -163,6 +165,13 @@ public class Join extends CompositeOperator<Join> {
 			throw new IllegalArgumentException("No join condition given");
 
 		this.joinCondition = joinCondition;
+		this.binaryConditions = expressions;
+	}
+	
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		final ArrayList<BinaryBooleanExpression> expressions = new ArrayList<BinaryBooleanExpression>();
+		this.addBinaryExpressions(this.joinCondition, expressions);
 		this.binaryConditions = expressions;
 	}
 
