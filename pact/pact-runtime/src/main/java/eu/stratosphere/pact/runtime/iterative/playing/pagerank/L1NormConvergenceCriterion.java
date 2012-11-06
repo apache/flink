@@ -24,7 +24,7 @@ import org.apache.commons.logging.LogFactory;
 
 public class L1NormConvergenceCriterion implements ConvergenceCriterion<PactDouble> {
 
-  private static final double EPSILON = 0.01;
+  private static final double EPSILON = 0.0001;
 
   private static final Log log = LogFactory.getLog(L1NormConvergenceCriterion.class);
 

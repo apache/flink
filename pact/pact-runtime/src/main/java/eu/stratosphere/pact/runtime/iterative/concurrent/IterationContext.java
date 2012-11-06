@@ -24,12 +24,14 @@ import java.util.concurrent.ConcurrentMap;
 public class IterationContext {
 
   private ConcurrentMap<Integer, Value> aggregates;
+  private ConcurrentMap<Integer, Value> globalAggregates;
 
   /** single instance */
   private static final IterationContext INSTANCE = new IterationContext();
 
   private IterationContext() {
     aggregates = Maps.newConcurrentMap();
+    globalAggregates = Maps.newConcurrentMap();
   }
 
   /** retrieve singleton instance */
@@ -43,6 +45,14 @@ public class IterationContext {
 
   public Value getAggregateAndReset(int index) {
     return aggregates.remove(index);
+  }
+
+  public void setGlobalAggregate(int index, Value aggregate) {
+    globalAggregates.put(index, aggregate);
+  }
+
+  public Value getGlobalAggregate(int index) {
+    return globalAggregates.get(index);
   }
 
 }

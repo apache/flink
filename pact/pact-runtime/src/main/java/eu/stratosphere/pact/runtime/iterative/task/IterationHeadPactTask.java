@@ -207,6 +207,12 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
       }
 
       Value aggregate = iterationContext.getAggregateAndReset(workerIndex);
+
+      if (aggregate != null && log.isInfoEnabled()) {
+        log.info(formatLogString("sending aggregate [" + aggregate + "] to sync in iteration [" +
+            currentIteration() + "]"));
+      }
+
       sendEventToSync(new WorkerDoneEvent(workerIndex, aggregate));
 
       notifyMonitor(IterationMonitoring.Event.HEAD_FINISHED);
@@ -226,6 +232,15 @@ public class IterationHeadPactTask<S extends Stub, OT> extends AbstractIterative
         sendEventToAllIterationOutputs(new TerminationEvent());
       } else {
         incrementIterationCounter();
+
+        Value globalAggregate = barrier.aggregate();
+        if (globalAggregate != null) {
+          if (log.isInfoEnabled()) {
+            log.info(formatLogString("head received global aggregate [" + globalAggregate +"] in iteration [" +
+                currentIteration() + "]"));
+          }
+          IterationContext.instance().setGlobalAggregate(workerIndex, globalAggregate);
+        }
       }
 
       feedBackSuperstepResult(superstepResult, serializer);

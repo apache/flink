@@ -65,6 +65,12 @@ public abstract class AbstractIterativePactTask<S extends Stub, OT> extends Regu
     numIterations++;
   }
 
+  @Override
+  public void invoke() throws Exception {
+    getTaskConfig().setStubParameter("pact.iterations.currentIteration", String.valueOf(currentIteration()));
+    super.invoke();
+  }
+
   protected void notifyMonitor(IterationMonitoring.Event event) {
     if (log.isInfoEnabled()) {
       log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration(),

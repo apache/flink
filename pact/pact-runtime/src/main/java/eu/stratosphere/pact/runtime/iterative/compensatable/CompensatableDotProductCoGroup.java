@@ -1,4 +1,4 @@
-package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
+package eu.stratosphere.pact.runtime.iterative.compensatable;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.CoGroupStub;
@@ -6,17 +6,24 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
-import eu.stratosphere.pact.runtime.iterative.aggregate.Aggregator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
 import java.util.Iterator;
+import java.util.Random;
 
-public class DotProductCoGroup extends CoGroupStub {
+public class CompensatableDotProductCoGroup extends CoGroupStub {
 
   private PactRecord accumulator;
-  private double diffOfPartition;
+
   private int workerIndex;
-  private Aggregator<PactDouble> aggregator = new L1NormConvergenceCriterion().createAggregator();;
+  private int currentIteration;
+
+  private int failingIteration;
+  private int failingWorker;
+  private double messageLoss;
+
+  private PageRankStatsAggregator aggregator = (PageRankStatsAggregator) new DiffL1NormConvergenceCriterion()
+      .createAggregator();
 
   private long numVertices;
   private static final double beta = 0.85;
@@ -28,7 +35,23 @@ public class DotProductCoGroup extends CoGroupStub {
     if (workerIndex == -1) {
       throw new IllegalStateException("Invalid workerIndex " + workerIndex);
     }
-    diffOfPartition = 0;
+
+    failingIteration = parameters.getInteger("compensation.failingIteration", -1);
+    if (failingIteration == -1) {
+      throw new IllegalStateException();
+    }
+    failingWorker = parameters.getInteger("compensation.failingWorker", -1);
+    if (failingWorker == -1) {
+      throw new IllegalStateException();
+    }
+    messageLoss = Double.parseDouble(parameters.getString("compensation.messageLoss", "-1"));
+    if (messageLoss == -1) {
+      throw new IllegalStateException();
+    }
+    currentIteration = parameters.getInteger("pact.iterations.currentIteration", -1);
+    if (currentIteration == -1) {
+      throw new IllegalStateException();
+    }
 
     aggregator.reset();
 
@@ -36,6 +59,7 @@ public class DotProductCoGroup extends CoGroupStub {
     if (numVertices == -1) {
       throw new IllegalStateException();
     }
+
   }
 
   @Override
@@ -43,7 +67,7 @@ public class DotProductCoGroup extends CoGroupStub {
       Collector<PactRecord> collector) {
 
     if (!currentPageRankIterator.hasNext()) {
-      throw new IllegalStateException("No current ");
+      throw new IllegalStateException("No current page rank!");
     }
     PactRecord currentPageRank = currentPageRankIterator.next();
 
@@ -51,10 +75,10 @@ public class DotProductCoGroup extends CoGroupStub {
 
     while (partialRanks.hasNext()) {
       PactRecord record = partialRanks.next();
-      if (currentPageRank.getField(0, PactLong.class).getValue() != record.getField(0, PactLong.class).getValue()) {
-        throw new IllegalStateException();
-      }
-      rank += record.getField(1, PactDouble.class).getValue();
+//      if (currentPageRank.getField(0, PactLong.class).getValue() != record.getField(0, PactLong.class).getValue()) {
+//        throw new IllegalStateException();
+//      }
+     rank += record.getField(1, PactDouble.class).getValue();
     }
 
     rank = beta * rank + (1d - beta) * (1d / numVertices) ;
@@ -63,7 +87,7 @@ public class DotProductCoGroup extends CoGroupStub {
 
     double diff = Math.abs(currentRank - rank);
 
-    diffOfPartition += diff;
+    aggregator.aggregate(diff, rank, 1);
 
     accumulator.setField(0, currentPageRank.getField(0, PactLong.class));
     accumulator.setField(1, new PactDouble(rank));
@@ -74,7 +98,9 @@ public class DotProductCoGroup extends CoGroupStub {
   @Override
   public void close() throws Exception {
     //witzlos
-    aggregator.aggregate(new PactDouble(diffOfPartition));
+    if (currentIteration == failingIteration && workerIndex == failingWorker) {
+      aggregator.reset();
+    }
     IterationContext.instance().setAggregate(workerIndex, aggregator.getAggregate());
   }
 }

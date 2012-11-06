@@ -17,6 +17,8 @@ package eu.stratosphere.pact.runtime.iterative.concurrent;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.pact.common.type.Value;
+import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 
 import java.util.concurrent.CountDownLatch;
@@ -28,6 +30,8 @@ public class SuperstepBarrier implements EventListener {
 
   private CountDownLatch latch;
 
+  private Value aggregate = null;
+
   /** setup the barrier, has to be called at the beginning of each superstep */
   public void setup() {
     latch = new CountDownLatch(1);
@@ -38,12 +42,21 @@ public class SuperstepBarrier implements EventListener {
     latch.await();
   }
 
+  public Value aggregate() {
+    return aggregate;
+  }
+
   /** barrier will release the waiting thread if an event occurs*/
   @Override
   public void eventOccurred(AbstractTaskEvent event) {
 
     if (event instanceof TerminationEvent) {
       terminationSignaled = true;
+      aggregate = null;
+    }
+
+    if (event instanceof AllWorkersDoneEvent) {
+      aggregate = ((AllWorkersDoneEvent) event).aggregate();
     }
 
     latch.countDown();

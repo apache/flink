@@ -139,7 +139,13 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
           log.info(formatLogString("signaling that all workers are done in iteration [" + currentIteration + "]"));
         }
 
-        sendToAllWorkers(new AllWorkersDoneEvent());
+        AllWorkersDoneEvent allWorkersDoneEvent = taskConfig.usesConvergenceCriterion() ?
+            new AllWorkersDoneEvent(aggregator.getAggregate()) :
+            new AllWorkersDoneEvent();
+
+        aggregator.reset();
+
+        sendToAllWorkers(allWorkersDoneEvent);
         notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
         currentIteration++;
       }
@@ -159,7 +165,6 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
     if (taskConfig.usesConvergenceCriterion()) {
 
       Value aggregate = aggregator.getAggregate();
-      aggregator.reset();
 
       if (convergenceCriterion.isConverged(currentIteration, aggregate)) {
         if (log.isInfoEnabled()) {

@@ -15,9 +15,16 @@ public class DotProductReducer extends ReduceStub {
 
   private PactRecord accumulator;
 
+  private long numVertices;
+  private static final double beta = 0.85;
+
   @Override
   public void open(Configuration parameters) throws Exception {
     accumulator = new PactRecord();
+    numVertices = parameters.getLong("pageRank.numVertices", -1);
+    if (numVertices == -1) {
+      throw new IllegalStateException();
+    }
   }
 
   @Override
@@ -39,7 +46,10 @@ public class DotProductReducer extends ReduceStub {
 //      buffer.append("\t" + record.getField(0, PactLong.class) + " " + record.getField(1, PactDouble.class) + "\n");
     }
 
-    accumulator.setField(1, new PactDouble(sum));
+
+    double updatedRank = beta * sum + (1d - beta) * (1d / numVertices) ;
+
+    accumulator.setField(1, new PactDouble(updatedRank));
 
 //    buffer.append("= " + accumulator.getField(0, PactLong.class) + " " + sum + ")))");
 //    System.out.println(buffer);

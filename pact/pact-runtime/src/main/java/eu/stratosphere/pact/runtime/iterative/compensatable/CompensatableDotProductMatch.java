@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.playing.pagerank;
+package eu.stratosphere.pact.runtime.iterative.compensatable;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.stubs.Collector;
@@ -21,14 +21,48 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
-public class DotProductMatch extends MatchStub {
+import java.util.Random;
+
+public class CompensatableDotProductMatch extends MatchStub {
 
   private PactRecord record;
+
+  private int workerIndex;
+  private int currentIteration;
+  private Random random;
+
+  private int failingIteration;
+  private int failingWorker;
+  private double messageLoss;
 
   @Override
   public void open(Configuration parameters) throws Exception {
     record = new PactRecord();
+    workerIndex = parameters.getInteger("pact.parallel.task.id", -1);
+    if (workerIndex == -1) {
+      throw new IllegalStateException("Invalid workerIndex " + workerIndex);
+    }
+
+    failingIteration = parameters.getInteger("compensation.failingIteration", -1);
+    if (failingIteration == -1) {
+      throw new IllegalStateException();
+    }
+    failingWorker = parameters.getInteger("compensation.failingWorker", -1);
+    if (failingWorker == -1) {
+      throw new IllegalStateException();
+    }
+    messageLoss = Double.parseDouble(parameters.getString("compensation.messageLoss", "-1"));
+    if (messageLoss == -1) {
+      throw new IllegalStateException();
+    }
+    currentIteration = parameters.getInteger("pact.iterations.currentIteration", -1);
+    if (currentIteration == -1) {
+      throw new IllegalStateException();
+    }
+
+    random = new Random();
   }
 
   @Override
@@ -53,7 +87,13 @@ public class DotProductMatch extends MatchStub {
 //    System.out.println("Joining (" + vertexID + "," + rank + ") with (" + source + "," + target + "," + transitionProbability + ")");
 //    System.out.println(">>>>>>>>>>>> Emitting: " + target + "," + (rank * transitionProbability));
 
-    collector.collect(record);
+    if (currentIteration == failingIteration && workerIndex == failingWorker) {
+      if (random.nextDouble() >= messageLoss) {
+        collector.collect(record);
+      }
+    } else {
+      collector.collect(record);
+    }
   }
 
   @Override

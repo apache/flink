@@ -16,17 +16,51 @@
 package eu.stratosphere.pact.runtime.iterative.event;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.pact.common.type.Value;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
 /** signals that all iteration heads are done with one particular superstep */
+//TODO merge serialization code with WorkerDoneEvent
 public class AllWorkersDoneEvent extends AbstractTaskEvent {
 
-  @Override
-  public void write(DataOutput out) throws IOException {}
+  private Value aggregate;
+
+  public AllWorkersDoneEvent() {}
+
+  public AllWorkersDoneEvent(Value aggregate) {
+    this.aggregate = aggregate;
+  }
+
+  public Value aggregate() {
+    return aggregate;
+  }
 
   @Override
-  public void read(DataInput in) throws IOException {}
+  public void write(DataOutput out) throws IOException {
+    boolean hasAggregate = aggregate != null;
+    out.writeBoolean(hasAggregate);
+    if (hasAggregate) {
+      out.writeUTF(aggregate.getClass().getName());
+      aggregate.write(out);
+    }
+  }
+
+  @Override
+  public void read(DataInput in) throws IOException {
+    boolean hasAggregate = in.readBoolean();
+    if (hasAggregate) {
+      String classname = in.readUTF();
+      try {
+        aggregate = Class.forName(classname).asSubclass(Value.class).newInstance();
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
+      aggregate.read(in);
+    } else {
+      aggregate = null;
+    }
+  }
 }
