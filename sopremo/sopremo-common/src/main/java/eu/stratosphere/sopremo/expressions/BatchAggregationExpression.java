@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.aggregation.Aggregation;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
@@ -111,6 +112,9 @@ public class BatchAggregationExpression extends EvaluationExpression {
 				final AggregationExpression partial = this.partials.get(index);
 				final IJsonNode preprocessedValue =
 					partial.getPreprocessing().evaluate(input, this.lastPreprocessingResults.get(index), context);
+				if (preprocessedValue.isMissing())
+					throw new EvaluationException(String.format("Cannot access %s for aggregation %s",
+						partial.getPreprocessing(), partial));
 				this.lastAggregators.set(index,
 					partial.getFunction().aggregate(preprocessedValue, this.lastAggregators.get(index), context));
 			}
