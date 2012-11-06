@@ -61,11 +61,10 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 
 		try {
 
-			synchronized (this.globalInputSplitProvider) {
-				final InputSplitWrapper wrapper = this.globalInputSplitProvider.requestNextInputSplit(this.jobID,
-					this.executionVertexID, this.sequenceNumber.getAndIncrement());
-				return wrapper.getInputSplit();
-			}
+			final InputSplitWrapper wrapper = this.globalInputSplitProvider.requestNextInputSplit(this.jobID,
+				this.executionVertexID, this.sequenceNumber.getAndIncrement());
+
+			return wrapper.getInputSplit();
 
 		} catch (IOException ioe) {
 			// Convert IOException into a RuntimException and let the regular fault tolerance routines take care of the

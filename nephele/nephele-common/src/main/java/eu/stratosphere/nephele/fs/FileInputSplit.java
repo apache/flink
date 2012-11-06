@@ -71,6 +71,27 @@ public class FileInputSplit implements InputSplit {
 	 *        the list of hosts containing the block, possibly <code>null</code>
 	 */
 	public FileInputSplit(final int num, final Path file, final long start, final long length, final String[] hosts) {
+
+		if (num < 0) {
+			throw new IllegalArgumentException("Argument num must be a non-negative number");
+		}
+
+		if (file == null) {
+			throw new IllegalArgumentException("Argument file must not be null");
+		}
+
+		if (start < 0L) {
+			throw new IllegalArgumentException("Argument start must be a non-negative number");
+		}
+
+		if (length < 0L) {
+			throw new IllegalArgumentException("Argument length must be a non-negative number");
+		}
+
+		if (hosts == null) {
+			throw new IllegalArgumentException("Argument hosts must not be null");
+		}
+
 		this.partitionNumber = num;
 		this.file = file;
 		this.start = start;
@@ -79,9 +100,10 @@ public class FileInputSplit implements InputSplit {
 	}
 
 	/**
-	 * Constructor used to reconstruct the object at the receiver of an RPC call.
+	 * Default constructor required by kryo.
 	 */
-	public FileInputSplit() {
+	@SuppressWarnings("unused")
+	private FileInputSplit() {
 		this.partitionNumber = -1;
 		this.file = null;
 		this.start = -1L;
@@ -144,5 +166,56 @@ public class FileInputSplit implements InputSplit {
 	@Override
 	public String toString() {
 		return "[" + this.partitionNumber + "] " + file + ":" + start + "+" + length;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+
+		if (!(obj instanceof FileInputSplit)) {
+			return false;
+		}
+
+		final FileInputSplit fis = (FileInputSplit) obj;
+
+		// Check the partition number first
+		if (this.partitionNumber != fis.partitionNumber) {
+			return false;
+		}
+
+		if (this.start != fis.start) {
+			return false;
+		}
+
+		if (this.length != fis.length) {
+			return false;
+		}
+
+		if (!this.file.equals(fis.file)) {
+			return false;
+		}
+
+		if (this.hosts.length != fis.hosts.length) {
+			return false;
+		}
+
+		for (int i = 0; i < this.hosts.length; ++i) {
+			if (!this.hosts[i].equals(fis.hosts[i])) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return (int) (this.partitionNumber * this.length + this.start) + this.partitionNumber;
 	}
 }

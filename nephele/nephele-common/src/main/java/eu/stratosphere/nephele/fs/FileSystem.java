@@ -57,17 +57,17 @@ public abstract class FileSystem {
 	 * 
 	 * @author warneke
 	 */
-	public static class FSKey {
+	public static final class FSKey {
 
 		/**
 		 * The scheme of the file system.
 		 */
-		private String scheme;
+		private final String scheme;
 
 		/**
 		 * The authority of the file system.
 		 */
-		private String authority;
+		private final String authority;
 
 		/**
 		 * Creates a file system key from a given scheme and an
