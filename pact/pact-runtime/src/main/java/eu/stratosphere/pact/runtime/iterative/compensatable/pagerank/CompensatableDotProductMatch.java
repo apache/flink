@@ -21,6 +21,7 @@ import eu.stratosphere.pact.common.stubs.MatchStub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
 import java.util.Random;
@@ -31,36 +32,22 @@ public class CompensatableDotProductMatch extends MatchStub {
 
   private int workerIndex;
   private int currentIteration;
-  private Random random;
-
   private int failingIteration;
+
   private int failingWorker;
   private double messageLoss;
+
+  private Random random;
 
   @Override
   public void open(Configuration parameters) throws Exception {
     record = new PactRecord();
-    workerIndex = parameters.getInteger("pact.parallel.task.id", -1);
-    if (workerIndex == -1) {
-      throw new IllegalStateException("Invalid workerIndex " + workerIndex);
-    }
 
-    failingIteration = parameters.getInteger("compensation.failingIteration", -1);
-    if (failingIteration == -1) {
-      throw new IllegalStateException();
-    }
-    failingWorker = parameters.getInteger("compensation.failingWorker", -1);
-    if (failingWorker == -1) {
-      throw new IllegalStateException();
-    }
-    messageLoss = Double.parseDouble(parameters.getString("compensation.messageLoss", "-1"));
-    if (messageLoss == -1) {
-      throw new IllegalStateException();
-    }
-    currentIteration = parameters.getInteger("pact.iterations.currentIteration", -1);
-    if (currentIteration == -1) {
-      throw new IllegalStateException();
-    }
+    workerIndex = ConfigUtils.asInteger("pact.parallel.task.id", parameters);
+    currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
+    failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
+    failingWorker = ConfigUtils.asInteger("compensation.failingWorker", parameters);
+    messageLoss = ConfigUtils.asDouble("compensation.messageLoss", parameters);
 
     random = new Random();
   }
@@ -69,23 +56,11 @@ public class CompensatableDotProductMatch extends MatchStub {
   public void match(PactRecord pageWithRank, PactRecord transitionMatrixEntry, Collector<PactRecord> collector)
       throws Exception {
 
-//    System.out.println("fields ###### " + pageWithRank.getNumFields() + " " + transitionMatrixEntry.getNumFields());
-//    System.out.println("field0 ###### " + pageWithRank.getField(0, PactLong.class).getValue() + " " + transitionMatrixEntry.getField(0, PactLong.class).getValue());
-//    System.out.println("field1 ###### " + pageWithRank.getField(1, PactDouble.class).getValue() + " " + transitionMatrixEntry.getField(1, PactDouble.class).getValue());
-
-//    long source = transitionMatrixEntry.getField(0, PactLong.class).getValue();
-//    long target = transitionMatrixEntry.getField(1, PactLong.class).getValue();
-//    long vertexID = pageWithRank.getField(0, PactLong.class).getValue();
-
     double rank = pageWithRank.getField(1, PactDouble.class).getValue();
     double transitionProbability = transitionMatrixEntry.getField(2, PactDouble.class).getValue();
 
-
     record.setField(0, transitionMatrixEntry.getField(1, PactLong.class));
     record.setField(1, new PactDouble(rank * transitionProbability));
-
-//    System.out.println("Joining (" + vertexID + "," + rank + ") with (" + source + "," + target + "," + transitionProbability + ")");
-//    System.out.println(">>>>>>>>>>>> Emitting: " + target + "," + (rank * transitionProbability));
 
     if (currentIteration == failingIteration && workerIndex == failingWorker) {
       if (random.nextDouble() >= messageLoss) {
@@ -96,8 +71,4 @@ public class CompensatableDotProductMatch extends MatchStub {
     }
   }
 
-  @Override
-  public void close() throws Exception {
-    record = null;
-  }
 }

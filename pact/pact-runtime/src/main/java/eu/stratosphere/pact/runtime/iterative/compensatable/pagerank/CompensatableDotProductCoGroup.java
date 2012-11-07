@@ -6,6 +6,7 @@ import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
 import java.util.Iterator;
@@ -19,7 +20,6 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
 
   private int failingIteration;
   private int failingWorker;
-  private double messageLoss;
 
   private PageRankStatsAggregator aggregator =
       (PageRankStatsAggregator) new DiffL1NormConvergenceCriterion().createAggregator();
@@ -32,34 +32,14 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
   @Override
   public void open(Configuration parameters) throws Exception {
     accumulator = new PactRecord();
-    workerIndex = parameters.getInteger("pact.parallel.task.id", -1);
-    if (workerIndex == -1) {
-      throw new IllegalStateException("Invalid workerIndex " + workerIndex);
-    }
 
-    failingIteration = parameters.getInteger("compensation.failingIteration", -1);
-    if (failingIteration == -1) {
-      throw new IllegalStateException();
-    }
-    failingWorker = parameters.getInteger("compensation.failingWorker", -1);
-    if (failingWorker == -1) {
-      throw new IllegalStateException();
-    }
-    messageLoss = Double.parseDouble(parameters.getString("compensation.messageLoss", "-1"));
-    if (messageLoss == -1) {
-      throw new IllegalStateException();
-    }
-    currentIteration = parameters.getInteger("pact.iterations.currentIteration", -1);
-    if (currentIteration == -1) {
-      throw new IllegalStateException();
-    }
+    workerIndex = ConfigUtils.asInteger("pact.parallel.task.id", parameters);
+    currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
+    failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
+    failingWorker = ConfigUtils.asInteger("compensation.failingWorker", parameters);
+    numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
 
     aggregator.reset();
-
-    numVertices = parameters.getLong("pageRank.numVertices", -1);
-    if (numVertices == -1) {
-      throw new IllegalStateException();
-    }
 
     dampingFactor = (1d - BETA) * (1d / (double) numVertices);
   }
@@ -74,7 +54,6 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
     PactRecord currentPageRank = currentPageRankIterator.next();
 
     double rank = 0;
-
     while (partialRanks.hasNext()) {
       rank += partialRanks.next().getField(1, PactDouble.class).getValue();
     }
