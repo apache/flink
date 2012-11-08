@@ -118,7 +118,7 @@ public class FileLineReadWriteTest {
 		writer.invoke();
 
 		final FileInputSplit split = new FileInputSplit(0, new Path(this.file.toURI().toString()), 0,
-			this.file.length(), null);
+			this.file.length(), new String[0]);
 		when(this.environment.getInputSplitProvider()).thenReturn(this.inputSplitProvider);
 		when(this.inputSplitProvider.getNextInputSplit()).thenReturn(split, (FileInputSplit) null);
 
