@@ -18,6 +18,8 @@ package eu.stratosphere.nephele.util;
 import java.io.File;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * This class contains auxiliary methods for unit tests in the Nephele management module.
@@ -50,10 +52,16 @@ public final class ManagementTestUtils {
 	 *        the original object to be copied
 	 * @return the copy of original object
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T> T createCopy(final T original) {
 
 		final Kryo kryo = new Kryo();
-		return (T) kryo.copy(original);
+		final byte[] buf = new byte[8192];
+		final Output output = new Output(buf);
+		kryo.writeObject(output, original);
+		output.flush();
+		final Input input = new Input(buf);
+		return (T) kryo.readObject(input, original.getClass());
 	}
 
 	/**
