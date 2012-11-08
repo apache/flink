@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -108,7 +108,7 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	/**
 	 * The executor service to asynchronously perform update operations to this graph.
 	 */
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor(new DeamonThreadFactory());
+	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 	/**
 	 * Index to the current execution stage.
@@ -1451,19 +1451,15 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	}
 
 	/**
-	 * Creates deamon threads.<br />
-	 * Is used to allow the JVM to shutdown without closing the executorService of the {@link ExecutionGraph}.<br />
-	 * Has to be static to avoid resource leaks, since threads are GC roots.
+	 * Shuts down the job's executor thread for asynchronous updates and waits for all queued updates to be processed.
 	 * 
-	 * @author Arvid Heise
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the remaining updates to be processed
 	 */
-	private static final class DeamonThreadFactory implements ThreadFactory {
-		@Override
-		public Thread newThread(final Runnable r) {
-			final Thread thread = new Thread(r);
-			thread.setDaemon(true);
-			return thread;
-		}
+	public void shutdownCommandExecutor() throws InterruptedException {
+
+		this.executorService.shutdown();
+		this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
 	}
 
 	/**

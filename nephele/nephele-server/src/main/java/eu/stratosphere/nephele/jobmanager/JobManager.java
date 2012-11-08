@@ -601,6 +601,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	private void unregisterJob(final ExecutionGraph executionGraph) {
 
+		// Shut down the command executor service
+		try {
+			executionGraph.shutdownCommandExecutor();
+		} catch (InterruptedException ie) {
+			if (LOG.isWarnEnabled()) {
+				LOG.warn(StringUtils.stringifyException(ie));
+			}
+		}
+
 		// Remove job from profiler (if activated)
 		if (this.profiler != null
 			&& executionGraph.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
