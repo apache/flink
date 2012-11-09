@@ -163,6 +163,7 @@ public final class RecoveryLogic {
 
 			// Predecessors must be either checkpoints or need to be restarted, too
 			for (int j = 0; j < vertex.getNumberOfPredecessors(); j++) {
+
 				final ExecutionVertex predecessor = vertex.getPredecessor(j);
 
 				if (hasInstanceAssigned(predecessor)) {
@@ -186,11 +187,19 @@ public final class RecoveryLogic {
 						}
 					}
 
-					if (predecessor.getCheckpointState() == CheckpointState.NONE) {
+					final CheckpointState checkpointState = predecessor.getCheckpointState();
+					switch (checkpointState) {
+					case NONE:
 						verticesToBeCanceled.add(predecessor);
-					} else {
+						break;
+					case COMPLETE:
+						verticesToBeCanceled.add(predecessor);
+						continue;
+					case PARTIAL:
 						checkpointsToBeReplayed.add(predecessor);
 						continue;
+					default:
+						LOG.error(predecessor + " has unexpected checkpoint state " + checkpointState);
 					}
 				}
 

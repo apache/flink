@@ -595,7 +595,6 @@ public class TaskManager implements TaskOperationProtocol {
 		synchronized (this) {
 
 			final Task runningTask = this.runningTasks.get(id);
-			boolean registerTask = true;
 			if (runningTask == null) {
 
 				// Is there a complete checkpoint for this task
@@ -606,50 +605,39 @@ public class TaskManager implements TaskOperationProtocol {
 				}
 			} else {
 
-				if (runningTask instanceof RuntimeTask) {
-
-					// Check if there at least a partial checkpoint available
-					if (CheckpointUtils.hasPartialCheckpointAvailable(id)) {
-						task = new ReplayTask((RuntimeTask) runningTask, this);
-					} else {
-						// Task is already running
-						return null;
-					}
+				// Check if there at least a partial checkpoint available
+				if (CheckpointUtils.hasPartialCheckpointAvailable(id)) {
+					task = new ReplayTask((RuntimeTask) runningTask, this);
 				} else {
-					// There is already a replay task running, we will simply restart it
-					task = runningTask;
-					registerTask = false;
+					// Task is already running
+					return null;
 				}
-
 			}
 
 			final Environment ee = task.getEnvironment();
 
-			if (registerTask) {
+			// Register the task with the byte buffered channel manager
+			this.byteBufferedChannelManager.register(task, activeOutputChannels);
 
-				// Register the task with the byte buffered channel manager
-				this.byteBufferedChannelManager.register(task, activeOutputChannels);
-
-				boolean enableProfiling = false;
-				if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
-					enableProfiling = true;
-				}
-
-				// Register environment, input, and output gates for profiling
-				if (enableProfiling) {
-					task.registerProfiler(this.profiler, jobConfiguration);
-				}
-
-				// Allow plugins to register their listeners for this task
-				if (!this.taskManagerPlugins.isEmpty()) {
-					final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
-					while (it.hasNext()) {
-						it.next().registerTask(id, jobConfiguration, ee);
-					}
-				}
-
-				this.runningTasks.put(id, task);
+			boolean enableProfiling = false;
+			if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
+				enableProfiling = true;
 			}
+
+			// Register environment, input, and output gates for profiling
+			if (enableProfiling) {
+				task.registerProfiler(this.profiler, jobConfiguration);
+			}
+
+			// Allow plugins to register their listeners for this task
+			if (!this.taskManagerPlugins.isEmpty()) {
+				final Iterator<TaskManagerPlugin> it = this.taskManagerPlugins.values().iterator();
+				while (it.hasNext()) {
+					it.next().registerTask(id, jobConfiguration, ee);
+				}
+			}
+
+			this.runningTasks.put(id, task);
 		}
 
 		return task;
@@ -743,14 +731,37 @@ public class TaskManager implements TaskOperationProtocol {
 			unregisterTask(id);
 		}
 
+		// Transfer the CANCELED notification through the executor service, otherwise the thread might be interrupted
+		// and the notification never reaches the job manager
+		if (newExecutionState == ExecutionState.CANCELED) {
+
+			final Runnable runnable = new Runnable() {
+
+				@Override
+				public void run() {
+
+					try {
+						jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
+							optionalDescription));
+					} catch (Exception e) {
+						// TODO: Improve error handling here
+						LOG.error(StringUtils.stringifyException(e));
+					}
+				}
+			};
+
+			this.executorService.execute(runnable);
+			return;
+
+		}
+
 		try {
-			this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
+			jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
 				optionalDescription));
 		} catch (Exception e) {
 			// TODO: Improve error handling here
 			LOG.error(StringUtils.stringifyException(e));
 		}
-
 	}
 
 	public void checkpointStateChanged(final JobID jobID, final ExecutionVertexID id,

@@ -868,7 +868,8 @@ public final class ExecutionVertex {
 			// Check if we had a race. If state change is accepted, send cancel request
 			if (compareAndUpdateExecutionState(previousState, ExecutionState.CANCELING)) {
 
-				if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
+				if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()
+					&& previousState != ExecutionState.REPLAYING && previousState != ExecutionState.FINISHING) {
 					// Set to canceled directly
 					updateExecutionState(ExecutionState.CANCELED, null);
 					return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);

@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.checkpointing;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
@@ -138,8 +137,6 @@ public final class ReplayTask implements Task {
 
 	private final AtomicReference<ExecutionState> overallExecutionState = new AtomicReference<ExecutionState>(
 		ExecutionState.STARTING);
-
-	private final AtomicBoolean replayThreadStarted = new AtomicBoolean(false);
 
 	/**
 	 * Stores whether the task has been canceled.
@@ -262,11 +259,7 @@ public final class ReplayTask implements Task {
 	public void startExecution() {
 
 		final ReplayThread thread = this.environment.getExecutingThread();
-		if (this.replayThreadStarted.compareAndSet(false, true)) {
-			thread.start();
-		} else {
-			thread.restart();
-		}
+		thread.start();
 	}
 
 	/**

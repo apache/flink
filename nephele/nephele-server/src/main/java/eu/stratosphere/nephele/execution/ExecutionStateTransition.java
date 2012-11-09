@@ -169,6 +169,11 @@ public final class ExecutionStateTransition {
 		}
 
 		// This is a regular transition as a result of a cancel operation.
+		if (oldState == ExecutionState.REPLAYING && newState == ExecutionState.CANCELING) {
+			unexpectedStateChange = false;
+		}
+
+		// This is a regular transition as a result of a cancel operation.
 		if (oldState == ExecutionState.FINISHING && newState == ExecutionState.CANCELING) {
 			unexpectedStateChange = false;
 		}
@@ -180,7 +185,7 @@ public final class ExecutionStateTransition {
 
 		if (unexpectedStateChange) {
 			try {
-				throw new IllegalStateException("Unexpected state change: " + oldState + " -> " + newState);
+				throw new IllegalStateException(taskName + ": Unexpected state change " + oldState + " -> " + newState);
 			} catch (IllegalStateException e) {
 				LOG.error(StringUtils.stringifyException(e));
 			}
