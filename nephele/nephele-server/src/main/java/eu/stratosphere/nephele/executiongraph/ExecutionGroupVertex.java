@@ -1113,7 +1113,10 @@ public final class ExecutionGroupVertex {
 
 			final Iterator<ExecutionVertex> it = this.groupMembers.iterator();
 			while (it.hasNext()) {
-				if (it.next().getExecutionState() != newExecutionState) {
+				final ExecutionState es = it.next().getExecutionState();
+				// The second condition es != ExecutionState.FAILED is necessary so the group vertex can reach its
+				// CANCELED state even if individual vertices failed
+				if (es != newExecutionState && es != ExecutionState.FAILED) {
 					return;
 				}
 			}
