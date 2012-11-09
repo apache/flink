@@ -18,9 +18,9 @@ package eu.stratosphere.nephele.configuration;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -56,31 +56,17 @@ public final class GlobalConfiguration {
 	/**
 	 * The global configuration object accessible through a singleton pattern.
 	 */
-	private static GlobalConfiguration configuration = null;
+	private static final GlobalConfiguration CONFIGURATION = new GlobalConfiguration();
 
 	/**
 	 * The key to the directory this configuration was read from.
 	 */
-	private static final String CONFIGDIRKEY = "config.dir";
+	private static final String CONFIG_DIR_KEY = "config.dir";
 
 	/**
 	 * The internal map holding the key-value pairs the configuration consists of.
 	 */
-	private final Map<String, String> confData = new HashMap<String, String>();
-
-	/**
-	 * Retrieves the singleton object of the global configuration.
-	 * 
-	 * @return the global configuration object
-	 */
-	private static synchronized GlobalConfiguration get() {
-
-		if (configuration == null) {
-			configuration = new GlobalConfiguration();
-		}
-
-		return configuration;
-	}
+	private final Map<String, String> confData = new ConcurrentHashMap<String, String>();
 
 	/**
 	 * The constructor used to construct the singleton instance of the global configuration.
@@ -99,7 +85,7 @@ public final class GlobalConfiguration {
 	 */
 	public static String getString(final String key, final String defaultValue) {
 
-		return get().getStringInternal(key, defaultValue);
+		return CONFIGURATION.getStringInternal(key, defaultValue);
 	}
 
 	/**
@@ -113,14 +99,12 @@ public final class GlobalConfiguration {
 	 */
 	private String getStringInternal(final String key, final String defaultValue) {
 
-		synchronized (this.confData) {
-
-			if (!this.confData.containsKey(key)) {
-				return defaultValue;
-			}
-
-			return this.confData.get(key);
+		final String retVal = this.confData.get(key);
+		if (retVal == null) {
+			return defaultValue;
 		}
+
+		return retVal;
 	}
 
 	/**
@@ -134,7 +118,7 @@ public final class GlobalConfiguration {
 	 */
 	public static long getLong(final String key, final long defaultValue) {
 
-		return get().getLongInternal(key, defaultValue);
+		return CONFIGURATION.getLongInternal(key, defaultValue);
 	}
 
 	/**
@@ -148,23 +132,20 @@ public final class GlobalConfiguration {
 	 */
 	private long getLongInternal(final String key, final long defaultValue) {
 
-		long retVal = defaultValue;
+		final String str = this.confData.get(key);
+		if (str == null) {
+			return defaultValue;
+		}
 
 		try {
-			synchronized (this.confData) {
-
-				if (this.confData.containsKey(key)) {
-					retVal = Long.parseLong(this.confData.get(key));
-				}
-			}
-		} catch (NumberFormatException e) {
-
+			return Long.parseLong(str);
+		} catch (NumberFormatException nfe) {
 			if (LOG.isDebugEnabled()) {
-				LOG.debug(StringUtils.stringifyException(e));
+				LOG.debug(StringUtils.stringifyException(nfe));
 			}
 		}
 
-		return retVal;
+		return defaultValue;
 	}
 
 	/**
@@ -178,7 +159,7 @@ public final class GlobalConfiguration {
 	 */
 	public static int getInteger(final String key, final int defaultValue) {
 
-		return get().getIntegerInternal(key, defaultValue);
+		return CONFIGURATION.getIntegerInternal(key, defaultValue);
 	}
 
 	/**
@@ -192,23 +173,20 @@ public final class GlobalConfiguration {
 	 */
 	private int getIntegerInternal(final String key, final int defaultValue) {
 
-		int retVal = defaultValue;
+		final String str = this.confData.get(key);
+		if (str == null) {
+			return defaultValue;
+		}
 
 		try {
-			synchronized (this.confData) {
-
-				if (this.confData.containsKey(key)) {
-					retVal = Integer.parseInt(this.confData.get(key));
-				}
-			}
-		} catch (NumberFormatException e) {
-
+			return Integer.parseInt(str);
+		} catch (NumberFormatException nfe) {
 			if (LOG.isDebugEnabled()) {
-				LOG.debug(StringUtils.stringifyException(e));
+				LOG.debug(StringUtils.stringifyException(nfe));
 			}
 		}
 
-		return retVal;
+		return defaultValue;
 	}
 
 	/**
@@ -222,7 +200,7 @@ public final class GlobalConfiguration {
 	 */
 	public static boolean getBoolean(final String key, final boolean defaultValue) {
 
-		return get().getBooleanInternal(key, defaultValue);
+		return CONFIGURATION.getBooleanInternal(key, defaultValue);
 	}
 
 	/**
@@ -236,17 +214,12 @@ public final class GlobalConfiguration {
 	 */
 	private boolean getBooleanInternal(final String key, final boolean defaultValue) {
 
-		boolean retVal = defaultValue;
-
-		synchronized (this.confData) {
-
-			final String value = this.confData.get(key);
-			if (value != null) {
-				retVal = Boolean.parseBoolean(value);
-			}
+		final String str = this.confData.get(key);
+		if (str == null) {
+			return defaultValue;
 		}
 
-		return retVal;
+		return Boolean.parseBoolean(str);
 	}
 
 	/**
@@ -258,7 +231,6 @@ public final class GlobalConfiguration {
 	public static void loadConfiguration(final String configDir) {
 
 		if (configDir == null) {
-
 			LOG.warn("Given configuration directory is null, cannot load configuration");
 			return;
 		}
@@ -278,6 +250,7 @@ public final class GlobalConfiguration {
 			}
 
 		});
+
 		if (files == null || files.length == 0) {
 			LOG.warn("Unable to get the contents of the config directory '" + configDir + "' ("
 				+ confDirFile.getAbsolutePath() + ").");
@@ -286,13 +259,11 @@ public final class GlobalConfiguration {
 
 		// load each xml file
 		for (File f : files) {
-			get().loadResource(f);
+			CONFIGURATION.loadResource(f);
 		}
 
 		// Store the path to the configuration directory itself
-		if (configuration != null) {
-			configuration.confData.put(CONFIGDIRKEY, configDir);
-		}
+		CONFIGURATION.confData.put(CONFIG_DIR_KEY, configDir);
 	}
 
 	/**
@@ -344,68 +315,65 @@ public final class GlobalConfiguration {
 			final NodeList props = root.getChildNodes();
 			int propNumber = -1;
 
-			synchronized (this.confData) {
+			for (int i = 0; i < props.getLength(); i++) {
 
-				for (int i = 0; i < props.getLength(); i++) {
+				final Node propNode = props.item(i);
+				String key = null;
+				String value = null;
 
-					final Node propNode = props.item(i);
-					String key = null;
-					String value = null;
+				// Ignore text at this point
+				if (propNode instanceof Text) {
+					continue;
+				}
 
-					// Ignore text at this point
-					if (propNode instanceof Text) {
-						continue;
-					}
+				if (!(propNode instanceof Element)) {
+					LOG.warn("Error while reading configuration: " + propNode.getNodeName()
+						+ " is not of type element");
+					continue;
+				}
 
-					if (!(propNode instanceof Element)) {
-						LOG.warn("Error while reading configuration: " + propNode.getNodeName()
-							+ " is not of type element");
-						continue;
-					}
+				Element property = (Element) propNode;
+				if (!"property".equals(property.getNodeName())) {
+					LOG.warn("Error while reading configuration: unknown element " + property.getNodeName());
+					continue;
+				}
 
-					Element property = (Element) propNode;
-					if (!"property".equals(property.getNodeName())) {
-						LOG.warn("Error while reading configuration: unknown element " + property.getNodeName());
-						continue;
-					}
+				propNumber++;
+				final NodeList propChildren = property.getChildNodes();
+				if (propChildren == null) {
+					LOG.warn("Error while reading configuration: property has no children, skipping...");
+					continue;
+				}
 
-					propNumber++;
-					final NodeList propChildren = property.getChildNodes();
-					if (propChildren == null) {
-						LOG.warn("Error while reading configuration: property has no children, skipping...");
-						continue;
-					}
+				for (int j = 0; j < propChildren.getLength(); j++) {
 
-					for (int j = 0; j < propChildren.getLength(); j++) {
+					final Node propChild = propChildren.item(j);
+					if (propChild instanceof Element) {
+						if ("key".equals(propChild.getNodeName()) && propChild.getChildNodes() != null
+							&& propChild.getChildNodes().getLength() == 1
+							&& propChild.getChildNodes().item(0) instanceof Text) {
 
-						final Node propChild = propChildren.item(j);
-						if (propChild instanceof Element) {
-							if ("key".equals(propChild.getNodeName()) && propChild.getChildNodes() != null
-								&& propChild.getChildNodes().getLength() == 1
-								&& propChild.getChildNodes().item(0) instanceof Text) {
+							final Text t = (Text) propChild.getChildNodes().item(0);
+							key = t.getTextContent();
+						}
 
-								final Text t = (Text) propChild.getChildNodes().item(0);
-								key = t.getTextContent();
-							}
+						if ("value".equals(propChild.getNodeName()) && propChild.getChildNodes() != null
+							&& propChild.getChildNodes().getLength() == 1
+							&& propChild.getChildNodes().item(0) instanceof Text) {
 
-							if ("value".equals(propChild.getNodeName()) && propChild.getChildNodes() != null
-								&& propChild.getChildNodes().getLength() == 1
-								&& propChild.getChildNodes().item(0) instanceof Text) {
-
-								final Text t = (Text) propChild.getChildNodes().item(0);
-								value = t.getTextContent();
-							}
+							final Text t = (Text) propChild.getChildNodes().item(0);
+							value = t.getTextContent();
 						}
 					}
+				}
 
-					if (key != null && value != null) {
-						// Put key, value pair into the map
-						LOG.debug("Loading configuration property: " + key + ", " + value);
-						this.confData.put(key, value);
-					} else {
-						LOG.warn("Error while reading configuration: Cannot read property " + propNumber);
-						continue;
-					}
+				if (key != null && value != null) {
+					// Put key, value pair into the map
+					LOG.debug("Loading configuration property: " + key + ", " + value);
+					this.confData.put(key, value);
+				} else {
+					LOG.warn("Error while reading configuration: Cannot read property " + propNumber);
+					continue;
 				}
 			}
 
@@ -426,7 +394,7 @@ public final class GlobalConfiguration {
 	 */
 	public static Configuration getConfiguration() {
 
-		return get().getConfigurationInternal(null);
+		return CONFIGURATION.getConfigurationInternal(null);
 	}
 
 	/**
@@ -441,7 +409,7 @@ public final class GlobalConfiguration {
 	 */
 	public static Configuration getConfiguration(final String[] keys) {
 
-		return get().getConfigurationInternal(keys);
+		return CONFIGURATION.getConfigurationInternal(keys);
 	}
 
 	/**
@@ -453,34 +421,20 @@ public final class GlobalConfiguration {
 	 */
 	private Configuration getConfigurationInternal(final String[] keys) {
 
-		Configuration conf = new Configuration();
+		if (keys == null) {
+			return new Configuration(this.confData);
+		}
 
-		synchronized (this.confData) {
-
-			final Iterator<String> it = this.confData.keySet().iterator();
-
-			while (it.hasNext()) {
-
-				final String key = it.next();
-				boolean found = false;
-				if (keys != null) {
-					for (int i = 0; i < keys.length; i++) {
-						if (key.equals(keys[i])) {
-							found = true;
-							break;
-						}
-					}
-
-					if (found) {
-						conf.setString(key, this.confData.get(key));
-					}
-				} else {
-					conf.setString(key, this.confData.get(key));
-				}
+		final Configuration configuration = new Configuration();
+		for (int i = 0; i < keys.length; ++i) {
+			final String key = keys[i];
+			final String value = this.confData.get(key);
+			if (value != null) {
+				configuration.setString(key, value);
 			}
 		}
 
-		return conf;
+		return configuration;
 	}
 
 	/**
@@ -494,7 +448,7 @@ public final class GlobalConfiguration {
 	 */
 	public static void includeConfiguration(final Configuration conf) {
 
-		get().includeConfigurationInternal(conf);
+		CONFIGURATION.includeConfigurationInternal(conf);
 	}
 
 	/**
@@ -506,19 +460,14 @@ public final class GlobalConfiguration {
 	private void includeConfigurationInternal(final Configuration conf) {
 
 		if (conf == null) {
-			LOG.error("Given configuration object is null, ignoring it...");
-			return;
+			throw new NullPointerException("Given configuration object is null, ignoring it...");
 		}
 
-		synchronized (this.confData) {
+		final Iterator<String> it = conf.keySet().iterator();
 
-			final Iterator<String> it = conf.keySet().iterator();
-
-			while (it.hasNext()) {
-
-				final String key = it.next();
-				this.confData.put(key, conf.getString(key, ""));
-			}
+		while (it.hasNext()) {
+			final String key = it.next();
+			this.confData.put(key, conf.getString(key, ""));
 		}
 	}
 }

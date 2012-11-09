@@ -15,11 +15,11 @@
 
 package eu.stratosphere.nephele.configuration;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
@@ -29,6 +29,8 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
+import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * Lightweight configuration object which can store key/value pairs. Configuration objects
@@ -48,7 +50,7 @@ public class Configuration implements KryoSerializable {
 	/**
 	 * Stores the concrete key/value pairs of this configuration object.
 	 */
-	private Map<String, String> confData = new HashMap<String, String>();
+	private Map<String, String> confData = new ConcurrentHashMap<String, String>();
 
 	/**
 	 * The class loader to be used for the <code>getClass</code> method.
@@ -60,6 +62,17 @@ public class Configuration implements KryoSerializable {
 	 */
 	public Configuration() {
 		this.classLoader = this.getClass().getClassLoader();
+	}
+
+	/**
+	 * Constructs a new configuration object and fills it with the entries of the given map.
+	 * 
+	 * @param entries
+	 *        the entries to fill the configuration object with
+	 */
+	Configuration(final Map<String, String> entries) {
+		this.classLoader = this.getClass().getClassLoader();
+		this.confData.putAll(entries);
 	}
 
 	/**
@@ -83,15 +96,12 @@ public class Configuration implements KryoSerializable {
 	 */
 	public String getString(final String key, final String defaultValue) {
 
-		synchronized (this.confData) {
-
-			final String retVal = this.confData.get(key);
-			if (retVal == null) {
-				return defaultValue;
-			}
-
-			return retVal;
+		final String retVal = this.confData.get(key);
+		if (retVal == null) {
+			return defaultValue;
 		}
+
+		return retVal;
 	}
 
 	/**
@@ -175,9 +185,7 @@ public class Configuration implements KryoSerializable {
 			throw new NullPointerException("Given value is null");
 		}
 
-		synchronized (this.confData) {
-			this.confData.put(key, value);
-		}
+		this.confData.put(key, value);
 	}
 
 	/**
@@ -191,20 +199,20 @@ public class Configuration implements KryoSerializable {
 	 */
 	public int getInteger(final String key, final int defaultValue) {
 
-		int retVal = defaultValue;
-
-		try {
-			synchronized (this.confData) {
-
-				if (this.confData.containsKey(key)) {
-					retVal = Integer.parseInt(this.confData.get(key));
-				}
-			}
-		} catch (NumberFormatException e) {
-			LOG.debug(e);
+		final String str = this.confData.get(key);
+		if (str == null) {
+			return defaultValue;
 		}
 
-		return retVal;
+		try {
+			return Integer.parseInt(str);
+		} catch (NumberFormatException nfe) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(StringUtils.stringifyException(nfe));
+			}
+		}
+
+		return defaultValue;
 	}
 
 	/**
@@ -219,13 +227,10 @@ public class Configuration implements KryoSerializable {
 	public void setInteger(final String key, final int value) {
 
 		if (key == null) {
-			LOG.warn("Cannot set integer: Given key is null!");
-			return;
+			throw new NullPointerException("Given key is null");
 		}
 
-		synchronized (this.confData) {
-			this.confData.put(key, Integer.toString(value));
-		}
+		this.confData.put(key, Integer.toString(value));
 	}
 
 	/**
@@ -238,15 +243,18 @@ public class Configuration implements KryoSerializable {
 	 * @return the (default) value associated with the given key
 	 */
 	public long getLong(final String key, final long defaultValue) {
+
+		final String str = this.confData.get(key);
+		if (str == null) {
+			return defaultValue;
+		}
+
 		try {
-			synchronized (this.confData) {
-				String val = this.confData.get(key);
-				if (val != null) {
-					return Long.parseLong(val);
-				}
+			return Long.parseLong(str);
+		} catch (NumberFormatException nfe) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(StringUtils.stringifyException(nfe));
 			}
-		} catch (NumberFormatException e) {
-			LOG.debug(e);
 		}
 
 		return defaultValue;
@@ -262,14 +270,12 @@ public class Configuration implements KryoSerializable {
 	 *        the value of the key/value pair to be added
 	 */
 	public void setLong(final String key, final long value) {
+
 		if (key == null) {
-			LOG.warn("Cannot set long: Given key is null!");
-			return;
+			throw new NullPointerException("Given key is null");
 		}
 
-		synchronized (this.confData) {
-			this.confData.put(key, Long.toString(value));
-		}
+		this.confData.put(key, Long.toString(value));
 	}
 
 	/**
@@ -283,16 +289,12 @@ public class Configuration implements KryoSerializable {
 	 */
 	public boolean getBoolean(final String key, final boolean defaultValue) {
 
-		boolean retVal = defaultValue;
-
-		synchronized (this.confData) {
-
-			if (this.confData.containsKey(key)) {
-				retVal = Boolean.parseBoolean(this.confData.get(key));
-			}
+		final String str = this.confData.get(key);
+		if (str == null) {
+			return defaultValue;
 		}
 
-		return retVal;
+		return Boolean.parseBoolean(str);
 	}
 
 	/**
@@ -307,13 +309,10 @@ public class Configuration implements KryoSerializable {
 	public void setBoolean(final String key, final boolean value) {
 
 		if (key == null) {
-			LOG.warn("Cannot set boolean: Given key is null!");
-			return;
+			throw new NullPointerException("Given key is null");
 		}
 
-		synchronized (this.confData) {
-			this.confData.put(key, Boolean.toString(value));
-		}
+		this.confData.put(key, Boolean.toString(value));
 	}
 
 	/**
@@ -326,10 +325,21 @@ public class Configuration implements KryoSerializable {
 	 * @return the (default) value associated with the given key
 	 */
 	public float getFloat(final String key, final float defaultValue) {
-		synchronized (this.confData) {
-			String val = this.confData.get(key);
-			return val == null ? defaultValue : Float.parseFloat(val);
+
+		final String str = this.confData.get(key);
+		if (str == null) {
+			return defaultValue;
 		}
+
+		try {
+			return Float.parseFloat(str);
+		} catch (NumberFormatException nfe) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(StringUtils.stringifyException(nfe));
+			}
+		}
+
+		return defaultValue;
 	}
 
 	/**
@@ -344,13 +354,10 @@ public class Configuration implements KryoSerializable {
 	public void setFloat(final String key, final float value) {
 
 		if (key == null) {
-			LOG.warn("Cannot set float: Given key is null!");
-			return;
+			throw new NullPointerException("Given key is null");
 		}
 
-		synchronized (this.confData) {
-			this.confData.put(key, Float.toString(value));
-		}
+		this.confData.put(key, Float.toString(value));
 	}
 
 	/**
@@ -364,10 +371,8 @@ public class Configuration implements KryoSerializable {
 	 */
 	@Deprecated
 	public byte[] getBytes(final String key, final byte[] defaultValue) {
-		final String encoded;
-		synchronized (this.confData) {
-			encoded = this.confData.get(key);
-		}
+
+		final String encoded = this.confData.get(key);
 		if (encoded == null) {
 			return defaultValue;
 		}
@@ -385,15 +390,13 @@ public class Configuration implements KryoSerializable {
 	 */
 	@Deprecated
 	public void setBytes(final String key, final byte[] bytes) {
+
 		if (key == null) {
-			LOG.warn("Cannot set bytes: Given key is null!");
-			return;
+			throw new NullPointerException("Given key is null");
 		}
 
 		final String encoded = new String(Base64.encodeBase64(bytes));
-		synchronized (this.confData) {
-			this.confData.put(key, encoded);
-		}
+		this.confData.put(key, encoded);
 	}
 
 	/**
@@ -406,14 +409,7 @@ public class Configuration implements KryoSerializable {
 
 		// Copy key set, so return value is independent from the object's internal data structure
 		final Set<String> retVal = new HashSet<String>();
-
-		synchronized (this.confData) {
-
-			final Iterator<String> it = this.confData.keySet().iterator();
-			while (it.hasNext()) {
-				retVal.add(it.next());
-			}
-		}
+		retVal.addAll(this.confData.keySet());
 
 		return retVal;
 	}
@@ -428,18 +424,15 @@ public class Configuration implements KryoSerializable {
 	 *        The prefix to prepend.
 	 */
 	public void addAll(Configuration other, String prefix) {
+
 		final StringBuilder bld = new StringBuilder();
 		bld.append(prefix);
 		final int pl = bld.length();
 
-		synchronized (this.confData) {
-			synchronized (other.confData) {
-				for (Map.Entry<String, String> entry : other.confData.entrySet()) {
-					bld.setLength(pl);
-					bld.append(entry.getKey());
-					this.confData.put(bld.toString(), entry.getValue());
-				}
-			}
+		for (Map.Entry<String, String> entry : other.confData.entrySet()) {
+			bld.setLength(pl);
+			bld.append(entry.getKey());
+			this.confData.put(bld.toString(), entry.getValue());
 		}
 	}
 
@@ -450,7 +443,7 @@ public class Configuration implements KryoSerializable {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + confData.hashCode();
+		result = prime * result + this.confData.hashCode();
 		return result;
 	}
 
@@ -482,17 +475,14 @@ public class Configuration implements KryoSerializable {
 	@Override
 	public void write(final Kryo kryo, final Output output) {
 
-		synchronized (this.confData) {
+		final Set<Map.Entry<String, String>> entries = this.confData.entrySet();
+		output.writeInt(entries.size());
 
-			output.writeInt(this.confData.size());
-
-			final Iterator<String> it = this.confData.keySet().iterator();
-			while (it.hasNext()) {
-				final String key = it.next();
-				final String value = this.confData.get(key);
-				output.writeString(key);
-				output.writeString(value);
-			}
+		final Iterator<Map.Entry<String, String>> it = entries.iterator();
+		while (it.hasNext()) {
+			final Map.Entry<String, String> entry = it.next();
+			output.writeString(entry.getKey());
+			output.writeString(entry.getValue());
 		}
 	}
 
@@ -502,15 +492,12 @@ public class Configuration implements KryoSerializable {
 	@Override
 	public void read(final Kryo kryo, final Input input) {
 
-		synchronized (this.confData) {
+		final int numberOfProperties = input.readInt();
 
-			final int numberOfProperties = input.readInt();
-
-			for (int i = 0; i < numberOfProperties; i++) {
-				final String key = input.readString();
-				final String value = input.readString();
-				this.confData.put(key, value);
-			}
+		for (int i = 0; i < numberOfProperties; i++) {
+			final String key = input.readString();
+			final String value = input.readString();
+			this.confData.put(key, value);
 		}
 	}
 }
