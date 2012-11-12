@@ -25,14 +25,14 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.types.Record;
 
 /**
  * @author Arvid Heise
  */
-public class MockChannelManager implements TransferEnvelopeDispatcher {
+public class MockChannelManager implements RoutingLayer {
 
 	private LocalBufferPool transitBufferPool;
 
@@ -92,7 +92,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) {
+	public void routeEnvelopeFromOutputChannel(final TransferEnvelope transferEnvelope) {
 		this.processEnvelope(transferEnvelope);
 	}
 
@@ -100,7 +100,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) {
+	public void routeEnvelopeFromInputChannel(final TransferEnvelope transferEnvelope) {
 		this.processEnvelope(transferEnvelope);
 	}
 
@@ -108,7 +108,7 @@ public class MockChannelManager implements TransferEnvelopeDispatcher {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer) {
+	public void routeEnvelopeFromNetwork(final TransferEnvelope transferEnvelope, boolean freeSourceBuffer) {
 		this.processEnvelope(transferEnvelope);
 	}
 

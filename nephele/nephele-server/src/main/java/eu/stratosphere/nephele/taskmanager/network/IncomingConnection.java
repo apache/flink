@@ -23,7 +23,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingLayer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultDeserializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.NoBufferAvailableException;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -56,9 +56,9 @@ final class IncomingConnection {
 	/**
 	 * The byte buffered channel manager which handles and dispatches the received transfer envelopes.
 	 */
-	private final RoutingLayer byteBufferedChannelManager;
+	private final DefaultRoutingLayer byteBufferedChannelManager;
 
-	IncomingConnection(RoutingLayer byteBufferedChannelManager,
+	IncomingConnection(DefaultRoutingLayer byteBufferedChannelManager,
 			ReadableByteChannel readableByteChannel) {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 		this.deserializer = new DefaultDeserializer(byteBufferedChannelManager);
@@ -97,9 +97,9 @@ final class IncomingConnection {
 
 			final BufferProvider bufferProvider = this.deserializer.getBufferProvider();
 			if (bufferProvider == null) {
-				this.byteBufferedChannelManager.processEnvelopeFromNetwork(transferEnvelope, false);
+				this.byteBufferedChannelManager.routeEnvelopeFromNetwork(transferEnvelope, false);
 			} else {
-				this.byteBufferedChannelManager.processEnvelopeFromNetwork(transferEnvelope, bufferProvider.isShared());
+				this.byteBufferedChannelManager.routeEnvelopeFromNetwork(transferEnvelope, bufferProvider.isShared());
 			}
 		}
 	}

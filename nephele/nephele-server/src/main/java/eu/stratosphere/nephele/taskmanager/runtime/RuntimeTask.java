@@ -39,8 +39,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -381,14 +381,14 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+	public TaskContext createTaskContext(final RoutingLayer routingLayer,
 			final LocalBufferPoolOwner previousBufferPoolOwner) {
 
 		if (previousBufferPoolOwner != null) {
 			throw new IllegalStateException("Vertex " + this.vertexID + " has a previous buffer pool owner");
 		}
 
-		return new RuntimeTaskContext(this, this.initialCheckpointState, transferEnvelopeDispatcher);
+		return new RuntimeTaskContext(this, this.initialCheckpointState, routingLayer);
 	}
 
 	/**

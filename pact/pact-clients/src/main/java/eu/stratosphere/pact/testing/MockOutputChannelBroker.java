@@ -27,8 +27,8 @@ import eu.stratosphere.nephele.io.channels.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 /**
  * @author Arvid Heise
@@ -46,15 +46,15 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 
 	private Queue<TransferEnvelope> queuedOutgoingEnvelopes = new LinkedList<TransferEnvelope>();
 
-	private TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private RoutingLayer routingLayer;
 
 	private TransferEnvelope outgoingTransferEnvelope;
 
 	public MockOutputChannelBroker(AbstractOutputChannel<?> byteBufferedOutputChannel,
-			LocalBufferPool transitBufferPool, TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
+			LocalBufferPool transitBufferPool, RoutingLayer routingLayer) {
 		this.outputChannel = byteBufferedOutputChannel;
 		this.transitBufferPool = transitBufferPool;
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.routingLayer = routingLayer;
 	}
 
 	/*
@@ -91,7 +91,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 		this.outgoingTransferEnvelope.setBuffer(buffer);
 
 		if (this.queuedOutgoingEnvelopes.isEmpty())
-			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(this.outgoingTransferEnvelope);
+			this.routingLayer.routeEnvelopeFromOutputChannel(this.outgoingTransferEnvelope);
 		else {
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
 			this.flushQueuedOutgoingEnvelopes();
@@ -113,7 +113,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 
 	protected void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
 		while (!this.queuedOutgoingEnvelopes.isEmpty())
-			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(this.queuedOutgoingEnvelopes.poll());
+			this.routingLayer.routeEnvelopeFromOutputChannel(this.queuedOutgoingEnvelopes.poll());
 	}
 
 	/*
@@ -151,7 +151,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 			ephemeralTransferEnvelope.addEvent(event);
 
 			if (this.queuedOutgoingEnvelopes.isEmpty())
-				this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(ephemeralTransferEnvelope);
+				this.routingLayer.routeEnvelopeFromOutputChannel(ephemeralTransferEnvelope);
 			else {
 				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
 				this.flushQueuedOutgoingEnvelopes();

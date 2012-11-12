@@ -37,9 +37,9 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.routing.InputChannelContext;
 import eu.stratosphere.nephele.taskmanager.routing.ReceiverNotFoundEvent;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.routing.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.util.StringUtils;
 
 final class RuntimeInputChannelContext implements InputChannelContext, ByteBufferedInputChannelBroker {
@@ -50,7 +50,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private final AbstractInputChannel<?> inputChannel;
 
-	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private final RoutingLayer routingLayer;
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
@@ -62,13 +62,11 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private boolean destroyCalled = false;
 
-	RuntimeInputChannelContext(final RuntimeInputGateContext inputGateContext,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final AbstractInputChannel<?> inputChannel,
-			final EnvelopeConsumptionLog envelopeConsumptionLog) {
+	RuntimeInputChannelContext(final RuntimeInputGateContext inputGateContext, final RoutingLayer routingLayer,
+			final AbstractInputChannel<?> inputChannel, final EnvelopeConsumptionLog envelopeConsumptionLog) {
 
 		this.inputGateContext = inputGateContext;
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.routingLayer = routingLayer;
 		this.inputChannel = inputChannel;
 		this.inputChannel.setInputChannelBroker(this);
 		this.envelopeConsumptionLog = envelopeConsumptionLog;
@@ -170,7 +168,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, getJobID(), getChannelID());
 
 		ephemeralTransferEnvelope.addEvent(event);
-		this.transferEnvelopeDispatcher.processEnvelopeFromInputChannel(ephemeralTransferEnvelope);
+		this.routingLayer.routeEnvelopeFromInputChannel(ephemeralTransferEnvelope);
 	}
 
 	/**

@@ -24,9 +24,8 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 
 /**
- * A transfer envelope receiver list contains all recipients of a transfer envelope. Their are three different types of
- * receivers: Local receivers identified by {@link ChannelID} objects, remote receivers identified by
- * {@link InetAddress} objects and finally checkpoints which are identified by
+ * A receiver list contains all recipients of a transfer envelope. Their are two different types of receivers: Local
+ * receivers identified by {@link ChannelID} objects and remote receivers identified by {@link InetAddress} objects.
  * <p>
  * This class is thread-safe.
  * 

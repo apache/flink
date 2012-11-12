@@ -79,7 +79,7 @@ import eu.stratosphere.nephele.rpc.ServerTypeUtils;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingLayer;
 import eu.stratosphere.nephele.taskmanager.routing.InsufficientResourcesException;
 import eu.stratosphere.nephele.taskmanager.runtime.EnvelopeConsumptionLog;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
@@ -120,7 +120,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private final static int DEFAULTPERIODICTASKSINTERVAL = 2000;
 
-	private final RoutingLayer routingLayer;
+	private final DefaultRoutingLayer routingLayer;
 
 	/**
 	 * Instance of the task manager profile if profiling is enabled.
@@ -263,9 +263,9 @@ public class TaskManager implements TaskOperationProtocol {
 		checkTempDirs(tmpDirPaths);
 
 		// Initialize the routing layer
-		RoutingLayer routingLayer = null;
+		DefaultRoutingLayer routingLayer = null;
 		try {
-			routingLayer = RoutingLayer.get(this.lookupService, this.localInstanceConnectionInfo);
+			routingLayer = DefaultRoutingLayer.get(this.lookupService, this.localInstanceConnectionInfo);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
 			throw new Exception("Failed to instantiate routing layer: " + ioe.getMessage(), ioe);

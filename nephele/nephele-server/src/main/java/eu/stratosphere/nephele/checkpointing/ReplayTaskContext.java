@@ -28,15 +28,15 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.routing.InputGateContext;
 import eu.stratosphere.nephele.taskmanager.routing.OutputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 final class ReplayTaskContext implements TaskContext, BufferProvider, AsynchronousEventListener {
 
 	private final ReplayTask task;
 
-	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private final RoutingLayer routingLayer;
 
 	private final LocalBufferPoolOwner previousBufferPoolOwner;
 
@@ -44,10 +44,10 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 
 	private final LocalBufferPool localBufferPool;
 
-	ReplayTaskContext(final ReplayTask task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+	ReplayTaskContext(final ReplayTask task, final RoutingLayer routingLayer,
 			final LocalBufferPoolOwner previousBufferPoolOwner, final int numberOfChannels) {
 		this.task = task;
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.routingLayer = routingLayer;
 		this.previousBufferPoolOwner = previousBufferPoolOwner;
 		if (previousBufferPoolOwner == null) {
 			this.localBufferPool = new LocalBufferPool(1, false, this);
@@ -86,9 +86,9 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 		this.task.registerReplayOutputBroker(channelID, outputBroker);
 	}
 
-	TransferEnvelopeDispatcher getTransferEnvelopeDispatcher() {
+	RoutingLayer getRoutingLayer() {
 
-		return this.transferEnvelopeDispatcher;
+		return this.routingLayer;
 	}
 
 	/**

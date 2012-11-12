@@ -18,17 +18,17 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.taskmanager.routing.AbstractOutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 public final class RuntimeDispatcher extends AbstractOutputChannelForwarder {
 
-	private final TransferEnvelopeDispatcher dispatcher;
+	private final RoutingLayer routingLayer;
 
-	public RuntimeDispatcher(final TransferEnvelopeDispatcher dispatcher) {
+	public RuntimeDispatcher(final RoutingLayer routingLayer) {
 		super(null);
 
-		this.dispatcher = dispatcher;
+		this.routingLayer = routingLayer;
 	}
 
 	/**
@@ -37,6 +37,6 @@ public final class RuntimeDispatcher extends AbstractOutputChannelForwarder {
 	@Override
 	public void push(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
-		this.dispatcher.processEnvelopeFromOutputChannel(transferEnvelope);
+		this.routingLayer.routeEnvelopeFromOutputChannel(transferEnvelope);
 	}
 }
