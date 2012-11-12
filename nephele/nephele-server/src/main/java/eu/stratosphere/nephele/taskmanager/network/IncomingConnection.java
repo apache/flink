@@ -54,14 +54,13 @@ final class IncomingConnection {
 	private final DefaultDeserializer deserializer;
 
 	/**
-	 * The byte buffered channel manager which handles and dispatches the received transfer envelopes.
+	 * The routing layer which handles and dispatches the received transfer envelopes.
 	 */
-	private final DefaultRoutingLayer byteBufferedChannelManager;
+	private final DefaultRoutingLayer routingLayer;
 
-	IncomingConnection(DefaultRoutingLayer byteBufferedChannelManager,
-			ReadableByteChannel readableByteChannel) {
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
-		this.deserializer = new DefaultDeserializer(byteBufferedChannelManager);
+	IncomingConnection(final DefaultRoutingLayer routingLayer, final ReadableByteChannel readableByteChannel) {
+		this.routingLayer = routingLayer;
+		this.deserializer = new DefaultDeserializer(routingLayer);
 		this.readableByteChannel = readableByteChannel;
 	}
 
@@ -97,9 +96,9 @@ final class IncomingConnection {
 
 			final BufferProvider bufferProvider = this.deserializer.getBufferProvider();
 			if (bufferProvider == null) {
-				this.byteBufferedChannelManager.routeEnvelopeFromNetwork(transferEnvelope, false);
+				this.routingLayer.routeEnvelopeFromNetwork(transferEnvelope, false);
 			} else {
-				this.byteBufferedChannelManager.routeEnvelopeFromNetwork(transferEnvelope, bufferProvider.isShared());
+				this.routingLayer.routeEnvelopeFromNetwork(transferEnvelope, bufferProvider.isShared());
 			}
 		}
 	}

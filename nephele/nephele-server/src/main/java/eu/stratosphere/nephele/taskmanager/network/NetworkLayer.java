@@ -78,14 +78,14 @@ public final class NetworkLayer {
 	/**
 	 * A buffer provider for read buffers
 	 */
-	private final DefaultRoutingLayer byteBufferedChannelManager;
+	private final DefaultRoutingLayer routingLayer;
 
-	private NetworkLayer(final DefaultRoutingLayer byteBufferedChannelManager, final InetAddress bindAddress,
-			final int dataPort) throws IOException {
+	private NetworkLayer(final DefaultRoutingLayer routingLayer, final InetAddress bindAddress, final int dataPort)
+			throws IOException {
 
 		final Configuration configuration = GlobalConfiguration.getConfiguration();
 
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
+		this.routingLayer = routingLayer;
 
 		// Start the connection threads
 		final int numberOfOutgoingConnectionThreads = configuration.getInteger(
@@ -98,18 +98,18 @@ public final class NetworkLayer {
 		}
 
 		this.incomingConnectionThread = new IncomingConnectionThread(
-			this.byteBufferedChannelManager, true, new InetSocketAddress(bindAddress, dataPort));
+			this.routingLayer, true, new InetSocketAddress(bindAddress, dataPort));
 		this.incomingConnectionThread.start();
 
 		this.numberOfConnectionRetries = configuration.getInteger("channel.network.numberOfConnectionRetries",
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
 	}
 
-	public static synchronized NetworkLayer get(final DefaultRoutingLayer byteBufferedChannelManager,
-			final InetAddress bindAddress, final int dataPort) throws IOException {
+	public static synchronized NetworkLayer get(final DefaultRoutingLayer routingLayer, final InetAddress bindAddress,
+			final int dataPort) throws IOException {
 
 		if (INSTANCE == null) {
-			INSTANCE = new NetworkLayer(byteBufferedChannelManager, bindAddress, dataPort);
+			INSTANCE = new NetworkLayer(routingLayer, bindAddress, dataPort);
 		}
 
 		return INSTANCE;

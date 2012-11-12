@@ -39,7 +39,7 @@ final class IncomingConnectionThread extends Thread {
 
 	private static final Log LOG = LogFactory.getLog(IncomingConnectionThread.class);
 
-	private final DefaultRoutingLayer byteBufferedChannelManager;
+	private final DefaultRoutingLayer routingLayer;
 
 	private final Selector selector;
 
@@ -72,12 +72,12 @@ final class IncomingConnectionThread extends Thread {
 		}
 	}
 
-	IncomingConnectionThread(DefaultRoutingLayer byteBufferedChannelManager,
-			boolean isListeningThread, InetSocketAddress listeningAddress) throws IOException {
+	IncomingConnectionThread(final DefaultRoutingLayer routingLayer, final boolean isListeningThread,
+			final InetSocketAddress listeningAddress) throws IOException {
 		super("Incoming Connection Thread");
 
 		this.selector = Selector.open();
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
+		this.routingLayer = routingLayer;
 
 		if (isListeningThread) {
 			this.listeningSocket = ServerSocketChannel.open();
@@ -169,8 +169,7 @@ final class IncomingConnectionThread extends Thread {
 			return;
 		}
 
-		final IncomingConnection incomingConnection = new IncomingConnection(this.byteBufferedChannelManager,
-			clientSocket);
+		final IncomingConnection incomingConnection = new IncomingConnection(this.routingLayer, clientSocket);
 		SelectionKey clientKey = null;
 		try {
 			clientSocket.configureBlocking(false);
