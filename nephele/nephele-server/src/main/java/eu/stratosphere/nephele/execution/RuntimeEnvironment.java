@@ -488,8 +488,9 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			serializerFactory = new DefaultRecordSerializerFactory<T>();
 		}
 
-		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gdd.getGateID(), getNumberOfInputGates(),
-			gdd.getChannelType(), gdd.getCompressionLevel(), selector, isBroadcast, serializerFactory);
+		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gdd.getGateID(),
+			getNumberOfOutputGates(), gdd.getChannelType(), gdd.getCompressionLevel(), selector, isBroadcast,
+			serializerFactory);
 
 		this.outputGates.add(rog);
 		return rog;
@@ -503,8 +504,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		if (this.unboundInputGates == null) {
 			final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), null, getNumberOfInputGates(),
-				ChannelType.NETWORK,
-				CompressionLevel.NO_COMPRESSION, null);
+				ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, null);
 
 			this.inputGates.add(rig);
 			return rig;
