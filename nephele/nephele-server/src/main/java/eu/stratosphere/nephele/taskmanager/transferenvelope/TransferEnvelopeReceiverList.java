@@ -22,9 +22,9 @@ import java.util.List;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
+import eu.stratosphere.nephele.taskmanager.routing.ChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
 
 /**
  * A transfer envelope receiver list contains all recipients of a transfer envelope. Their are three different types of

@@ -17,7 +17,7 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.routing.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 

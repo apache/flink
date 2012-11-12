@@ -44,8 +44,8 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
+import eu.stratosphere.nephele.taskmanager.routing.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
 
 /**
  * The MulticastManager is responsible for the creation and storage of application-layer multicast trees used to

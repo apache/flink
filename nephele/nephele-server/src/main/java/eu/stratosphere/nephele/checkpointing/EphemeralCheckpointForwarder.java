@@ -17,7 +17,7 @@ package eu.stratosphere.nephele.checkpointing;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.routing.AbstractOutputChannelForwarder;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 public final class EphemeralCheckpointForwarder extends AbstractOutputChannelForwarder {

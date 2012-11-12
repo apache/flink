@@ -17,10 +17,10 @@ package eu.stratosphere.nephele.checkpointing;
 
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.routing.OutputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.runtime.ForwardingBarrier;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeDispatcher;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;

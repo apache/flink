@@ -21,7 +21,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.rpc.RPCProtocol;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.taskmanager.routing.ConnectionInfoLookupResponse;
 
 /**
  * The channel lookup protocol can be used to resolve the ID of an output channel to all recipients which shall receive

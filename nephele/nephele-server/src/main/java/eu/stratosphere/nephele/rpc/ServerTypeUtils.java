@@ -34,8 +34,8 @@ import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
+import eu.stratosphere.nephele.taskmanager.routing.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
 
 /**
  * This utility class provides a list of types frequently used by the RPC protocols included in this package.

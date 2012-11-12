@@ -26,9 +26,9 @@ import eu.stratosphere.nephele.io.channels.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Compressor;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
+import eu.stratosphere.nephele.taskmanager.routing.AbstractOutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.routing.ReceiverNotFoundEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 final class RuntimeOutputChannelBroker extends AbstractOutputChannelForwarder implements

@@ -16,7 +16,7 @@
 package eu.stratosphere.nephele.checkpointing;
 
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.GateContext;
+import eu.stratosphere.nephele.taskmanager.routing.GateContext;
 
 abstract class AbstractReplayGateContext implements GateContext {
 

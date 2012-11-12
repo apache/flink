@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.InputChannelContext;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 final class ReplayInputChannelContext implements InputChannelContext {

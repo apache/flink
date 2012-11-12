@@ -18,9 +18,9 @@ package eu.stratosphere.nephele.checkpointing;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.routing.AbstractOutputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 /**

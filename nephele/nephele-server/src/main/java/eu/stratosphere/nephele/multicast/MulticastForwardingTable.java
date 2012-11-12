@@ -22,8 +22,8 @@ import java.util.Map;
 
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ConnectionInfoLookupResponse;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.RemoteReceiver;
+import eu.stratosphere.nephele.taskmanager.routing.ConnectionInfoLookupResponse;
+import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
 
 /**
  * This class contains ConnectionInfoLookupResponse objects containing local, as well as remote receivers for all

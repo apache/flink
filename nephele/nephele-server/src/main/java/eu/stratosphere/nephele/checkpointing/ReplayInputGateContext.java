@@ -18,8 +18,8 @@ package eu.stratosphere.nephele.checkpointing;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.InputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.InputGateContext;
 
 final class ReplayInputGateContext extends AbstractReplayGateContext implements InputGateContext {
 
