@@ -16,7 +16,7 @@
 package eu.stratosphere.nephele.taskmanager.routing;
 
 /**
- * This exception is thrown by the {@link ByteBufferedChannelManager} to indicate that a task cannot be accepted because
+ * This exception is thrown by the {@link RoutingLayer} to indicate that a task cannot be accepted because
  * there are not enough resources available to safely execute it.
  * 
  * @author warneke

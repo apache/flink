@@ -48,12 +48,17 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeReceiverList;
 
-public final class ByteBufferedChannelManager implements TransferEnvelopeDispatcher, BufferProviderBroker {
+public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferProviderBroker {
+
+	/**
+	 * The singleton instance of the routing layer.
+	 */
+	private static RoutingLayer INSTANCE = null;
 
 	/**
 	 * The log object used to report problems and errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(ByteBufferedChannelManager.class);
+	private static final Log LOG = LogFactory.getLog(RoutingLayer.class);
 
 	private static final boolean DEFAULT_ALLOW_SENDER_SIDE_SPILLING = false;
 
@@ -66,7 +71,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 
 	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
 
-	private final NetworkLayer networkConnectionManager;
+	private final NetworkLayer networkLayer;
 
 	private final ChannelLookupProtocol channelLookupService;
 
@@ -85,7 +90,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	private final Map<ChannelID, TransferEnvelopeReceiverList> receiverCache = new ConcurrentHashMap<ChannelID, TransferEnvelopeReceiverList>();
 
-	public ByteBufferedChannelManager(final ChannelLookupProtocol channelLookupService,
+	private RoutingLayer(final ChannelLookupProtocol channelLookupService,
 			final InstanceConnectionInfo localInstanceConnectionInfo) throws IOException {
 
 		this.channelLookupService = channelLookupService;
@@ -101,8 +106,8 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		// Initialize the transit buffer pool
 		this.transitBufferPool = new LocalBufferPool(128, true);
 
-		this.networkConnectionManager = new NetworkLayer(this,
-			localInstanceConnectionInfo.getAddress(), localInstanceConnectionInfo.getDataPort());
+		this.networkLayer = NetworkLayer.get(this, localInstanceConnectionInfo.getAddress(),
+			localInstanceConnectionInfo.getDataPort());
 
 		this.allowSenderSideSpilling = GlobalConfiguration.getBoolean("channel.network.allowSenderSideSpilling",
 			DEFAULT_ALLOW_SENDER_SIDE_SPILLING);
@@ -113,6 +118,16 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		LOG.info("Initialized byte buffered channel manager with sender-side spilling "
 			+ (this.allowSenderSideSpilling ? "enabled" : "disabled")
 			+ (this.mergeSpilledBuffers ? " and spilled buffer merging enabled" : ""));
+	}
+
+	public static synchronized RoutingLayer get(final ChannelLookupProtocol channelLookupService,
+			final InstanceConnectionInfo localInstanceConnectionInfo) throws IOException {
+
+		if (INSTANCE == null) {
+			INSTANCE = new RoutingLayer(channelLookupService, localInstanceConnectionInfo);
+		}
+
+		return INSTANCE;
 	}
 
 	/**
@@ -263,12 +278,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 	 */
 	public void shutdown() {
 
-		this.networkConnectionManager.shutDown();
-	}
-
-	public NetworkLayer getNetworkConnectionManager() {
-
-		return this.networkConnectionManager;
+		this.networkLayer.shutDown();
 	}
 
 	private void recycleBuffer(final TransferEnvelope envelope) {
@@ -411,7 +421,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 				for (final RemoteReceiver remoteReceiver : remoteReceivers) {
 
 					final TransferEnvelope dup = transferEnvelope.duplicate();
-					this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, dup);
+					this.networkLayer.queueEnvelopeForTransfer(remoteReceiver, dup);
 				}
 			}
 		} finally {
@@ -449,7 +459,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 		while (remoteIt.hasNext()) {
 
 			final RemoteReceiver remoteReceiver = remoteIt.next();
-			this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope);
+			this.networkLayer.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope);
 		}
 	}
 
@@ -592,7 +602,7 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 			it.next().logBufferUtilization();
 		}
 
-		this.networkConnectionManager.logBufferUtilization();
+		this.networkLayer.logBufferUtilization();
 
 		System.out.println("\tIncoming connections:");
 

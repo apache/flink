@@ -79,7 +79,7 @@ import eu.stratosphere.nephele.rpc.ServerTypeUtils;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.taskmanager.routing.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.routing.InsufficientResourcesException;
 import eu.stratosphere.nephele.taskmanager.runtime.EnvelopeConsumptionLog;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
@@ -120,11 +120,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private final static int DEFAULTPERIODICTASKSINTERVAL = 2000;
 
-	/**
-	 * The instance of the {@link ByteBufferedChannelManager} which is responsible for
-	 * setting up and cleaning up the byte buffered channels of the tasks.
-	 */
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final RoutingLayer routingLayer;
 
 	/**
 	 * Instance of the task manager profile if profiling is enabled.
@@ -266,16 +262,15 @@ public class TaskManager implements TaskOperationProtocol {
 
 		checkTempDirs(tmpDirPaths);
 
-		// Initialize the byte buffered channel manager
-		ByteBufferedChannelManager byteBufferedChannelManager = null;
+		// Initialize the routing layer
+		RoutingLayer routingLayer = null;
 		try {
-			byteBufferedChannelManager = new ByteBufferedChannelManager(this.lookupService,
-				this.localInstanceConnectionInfo);
+			routingLayer = RoutingLayer.get(this.lookupService, this.localInstanceConnectionInfo);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
-			throw new Exception("Failed to instantiate Byte-buffered channel manager. " + ioe.getMessage(), ioe);
+			throw new Exception("Failed to instantiate routing layer: " + ioe.getMessage(), ioe);
 		}
-		this.byteBufferedChannelManager = byteBufferedChannelManager;
+		this.routingLayer = routingLayer;
 
 		// Determine hardware description
 		HardwareDescription hardware = HardwareDescriptionFactory.extractFromSystem();
@@ -489,7 +484,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private void reportAsyncronousEvent(final ExecutionVertexID vertexID) {
 
-		this.byteBufferedChannelManager.reportAsynchronousEvent(vertexID);
+		this.routingLayer.reportAsynchronousEvent(vertexID);
 	}
 
 	/**
@@ -616,8 +611,8 @@ public class TaskManager implements TaskOperationProtocol {
 
 			final Environment ee = task.getEnvironment();
 
-			// Register the task with the byte buffered channel manager
-			this.byteBufferedChannelManager.register(task, activeOutputChannels);
+			// Register the task with the routing layer
+			this.routingLayer.register(task, activeOutputChannels);
 
 			boolean enableProfiling = false;
 			if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
@@ -660,8 +655,8 @@ public class TaskManager implements TaskOperationProtocol {
 				return;
 			}
 
-			// Unregister task from the byte buffered channel manager
-			this.byteBufferedChannelManager.unregister(id, task);
+			// Unregister task from the routing layer
+			this.routingLayer.unregister(id, task);
 
 			// Unregister task from profiling
 			task.unregisterProfiler(this.profiler);
@@ -789,8 +784,8 @@ public class TaskManager implements TaskOperationProtocol {
 			this.profiler.shutdown();
 		}
 
-		// Shut down the network channel manager
-		this.byteBufferedChannelManager.shutdown();
+		// Shut down the routing layer
+		this.routingLayer.shutdown();
 
 		// Shut down the memory manager
 		if (this.ioManager != null) {
@@ -887,7 +882,7 @@ public class TaskManager implements TaskOperationProtocol {
 	@Override
 	public void logBufferUtilization() throws IOException {
 
-		this.byteBufferedChannelManager.logBufferUtilization();
+		this.routingLayer.logBufferUtilization();
 	}
 
 	/**
@@ -916,7 +911,7 @@ public class TaskManager implements TaskOperationProtocol {
 	@Override
 	public void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
 
-		this.byteBufferedChannelManager.invalidateLookupCacheEntries(channelIDs);
+		this.routingLayer.invalidateLookupCacheEntries(channelIDs);
 	}
 
 	/**

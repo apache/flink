@@ -23,7 +23,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.routing.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultDeserializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.NoBufferAvailableException;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -56,9 +56,9 @@ final class IncomingConnection {
 	/**
 	 * The byte buffered channel manager which handles and dispatches the received transfer envelopes.
 	 */
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final RoutingLayer byteBufferedChannelManager;
 
-	IncomingConnection(ByteBufferedChannelManager byteBufferedChannelManager,
+	IncomingConnection(RoutingLayer byteBufferedChannelManager,
 			ReadableByteChannel readableByteChannel) {
 		this.byteBufferedChannelManager = byteBufferedChannelManager;
 		this.deserializer = new DefaultDeserializer(byteBufferedChannelManager);

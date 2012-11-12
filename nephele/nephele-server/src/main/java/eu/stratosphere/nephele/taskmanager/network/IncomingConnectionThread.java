@@ -31,7 +31,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
-import eu.stratosphere.nephele.taskmanager.routing.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.NoBufferAvailableException;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -39,7 +39,7 @@ final class IncomingConnectionThread extends Thread {
 
 	private static final Log LOG = LogFactory.getLog(IncomingConnectionThread.class);
 
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final RoutingLayer byteBufferedChannelManager;
 
 	private final Selector selector;
 
@@ -72,7 +72,7 @@ final class IncomingConnectionThread extends Thread {
 		}
 	}
 
-	IncomingConnectionThread(ByteBufferedChannelManager byteBufferedChannelManager,
+	IncomingConnectionThread(RoutingLayer byteBufferedChannelManager,
 			boolean isListeningThread, InetSocketAddress listeningAddress) throws IOException {
 		super("Incoming Connection Thread");
 

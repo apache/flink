@@ -27,7 +27,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.taskmanager.routing.ByteBufferedChannelManager;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
 import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
@@ -78,9 +78,9 @@ public final class NetworkLayer {
 	/**
 	 * A buffer provider for read buffers
 	 */
-	private final ByteBufferedChannelManager byteBufferedChannelManager;
+	private final RoutingLayer byteBufferedChannelManager;
 
-	private NetworkLayer(final ByteBufferedChannelManager byteBufferedChannelManager, final InetAddress bindAddress,
+	private NetworkLayer(final RoutingLayer byteBufferedChannelManager, final InetAddress bindAddress,
 			final int dataPort) throws IOException {
 
 		final Configuration configuration = GlobalConfiguration.getConfiguration();
@@ -105,7 +105,7 @@ public final class NetworkLayer {
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
 	}
 
-	public static synchronized NetworkLayer get(final ByteBufferedChannelManager byteBufferedChannelManager,
+	public static synchronized NetworkLayer get(final RoutingLayer byteBufferedChannelManager,
 			final InetAddress bindAddress, final int dataPort) throws IOException {
 
 		if (INSTANCE == null) {
