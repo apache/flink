@@ -46,7 +46,6 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.network.NetworkLayer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeReceiverList;
 
 public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferProviderBroker {
 
@@ -88,7 +87,7 @@ public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferPro
 	/**
 	 * This map caches transfer envelope receiver lists.
 	 */
-	private final Map<ChannelID, TransferEnvelopeReceiverList> receiverCache = new ConcurrentHashMap<ChannelID, TransferEnvelopeReceiverList>();
+	private final Map<ChannelID, ReceiverList> receiverCache = new ConcurrentHashMap<ChannelID, ReceiverList>();
 
 	private RoutingLayer(final ChannelLookupProtocol channelLookupService,
 			final InstanceConnectionInfo localInstanceConnectionInfo) throws IOException {
@@ -303,7 +302,7 @@ public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferPro
 		final TransferEnvelope transferEnvelope = ReceiverNotFoundEvent.createEnvelopeWithEvent(jobID, receiver,
 			envelope.getSequenceNumber());
 
-		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, receiver);
+		final ReceiverList receiverList = getReceiverList(jobID, receiver);
 		if (receiverList == null) {
 			return;
 		}
@@ -314,7 +313,7 @@ public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferPro
 	private void processEnvelope(final TransferEnvelope transferEnvelope, final boolean freeSourceBuffer)
 			throws IOException, InterruptedException {
 
-		TransferEnvelopeReceiverList receiverList = null;
+		ReceiverList receiverList = null;
 		try {
 			receiverList = getReceiverList(transferEnvelope.getJobID(),
 				transferEnvelope.getSource());
@@ -340,7 +339,7 @@ public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferPro
 	}
 
 	private void processEnvelopeWithBuffer(final TransferEnvelope transferEnvelope,
-			final TransferEnvelopeReceiverList receiverList, final boolean freeSourceBuffer)
+			final ReceiverList receiverList, final boolean freeSourceBuffer)
 			throws IOException, InterruptedException {
 
 		// Handle the most common (unicast) case first
@@ -431,7 +430,7 @@ public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferPro
 	}
 
 	private void processEnvelopeEnvelopeWithoutBuffer(final TransferEnvelope transferEnvelope,
-			final TransferEnvelopeReceiverList receiverList) throws IOException, InterruptedException {
+			final ReceiverList receiverList) throws IOException, InterruptedException {
 
 		// No need to copy anything
 		final Iterator<ChannelID> localIt = receiverList.getLocalReceivers().iterator();
@@ -465,7 +464,7 @@ public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferPro
 
 	private void addReceiverListHint(final ChannelContext channelContext) {
 
-		final TransferEnvelopeReceiverList receiverList = new TransferEnvelopeReceiverList(channelContext);
+		final ReceiverList receiverList = new ReceiverList(channelContext);
 
 		if (this.receiverCache.put(channelContext.getChannelID(), receiverList) != null) {
 			LOG.warn("Receiver cache already contained entry for " + channelContext.getChannelID());
@@ -483,10 +482,10 @@ public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferPro
 	 * @throws IOException
 	 * @throws InterruptedExcption
 	 */
-	private TransferEnvelopeReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID)
+	private ReceiverList getReceiverList(final JobID jobID, final ChannelID sourceChannelID)
 			throws IOException, InterruptedException {
 
-		TransferEnvelopeReceiverList receiverList = this.receiverCache.get(sourceChannelID);
+		ReceiverList receiverList = this.receiverCache.get(sourceChannelID);
 
 		if (receiverList != null) {
 			return receiverList;
@@ -516,7 +515,7 @@ public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferPro
 			}
 
 			if (lookupResponse.receiverReady()) {
-				receiverList = new TransferEnvelopeReceiverList(lookupResponse);
+				receiverList = new ReceiverList(lookupResponse);
 				break;
 			}
 
@@ -628,7 +627,7 @@ public final class RoutingLayer implements TransferEnvelopeDispatcher, BufferPro
 	public BufferProvider getBufferProvider(final JobID jobID, final ChannelID sourceChannelID) throws IOException,
 			InterruptedException {
 
-		final TransferEnvelopeReceiverList receiverList = getReceiverList(jobID, sourceChannelID);
+		final ReceiverList receiverList = getReceiverList(jobID, sourceChannelID);
 
 		// Receiver could not be determined, use transit buffer pool to read data from channel
 		if (receiverList == null) {

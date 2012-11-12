@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.taskmanager.transferenvelope;
+package eu.stratosphere.nephele.taskmanager.routing;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -22,9 +22,6 @@ import java.util.List;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.taskmanager.routing.ChannelContext;
-import eu.stratosphere.nephele.taskmanager.routing.ConnectionInfoLookupResponse;
-import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
 
 /**
  * A transfer envelope receiver list contains all recipients of a transfer envelope. Their are three different types of
@@ -35,19 +32,19 @@ import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
  * 
  * @author warneke
  */
-public class TransferEnvelopeReceiverList {
+final class ReceiverList {
 
 	private final List<ChannelID> localReceivers;
 
 	private final List<RemoteReceiver> remoteReceivers;
 
-	public TransferEnvelopeReceiverList(final ConnectionInfoLookupResponse cilr) {
+	ReceiverList(final ConnectionInfoLookupResponse cilr) {
 
 		this.localReceivers = cilr.getLocalTargets();
 		this.remoteReceivers = cilr.getRemoteTargets();
 	}
 
-	public TransferEnvelopeReceiverList(final ChannelContext channelContext) {
+	ReceiverList(final ChannelContext channelContext) {
 
 		if (channelContext.getType() != ChannelType.INMEMORY) {
 			throw new IllegalArgumentException(
@@ -61,27 +58,27 @@ public class TransferEnvelopeReceiverList {
 		this.remoteReceivers = Collections.emptyList();
 	}
 
-	public boolean hasLocalReceivers() {
+	boolean hasLocalReceivers() {
 
 		return (!this.localReceivers.isEmpty());
 	}
 
-	public boolean hasRemoteReceivers() {
+	boolean hasRemoteReceivers() {
 
 		return (!this.remoteReceivers.isEmpty());
 	}
 
-	public int getTotalNumberOfReceivers() {
+	int getTotalNumberOfReceivers() {
 
 		return (this.localReceivers.size() + this.remoteReceivers.size());
 	}
 
-	public List<RemoteReceiver> getRemoteReceivers() {
+	List<RemoteReceiver> getRemoteReceivers() {
 
 		return this.remoteReceivers;
 	}
 
-	public List<ChannelID> getLocalReceivers() {
+	List<ChannelID> getLocalReceivers() {
 
 		return this.localReceivers;
 	}
