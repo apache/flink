@@ -55,8 +55,9 @@ public class ScopedPageRank {
     int memoryPerTask = 25;
     int memoryForMatch = memoryPerTask;
     int numIterations = 5;
+    long numVertices = 4;
 
-    if (args.length == 9) {
+    if (args.length == 10) {
       degreeOfParallelism = Integer.parseInt(args[0]);
       numSubTasksPerInstance = Integer.parseInt(args[1]);
       pageWithRankInputPath = args[2];
@@ -66,6 +67,7 @@ public class ScopedPageRank {
       memoryPerTask = Integer.parseInt(args[6]);
       memoryForMatch = Integer.parseInt(args[7]);
       numIterations = Integer.parseInt(args[8]);
+      numVertices = Long.parseLong(args[9]);
     }
 
     JobGraph jobGraph = new JobGraph("ScopedPageRank");
@@ -117,6 +119,7 @@ public class ScopedPageRank {
         new Class[] { PactLong.class }, new boolean[] { true });
     tailConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     tailConfig.setNumFilehandles(10);
+    tailConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 
     JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
     TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());

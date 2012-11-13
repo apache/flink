@@ -143,7 +143,9 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
             new AllWorkersDoneEvent(aggregator.getAggregate()) :
             new AllWorkersDoneEvent();
 
-        aggregator.reset();
+        if (taskConfig.usesConvergenceCriterion()) {
+          aggregator.reset();
+        }
 
         sendToAllWorkers(allWorkersDoneEvent);
         notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
