@@ -16,8 +16,9 @@
 package eu.stratosphere.nephele.instance.ec2;
 
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
@@ -29,7 +30,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 final class JobToInstancesMapping {
 
 	/** The list of assigned cloud instances for the job. */
-	private final List<EC2CloudInstance> assignedInstances = new ArrayList<EC2CloudInstance>();
+	private final Map<InstanceConnectionInfo, EC2CloudInstance> assignedInstances = new HashMap<InstanceConnectionInfo, EC2CloudInstance>();
 
 	/** The access ID into Amazon Web Services. */
 	private final String awsAccessId;
@@ -60,7 +61,7 @@ final class JobToInstancesMapping {
 	public void assignInstanceToJob(final EC2CloudInstance instance) {
 
 		synchronized (this.assignedInstances) {
-			this.assignedInstances.add(instance);
+			this.assignedInstances.put(instance.getInstanceConnectionInfo(), instance);
 		}
 	}
 
@@ -69,12 +70,12 @@ final class JobToInstancesMapping {
 	 * 
 	 * @param instance
 	 *        the cloud instance which will be unassigned
-	 * @return the unassigned cloud instance
+	 * @return <code>true</code> if the given cloud instance has been assigned to the job, <code>false</code> otherwise
 	 */
 	public boolean unassignInstanceFromJob(final AbstractInstance instance) {
 
 		synchronized (this.assignedInstances) {
-			return this.assignedInstances.remove(instance);
+			return (this.assignedInstances.remove(instance) != null);
 		}
 	}
 
@@ -88,7 +89,7 @@ final class JobToInstancesMapping {
 		final List<EC2CloudInstance> unassignedInstances;
 
 		synchronized (this.assignedInstances) {
-			unassignedInstances = new ArrayList<EC2CloudInstance>(this.assignedInstances);
+			unassignedInstances = new ArrayList<EC2CloudInstance>(this.assignedInstances.values());
 			this.assignedInstances.clear();
 		}
 
@@ -122,19 +123,8 @@ final class JobToInstancesMapping {
 		}
 
 		synchronized (this.assignedInstances) {
-
-			final Iterator<EC2CloudInstance> it = this.assignedInstances.iterator();
-
-			while (it.hasNext()) {
-
-				final EC2CloudInstance ci = it.next();
-				if (instanceConnectionInfo.equals(ci.getInstanceConnectionInfo())) {
-					return ci;
-				}
-			}
+			return this.assignedInstances.get(instanceConnectionInfo);
 		}
-
-		return null;
 	}
 
 	/**
