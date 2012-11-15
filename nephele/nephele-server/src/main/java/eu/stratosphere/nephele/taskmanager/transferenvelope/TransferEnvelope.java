@@ -17,10 +17,12 @@ package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
@@ -104,6 +106,22 @@ public final class TransferEnvelope {
 		duplicatedTransferEnvelope.buffer = null;
 
 		return duplicatedTransferEnvelope;
+	}
+
+	public boolean isLastEnvelope() {
+
+		if (this.eventList == null) {
+			return false;
+		}
+
+		final Iterator<AbstractEvent> it = this.eventList.iterator();
+		while (it.hasNext()) {
+			if (it.next() instanceof ChannelCloseEvent) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	@Override
