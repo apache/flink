@@ -127,6 +127,11 @@ public final class ExecutionVertex {
 	private volatile int indexInVertexGroup = 0;
 
 	/**
+	 * Stores if the task represented by this vertex has already been deployed at least once.
+	 */
+	private volatile boolean hasAlreadyBeenDeployed = false;
+
+	/**
 	 * Stores the number of times the vertex may be still be started before the corresponding task is considered to be
 	 * failed.
 	 */
@@ -399,6 +404,11 @@ public final class ExecutionVertex {
 
 		// Check the transition
 		ExecutionStateTransition.checkTransition(true, toString(), previousState, newExecutionState);
+
+		// Store that this task has already been deployed once
+		if (newExecutionState == ExecutionState.STARTING) {
+			this.hasAlreadyBeenDeployed = true;
+		}
 
 		// Notify the listener objects
 		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
@@ -931,21 +941,6 @@ public final class ExecutionVertex {
 	}
 
 	/**
-	 * Returns the task represented by this vertex has
-	 * a retry attempt left in case of an execution
-	 * failure.
-	 * 
-	 * @return <code>true</code> if the task has a retry attempt left, <code>false</code> otherwise
-	 */
-	@Deprecated
-	public boolean hasRetriesLeft() {
-		if (this.retriesLeft.get() <= 0) {
-			return false;
-		}
-		return true;
-	}
-
-	/**
 	 * Decrements the number of retries left and checks whether another attempt to run the task is possible.
 	 * 
 	 * @return <code>true</code>if the task represented by this vertex can be started at least once more,
@@ -1123,7 +1118,7 @@ public final class ExecutionVertex {
 			this.vertexID, this.groupVertex.getName(), this.indexInVertexGroup,
 			this.groupVertex.getCurrentNumberOfGroupMembers(), this.executionGraph.getJobConfiguration(),
 			this.groupVertex.getConfiguration(), this.checkpointState.get(), this.groupVertex.getInvokableClass(), ogd,
-			igd);
+			igd, this.hasAlreadyBeenDeployed);
 
 		return tdd;
 	}

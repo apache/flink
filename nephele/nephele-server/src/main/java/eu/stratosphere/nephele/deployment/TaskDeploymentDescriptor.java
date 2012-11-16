@@ -97,6 +97,11 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 	private ArrayList<GateDeploymentDescriptor> inputGates;
 
 	/**
+	 * Stores if the task has already been deployed at least once.
+	 */
+	private boolean hasAlreadyBeenDeployed;
+
+	/**
 	 * Constructs a task deployment descriptor.
 	 * 
 	 * @param jobID
@@ -121,13 +126,15 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 	 *        list of output gate deployment descriptors
 	 * @param inputGateIDs
 	 *        list of input gate deployment descriptors
+	 * @param hasAlreadyBeenDeployed
+	 *        stores if the task has already been deployed at least once
 	 */
 	public TaskDeploymentDescriptor(final JobID jobID, final ExecutionVertexID vertexID, final String taskName,
 			final int indexInSubtaskGroup, final int currentNumberOfSubtasks, final Configuration jobConfiguration,
 			final Configuration taskConfiguration, final CheckpointState initialCheckpointState,
 			final Class<? extends AbstractInvokable> invokableClass,
 			final ArrayList<GateDeploymentDescriptor> outputGates,
-			final ArrayList<GateDeploymentDescriptor> inputGates) {
+			final ArrayList<GateDeploymentDescriptor> inputGates, final boolean hasAlreadyBeenDeployed) {
 
 		if (jobID == null) {
 			throw new IllegalArgumentException("Argument jobID must not be null");
@@ -185,6 +192,7 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 		this.invokableClass = invokableClass;
 		this.outputGates = outputGates;
 		this.inputGates = inputGates;
+		this.hasAlreadyBeenDeployed = hasAlreadyBeenDeployed;
 	}
 
 	/**
@@ -203,6 +211,7 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 		this.invokableClass = null;
 		this.outputGates = null;
 		this.inputGates = null;
+		this.hasAlreadyBeenDeployed = false;
 	}
 
 	/**
@@ -243,6 +252,8 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 
 		kryo.writeObject(output, this.outputGates);
 		kryo.writeObject(output, this.inputGates);
+
+		output.writeBoolean(this.hasAlreadyBeenDeployed);
 	}
 
 	/**
@@ -301,6 +312,8 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 
 		this.outputGates = kryo.readObject(input, ArrayList.class);
 		this.inputGates = kryo.readObject(input, ArrayList.class);
+
+		this.hasAlreadyBeenDeployed = input.readBoolean();
 	}
 
 	/**
@@ -435,5 +448,16 @@ public final class TaskDeploymentDescriptor implements KryoSerializable {
 	public GateDeploymentDescriptor getInputGateDescriptor(final int index) {
 
 		return this.inputGates.get(index);
+	}
+
+	/**
+	 * Checks if the task has already been deployed at least once.
+	 * 
+	 * @return <code>true</code> if the task has already been at least once before this deployment, <code>false</code>
+	 *         otherwise
+	 */
+	public boolean hasAlreadyBeenDeployed() {
+
+		return this.hasAlreadyBeenDeployed;
 	}
 }

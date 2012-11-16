@@ -517,12 +517,13 @@ public class TaskManager implements TaskOperationProtocol {
 			final Configuration jobConfiguration = tdd.getJobConfiguration();
 			final CheckpointState initialCheckpointState = tdd.getInitialCheckpointState();
 			final Set<ChannelID> activeOutputChannels = null; // TODO: Fix me
+			final boolean hasAlreadyBeenDeployed = tdd.hasAlreadyBeenDeployed();
 
 			// Register the task
 			Task task;
 			try {
 				task = createAndRegisterTask(vertexID, jobConfiguration, re, initialCheckpointState,
-					activeOutputChannels);
+					activeOutputChannels, hasAlreadyBeenDeployed);
 			} catch (InsufficientResourcesException e) {
 				final TaskSubmissionResult result = new TaskSubmissionResult(vertexID,
 					AbstractTaskResult.ReturnCode.INSUFFICIENT_RESOURCES);
@@ -566,11 +567,14 @@ public class TaskManager implements TaskOperationProtocol {
 	 *        the task's initial checkpoint state
 	 * @param activeOutputChannels
 	 *        the set of initially active output channels
+	 * @param hasAlreadyBeenDeployed
+	 *        stores if the task has already been deployed before at least once
 	 * @return the task to be started or <code>null</code> if a task with the same ID was already running
 	 */
 	private Task createAndRegisterTask(final ExecutionVertexID id, final Configuration jobConfiguration,
 			final RuntimeEnvironment environment, final CheckpointState initialCheckpointState,
-			final Set<ChannelID> activeOutputChannels) throws InsufficientResourcesException, IOException {
+			final Set<ChannelID> activeOutputChannels, final boolean hasAlreadyBeenDeployed)
+			throws InsufficientResourcesException, IOException {
 
 		if (id == null) {
 			throw new IllegalArgumentException("Argument id is null");
@@ -612,7 +616,7 @@ public class TaskManager implements TaskOperationProtocol {
 			final Environment ee = task.getEnvironment();
 
 			// Register the task with the routing layer
-			this.routingLayer.register(task, activeOutputChannels);
+			this.routingLayer.register(task, activeOutputChannels, hasAlreadyBeenDeployed);
 
 			boolean enableProfiling = false;
 			if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {

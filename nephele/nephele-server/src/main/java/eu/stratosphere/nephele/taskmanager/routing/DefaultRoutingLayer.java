@@ -133,13 +133,15 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	 * 
 	 * @param task
 	 *        the task to be registered
-	 * @param the
-	 *        set of output channels which are initially active
+	 * @param activeOutputChannels
+	 *        the set of output channels which are initially active
+	 * @param hasAlreadyBeenDeployed
+	 *        stores if the task has already been deployed before at least once
 	 * @throws InsufficientResourcesException
 	 *         thrown if the channel manager does not have enough memory buffers to safely run this task
 	 */
-	public void register(final Task task, final Set<ChannelID> activeOutputChannels)
-			throws InsufficientResourcesException {
+	public void register(final Task task, final Set<ChannelID> activeOutputChannels,
+			final boolean hasAlreadyBeenDeployed) throws InsufficientResourcesException {
 
 		// Check if we can safely run this task with the given resources
 		checkBufferAvailability(task);
@@ -166,8 +168,8 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 				final OutputChannelContext outputChannelContext = outputGateContext.createOutputChannelContext(
 					channelID, previousContext, isActive, this.mergeSpilledBuffers);
 
-				// Add routing entry to receiver cache to reduce latency
-				if (outputChannelContext.getType() == ChannelType.INMEMORY) {
+				// Add routing entry to receiver cache to reduce latency if this is the task's first execution
+				if (outputChannelContext.getType() == ChannelType.INMEMORY && !hasAlreadyBeenDeployed) {
 					addReceiverListHint(outputChannelContext);
 				}
 
@@ -194,8 +196,8 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 				final InputChannelContext inputChannelContext = inputGateContext.createInputChannelContext(
 					channelID, previousContext);
 
-				// Add routing entry to receiver cache to reduce latency
-				if (inputChannelContext.getType() == ChannelType.INMEMORY) {
+				// Add routing entry to receiver cache to reduce latency if this is the task's first execution
+				if (inputChannelContext.getType() == ChannelType.INMEMORY && !hasAlreadyBeenDeployed) {
 					addReceiverListHint(inputChannelContext);
 				}
 
