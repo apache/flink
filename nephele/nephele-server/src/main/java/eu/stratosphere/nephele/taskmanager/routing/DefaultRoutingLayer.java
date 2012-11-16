@@ -173,9 +173,10 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 					addReceiverListHint(outputChannelContext);
 				}
 
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Registering byte buffered output channel " + outputChannelContext.getChannelID() + " ("
 						+ (isActive ? "active" : "inactive") + ")");
+				}
 
 				this.registeredChannels.put(outputChannelContext.getChannelID(), outputChannelContext);
 			}
