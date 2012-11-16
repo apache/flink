@@ -32,7 +32,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -102,9 +101,9 @@ public final class ExecutionVertex {
 	private final CopyOnWriteArrayList<CheckpointStateListener> checkpointStateListeners = new CopyOnWriteArrayList<CheckpointStateListener>();
 
 	/**
-	 * A map of {@link ExecutionListener} objects to be notified about the state changes of a vertex.
+	 * A map of {@link ExecutionStateListener} objects to be notified about the state changes of a vertex.
 	 */
-	private final ConcurrentMap<Integer, ExecutionListener> executionListeners = new ConcurrentSkipListMap<Integer, ExecutionListener>();
+	private final ConcurrentMap<Integer, ExecutionStateListener> executionStateListeners = new ConcurrentSkipListMap<Integer, ExecutionStateListener>();
 
 	/**
 	 * The current execution state of the task represented by this vertex
@@ -204,7 +203,7 @@ public final class ExecutionVertex {
 		this.executionGraph.registerExecutionVertex(this);
 
 		// Register the vertex itself as a listener for state changes
-		registerExecutionListener(this.executionGraph);
+		registerExecutionStateListener(this.executionGraph);
 	}
 
 	/**
@@ -411,7 +410,7 @@ public final class ExecutionVertex {
 		}
 
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
+		final Iterator<ExecutionStateListener> it = this.executionStateListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, newExecutionState,
 				optionalMessage);
@@ -437,7 +436,7 @@ public final class ExecutionVertex {
 		ExecutionStateTransition.checkTransition(true, toString(), expected, update);
 
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
+		final Iterator<ExecutionStateListener> it = this.executionStateListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, update,
 				null);
@@ -1000,39 +999,41 @@ public final class ExecutionVertex {
 	}
 
 	/**
-	 * Registers the {@link ExecutionListener} object for this vertex. This object
+	 * Registers the {@link ExecutionStateListener} object for this vertex. This object
 	 * will be notified about particular events during the vertex's lifetime.
 	 * 
 	 * @param executionListener
 	 *        the object to be notified about particular events during the vertex's lifetime
 	 */
-	public void registerExecutionListener(final ExecutionListener executionListener) {
+	public void registerExecutionStateListener(final ExecutionStateListener executionStateListener) {
 
-		final Integer priority = Integer.valueOf(executionListener.getPriority());
+		final Integer priority = Integer.valueOf(executionStateListener.getPriority());
 
 		if (priority.intValue() < 0) {
-			LOG.error("Priority for execution listener " + executionListener.getClass() + " must be non-negative.");
+			LOG.error("Priority for execution state listener " + executionStateListener.getClass()
+				+ " must be non-negative.");
 			return;
 		}
 
-		final ExecutionListener previousValue = this.executionListeners.putIfAbsent(priority, executionListener);
+		final ExecutionStateListener previousValue = this.executionStateListeners.putIfAbsent(priority,
+			executionStateListener);
 
 		if (previousValue != null) {
-			LOG.error("Cannot register " + executionListener.getClass() + " as an execution listener. Priority "
+			LOG.error("Cannot register " + executionStateListener.getClass() + " as an execution listener. Priority "
 				+ priority.intValue() + " is already taken.");
 		}
 	}
 
 	/**
-	 * Unregisters the {@link ExecutionListener} object for this vertex. This object
+	 * Unregisters the {@link ExecutionStateListener} object for this vertex. This object
 	 * will no longer be notified about particular events during the vertex's lifetime.
 	 * 
 	 * @param checkpointStateChangeListener
 	 *        the object to be unregistered
 	 */
-	public void unregisterExecutionListener(final ExecutionListener executionListener) {
+	public void unregisterExecutionStateListener(final ExecutionStateListener executionListener) {
 
-		this.executionListeners.remove(Integer.valueOf(executionListener.getPriority()));
+		this.executionStateListeners.remove(Integer.valueOf(executionListener.getPriority()));
 	}
 
 	/**

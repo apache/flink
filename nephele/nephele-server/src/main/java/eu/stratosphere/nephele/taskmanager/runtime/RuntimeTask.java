@@ -26,7 +26,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecisionRequester;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
@@ -75,7 +74,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 */
 	private volatile CheckpointDecisionRequester checkpointDecisionRequester = null;
 
-	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
+	private Queue<ExecutionObserver> registeredObservers = new ConcurrentLinkedQueue<ExecutionObserver>();
 
 	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
 			final CheckpointState initialCheckpointState, final TaskManager taskManager) {
@@ -102,11 +101,10 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			LOG.error(optionalMessage);
 		}
 
-		// Notify all listener objects
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
+		// Notify all observer objects
+		final Iterator<ExecutionObserver> it = this.registeredObservers.iterator();
 		while (it.hasNext()) {
-			it.next().executionStateChanged(this.environment.getJobID(), this.vertexID, newExecutionState,
-				optionalMessage);
+			it.next().executionStateChanged(newExecutionState, optionalMessage);
 		}
 
 		// Store the new execution state
@@ -134,10 +132,10 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	@Override
 	public void userThreadStarted(final Thread userThread) {
 
-		// Notify the listeners
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
+		// Notify the observers
+		final Iterator<ExecutionObserver> it = this.registeredObservers.iterator();
 		while (it.hasNext()) {
-			it.next().userThreadStarted(this.environment.getJobID(), this.vertexID, userThread);
+			it.next().userThreadStarted(userThread);
 		}
 	}
 
@@ -147,37 +145,37 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	@Override
 	public void userThreadFinished(final Thread userThread) {
 
-		// Notify the listeners
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
+		// Notify the observers
+		final Iterator<ExecutionObserver> it = this.registeredObservers.iterator();
 		while (it.hasNext()) {
-			it.next().userThreadFinished(this.environment.getJobID(), this.vertexID, userThread);
+			it.next().userThreadFinished(userThread);
 		}
 	}
 
 	/**
-	 * Registers the {@link ExecutionListener} object for this task. This object
+	 * Registers the {@link ExecutionObserver} object for this task. This object
 	 * will be notified about important events during the task execution.
 	 * 
-	 * @param executionListener
+	 * @param executionObserver
 	 *        the object to be notified for important events during the task execution
 	 */
 
-	public void registerExecutionListener(final ExecutionListener executionListener) {
+	public void registerExecutionObserver(final ExecutionObserver executionObserver) {
 
-		this.registeredListeners.add(executionListener);
+		this.registeredObservers.add(executionObserver);
 	}
 
 	/**
-	 * Unregisters the {@link ExecutionListener} object for this environment. This object
+	 * Unregisters the {@link ExecutionObservers} object for this environment. This object
 	 * will no longer be notified about important events during the task execution.
 	 * 
-	 * @param executionListener
-	 *        the lister object to be unregistered
+	 * @param executionObserver
+	 *        the observer object to be unregistered
 	 */
 
-	public void unregisterExecutionListener(final ExecutionListener executionListener) {
+	public void unregisterExecutionObserver(final ExecutionObserver executionObserver) {
 
-		this.registeredListeners.remove(executionListener);
+		this.registeredObservers.remove(executionObserver);
 	}
 
 	/**
@@ -352,7 +350,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	@Override
 	public void registerProfiler(final TaskManagerProfiler taskManagerProfiler, final Configuration jobConfiguration) {
 
-		taskManagerProfiler.registerExecutionListener(this, jobConfiguration);
+		taskManagerProfiler.registerExecutionObserver(this, jobConfiguration);
 	}
 
 	/**
@@ -373,7 +371,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	public void unregisterProfiler(final TaskManagerProfiler taskManagerProfiler) {
 
 		if (taskManagerProfiler != null) {
-			taskManagerProfiler.unregisterExecutionListener(this.vertexID);
+			taskManagerProfiler.unregisterExecutionObserver(this.vertexID);
 		}
 	}
 

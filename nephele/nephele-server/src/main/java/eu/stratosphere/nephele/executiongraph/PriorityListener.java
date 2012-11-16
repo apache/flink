@@ -13,24 +13,23 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.jobmanager.scheduler.local;
-
-import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
+package eu.stratosphere.nephele.executiongraph;
 
 /**
- * This is a wrapper class for the {@link LocalScheduler} to receive
- * notifications about state changes of vertices belonging
- * to scheduled jobs.
- * <p>
- * This class is thread-safe.
+ * This interface allows to assign priorities to listener objects. If multiple listeners are registered for the same
+ * object, the priority determines in which order they will be called.
  * 
  * @author warneke
  */
-public class LocalExecutionListener extends AbstractExecutionListener {
+public interface PriorityListener {
 
-	public LocalExecutionListener(final LocalScheduler scheduler, final ExecutionVertex executionVertex) {
-		super(scheduler, executionVertex);
-	}
+	/**
+	 * Returns the priority of the listener object. If multiple listener objects are registered for the same object, the
+	 * priority determines in which order they will be called. Priorities are expressed as non-negative integer values.
+	 * The lower the integer value, the higher the call priority.
+	 * 
+	 * @return the priority of this listener
+	 */
+	int getPriority();
 
 }

@@ -19,18 +19,18 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionPipeline;
+import eu.stratosphere.nephele.executiongraph.ExecutionStateListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 
-public abstract class AbstractExecutionListener implements ExecutionListener {
+public abstract class AbstractExecutionStateListener implements ExecutionStateListener {
 
 	/**
 	 * The instance of the {@link LocalScheduler}.
@@ -50,7 +50,7 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	 * @param executionVertex
 	 *        the {@link ExecutionVertex} the received notification refer to
 	 */
-	public AbstractExecutionListener(final AbstractScheduler scheduler, final ExecutionVertex executionVertex) {
+	public AbstractExecutionStateListener(final AbstractScheduler scheduler, final ExecutionVertex executionVertex) {
 		this.scheduler = scheduler;
 		this.executionVertex = executionVertex;
 	}
@@ -154,23 +154,6 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 				}
 			}
 		}
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-		// Nothing to do here
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-		// Nothing to do here
 	}
 
 	/**

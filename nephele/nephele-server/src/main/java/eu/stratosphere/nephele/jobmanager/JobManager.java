@@ -1395,4 +1395,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Hand over to the executor service, as this may result in a longer operation with several IPC operations
 		executionGraph.executeCommand(taskStateChangeRunnable);
 	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getPriority() {
+
+		return 0;
+	}
 }

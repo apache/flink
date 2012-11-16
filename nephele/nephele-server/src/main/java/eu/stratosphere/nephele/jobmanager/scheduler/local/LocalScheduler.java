@@ -24,10 +24,8 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
-import eu.stratosphere.nephele.executiongraph.ExecutionStageListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
-import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.instance.InstanceException;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceRequestMap;
@@ -39,7 +37,7 @@ import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class LocalScheduler extends AbstractScheduler implements JobStatusListener, ExecutionStageListener {
+public class LocalScheduler extends AbstractScheduler {
 
 	/**
 	 * The job queue of the scheduler
@@ -94,7 +92,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 
 		// Get Map of all available Instance types
 		final Map<InstanceType, InstanceTypeDescription> availableInstances = getInstanceManager()
-				.getMapOfAvailableInstanceTypes();
+			.getMapOfAvailableInstanceTypes();
 
 		final Iterator<ExecutionStage> stageIt = executionGraph.iterator();
 		while (stageIt.hasNext()) {
@@ -112,14 +110,14 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 				final InstanceTypeDescription descr = availableInstances.get(entry.getKey());
 				if (descr == null) {
 					throw new SchedulingException("Unable to schedule job: No instance of type " + entry.getKey()
-							+ " available");
+						+ " available");
 				}
 
 				if (descr.getMaximumNumberOfAvailableInstances() != -1
-						&& descr.getMaximumNumberOfAvailableInstances() < entry.getValue().intValue()) {
+					&& descr.getMaximumNumberOfAvailableInstances() < entry.getValue().intValue()) {
 					throw new SchedulingException("Unable to schedule job: " + entry.getValue().intValue()
-							+ " instances of type " + entry.getKey() + " required, but only "
-							+ descr.getMaximumNumberOfAvailableInstances() + " are available");
+						+ " instances of type " + entry.getKey() + " required, but only "
+						+ descr.getMaximumNumberOfAvailableInstances() + " are available");
 				}
 			}
 		}
@@ -132,7 +130,7 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 		while (it2.hasNext()) {
 
 			final ExecutionVertex vertex = it2.next();
-			vertex.registerExecutionListener(new LocalExecutionListener(this, vertex));
+			vertex.registerExecutionStateListener(new LocalStateExecutionListener(this, vertex));
 		}
 
 		// Register the scheduler as an execution stage listener
@@ -200,26 +198,5 @@ public class LocalScheduler extends AbstractScheduler implements JobStatusListen
 			|| newJobStatus == InternalJobStatus.CANCELED) {
 			removeJobFromSchedule(executionGraph);
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void nextExecutionStageEntered(final JobID jobID, final ExecutionStage executionStage) {
-
-		// Request new instances if necessary
-		try {
-			requestInstances(executionStage);
-		} catch (InstanceException e) {
-			// TODO: Handle this error correctly
-			LOG.error(StringUtils.stringifyException(e));
-		}
-
-		// Deploy the assigned vertices
-		deployAssignedInputVertices(executionStage.getExecutionGraph());
-
-		// Initialize the replay of the previous stage's checkpoints
-		replayCheckpointsFromPreviousStage(executionStage.getExecutionGraph());
 	}
 }

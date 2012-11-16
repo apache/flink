@@ -80,4 +80,9 @@ public class MockJobManager implements JobStatusListener {
 		return errorResult;
 	}
 
+	@Override
+	public int getPriority() {
+		return 0;
+	}
+
 }

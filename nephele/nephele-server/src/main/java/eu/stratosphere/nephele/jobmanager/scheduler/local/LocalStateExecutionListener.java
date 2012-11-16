@@ -13,31 +13,23 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.jobmanager.scheduler.queue;
+package eu.stratosphere.nephele.jobmanager.scheduler.local;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
+import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionStateListener;
 
 /**
- * This is a wrapper class for the {@link QueueScheduler} to receive
- * notifications about state changes of vertices belonging
- * to scheduled jobs.
+ * This is a wrapper class for the {@link LocalScheduler} to receive notifications about state changes of vertices
+ * belonging to scheduled jobs.
  * <p>
  * This class is thread-safe.
  * 
  * @author warneke
  */
-public final class QueueExecutionListener extends AbstractExecutionListener {
+public class LocalStateExecutionListener extends AbstractExecutionStateListener {
 
-	/**
-	 * Constructs a new queue execution listener.
-	 * 
-	 * @param scheduler
-	 *        the scheduler this listener is connected with
-	 * @param executionVertex
-	 *        the execution vertex this listener is created for
-	 */
-	public QueueExecutionListener(final QueueScheduler scheduler, final ExecutionVertex executionVertex) {
+	public LocalStateExecutionListener(final LocalScheduler scheduler, final ExecutionVertex executionVertex) {
 		super(scheduler, executionVertex);
 	}
+
 }

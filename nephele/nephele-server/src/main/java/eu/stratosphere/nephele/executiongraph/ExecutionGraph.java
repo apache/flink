@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,7 +38,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -71,7 +71,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class ExecutionGraph implements ExecutionListener, GroupExecutionListener {
+public class ExecutionGraph implements ExecutionStateListener, GroupExecutionListener {
 
 	/**
 	 * The log object used for debugging.
@@ -132,9 +132,9 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	private volatile String errorDescription = null;
 
 	/**
-	 * List of listeners which are notified in case the status of this job has changed.
+	 * Map of listeners which are notified in case the status of this job has changed.
 	 */
-	private final CopyOnWriteArrayList<JobStatusListener> jobStatusListeners = new CopyOnWriteArrayList<JobStatusListener>();
+	private final ConcurrentMap<Integer, JobStatusListener> jobStatusListeners = new ConcurrentSkipListMap<Integer, JobStatusListener>();
 
 	/**
 	 * List of listeners which are notified in case the execution stage of a job has changed.
@@ -1290,7 +1290,7 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 			optionalMessage = this.errorDescription;
 		}
 
-		final Iterator<JobStatusListener> it = this.jobStatusListeners.iterator();
+		final Iterator<JobStatusListener> it = this.jobStatusListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().jobStatusHasChanged(this, newJobStatus, optionalMessage);
 		}
@@ -1311,7 +1311,20 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 			throw new IllegalArgumentException("Argument jobStatusListener must not be null");
 		}
 
-		this.jobStatusListeners.addIfAbsent(jobStatusListener);
+		final Integer priority = Integer.valueOf(jobStatusListener.getPriority());
+
+		if (priority.intValue() < 0) {
+			LOG.error("Priority for execution state listener " + jobStatusListener.getClass()
+				+ " must be non-negative.");
+			return;
+		}
+
+		final JobStatusListener previousValue = this.jobStatusListeners.putIfAbsent(priority, jobStatusListener);
+
+		if (previousValue != null) {
+			LOG.error("Cannot register " + jobStatusListener.getClass() + " as a job status listener. Priority "
+				+ priority.intValue() + " is already taken.");
+		}
 	}
 
 	/**
@@ -1328,7 +1341,7 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 			throw new IllegalArgumentException("Argument jobStatusListener must not be null");
 		}
 
-		this.jobStatusListeners.remove(jobStatusListener);
+		this.jobStatusListeners.remove(Integer.valueOf(jobStatusListener.getPriority()));
 	}
 
 	/**
@@ -1371,24 +1384,6 @@ public class ExecutionGraph implements ExecutionListener, GroupExecutionListener
 	 */
 	public String getJobName() {
 		return this.jobName;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-		// TODO Auto-generated method stub
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-		// TODO Auto-generated method stub
-
 	}
 
 	/**

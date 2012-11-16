@@ -13,9 +13,9 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.execution;
+package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
@@ -24,16 +24,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
  * 
  * @author warneke
  */
-public interface ExecutionListener {
-
-	/**
-	 * Returns the priority of the execution listener object. If multiple execution listener objects are registered for
-	 * a given vertex, the priority determines in which order they will be called. Priorities are expressed as
-	 * non-negative integer values. The lower the integer value, the higher the call priority.
-	 * 
-	 * @return the priority of this execution listener
-	 */
-	int getPriority();
+public interface ExecutionStateListener extends PriorityListener {
 
 	/**
 	 * Called when the execution state of the associated task has changed. It is important to point out that multiple
@@ -53,28 +44,4 @@ public interface ExecutionListener {
 	 */
 	void executionStateChanged(JobID jobID, ExecutionVertexID vertexID, ExecutionState newExecutionState,
 			String optionalMessage);
-
-	/**
-	 * Called when the user task has started a new thread.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the task belongs to
-	 * @param vertexID
-	 *        the ID of the task that started of new thread
-	 * @param userThread
-	 *        the user thread which has been started
-	 */
-	void userThreadStarted(JobID jobID, ExecutionVertexID vertexID, Thread userThread);
-
-	/**
-	 * Called when a thread spawn by a user task has finished.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the task belongs to
-	 * @param vertexID
-	 *        the ID of the task whose thread has finished
-	 * @param userThread
-	 *        the user thread which has finished
-	 */
-	void userThreadFinished(JobID jobID, ExecutionVertexID vertexID, Thread userThread);
 }

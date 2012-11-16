@@ -18,24 +18,26 @@ package eu.stratosphere.nephele.profiling.impl;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.execution.ExecutionListener;
+import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.jobgraph.JobID;
 
-public class EnvironmentListenerImpl implements ExecutionListener {
+public class EnvironmentObserverImpl implements ExecutionObserver {
 
-	private static final Log LOG = LogFactory.getLog(EnvironmentListenerImpl.class);
+	private static final Log LOG = LogFactory.getLog(EnvironmentObserverImpl.class);
 
 	private final TaskManagerProfilerImpl taskManagerProfiler;
 
+	private final ExecutionVertexID vertexID;
+
 	private final RuntimeEnvironment environment;
 
-	public EnvironmentListenerImpl(final TaskManagerProfilerImpl taskManagerProfiler,
-			final RuntimeEnvironment environment) {
+	public EnvironmentObserverImpl(final TaskManagerProfilerImpl taskManagerProfiler,
+			final ExecutionVertexID vertexID, final RuntimeEnvironment environment) {
 
 		this.taskManagerProfiler = taskManagerProfiler;
+		this.vertexID = vertexID;
 		this.environment = environment;
 	}
 
@@ -43,13 +45,12 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
-			final ExecutionState newExecutionState, final String optionalMessage) {
+	public void executionStateChanged(final ExecutionState newExecutionState, final String optionalMessage) {
 
 		switch (newExecutionState) {
 		case RUNNING:
 			this.taskManagerProfiler.registerMainThreadForCPUProfiling(this.environment,
-				this.environment.getExecutingThread(), vertexID);
+				this.environment.getExecutingThread(), this.vertexID);
 			break;
 		case FINISHING:
 		case FINISHED:
@@ -60,7 +61,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 				this.environment.getExecutingThread());
 			break;
 		default:
-			LOG.error("Unexpected state transition to " + newExecutionState + " for vertex " + vertexID);
+			LOG.error("Unexpected state transition to " + newExecutionState + " for vertex " + this.vertexID);
 			break;
 		}
 	}
@@ -69,7 +70,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
+	public void userThreadFinished(final Thread userThread) {
 
 		// Make sure the user thread is not the task's main thread
 		if (this.environment.getExecutingThread() == userThread) {
@@ -83,7 +84,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
+	public void userThreadStarted(final Thread userThread) {
 
 		// Make sure the user thread is not the task's main thread
 		if (this.environment.getExecutingThread() == userThread) {
@@ -97,8 +98,8 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getPriority() {
+	public boolean isCanceled() {
 
-		return 1;
+		throw new IllegalStateException("isCanceled is called on EnvironmentObserverImpl");
 	}
 }

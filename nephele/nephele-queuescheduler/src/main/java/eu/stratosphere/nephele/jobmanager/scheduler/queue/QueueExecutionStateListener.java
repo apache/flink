@@ -13,25 +13,31 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.executiongraph;
+package eu.stratosphere.nephele.jobmanager.scheduler.queue;
+
+import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
+import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionStateListener;
 
 /**
- * This interface allows objects to receive notifications
- * when the status of an observed job has changed.
+ * This is a wrapper class for the {@link QueueScheduler} to receive
+ * notifications about state changes of vertices belonging
+ * to scheduled jobs.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public interface JobStatusListener extends PriorityListener {
+public final class QueueExecutionStateListener extends AbstractExecutionStateListener {
 
 	/**
-	 * Called when the status of the job with the given {@link ExecutionGraph} changes.
+	 * Constructs a new queue execution listener.
 	 * 
-	 * @param executionGraph
-	 *        the executionGraph representing the job the event belongs to
-	 * @param newJobStatus
-	 *        the new job status
-	 * @param optionalMessage
-	 *        an optional message (possibly <code>null</code>) that can be attached to the state change
+	 * @param scheduler
+	 *        the scheduler this listener is connected with
+	 * @param executionVertex
+	 *        the execution vertex this listener is created for
 	 */
-	void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus, String optionalMessage);
+	public QueueExecutionStateListener(final QueueScheduler scheduler, final ExecutionVertex executionVertex) {
+		super(scheduler, executionVertex);
+	}
 }
