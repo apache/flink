@@ -21,12 +21,12 @@ import java.lang.management.ThreadMXBean;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -61,14 +61,12 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	private final long timerInterval;
 
-	private final List<InternalProfilingData> profilingDataContainer = new ArrayList<InternalProfilingData>();
-
 	private final InstanceProfiler instanceProfiler;
 
-	private final Map<Environment, EnvironmentThreadSet> monitoredThreads = new HashMap<Environment, EnvironmentThreadSet>();
+	private final ConcurrentMap<Environment, EnvironmentThreadSet> monitoredThreads = new ConcurrentHashMap<Environment, EnvironmentThreadSet>();
 
-	public TaskManagerProfilerImpl(InetAddress jobManagerAddress, InstanceConnectionInfo instanceConnectionInfo)
-			throws ProfilingException {
+	public TaskManagerProfilerImpl(final InetAddress jobManagerAddress,
+			final InstanceConnectionInfo instanceConnectionInfo) throws ProfilingException {
 
 		// Start RPC service
 		try {
@@ -117,8 +115,11 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getRuntimeEnvironment()));
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public void unregisterExecutionListener(ExecutionVertexID id) {
+	public void unregisterExecutionListener(final ExecutionVertexID id) {
 		/*
 		 * Nothing to do here, the task will unregister itself when its
 		 * execution state has either switched to FINISHED, CANCELLED,
@@ -126,6 +127,9 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		 */
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void shutdown() {
 
@@ -136,118 +140,97 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		this.timer.cancel();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void run() {
 
+		final List<InternalProfilingData> profilingDataList = new ArrayList<InternalProfilingData>(16);
 		final long timestamp = System.currentTimeMillis();
-		InternalInstanceProfilingData instanceProfilingData = null;
 
 		// Collect profiling information of the threads
-		synchronized (this.monitoredThreads) {
-
-			final Iterator<Environment> iterator = this.monitoredThreads.keySet().iterator();
-			while (iterator.hasNext()) {
-				final Environment environment = iterator.next();
-				final EnvironmentThreadSet environmentThreadSet = this.monitoredThreads.get(environment);
-				final InternalExecutionVertexThreadProfilingData threadProfilingData = environmentThreadSet
-					.captureCPUUtilization(environment.getJobID(), this.tmx, timestamp);
-				if (threadProfilingData != null) {
-					this.profilingDataContainer.add(threadProfilingData);
-				}
-			}
-
-			// If there is at least one registered environment, also create an instance profiling object
-			if (!this.monitoredThreads.isEmpty()) {
-				try {
-					instanceProfilingData = this.instanceProfiler.generateProfilingData(timestamp);
-				} catch (ProfilingException e) {
-					LOG.error("Error while retrieving instance profiling data: ", e);
-				}
-			}
-		}
-
-		// Send all queued profiling records to the job manager and clear container
-		synchronized (this.profilingDataContainer) {
-
-			if (instanceProfilingData != null) {
-				this.profilingDataContainer.add(instanceProfilingData);
-			}
-
-			if (!this.profilingDataContainer.isEmpty()) {
-				try {
-					this.jobManagerProfiler.reportProfilingData(this.profilingDataContainer);
-					this.profilingDataContainer.clear();
-				} catch (IOException e) {
-					LOG.error(StringUtils.stringifyException(e));
-				} catch (InterruptedException ie) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug(StringUtils.stringifyException(ie));
-					}
-				}
-			}
-		}
-	}
-
-	public void registerMainThreadForCPUProfiling(Environment environment, Thread thread,
-			ExecutionVertexID executionVertexID) {
-
-		synchronized (this.monitoredThreads) {
-			LOG.debug("Registering thread " + thread.getName() + " for CPU monitoring");
-			if (this.monitoredThreads.containsKey(environment)) {
-				LOG.error("There is already a main thread registered for environment object "
-					+ environment.getTaskName());
-			}
-
-			this.monitoredThreads.put(environment, new EnvironmentThreadSet(this.tmx, thread, executionVertexID));
-		}
-	}
-
-	public void registerUserThreadForCPUProfiling(Environment environment, Thread userThread) {
-
-		synchronized (this.monitoredThreads) {
-
-			final EnvironmentThreadSet environmentThreadList = this.monitoredThreads.get(environment);
-			if (environmentThreadList == null) {
-				LOG.error("Trying to register " + userThread.getName() + " but no main thread found!");
-				return;
-			}
-
-			environmentThreadList.addUserThread(this.tmx, userThread);
-		}
-
-	}
-
-	public void unregisterMainThreadFromCPUProfiling(Environment environment, Thread thread) {
-
-		synchronized (this.monitoredThreads) {
-			LOG.debug("Unregistering thread " + thread.getName() + " from CPU monitoring");
-			final EnvironmentThreadSet environmentThreadSet = this.monitoredThreads.remove(environment);
-			if (environmentThreadSet != null) {
-
-				if (environmentThreadSet.getMainThread() != thread) {
-					LOG.error("The thread " + thread.getName() + " is not the main thread of this environment");
-				}
-
-				if (environmentThreadSet.getNumberOfUserThreads() > 0) {
-					LOG.error("Thread " + environmentThreadSet.getMainThread().getName()
-						+ " has still unfinished user threads!");
-				}
-			}
-		}
-	}
-
-	public void unregisterUserThreadFromCPUProfiling(Environment environment, Thread userThread) {
-
-		synchronized (this.monitoredThreads) {
-
+		final Iterator<Environment> iterator = this.monitoredThreads.keySet().iterator();
+		while (iterator.hasNext()) {
+			final Environment environment = iterator.next();
 			final EnvironmentThreadSet environmentThreadSet = this.monitoredThreads.get(environment);
-			if (environmentThreadSet == null) {
-				LOG.error("Trying to unregister " + userThread.getName() + " but no main thread found!");
-				return;
+			final InternalExecutionVertexThreadProfilingData threadProfilingData = environmentThreadSet
+				.captureCPUUtilization(environment.getJobID(), this.tmx, timestamp);
+			if (threadProfilingData != null) {
+				profilingDataList.add(threadProfilingData);
 			}
-
-			environmentThreadSet.removeUserThread(userThread);
 		}
 
+		InternalInstanceProfilingData instanceProfilingData = null;
+		try {
+			instanceProfilingData = this.instanceProfiler.generateProfilingData(timestamp);
+		} catch (ProfilingException e) {
+			LOG.error(StringUtils.stringifyException(e));
+		}
+
+		if (instanceProfilingData != null) {
+			profilingDataList.add(instanceProfilingData);
+		}
+
+		if (!profilingDataList.isEmpty()) {
+			try {
+				this.jobManagerProfiler.reportProfilingData(profilingDataList);
+			} catch (IOException e) {
+				LOG.error(StringUtils.stringifyException(e));
+			} catch (InterruptedException ie) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(StringUtils.stringifyException(ie));
+				}
+			}
+		}
+	}
+
+	void registerMainThreadForCPUProfiling(final Environment environment, final Thread thread,
+			final ExecutionVertexID executionVertexID) {
+
+		LOG.debug("Registering thread " + thread.getName() + " for CPU monitoring");
+		if (this.monitoredThreads.putIfAbsent(environment,
+			new EnvironmentThreadSet(this.tmx, thread, executionVertexID)) != null) {
+			LOG.error("There is already a main thread registered for environment object " + environment.getTaskName());
+		}
+	}
+
+	void registerUserThreadForCPUProfiling(final Environment environment, final Thread userThread) {
+
+		final EnvironmentThreadSet environmentThreadList = this.monitoredThreads.get(environment);
+		if (environmentThreadList == null) {
+			LOG.error("Trying to register " + userThread.getName() + " but no main thread found!");
+			return;
+		}
+
+		environmentThreadList.addUserThread(this.tmx, userThread);
+	}
+
+	void unregisterMainThreadFromCPUProfiling(final Environment environment, final Thread thread) {
+
+		LOG.debug("Unregistering thread " + thread.getName() + " from CPU monitoring");
+		final EnvironmentThreadSet environmentThreadSet = this.monitoredThreads.remove(environment);
+		if (environmentThreadSet != null) {
+
+			if (environmentThreadSet.getMainThread() != thread) {
+				LOG.error("The thread " + thread.getName() + " is not the main thread of this environment");
+			}
+
+			if (environmentThreadSet.getNumberOfUserThreads() > 0) {
+				LOG.error("Thread " + environmentThreadSet.getMainThread().getName()
+					+ " has still unfinished user threads!");
+			}
+		}
+	}
+
+	void unregisterUserThreadFromCPUProfiling(final Environment environment, final Thread userThread) {
+
+		final EnvironmentThreadSet environmentThreadSet = this.monitoredThreads.get(environment);
+		if (environmentThreadSet == null) {
+			LOG.error("Trying to unregister " + userThread.getName() + " but no main thread found!");
+			return;
+		}
+
+		environmentThreadSet.removeUserThread(userThread);
 	}
 }
