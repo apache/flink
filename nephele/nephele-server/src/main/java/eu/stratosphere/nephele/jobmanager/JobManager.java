@@ -164,9 +164,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final static int FAILURERETURNCODE = -1;
 
-	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
+	private final AtomicBoolean isShutdownRequested = new AtomicBoolean(false);
 
-	private volatile boolean isShutDown = false;
+	private final AtomicBoolean isShutdownComplete = new AtomicBoolean(false);
 
 	/**
 	 * Constructs a new job manager, starts its discovery service and its IPC service.
@@ -298,22 +298,35 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	public void runTaskLoop() {
 
-		while (!Thread.interrupted()) {
+		while (!this.isShutdownRequested.get()) {
 
 			// Sleep
 			try {
 				Thread.sleep(SLEEPINTERVAL);
 			} catch (InterruptedException e) {
-				break;
+				if (this.isShutdownRequested.get()) {
+					break;
+				}
 			}
 
 			// Do nothing here
 		}
+
+		synchronized (this.isShutdownComplete) {
+			while (!this.isShutdownComplete.get()) {
+				try {
+					this.isShutdownComplete.wait();
+				} catch (InterruptedException e) {
+					LOG.debug(StringUtils.stringifyException(e));
+					return;
+				}
+			}
+		}
 	}
 
-	public void shutdown() {
+	public void shutDown() {
 
-		if (!this.isShutdownInProgress.compareAndSet(false, true)) {
+		if (!this.isShutdownRequested.compareAndSet(false, true)) {
 			return;
 		}
 
@@ -363,8 +376,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.scheduler.shutdown();
 		}
 
-		this.isShutDown = true;
 		LOG.debug("Shutdown of job manager completed");
+		synchronized (this.isShutdownComplete) {
+			this.isShutdownComplete.set(true);
+			this.isShutdownComplete.notifyAll();
+		}
 	}
 
 	/**
@@ -1122,16 +1138,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			// Hand it over to the executor service
 			this.executorService.execute(runnable);
 		}
-	}
-
-	/**
-	 * Tests whether the job manager has been shut down completely.
-	 * 
-	 * @return <code>true</code> if the job manager has been shut down completely, <code>false</code> otherwise
-	 */
-	public boolean isShutDown() {
-
-		return this.isShutDown;
 	}
 
 	/**

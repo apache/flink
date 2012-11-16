@@ -94,12 +94,12 @@ public class FailingJobITCase {
 	/**
 	 * The thread running the job manager.
 	 */
-	private static JobManagerThread jobManagerThread = null;
+	private static JobManagerThread JOB_MANAGER_THREAD = null;
 
 	/**
 	 * The configuration for the job client;
 	 */
-	private static Configuration configuration;
+	private static Configuration CONFIGURATION;
 
 	/**
 	 * Global flag to indicate if a task has already failed once.
@@ -137,20 +137,13 @@ public class FailingJobITCase {
 
 			// Run task loop
 			this.jobManager.runTaskLoop();
-
-			// Shut down
-			this.jobManager.shutdown();
 		}
 
 		/**
-		 * Checks whether the encapsulated job manager is completely shut down.
-		 * 
-		 * @return <code>true</code> if the encapsulated job manager is completely shut down, <code>false</code>
-		 *         otherwise
+		 * Shuts down the job manager.
 		 */
-		public boolean isShutDown() {
-
-			return this.jobManager.isShutDown();
+		public void shutDown() {
+			this.jobManager.shutDown();
 		}
 	}
 
@@ -160,7 +153,7 @@ public class FailingJobITCase {
 	@BeforeClass
 	public static void startNephele() {
 
-		if (jobManagerThread == null) {
+		if (JOB_MANAGER_THREAD == null) {
 
 			// Create the job manager
 			JobManager jobManager = null;
@@ -194,13 +187,13 @@ public class FailingJobITCase {
 				fail(e.getMessage());
 			}
 
-			configuration = GlobalConfiguration
+			CONFIGURATION = GlobalConfiguration
 				.getConfiguration(new String[] { ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY });
 
 			// Start job manager thread
 			if (jobManager != null) {
-				jobManagerThread = new JobManagerThread(jobManager);
-				jobManagerThread.start();
+				JOB_MANAGER_THREAD = new JobManagerThread(jobManager);
+				JOB_MANAGER_THREAD.start();
 			}
 
 			// Wait for the local task manager to arrive
@@ -218,15 +211,12 @@ public class FailingJobITCase {
 	@AfterClass
 	public static void stopNephele() {
 
-		if (jobManagerThread != null) {
-			jobManagerThread.interrupt();
+		if (JOB_MANAGER_THREAD != null) {
+			JOB_MANAGER_THREAD.shutDown();
 
-			while (!jobManagerThread.isShutDown()) {
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException i) {
-					break;
-				}
+			try {
+				JOB_MANAGER_THREAD.join();
+			} catch (InterruptedException ie) {
 			}
 		}
 	}
@@ -563,7 +553,7 @@ public class FailingJobITCase {
 		// Create job client and launch job
 		JobClient jobClient = null;
 		try {
-			jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, CONFIGURATION);
 			jobClient.submitJobAndWait();
 		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
@@ -620,7 +610,7 @@ public class FailingJobITCase {
 		// Create job client and launch job
 		JobClient jobClient = null;
 		try {
-			jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, CONFIGURATION);
 			jobClient.submitJobAndWait();
 		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
@@ -684,7 +674,7 @@ public class FailingJobITCase {
 		// Create job client and launch job
 		JobClient jobClient = null;
 		try {
-			jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, CONFIGURATION);
 			jobClient.submitJobAndWait();
 		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
@@ -755,7 +745,7 @@ public class FailingJobITCase {
 		// Create job client and launch job
 		JobClient jobClient = null;
 		try {
-			jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, CONFIGURATION);
 			jobClient.submitJobAndWait();
 		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
@@ -830,7 +820,7 @@ public class FailingJobITCase {
 		// Create job client and launch job
 		JobClient jobClient = null;
 		try {
-			jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, CONFIGURATION);
 			jobClient.submitJobAndWait();
 		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
@@ -903,7 +893,7 @@ public class FailingJobITCase {
 		// Create job client and launch job
 		JobClient jobClient = null;
 		try {
-			jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, CONFIGURATION);
 			jobClient.submitJobAndWait();
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
@@ -985,7 +975,7 @@ public class FailingJobITCase {
 		// Create job client and launch job
 		JobClient jobClient = null;
 		try {
-			jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, CONFIGURATION);
 			jobClient.submitJobAndWait();
 		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));
@@ -1058,7 +1048,7 @@ public class FailingJobITCase {
 		// Create job client and launch job
 		JobClient jobClient = null;
 		try {
-			jobClient = new JobClient(jobGraph, configuration);
+			jobClient = new JobClient(jobGraph, CONFIGURATION);
 			jobClient.submitJobAndWait();
 		} catch (Exception e) {
 			fail(StringUtils.stringifyException(e));

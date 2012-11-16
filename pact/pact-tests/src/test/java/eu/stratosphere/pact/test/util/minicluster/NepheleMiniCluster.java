@@ -193,7 +193,7 @@ public class NepheleMiniCluster {
 
 	public void stop() throws Exception {
 		if (jobManager != null) {
-			jobManager.shutdown();
+			jobManager.shutDown();
 		}
 
 		if (runner != null) {

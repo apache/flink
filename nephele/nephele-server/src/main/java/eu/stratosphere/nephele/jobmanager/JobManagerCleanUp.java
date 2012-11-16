@@ -44,7 +44,7 @@ public class JobManagerCleanUp extends Thread {
 	public void run() {
 
 		// Shut down the job manager properly
-		this.jobManager.shutdown();
+		this.jobManager.shutDown();
 	}
 
 }

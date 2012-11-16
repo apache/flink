@@ -66,9 +66,9 @@ public class JobManagerITCase {
 	 */
 	private static final String INPUT_DIRECTORY = "testDirectory";
 
-	private static JobManagerThread jobManagerThread = null;
+	private static JobManagerThread JOB_MANAGER_THREAD = null;
 
-	private static Configuration configuration;
+	private static Configuration CONFIGURATION;
 
 	/**
 	 * This is an auxiliary class to run the job manager thread.
@@ -88,7 +88,7 @@ public class JobManagerITCase {
 		 * @param jobManager
 		 *        the job manager to run in this thread.
 		 */
-		private JobManagerThread(JobManager jobManager) {
+		private JobManagerThread(final JobManager jobManager) {
 
 			this.jobManager = jobManager;
 		}
@@ -101,20 +101,13 @@ public class JobManagerITCase {
 
 			// Run task loop
 			this.jobManager.runTaskLoop();
-
-			// Shut down
-			this.jobManager.shutdown();
 		}
 
 		/**
-		 * Checks whether the encapsulated job manager is completely shut down.
-		 * 
-		 * @return <code>true</code> if the encapsulated job manager is completely shut down, <code>false</code>
-		 *         otherwise
+		 * Shuts down the job manager.
 		 */
-		public boolean isShutDown() {
-
-			return this.jobManager.isShutDown();
+		public void shutDown() {
+			this.jobManager.shutDown();
 		}
 	}
 
@@ -124,7 +117,7 @@ public class JobManagerITCase {
 	@BeforeClass
 	public static void startNephele() {
 
-		if (jobManagerThread == null) {
+		if (JOB_MANAGER_THREAD == null) {
 
 			// create the job manager
 			JobManager jobManager = null;
@@ -151,13 +144,13 @@ public class JobManagerITCase {
 				fail(e.getMessage());
 			}
 
-			configuration = GlobalConfiguration
+			CONFIGURATION = GlobalConfiguration
 				.getConfiguration(new String[] { ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY });
 
 			// Start job manager thread
 			if (jobManager != null) {
-				jobManagerThread = new JobManagerThread(jobManager);
-				jobManagerThread.start();
+				JOB_MANAGER_THREAD = new JobManagerThread(jobManager);
+				JOB_MANAGER_THREAD.start();
 			}
 
 			// Wait for the local task manager to arrive
@@ -175,15 +168,12 @@ public class JobManagerITCase {
 	@AfterClass
 	public static void stopNephele() {
 
-		if (jobManagerThread != null) {
-			jobManagerThread.interrupt();
+		if (JOB_MANAGER_THREAD != null) {
+			JOB_MANAGER_THREAD.shutDown();
 
-			while (!jobManagerThread.isShutDown()) {
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException i) {
-					break;
-				}
+			try {
+				JOB_MANAGER_THREAD.join();
+			} catch (InterruptedException ie) {
 			}
 		}
 	}
@@ -275,7 +265,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 			jobClient.submitJobAndWait();
 
 			// Finally, compare output file to initial number sequence
@@ -368,7 +358,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -458,7 +448,7 @@ public class JobManagerITCase {
 				+ ".jar").toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -550,7 +540,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -661,7 +651,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -759,7 +749,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			jobClient.submitJobAndWait();
 
@@ -828,7 +818,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 			jobClient.submitJobAndWait();
 
 		} catch (Exception e) {
@@ -928,7 +918,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -1085,7 +1075,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			try {
 				jobClient.submitJobAndWait();
