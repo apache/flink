@@ -36,6 +36,7 @@ import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.taskmanager.routing.ConnectionInfoLookupResponse;
 import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
+import eu.stratosphere.nephele.template.GenericInputSplit;
 
 /**
  * This utility class provides a list of types frequently used by the RPC protocols included in this package.
@@ -67,6 +68,7 @@ public class ServerTypeUtils {
 		types.add(ExecutionVertexID.class);
 		types.add(FileInputSplit.class);
 		types.add(GateDeploymentDescriptor.class);
+		types.add(GenericInputSplit.class);
 		types.add(HashSet.class);
 		types.add(Inet4Address.class);
 		types.add(InetSocketAddress.class);

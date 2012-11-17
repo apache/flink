@@ -23,7 +23,7 @@ package eu.stratosphere.nephele.client;
  * 
  * @author warneke
  */
-public final class JobSubmissionResult extends AbstractJobResult {
+public class JobSubmissionResult extends AbstractJobResult {
 
 	/**
 	 * Constructs a new job submission result object with the given return code.
