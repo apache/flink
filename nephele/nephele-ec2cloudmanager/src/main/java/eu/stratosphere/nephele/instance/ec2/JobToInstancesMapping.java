@@ -75,7 +75,7 @@ final class JobToInstancesMapping {
 	public boolean unassignInstanceFromJob(final AbstractInstance instance) {
 
 		synchronized (this.assignedInstances) {
-			return (this.assignedInstances.remove(instance) != null);
+			return (this.assignedInstances.remove(instance.getInstanceConnectionInfo()) != null);
 		}
 	}
 
