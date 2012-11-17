@@ -161,7 +161,7 @@ public class QueueSchedulerTest {
 			}
 
 			// Wait for the deployment to complete
-			tdm.waitForDeployment();
+			tdm.waitForDeployment(2);
 
 			assertEquals(executionGraph.getJobID(), tdm.getIDOfLastDeployedJob());
 			final List<ExecutionVertex> listOfDeployedVertices = tdm.getListOfLastDeployedVertices();
@@ -211,7 +211,7 @@ public class QueueSchedulerTest {
 			}
 
 			// Wait for the deployment to complete
-			tdm.waitForDeployment();
+			tdm.waitForDeployment(1);
 
 			assertEquals(executionGraph.getJobID(), tdm.getIDOfLastDeployedJob());
 			List<ExecutionVertex> listOfDeployedVertices = tdm.getListOfLastDeployedVertices();
@@ -235,14 +235,20 @@ public class QueueSchedulerTest {
 			assertEquals(0, tim.getNumberOfReleaseMethodCalls());
 
 			// Wait for the deployment to complete
-			tdm.waitForDeployment();
+			tdm.waitForDeployment(2);
 
 			assertEquals(executionGraph.getJobID(), tdm.getIDOfLastDeployedJob());
 			listOfDeployedVertices = tdm.getListOfLastDeployedVertices();
 			assertNotNull(listOfDeployedVertices);
-			assertEquals(1, listOfDeployedVertices.size());
+			assertEquals(2, listOfDeployedVertices.size());
 
 			vertex = listOfDeployedVertices.get(0);
+			vertex.updateExecutionState(ExecutionState.STARTING);
+			vertex.updateExecutionState(ExecutionState.RUNNING);
+			vertex.updateExecutionState(ExecutionState.FINISHING);
+			vertex.updateExecutionState(ExecutionState.FINISHED);
+
+			vertex = listOfDeployedVertices.get(1);
 			vertex.updateExecutionState(ExecutionState.STARTING);
 			vertex.updateExecutionState(ExecutionState.RUNNING);
 			vertex.updateExecutionState(ExecutionState.FINISHING);
