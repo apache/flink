@@ -265,7 +265,7 @@ public class TaskManager implements TaskOperationProtocol {
 		// Initialize the routing layer
 		DefaultRoutingLayer routingLayer = null;
 		try {
-			routingLayer = DefaultRoutingLayer.get(this.lookupService, this.localInstanceConnectionInfo);
+			routingLayer = new DefaultRoutingLayer(this.lookupService, this.localInstanceConnectionInfo);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
 			throw new Exception("Failed to instantiate routing layer: " + ioe.getMessage(), ioe);

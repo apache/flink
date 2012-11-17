@@ -49,11 +49,6 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBroker {
 
 	/**
-	 * The singleton instance of the routing layer.
-	 */
-	private static DefaultRoutingLayer INSTANCE = null;
-
-	/**
 	 * The log object used to report problems and errors.
 	 */
 	private static final Log LOG = LogFactory.getLog(DefaultRoutingLayer.class);
@@ -88,7 +83,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	 */
 	private final Map<ChannelID, ReceiverList> receiverCache = new ConcurrentHashMap<ChannelID, ReceiverList>();
 
-	private DefaultRoutingLayer(final ChannelLookupProtocol channelLookupService,
+	public DefaultRoutingLayer(final ChannelLookupProtocol channelLookupService,
 			final InstanceConnectionInfo localInstanceConnectionInfo) throws IOException {
 
 		this.channelLookupService = channelLookupService;
@@ -104,7 +99,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 		// Initialize the transit buffer pool
 		this.transitBufferPool = new LocalBufferPool(128, true);
 
-		this.networkLayer = NetworkLayer.get(this, localInstanceConnectionInfo.getAddress(),
+		this.networkLayer = new NetworkLayer(this, localInstanceConnectionInfo.getAddress(),
 			localInstanceConnectionInfo.getDataPort());
 
 		this.allowSenderSideSpilling = GlobalConfiguration.getBoolean("channel.network.allowSenderSideSpilling",
@@ -116,16 +111,6 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 		LOG.info("Initialized byte buffered channel manager with sender-side spilling "
 			+ (this.allowSenderSideSpilling ? "enabled" : "disabled")
 			+ (this.mergeSpilledBuffers ? " and spilled buffer merging enabled" : ""));
-	}
-
-	public static synchronized DefaultRoutingLayer get(final ChannelLookupProtocol channelLookupService,
-			final InstanceConnectionInfo localInstanceConnectionInfo) throws IOException {
-
-		if (INSTANCE == null) {
-			INSTANCE = new DefaultRoutingLayer(channelLookupService, localInstanceConnectionInfo);
-		}
-
-		return INSTANCE;
 	}
 
 	/**

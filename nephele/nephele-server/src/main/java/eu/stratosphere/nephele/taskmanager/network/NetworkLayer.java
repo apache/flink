@@ -41,11 +41,6 @@ import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 public final class NetworkLayer {
 
 	/**
-	 * The singleton instance of the network layer.
-	 */
-	private static NetworkLayer INSTANCE = null;
-
-	/**
 	 * The default number of threads dealing with outgoing connections.
 	 */
 	private static final int DEFAULT_NUMBER_OF_OUTGOING_CONNECTION_THREADS = 1;
@@ -80,7 +75,7 @@ public final class NetworkLayer {
 	 */
 	private final DefaultRoutingLayer routingLayer;
 
-	private NetworkLayer(final DefaultRoutingLayer routingLayer, final InetAddress bindAddress, final int dataPort)
+	public NetworkLayer(final DefaultRoutingLayer routingLayer, final InetAddress bindAddress, final int dataPort)
 			throws IOException {
 
 		final Configuration configuration = GlobalConfiguration.getConfiguration();
@@ -103,16 +98,6 @@ public final class NetworkLayer {
 
 		this.numberOfConnectionRetries = configuration.getInteger("channel.network.numberOfConnectionRetries",
 			DEFAULT_NUMBER_OF_CONNECTION_RETRIES);
-	}
-
-	public static synchronized NetworkLayer get(final DefaultRoutingLayer routingLayer, final InetAddress bindAddress,
-			final int dataPort) throws IOException {
-
-		if (INSTANCE == null) {
-			INSTANCE = new NetworkLayer(routingLayer, bindAddress, dataPort);
-		}
-
-		return INSTANCE;
 	}
 
 	/**
