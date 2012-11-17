@@ -6,6 +6,8 @@ import java.util.Comparator;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -15,7 +17,7 @@ import eu.stratosphere.sopremo.type.JsonUtil;
 /**
  * Returns a grouped representation of the elements of the given {@link IArrayNode}.
  */
-public class GroupingExpression extends EvaluationExpression {
+public class GroupingExpression extends EvaluationExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -65,17 +67,28 @@ public class GroupingExpression extends EvaluationExpression {
 
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.groupingExpression = this.groupingExpression.transformRecursively(function);
-		this.resultExpression = this.resultExpression.transformRecursively(function);
-		return function.call(this);
-	}
+	public ChildIterator iterator() {
+		return new NamedChildIterator("groupingExpression", "second") {
 
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				if(index == 0)
+					GroupingExpression.this.groupingExpression = childExpression;
+				else GroupingExpression.this.resultExpression = childExpression;
+			}
+
+			@Override
+			protected EvaluationExpression get(int index) {
+				if(index == 0)
+					return GroupingExpression.this.groupingExpression;
+				return GroupingExpression.this.resultExpression;
+			}
+		};
+	}
+	
 	protected List<IArrayNode> sortNodesWithKey(final IJsonNode node, final EvaluationContext context) {
 		final List<IArrayNode> nodes = new ArrayList<IArrayNode>();
 		for (final IJsonNode jsonNode : (IArrayNode) node)

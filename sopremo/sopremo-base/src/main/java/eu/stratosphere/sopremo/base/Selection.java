@@ -53,8 +53,9 @@ public class Selection extends ElementaryOperator<Selection> {
 		if (condition == null)
 			throw new NullPointerException("condition must not be null");
 
-		this.condition = (BooleanExpression) BooleanExpression.ensureBooleanExpression(condition).clone();
-		this.condition.remove(new InputSelection(0));
+		this.condition =
+			(BooleanExpression) BooleanExpression.ensureBooleanExpression(condition).clone().remove(
+				new InputSelection(0)).simplify();
 	}
 
 	public Selection withCondition(BooleanExpression condition) {
@@ -77,6 +78,5 @@ public class Selection extends ElementaryOperator<Selection> {
 			if (this.condition.evaluate(value, null, this.getContext()) == BooleanNode.TRUE)
 				out.collect(value);
 		}
-
 	}
 }

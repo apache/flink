@@ -32,7 +32,7 @@ public class ReplaceTest extends MeteorTest {
 		final Sink normalizedPersons = new Sink("normalizedPersons.json").withInputs(replace);
 		expectedPlan.setSinks(normalizedPersons);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 	@Test
@@ -54,7 +54,7 @@ public class ReplaceTest extends MeteorTest {
 		final Sink normalizedPersons = new Sink("normalizedPersons.json").withInputs(replace);
 		expectedPlan.setSinks(normalizedPersons);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 	@Test
@@ -79,6 +79,6 @@ public class ReplaceTest extends MeteorTest {
 		final Sink normalizedPersons = new Sink("normalizedPersons.json").withInputs(replace);
 		expectedPlan.setSinks(normalizedPersons);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 }

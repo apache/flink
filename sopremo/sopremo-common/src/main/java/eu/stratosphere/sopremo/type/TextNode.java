@@ -82,7 +82,7 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode, CharSe
 		return this.getJavaValue();
 	}
 
-	public void setValue(final String value) {
+	public void setValue(final CharSequence value) {
 		this.value.setValue(value);
 	}
 
@@ -192,6 +192,10 @@ public class TextNode extends AbstractJsonNode implements IPrimitiveNode, CharSe
 
 	public void setValue(TextNode text, int start, int end) {
 		this.value.setValue(text.value, start, end - start);
+	}
+
+	public void setValue(CharSequence text, int start, int end) {
+		this.value.setValue(text, start, end - start);
 	}
 
 	public int find(CharSequence str) {

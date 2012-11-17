@@ -76,7 +76,7 @@ public class RegexTokenizer extends AbstractTokenizer {
 	 * eu.stratosphere.sopremo.type.CachingArrayNode)
 	 */
 	@Override
-	public void tokenizeInto(TextNode text, CachingArrayNode tokens) {
+	public void tokenizeInto(CharSequence text, CachingArrayNode tokens) {
 		final Matcher matcher = this.pattern.matcher(text);
 
 		tokens.clear();

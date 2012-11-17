@@ -1,6 +1,8 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.TypeCoercer;
 
@@ -8,7 +10,7 @@ import eu.stratosphere.sopremo.type.TypeCoercer;
  * Converts the result of an evaluation to a various number of node types.
  */
 @OptimizerHints(scope = Scope.NUMBER)
-public class CoerceExpression extends EvaluationExpression {
+public class CoerceExpression extends EvaluationExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -69,19 +71,6 @@ public class CoerceExpression extends EvaluationExpression {
 		return TypeCoercer.INSTANCE.coerce(this.valueExpression.evaluate(node, context), target, this.targetType);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
-	 */
-	@SuppressWarnings("unchecked")
-	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.valueExpression = (CachingExpression<IJsonNode>) this.valueExpression.transformRecursively(function);
-		return function.call(this);
-	}
-
 	@Override
 	public void toString(final StringBuilder builder) {
 		builder.append('(').append(this.targetType).append(')');
@@ -106,4 +95,22 @@ public class CoerceExpression extends EvaluationExpression {
 		return this.targetType == other.targetType && this.valueExpression.equals(other.valueExpression);
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
+	 */
+	@Override
+	public ChildIterator iterator() {
+		return new NamedChildIterator("valueExpression") {
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				CoerceExpression.this.valueExpression.innerExpression = childExpression;
+			}
+	
+			@Override
+			protected EvaluationExpression get(int index) {
+				return CoerceExpression.this.valueExpression.innerExpression;
+			}
+		};
+	}
 }

@@ -49,7 +49,7 @@ public class GroupingTest extends MeteorTest {
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 	@Test
@@ -76,7 +76,7 @@ public class GroupingTest extends MeteorTest {
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 	@Test
@@ -103,7 +103,7 @@ public class GroupingTest extends MeteorTest {
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 	@Test
@@ -138,7 +138,7 @@ public class GroupingTest extends MeteorTest {
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 	@Test
@@ -173,7 +173,7 @@ public class GroupingTest extends MeteorTest {
 		final Sink output = new Sink("output.json").withInputs(selection);
 		expectedPlan.setSinks(output);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 }

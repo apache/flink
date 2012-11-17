@@ -53,6 +53,10 @@ public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 		public void read(DataInput in) throws IOException {	
 			throw new UnsupportedOperationException();
 		}
+		
+		private Object readResolve() {
+			return canonicalize();
+		}
 	}
 
 	/**
@@ -98,7 +102,7 @@ public class BooleanNode extends AbstractJsonNode implements IPrimitiveNode {
 	 * Returns either this BooleanNode represents the value <code>true</code> or not.
 	 */
 	public boolean getBooleanValue() {
-		return this == TRUE;
+		return value;
 	}
 
 	@Override

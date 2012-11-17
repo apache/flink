@@ -14,11 +14,13 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.expressions;
 
+import static eu.stratosphere.sopremo.type.JsonUtil.createPath;
 import junit.framework.Assert;
 
 import org.junit.Test;
 
 import eu.stratosphere.sopremo.expressions.ArithmeticExpression.ArithmeticOperator;
+import eu.stratosphere.sopremo.expressions.ComparativeExpression.BinaryOperator;
 
 /**
  * @author Arvid Heise
@@ -32,8 +34,20 @@ public class EvaluationExpressionTest {
 		final EvaluationExpression expression =
 			new ArithmeticExpression(pathExpression, ArithmeticOperator.ADDITION, ConstantExpression.MISSING);
 
-		Assert.assertSame(inputSelection, expression.find(InputSelection.class));
-		Assert.assertSame(objectAccess, expression.find(ObjectAccess.class));
+		Assert.assertSame(inputSelection, expression.findFirst(InputSelection.class));
+		Assert.assertSame(objectAccess, expression.findFirst(ObjectAccess.class));
+	}
+
+	@Test
+	public void shouldReplaceValues() {
+		final EvaluationExpression path = new ComparativeExpression(createPath("0", "id"), BinaryOperator.EQUAL, createPath("1", "userid"));
+
+		final EvaluationExpression expected = 
+			new ComparativeExpression(createPath("[0]", "id"), BinaryOperator.EQUAL, createPath("[1]", "userid"));
+
+		Assert.assertEquals(expected, path.
+			replace(new InputSelection(1), new ArrayAccess(1)).
+			replace(new InputSelection(0), new ArrayAccess(0)));
 	}
 
 	@Test
@@ -57,6 +71,6 @@ public class EvaluationExpressionTest {
 				ConstantExpression.MISSING);
 
 		Assert.assertEquals(expression, expected);
-		Assert.assertSame(inputSelection, expression.find(InputSelection.class));
+		Assert.assertSame(inputSelection, expression.findFirst(InputSelection.class));
 	}
 }

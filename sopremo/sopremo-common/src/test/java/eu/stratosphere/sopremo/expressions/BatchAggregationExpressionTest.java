@@ -23,7 +23,7 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 	protected BatchAggregationExpression createDefaultInstance(final int index) {
 		switch (index) {
 		case 0:
-			return new BatchAggregationExpression(CoreFunctions.AVERAGE);
+			return new BatchAggregationExpression(CoreFunctions.MEAN);
 		case 1:
 			return new BatchAggregationExpression(CoreFunctions.COUNT);
 		case 2:
@@ -44,8 +44,8 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 	@Test
 	public void shouldPerformBatch() {
 		final BatchAggregationExpression batch = new BatchAggregationExpression(CoreFunctions.SUM);
-		batch.add(CoreFunctions.AVERAGE);
-		batch.add(CoreFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
+		batch.add(CoreFunctions.MEAN);
+		batch.add(CoreFunctions.MEAN, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), null, this.context);
 
@@ -67,8 +67,8 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 	public void shouldReuseTarget() {
 		ArrayNode target = new ArrayNode();
 		final BatchAggregationExpression batch = new BatchAggregationExpression(CoreFunctions.SUM);
-		batch.add(CoreFunctions.AVERAGE);
-		batch.add(CoreFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
+		batch.add(CoreFunctions.MEAN);
+		batch.add(CoreFunctions.MEAN, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), target, this.context);
 
@@ -79,8 +79,8 @@ public class BatchAggregationExpressionTest extends EvaluableExpressionTest<Batc
 	public void shouldNotReuseTargetWithWrongType() {
 		ObjectNode target = new ObjectNode();
 		final BatchAggregationExpression batch = new BatchAggregationExpression(CoreFunctions.SUM);
-		batch.add(CoreFunctions.AVERAGE);
-		batch.add(CoreFunctions.AVERAGE, new ArithmeticExpression(EvaluationExpression.VALUE,
+		batch.add(CoreFunctions.MEAN);
+		batch.add(CoreFunctions.MEAN, new ArithmeticExpression(EvaluationExpression.VALUE,
 			ArithmeticOperator.MULTIPLICATION, EvaluationExpression.VALUE));
 		final IJsonNode result = batch.evaluate(createArrayNode(2, 3, 4, 5, 1), target, this.context);
 

@@ -224,7 +224,7 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 
 		@SuppressWarnings({ "rawtypes", "unchecked" })
 		final GraphModule<Node, InputNode, OutputNode> other = (GraphModule) obj;
-		return this.getUnmatchingNodes(other) == null;
+		return this.getUnmatchingNodes(other).isEmpty();
 	}
 
 	public List<Node> getUnmatchingNodes(final GraphModule<Node, InputNode, OutputNode> other) {
@@ -253,10 +253,10 @@ public abstract class GraphModule<Node, InputNode extends Node, OutputNode exten
 
 			final List<Node> unmatching = this.getUnmatchingNode(this.navigator.getConnectedNodes(node1),
 					this.navigator.getConnectedNodes(node2), seen);
-			if (unmatching != null) return unmatching;
+			if (!unmatching.isEmpty()) return unmatching;
 		}
 
-		return null;
+		return new ArrayList<Node>();
 	}
 
 }

@@ -7,7 +7,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.function.Aggregation;
+import eu.stratosphere.sopremo.EvaluationException;
+import eu.stratosphere.sopremo.aggregation.Aggregation;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -96,18 +97,6 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		return partial;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
-	 */
-	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		// partials are transformed separately, where appropriate
-		return function.call(this);
-	}
-
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 		if (this.lastInputCounter == context.getInputCounter())
@@ -123,6 +112,9 @@ public class BatchAggregationExpression extends EvaluationExpression {
 				final AggregationExpression partial = this.partials.get(index);
 				final IJsonNode preprocessedValue =
 					partial.getPreprocessing().evaluate(input, this.lastPreprocessingResults.get(index), context);
+				if (preprocessedValue.isMissing())
+					throw new EvaluationException(String.format("Cannot access %s for aggregation %s",
+						partial.getPreprocessing(), partial));
 				this.lastAggregators.set(index,
 					partial.getFunction().aggregate(preprocessedValue, this.lastAggregators.get(index), context));
 			}
@@ -164,6 +156,20 @@ public class BatchAggregationExpression extends EvaluationExpression {
 		public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
 			return ((IArrayNode) BatchAggregationExpression.this.evaluate(node, null, context)).get(this.index);
 		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.expressions.AggregationExpression#toString(java.lang.StringBuilder)
+		 */
+		@Override
+		public void toString(StringBuilder builder) {
+			this.getFunction().toString(builder);
+			builder.append('(');
+			BatchAggregationExpression.this.toString(builder);
+			if (this.getPreprocessing() != EvaluationExpression.VALUE)
+				this.getPreprocessing().toString(builder);
+			builder.append(')');
+		}
 	}
 
 	@Override
@@ -184,6 +190,6 @@ public class BatchAggregationExpression extends EvaluationExpression {
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		builder.append("batch");
+		builder.append("<batch>");
 	}
 }

@@ -22,8 +22,10 @@ import eu.stratosphere.sopremo.expressions.ComparativeExpression;
 import eu.stratosphere.sopremo.expressions.ElementInSetExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
 import eu.stratosphere.sopremo.expressions.InputSelection;
+import eu.stratosphere.sopremo.expressions.TransformFunction;
 import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.operator.Property;
+import eu.stratosphere.util.IsInstancePredicate;
 
 public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 	private static final long serialVersionUID = 3299811281318600335L;
@@ -46,7 +48,16 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 
 	@Override
 	public PactModule asPactModule(EvaluationContext context) {
-		this.strategy.setResultProjection(this.getResultProjection());
+		if (this.inverseInputs)
+			this.strategy.setResultProjection(this.getResultProjection().clone().replace(
+				new IsInstancePredicate(InputSelection.class), new TransformFunction() {
+					@Override
+					public EvaluationExpression call(EvaluationExpression argument) {
+						return new InputSelection(1 - ((InputSelection) argument).getIndex());
+					}
+				}));
+		else
+			this.strategy.setResultProjection(this.getResultProjection());
 		if (!this.outerJoinSources.isEmpty() && this.strategy instanceof OuterJoin)
 			((OuterJoin) this.strategy).withMode(
 				this.outerJoinSources.contains(this.inverseInputs ? 1 : 0),
@@ -119,8 +130,8 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 			throw new IllegalArgumentException(String.format("Type of condition %s not supported",
 				condition.getClass().getSimpleName()));
 
-		int inputIndex1 = expr1.find(InputSelection.class).getIndex();
-		int inputIndex2 = expr2.find(InputSelection.class).getIndex();
+		int inputIndex1 = expr1.findFirst(InputSelection.class).getIndex();
+		int inputIndex2 = expr2.findFirst(InputSelection.class).getIndex();
 		if (inputIndex1 == inputIndex2)
 			throw new IllegalArgumentException(String.format("Condition input selection is invalid %s", condition));
 		else if (inputIndex1 < 0 || inputIndex1 > 1 || inputIndex2 < 0 || inputIndex2 > 1)
@@ -139,7 +150,7 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 		if (outerJoinSources instanceof InputSelection)
 			expressions = Collections.singleton(outerJoinSources);
 		else if (outerJoinSources instanceof ArrayCreation)
-			expressions = ((ArrayCreation) outerJoinSources).getChildren();
+			expressions = (ArrayCreation) outerJoinSources;
 		else
 			throw new IllegalArgumentException(String.format("Cannot interpret %s", outerJoinSources));
 
@@ -193,7 +204,7 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 			ComparativeExpression comparison = (ComparativeExpression) this.condition.clone();
 			switch (comparison.getBinaryOperator()) {
 			case EQUAL:
-				this.inverseInputs = comparison.getExpr1().find(InputSelection.class).getIndex() == 1;
+				this.inverseInputs = comparison.getExpr1().findFirst(InputSelection.class).getIndex() == 1;
 				this.strategy = new OuterJoin().withMode(Mode.NONE).
 					withKeyExpression(0, comparison.getExpr1().remove(InputSelection.class)).
 					withKeyExpression(1, comparison.getExpr2().remove(InputSelection.class));
@@ -203,7 +214,8 @@ public class TwoSourceJoin extends TwoSourceJoinBase<TwoSourceJoin> {
 			}
 		} else if (this.condition instanceof ElementInSetExpression) {
 			ElementInSetExpression elementInSetExpression = (ElementInSetExpression) this.condition.clone();
-			this.inverseInputs = elementInSetExpression.getElementExpr().find(InputSelection.class).getIndex() == 1;
+			this.inverseInputs =
+				elementInSetExpression.getElementExpr().findFirst(InputSelection.class).getIndex() == 1;
 			switch (elementInSetExpression.getQuantor()) {
 			case EXISTS_NOT_IN:
 				this.strategy = new AntiJoin().

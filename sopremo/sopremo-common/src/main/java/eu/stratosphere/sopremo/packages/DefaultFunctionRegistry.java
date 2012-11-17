@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.sopremo.function.Aggregation;
-import eu.stratosphere.sopremo.function.AggregationFunction;
+import eu.stratosphere.sopremo.aggregation.Aggregation;
+import eu.stratosphere.sopremo.aggregation.AggregationFunction;
 import eu.stratosphere.sopremo.function.Callable;
 import eu.stratosphere.sopremo.function.FixedReturnJavaMethod;
 import eu.stratosphere.sopremo.function.JavaMethod;

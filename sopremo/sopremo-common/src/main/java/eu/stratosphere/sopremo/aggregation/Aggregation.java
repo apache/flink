@@ -1,4 +1,4 @@
-package eu.stratosphere.sopremo.function;
+package eu.stratosphere.sopremo.aggregation;
 
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.ISerializableSopremoType;

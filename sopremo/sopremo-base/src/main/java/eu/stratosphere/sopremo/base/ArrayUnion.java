@@ -15,11 +15,11 @@
 package eu.stratosphere.sopremo.base;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.function.TransitiveAggregationFunction;
+import eu.stratosphere.sopremo.aggregation.TransitiveAggregation;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 
-final class ArrayUnion extends TransitiveAggregationFunction<IArrayNode, ArrayNode> {
+final class ArrayUnion extends TransitiveAggregation<IArrayNode, ArrayNode> {
 	/**
 	 * 
 	 */

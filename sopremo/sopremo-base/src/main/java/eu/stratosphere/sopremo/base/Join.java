@@ -6,6 +6,8 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -165,6 +167,13 @@ public class Join extends CompositeOperator<Join> {
 		this.joinCondition = joinCondition;
 		this.binaryConditions = expressions;
 	}
+	
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+		final ArrayList<BinaryBooleanExpression> expressions = new ArrayList<BinaryBooleanExpression>();
+		this.addBinaryExpressions(this.joinCondition, expressions);
+		this.binaryConditions = expressions;
+	}
 
 	public void setOuterJoinIndices(int... outerJoinIndices) {
 		if (outerJoinIndices == null)
@@ -184,7 +193,7 @@ public class Join extends CompositeOperator<Join> {
 		if (outerJoinSources instanceof InputSelection)
 			expressions = Collections.singleton(outerJoinSources);
 		else if (outerJoinSources instanceof ArrayCreation)
-			expressions = ((ArrayCreation) outerJoinSources).getChildren();
+			expressions = (ArrayCreation) outerJoinSources;
 		else
 			throw new IllegalArgumentException(String.format("Cannot interpret %s", outerJoinSources));
 

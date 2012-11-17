@@ -438,7 +438,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 	}
 
 	@SuppressWarnings("unchecked")
-	private Class<? extends Key>[] getKeyClasses(final Schema globalSchema,
+	protected Class<? extends Key>[] getKeyClasses(final Schema globalSchema,
 			final int[] keyIndices) {
 		final Class<? extends Value>[] pactSchema = globalSchema
 			.getPactSchema();
@@ -482,7 +482,7 @@ public abstract class ElementaryOperator<Self extends ElementaryOperator<Self>>
 		return builder.toString();
 	}
 
-	private int[] getKeyIndices(final Schema globalSchema,
+	protected int[] getKeyIndices(final Schema globalSchema,
 			final Iterable<? extends EvaluationExpression> keyExpressions) {
 		if (keyExpressions.equals(ALL_KEYS)) {
 			final int[] allSchema = new int[globalSchema.getPactSchema().length];
