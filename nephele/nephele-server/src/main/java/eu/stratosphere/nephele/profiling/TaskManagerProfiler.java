@@ -42,7 +42,7 @@ public interface TaskManagerProfiler {
 	 * the vertex identified by the given ID.
 	 * 
 	 * @param id
-	 *        the ID of the vertex to unregister the {@link ExecutionListener} objects for
+	 *        the ID of the vertex to unregister the {@link ExecutionObserver} objects for
 	 */
 	void unregisterExecutionObserver(ExecutionVertexID id);
 

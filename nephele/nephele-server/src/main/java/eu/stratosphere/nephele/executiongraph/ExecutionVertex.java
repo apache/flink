@@ -1002,7 +1002,7 @@ public final class ExecutionVertex {
 	 * Registers the {@link ExecutionStateListener} object for this vertex. This object
 	 * will be notified about particular events during the vertex's lifetime.
 	 * 
-	 * @param executionListener
+	 * @param executionStateListener
 	 *        the object to be notified about particular events during the vertex's lifetime
 	 */
 	public void registerExecutionStateListener(final ExecutionStateListener executionStateListener) {
@@ -1031,9 +1031,9 @@ public final class ExecutionVertex {
 	 * @param checkpointStateChangeListener
 	 *        the object to be unregistered
 	 */
-	public void unregisterExecutionStateListener(final ExecutionStateListener executionListener) {
+	public void unregisterExecutionStateListener(final ExecutionStateListener executionStateListener) {
 
-		this.executionStateListeners.remove(Integer.valueOf(executionListener.getPriority()));
+		this.executionStateListeners.remove(Integer.valueOf(executionStateListener.getPriority()));
 	}
 
 	/**
