@@ -20,7 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 
 /**
  * The library transfer protocol allows to query servers for cached libraries and submit these if necessary.
@@ -28,7 +28,7 @@ import eu.stratosphere.nephele.protocols.VersionedProtocol;
  * @author warneke
  * @author Arvid Heise
  */
-public interface LibraryTransferProtocol extends VersionedProtocol {
+public interface LibraryTransferProtocol extends RPCProtocol {
 	/**
 	 * Queries the task manager about the cache status of the libraries stated in the {@link LibraryCacheProfileRequest}
 	 * object.

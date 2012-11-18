@@ -108,13 +108,13 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 		this.mergeSpilledBuffers = GlobalConfiguration.getBoolean("channel.network.mergeSpilledBuffers",
 			DEFAULT_MERGE_SPILLED_BUFFERS);
 
-		LOG.info("Initialized byte buffered channel manager with sender-side spilling "
+		LOG.info("Initialized default routing layer with sender-side spilling "
 			+ (this.allowSenderSideSpilling ? "enabled" : "disabled")
 			+ (this.mergeSpilledBuffers ? " and spilled buffer merging enabled" : ""));
 	}
 
 	/**
-	 * Registers the given task with the byte buffered channel manager.
+	 * Registers the given task with the routing layer.
 	 * 
 	 * @param task
 	 *        the task to be registered
@@ -159,7 +159,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 				}
 
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Registering byte buffered output channel " + outputChannelContext.getChannelID() + " ("
+					LOG.debug("Registering output channel " + outputChannelContext.getChannelID() + " ("
 						+ (isActive ? "active" : "inactive") + ")");
 				}
 
@@ -204,7 +204,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	}
 
 	/**
-	 * Unregisters the given task from the byte buffered channel manager.
+	 * Unregisters the given task from the routing layer.
 	 * 
 	 * @param vertexID
 	 *        the ID of the task to be unregistered
@@ -260,7 +260,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	}
 
 	/**
-	 * Shuts down the byte buffered channel manager and stops all its internal processes.
+	 * Shuts down the routing layer and stops all its internal processes.
 	 */
 	public void shutdown() {
 
@@ -572,7 +572,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	}
 
 	/**
-	 * Triggers the byte buffer channel manager write the current utilization of its read and write buffers to the logs.
+	 * Triggers the routing layer write the current utilization of its read and write buffers to the logs.
 	 * This method is primarily for debugging purposes.
 	 */
 	public void logBufferUtilization() {
@@ -650,13 +650,12 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	}
 
 	/**
-	 * Checks if the byte buffered channel manager has enough resources available to safely execute the given task.
+	 * Checks if the routing layer has enough resources available to safely execute the given task.
 	 * 
 	 * @param task
 	 *        the task to be executed
 	 * @throws InsufficientResourcesException
-	 *         thrown if the byte buffered manager currently does not have enough resources available to execute the
-	 *         task
+	 *         thrown if the routing layer currently does not have enough resources available to execute the task
 	 */
 	private void checkBufferAvailability(final Task task) throws InsufficientResourcesException {
 

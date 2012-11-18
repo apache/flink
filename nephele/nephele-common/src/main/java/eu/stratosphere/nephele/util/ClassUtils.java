@@ -19,7 +19,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.fs.FileSystem;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.types.Record;
 
 /**
@@ -38,27 +37,6 @@ public final class ClassUtils {
 	 * Private constructor used to overwrite public one.
 	 */
 	private ClassUtils() {
-	}
-
-	/**
-	 * Searches for a protocol class by its name and attempts to load it.
-	 * 
-	 * @param className
-	 *        the name of the protocol class
-	 * @return an instance of the protocol class
-	 * @throws ClassNotFoundException
-	 *         thrown if no class with such a name can be found
-	 */
-	// TODO: See if we can improve type safety here
-	@SuppressWarnings("unchecked")
-	public static Class<? extends VersionedProtocol> getProtocolByName(final String className)
-			throws ClassNotFoundException {
-
-		if (!className.contains("Protocol")) {
-			throw new ClassNotFoundException("Only use this method for protocols!");
-		}
-
-		return (Class<? extends VersionedProtocol>) Class.forName(className, true, getClassLoader());
 	}
 
 	/**
