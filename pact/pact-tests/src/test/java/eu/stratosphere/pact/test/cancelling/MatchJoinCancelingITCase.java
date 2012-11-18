@@ -53,7 +53,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 3000, 10*1000);
+		runAndCancelJob(p, 3000, 15*1000);
 	}
 
 	@Test
@@ -75,7 +75,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 5000, 10*1000);
+		runAndCancelJob(p, 5000, 15*1000);
 	}
 	
 	@Test
@@ -99,7 +99,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		
 		runAndCancelJob(p, 5000);
 		
-		runAndCancelJob(p, 10 * 1000, 10 * 1000);
+		runAndCancelJob(p, 10 * 1000, 15 * 1000);
 	}
 	
 	@Test
@@ -180,7 +180,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 10 * 1000, 10 * 1000);
+		runAndCancelJob(p, 10 * 1000, 15 * 1000);
 	}
 
 	// -------------------------------------- Test System corner cases ---------------------------------

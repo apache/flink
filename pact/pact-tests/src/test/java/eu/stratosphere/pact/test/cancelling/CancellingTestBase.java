@@ -58,7 +58,7 @@ public abstract class CancellingTestBase
 	 * Defines the number of seconds after which an issued cancel request is expected to have taken effect (i.e. the job
 	 * is canceled), starting from the point in time when the cancel request is issued.
 	 */
-	private static final int DEFAULT_CANCEL_FINISHED_INTERVAL = 10 * 1000;
+	private static final int DEFAULT_CANCEL_FINISHED_INTERVAL = 15 * 1000;
 
 	// --------------------------------------------------------------------------------------------
 	

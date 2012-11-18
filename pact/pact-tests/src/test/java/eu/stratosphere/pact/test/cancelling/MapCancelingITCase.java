@@ -45,7 +45,7 @@ public class MapCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 5 * 1000, 10 * 1000);
+		runAndCancelJob(p, 5 * 1000, 15 * 1000);
 	}
 	
 	@Test
@@ -63,7 +63,7 @@ public class MapCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 5 * 1000, 10 * 1000);
+		runAndCancelJob(p, 5 * 1000, 15 * 1000);
 	}
 	
 	@Test
@@ -81,7 +81,7 @@ public class MapCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 10 * 1000, 10 * 1000);
+		runAndCancelJob(p, 10 * 1000, 15 * 1000);
 	}
 	
 	@Test
@@ -99,7 +99,7 @@ public class MapCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 10 * 1000, 10 * 1000);
+		runAndCancelJob(p, 10 * 1000, 15 * 1000);
 	}
 
 	// --------------------------------------------------------------------------------------------
