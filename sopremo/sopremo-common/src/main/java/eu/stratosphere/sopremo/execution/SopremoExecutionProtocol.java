@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.execution;
 
+import java.io.IOException;
+
 import eu.stratosphere.nephele.rpc.RPCProtocol;
 
 /**
@@ -29,7 +31,7 @@ public interface SopremoExecutionProtocol extends RPCProtocol, LibraryTransferPr
 	 *        the request with the query
 	 * @return the {@link ExecutionResponse}
 	 */
-	public ExecutionResponse execute(ExecutionRequest request);
+	ExecutionResponse execute(ExecutionRequest request) throws IOException, InterruptedException;
 
 	/**
 	 * Queries the state of the given job.
@@ -38,5 +40,5 @@ public interface SopremoExecutionProtocol extends RPCProtocol, LibraryTransferPr
 	 *        the job id
 	 * @return the {@link ExecutionResponse} with the state
 	 */
-	public ExecutionResponse getState(SopremoID jobId);
+	ExecutionResponse getState(SopremoID jobId) throws IOException, InterruptedException;
 }

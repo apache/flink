@@ -115,7 +115,13 @@ public class SopremoServerTest {
 	}
 
 	private ExecutionResponse waitForStateToFinish(ExecutionResponse response, ExecutionState status) {
-		return SopremoTestServer.waitForStateToFinish(this.server, response, status);
+		
+		try {
+			return SopremoTestServer.waitForStateToFinish(this.server, response, status);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 
 	static SopremoPlan createPlan() {

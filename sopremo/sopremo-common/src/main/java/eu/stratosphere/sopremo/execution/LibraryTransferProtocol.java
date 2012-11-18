@@ -40,7 +40,7 @@ public interface LibraryTransferProtocol extends VersionedProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException;
+	LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException, InterruptedException;
 
 	/**
 	 * Updates the task manager's library cache.
@@ -50,5 +50,5 @@ public interface LibraryTransferProtocol extends VersionedProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
+	void updateLibraryCache(LibraryCacheUpdate update) throws IOException, InterruptedException;
 }

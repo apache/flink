@@ -203,7 +203,7 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 	}
 
 	@Override
-	public ExecutionResponse execute(ExecutionRequest request) {
+	public ExecutionResponse execute(ExecutionRequest request) throws IOException, InterruptedException {
 		correctPathsOfPlan(request.getQuery());
 
 		return this.executor.execute(request);
@@ -218,7 +218,7 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 	}
 
 	@Override
-	public ExecutionResponse getState(SopremoID jobId) {
+	public ExecutionResponse getState(SopremoID jobId) throws IOException, InterruptedException {
 		return this.executor.getState(jobId);
 	}
 
@@ -253,12 +253,9 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 	}
 
 	public static ExecutionResponse waitForStateToFinish(SopremoExecutionProtocol server, ExecutionResponse response,
-			ExecutionState status) {
+			ExecutionState status) throws IOException, InterruptedException {
 		for (int waits = 0; response.getState() == status && waits < 1000; waits++) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-			}
+			Thread.sleep(100);
 			response = server.getState(response.getJobId());
 		}
 		return response;

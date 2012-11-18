@@ -210,7 +210,8 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 
 	private void startServer() throws IOException {
 		InetSocketAddress rpcServerAddress = getServerAddress();
-		this.rpcService = new RPCService(rpcServerAddress.getPort(), null);
+		this.rpcService = new RPCService(rpcServerAddress.getPort(), 2, null);
+		this.rpcService.setProtocolCallbackHandler(SopremoExecutionProtocol.class, this);
 	}
 
 	/**

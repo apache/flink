@@ -240,7 +240,7 @@ public class DefaultClient implements Closeable {
 			plan.setRequiredPackages(requiredLibraries);
 
 			return true;
-		} catch (IOException e) {
+		} catch (Exception e) {
 			dealWithError(progressListener, e, "Cannot transfer libraries");
 			return false;
 		} finally {
