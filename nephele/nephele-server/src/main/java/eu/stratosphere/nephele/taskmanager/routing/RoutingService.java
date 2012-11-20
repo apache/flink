@@ -4,7 +4,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
-public interface RoutingLayer {
+public interface RoutingService {
 
 	/**
 	 * Routes a {@link TransferEnvelope} from an output channel to its destination. The method may block until the
@@ -35,7 +35,7 @@ public interface RoutingLayer {
 			InterruptedException;
 
 	/**
-	 * Routes a {@link TransferEnvelope} from the network layer to its destination. The method may block until the
+	 * Routes a {@link TransferEnvelope} from the network service to its destination. The method may block until the
 	 * receiver of the envelope is able to accept it.
 	 * 
 	 * @param transferEnvelope

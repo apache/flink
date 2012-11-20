@@ -173,7 +173,7 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 
 			// Construction for in-memory and network channels
 			final RuntimeDispatcher runtimeDispatcher = new RuntimeDispatcher(
-				this.taskContext.getRoutingLayer());
+				this.taskContext.getRoutingService());
 			/*
 			 * final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
 			 * runtimeDispatcher);

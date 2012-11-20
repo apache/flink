@@ -43,15 +43,15 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProviderBroker;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.GlobalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.network.NetworkLayer;
+import eu.stratosphere.nephele.taskmanager.network.NetworkService;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
-public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBroker {
+public final class DefaultRoutingService implements RoutingService, BufferProviderBroker {
 
 	/**
 	 * The log object used to report problems and errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(DefaultRoutingLayer.class);
+	private static final Log LOG = LogFactory.getLog(DefaultRoutingService.class);
 
 	private static final boolean DEFAULT_ALLOW_SENDER_SIDE_SPILLING = false;
 
@@ -64,7 +64,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 
 	private final Map<AbstractID, LocalBufferPoolOwner> localBufferPoolOwner = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
 
-	private final NetworkLayer networkLayer;
+	private final NetworkService networkService;
 
 	private final ChannelLookupProtocol channelLookupService;
 
@@ -83,7 +83,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	 */
 	private final Map<ChannelID, ReceiverList> receiverCache = new ConcurrentHashMap<ChannelID, ReceiverList>();
 
-	public DefaultRoutingLayer(final ChannelLookupProtocol channelLookupService,
+	public DefaultRoutingService(final ChannelLookupProtocol channelLookupService,
 			final InstanceConnectionInfo localInstanceConnectionInfo) throws IOException {
 
 		this.channelLookupService = channelLookupService;
@@ -99,7 +99,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 		// Initialize the transit buffer pool
 		this.transitBufferPool = new LocalBufferPool(128, true);
 
-		this.networkLayer = new NetworkLayer(this, localInstanceConnectionInfo.getAddress(),
+		this.networkService = new NetworkService(this, localInstanceConnectionInfo.getAddress(),
 			localInstanceConnectionInfo.getDataPort());
 
 		this.allowSenderSideSpilling = GlobalConfiguration.getBoolean("channel.network.allowSenderSideSpilling",
@@ -108,13 +108,13 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 		this.mergeSpilledBuffers = GlobalConfiguration.getBoolean("channel.network.mergeSpilledBuffers",
 			DEFAULT_MERGE_SPILLED_BUFFERS);
 
-		LOG.info("Initialized default routing layer with sender-side spilling "
+		LOG.info("Initialized default routing service with sender-side spilling "
 			+ (this.allowSenderSideSpilling ? "enabled" : "disabled")
 			+ (this.mergeSpilledBuffers ? " and spilled buffer merging enabled" : ""));
 	}
 
 	/**
-	 * Registers the given task with the routing layer.
+	 * Registers the given task with the routing service.
 	 * 
 	 * @param task
 	 *        the task to be registered
@@ -204,7 +204,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	}
 
 	/**
-	 * Unregisters the given task from the routing layer.
+	 * Unregisters the given task from the routing service.
 	 * 
 	 * @param vertexID
 	 *        the ID of the task to be unregistered
@@ -260,11 +260,11 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	}
 
 	/**
-	 * Shuts down the routing layer and stops all its internal processes.
+	 * Shuts down the routing service and stops all its internal services.
 	 */
 	public void shutdown() {
 
-		this.networkLayer.shutDown();
+		this.networkService.shutDown();
 	}
 
 	private void recycleBuffer(final TransferEnvelope envelope) {
@@ -407,7 +407,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 				for (final RemoteReceiver remoteReceiver : remoteReceivers) {
 
 					final TransferEnvelope dup = transferEnvelope.duplicate();
-					this.networkLayer.queueEnvelopeForTransfer(remoteReceiver, dup);
+					this.networkService.queueEnvelopeForTransfer(remoteReceiver, dup);
 				}
 			}
 		} finally {
@@ -445,7 +445,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 		while (remoteIt.hasNext()) {
 
 			final RemoteReceiver remoteReceiver = remoteIt.next();
-			this.networkLayer.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope);
+			this.networkService.queueEnvelopeForTransfer(remoteReceiver, transferEnvelope);
 		}
 	}
 
@@ -572,7 +572,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	}
 
 	/**
-	 * Triggers the routing layer write the current utilization of its read and write buffers to the logs.
+	 * Triggers the routing service write the current utilization of its read and write buffers to the logs.
 	 * This method is primarily for debugging purposes.
 	 */
 	public void logBufferUtilization() {
@@ -588,7 +588,7 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 			it.next().logBufferUtilization();
 		}
 
-		this.networkLayer.logBufferUtilization();
+		this.networkService.logBufferUtilization();
 
 		System.out.println("\tIncoming connections:");
 
@@ -650,12 +650,12 @@ public final class DefaultRoutingLayer implements RoutingLayer, BufferProviderBr
 	}
 
 	/**
-	 * Checks if the routing layer has enough resources available to safely execute the given task.
+	 * Checks if the routing service has enough resources available to safely execute the given task.
 	 * 
 	 * @param task
 	 *        the task to be executed
 	 * @throws InsufficientResourcesException
-	 *         thrown if the routing layer currently does not have enough resources available to execute the task
+	 *         thrown if the routing service currently does not have enough resources available to execute the task
 	 */
 	private void checkBufferAvailability(final Task task) throws InsufficientResourcesException {
 

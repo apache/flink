@@ -27,18 +27,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingService;
 import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 /**
- * The network layer manages incoming and outgoing network connection from and to other hosts.
+ * The network service manages incoming and outgoing network connection from and to other hosts.
  * <p>
  * This class is thread-safe.
  * 
  * @author warneke
  */
-public final class NetworkLayer {
+public final class NetworkService {
 
 	/**
 	 * The default number of threads dealing with outgoing connections.
@@ -73,14 +73,14 @@ public final class NetworkLayer {
 	/**
 	 * A buffer provider for read buffers
 	 */
-	private final DefaultRoutingLayer routingLayer;
+	private final DefaultRoutingService routingService;
 
-	public NetworkLayer(final DefaultRoutingLayer routingLayer, final InetAddress bindAddress, final int dataPort)
+	public NetworkService(final DefaultRoutingService routingService, final InetAddress bindAddress, final int dataPort)
 			throws IOException {
 
 		final Configuration configuration = GlobalConfiguration.getConfiguration();
 
-		this.routingLayer = routingLayer;
+		this.routingService = routingService;
 
 		// Start the connection threads
 		final int numberOfOutgoingConnectionThreads = configuration.getInteger(
@@ -93,7 +93,7 @@ public final class NetworkLayer {
 		}
 
 		this.incomingConnectionThread = new IncomingConnectionThread(
-			this.routingLayer, true, new InetSocketAddress(bindAddress, dataPort));
+			this.routingService, true, new InetSocketAddress(bindAddress, dataPort));
 		this.incomingConnectionThread.start();
 
 		this.numberOfConnectionRetries = configuration.getInteger("channel.network.numberOfConnectionRetries",

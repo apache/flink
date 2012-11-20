@@ -23,7 +23,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
 
 public interface Task {
@@ -110,5 +110,5 @@ public interface Task {
 	 */
 	ExecutionState getExecutionState();
 
-	TaskContext createTaskContext(RoutingLayer routingLayer, LocalBufferPoolOwner previousBufferPoolOwner);
+	TaskContext createTaskContext(RoutingService routingService, LocalBufferPoolOwner previousBufferPoolOwner);
 }

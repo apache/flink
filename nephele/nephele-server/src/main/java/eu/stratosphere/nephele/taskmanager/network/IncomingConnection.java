@@ -23,7 +23,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingService;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultDeserializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.NoBufferAvailableException;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -54,13 +54,13 @@ final class IncomingConnection {
 	private final DefaultDeserializer deserializer;
 
 	/**
-	 * The routing layer which handles and dispatches the received transfer envelopes.
+	 * The routing service which handles and dispatches the received transfer envelopes.
 	 */
-	private final DefaultRoutingLayer routingLayer;
+	private final DefaultRoutingService routingService;
 
-	IncomingConnection(final DefaultRoutingLayer routingLayer, final ReadableByteChannel readableByteChannel) {
-		this.routingLayer = routingLayer;
-		this.deserializer = new DefaultDeserializer(routingLayer);
+	IncomingConnection(final DefaultRoutingService routingService, final ReadableByteChannel readableByteChannel) {
+		this.routingService = routingService;
+		this.deserializer = new DefaultDeserializer(routingService);
 		this.readableByteChannel = readableByteChannel;
 	}
 
@@ -96,9 +96,9 @@ final class IncomingConnection {
 
 			final BufferProvider bufferProvider = this.deserializer.getBufferProvider();
 			if (bufferProvider == null) {
-				this.routingLayer.routeEnvelopeFromNetwork(transferEnvelope, false);
+				this.routingService.routeEnvelopeFromNetwork(transferEnvelope, false);
 			} else {
-				this.routingLayer.routeEnvelopeFromNetwork(transferEnvelope, bufferProvider.isShared());
+				this.routingService.routeEnvelopeFromNetwork(transferEnvelope, bufferProvider.isShared());
 			}
 		}
 	}

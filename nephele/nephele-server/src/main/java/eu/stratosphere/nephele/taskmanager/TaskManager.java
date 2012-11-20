@@ -79,7 +79,7 @@ import eu.stratosphere.nephele.rpc.ServerTypeUtils;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingService;
 import eu.stratosphere.nephele.taskmanager.routing.InsufficientResourcesException;
 import eu.stratosphere.nephele.taskmanager.runtime.EnvelopeConsumptionLog;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
@@ -120,7 +120,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private final static int DEFAULTPERIODICTASKSINTERVAL = 2000;
 
-	private final DefaultRoutingLayer routingLayer;
+	private final DefaultRoutingService routingService;
 
 	/**
 	 * Instance of the task manager profile if profiling is enabled.
@@ -262,15 +262,15 @@ public class TaskManager implements TaskOperationProtocol {
 
 		checkTempDirs(tmpDirPaths);
 
-		// Initialize the routing layer
-		DefaultRoutingLayer routingLayer = null;
+		// Initialize the routing service
+		DefaultRoutingService routingService = null;
 		try {
-			routingLayer = new DefaultRoutingLayer(this.lookupService, this.localInstanceConnectionInfo);
+			routingService = new DefaultRoutingService(this.lookupService, this.localInstanceConnectionInfo);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
-			throw new Exception("Failed to instantiate routing layer: " + ioe.getMessage(), ioe);
+			throw new Exception("Failed to instantiate routing service: " + ioe.getMessage(), ioe);
 		}
-		this.routingLayer = routingLayer;
+		this.routingService = routingService;
 
 		// Determine hardware description
 		HardwareDescription hardware = HardwareDescriptionFactory.extractFromSystem();
@@ -484,7 +484,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	private void reportAsyncronousEvent(final ExecutionVertexID vertexID) {
 
-		this.routingLayer.reportAsynchronousEvent(vertexID);
+		this.routingService.reportAsynchronousEvent(vertexID);
 	}
 
 	/**
@@ -615,8 +615,8 @@ public class TaskManager implements TaskOperationProtocol {
 
 			final Environment ee = task.getEnvironment();
 
-			// Register the task with the routing layer
-			this.routingLayer.register(task, activeOutputChannels, hasAlreadyBeenDeployed);
+			// Register the task with the routing service
+			this.routingService.register(task, activeOutputChannels, hasAlreadyBeenDeployed);
 
 			boolean enableProfiling = false;
 			if (this.profiler != null && jobConfiguration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
@@ -659,8 +659,8 @@ public class TaskManager implements TaskOperationProtocol {
 				return;
 			}
 
-			// Unregister task from the routing layer
-			this.routingLayer.unregister(id, task);
+			// Unregister task from the routing service
+			this.routingService.unregister(id, task);
 
 			// Unregister task from profiling
 			task.unregisterProfiler(this.profiler);
@@ -788,8 +788,8 @@ public class TaskManager implements TaskOperationProtocol {
 			this.profiler.shutdown();
 		}
 
-		// Shut down the routing layer
-		this.routingLayer.shutdown();
+		// Shut down the routing service
+		this.routingService.shutdown();
 
 		// Shut down the memory manager
 		if (this.ioManager != null) {
@@ -886,7 +886,7 @@ public class TaskManager implements TaskOperationProtocol {
 	@Override
 	public void logBufferUtilization() throws IOException {
 
-		this.routingLayer.logBufferUtilization();
+		this.routingService.logBufferUtilization();
 	}
 
 	/**
@@ -915,7 +915,7 @@ public class TaskManager implements TaskOperationProtocol {
 	@Override
 	public void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
 
-		this.routingLayer.invalidateLookupCacheEntries(channelIDs);
+		this.routingService.invalidateLookupCacheEntries(channelIDs);
 	}
 
 	/**

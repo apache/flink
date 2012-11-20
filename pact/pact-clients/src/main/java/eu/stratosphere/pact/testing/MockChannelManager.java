@@ -25,14 +25,14 @@ import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.types.Record;
 
 /**
  * @author Arvid Heise
  */
-public class MockChannelManager implements RoutingLayer {
+public class MockChannelManager implements RoutingService {
 
 	private LocalBufferPool transitBufferPool;
 

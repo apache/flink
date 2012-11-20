@@ -28,14 +28,14 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingService;
 import eu.stratosphere.nephele.taskmanager.routing.RemoteReceiver;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
 
 /**
  * This class represents an outgoing TCP connection through which {@link TransferEnvelope} objects can be sent.
- * {@link TransferEnvelope} objects are received from the {@link DefaultRoutingLayer} and added to a queue. An
+ * {@link TransferEnvelope} objects are received from the {@link DefaultRoutingService} and added to a queue. An
  * additional network thread then takes the envelopes from the queue and transmits them to the respective destination
  * host.
  * 
@@ -128,7 +128,7 @@ final class OutgoingConnection {
 	 * Adds a new {@link TransferEnvelope} to the queue of envelopes to be transmitted to the destination host of this
 	 * connection.
 	 * <p>
-	 * This method should only be called by the {@link DefaultRoutingLayer} object.
+	 * This method should only be called by the {@link DefaultRoutingService} object.
 	 * 
 	 * @param transferEnvelope
 	 *        the envelope to be added to the transfer queue
@@ -463,7 +463,7 @@ final class OutgoingConnection {
 
 	/**
 	 * Checks whether this outgoing connection object manages an active connection or can be removed by the
-	 * {@link DefaultRoutingLayer} object.
+	 * {@link DefaultRoutingService} object.
 	 * <p>
 	 * This method should only be called by the byte buffered channel manager.
 	 * 

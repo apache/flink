@@ -27,7 +27,7 @@ import eu.stratosphere.nephele.io.channels.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 /**
@@ -46,15 +46,15 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 
 	private Queue<TransferEnvelope> queuedOutgoingEnvelopes = new LinkedList<TransferEnvelope>();
 
-	private RoutingLayer routingLayer;
+	private RoutingService routingService;
 
 	private TransferEnvelope outgoingTransferEnvelope;
 
 	public MockOutputChannelBroker(AbstractOutputChannel<?> byteBufferedOutputChannel,
-			LocalBufferPool transitBufferPool, RoutingLayer routingLayer) {
+			LocalBufferPool transitBufferPool, RoutingService routingService) {
 		this.outputChannel = byteBufferedOutputChannel;
 		this.transitBufferPool = transitBufferPool;
-		this.routingLayer = routingLayer;
+		this.routingService = routingService;
 	}
 
 	/*
@@ -91,7 +91,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 		this.outgoingTransferEnvelope.setBuffer(buffer);
 
 		if (this.queuedOutgoingEnvelopes.isEmpty())
-			this.routingLayer.routeEnvelopeFromOutputChannel(this.outgoingTransferEnvelope);
+			this.routingService.routeEnvelopeFromOutputChannel(this.outgoingTransferEnvelope);
 		else {
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
 			this.flushQueuedOutgoingEnvelopes();
@@ -113,7 +113,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 
 	protected void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
 		while (!this.queuedOutgoingEnvelopes.isEmpty())
-			this.routingLayer.routeEnvelopeFromOutputChannel(this.queuedOutgoingEnvelopes.poll());
+			this.routingService.routeEnvelopeFromOutputChannel(this.queuedOutgoingEnvelopes.poll());
 	}
 
 	/*
@@ -151,7 +151,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 			ephemeralTransferEnvelope.addEvent(event);
 
 			if (this.queuedOutgoingEnvelopes.isEmpty())
-				this.routingLayer.routeEnvelopeFromOutputChannel(ephemeralTransferEnvelope);
+				this.routingService.routeEnvelopeFromOutputChannel(ephemeralTransferEnvelope);
 			else {
 				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
 				this.flushQueuedOutgoingEnvelopes();

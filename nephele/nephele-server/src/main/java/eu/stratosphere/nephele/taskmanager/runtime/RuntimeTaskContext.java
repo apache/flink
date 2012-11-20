@@ -35,7 +35,7 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.routing.InputGateContext;
 import eu.stratosphere.nephele.taskmanager.routing.OutputGateContext;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
 import eu.stratosphere.nephele.types.Record;
 
@@ -49,7 +49,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private final int numberOfOutputChannels;
 
-	private final RoutingLayer routingLayer;
+	private final RoutingService routingService;
 
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
@@ -57,7 +57,8 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private CompressionBufferProvider compressionBufferProvider = null;
 
-	RuntimeTaskContext(final RuntimeTask task, final CheckpointState initialCheckpointState, final RoutingLayer routingLayer) {
+	RuntimeTaskContext(final RuntimeTask task, final CheckpointState initialCheckpointState,
+			final RoutingService routingService) {
 
 		this.localBufferPool = new LocalBufferPool(1, false, this);
 		this.task = task;
@@ -84,13 +85,13 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			this.task.registerCheckpointDecisionRequester(this.ephemeralCheckpoint);
 		}
 
-		this.routingLayer = routingLayer;
+		this.routingService = routingService;
 		this.envelopeConsumptionLog = new EnvelopeConsumptionLog(task.getVertexID(), environment);
 	}
 
-	RoutingLayer getRoutingLayer() {
+	RoutingService getRoutingService() {
 
-		return this.routingLayer;
+		return this.routingService;
 	}
 
 	EphemeralCheckpoint getEphemeralCheckpoint() {
@@ -298,7 +299,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			throw new IllegalStateException("Cannot find input gate with ID " + gateID);
 		}
 
-		return new RuntimeInputGateContext(re.getTaskNameWithIndex(), this.routingLayer, inputGate,
+		return new RuntimeInputGateContext(re.getTaskNameWithIndex(), this.routingService, inputGate,
 			this.envelopeConsumptionLog);
 	}
 

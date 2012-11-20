@@ -31,7 +31,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
-import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.DefaultRoutingService;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.NoBufferAvailableException;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -39,7 +39,7 @@ final class IncomingConnectionThread extends Thread {
 
 	private static final Log LOG = LogFactory.getLog(IncomingConnectionThread.class);
 
-	private final DefaultRoutingLayer routingLayer;
+	private final DefaultRoutingService routingService;
 
 	private final Selector selector;
 
@@ -72,12 +72,12 @@ final class IncomingConnectionThread extends Thread {
 		}
 	}
 
-	IncomingConnectionThread(final DefaultRoutingLayer routingLayer, final boolean isListeningThread,
+	IncomingConnectionThread(final DefaultRoutingService routingService, final boolean isListeningThread,
 			final InetSocketAddress listeningAddress) throws IOException {
 		super("Incoming Connection Thread");
 
 		this.selector = Selector.open();
-		this.routingLayer = routingLayer;
+		this.routingService = routingService;
 
 		if (isListeningThread) {
 			this.listeningSocket = ServerSocketChannel.open();
@@ -169,7 +169,7 @@ final class IncomingConnectionThread extends Thread {
 			return;
 		}
 
-		final IncomingConnection incomingConnection = new IncomingConnection(this.routingLayer, clientSocket);
+		final IncomingConnection incomingConnection = new IncomingConnection(this.routingService, clientSocket);
 		SelectionKey clientKey = null;
 		try {
 			clientSocket.configureBlocking(false);

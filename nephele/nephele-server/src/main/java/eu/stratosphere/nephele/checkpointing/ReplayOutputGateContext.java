@@ -48,7 +48,7 @@ final class ReplayOutputGateContext extends AbstractReplayGateContext implements
 
 		// Construct new forwarding chain for the replay output channel context
 		final RuntimeDispatcher runtimeDispatcher = new RuntimeDispatcher(
-			this.taskContext.getRoutingLayer());
+			this.taskContext.getRoutingService());
 		/*
 		 * final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
 		 * runtimeDispatcher);

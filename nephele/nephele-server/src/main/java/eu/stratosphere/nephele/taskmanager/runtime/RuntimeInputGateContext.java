@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.nephele.taskmanager.routing.InputChannelContext;
 import eu.stratosphere.nephele.taskmanager.routing.InputGateContext;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.types.Record;
 
 final class RuntimeInputGateContext implements BufferProvider, InputGateContext, LocalBufferPoolOwner {
@@ -43,7 +43,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private final LocalBufferPool localBufferPool;
 
-	private final RoutingLayer routingLayer;
+	private final RoutingService routingService;
 
 	private final RuntimeInputGate<? extends Record> inputGate;
 
@@ -53,13 +53,13 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private Decompressor decompressor = null;
 
-	RuntimeInputGateContext(final String taskName, final RoutingLayer routingLayer,
+	RuntimeInputGateContext(final String taskName, final RoutingService routingService,
 			final RuntimeInputGate<? extends Record> inputGate, final EnvelopeConsumptionLog envelopeConsumptionLog) {
 
 		this.taskName = taskName;
 		this.localBufferPool = new LocalBufferPool(1, false);
 
-		this.routingLayer = routingLayer;
+		this.routingService = routingService;
 		this.inputGate = inputGate;
 		this.envelopeConsumptionLog = envelopeConsumptionLog;
 
@@ -194,7 +194,7 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 				+ " is not of type AbstractByteBufferedInputChannel");
 		}
 
-		return new RuntimeInputChannelContext(this, this.routingLayer,
+		return new RuntimeInputChannelContext(this, this.routingService,
 			(AbstractInputChannel<? extends Record>) channel, this.envelopeConsumptionLog);
 	}
 

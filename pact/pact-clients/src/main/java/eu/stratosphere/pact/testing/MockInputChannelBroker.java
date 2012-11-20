@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Decompressor;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 /**
@@ -36,7 +36,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 
 	private final AbstractInputChannel<?> inputChannel;
 
-	private RoutingLayer routingLayer;
+	private RoutingService routingService;
 
 	private Queue<TransferEnvelope> queuedEnvelopes = new LinkedList<TransferEnvelope>();
 
@@ -46,9 +46,9 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	 * @param inputChannel
 	 * @param transitBufferPool
 	 */
-	public MockInputChannelBroker(AbstractInputChannel<?> inputChannel, RoutingLayer routingLayer) {
+	public MockInputChannelBroker(AbstractInputChannel<?> inputChannel, RoutingService routingService) {
 		this.inputChannel = inputChannel;
-		this.routingLayer = routingLayer;
+		this.routingService = routingService;
 	}
 
 	/*
@@ -134,7 +134,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, this.inputChannel.getJobID(),
 			this.inputChannel.getID());
 		ephemeralTransferEnvelope.addEvent(event);
-		this.routingLayer.routeEnvelopeFromInputChannel(ephemeralTransferEnvelope);
+		this.routingService.routeEnvelopeFromInputChannel(ephemeralTransferEnvelope);
 	}
 
 	/*

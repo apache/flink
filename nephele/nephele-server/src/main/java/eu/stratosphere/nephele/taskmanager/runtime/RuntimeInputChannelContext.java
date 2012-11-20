@@ -37,7 +37,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.routing.InputChannelContext;
 import eu.stratosphere.nephele.taskmanager.routing.ReceiverNotFoundEvent;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.routing.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 import eu.stratosphere.nephele.util.StringUtils;
@@ -50,7 +50,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private final AbstractInputChannel<?> inputChannel;
 
-	private final RoutingLayer routingLayer;
+	private final RoutingService routingService;
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
@@ -62,11 +62,11 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private boolean destroyCalled = false;
 
-	RuntimeInputChannelContext(final RuntimeInputGateContext inputGateContext, final RoutingLayer routingLayer,
+	RuntimeInputChannelContext(final RuntimeInputGateContext inputGateContext, final RoutingService routingService,
 			final AbstractInputChannel<?> inputChannel, final EnvelopeConsumptionLog envelopeConsumptionLog) {
 
 		this.inputGateContext = inputGateContext;
-		this.routingLayer = routingLayer;
+		this.routingService = routingService;
 		this.inputChannel = inputChannel;
 		this.inputChannel.setInputChannelBroker(this);
 		this.envelopeConsumptionLog = envelopeConsumptionLog;
@@ -168,7 +168,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, getJobID(), getChannelID());
 
 		ephemeralTransferEnvelope.addEvent(event);
-		this.routingLayer.routeEnvelopeFromInputChannel(ephemeralTransferEnvelope);
+		this.routingService.routeEnvelopeFromInputChannel(ephemeralTransferEnvelope);
 	}
 
 	/**

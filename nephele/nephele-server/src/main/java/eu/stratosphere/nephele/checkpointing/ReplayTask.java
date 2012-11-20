@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.routing.RoutingLayer;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -381,10 +381,10 @@ public final class ReplayTask implements Task {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public TaskContext createTaskContext(final RoutingLayer routingLayer,
+	public TaskContext createTaskContext(final RoutingService routingService,
 			final LocalBufferPoolOwner previousBufferPoolOwner) {
 
-		return new ReplayTaskContext(this, routingLayer, previousBufferPoolOwner, this.environment
+		return new ReplayTaskContext(this, routingService, previousBufferPoolOwner, this.environment
 			.getOutputChannelIDs().size());
 	}
 
