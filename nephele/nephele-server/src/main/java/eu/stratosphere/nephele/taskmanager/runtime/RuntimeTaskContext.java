@@ -229,7 +229,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getNumberOfChannels() {
+	public int getMinimumNumberOfRequiredBuffers() {
 
 		return this.numberOfOutputChannels;
 	}

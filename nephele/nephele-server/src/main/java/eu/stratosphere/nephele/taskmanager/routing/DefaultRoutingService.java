@@ -714,7 +714,8 @@ public final class DefaultRoutingService implements RoutingService, BufferProvid
 		final Iterator<LocalBufferPoolOwner> it = this.localBufferPoolOwner.values().iterator();
 		while (it.hasNext()) {
 			final LocalBufferPoolOwner lbpo = it.next();
-			lbpo.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel * lbpo.getNumberOfChannels()));
+			lbpo.setDesignatedNumberOfBuffers((int) Math.ceil(buffersPerChannel
+				* lbpo.getMinimumNumberOfRequiredBuffers()));
 		}
 
 		if (this.multicastEnabled) {

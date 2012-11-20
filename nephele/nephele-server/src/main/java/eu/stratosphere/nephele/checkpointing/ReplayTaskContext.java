@@ -140,7 +140,7 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getNumberOfChannels() {
+	public int getMinimumNumberOfRequiredBuffers() {
 
 		return this.numberOfChannels;
 	}

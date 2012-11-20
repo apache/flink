@@ -121,8 +121,11 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		this.localBufferPool.reportAsynchronousEvent();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int getNumberOfChannels() {
+	public int getMinimumNumberOfRequiredBuffers() {
 
 		return this.inputGate.getNumberOfInputChannels();
 	}

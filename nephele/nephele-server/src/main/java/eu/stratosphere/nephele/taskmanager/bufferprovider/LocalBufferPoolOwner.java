@@ -24,11 +24,11 @@ package eu.stratosphere.nephele.taskmanager.bufferprovider;
 public interface LocalBufferPoolOwner {
 
 	/**
-	 * Returns the number of byte-buffered channels that will retrieve their buffers from the local buffer pool.
+	 * Returns the minimum number of buffers required by this local buffer pool owner.
 	 * 
-	 * @return the number of byte-buffered channels that will retrieve their buffers from the local buffer pool
+	 * @return the minimum number of buffers required by this local buffer pool owner
 	 */
-	int getNumberOfChannels();
+	int getMinimumNumberOfRequiredBuffers();
 
 	/**
 	 * Sets the designated number of buffers the local buffer pool owner is allowed to fetch from the global buffer pool
