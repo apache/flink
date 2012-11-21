@@ -355,7 +355,7 @@
     <repository>
       <id>stratosphere.eu</id>
       <name>Stratosphere Repository</name>
-      <url>scp://stratosphere.eu/var/projects/stratosphere/maven2</url>
+      <url>scp://dev.stratosphere.eu/var/projects/stratosphere/maven2</url>
     </repository>
   </distributionManagement>
   <profiles>
