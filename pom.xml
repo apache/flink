@@ -355,7 +355,7 @@
     <repository>
       <id>stratosphere.eu</id>
       <name>Stratosphere Repository</name>
-      <url>scp://stratosphere.eu/var/projects/stratosphere/maven2</url>
+      <url>scp://dev.stratosphere.eu/var/projects/stratosphere/maven2</url>
     </repository>
   </distributionManagement>
   <profiles>
@@ -418,15 +418,15 @@
     </profile>
     <profile>
       <id>nightly</id>
-      <activation>
+      <!--<activation>
         <property>
           <name>BUILD_NUMBER</name>
         </property>
-      </activation>
+      </activation>-->
       <build>
-        <finalName>${artifactId}-${version}-nightly-${BUILD_NUMBER}</finalName>
+        <!--<finalName>${artifactId}-${version}-nightly-${BUILD_NUMBER}</finalName>-->
         <plugins>
-          <plugin>
+          <!--<plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-install-plugin</artifactId>
             <version>2.4</version>
@@ -441,7 +441,18 @@
                 </configuration>
               </execution>
             </executions>
-          </plugin>
+          </plugin>-->
+	  <plugin> 
+           <artifactId>maven-deploy-plugin</artifactId> 
+           <version>2.5</version> 
+           <dependencies> 
+             <dependency> 
+               <groupId>org.apache.maven.wagon</groupId> 
+               <artifactId>wagon-ssh</artifactId> 
+               <version>1.0-beta-7</version> 
+             </dependency> 
+           </dependencies> 
+         </plugin> 	
         </plugins>
       </build>
     </profile>
