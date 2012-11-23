@@ -18,11 +18,13 @@ package eu.stratosphere.nephele.rpc;
 import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.TooManyListenersException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -139,6 +141,59 @@ public class RPCServiceTest implements RPCTestProtocol {
 		}
 	}
 
+	@Test
+	public void testRegisteredThrowable() {
+
+		RPCService rpcService = null;
+		try {
+			rpcService = new RPCService(RPC_TEST_PORT, NUMBER_OF_RPC_HANDLERS, getTypesToRegister());
+			rpcService.setProtocolCallbackHandler(RPCTestProtocol.class, this);
+
+			final RPCTestProtocol proxy = rpcService.getProxy(new InetSocketAddress("localhost", RPC_TEST_PORT),
+				RPCTestProtocol.class);
+
+			proxy.methodWithRegisteredThrowable();
+
+		} catch (IOException e) {
+			return;
+		} catch (Exception e) {
+			fail(StringUtils.stringifyException(e));
+		} finally {
+			if (rpcService != null) {
+				rpcService.shutDown();
+			}
+		}
+
+		fail("Expected IOException has not been caught");
+	}
+
+	@Test
+	public void testUnregisteredThrowable() {
+
+		RPCService rpcService = null;
+		try {
+			rpcService = new RPCService(RPC_TEST_PORT, NUMBER_OF_RPC_HANDLERS, getTypesToRegister());
+			rpcService.setProtocolCallbackHandler(RPCTestProtocol.class, this);
+
+			final RPCTestProtocol proxy = rpcService.getProxy(new InetSocketAddress("localhost", RPC_TEST_PORT),
+				RPCTestProtocol.class);
+
+			proxy.methodWithUnregisteredThrowable();
+
+		} catch (IOException e) {
+			return;
+		} catch (Exception e) {
+			fail(StringUtils.stringifyException(e));
+		} finally {
+			if (rpcService != null) {
+				rpcService.shutDown();
+			}
+		}
+
+		fail("Expected TooManyListenersException has not been caught");
+
+	}
+
 	private static String constructTestString(final int index) {
 
 		final StringBuilder sb = new StringBuilder();
@@ -149,6 +204,9 @@ public class RPCServiceTest implements RPCTestProtocol {
 		return sb.toString();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public int testMethod(final boolean par1, final int par2, final List<String> par3) {
 
@@ -165,5 +223,23 @@ public class RPCServiceTest implements RPCTestProtocol {
 		}
 
 		return par2;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void methodWithRegisteredThrowable() throws IOException, InterruptedException {
+
+		throw new IOException("This is an expected IOException");
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void methodWithUnregisteredThrowable() throws IOException, InterruptedException, TooManyListenersException {
+
+		throw new TooManyListenersException("This is an expected TooManyListenersException");
 	}
 }

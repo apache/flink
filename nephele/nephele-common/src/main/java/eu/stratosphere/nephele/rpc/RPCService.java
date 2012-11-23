@@ -130,6 +130,7 @@ public final class RPCService {
 				kryo.setAutoReset(false);
 				kryo.setRegistrationRequired(true);
 				kryo.setReferences(true);
+				kryo.addDefaultSerializer(StackTraceElement.class, new StackTraceElementSerializer());
 
 				for (final Class<?> kryoType : kryoTypesToRegister) {
 					kryo.register(kryoType);
@@ -386,6 +387,8 @@ public final class RPCService {
 		typesToRegister.add(Class.class);
 		typesToRegister.add(Class[].class);
 		typesToRegister.add(IllegalArgumentException.class);
+		typesToRegister.add(InterruptedException.class);
+		typesToRegister.add(IOException.class);
 		typesToRegister.add(KryoException.class);
 		typesToRegister.add(List.class);
 		typesToRegister.add(Object[].class);
@@ -394,6 +397,7 @@ public final class RPCService {
 		typesToRegister.add(RPCReturnValue.class);
 		typesToRegister.add(RPCCleanup.class);
 		typesToRegister.add(RPCThrowable.class);
+		typesToRegister.add(StackTraceElement.class);
 		typesToRegister.add(StackTraceElement[].class);
 		typesToRegister.add(String[].class);
 		typesToRegister.add(StringBuffer.class);
@@ -683,7 +687,17 @@ public final class RPCService {
 				final Object retVal = method.invoke(callbackHandler, rpcRequest.getArgs());
 				rpcResponse = new RPCReturnValue(rpcRequest.getMessageID(), retVal);
 			} catch (InvocationTargetException ite) {
-				rpcResponse = new RPCThrowable(rpcRequest.getMessageID(), ite.getTargetException());
+
+				Throwable targetException = ite.getTargetException();
+
+				// Make sure the stack trace is correctly filled
+				targetException.getStackTrace();
+
+				if (!isThrowableRegistered(targetException.getClass())) {
+					targetException = wrapInIOException(rpcRequest, targetException);
+				}
+
+				rpcResponse = new RPCThrowable(rpcRequest.getMessageID(), targetException);
 			}
 			final DatagramPacket[] packets = messageToPackets(remoteSocketAddress, rpcResponse);
 			cachedResponses.put(messageID, new CachedResponse(System.currentTimeMillis(), packets));
@@ -695,7 +709,46 @@ public final class RPCService {
 		} finally {
 			this.requestsBeingProcessed.remove(messageID);
 		}
+	}
 
+	/**
+	 * Checks if the given class is registered with the RPC service.
+	 * 
+	 * @param throwableType
+	 *        the class to check
+	 * @return <code>true</code> if the given class is registered with the RPC service, <code>false</code> otherwise
+	 */
+	private boolean isThrowableRegistered(final Class<? extends Throwable> throwableType) {
+
+		final Kryo kryo = this.kryo.get();
+		try {
+			kryo.getRegistration(throwableType);
+		} catch (IllegalArgumentException e) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Transforms the given {@link Throwable} into a string and wraps it into an {@link IOException}.
+	 * 
+	 * @param request
+	 *        the RPC request which caused the {@link Throwable} to be wrapped
+	 * @param throwable
+	 *        the {@link Throwable} to be wrapped
+	 * @return the {@link} IOException created from the {@link Throwable}
+	 */
+	private static IOException wrapInIOException(final RPCRequest request, final Throwable throwable) {
+
+		final StringBuilder sb = new StringBuilder("The remote procedure call of method ");
+		sb.append(request.getInterfaceName());
+		sb.append('.');
+		sb.append(request.getMethodName());
+		sb.append(" caused an unregistered exception: ");
+		sb.append(StringUtils.stringifyException(throwable));
+
+		return new IOException(sb.toString());
 	}
 
 	private DatagramPacket[] messageToPackets(final InetSocketAddress remoteSocketAddress, final RPCMessage rpcMessage) {

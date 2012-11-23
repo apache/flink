@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.rpc;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.TooManyListenersException;
 
 /**
  * This interface represents a test protocol used as part of the RPC unit tests.
@@ -26,4 +27,8 @@ import java.util.List;
 public interface RPCTestProtocol extends RPCProtocol {
 
 	int testMethod(boolean par1, int par2, List<String> par3) throws IOException, InterruptedException;
+
+	void methodWithRegisteredThrowable() throws IOException, InterruptedException;
+
+	void methodWithUnregisteredThrowable() throws IOException, InterruptedException, TooManyListenersException;
 }
