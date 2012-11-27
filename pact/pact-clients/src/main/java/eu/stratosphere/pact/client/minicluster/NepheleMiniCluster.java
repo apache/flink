@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.util.minicluster;
+package eu.stratosphere.pact.client.minicluster;
 
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -42,7 +42,6 @@ import eu.stratosphere.nephele.jobmanager.scheduler.local.LocalScheduler;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.rpc.ManagementTypeUtils;
 import eu.stratosphere.nephele.rpc.RPCService;
-import eu.stratosphere.pact.test.util.FileWriter;
 
 /**
  * @author Erik Nijkamp

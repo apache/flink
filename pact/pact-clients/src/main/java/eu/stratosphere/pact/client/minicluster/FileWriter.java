@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.test.util;
+package eu.stratosphere.pact.client.minicluster;
 
 import java.io.File;
 import java.io.PrintWriter;
