@@ -45,9 +45,7 @@ public interface DataDistribution
 	 */
 	public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets); 
 	
-	@Deprecated
 	public void write(DataOutput out) throws IOException;
 
-	@Deprecated
 	public void read(DataInput in) throws IOException;
 }

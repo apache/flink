@@ -702,6 +702,20 @@ public class TaskConfig
 		public void setFloat(String key, float value) {
 			this.backingConfig.setFloat(this.prefix + key, value);
 		}
+		
+		
+
+		@Override
+		@Deprecated
+		public byte[] getBytes(String key, byte[] defaultValue) {
+			return this.backingConfig.getBytes(this.prefix + key, defaultValue);
+		}
+
+		@Override
+		@Deprecated
+		public void setBytes(String key, byte[] bytes) {
+			this.backingConfig.setBytes(this.prefix + key, bytes);
+		}
 
 		@Override
 		public Set<String> keySet()
@@ -715,6 +729,13 @@ public class TaskConfig
 				}
 			}
 			return set;
+		}
+		
+		@Override
+		public void addAll(Configuration other, String prefix) {
+			for (String s : other.keySet()) {
+				this.backingConfig.setString(this.prefix + s, other.getString(s, null));
+			}
 		}
 		
 		// --------------------------------------------------------------------------------------------
