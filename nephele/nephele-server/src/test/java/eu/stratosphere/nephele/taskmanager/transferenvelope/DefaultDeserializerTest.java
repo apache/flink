@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,18 +18,23 @@ package eu.stratosphere.nephele.taskmanager.transferenvelope;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayDeque;
+import java.util.List;
 import java.util.Queue;
 
 import org.junit.Test;
 
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
+import eu.stratosphere.nephele.io.channels.ChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
@@ -59,12 +64,12 @@ public class DefaultDeserializerTest {
 	/**
 	 * The job ID to be used during the tests.
 	 */
-	private static final JobID JOB_ID = new JobID();
+	private static final JobID JOB_ID = JobID.generate();
 
 	/**
 	 * The channel ID to be used during the tests.
 	 */
-	private static final ChannelID CHANNEL_ID = new ChannelID();
+	private static final ChannelID CHANNEL_ID = ChannelID.generate();
 
 	/**
 	 * A dummy implementation of a {@link BufferProvider} which is used in this test.
@@ -182,6 +187,69 @@ public class DefaultDeserializerTest {
 	}
 
 	/**
+	 * Calculates the sequence buffer size for the given index in bytes.
+	 * 
+	 * @return the sequence buffer size for the given index in bytes
+	 */
+	private static int getSequenceBufferSize(final int index) {
+
+		return index * 100 + 1;
+	}
+
+	/**
+	 * Creates an {@link InterruptibleByteChannel} containing ten transfer envelopes. The channels is programmed to
+	 * interrupt as often as possible, i.e. every write/read operating will at most process one byte. Seven of the ten
+	 * envelopes contain buffers of increasing size, the other envelopes contain events.
+	 * 
+	 * @return the interruptible byte channel
+	 * @throws IOException
+	 *         thrown if an error occurs while serializing the envelopes to the channel
+	 */
+	private ReadableByteChannel createSequenceByteChannel() throws IOException {
+
+		int[] interruptions = new int[1024];
+		for (int i = 0; i < interruptions.length; ++i) {
+			interruptions[i] = i;
+		}
+
+		final DefaultSerializer ds = new DefaultSerializer();
+		final InterruptibleByteChannel ibc = new InterruptibleByteChannel(interruptions, interruptions);
+
+		int nextByte = 0;
+
+		for (int i = 0; i < 10; ++i) {
+
+			final TransferEnvelope te = new TransferEnvelope(SEQUENCE_NUMBER, JOB_ID, CHANNEL_ID);
+			if (i == 1 | i == 2 || i == 9) {
+				te.addEvent(new ChannelCloseEvent());
+			} else {
+				final int bufferSize = getSequenceBufferSize(i);
+				final Queue<ByteBuffer> bufferPool = new ArrayDeque<ByteBuffer>();
+				final ByteBuffer bb = ByteBuffer.allocate(bufferSize);
+				final Buffer buffer = BufferFactory.createFromMemory(bb.capacity(), bb, new BufferPoolConnector(
+					bufferPool));
+
+				final ByteBuffer srcBuffer = ByteBuffer.allocate(bufferSize);
+				while (srcBuffer.hasRemaining()) {
+					srcBuffer.put((byte) (nextByte++ % 100));
+				}
+				srcBuffer.flip();
+				buffer.write(srcBuffer);
+				buffer.finishWritePhase();
+				te.setBuffer(buffer);
+			}
+
+			ds.setTransferEnvelope(te);
+			while (ds.write(ibc))
+				;
+		}
+
+		ibc.switchToReadPhase();
+
+		return ibc;
+	}
+
+	/**
 	 * Constructs an {@link InterruptibleByteChannel} from which the deserializer to be tested can read its data.
 	 * 
 	 * @param readInterruptPositions
@@ -263,6 +331,56 @@ public class DefaultDeserializerTest {
 		assertEquals(CHANNEL_ID, te.getSource());
 
 		return te;
+	}
+
+	/**
+	 * Tests the deserialization of a sequence of ten transfer envelopes. The used {@link InterruptibleByteChannel} is
+	 * programmed to interrupt the deserialization process as often as possible.
+	 */
+	@Test
+	public void testDeserializationOfEnvelopeSequence() {
+
+		int numberOfEnvelopes = 0;
+
+		try {
+
+			final ReadableByteChannel rbc = createSequenceByteChannel();
+			final TestBufferProviderBroker tbpb = new TestBufferProviderBroker(new TestBufferProvider(7));
+			int nextByte = 0;
+
+			while (true) {
+
+				final TransferEnvelope te = executeDeserialization(rbc, tbpb);
+				final Buffer buffer = te.getBuffer();
+				if (buffer != null) {
+					final ByteBuffer bb = ByteBuffer.allocate(getSequenceBufferSize(numberOfEnvelopes));
+					assertEquals(bb.remaining(), buffer.remaining());
+					buffer.read(bb);
+					bb.flip();
+					while (bb.hasRemaining()) {
+						final byte b = bb.get();
+						assertEquals((nextByte++ % 100), b);
+					}
+				} else {
+					final List<AbstractEvent> eventList = te.getEventList();
+					assertEquals(1, eventList.size());
+					final AbstractEvent event = eventList.get(0);
+					assertTrue(event instanceof ChannelCloseEvent);
+				}
+
+				++numberOfEnvelopes;
+
+			}
+
+		} catch (EOFException eof) {
+			if (numberOfEnvelopes != 10) {
+				fail(StringUtils.stringifyException(eof));
+			}
+		} catch (IOException ioe) {
+			fail(StringUtils.stringifyException(ioe));
+		} catch (NoBufferAvailableException nbae) {
+			fail(StringUtils.stringifyException(nbae));
+		}
 	}
 
 	/**

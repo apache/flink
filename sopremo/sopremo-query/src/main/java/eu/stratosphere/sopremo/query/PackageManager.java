@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -31,7 +31,7 @@ import eu.stratosphere.sopremo.packages.IFunctionRegistry;
 public class PackageManager implements ParsingScope {
 	private Map<String, PackageInfo> packages = new HashMap<String, PackageInfo>();
 
-	private String defaultJarPath;
+	private String defaultJarPath = ".";
 
 	public final static IOperatorRegistry IORegistry = new DefaultOperatorRegistry();
 
@@ -128,6 +128,27 @@ public class PackageManager implements ParsingScope {
 		throw new IllegalArgumentException(String.format("no package %s found", packageName));
 	}
 
+	/**
+	 * Sets the defaultJarPath to the specified value.
+	 *
+	 * @param defaultJarPath the defaultJarPath to set
+	 */
+	public void setDefaultJarPath(String defaultJarPath) {
+		if (defaultJarPath == null)
+			throw new NullPointerException("defaultJarPath must not be null");
+
+		this.defaultJarPath = defaultJarPath;
+	}
+	
+	/**
+	 * Returns the defaultJarPath.
+	 * 
+	 * @return the defaultJarPath
+	 */
+	public String getDefaultJarPath() {
+		return this.defaultJarPath;
+	}
+	
 	public void importPackage(String packageName) {
 		this.importPackage(this.getPackageInfo(packageName));
 	}

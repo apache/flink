@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -26,7 +26,7 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.net.InetAddress;
+import java.net.Inet4Address;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -47,11 +47,7 @@ import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingDat
 @PrepareForTest(InstanceProfiler.class)
 public class InstanceProfilerTest {
 
-	@Mock
-	private InstanceConnectionInfo infoMock;
-
-	@Mock
-	private InetAddress addressMock;
+	private InstanceConnectionInfo ici;
 
 	@Mock
 	private BufferedReader cpuBufferMock;
@@ -76,9 +72,10 @@ public class InstanceProfilerTest {
 
 	@Before
 	public void setUp() throws Exception {
+
+		this.ici = new InstanceConnectionInfo(Inet4Address.getByName("localhost"), 1234, 1235);
+
 		initMocks(this);
-		when(this.infoMock.getAddress()).thenReturn(this.addressMock);
-		when(this.addressMock.getHostAddress()).thenReturn("192.168.1.1");
 
 		whenNew(FileReader.class).withArguments(InstanceProfiler.PROC_STAT).thenReturn(this.cpuReaderMock);
 		whenNew(BufferedReader.class).withArguments(this.cpuReaderMock).thenReturn(this.cpuBufferMock);
@@ -124,7 +121,7 @@ public class InstanceProfilerTest {
 		PowerMockito.mockStatic(System.class);
 		when(System.currentTimeMillis()).thenReturn(0L);
 
-		this.out = new InstanceProfiler(this.infoMock);
+		this.out = new InstanceProfiler(this.ici);
 	}
 
 	@Test

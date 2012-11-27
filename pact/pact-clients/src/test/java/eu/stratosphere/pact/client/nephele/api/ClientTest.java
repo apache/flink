@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -87,7 +87,7 @@ public class ClientTest {
 	{
 		initMocks(this);
 		
-		when(configMock.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)).thenReturn("localhost");
+		when(configMock.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_ADDRESS)).thenReturn("localhost");
 		when(configMock.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)).thenReturn(6123);
 		
 		when(planMock.getJobName()).thenReturn("MockPlan");
@@ -108,7 +108,7 @@ public class ClientTest {
 	}
 	
 	@Test
-	public void shouldSubmitToJobClient() throws ProgramInvocationException, ErrorInPlanAssemblerException, IOException
+	public void shouldSubmitToJobClient() throws ProgramInvocationException, ErrorInPlanAssemblerException, IOException, InterruptedException
 	{
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.SUCCESS);
 		

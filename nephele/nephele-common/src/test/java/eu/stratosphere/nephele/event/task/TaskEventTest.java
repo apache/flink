@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,10 +17,10 @@ package eu.stratosphere.nephele.event.task;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -40,17 +40,13 @@ public class TaskEventTest {
 	@Test
 	public void testIntegerTaskEvent() {
 
-		try {
-			final IntegerTaskEvent orig = new IntegerTaskEvent(11);
-			final IntegerTaskEvent copy = (IntegerTaskEvent) CommonTestUtils.createCopy(orig);
+		final IntegerTaskEvent orig = new IntegerTaskEvent(11);
+		final IntegerTaskEvent copy = (IntegerTaskEvent) CommonTestUtils.createCopy(orig);
 
-			assertEquals(orig.getInteger(), copy.getInteger());
-			assertEquals(orig.hashCode(), copy.hashCode());
-			assertTrue(orig.equals(copy));
+		assertEquals(orig.getInteger(), copy.getInteger());
+		assertEquals(orig.hashCode(), copy.hashCode());
+		assertTrue(orig.equals(copy));
 
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
 	}
 
 	/**
@@ -59,18 +55,13 @@ public class TaskEventTest {
 	@Test
 	public void testStringTaskEvent() {
 
-		try {
+		final StringTaskEvent orig = new StringTaskEvent("Test");
+		final StringTaskEvent copy = (StringTaskEvent) CommonTestUtils.createCopy(orig);
 
-			final StringTaskEvent orig = new StringTaskEvent("Test");
-			final StringTaskEvent copy = (StringTaskEvent) CommonTestUtils.createCopy(orig);
+		assertEquals(orig.getString(), copy.getString());
+		assertEquals(orig.hashCode(), copy.hashCode());
+		assertTrue(orig.equals(copy));
 
-			assertEquals(orig.getString(), copy.getString());
-			assertEquals(orig.hashCode(), copy.hashCode());
-			assertTrue(orig.equals(copy));
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		}
 	}
 
 	/**
@@ -79,22 +70,16 @@ public class TaskEventTest {
 	@Test
 	public void testEventList() {
 
-		try {
+		final List<AbstractEvent> orig = new ArrayList<AbstractEvent>();
+		orig.add(new StringTaskEvent("Test 2"));
+		orig.add(new IntegerTaskEvent(70));
+		final List<AbstractEvent> copy = (List<AbstractEvent>) CommonTestUtils.createCopy(orig);
 
-			final EventList orig = new EventList();
-			orig.add(new StringTaskEvent("Test 2"));
-			orig.add(new IntegerTaskEvent(70));
-			final EventList copy = (EventList) CommonTestUtils.createCopy(orig);
-
-			assertEquals(orig.size(), copy.size());
-			final Iterator<AbstractEvent> origIt = orig.iterator();
-			final Iterator<AbstractEvent> copyIt = copy.iterator();
-			while (origIt.hasNext()) {
-				assertEquals(origIt.next(), copyIt.next());
-			}
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
+		assertEquals(orig.size(), copy.size());
+		final Iterator<AbstractEvent> origIt = orig.iterator();
+		final Iterator<AbstractEvent> copyIt = copy.iterator();
+		while (origIt.hasNext()) {
+			assertEquals(origIt.next(), copyIt.next());
 		}
 	}
 }

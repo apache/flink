@@ -100,25 +100,6 @@ public class LazyHeadArrayNode extends AbstractArrayNode {
 	}
 
 	@Override
-	public int compareToSameType(final IJsonNode other) {
-		final LazyHeadArrayNode node = (LazyHeadArrayNode) other;
-		final Iterator<IJsonNode> entries1 = this.iterator(), entries2 = node.iterator();
-
-		while (entries1.hasNext() && entries2.hasNext()) {
-			final IJsonNode entry1 = entries1.next(), entry2 = entries2.next();
-			final int comparison = entry1.compareTo(entry2);
-			if (comparison != 0)
-				return comparison;
-		}
-
-		if (!entries1.hasNext())
-			return entries2.hasNext() ? -1 : 0;
-		if (!entries2.hasNext())
-			return 1;
-		return 0;
-	}
-
-	@Override
 	public IJsonNode get(final int index) {
 		if (index < 0 || index >= this.size())
 			return MissingNode.getInstance();
@@ -243,7 +224,7 @@ public class LazyHeadArrayNode extends AbstractArrayNode {
 	}
 
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
+	public void toString(final StringBuilder sb) {
 		sb.append('[');
 
 		int count = 0;
@@ -256,7 +237,6 @@ public class LazyHeadArrayNode extends AbstractArrayNode {
 		}
 
 		sb.append(']');
-		return sb;
 	}
 
 	@Override

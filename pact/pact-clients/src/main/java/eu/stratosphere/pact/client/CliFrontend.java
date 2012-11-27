@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -41,11 +41,11 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import eu.stratosphere.nephele.rpc.ManagementTypeUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.pact.client.nephele.api.Client;
 import eu.stratosphere.pact.client.nephele.api.ErrorInPlanAssemblerException;
@@ -439,10 +439,11 @@ public class CliFrontend {
 			System.exit(1);
 		}
 		
-		ExtendedManagementProtocol jmConn = null;
+		RPCService rpcService = null;
 		try {
 			
-			jmConn = getJMConnection();
+			rpcService = new RPCService(ManagementTypeUtils.getRPCTypesToRegister());
+			ExtendedManagementProtocol jmConn = getJMConnection(rpcService);
 			List<RecentJobEvent> recentJobs = jmConn.getRecentJobs();
 			
 			ArrayList<RecentJobEvent> runningJobs = null;
@@ -503,14 +504,10 @@ public class CliFrontend {
 		} catch (Throwable t) {
 			handleError(t);
 		} finally {
-			if (jmConn != null) {
-				try {
-					RPC.stopProxy(jmConn);
-				} catch (Throwable t) {
-					System.err.println("Could not cleanly shut down connection from compiler to job manager");
-				}
+			if (rpcService != null) {
+				rpcService.shutDown();
 			}
-			jmConn = null;
+			rpcService = null;
 		}
 		
 	}
@@ -540,22 +537,18 @@ public class CliFrontend {
 			System.exit(1);
 		}
 		
-		ExtendedManagementProtocol jmConn = null;
+		RPCService rpcService = null;
 		try {
 			
-			jmConn = getJMConnection();
-			jmConn.cancelJob(new JobID(StringUtils.hexStringToByte(jobId)));
+			ExtendedManagementProtocol jmConn = getJMConnection(rpcService);
+			jmConn.cancelJob(JobID.fromByteArray(StringUtils.hexStringToByte(jobId)));
 		} catch (Throwable t) {
 			handleError(t);
 		} finally {
-			if (jmConn != null) {
-				try {
-					RPC.stopProxy(jmConn);
-				} catch (Throwable t) {
-					System.err.println("Could not cleanly shut down connection from compiler to job manager");
-				}
+			if (rpcService != null) {
+				rpcService.shutDown();
 			}
-			jmConn = null;
+			rpcService = null;
 		}
 		
 	}
@@ -563,23 +556,24 @@ public class CliFrontend {
 	/**
 	 * Sets up a connection to the JobManager.
 	 * 
+	 * @param the RPC service to use to create the proxy object
+	 * 
 	 * @return Connection to the JobManager.
 	 * @throws IOException
 	 */
-	private ExtendedManagementProtocol getJMConnection() throws IOException {
+	private ExtendedManagementProtocol getJMConnection(RPCService rpcService) throws IOException {
 		Configuration config = getConfiguration();
 		String jmHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		String jmPort = config.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, null);
+		int jmPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
 		
 		if(jmHost == null) {
 			handleError(new Exception("JobManager address could not be determined."));
 		}
-		if(jmPort == null) {
+		if(jmPort == -1) {
 			handleError(new Exception("JobManager port could not be determined."));
 		}
 		
-		return RPC.getProxy(ExtendedManagementProtocol.class, 
-			new InetSocketAddress(jmHost, Integer.parseInt(jmPort)), NetUtils.getSocketFactory());
+		return rpcService.getProxy(new InetSocketAddress(jmHost, jmPort), ExtendedManagementProtocol.class);
 	}
 	
 

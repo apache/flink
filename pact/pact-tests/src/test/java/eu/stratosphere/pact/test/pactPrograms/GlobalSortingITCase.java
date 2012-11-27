@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -142,7 +142,7 @@ public class GlobalSortingITCase extends TestBase {
 	public static class UniformDistribution implements DataDistribution {
 
 		public UniformDistribution() { 	}
-		
+
 		@Override
 		public void write(DataOutput out) throws IOException {
 		}
@@ -150,7 +150,7 @@ public class GlobalSortingITCase extends TestBase {
 		@Override
 		public void read(DataInput in) throws IOException {
 		}
-
+		
 		@Override
 		public PactRecord getBucketBoundary(int bucketNum, int totalNumBuckets) {
 			int boundVal = Integer.MIN_VALUE+((Integer.MAX_VALUE/totalNumBuckets)*2*bucketNum);

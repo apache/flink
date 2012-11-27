@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -53,7 +53,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 3000, 10*1000);
+		runAndCancelJob(p, 3000, 15*1000);
 	}
 
 	@Test
@@ -75,7 +75,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 5000, 10*1000);
+		runAndCancelJob(p, 5000, 15*1000);
 	}
 	
 	@Test
@@ -99,7 +99,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		
 		runAndCancelJob(p, 5000);
 		
-		runAndCancelJob(p, 10 * 1000, 10 * 1000);
+		runAndCancelJob(p, 10 * 1000, 15 * 1000);
 	}
 	
 	@Test
@@ -180,7 +180,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase
 		Plan p = new Plan(sink);
 		p.setDefaultParallelism(4);
 		
-		runAndCancelJob(p, 10 * 1000, 10 * 1000);
+		runAndCancelJob(p, 10 * 1000, 15 * 1000);
 	}
 
 	// -------------------------------------- Test System corner cases ---------------------------------

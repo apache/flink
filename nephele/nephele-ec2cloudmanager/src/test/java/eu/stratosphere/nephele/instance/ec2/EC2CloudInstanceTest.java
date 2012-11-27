@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -39,7 +39,7 @@ public class EC2CloudInstanceTest {
 		final EC2CloudInstance cloudInstance = new EC2CloudInstance("i-1234ABCD",
 			InstanceTypeFactory.constructFromDescription("m1.small,1,1,2048,40,10"),
 			new InstanceConnectionInfo(new InetSocketAddress("localhost", 6122).getAddress(), 6122, 6121),
-			1234567890, EC2CloudManager.DEFAULT_LEASE_PERIOD, networkTopology.getRootNode(), networkTopology,
+			null, 1234567890, EC2CloudManager.DEFAULT_LEASE_PERIOD, networkTopology.getRootNode(), networkTopology,
 			hardwareDescription, null, null);
 
 		return cloudInstance;

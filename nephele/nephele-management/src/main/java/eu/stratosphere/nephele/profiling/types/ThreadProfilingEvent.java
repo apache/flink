@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.profiling.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
@@ -30,13 +26,13 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
  */
 public class ThreadProfilingEvent extends VertexProfilingEvent {
 
-	private int userTime;
+	private final int userTime;
 
-	private int systemTime;
+	private final int systemTime;
 
-	private int blockedTime;
+	private final int blockedTime;
 
-	private int waitedTime;
+	private final int waitedTime;
 
 	public ThreadProfilingEvent(int userTime, int systemTime, int blockedTime, int waitedTime,
 			ManagementVertexID vertexID, int profilingInterval, JobID jobID, long timestamp, long profilingTimestamp) {
@@ -49,7 +45,10 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	}
 
 	public ThreadProfilingEvent() {
-		super();
+		this.userTime = -1;
+		this.systemTime = -1;
+		this.blockedTime = -1;
+		this.waitedTime = -1;
 	}
 
 	/**
@@ -90,32 +89,6 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	 */
 	public int getWaitedTime() {
 		return this.waitedTime;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-		super.read(in);
-
-		this.userTime = in.readInt();
-		this.systemTime = in.readInt();
-		this.blockedTime = in.readInt();
-		this.waitedTime = in.readInt();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-		super.write(out);
-
-		out.writeInt(this.userTime);
-		out.writeInt(this.systemTime);
-		out.writeInt(this.blockedTime);
-		out.writeInt(this.waitedTime);
 	}
 
 	/**

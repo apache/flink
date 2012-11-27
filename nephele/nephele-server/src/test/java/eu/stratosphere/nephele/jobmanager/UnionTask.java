@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -47,7 +47,7 @@ public class UnionTask extends AbstractTask {
 		recordReaders[1] = new RecordReader<StringRecord>(this, StringRecord.class);
 		this.unionReader = new UnionRecordReader<StringRecord>(recordReaders);
 		
-		this.writer = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.writer = new RecordWriter<StringRecord>(this);
 	}
 
 	/**

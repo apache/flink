@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.profiling.impl;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -29,8 +28,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingException;
@@ -41,23 +38,20 @@ import eu.stratosphere.nephele.profiling.impl.types.InternalInputGateProfilingDa
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalOutputGateProfilingData;
 import eu.stratosphere.nephele.profiling.impl.types.InternalProfilingData;
-import eu.stratosphere.nephele.profiling.impl.types.ProfilingDataContainer;
 import eu.stratosphere.nephele.profiling.types.InputGateProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.InstanceSummaryProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.OutputGateProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.SingleInstanceProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.ThreadProfilingEvent;
+import eu.stratosphere.nephele.rpc.ProfilingTypeUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 
 public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplProtocol {
 
 	private static final Log LOG = LogFactory.getLog(JobManagerProfilerImpl.class);
 
-	private static final String RPC_NUM_HANDLER_KEY = "jobmanager.profiling.rpc.numhandler";
-
-	private static final int DEFAULT_NUM_HANLDER = 3;
-
-	private final Server profilingServer;
+	private final RPCService rpcService;
 
 	private final Map<JobID, List<ProfilingListener>> registeredListeners = new HashMap<JobID, List<ProfilingListener>>();
 
@@ -66,22 +60,17 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 	public JobManagerProfilerImpl(InetAddress jobManagerbindAddress) throws ProfilingException {
 
 		// Start profiling IPC server
-		final int handlerCount = GlobalConfiguration.getInteger(RPC_NUM_HANDLER_KEY, DEFAULT_NUM_HANLDER);
 		final int rpcPort = GlobalConfiguration.getInteger(ProfilingUtils.JOBMANAGER_RPC_PORT_KEY,
 			ProfilingUtils.JOBMANAGER_DEFAULT_RPC_PORT);
-		
-		final InetSocketAddress rpcServerAddress = new InetSocketAddress(jobManagerbindAddress, rpcPort);
-		Server profilingServerTmp = null;
-		try {
 
-			profilingServerTmp = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
-				handlerCount);
-			profilingServerTmp.start();
+		RPCService rpcService = null;
+		try {
+			rpcService = new RPCService(rpcPort, 1, ProfilingTypeUtils.getRPCTypesToRegister());
 		} catch (IOException ioe) {
 			throw new ProfilingException("Cannot start profiling RPC server: " + StringUtils.stringifyException(ioe));
 		}
-		this.profilingServer = profilingServerTmp;
-
+		this.rpcService = rpcService;
+		this.rpcService.setProtocolCallbackHandler(ProfilerImplProtocol.class, this);
 	}
 
 	@Override
@@ -113,9 +102,9 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 	public void shutdown() {
 
 		// Stop the RPC server
-		if (this.profilingServer != null) {
-			LOG.debug("Stopping profiling RPC server");
-			this.profilingServer.stop();
+		if (this.rpcService != null) {
+			LOG.debug("Stopping profiling RPC service");
+			this.rpcService.shutDown();
 		}
 	}
 
@@ -259,12 +248,12 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 	}
 
 	@Override
-	public void reportProfilingData(ProfilingDataContainer profilingDataContainer) {
+	public void reportProfilingData(final List<InternalProfilingData> profilingData) {
 
 		final long timestamp = System.currentTimeMillis();
 
 		// Process the received profiling data
-		final Iterator<InternalProfilingData> dataIterator = profilingDataContainer.getIterator();
+		final Iterator<InternalProfilingData> dataIterator = profilingData.iterator();
 		while (dataIterator.hasNext()) {
 
 			final InternalProfilingData internalProfilingData = dataIterator.next();

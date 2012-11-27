@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,9 +15,11 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -104,49 +106,29 @@ public final class JobFileInputVertex extends AbstractJobInputVertex {
 	 *        the class of the vertex's input task.
 	 */
 	public void setFileInputClass(final Class<? extends AbstractFileInputTask> inputClass) {
-		this.invokableClass = inputClass;
-	}
-
-	/**
-	 * Returns the class of the vertex's input task.
-	 * 
-	 * @return the class of the vertex's input task or <code>null</code> if no task has yet been set
-	 */
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractFileInputTask> getFileInputClass() {
-		return (Class<? extends AbstractFileInputTask>) this.invokableClass;
+		this.invokableClassName = inputClass.getName();
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
+	public void read(final Kryo kryo, final Input input) {
+		super.read(kryo, input);
 
 		// Read path of the input file
-		final boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			this.path = new Path();
-			this.path.read(in);
-		}
+		this.path = kryo.readObjectOrNull(input, Path.class);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
+	public void write(final Kryo kryo, final Output output) {
+		super.write(kryo, output);
 
 		// Write out the path of the input file
-		if (this.path == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			this.path.write(out);
-		}
-
+		kryo.writeObjectOrNull(output, this.path, Path.class);
 	}
 
 	/**

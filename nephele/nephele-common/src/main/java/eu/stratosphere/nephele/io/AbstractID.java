@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,19 +15,17 @@
 
 package eu.stratosphere.nephele.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
- * ID is an abstract base class to provide statistically unique and serializable identification numbers in Nephele.
+ * ID is an abstract base class for providing statistically unique identification numbers in Nephele.
  * Every component that requires these kinds of IDs provides its own concrete type.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public abstract class AbstractID implements IOReadableWritable {
+public abstract class AbstractID {
 
 	/**
 	 * The size of a long in bytes.
@@ -42,12 +40,12 @@ public abstract class AbstractID implements IOReadableWritable {
 	/**
 	 * The upper part of the actual ID.
 	 */
-	private long upperPart;
+	private final long upperPart;
 
 	/**
 	 * The lower part of the actual ID.
 	 */
-	private long lowerPart;
+	private final long lowerPart;
 
 	/**
 	 * Constructs a new ID with a specific bytes value.
@@ -63,32 +61,49 @@ public abstract class AbstractID implements IOReadableWritable {
 	}
 
 	/**
-	 * Constructs a new random ID from a uniform distribution.
+	 * Constructs a new abstract ID.
+	 * 
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
 	 */
-	public AbstractID() {
+	protected AbstractID(final long lowerPart, final long upperPart) {
 
-		this.lowerPart = (long) (Math.random() * Long.MAX_VALUE);
-		this.upperPart = (long) (Math.random() * Long.MAX_VALUE);
+		this.lowerPart = lowerPart;
+		this.upperPart = upperPart;
 	}
 
 	/**
-	 * Converts the given byte array to a long.
+	 * Creates a new abstract ID from the given one. The given and the newly created abtract ID will be identical, i.e.
+	 * a comparison by <code>equals</code> will return <code>true</code> and both objects will have the same hash code.
 	 * 
-	 * @param ba
-	 *        the byte array to be converted
-	 * @param offset
-	 *        the offset indicating at which byte inside the array the conversion shall begin
-	 * @return the long variable
+	 * @param id
+	 *        the abstract ID to copy
 	 */
-	private static long byteArrayToLong(final byte[] ba, final int offset) {
+	protected AbstractID(final AbstractID id) {
 
-		long l = 0;
+		this.lowerPart = id.lowerPart;
+		this.upperPart = id.upperPart;
+	}
 
-		for (int i = 0; i < SIZE_OF_LONG; ++i) {
-			l |= (ba[offset + SIZE_OF_LONG - 1 - i] & 0xffL) << (i << 3);
-		}
+	/**
+	 * Default constructor required by kryo.
+	 */
+	protected AbstractID() {
 
-		return l;
+		this.lowerPart = 0L;
+		this.upperPart = 0L;
+	}
+
+	/**
+	 * Generates a uniformly distributed random positive long.
+	 * 
+	 * @return a uniformly distributed random positive long
+	 */
+	protected static long generateRandomBytes() {
+
+		return (long) (Math.random() * Long.MAX_VALUE);
 	}
 
 	/**
@@ -110,14 +125,23 @@ public abstract class AbstractID implements IOReadableWritable {
 	}
 
 	/**
-	 * Sets an ID from another ID by copying its internal byte representation.
+	 * Converts the given byte array to a long.
 	 * 
-	 * @param src
-	 *        the source ID
+	 * @param ba
+	 *        the byte array to be converted
+	 * @param offset
+	 *        the offset indicating at which byte inside the array the conversion shall begin
+	 * @return the long variable
 	 */
-	public void setID(final AbstractID src) {
-		this.lowerPart = src.lowerPart;
-		this.upperPart = src.upperPart;
+	private static long byteArrayToLong(final byte[] ba, final int offset) {
+
+		long l = 0;
+
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
+			l |= (ba[offset + SIZE_OF_LONG - 1 - i] & 0xffL) << (i << 3);
+		}
+
+		return l;
 	}
 
 	/**
@@ -150,26 +174,6 @@ public abstract class AbstractID implements IOReadableWritable {
 	public int hashCode() {
 
 		return (int) (this.lowerPart ^ (this.upperPart >>> 32));
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.lowerPart = in.readLong();
-		this.upperPart = in.readLong();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		out.writeLong(this.lowerPart);
-		out.writeLong(this.upperPart);
 	}
 
 	/**

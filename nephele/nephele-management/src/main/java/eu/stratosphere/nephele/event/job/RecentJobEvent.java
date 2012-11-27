@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,14 +15,8 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * A {@link RecentJobEvent} provides a summary of a job which is either currently running or has been running recently.
@@ -34,27 +28,27 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 	/**
 	 * The ID of the new job.
 	 */
-	private JobID jobID;
+	private final JobID jobID;
 
 	/**
 	 * The name of the new job.
 	 */
-	private String jobName;
+	private final String jobName;
 
 	/**
 	 * The last known status of the job.
 	 */
-	private JobStatus jobStatus;
+	private final JobStatus jobStatus;
 
 	/**
 	 * <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise.
 	 */
-	private boolean isProfilingEnabled;
+	private final boolean isProfilingEnabled;
 
 	/**
 	 * The time stamp of the job submission.
 	 */
-	private long submissionTimestamp;
+	private final long submissionTimestamp;
 
 	/**
 	 * Constructs a new event.
@@ -91,7 +85,11 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 	 * Constructor for serialization/deserialization. Should not be called on other occasions.
 	 */
 	public RecentJobEvent() {
-		super();
+		this.jobID = null;
+		this.jobName = null;
+		this.jobStatus = null;
+		this.isProfilingEnabled = false;
+		this.submissionTimestamp = -1L;
 	}
 
 	/**
@@ -138,53 +136,6 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 	public long getSubmissionTimestamp() {
 
 		return this.submissionTimestamp;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
-
-		// Read the job ID
-		this.jobID = new JobID();
-		this.jobID.read(in);
-
-		// Read the job name
-		this.jobName = StringRecord.readString(in);
-
-		// Read the job status
-		this.jobStatus = EnumUtils.readEnum(in, JobStatus.class);
-
-		// Read if profiling is enabled
-		this.isProfilingEnabled = in.readBoolean();
-
-		// Read the submission time stamp
-		this.submissionTimestamp = in.readLong();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
-
-		// Write the job ID
-		this.jobID.write(out);
-
-		// Write the job name
-		StringRecord.writeString(out, this.jobName);
-
-		// Writes the job status
-		EnumUtils.writeEnum(out, this.jobStatus);
-
-		// Write out if profiling is enabled
-		out.writeBoolean(this.isProfilingEnabled);
-
-		// Write out the submission time stamp
-		out.writeLong(this.submissionTimestamp);
 	}
 
 	/**

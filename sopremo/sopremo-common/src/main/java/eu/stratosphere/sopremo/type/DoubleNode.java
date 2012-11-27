@@ -78,11 +78,6 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 	}
 
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		return sb.append(this.value);
-	}
-
-	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
@@ -163,13 +158,6 @@ public class DoubleNode extends AbstractNumericNode implements INumericNode {
 
 	private void readObject(final ObjectInputStream in) throws IOException {
 		this.value = new PactDouble(in.readDouble());
-	}
-
-	@Override
-	public DoubleNode clone() {
-		final DoubleNode clone = (DoubleNode) super.clone();
-		clone.value = new PactDouble(this.value.getValue());
-		return clone;
 	}
 
 	@Override

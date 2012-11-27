@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,10 +14,6 @@
  **********************************************************************************************************************/
 
 package eu.stratosphere.nephele.profiling.types;
-
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.ManagementEvent;
@@ -36,12 +32,12 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 	/**
 	 * The ID of the job the profiling data belongs to.
 	 */
-	private JobID jobID;
+	private final JobID jobID;
 
 	/**
 	 * The profiling time stamp.
 	 */
-	private long profilingTimestamp;
+	private final long profilingTimestamp;
 
 	/**
 	 * Constructs a new profiling event.
@@ -64,7 +60,9 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 	 * Default constructor for serialization/deserialization.
 	 */
 	public ProfilingEvent() {
-		super();
+
+		this.jobID = null;
+		this.profilingTimestamp = -1L;
 	}
 
 	/**
@@ -85,30 +83,6 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 	 */
 	public long getProfilingTimestamp() {
 		return this.profilingTimestamp;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
-
-		this.jobID = new JobID();
-		this.jobID.read(in);
-
-		this.profilingTimestamp = in.readLong();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
-
-		this.jobID.write(out);
-		out.writeLong(this.profilingTimestamp);
 	}
 
 	/**

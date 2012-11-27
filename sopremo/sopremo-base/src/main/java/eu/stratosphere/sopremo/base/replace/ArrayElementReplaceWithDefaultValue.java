@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -24,6 +24,7 @@ import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 
 /**
  * @author Arvid Heise
@@ -65,10 +66,10 @@ public class ArrayElementReplaceWithDefaultValue extends ArrayElementReplaceBase
 		 * eu.stratosphere.sopremo.type.IArrayNode, eu.stratosphere.sopremo.pact.JsonCollector)
 		 */
 		@Override
-		protected void coGroup(IArrayNode values1, IArrayNode values2, JsonCollector out) {
+		protected void coGroup(IStreamArrayNode values1, IStreamArrayNode values2, JsonCollector out) {
 			final Iterator<IJsonNode> replaceValueIterator = values2.iterator();
 			IJsonNode replaceValue = replaceValueIterator.hasNext() ?
-				this.dictionaryValueExtraction.evaluate(replaceValueIterator.next(), getContext()) : null;
+				this.dictionaryValueExtraction.evaluate(replaceValueIterator.next(), this.getContext()) : null;
 
 			final Iterator<IJsonNode> valueIterator = values1.iterator();
 			final EvaluationContext context = this.getContext();

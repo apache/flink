@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,22 +15,17 @@
 
 package eu.stratosphere.nephele.deployment;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 
 /**
  * A channel deployment descriptor contains all the information necessary to deploy either an input or an output channel
  * as part of a task on a task manager.
  * <p>
- * This class is not thread-safe in general.
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public final class ChannelDeploymentDescriptor implements IOReadableWritable {
+public final class ChannelDeploymentDescriptor {
 
 	/**
 	 * The ID of the output channel.
@@ -65,32 +60,13 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	}
 
 	/**
-	 * Default constructor for serialization/deserialization.
+	 * Default constructor required by kryo.
 	 */
-	public ChannelDeploymentDescriptor() {
+	@SuppressWarnings("unused")
+	private ChannelDeploymentDescriptor() {
 
-		this.outputChannelID = new ChannelID();
-		this.inputChannelID = new ChannelID();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		this.outputChannelID.write(out);
-		this.inputChannelID.write(out);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.outputChannelID.read(in);
-		this.inputChannelID.read(in);
+		this.outputChannelID = null;
+		this.inputChannelID = null;
 	}
 
 	/**

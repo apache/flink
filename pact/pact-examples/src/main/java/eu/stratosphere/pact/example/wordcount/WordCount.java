@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,6 +17,7 @@ package eu.stratosphere.pact.example.wordcount;
 
 import java.util.Iterator;
 
+import eu.stratosphere.pact.client.LocalExecutor;
 import eu.stratosphere.pact.common.contract.FileDataSink;
 import eu.stratosphere.pact.common.contract.FileDataSource;
 import eu.stratosphere.pact.common.contract.MapContract;
@@ -157,5 +158,13 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	public String getDescription() {
 		return "Parameters: [noSubStasks] [input] [output]";
 	}
-
+	
+	public static void main(String[] args) throws Exception {
+		WordCount wc = new WordCount();
+		if (args.length < 3) {
+			System.out.println(wc.getDescription());
+			return;
+		}
+		LocalExecutor.execute(wc, args);
+	}
 }

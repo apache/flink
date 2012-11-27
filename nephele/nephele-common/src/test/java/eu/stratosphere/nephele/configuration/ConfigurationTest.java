@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,11 +15,8 @@
 
 package eu.stratosphere.nephele.configuration;
 
-import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
 
 import org.junit.Test;
 
@@ -46,18 +43,13 @@ public class ConfigurationTest {
 		orig.setInteger("mynumber", 100);
 		orig.setClass("myclass", this.getClass());
 
-		try {
-			final Configuration copy = (Configuration) CommonTestUtils.createCopy(orig);
+		final Configuration copy = (Configuration) CommonTestUtils.createCopy(orig);
 
-			assertEquals(copy.getString("mykey", "null"), "myvalue");
-			assertEquals(copy.getBoolean("shouldbetrue", false), true);
-			assertEquals(copy.getInteger("mynumber", 0), 100);
-			assertEquals(copy.getClass("myclass", null).toString(), this.getClass().toString());
-			assertTrue(orig.equals(copy));
-			assertTrue(orig.keySet().equals(copy.keySet()));
-
-		} catch (IOException e) {
-			fail(e.getMessage());
-		}
+		assertEquals(copy.getString("mykey", "null"), "myvalue");
+		assertEquals(copy.getBoolean("shouldbetrue", false), true);
+		assertEquals(copy.getInteger("mynumber", 0), 100);
+		assertEquals(copy.getClass("myclass", null).toString(), this.getClass().toString());
+		assertTrue(orig.equals(copy));
+		assertTrue(orig.keySet().equals(copy.keySet()));
 	}
 }

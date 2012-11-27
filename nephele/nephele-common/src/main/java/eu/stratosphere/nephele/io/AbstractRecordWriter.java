@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,12 +16,10 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.Record;
 
@@ -49,41 +47,31 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 	 * 
 	 * @param invokable
 	 *        the application that instantiated the record writer
-	 * @param outputClass
-	 *        the class of records that can be emitted with this record writer
 	 * @param selector
 	 *        the channel selector to be used to determine the output channel to be used for a record
 	 * @param isBroadcast
 	 *        <code>true</code> if this record writer shall broadcast the records to all connected channels,
 	 *        <code>false/<code> otherwise
 	 */
-	public AbstractRecordWriter(AbstractInvokable invokable, Class<T> outputClass, ChannelSelector<T> selector,
-			boolean isBroadcast) {
+	public AbstractRecordWriter(final AbstractInvokable invokable, final ChannelSelector<T> selector,
+			final boolean isBroadcast) {
 
 		this.environment = invokable.getEnvironment();
-		connectOutputGate(outputClass, selector, isBroadcast);
+		connectOutputGate(selector, isBroadcast);
 	}
 
 	/**
 	 * Connects a record writer to an output gate.
 	 * 
-	 * @param outputClass
-	 *        the class of the record that can be emitted with this record writer
 	 * @param selector
 	 *        the channel selector to be used to determine the output channel to be used for a record
 	 * @param isBroadcast
 	 *        <code>true</code> if this record writer shall broadcast the records to all connected channels,
 	 *        <code>false/<code> otherwise
 	 */
-	private void connectOutputGate(Class<T> outputClass, ChannelSelector<T> selector, boolean isBroadcast)
-	{
-		GateID gateID = this.environment.getNextUnboundOutputGateID();
-		if (gateID == null) {
-			gateID = new GateID();
-		}
+	private void connectOutputGate(final ChannelSelector<T> selector, final boolean isBroadcast) {
 
-		this.outputGate = this.environment.createOutputGate(gateID, outputClass, selector, isBroadcast);
-		this.environment.registerOutputGate(this.outputGate);
+		this.outputGate = this.environment.createAndRegisterOutputGate(selector, isBroadcast);
 	}
 
 	/**
@@ -99,15 +87,6 @@ public abstract class AbstractRecordWriter<T extends Record> implements Writer<T
 
 		// Simply pass record through to the corresponding output gate
 		this.outputGate.writeRecord(record);
-	}
-
-	/**
-	 * Returns the list of OutputChannels connected to this RecordWriter.
-	 * 
-	 * @return the list of OutputChannels connected to this RecordWriter
-	 */
-	public List<AbstractOutputChannel<T>> getOutputChannels() {
-		return this.outputGate.getOutputChannels();
 	}
 
 	/**

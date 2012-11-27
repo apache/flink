@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.profiling.ProfilingException;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
 import eu.stratosphere.nephele.util.StringUtils;
 
-public class InstanceProfiler {
+final class InstanceProfiler {
 
 	static final String PROC_MEMINFO = "/proc/meminfo";
 
@@ -72,8 +72,8 @@ public class InstanceProfiler {
 
 	private long firstTimestamp;
 
-	public InstanceProfiler(InstanceConnectionInfo instanceConnectionInfo)
-																			throws ProfilingException {
+	InstanceProfiler(InstanceConnectionInfo instanceConnectionInfo)
+			throws ProfilingException {
 
 		this.instanceConnectionInfo = instanceConnectionInfo;
 		this.firstTimestamp = System.currentTimeMillis();
@@ -81,7 +81,7 @@ public class InstanceProfiler {
 		generateProfilingData(this.firstTimestamp);
 	}
 
-	InternalInstanceProfilingData generateProfilingData(long timestamp) throws ProfilingException {
+	InternalInstanceProfilingData generateProfilingData(final long timestamp) throws ProfilingException {
 
 		final long profilingInterval = timestamp - lastTimestamp;
 
@@ -317,23 +317,5 @@ public class InstanceProfiler {
 				}
 			}
 		}
-
-	}
-
-	/**
-	 * @return InternalInstanceProfilingData ProfilingData for the instance from execution-start to currentTime
-	 * @throws ProfilingException
-	 */
-	public InternalInstanceProfilingData generateCheckpointProfilingData() throws ProfilingException {
-		final long profilingInterval = System.currentTimeMillis() - this.firstTimestamp;
-
-		final InternalInstanceProfilingData profilingData = new InternalInstanceProfilingData(
-			this.instanceConnectionInfo, (int) profilingInterval);
-
-		updateCPUUtilization(profilingData);
-		updateMemoryUtilization(profilingData);
-		updateNetworkUtilization(profilingData);
-
-		return profilingData;
 	}
 }

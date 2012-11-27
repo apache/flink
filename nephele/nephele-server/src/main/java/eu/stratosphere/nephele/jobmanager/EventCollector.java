@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -31,12 +31,12 @@ import eu.stratosphere.nephele.event.job.ManagementEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
 import eu.stratosphere.nephele.event.job.VertexAssignmentEvent;
 import eu.stratosphere.nephele.event.job.VertexEvent;
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.executiongraph.CheckpointStateListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionStateListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
@@ -75,7 +75,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * 
 	 * @author warneke
 	 */
-	private static final class ExecutionListenerWrapper implements ExecutionListener {
+	private static final class ExecutionStateListenerWrapper implements ExecutionStateListener {
 
 		/**
 		 * The event collector to forward the created event to.
@@ -95,7 +95,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * @param vertex
 		 *        the vertex this listener belongs to.
 		 */
-		public ExecutionListenerWrapper(final EventCollector eventCollector, final ExecutionVertex vertex) {
+		public ExecutionStateListenerWrapper(final EventCollector eventCollector, final ExecutionVertex vertex) {
 			this.eventCollector = eventCollector;
 			this.vertex = vertex;
 		}
@@ -131,27 +131,10 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * {@inheritDoc}
 		 */
 		@Override
-		public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-			// Nothing to do here
-		}
-
-		/**
-		 * {@inheritDoc}
-		 */
-		@Override
-		public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-			// Nothing to do here
-		}
-
-		/**
-		 * {@inheritDoc}
-		 */
-		@Override
 		public int getPriority() {
 
 			return 20;
 		}
-
 	}
 
 	/**
@@ -229,6 +212,15 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 				this.eventCollector.addEvent(jobID,
 					new JobEvent(System.currentTimeMillis(), jobStatus, optionalMessage));
 			}
+		}
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public int getPriority() {
+
+			return 20;
 		}
 	}
 
@@ -475,7 +467,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			final ExecutionVertex vertex = it.next();
 
 			// Register the listener object which will pass state changes on to the collector
-			vertex.registerExecutionListener(new ExecutionListenerWrapper(this, vertex));
+			vertex.registerExecutionStateListener(new ExecutionStateListenerWrapper(this, vertex));
 
 			// Register the listener object which will pass assignment changes on to the collector
 			vertex
@@ -544,10 +536,10 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 				if ((entry.getValue().getTimestamp() + this.timerTaskInterval) < currentTime) {
 					it.remove();
 					synchronized (this.recentManagementGraphs) {
-						this.recentManagementGraphs.remove(entry.getValue());
+						this.recentManagementGraphs.remove(entry.getValue().getJobID());
 					}
 					synchronized (this.recentNetworkTopologies) {
-						this.recentNetworkTopologies.remove(entry.getValue());
+						this.recentNetworkTopologies.remove(entry.getValue().getJobID());
 					}
 				}
 			}

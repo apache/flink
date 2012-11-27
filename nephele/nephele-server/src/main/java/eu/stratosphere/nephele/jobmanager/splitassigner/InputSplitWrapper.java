@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,16 +15,16 @@
 
 package eu.stratosphere.nephele.jobmanager.splitassigner;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * An input split wrapper object wraps an input split for RPC calls. In particular, the input split wrapper ensures that
@@ -32,7 +32,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public final class InputSplitWrapper implements IOReadableWritable {
+public final class InputSplitWrapper implements KryoSerializable {
 
 	/**
 	 * The ID of the job this input split belongs to.
@@ -42,7 +42,7 @@ public final class InputSplitWrapper implements IOReadableWritable {
 	/**
 	 * The wrapped input split.
 	 */
-	private InputSplit inputSplit = null;
+	private InputSplit inputSplit;
 
 	/**
 	 * Constructs a new input split wrapper.
@@ -66,29 +66,28 @@ public final class InputSplitWrapper implements IOReadableWritable {
 	 * Default constructor for serialization/deserialization.
 	 */
 	public InputSplitWrapper() {
-		this.jobID = new JobID();
+		this.jobID = null;
+		this.inputSplit = null;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final Kryo kryo, final Output output) {
 
 		// Write the job ID
-		this.jobID.write(out);
+		kryo.writeObject(output, this.jobID);
 
 		if (this.inputSplit == null) {
-			out.writeBoolean(false);
+			output.writeBoolean(false);
 		} else {
 
-			out.writeBoolean(true);
+			output.writeBoolean(true);
 
 			// Write the name of the class
-			StringRecord.writeString(out, this.inputSplit.getClass().getName());
-
-			// Write out the input split itself
-			this.inputSplit.write(out);
+			output.writeString(this.inputSplit.getClass().getName());
+			kryo.writeObject(output, this.inputSplit);
 		}
 	}
 
@@ -97,40 +96,33 @@ public final class InputSplitWrapper implements IOReadableWritable {
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
 		// Read the job ID
-		this.jobID.read(in);
+		this.jobID = kryo.readObject(input, JobID.class);
 
-		if (in.readBoolean()) {
+		if (input.readBoolean()) {
 
 			// Find class loader for this job
-			final ClassLoader cl = LibraryCacheManager.getClassLoader(this.jobID);
-			if (cl == null) {
-				throw new IOException("Cannot find class loader for job " + this.jobID);
+			ClassLoader cl = null;
+			try {
+				cl = LibraryCacheManager.getClassLoader(this.jobID);
+			} catch (IOException ioe) {
+				throw new RuntimeException(ioe);
 			}
 
 			// Read the name of the class
-			final String className = StringRecord.readString(in);
+			final String className = input.readString();
 
 			// Try to locate the class using the job's class loader
 			Class<? extends InputSplit> splitClass = null;
 			try {
 				splitClass = (Class<? extends InputSplit>) Class.forName(className, true, cl);
 			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
+				throw new RuntimeException(e);
 			}
 
-			try {
-				this.inputSplit = splitClass.newInstance();
-			} catch (InstantiationException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			} catch (IllegalAccessException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			}
-
-			// Read the input split itself
-			this.inputSplit.read(in);
+			this.inputSplit = kryo.readObject(input, splitClass);
 		} else {
 			this.inputSplit = null;
 		}

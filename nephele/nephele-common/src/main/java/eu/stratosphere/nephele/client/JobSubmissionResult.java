@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,25 +15,21 @@
 
 package eu.stratosphere.nephele.client;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 /**
- * A <code>JobSubmissionResult</code> is used to report the results
- * of a job submission. It contains a return code and a description.
- * In case of a submission error the description includes an error message.
+ * A job submission result is used to report the results of a job submission. It contains a return code and a
+ * description. In case of a submission error the description includes an error message.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
 public class JobSubmissionResult extends AbstractJobResult {
 
 	/**
-	 * Constructs a new <code>JobSubmissionResult</code> object with
-	 * the given return code.
+	 * Constructs a new job submission result object with the given return code.
 	 * 
 	 * @param returnCode
-	 *        the return code of the submission result.
+	 *        the return code of the submission result
 	 * @param description
 	 *        the error description
 	 */
@@ -42,28 +38,9 @@ public class JobSubmissionResult extends AbstractJobResult {
 	}
 
 	/**
-	 * Constructs an empty <code>JobSubmissionResult</code> object.
-	 * This constructor is used for object deserialization only and
-	 * should not be called directly.
+	 * Default constructor required by kryo.
 	 */
-	public JobSubmissionResult() {
-		super();
+	@SuppressWarnings("unused")
+	private JobSubmissionResult() {
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
-	}
-
 }

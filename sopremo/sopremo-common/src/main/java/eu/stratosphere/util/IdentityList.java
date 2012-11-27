@@ -8,16 +8,34 @@ import java.util.List;
 import java.util.ListIterator;
 
 /**
- * Provides a {@link List} that uses reference-equality and thus intentionally violates the general List contract.
+ * Provides a {@link List} that uses reference-equality and thus intentionally
+ * violates the general List contract.
  * 
  * @author Arvid Heise
  * @param <E>
- *        the type of the elements
+ *            the type of the elements
  * @see List
  * @see IdentityHashMap
  */
 public class IdentityList<E> extends AbstractList<E> {
 	private final List<E> backing = new ArrayList<E>();
+
+	/**
+	 * Initializes IdentityList.
+	 * 
+	 */
+	public IdentityList() {
+	}
+
+	/**
+	 * Initializes IdentityList with the given list of elements.
+	 * 
+	 * @param elements
+	 *            the list of elements
+	 */
+	public IdentityList(Collection<? extends E> elements) {
+		addAll(elements);
+	}
 
 	@Override
 	public boolean add(final E e) {
@@ -48,8 +66,7 @@ public class IdentityList<E> extends AbstractList<E> {
 	public boolean contains(final Object o) {
 		final Iterator<E> e = this.iterator();
 		while (e.hasNext())
-			if (e.next() == o)
-				return true;
+			if (e.next() == o) return true;
 		return false;
 	}
 
@@ -57,17 +74,14 @@ public class IdentityList<E> extends AbstractList<E> {
 	public boolean containsAll(final Collection<?> c) {
 		final Iterator<?> e = c.iterator();
 		while (e.hasNext())
-			if (!this.contains(e.next()))
-				return false;
+			if (!this.contains(e.next())) return false;
 		return true;
 	}
 
 	@Override
 	public boolean equals(final Object o) {
-		if (o == this)
-			return true;
-		if (!(o instanceof IdentityList<?>))
-			return false;
+		if (o == this) return true;
+		if (!(o instanceof IdentityList<?>)) return false;
 
 		final ListIterator<E> e1 = this.listIterator();
 		@SuppressWarnings("rawtypes")
@@ -75,8 +89,7 @@ public class IdentityList<E> extends AbstractList<E> {
 		while (e1.hasNext() && e2.hasNext()) {
 			final E o1 = e1.next();
 			final Object o2 = e2.next();
-			if (o1 != o2)
-				return false;
+			if (o1 != o2) return false;
 		}
 		return !(e1.hasNext() || e2.hasNext());
 	}
@@ -90,8 +103,7 @@ public class IdentityList<E> extends AbstractList<E> {
 	public int indexOf(final Object o) {
 		final ListIterator<E> e = this.listIterator();
 		while (e.hasNext())
-			if (e.next() == o)
-				return e.previousIndex();
+			if (e.next() == o) return e.previousIndex();
 		return -1;
 	}
 
@@ -109,8 +121,7 @@ public class IdentityList<E> extends AbstractList<E> {
 	public int lastIndexOf(final Object o) {
 		final ListIterator<E> e = this.listIterator(this.size());
 		while (e.hasPrevious())
-			if (e.previous() == o)
-				return e.nextIndex();
+			if (e.previous() == o) return e.nextIndex();
 		return -1;
 	}
 
@@ -156,8 +167,7 @@ public class IdentityList<E> extends AbstractList<E> {
 			final E element = e.next();
 			final Iterator<?> otherIterator = c.iterator();
 			while (otherIterator.hasNext())
-				if (element == otherIterator.next())
-					continue findUnmatchedElement;
+				if (element == otherIterator.next()) continue findUnmatchedElement;
 			e.remove();
 			modified = true;
 		}

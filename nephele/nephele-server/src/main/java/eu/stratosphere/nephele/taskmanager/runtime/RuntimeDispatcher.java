@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,18 +17,18 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.routing.AbstractOutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 public final class RuntimeDispatcher extends AbstractOutputChannelForwarder {
 
-	private final TransferEnvelopeDispatcher dispatcher;
+	private final RoutingService routingService;
 
-	public RuntimeDispatcher(final TransferEnvelopeDispatcher dispatcher) {
+	public RuntimeDispatcher(final RoutingService routingService) {
 		super(null);
 
-		this.dispatcher = dispatcher;
+		this.routingService = routingService;
 	}
 
 	/**
@@ -37,6 +37,6 @@ public final class RuntimeDispatcher extends AbstractOutputChannelForwarder {
 	@Override
 	public void push(final TransferEnvelope transferEnvelope) throws IOException, InterruptedException {
 
-		this.dispatcher.processEnvelopeFromOutputChannel(transferEnvelope);
+		this.routingService.routeEnvelopeFromOutputChannel(transferEnvelope);
 	}
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,22 +15,15 @@
 
 package eu.stratosphere.nephele.client;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
-
 /**
- * A <code>AbstractJobResult</code> is the super class of all results
- * to report the job operation. It contains a return code and an
- * optional description.
+ * An abstract job result is the super class of all results to report the job operation. It contains a return code and
+ * an optional description.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author Alexander Stanik
  */
-public abstract class AbstractJobResult implements IOReadableWritable {
+public abstract class AbstractJobResult {
 
 	/**
 	 * The possible return codes for a job operation.
@@ -53,12 +46,12 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	/**
 	 * The return codes for the job operation.
 	 */
-	private ReturnCode returnCode = ReturnCode.ERROR;
+	private final ReturnCode returnCode;
 
 	/**
 	 * An optional description which can provide further information in case of an error.
 	 */
-	private String description = null;
+	private final String description;
 
 	/**
 	 * Constructs a new abstract job result object and sets the description.
@@ -74,36 +67,11 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	}
 
 	/**
-	 * Construct a new abstract job result object. This constructor is required
-	 * for the deserialization process.
+	 * Default constructor required by kryo.
 	 */
-	public AbstractJobResult() {
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		// Read the return code
-		this.returnCode = EnumUtils.readEnum(in, ReturnCode.class);
-
-		// Read the description
-		this.description = StringRecord.readString(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		// Write the return code
-		EnumUtils.writeEnum(out, this.returnCode);
-
-		// Write the description
-		StringRecord.writeString(out, this.description);
+	protected AbstractJobResult() {
+		this.returnCode = null;
+		this.description = null;
 	}
 
 	/**
@@ -149,16 +117,10 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 			}
 		}
 
-		if (this.description == null) {
-
-			// Do nothing.
-			
-		} else {
-
+		if (this.description != null) {
 			if (!this.description.equals(ajr.getDescription())) {
 				return false;
 			}
-
 		}
 
 		return true;

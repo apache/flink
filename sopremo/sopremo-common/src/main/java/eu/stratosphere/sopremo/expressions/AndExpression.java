@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.GenericListChildIterator;
 import eu.stratosphere.sopremo.type.BooleanNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 
@@ -12,7 +14,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * Represents a logical AND.
  */
 @OptimizerHints(scope = Scope.ANY)
-public class AndExpression extends BooleanExpression {
+public class AndExpression extends BooleanExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -38,6 +40,11 @@ public class AndExpression extends BooleanExpression {
 	 */
 	public AndExpression(final List<? extends BooleanExpression> expressions) {
 		this.expressions = new ArrayList<BooleanExpression>(expressions);
+	}
+
+	public AndExpression addExpression(final BooleanExpression expression) {
+		this.expressions.add(expression);
+		return this;
 	}
 
 	@Override
@@ -84,17 +91,19 @@ public class AndExpression extends BooleanExpression {
 
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		final List<BooleanExpression> booleans =
-			BooleanExpression.ensureBooleanExpressions(this.transformChildExpressions(function, this.expressions));
-		this.expressions.clear();
-		this.expressions.addAll(booleans);
-		return function.call(this);
+	public ChildIterator iterator() {
+		return new GenericListChildIterator<BooleanExpression>(this.expressions.listIterator()) {
+			/* (non-Javadoc)
+			 * @see eu.stratosphere.sopremo.expressions.tree.GenericListChildIterator#convert(eu.stratosphere.sopremo.expressions.EvaluationExpression)
+			 */
+			@Override
+			protected BooleanExpression convert(EvaluationExpression childExpression) {
+				return BooleanExpression.ensureBooleanExpression(childExpression);
+			}
+		};
 	}
 
 	/**

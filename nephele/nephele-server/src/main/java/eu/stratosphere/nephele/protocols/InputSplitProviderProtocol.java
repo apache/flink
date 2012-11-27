@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -20,7 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
-import eu.stratosphere.nephele.types.IntegerRecord;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 
 /**
  * The input split provider protocol is used to facilitate RPC calls related to the lazy split assignment which Nephele
@@ -28,7 +28,7 @@ import eu.stratosphere.nephele.types.IntegerRecord;
  * 
  * @author warneke
  */
-public interface InputSplitProviderProtocol extends VersionedProtocol {
+public interface InputSplitProviderProtocol extends RPCProtocol {
 
 	/**
 	 * Requests the next split to be consumed by the task with the given execution vertex ID.
@@ -43,7 +43,9 @@ public interface InputSplitProviderProtocol extends VersionedProtocol {
 	 *         no more input splits shall be consumed by the task with the given execution vertex ID
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while retrieving the new input split
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	InputSplitWrapper requestNextInputSplit(JobID jobID, ExecutionVertexID vertexID, IntegerRecord sequenceNumber)
-			throws IOException;
+	InputSplitWrapper requestNextInputSplit(JobID jobID, ExecutionVertexID vertexID, int sequenceNumber)
+			throws IOException, InterruptedException;
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -23,6 +23,7 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 
 /**
@@ -86,8 +87,8 @@ class FloatingInstance {
 	 *        The AWS Secret Key to access this machine
 	 */
 	public FloatingInstance(final String instanceID, final InstanceConnectionInfo instanceConnectionInfo,
-			final long launchTime,
-			final long leasePeriod, final InstanceType type, final HardwareDescription hardwareDescription,
+			final long launchTime, final long leasePeriod, final InstanceType type,
+			final HardwareDescription hardwareDescription,
 			final String awsAccessKey, final String awsSecretKey) {
 
 		if (launchTime < 0) {
@@ -182,11 +183,11 @@ class FloatingInstance {
 	 * 
 	 * @return
 	 */
-	public EC2CloudInstance asCloudInstance(final NetworkNode parentNode) {
+	public EC2CloudInstance asCloudInstance(final NetworkNode parentNode, final RPCService rpcService) {
 
-		return new EC2CloudInstance(this.instanceID, this.type, this.getInstanceConnectionInfo(), this.launchTime,
-			this.leasePeriod, parentNode, parentNode.getNetworkTopology(), this.hardwareDescription, this.awsAccessKey,
-			this.awsSecretKey);
+		return new EC2CloudInstance(this.instanceID, this.type, this.getInstanceConnectionInfo(), rpcService,
+			this.launchTime, this.leasePeriod, parentNode, parentNode.getNetworkTopology(), this.hardwareDescription,
+			this.awsAccessKey, this.awsSecretKey);
 	}
 
 	/**

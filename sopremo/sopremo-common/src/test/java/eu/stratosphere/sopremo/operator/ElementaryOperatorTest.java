@@ -25,8 +25,8 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
-import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 
 /**
  * The class <code>ElementaryOperatorTest</code> contains tests for the class <code>{@link ElementaryOperator}</code>.
@@ -164,7 +164,7 @@ public class ElementaryOperatorTest {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void reduce(final IArrayNode values, final JsonCollector out) {
+			protected void reduce(final IStreamArrayNode values, final JsonCollector out) {
 			}
 		}
 
@@ -175,7 +175,7 @@ public class ElementaryOperatorTest {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void reduce(final IArrayNode values, final JsonCollector out) {
+			protected void reduce(final IStreamArrayNode values, final JsonCollector out) {
 			}
 		}
 	}

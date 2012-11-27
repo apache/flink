@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,13 +15,14 @@
 package eu.stratosphere.sopremo.client;
 
 import java.io.Closeable;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.esotericsoftware.kryo.io.Input;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -30,9 +31,8 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.fs.Path;
-import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionRequest.ExecutionMode;
@@ -65,6 +65,8 @@ public class DefaultClient implements Closeable {
 
 	private Configuration configuration;
 
+	private RPCService rpcService;
+	
 	private SopremoExecutionProtocol executor;
 
 	private InetSocketAddress serverAddress;
@@ -177,6 +179,9 @@ public class DefaultClient implements Closeable {
 	}
 
 	public boolean submit(SopremoPlan plan, ProgressListener progressListener, boolean wait) {
+		if(plan == null)
+			throw new NullPointerException();
+		
 		if (progressListener == null)
 			progressListener = new DummyListener();
 		this.initConnection(progressListener);
@@ -198,15 +203,15 @@ public class DefaultClient implements Closeable {
 	}
 
 	private boolean transferLibraries(SopremoPlan plan, ProgressListener progressListener) {
-		final JobID dummyKey = new JobID();
+		final JobID dummyKey = JobID.generate();
 		List<String> requiredLibraries = new ArrayList<String>(plan.getRequiredPackages());
 		try {
 			progressListener.progressUpdate(ExecutionState.SETUP, "");
 			List<Path> libraryPaths = new ArrayList<Path>();
 			for (String library : requiredLibraries) {
-				final DataInputStream dis = new DataInputStream(new FileInputStream(library));
+				final Input dis = new Input(new FileInputStream(library));
 				final Path libraryPath = new Path(library);
-				LibraryCacheManager.addLibrary(dummyKey, libraryPath, new File(library).length(), dis);
+				LibraryCacheManager.addLibrary(dummyKey, libraryPath, (int) new File(library).length(), dis);
 				dis.close();
 				libraryPaths.add(libraryPath);
 			}
@@ -235,7 +240,7 @@ public class DefaultClient implements Closeable {
 			plan.setRequiredPackages(requiredLibraries);
 
 			return true;
-		} catch (IOException e) {
+		} catch (Exception e) {
 			dealWithError(progressListener, e, "Cannot transfer libraries");
 			return false;
 		} finally {
@@ -252,7 +257,7 @@ public class DefaultClient implements Closeable {
 	 */
 	@Override
 	public void close() {
-		RPC.stopProxy(this.executor);
+		this.rpcService.shutDown();
 	}
 
 	protected void sleepSafely(int updateTime) {
@@ -278,7 +283,8 @@ public class DefaultClient implements Closeable {
 		}
 
 		try {
-			this.executor = RPC.getProxy(SopremoExecutionProtocol.class, serverAddress, NetUtils.getSocketFactory());
+			this.rpcService = new RPCService();
+			this.executor = this.rpcService.getProxy(serverAddress, SopremoExecutionProtocol.class);
 		} catch (IOException e) {
 			this.dealWithError(progressListener, e, "Error while connecting to the server");
 		}

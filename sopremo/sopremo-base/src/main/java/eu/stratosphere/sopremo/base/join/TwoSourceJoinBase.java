@@ -8,6 +8,7 @@ import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 import eu.stratosphere.sopremo.type.NullNode;
 
 @InputCardinality(2)
@@ -29,7 +30,7 @@ public abstract class TwoSourceJoinBase<Self extends TwoSourceJoinBase<Self>> ex
 		this.setResultProjection(ObjectCreation.CONCATENATION);
 	}
 
-	protected static void leftOuterJoin(IArrayNode result, IArrayNode values2, JsonCollector out) {
+	protected static void leftOuterJoin(IArrayNode result, IStreamArrayNode values2, JsonCollector out) {
 		result.set(0, NullNode.getInstance());
 		for (final IJsonNode value : values2) {
 			result.set(1, value);
@@ -37,7 +38,7 @@ public abstract class TwoSourceJoinBase<Self extends TwoSourceJoinBase<Self>> ex
 		}
 	}
 
-	protected static void rightOuterJoin(IArrayNode result, IArrayNode values2, JsonCollector out) {
+	protected static void rightOuterJoin(IArrayNode result, IStreamArrayNode values2, JsonCollector out) {
 		result.set(1, NullNode.getInstance());
 		for (final IJsonNode value : values2) {
 			result.set(0, value);
@@ -45,7 +46,8 @@ public abstract class TwoSourceJoinBase<Self extends TwoSourceJoinBase<Self>> ex
 		}
 	}
 
-	protected static void cogroupJoin(IArrayNode result, IArrayNode values1, IArrayNode values2, JsonCollector out) {
+	protected static void cogroupJoin(IArrayNode result, IStreamArrayNode values1, IStreamArrayNode values2,
+			JsonCollector out) {
 		// TODO: use resettable iterator to avoid OOME
 		// TODO: can we estimate if first or second source is smaller?
 		final ArrayList<IJsonNode> firstSourceNodes = new ArrayList<IJsonNode>();

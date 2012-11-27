@@ -86,6 +86,10 @@ public class QueryParserException extends RuntimeException {
 		this.invalidToken = token;
 	}
 
+	public String getRawMessage() {
+		return super.getMessage();
+	}
+	
 	@Override
 	public String getMessage() {
 		if (this.getInvalidToken() == null)

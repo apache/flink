@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
 
-public class EnvironmentThreadSet {
+final class EnvironmentThreadSet {
 
 	private static final long NANO_TO_MILLISECONDS = 1000 * 1000;
 
@@ -43,8 +43,9 @@ public class EnvironmentThreadSet {
 
 		private final long totalCPUBlockTime;
 
-		public CPUUtilizationSnapshot(long timestamp, long totalCPUTime, long totalCPUUserTime, long totalCPUWaitTime,
-				long totalCPUBlockTime) {
+		private CPUUtilizationSnapshot(final long timestamp, final long totalCPUTime, final long totalCPUUserTime,
+				final long totalCPUWaitTime, final long totalCPUBlockTime) {
+
 			this.timestamp = timestamp;
 			this.totalCPUTime = totalCPUTime;
 			this.totalCPUUserTime = totalCPUUserTime;
@@ -52,23 +53,23 @@ public class EnvironmentThreadSet {
 			this.totalCPUBlockTime = totalCPUBlockTime;
 		}
 
-		public long getTimestamp() {
+		private long getTimestamp() {
 			return this.timestamp;
 		}
 
-		public long getTotalCPUTime() {
+		private long getTotalCPUTime() {
 			return this.totalCPUTime;
 		}
 
-		public long getTotalCPUUserTime() {
+		private long getTotalCPUUserTime() {
 			return this.totalCPUUserTime;
 		}
 
-		public long getTotalCPUWaitTime() {
+		private long getTotalCPUWaitTime() {
 			return this.totalCPUWaitTime;
 		}
 
-		public long getTotalCPUBlockTime() {
+		private long getTotalCPUBlockTime() {
 			return this.totalCPUBlockTime;
 		}
 	}
@@ -81,45 +82,45 @@ public class EnvironmentThreadSet {
 
 	private CPUUtilizationSnapshot mainThreadSnapshot = null;
 
-	public EnvironmentThreadSet(ThreadMXBean tmx, Thread mainThread, ExecutionVertexID executionVertexID) {
+	EnvironmentThreadSet(ThreadMXBean tmx, Thread mainThread, ExecutionVertexID executionVertexID) {
 		this.mainThread = mainThread;
 		this.executionVertexID = executionVertexID;
 
 		this.mainThreadSnapshot = createCPUUtilizationSnapshot(tmx, mainThread, System.currentTimeMillis());
 	}
 
-	public Thread getMainThread() {
+	Thread getMainThread() {
 		return this.mainThread;
 	}
 
-	public void addUserThread(ThreadMXBean tmx, Thread thread) {
+	void addUserThread(final ThreadMXBean tmx, final Thread thread) {
 
 		synchronized (this.userThreads) {
 			this.userThreads.put(thread, createCPUUtilizationSnapshot(tmx, thread, System.currentTimeMillis()));
 		}
 	}
 
-	public void removeUserThread(Thread thread) {
+	void removeUserThread(final Thread thread) {
 
 		synchronized (this.userThreads) {
 			this.userThreads.remove(thread);
 		}
 	}
 
-	public int getNumberOfUserThreads() {
+	int getNumberOfUserThreads() {
 
 		synchronized (this.userThreads) {
 			return this.userThreads.size();
 		}
-
 	}
 
-	private CPUUtilizationSnapshot createCPUUtilizationSnapshot(ThreadMXBean tmx, Thread thread, long timestamp) {
+	private CPUUtilizationSnapshot createCPUUtilizationSnapshot(final ThreadMXBean tmx, final Thread thread,
+			final long timestamp) {
 
 		final long threadId = thread.getId();
 
 		final ThreadInfo threadInfo = tmx.getThreadInfo(threadId);
-		if(threadInfo == null) {
+		if (threadInfo == null) {
 			return null;
 		}
 
@@ -128,17 +129,18 @@ public class EnvironmentThreadSet {
 			threadInfo.getBlockedTime());
 	}
 
-	public InternalExecutionVertexThreadProfilingData captureCPUUtilization(JobID jobID, ThreadMXBean tmx,
-			long timestamp) {
+	InternalExecutionVertexThreadProfilingData captureCPUUtilization(final JobID jobID, final ThreadMXBean tmx,
+			final long timestamp) {
 
 		synchronized (this.userThreads) {
 
 			// Calculate utilization for main thread first
-			final CPUUtilizationSnapshot newMainThreadSnapshot = createCPUUtilizationSnapshot(tmx, this.mainThread, timestamp);
-			if(newMainThreadSnapshot == null) {
+			final CPUUtilizationSnapshot newMainThreadSnapshot = createCPUUtilizationSnapshot(tmx, this.mainThread,
+				timestamp);
+			if (newMainThreadSnapshot == null) {
 				return null;
 			}
-			
+
 			final long mainInterval = newMainThreadSnapshot.getTimestamp() - this.mainThreadSnapshot.getTimestamp();
 
 			if (mainInterval == 0) {

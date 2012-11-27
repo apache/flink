@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,7 +17,6 @@ package eu.stratosphere.nephele.checkpointing;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
@@ -35,9 +34,9 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
+import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -138,8 +137,6 @@ public final class ReplayTask implements Task {
 
 	private final AtomicReference<ExecutionState> overallExecutionState = new AtomicReference<ExecutionState>(
 		ExecutionState.STARTING);
-
-	private final AtomicBoolean replayThreadStarted = new AtomicBoolean(false);
 
 	/**
 	 * Stores whether the task has been canceled.
@@ -262,11 +259,7 @@ public final class ReplayTask implements Task {
 	public void startExecution() {
 
 		final ReplayThread thread = this.environment.getExecutingThread();
-		if (this.replayThreadStarted.compareAndSet(false, true)) {
-			thread.start();
-		} else {
-			thread.restart();
-		}
+		thread.start();
 	}
 
 	/**
@@ -388,10 +381,10 @@ public final class ReplayTask implements Task {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+	public TaskContext createTaskContext(final RoutingService routingService,
 			final LocalBufferPoolOwner previousBufferPoolOwner) {
 
-		return new ReplayTaskContext(this, transferEnvelopeDispatcher, previousBufferPoolOwner, this.environment
+		return new ReplayTaskContext(this, routingService, previousBufferPoolOwner, this.environment
 			.getOutputChannelIDs().size());
 	}
 

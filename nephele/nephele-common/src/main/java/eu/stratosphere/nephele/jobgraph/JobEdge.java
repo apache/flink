@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -46,11 +46,16 @@ public class JobEdge {
 	 * The index of the consuming task's input gate.
 	 */
 	private final int indexOfInputGate;
-	
+
 	/**
 	 * The distribution pattern that should be used for this job edge.
 	 */
 	private final DistributionPattern distributionPattern;
+
+	/**
+	 * Stores whether spanning records are allowed or not.
+	 */
+	private final boolean allowSpanningRecords;
 
 	/**
 	 * Constructs a new job edge.
@@ -63,14 +68,21 @@ public class JobEdge {
 	 *        the compression level the corresponding channel should have at runtime
 	 * @param indexOfInputGate
 	 *        index of the consuming task's input gate that this edge connects to
+	 * @param distributionPattern
+	 *        the distribution patter according to which the subtasks of the connected vertices shall be connected
+	 * @param allowSpanningRecords
+	 *        <code>true</code> to allow spanning records, <code>false</code> otherwise
 	 */
 	public JobEdge(final AbstractJobVertex connectedVertex, final ChannelType channelType,
-			final CompressionLevel compressionLevel, final int indexOfInputGate, final DistributionPattern distributionPattern) {
+			final CompressionLevel compressionLevel, final int indexOfInputGate,
+			final DistributionPattern distributionPattern, final boolean allowSpanningRecords) {
+
 		this.connectedVertex = connectedVertex;
 		this.channelType = channelType;
 		this.compressionLevel = compressionLevel;
 		this.indexOfInputGate = indexOfInputGate;
 		this.distributionPattern = distributionPattern;
+		this.allowSpanningRecords = allowSpanningRecords;
 	}
 
 	/**
@@ -108,13 +120,23 @@ public class JobEdge {
 	public int getIndexOfInputGate() {
 		return this.indexOfInputGate;
 	}
-	
+
 	/**
 	 * Returns the distribution pattern used for this edge.
 	 * 
-	 * @return
+	 * @return the distribution pattern used for this edge
 	 */
-	public DistributionPattern getDistributionPattern(){
+	public DistributionPattern getDistributionPattern() {
 		return this.distributionPattern;
+	}
+
+	/**
+	 * Checks if spanning records are allowed for this edge.
+	 * 
+	 * @return <code>true</code> if spanning records are allowed for this edge, <code>false</code> otherwise
+	 */
+	public boolean spanningRecordsAllowed() {
+
+		return this.allowSpanningRecords;
 	}
 }

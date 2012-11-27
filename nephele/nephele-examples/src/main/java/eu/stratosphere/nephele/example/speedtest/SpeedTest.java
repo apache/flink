@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,10 +16,8 @@
 package eu.stratosphere.nephele.example.speedtest;
 
 import java.io.File;
-import java.io.IOException;
 
 import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.fs.Path;
@@ -196,14 +194,8 @@ public final class SpeedTest {
 			// Calculate throughput in MBit/s and output it
 			System.out.print("Job finished with a throughput of " + toMBitPerSecond(amountOfDataToSend, executionTime));
 
-		} catch (IOException ioe) {
-			ioe.printStackTrace();
-			System.exit(1);
-			return;
-		} catch (JobExecutionException jee) {
-			jee.printStackTrace();
-			System.exit(1);
-			return;
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 

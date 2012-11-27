@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,11 +19,12 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayList;
+import java.util.List;
 
-import eu.stratosphere.nephele.event.task.EventList;
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.DefaultDeserializer;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 public abstract class AbstractDeserializer {
@@ -43,14 +44,7 @@ public abstract class AbstractDeserializer {
 
 	private DeserializationState deserializationState = DeserializationState.NOTDESERIALIZED;
 
-	private final DefaultDeserializer<ChannelID> channelIDDeserializationBuffer = new DefaultDeserializer<ChannelID>(
-			ChannelID.class, true);
-
-	private final DefaultDeserializer<JobID> jobIDDeserializationBuffer = new DefaultDeserializer<JobID>(
-			JobID.class, true);
-
-	private final DefaultDeserializer<EventList> notificationListDeserializationBuffer = new DefaultDeserializer<EventList>(
-			EventList.class, true);
+	private final ObjectDeserializer objectDeserializer = new ObjectDeserializer();
 
 	private final ByteBuffer tempBuffer = ByteBuffer.allocate(8); // TODO: Make this configurable
 
@@ -70,7 +64,7 @@ public abstract class AbstractDeserializer {
 
 	private ChannelID deserializedSourceID = null;
 
-	private EventList deserializedEventList = null;
+	private List<AbstractEvent> deserializedEventList = null;
 
 	public void read(ReadableByteChannel readableByteChannel) throws IOException, NoBufferAvailableException {
 
@@ -160,8 +154,7 @@ public abstract class AbstractDeserializer {
 			this.eventListExistanceDeserialized = false;
 			this.tempBuffer.clear();
 			this.buffer = null;
-			this.jobIDDeserializationBuffer.clear();
-			this.channelIDDeserializationBuffer.clear();
+			this.objectDeserializer.clear();
 			this.deserializedEventList = null;
 			return false;
 		}
@@ -169,11 +162,11 @@ public abstract class AbstractDeserializer {
 		return true;
 	}
 
-	private boolean readID(ReadableByteChannel readableByteChannel) throws IOException {
+	private boolean readID(final ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (this.deserializationState == DeserializationState.SEQUENCENUMBERDESERIALIZED) {
 
-			this.deserializedJobID = this.jobIDDeserializationBuffer.readData(null, readableByteChannel);
+			this.deserializedJobID = this.objectDeserializer.deserialize(readableByteChannel, JobID.class);
 			if (this.deserializedJobID == null) {
 				return true;
 			}
@@ -182,7 +175,7 @@ public abstract class AbstractDeserializer {
 
 		} else {
 
-			this.deserializedSourceID = this.channelIDDeserializationBuffer.readData(null, readableByteChannel);
+			this.deserializedSourceID = this.objectDeserializer.deserialize(readableByteChannel, ChannelID.class);
 			if (this.deserializedSourceID == null) {
 				return true;
 			}
@@ -193,6 +186,7 @@ public abstract class AbstractDeserializer {
 		return false;
 	}
 
+	@SuppressWarnings("unchecked")
 	private boolean readNotificationList(ReadableByteChannel readableByteChannel) throws IOException {
 
 		if (!this.eventListExistanceDeserialized) {
@@ -217,7 +211,7 @@ public abstract class AbstractDeserializer {
 			}
 		}
 
-		this.deserializedEventList = this.notificationListDeserializationBuffer.readData(null, readableByteChannel);
+		this.deserializedEventList = this.objectDeserializer.deserialize(readableByteChannel, ArrayList.class);
 		if (this.deserializedEventList == null) {
 			return true;
 		} else {
@@ -336,7 +330,7 @@ public abstract class AbstractDeserializer {
 			return true;
 		}
 
-		return this.channelIDDeserializationBuffer.hasUnfinishedData();
+		return this.objectDeserializer.hasUnfinishedData();
 	}
 
 	private int byteBufferToInteger(ByteBuffer byteBuffer, int offset) throws IOException {

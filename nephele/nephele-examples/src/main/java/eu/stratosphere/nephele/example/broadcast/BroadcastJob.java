@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -202,7 +202,7 @@ public class BroadcastJob {
 	 *        writer object to write the duration results for each run
 	 */
 	private static void runJob(final int run, final BufferedWriter throughputWriter, final BufferedWriter durationWriter)
-			throws JobGraphDefinitionException, IOException, JobExecutionException {
+			throws JobGraphDefinitionException, IOException, InterruptedException, JobExecutionException {
 
 		// Construct job graph
 		final JobGraph jobGraph = new JobGraph("Broadcast Job (Run " + run + ")");

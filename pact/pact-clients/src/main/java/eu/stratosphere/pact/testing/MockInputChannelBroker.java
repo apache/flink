@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,38 +17,38 @@ package eu.stratosphere.pact.testing;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
+import eu.stratosphere.nephele.io.channels.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Decompressor;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 /**
  * @author Arvid Heise
  */
 public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, MockChannelBroker {
-	private final AbstractByteBufferedInputChannel<?> bbic;
 
-	private TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private final AbstractInputChannel<?> inputChannel;
+
+	private RoutingService routingService;
 
 	private Queue<TransferEnvelope> queuedEnvelopes = new LinkedList<TransferEnvelope>();
 
 	/**
 	 * Initializes MockInputChannelBroker.
 	 * 
-	 * @param bbic
+	 * @param inputChannel
 	 * @param transitBufferPool
 	 */
-	public MockInputChannelBroker(AbstractByteBufferedInputChannel<?> bbic,
-			TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
-		this.bbic = bbic;
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+	public MockInputChannelBroker(AbstractInputChannel<?> inputChannel, RoutingService routingService) {
+		this.inputChannel = inputChannel;
+		this.routingService = routingService;
 	}
 
 	/*
@@ -98,12 +98,12 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 		if (transferEnvelope.getBuffer() == null) {
 
 			// No buffers necessary
-			final EventList eventList = transferEnvelope.getEventList();
+			final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 			if (eventList != null)
 				if (!eventList.isEmpty()) {
 					final Iterator<AbstractEvent> it = eventList.iterator();
 					while (it.hasNext())
-						this.bbic.processEvent(it.next());
+						this.inputChannel.processEvent(it.next());
 				}
 
 			return null;
@@ -112,12 +112,12 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 		final Buffer buffer = transferEnvelope.getBuffer(); // No need to copy anything
 
 		// Process events
-		final EventList eventList = transferEnvelope.getEventList();
+		final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 		if (eventList != null)
 			if (!eventList.isEmpty()) {
 				final Iterator<AbstractEvent> it = eventList.iterator();
 				while (it.hasNext())
-					this.bbic.processEvent(it.next());
+					this.inputChannel.processEvent(it.next());
 			}
 
 		return buffer;
@@ -131,10 +131,10 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	 */
 	@Override
 	public void transferEventToOutputChannel(AbstractEvent event) throws IOException, InterruptedException {
-		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, this.bbic.getJobID(),
-			this.bbic.getID());
+		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, this.inputChannel.getJobID(),
+			this.inputChannel.getID());
 		ephemeralTransferEnvelope.addEvent(event);
-		this.transferEnvelopeDispatcher.processEnvelopeFromInputChannel(ephemeralTransferEnvelope);
+		this.routingService.routeEnvelopeFromInputChannel(ephemeralTransferEnvelope);
 	}
 
 	/*
@@ -150,7 +150,7 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 		}
 
 		// Notify the channel about the new data
-		this.bbic.checkForNetworkEvents();
+		this.inputChannel.checkForNetworkEvents();
 	}
 
 	/*
@@ -158,8 +158,8 @@ public class MockInputChannelBroker implements ByteBufferedInputChannelBroker, M
 	 * @see eu.stratosphere.pact.testing.MockChannelBroker#getChannel()
 	 */
 	@Override
-	public AbstractByteBufferedInputChannel<?> getChannel() {
-		return this.bbic;
+	public AbstractInputChannel<?> getChannel() {
+		return this.inputChannel;
 	}
 
 	/*

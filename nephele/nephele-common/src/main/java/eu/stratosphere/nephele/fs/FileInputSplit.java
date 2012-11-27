@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -21,12 +21,7 @@
 
 package eu.stratosphere.nephele.fs;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.template.InputSplit;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * A file input split provides information on a particular part of a file, possibly
@@ -39,27 +34,27 @@ public class FileInputSplit implements InputSplit {
 	/**
 	 * The path of the file this file split refers to.
 	 */
-	private Path file;
+	private final Path file;
 
 	/**
 	 * The position of the first byte in the file to process.
 	 */
-	private long start;
+	private final long start;
 
 	/**
 	 * The number of bytes in the file to process.
 	 */
-	private long length;
+	private final long length;
 
 	/**
 	 * List of hosts (hostnames) containing the block, possibly <code>null</code>.
 	 */
-	private String[] hosts;
+	private final String[] hosts;
 
 	/**
 	 * The logical number of the split.
 	 */
-	private int partitionNumber;
+	private final int partitionNumber;
 
 	/**
 	 * Constructs a split with host information.
@@ -76,6 +71,27 @@ public class FileInputSplit implements InputSplit {
 	 *        the list of hosts containing the block, possibly <code>null</code>
 	 */
 	public FileInputSplit(final int num, final Path file, final long start, final long length, final String[] hosts) {
+
+		if (num < 0) {
+			throw new IllegalArgumentException("Argument num must be a non-negative number");
+		}
+
+		if (file == null) {
+			throw new IllegalArgumentException("Argument file must not be null");
+		}
+
+		if (start < 0L) {
+			throw new IllegalArgumentException("Argument start must be a non-negative number");
+		}
+
+		if (length < 0L) {
+			throw new IllegalArgumentException("Argument length must be a non-negative number");
+		}
+
+		if (hosts == null) {
+			throw new IllegalArgumentException("Argument hosts must not be null");
+		}
+
 		this.partitionNumber = num;
 		this.file = file;
 		this.start = start;
@@ -84,9 +100,15 @@ public class FileInputSplit implements InputSplit {
 	}
 
 	/**
-	 * Constructor used to reconstruct the object at the receiver of an RPC call.
+	 * Default constructor required by kryo.
 	 */
-	public FileInputSplit() {
+	@SuppressWarnings("unused")
+	private FileInputSplit() {
+		this.partitionNumber = -1;
+		this.file = null;
+		this.start = -1L;
+		this.length = -1L;
+		this.hosts = new String[0];
 	}
 
 	/**
@@ -150,61 +172,50 @@ public class FileInputSplit implements InputSplit {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
-		// write partition number
-		out.writeInt(this.partitionNumber);
+	public boolean equals(final Object obj) {
 
-		// write file
-		if (this.file != null) {
-			out.writeBoolean(true);
-			this.file.write(out);
-		} else {
-			out.writeBoolean(false);
+		if (!(obj instanceof FileInputSplit)) {
+			return false;
 		}
 
-		// write start and length
-		out.writeLong(this.start);
-		out.writeLong(this.length);
+		final FileInputSplit fis = (FileInputSplit) obj;
 
-		// write hosts
-		if (this.hosts == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			out.writeInt(this.hosts.length);
-			for (int i = 0; i < this.hosts.length; i++) {
-				StringRecord.writeString(out, this.hosts[i]);
+		// Check the partition number first
+		if (this.partitionNumber != fis.partitionNumber) {
+			return false;
+		}
+
+		if (this.start != fis.start) {
+			return false;
+		}
+
+		if (this.length != fis.length) {
+			return false;
+		}
+
+		if (!this.file.equals(fis.file)) {
+			return false;
+		}
+
+		if (this.hosts.length != fis.hosts.length) {
+			return false;
+		}
+
+		for (int i = 0; i < this.hosts.length; ++i) {
+			if (!this.hosts[i].equals(fis.hosts[i])) {
+				return false;
 			}
 		}
+
+		return true;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
-		// read partition number
-		this.partitionNumber = in.readInt();
+	public int hashCode() {
 
-		// read file path
-		boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			this.file = new Path();
-			this.file.read(in);
-		}
-
-		this.start = in.readLong();
-		this.length = in.readLong();
-
-		isNotNull = in.readBoolean();
-		if (isNotNull) {
-			final int numHosts = in.readInt();
-			this.hosts = new String[numHosts];
-			for (int i = 0; i < numHosts; i++) {
-				this.hosts[i] = StringRecord.readString(in);
-			}
-		} else {
-			this.hosts = null;
-		}
+		return (int) (this.partitionNumber * this.length + this.start) + this.partitionNumber;
 	}
 }

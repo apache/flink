@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.profiling.impl.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
@@ -28,47 +24,31 @@ public class InternalOutputGateProfilingData implements InternalProfilingData {
 
 	private final JobID jobId;
 
-	private int gateIndex;
+	private final int gateIndex;
 
-	private int profilingInternval;
+	private final int profilingInternval;
 
-	private int channelCapacityExhaustedCounter;
+	private final int channelCapacityExhaustedCounter;
 
-	public InternalOutputGateProfilingData() {
-		this.jobId = new JobID();
-		this.executionVertexID = new ExecutionVertexID();
+	/**
+	 * Default constructor required by kryo.
+	 */
+	@SuppressWarnings("unused")
+	private InternalOutputGateProfilingData() {
+		this.jobId = null;
+		this.executionVertexID = null;
 		this.gateIndex = 0;
 		this.profilingInternval = 0;
 		this.channelCapacityExhaustedCounter = 0;
 	}
 
-	public InternalOutputGateProfilingData(JobID jobID, ExecutionVertexID executionVertexID, int gateIndex,
-			int profilingInterval, int channelCapacityExhaustedCounter) {
+	public InternalOutputGateProfilingData(final JobID jobID, final ExecutionVertexID executionVertexID,
+			final int gateIndex, final int profilingInterval, final int channelCapacityExhaustedCounter) {
 		this.jobId = jobID;
 		this.executionVertexID = executionVertexID;
 		this.gateIndex = gateIndex;
 		this.profilingInternval = profilingInterval;
 		this.channelCapacityExhaustedCounter = channelCapacityExhaustedCounter;
-	}
-
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		this.jobId.read(in);
-		this.executionVertexID.read(in);
-		this.gateIndex = in.readInt();
-		this.profilingInternval = in.readInt();
-		this.channelCapacityExhaustedCounter = in.readInt();
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		this.jobId.write(out);
-		this.executionVertexID.write(out);
-		out.writeInt(this.gateIndex);
-		out.writeInt(this.profilingInternval);
-		out.writeInt(this.channelCapacityExhaustedCounter);
 	}
 
 	public JobID getJobID() {

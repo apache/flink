@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -472,6 +472,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			errorBox.setText("Error");
 			errorBox.setMessage(StringUtils.stringifyException(ioe));
 			errorBox.open();
+		} catch (InterruptedException ie) {
+			LOG.debug(StringUtils.stringifyException(ie));
 		}
 	}
 
@@ -491,6 +493,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 			errorBox.setText("Error");
 			errorBox.setMessage(StringUtils.stringifyException(ioe));
 			errorBox.open();
+		} catch (InterruptedException ie) {
+			LOG.debug(StringUtils.stringifyException(ie));
 		}
 
 	}
@@ -570,6 +574,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
+		} catch (InterruptedException ie) {
+			LOG.debug(StringUtils.stringifyException(ie));
+			return;
 		}
 
 		if (viewUpdateRequired) {
@@ -599,7 +606,7 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 	}
 
 	private void addJob(JobID jobID, String jobName, boolean isProfilingAvailable, final long submissionTimestamp,
-			final long referenceTime) throws IOException {
+			final long referenceTime) throws IOException, InterruptedException {
 
 		synchronized (this.recentJobs) {
 
@@ -801,6 +808,9 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 				msgBox.setText("Logging failed for job " + visualizationData.getJobID());
 				msgBox.setMessage("Logging of buffer utilization failed for job " + visualizationData.getJobID()
 					+ ":\r\n\r\n" + ioe.getMessage());
+			} catch (InterruptedException ie) {
+				LOG.debug(StringUtils.stringifyException(ie));
+				return;
 			}
 		}
 
@@ -864,6 +874,8 @@ public class SWTVisualizationGUI implements SelectionListener, Runnable {
 				msgBox.setText("Canceling job " + visualizationData.getJobID() + " failed");
 				msgBox.setMessage("Canceling job " + visualizationData.getJobID()
 					+ " failed:\r\n\r\n" + ioe.getMessage());
+			} catch (InterruptedException ie) {
+				return;
 			}
 		}
 

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,14 +14,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.sopremo.execution;
 
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import java.io.IOException;
 
 /**
  * A general purpose interface for everything that executes meteor scripts synchronically and asynchronically.
  * 
  * @author Arvid Heise
  */
-public interface SopremoExecutionProtocol extends VersionedProtocol, LibraryTransferProtocol {
+public interface SopremoExecutionProtocol extends LibraryTransferProtocol {
 	/**
 	 * Executes the query specified in the {@link ExecutionRequest}.
 	 * 
@@ -29,7 +29,7 @@ public interface SopremoExecutionProtocol extends VersionedProtocol, LibraryTran
 	 *        the request with the query
 	 * @return the {@link ExecutionResponse}
 	 */
-	public ExecutionResponse execute(ExecutionRequest request);
+	ExecutionResponse execute(ExecutionRequest request) throws IOException, InterruptedException;
 
 	/**
 	 * Queries the state of the given job.
@@ -38,5 +38,5 @@ public interface SopremoExecutionProtocol extends VersionedProtocol, LibraryTran
 	 *        the job id
 	 * @return the {@link ExecutionResponse} with the state
 	 */
-	public ExecutionResponse getState(SopremoID jobId);
+	ExecutionResponse getState(SopremoID jobId) throws IOException, InterruptedException;
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -31,14 +31,10 @@
  */
 package eu.stratosphere.nephele.event.task;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.types.StringRecord;
-
 /**
  * This class provides a simple implementation of an event that holds a string value.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author casp
  */
@@ -47,12 +43,14 @@ public class StringTaskEvent extends AbstractTaskEvent {
 	/**
 	 * The string encapsulated by this event.
 	 */
-	private String message = null;
+	private final String message;
 
 	/**
-	 * The default constructor implementation. It should only be used for deserialization.
+	 * Default constructor required by kryo.
 	 */
-	public StringTaskEvent() {
+	@SuppressWarnings("unused")
+	private StringTaskEvent() {
+		this.message = null;
 	}
 
 	/**
@@ -72,24 +70,6 @@ public class StringTaskEvent extends AbstractTaskEvent {
 	 */
 	public String getString() {
 		return this.message;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		StringRecord.writeString(out, this.message);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.message = StringRecord.readString(in);
 	}
 
 	/**

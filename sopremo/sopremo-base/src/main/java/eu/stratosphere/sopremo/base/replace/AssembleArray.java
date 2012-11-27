@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,10 +19,11 @@ import eu.stratosphere.sopremo.operator.ElementaryOperator;
 import eu.stratosphere.sopremo.operator.InputCardinality;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
+import eu.stratosphere.sopremo.type.AbstractNumericNode;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
-import eu.stratosphere.sopremo.type.AbstractNumericNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 import eu.stratosphere.sopremo.type.JsonUtil;
 
 /**
@@ -36,7 +37,7 @@ public class AssembleArray extends ElementaryOperator<AssembleArray> {
 	 * Initializes AssembleArray.
 	 */
 	public AssembleArray() {
-		setKeyExpressions(0, new ArrayAccess(2));
+		this.setKeyExpressions(0, new ArrayAccess(2));
 	}
 
 	public static class Implementation extends SopremoReduce {
@@ -46,7 +47,7 @@ public class AssembleArray extends ElementaryOperator<AssembleArray> {
 		 * eu.stratosphere.sopremo.pact.JsonCollector)
 		 */
 		@Override
-		protected void reduce(IArrayNode values, JsonCollector out) {
+		protected void reduce(IStreamArrayNode values, JsonCollector out) {
 			ArrayNode assembledArray = new ArrayNode();
 
 			int replacedCount = 0;

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -20,42 +20,74 @@ import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
 /**
  * A class for statistically unique execution vertex IDs.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public class ExecutionVertexID extends AbstractID {
+public final class ExecutionVertexID extends AbstractID {
 
 	/**
-	 * Converts the execution vertex ID into a
-	 * management vertex ID. The new management vertex ID
-	 * will be equal to the execution vertex ID in the sense
-	 * that the <code>equals</code> method will return <code>
-	 * true</code> when both IDs are compared.
+	 * Default constructor required by kryo.
+	 */
+	private ExecutionVertexID() {
+	}
+
+	/**
+	 * Constructs a new execution vertex ID.
+	 * 
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
+	 */
+	private ExecutionVertexID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	/**
+	 * Constructs a execution vertex ID from the given management vertex ID.
+	 * 
+	 * @param id
+	 *        the management vertex ID to construct the new ID from
+	 */
+	private ExecutionVertexID(final ManagementVertexID id) {
+		super(id);
+	}
+
+	/**
+	 * Converts the execution vertex ID into a management vertex ID. The new management vertex ID will be equal to the
+	 * execution vertex ID in the sense that the <code>equals</code> method will return <code>true</code> when both IDs
+	 * are compared.
 	 * 
 	 * @return the new management vertex ID
 	 */
 	public ManagementVertexID toManagementVertexID() {
 
-		final ManagementVertexID newID = new ManagementVertexID();
-		newID.setID(this);
-
-		return newID;
+		return ManagementVertexID.fromOtherID(this);
 	}
 
 	/**
-	 * Converts the given management vertex ID into the corresponding execution vertex ID. The new execution vertex ID
-	 * will be equals to the management vertex ID in the sense that the <code>equals</code> method will return
-	 * <code>true</code> when both IDs are compared.
+	 * Converts the given management vertex ID into an execution vertex ID. The new execution vertex ID will be equal to
+	 * the management vertex ID in the sense that the <code>equals</code> method will return <code>true</code> when both
+	 * IDs are compared.
 	 * 
-	 * @param vertexID
-	 *        the management vertex ID to be converted
-	 * @return the resulting execution vertex ID
+	 * @return the new execution vertex ID
 	 */
-	public static ExecutionVertexID fromManagementVertexID(final ManagementVertexID vertexID) {
+	public static ExecutionVertexID fromManagementVertexID(final ManagementVertexID id) {
+		return new ExecutionVertexID(id);
+	}
 
-		final ExecutionVertexID newID = new ExecutionVertexID();
-		newID.setID(vertexID);
+	/**
+	 * Generates a new statistically unique execution vertex ID.
+	 * 
+	 * @return a new statistically unique execution vertex ID
+	 */
+	public static ExecutionVertexID generate() {
 
-		return newID;
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
+
+		return new ExecutionVertexID(lowerPart, upperPart);
 	}
 }

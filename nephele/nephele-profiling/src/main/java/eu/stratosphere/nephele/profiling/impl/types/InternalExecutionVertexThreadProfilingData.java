@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,24 +15,20 @@
 
 package eu.stratosphere.nephele.profiling.impl.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 public class InternalExecutionVertexThreadProfilingData extends InternalExecutionVertexProfilingData {
 
-	private int profilingInterval = 0;
+	private final int profilingInterval;
 
-	private int userTime = 0;
+	private final int userTime;
 
-	private int systemTime = 0;
+	private final int systemTime;
 
-	private int blockedTime = 0;
+	private final int blockedTime;
 
-	private int waitedTime = 0;
+	private final int waitedTime;
 
 	public InternalExecutionVertexThreadProfilingData(JobID jobID, ExecutionVertexID executionVertexID,
 			int profilingInterval, int userTime, int systemTime, int blockedTime, int waitedTime) {
@@ -46,31 +42,17 @@ public class InternalExecutionVertexThreadProfilingData extends InternalExecutio
 		this.waitedTime = waitedTime;
 	}
 
-	public InternalExecutionVertexThreadProfilingData() {
-	}
+	/**
+	 * Default constructor required by kryo.
+	 */
+	@SuppressWarnings("unused")
+	private InternalExecutionVertexThreadProfilingData() {
 
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		super.read(in);
-
-		this.profilingInterval = in.readInt();
-		this.userTime = in.readInt();
-		this.systemTime = in.readInt();
-		this.blockedTime = in.readInt();
-		this.waitedTime = in.readInt();
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		super.write(out);
-
-		out.writeInt(this.profilingInterval);
-		out.writeInt(this.userTime);
-		out.writeInt(this.systemTime);
-		out.writeInt(this.blockedTime);
-		out.writeInt(this.waitedTime);
+		this.profilingInterval = 0;
+		this.userTime = 0;
+		this.systemTime = 0;
+		this.blockedTime = 0;
+		this.waitedTime = 0;
 	}
 
 	public int getBlockedTime() {

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -85,6 +85,11 @@ public class ExecutionGroupEdge {
 	private final boolean isBroadcast;
 
 	/**
+	 * Stores if spanning records are allowed for this edge.
+	 */
+	private final boolean allowSpanningRecords;
+
+	/**
 	 * Constructs a new group edge.
 	 * 
 	 * @param sourceVertex
@@ -107,12 +112,14 @@ public class ExecutionGroupEdge {
 	 *        the distribution pattern to create the wiring
 	 * @param isBroadcast
 	 *        indicates that the edge is part of a broadcast group
+	 * @param allowSpanningRecords
+	 *        indicates that the edge allows spanning records
 	 */
 	public ExecutionGroupEdge(final ExecutionGroupVertex sourceVertex, final int indexOfOutputGate,
 			final ExecutionGroupVertex targetVertex, final int indexOfInputGate, final ChannelType channelType,
 			final boolean userDefinedChannelType, final CompressionLevel compressionLevel,
 			final boolean userDefinedCompressionLevel, final DistributionPattern distributionPattern,
-			final boolean isBroadcast) {
+			final boolean isBroadcast, final boolean allowSpanningRecords) {
 		this.sourceVertex = sourceVertex;
 		this.indexOfOutputGate = indexOfOutputGate;
 		this.channelType = channelType;
@@ -123,6 +130,7 @@ public class ExecutionGroupEdge {
 		this.targetVertex = targetVertex;
 		this.distributionPattern = distributionPattern;
 		this.isBroadcast = isBroadcast;
+		this.allowSpanningRecords = allowSpanningRecords;
 	}
 
 	/**
@@ -272,5 +280,14 @@ public class ExecutionGroupEdge {
 	 */
 	public boolean isBroadcast() {
 		return this.isBroadcast;
+	}
+
+	/**
+	 * Checks if spanning records shall be allowed on this edge.
+	 * 
+	 * @return <code>true</code> if this edge shall support spanning records, <code>false</code> otherwise
+	 */
+	public boolean allowSpanningRecords() {
+		return this.allowSpanningRecords;
 	}
 }

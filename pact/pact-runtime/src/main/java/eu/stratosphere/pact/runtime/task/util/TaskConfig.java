@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,9 +17,7 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInput;
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.HashSet;
@@ -704,6 +702,20 @@ public class TaskConfig
 		public void setFloat(String key, float value) {
 			this.backingConfig.setFloat(this.prefix + key, value);
 		}
+		
+		
+
+		@Override
+		@Deprecated
+		public byte[] getBytes(String key, byte[] defaultValue) {
+			return this.backingConfig.getBytes(this.prefix + key, defaultValue);
+		}
+
+		@Override
+		@Deprecated
+		public void setBytes(String key, byte[] bytes) {
+			this.backingConfig.setBytes(this.prefix + key, bytes);
+		}
 
 		@Override
 		public Set<String> keySet()
@@ -719,20 +731,11 @@ public class TaskConfig
 			return set;
 		}
 		
-		// --------------------------------------------------------------------------------------------
-
 		@Override
-		public void read(DataInput in) throws IOException
-		{
-			this.prefix = in.readUTF();
-			this.backingConfig.read(in);
-		}
-
-		@Override
-		public void write(DataOutput out) throws IOException
-		{
-			out.writeUTF(this.prefix);
-			this.backingConfig.write(out);
+		public void addAll(Configuration other, String prefix) {
+			for (String s : other.keySet()) {
+				this.backingConfig.setString(this.prefix + s, other.getString(s, null));
+			}
 		}
 		
 		// --------------------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -23,8 +23,8 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
+import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
 
 public interface Task {
 
@@ -110,6 +110,5 @@ public interface Task {
 	 */
 	ExecutionState getExecutionState();
 
-	TaskContext createTaskContext(TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			LocalBufferPoolOwner previousBufferPoolOwner);
+	TaskContext createTaskContext(RoutingService routingService, LocalBufferPoolOwner previousBufferPoolOwner);
 }

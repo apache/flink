@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.taskmanager.runtime;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -25,7 +26,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.checkpointing.CheckpointDecisionRequester;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
@@ -38,8 +38,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
+import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.util.StringUtils;
 
@@ -74,7 +74,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 */
 	private volatile CheckpointDecisionRequester checkpointDecisionRequester = null;
 
-	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
+	private Queue<ExecutionObserver> registeredObservers = new ConcurrentLinkedQueue<ExecutionObserver>();
 
 	public RuntimeTask(final ExecutionVertexID vertexID, final RuntimeEnvironment environment,
 			final CheckpointState initialCheckpointState, final TaskManager taskManager) {
@@ -101,11 +101,10 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 			LOG.error(optionalMessage);
 		}
 
-		// Notify all listener objects
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
+		// Notify all observer objects
+		final Iterator<ExecutionObserver> it = this.registeredObservers.iterator();
 		while (it.hasNext()) {
-			it.next().executionStateChanged(this.environment.getJobID(), this.vertexID, newExecutionState,
-				optionalMessage);
+			it.next().executionStateChanged(newExecutionState, optionalMessage);
 		}
 
 		// Store the new execution state
@@ -133,10 +132,10 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	@Override
 	public void userThreadStarted(final Thread userThread) {
 
-		// Notify the listeners
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
+		// Notify the observers
+		final Iterator<ExecutionObserver> it = this.registeredObservers.iterator();
 		while (it.hasNext()) {
-			it.next().userThreadStarted(this.environment.getJobID(), this.vertexID, userThread);
+			it.next().userThreadStarted(userThread);
 		}
 	}
 
@@ -146,37 +145,37 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	@Override
 	public void userThreadFinished(final Thread userThread) {
 
-		// Notify the listeners
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
+		// Notify the observers
+		final Iterator<ExecutionObserver> it = this.registeredObservers.iterator();
 		while (it.hasNext()) {
-			it.next().userThreadFinished(this.environment.getJobID(), this.vertexID, userThread);
+			it.next().userThreadFinished(userThread);
 		}
 	}
 
 	/**
-	 * Registers the {@link ExecutionListener} object for this task. This object
+	 * Registers the {@link ExecutionObserver} object for this task. This object
 	 * will be notified about important events during the task execution.
 	 * 
-	 * @param executionListener
+	 * @param executionObserver
 	 *        the object to be notified for important events during the task execution
 	 */
 
-	public void registerExecutionListener(final ExecutionListener executionListener) {
+	public void registerExecutionObserver(final ExecutionObserver executionObserver) {
 
-		this.registeredListeners.add(executionListener);
+		this.registeredObservers.add(executionObserver);
 	}
 
 	/**
-	 * Unregisters the {@link ExecutionListener} object for this environment. This object
+	 * Unregisters the {@link ExecutionObservers} object for this environment. This object
 	 * will no longer be notified about important events during the task execution.
 	 * 
-	 * @param executionListener
-	 *        the lister object to be unregistered
+	 * @param executionObserver
+	 *        the observer object to be unregistered
 	 */
 
-	public void unregisterExecutionListener(final ExecutionListener executionListener) {
+	public void unregisterExecutionObserver(final ExecutionObserver executionObserver) {
 
-		this.registeredListeners.remove(executionListener);
+		this.registeredObservers.remove(executionObserver);
 	}
 
 	/**
@@ -254,8 +253,10 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 
 			try {
 				executingThread.join(1000);
-			} catch (InterruptedException e) {}
-			
+			} catch (InterruptedException e) {
+				break;
+			}
+
 			if (!executingThread.isAlive()) {
 				break;
 			}
@@ -285,7 +286,8 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 		return this.isCanceled;
 	}
 
-	public void checkpointStateChanged(final CheckpointState newCheckpointState) {
+	public void checkpointStateChanged(final CheckpointState newCheckpointState) throws IOException,
+			InterruptedException {
 
 		// Propagate event to the job manager
 		this.taskManager.checkpointStateChanged(this.environment.getJobID(), this.vertexID, newCheckpointState);
@@ -348,7 +350,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	@Override
 	public void registerProfiler(final TaskManagerProfiler taskManagerProfiler, final Configuration jobConfiguration) {
 
-		taskManagerProfiler.registerExecutionListener(this, jobConfiguration);
+		taskManagerProfiler.registerExecutionObserver(this, jobConfiguration);
 	}
 
 	/**
@@ -369,7 +371,7 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	public void unregisterProfiler(final TaskManagerProfiler taskManagerProfiler) {
 
 		if (taskManagerProfiler != null) {
-			taskManagerProfiler.unregisterExecutionListener(this.vertexID);
+			taskManagerProfiler.unregisterExecutionObserver(this.vertexID);
 		}
 	}
 
@@ -377,14 +379,14 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public TaskContext createTaskContext(final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+	public TaskContext createTaskContext(final RoutingService routingService,
 			final LocalBufferPoolOwner previousBufferPoolOwner) {
 
 		if (previousBufferPoolOwner != null) {
 			throw new IllegalStateException("Vertex " + this.vertexID + " has a previous buffer pool owner");
 		}
 
-		return new RuntimeTaskContext(this, this.initialCheckpointState, transferEnvelopeDispatcher);
+		return new RuntimeTaskContext(this, this.initialCheckpointState, routingService);
 	}
 
 	/**

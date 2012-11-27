@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,17 +15,12 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
- * A job event object is used by the job manager to inform a client about
- * changes of the job's status.
+ * A job event object is used by the job manager to inform a client about changes of the job's status.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
@@ -34,12 +29,12 @@ public class JobEvent extends AbstractEvent {
 	/**
 	 * The current status of the job.
 	 */
-	private JobStatus currentJobStatus;
+	private final JobStatus currentJobStatus;
 
 	/**
 	 * An optional message attached to the event, possibly <code>null</code>.
 	 */
-	private String optionalMessage = null;
+	private final String optionalMessage;
 
 	/**
 	 * Constructs a new job event object.
@@ -59,42 +54,13 @@ public class JobEvent extends AbstractEvent {
 	}
 
 	/**
-	 * Constructs a new job event object. This constructor
-	 * is only required for the deserialization process and
-	 * is not supposed to be called directly.
+	 * Private constructor required by kryo.
 	 */
-	public JobEvent() {
-		super();
+	@SuppressWarnings("unused")
+	private JobEvent() {
 
-		this.currentJobStatus = JobStatus.SCHEDULED;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-		super.read(in);
-
-		// Read job status
-		this.currentJobStatus = EnumUtils.readEnum(in, JobStatus.class);
-
-		// Read optional message
-		this.optionalMessage = StringRecord.readString(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-		super.write(out);
-
-		// Write job status
-		EnumUtils.writeEnum(out, this.currentJobStatus);
-
-		// Write optional message
-		StringRecord.writeString(out, this.optionalMessage);
+		this.currentJobStatus = null;
+		this.optionalMessage = null;
 	}
 
 	/**

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.testing;
 
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Assert;
@@ -27,7 +27,6 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.DeploymentManager;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 
 /**
  * @author Arvid Heise
@@ -74,7 +73,7 @@ public class MockDeployManager implements DeploymentManager {
 			@Override
 			public void run() {
 				final List<TaskDeploymentDescriptor> submissionList =
-					new SerializableArrayList<TaskDeploymentDescriptor>();
+					new ArrayList<TaskDeploymentDescriptor>();
 
 				// Check the consistency of the call
 				for (final ExecutionVertex vertex : verticesToBeDeployed) {
@@ -92,9 +91,9 @@ public class MockDeployManager implements DeploymentManager {
 
 				try {
 					submissionResultList = instance.submitTasks(submissionList);
-				} catch (final IOException ioe) {
+				} catch (final Exception e) {
 					for (final ExecutionVertex vertex : verticesToBeDeployed)
-						Assert.fail(ioe.getMessage() + " @ " + vertex);
+						Assert.fail(e.getMessage() + " @ " + vertex);
 					return;
 				}
 

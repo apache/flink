@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -23,7 +23,6 @@ import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import eu.stratosphere.nephele.execution.ExecutionObserver;
 import eu.stratosphere.nephele.execution.ExecutionState;
@@ -60,8 +59,6 @@ final class ReplayThread extends Thread {
 	private final boolean isCheckpointComplete;
 
 	private final Map<ChannelID, ReplayOutputChannelBroker> outputBrokerMap;
-
-	private final AtomicBoolean restartRequested = new AtomicBoolean(false);
 
 	ReplayThread(final ExecutionVertexID vertexID, final ExecutionObserver executionObserver, final String taskName,
 			final boolean isCheckpointLocal, final boolean isCheckpointComplete,
@@ -132,15 +129,6 @@ final class ReplayThread extends Thread {
 		changeExecutionState(ExecutionState.FINISHED, null);
 	}
 
-	private void resetAllOutputBroker() {
-
-		final Iterator<ReplayOutputChannelBroker> it = this.outputBrokerMap.values().iterator();
-		while (it.hasNext()) {
-			it.next().reset();
-		}
-
-	}
-
 	private void waitForAllOutputBrokerToFinish() throws IOException, InterruptedException {
 
 		while (!this.executionObserver.isCanceled()) {
@@ -168,14 +156,6 @@ final class ReplayThread extends Thread {
 		}
 	}
 
-	void restart() {
-
-		changeExecutionState(ExecutionState.STARTING, null);
-		this.restartRequested.set(true);
-		// Fake transition to replaying here to prevent deadlocks
-		changeExecutionState(ExecutionState.REPLAYING, null);
-	}
-
 	private void replayCheckpoint() throws Exception {
 
 		final CheckpointDeserializer deserializer = new CheckpointDeserializer(this.vertexID, !this.isCheckpointLocal);
@@ -198,12 +178,6 @@ final class ReplayThread extends Thread {
 		try {
 
 			while (true) {
-
-				if (this.restartRequested.compareAndSet(true, false)) {
-					metaDataIndex = 0;
-					// Reset all the output broker in case we here restarted
-					resetAllOutputBroker();
-				}
 
 				// Try to locate the meta data file
 				final Path metaDataFile = checkpointPath.suffix(Path.SEPARATOR + CheckpointUtils.METADATA_PREFIX
@@ -246,7 +220,7 @@ final class ReplayThread extends Thread {
 								.getSource());
 							if (broker == null) {
 								throw new IOException("Cannot find output broker for channel "
-										+ transferEnvelope.getSource());
+									+ transferEnvelope.getSource());
 							}
 
 							final Buffer srcBuffer = transferEnvelope.getBuffer();

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -26,17 +26,17 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityList
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
+import eu.stratosphere.nephele.taskmanager.routing.InputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.OutputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
+import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTaskContext;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 final class ReplayTaskContext implements TaskContext, BufferProvider, AsynchronousEventListener {
 
 	private final ReplayTask task;
 
-	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private final RoutingService routingService;
 
 	private final LocalBufferPoolOwner previousBufferPoolOwner;
 
@@ -44,10 +44,10 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 
 	private final LocalBufferPool localBufferPool;
 
-	ReplayTaskContext(final ReplayTask task, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
+	ReplayTaskContext(final ReplayTask task, final RoutingService routingService,
 			final LocalBufferPoolOwner previousBufferPoolOwner, final int numberOfChannels) {
 		this.task = task;
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.routingService = routingService;
 		this.previousBufferPoolOwner = previousBufferPoolOwner;
 		if (previousBufferPoolOwner == null) {
 			this.localBufferPool = new LocalBufferPool(1, false, this);
@@ -86,9 +86,9 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 		this.task.registerReplayOutputBroker(channelID, outputBroker);
 	}
 
-	TransferEnvelopeDispatcher getTransferEnvelopeDispatcher() {
+	RoutingService getRoutingService() {
 
-		return this.transferEnvelopeDispatcher;
+		return this.routingService;
 	}
 
 	/**
@@ -140,7 +140,7 @@ final class ReplayTaskContext implements TaskContext, BufferProvider, Asynchrono
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getNumberOfChannels() {
+	public int getMinimumNumberOfRequiredBuffers() {
 
 		return this.numberOfChannels;
 	}

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
-import eu.stratosphere.nephele.ipc.RPC;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.pact.test.util.Constants;
 import eu.stratosphere.pact.test.util.filesystem.FilesystemProvider;
 import eu.stratosphere.pact.test.util.minicluster.ClusterProvider;
@@ -58,8 +58,11 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  */
 @Ignore
 public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
+	
+	private RPCService rpcService;
+	
 	private SopremoServer server;
-
+	
 	private SopremoExecutionProtocol executor;
 
 	private ClusterProvider cluster;
@@ -93,7 +96,8 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 				this.server.setServerAddress(
 					new InetSocketAddress("localhost", SopremoConstants.DEFAULT_SOPREMO_SERVER_IPC_PORT));
 				this.server.start();
-				this.executor = RPC.getProxy(SopremoExecutionProtocol.class, this.server.getServerAddress());
+				this.rpcService = new RPCService();
+				this.executor = this.rpcService.getProxy(this.server.getServerAddress(), SopremoExecutionProtocol.class);
 			} catch (IOException e) {
 				fail(e, "Cannot start rpc sopremo server");
 			}
@@ -167,7 +171,7 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 		}
 		this.server.close();
 		if (this.executor != this.server)
-			RPC.stopProxy(this.executor);
+			this.rpcService.shutDown();
 		FileSystem.closeAll();
 	}
 
@@ -199,7 +203,7 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 	}
 
 	@Override
-	public ExecutionResponse execute(ExecutionRequest request) {
+	public ExecutionResponse execute(ExecutionRequest request) throws IOException, InterruptedException {
 		correctPathsOfPlan(request.getQuery());
 
 		return this.executor.execute(request);
@@ -214,7 +218,7 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 	}
 
 	@Override
-	public ExecutionResponse getState(SopremoID jobId) {
+	public ExecutionResponse getState(SopremoID jobId) throws IOException, InterruptedException {
 		return this.executor.getState(jobId);
 	}
 
@@ -249,12 +253,9 @@ public class SopremoTestServer implements Closeable, SopremoExecutionProtocol {
 	}
 
 	public static ExecutionResponse waitForStateToFinish(SopremoExecutionProtocol server, ExecutionResponse response,
-			ExecutionState status) {
+			ExecutionState status) throws IOException, InterruptedException {
 		for (int waits = 0; response.getState() == status && waits < 1000; waits++) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-			}
+			Thread.sleep(100);
 			response = server.getState(response.getJobId());
 		}
 		return response;

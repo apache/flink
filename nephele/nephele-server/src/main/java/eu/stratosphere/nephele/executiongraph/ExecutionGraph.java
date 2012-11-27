@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,17 +26,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceManager;
@@ -67,7 +71,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public class ExecutionGraph implements ExecutionListener {
+public class ExecutionGraph implements ExecutionStateListener, GroupExecutionListener {
 
 	/**
 	 * The log object used for debugging.
@@ -109,7 +113,7 @@ public class ExecutionGraph implements ExecutionListener {
 	/**
 	 * Index to the current execution stage.
 	 */
-	private volatile int indexToCurrentExecutionStage = 0;
+	private final AtomicInteger indexToCurrentExecutionStage = new AtomicInteger(0);
 
 	/**
 	 * The job configuration that was originally attached to the JobGraph.
@@ -128,9 +132,9 @@ public class ExecutionGraph implements ExecutionListener {
 	private volatile String errorDescription = null;
 
 	/**
-	 * List of listeners which are notified in case the status of this job has changed.
+	 * Map of listeners which are notified in case the status of this job has changed.
 	 */
-	private final CopyOnWriteArrayList<JobStatusListener> jobStatusListeners = new CopyOnWriteArrayList<JobStatusListener>();
+	private final ConcurrentMap<Integer, JobStatusListener> jobStatusListeners = new ConcurrentSkipListMap<Integer, JobStatusListener>();
 
 	/**
 	 * List of listeners which are notified in case the execution stage of a job has changed.
@@ -169,7 +173,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
 	public ExecutionGraph(final JobGraph job, final InstanceManager instanceManager)
-																					throws GraphConversionException {
+			throws GraphConversionException {
 		this(job.getJobID(), job.getName(), job.getJobConfiguration());
 
 		// Start constructing the new execution graph from given job graph
@@ -280,11 +284,24 @@ public class ExecutionGraph implements ExecutionListener {
 		final ExecutionStage initialExecutionStage = new ExecutionStage(this, 0);
 		this.stages.add(initialExecutionStage);
 
+		// Get the job's class loader
+		final JobID jobID = jobGraph.getJobID();
+		ClassLoader jobClassLoader = null;
+		try {
+			jobClassLoader = LibraryCacheManager.getClassLoader(jobID);
+		} catch (IOException e) {
+			LOG.error(e);
+			throw new GraphConversionException(StringUtils.stringifyException(e));
+		}
+		if (jobClassLoader == null) {
+			throw new GraphConversionException("Cannot find class loader for job " + jobID);
+		}
+
 		// Convert job vertices to execution vertices and initialize them
 		final AbstractJobVertex[] all = jobGraph.getAllJobVertices();
 		for (int i = 0; i < all.length; i++) {
 			final ExecutionVertex createdVertex = createVertex(all[i], instanceManager, initialExecutionStage,
-				jobGraph.getJobConfiguration());
+				jobClassLoader);
 			temporaryVertexMap.put(all[i], createdVertex);
 			temporaryGroupVertexMap.put(all[i], createdVertex.getGroupVertex());
 		}
@@ -348,8 +365,8 @@ public class ExecutionGraph implements ExecutionListener {
 				if (DistributionPatternProvider.createWire(groupEdge.getDistributionPattern(),
 					i, j, currentNumberOfSourceNodes, currentNumberOfTargetNodes)) {
 
-					final ChannelID outputChannelID = new ChannelID();
-					final ChannelID inputChannelID = new ChannelID();
+					final ChannelID outputChannelID = ChannelID.generate();
+					final ChannelID inputChannelID = ChannelID.generate();
 
 					final ExecutionEdge edge = new ExecutionEdge(outputGate, inputGate, groupEdge, outputChannelID,
 						inputChannelID, outputGate.getNumberOfEdges(), inputGate.getNumberOfEdges());
@@ -448,14 +465,16 @@ public class ExecutionGraph implements ExecutionListener {
 
 				final DistributionPattern distributionPattern = edge.getDistributionPattern();
 
+				final boolean allowSpanningRecords = edge.spanningRecordsAllowed();
+
 				// Connect the corresponding group vertices and copy the user settings from the job edge
 				final ExecutionGroupEdge groupEdge = sgv.wireTo(tgv, edge.getIndexOfInputGate(), i, channelType,
 					userDefinedChannelType, compressionLevel, userDefinedCompressionLevel, distributionPattern,
-					isBroadcast);
+					isBroadcast, allowSpanningRecords);
 
-				final ExecutionGate outputGate = new ExecutionGate(new GateID(), sev, groupEdge, false);
+				final ExecutionGate outputGate = new ExecutionGate(GateID.generate(), sev, groupEdge, false);
 				sev.insertOutputGate(i, outputGate);
-				final ExecutionGate inputGate = new ExecutionGate(new GateID(), tev, groupEdge, true);
+				final ExecutionGate inputGate = new ExecutionGate(GateID.generate(), tev, groupEdge, true);
 				tev.insertInputGate(edge.getIndexOfInputGate(), inputGate);
 			}
 		}
@@ -470,14 +489,15 @@ public class ExecutionGraph implements ExecutionListener {
 	 *        the instanceManager
 	 * @param initialExecutionStage
 	 *        the initial execution stage all group vertices are added to
-	 * @param jobConfiguration
-	 *        the configuration object originally attached to the {@link JobGraph}
+	 * @param jobClassLoader
+	 *        the class loader of the job
 	 * @return the new execution vertex
 	 * @throws GraphConversionException
 	 *         thrown if the job vertex is of an unknown subclass
 	 */
+	@SuppressWarnings("unchecked")
 	private ExecutionVertex createVertex(final AbstractJobVertex jobVertex, final InstanceManager instanceManager,
-			final ExecutionStage initialExecutionStage, final Configuration jobConfiguration)
+			final ExecutionStage initialExecutionStage, final ClassLoader jobClassLoader)
 			throws GraphConversionException {
 
 		// If the user has requested instance type, check if the type is known by the current instance manager
@@ -497,19 +517,26 @@ public class ExecutionGraph implements ExecutionListener {
 			instanceType = instanceManager.getDefaultInstanceType();
 		}
 
+		Class<? extends AbstractInvokable> invokableClass = null;
+		try {
+			invokableClass = (Class<? extends AbstractInvokable>) Class.forName(jobVertex.getInvokableClassName(),
+				false, jobClassLoader);
+		} catch (ClassNotFoundException e) {
+			LOG.error(e);
+			throw new GraphConversionException(StringUtils.stringifyException(e));
+		}
+
 		// Create an initial execution vertex for the job vertex
-		final Class<? extends AbstractInvokable> invokableClass = jobVertex.getInvokableClass();
 		if (invokableClass == null) {
 			throw new GraphConversionException("JobVertex " + jobVertex.getID() + " (" + jobVertex.getName()
 				+ ") does not specify a task");
 		}
 
 		// Calculate the cryptographic signature of this vertex
-		final ExecutionSignature signature = ExecutionSignature.createSignature(jobVertex.getInvokableClass(),
+		final ExecutionSignature signature = ExecutionSignature.createSignature(invokableClass,
 			jobVertex.getJobGraph().getJobID());
 
 		// Create a group vertex for the job vertex
-
 		ExecutionGroupVertex groupVertex = null;
 		try {
 			groupVertex = new ExecutionGroupVertex(jobVertex.getName(), jobVertex.getID(), this,
@@ -520,6 +547,9 @@ public class ExecutionGraph implements ExecutionListener {
 		} catch (Throwable t) {
 			throw new GraphConversionException(StringUtils.stringifyException(t));
 		}
+
+		// Register execution graph as listener for execution state changes of the group vertex
+		groupVertex.registerGroupExecutionListener(this);
 
 		// Run the configuration check the user has provided for the vertex
 		try {
@@ -831,15 +861,15 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private boolean isCurrentStageCompleted() {
 
-		if (this.indexToCurrentExecutionStage >= this.stages.size()) {
+		if (this.indexToCurrentExecutionStage.get() >= this.stages.size()) {
 			return true;
 		}
 
-		final ExecutionGraphIterator it = new ExecutionGraphIterator(this, this.indexToCurrentExecutionStage, true,
-			true);
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true,
+			this.indexToCurrentExecutionStage.get());
 		while (it.hasNext()) {
-			final ExecutionVertex vertex = it.next();
-			if (vertex.getExecutionState() != ExecutionState.FINISHED) {
+			final ExecutionGroupVertex groupVertex = it.next();
+			if (groupVertex.getGroupExecutionState() != ExecutionState.FINISHED) {
 				return false;
 			}
 		}
@@ -872,7 +902,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @return the index of the current execution stage
 	 */
 	public int getIndexOfCurrentExecutionStage() {
-		return this.indexToCurrentExecutionStage;
+		return this.indexToCurrentExecutionStage.get();
 	}
 
 	/**
@@ -883,7 +913,7 @@ public class ExecutionGraph implements ExecutionListener {
 	public ExecutionStage getCurrentExecutionStage() {
 
 		try {
-			return this.stages.get(this.indexToCurrentExecutionStage);
+			return this.stages.get(this.indexToCurrentExecutionStage.get());
 		} catch (ArrayIndexOutOfBoundsException e) {
 			return null;
 		}
@@ -1081,11 +1111,11 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private boolean jobHasFinishedStatus() {
 
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
 
 		while (it.hasNext()) {
 
-			if (it.next().getExecutionState() != ExecutionState.FINISHED) {
+			if (it.next().getGroupExecutionState() != ExecutionState.FINISHED) {
 				return false;
 			}
 		}
@@ -1100,11 +1130,11 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private boolean jobHasScheduledStatus() {
 
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
 
 		while (it.hasNext()) {
 
-			final ExecutionState s = it.next().getExecutionState();
+			final ExecutionState s = it.next().getGroupExecutionState();
 			if (s != ExecutionState.CREATED && s != ExecutionState.SCHEDULED && s != ExecutionState.READY) {
 				return false;
 			}
@@ -1122,11 +1152,11 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	private boolean jobHasFailedOrCanceledStatus() {
 
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(this, true);
+		final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(this, true, -1);
 
 		while (it.hasNext()) {
 
-			final ExecutionState state = it.next().getExecutionState();
+			final ExecutionState state = it.next().getGroupExecutionState();
 
 			if (state != ExecutionState.CANCELED && state != ExecutionState.FAILED && state != ExecutionState.FINISHED) {
 				return false;
@@ -1166,11 +1196,11 @@ public class ExecutionGraph implements ExecutionListener {
 			}
 			if (latestStateChange == ExecutionState.FAILED) {
 
-				final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
+				final Iterator<ExecutionGroupVertex> it = new ExecutionGroupVertexIterator(eg, true, -1);
 				while (it.hasNext()) {
 
-					final ExecutionVertex vertex = it.next();
-					if (vertex.getExecutionState() == ExecutionState.FAILED) {
+					final ExecutionGroupVertex vertex = it.next();
+					if (vertex.getGroupExecutionState() == ExecutionState.FAILED) {
 						return InternalJobStatus.FAILING;
 					}
 				}
@@ -1230,27 +1260,9 @@ public class ExecutionGraph implements ExecutionListener {
 			return;
 		}
 
+		// Check if we need to update the group execution state
 		final ExecutionState actualExecutionState = vertex.getExecutionState();
-
-		final InternalJobStatus newJobStatus = determineNewJobStatus(this, actualExecutionState);
-
-		if (actualExecutionState == ExecutionState.FINISHED) {
-			// It is worth checking if the current stage has complete
-			if (this.isCurrentStageCompleted()) {
-				// Increase current execution stage
-				++this.indexToCurrentExecutionStage;
-
-				if (this.indexToCurrentExecutionStage < this.stages.size()) {
-					final Iterator<ExecutionStageListener> it = this.executionStageListeners.iterator();
-					final ExecutionStage nextExecutionStage = getCurrentExecutionStage();
-					while (it.hasNext()) {
-						it.next().nextExecutionStageEntered(jobID, nextExecutionStage);
-					}
-				}
-			}
-		}
-
-		updateJobStatus(newJobStatus, optionalMessage);
+		vertex.getGroupVertex().updateGroupExecutionState(actualExecutionState, optionalMessage);
 	}
 
 	/**
@@ -1278,7 +1290,7 @@ public class ExecutionGraph implements ExecutionListener {
 			optionalMessage = this.errorDescription;
 		}
 
-		final Iterator<JobStatusListener> it = this.jobStatusListeners.iterator();
+		final Iterator<JobStatusListener> it = this.jobStatusListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().jobStatusHasChanged(this, newJobStatus, optionalMessage);
 		}
@@ -1299,7 +1311,20 @@ public class ExecutionGraph implements ExecutionListener {
 			throw new IllegalArgumentException("Argument jobStatusListener must not be null");
 		}
 
-		this.jobStatusListeners.addIfAbsent(jobStatusListener);
+		final Integer priority = Integer.valueOf(jobStatusListener.getPriority());
+
+		if (priority.intValue() < 0) {
+			LOG.error("Priority for execution state listener " + jobStatusListener.getClass()
+				+ " must be non-negative.");
+			return;
+		}
+
+		final JobStatusListener previousValue = this.jobStatusListeners.putIfAbsent(priority, jobStatusListener);
+
+		if (previousValue != null) {
+			LOG.error("Cannot register " + jobStatusListener.getClass() + " as a job status listener. Priority "
+				+ priority.intValue() + " is already taken.");
+		}
 	}
 
 	/**
@@ -1316,7 +1341,7 @@ public class ExecutionGraph implements ExecutionListener {
 			throw new IllegalArgumentException("Argument jobStatusListener must not be null");
 		}
 
-		this.jobStatusListeners.remove(jobStatusListener);
+		this.jobStatusListeners.remove(Integer.valueOf(jobStatusListener.getPriority()));
 	}
 
 	/**
@@ -1359,24 +1384,6 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	public String getJobName() {
 		return this.jobName;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-		// TODO Auto-generated method stub
-
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-		// TODO Auto-generated method stub
-
 	}
 
 	/**
@@ -1436,5 +1443,42 @@ public class ExecutionGraph implements ExecutionListener {
 	public void executeCommand(final Runnable command) {
 
 		this.executorService.execute(command);
+	}
+
+	/**
+	 * Shuts down the job's executor thread for asynchronous updates and waits for all queued updates to be processed.
+	 * 
+	 * @throws InterruptedException
+	 *         thrown if the thread is interrupted while waiting for the remaining updates to be processed
+	 */
+	public void shutdownCommandExecutor() throws InterruptedException {
+
+		this.executorService.shutdown();
+		this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void groupExecutionStateChanged(final ExecutionGroupVertex groupVertex,
+			final ExecutionState newExecutionState, final String optionalMessage) {
+
+		final InternalJobStatus newJobStatus = determineNewJobStatus(this, newExecutionState);
+		if (newExecutionState == ExecutionState.FINISHED) {
+			// It is worth checking if the current stage has complete
+			if (this.isCurrentStageCompleted()) {
+				// Increase current execution stage
+				final int index = this.indexToCurrentExecutionStage.incrementAndGet();
+				if (index < this.stages.size()) {
+					final Iterator<ExecutionStageListener> it = this.executionStageListeners.iterator();
+					final ExecutionStage nextExecutionStage = getCurrentExecutionStage();
+					while (it.hasNext()) {
+						it.next().nextExecutionStageEntered(this.jobID, nextExecutionStage);
+					}
+				}
+			}
+		}
+		updateJobStatus(newJobStatus, optionalMessage);
 	}
 }

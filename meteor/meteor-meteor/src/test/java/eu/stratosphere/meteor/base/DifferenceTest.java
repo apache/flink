@@ -26,7 +26,7 @@ public class DifferenceTest extends MeteorTest {
 			withInputs(difference);
 		expectedPlan.setSinks(output);
 
-		assertEquals(expectedPlan, actualPlan);
+		assertPlanEquals(expectedPlan, actualPlan);
 	}
 
 }

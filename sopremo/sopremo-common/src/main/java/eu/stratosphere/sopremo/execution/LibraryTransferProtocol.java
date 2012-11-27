@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -20,7 +20,7 @@ import java.io.IOException;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 
 /**
  * The library transfer protocol allows to query servers for cached libraries and submit these if necessary.
@@ -28,7 +28,7 @@ import eu.stratosphere.nephele.protocols.VersionedProtocol;
  * @author warneke
  * @author Arvid Heise
  */
-public interface LibraryTransferProtocol extends VersionedProtocol {
+public interface LibraryTransferProtocol extends RPCProtocol {
 	/**
 	 * Queries the task manager about the cache status of the libraries stated in the {@link LibraryCacheProfileRequest}
 	 * object.
@@ -40,7 +40,7 @@ public interface LibraryTransferProtocol extends VersionedProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException;
+	LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException, InterruptedException;
 
 	/**
 	 * Updates the task manager's library cache.
@@ -50,5 +50,5 @@ public interface LibraryTransferProtocol extends VersionedProtocol {
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
+	void updateLibraryCache(LibraryCacheUpdate update) throws IOException, InterruptedException;
 }

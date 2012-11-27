@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRespons
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
  * 
  * @author warneke
  */
-public interface TaskOperationProtocol extends VersionedProtocol {
+public interface TaskOperationProtocol extends RPCProtocol {
 
 	/**
 	 * Submits a list of tasks to the task manager.
@@ -48,8 +48,11 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @return the result of the task submission
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	List<TaskSubmissionResult> submitTasks(List<TaskDeploymentDescriptor> tasks) throws IOException;
+	List<TaskSubmissionResult> submitTasks(List<TaskDeploymentDescriptor> tasks) throws IOException,
+			InterruptedException;
 
 	/**
 	 * Advises the task manager to cancel the task with the given ID.
@@ -59,8 +62,10 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @return the result of the task cancel attempt
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException;
+	TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException, InterruptedException;
 
 	/**
 	 * Advises the task manager to kill the task with the given ID.
@@ -70,10 +75,12 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * @return the result of the task kill attempt
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	TaskKillResult killTask(ExecutionVertexID id) throws IOException;
+	TaskKillResult killTask(ExecutionVertexID id) throws IOException, InterruptedException;
 
-	TaskCheckpointResult requestCheckpointDecision(ExecutionVertexID id) throws IOException;
+	TaskCheckpointResult requestCheckpointDecision(ExecutionVertexID id) throws IOException, InterruptedException;
 
 	/**
 	 * Queries the task manager about the cache status of the libraries stated in the {@link LibraryCacheProfileRequest}
@@ -85,8 +92,11 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         request
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException;
+	LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException,
+			InterruptedException;
 
 	/**
 	 * Updates the task manager's library cache.
@@ -95,8 +105,10 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *        a {@link LibraryCacheUpdate} object used to transmit the library data
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void updateLibraryCache(LibraryCacheUpdate update) throws IOException;
+	void updateLibraryCache(LibraryCacheUpdate update) throws IOException, InterruptedException;
 
 	/**
 	 * Removes the checkpoints which are identified by the provided list of vertex IDs.
@@ -105,8 +117,10 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *        the list of vertex IDs which identify the checkpoints to be removed
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException;
+	void removeCheckpoints(List<ExecutionVertexID> listOfVertexIDs) throws IOException, InterruptedException;
 
 	/**
 	 * Invalidates the entries identified by the given channel IDs from the task manager's receiver lookup cache.
@@ -115,8 +129,10 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *        the channel IDs identifying the cache entries to invalidate
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void invalidateLookupCacheEntries(Set<ChannelID> channelIDs) throws IOException;
+	void invalidateLookupCacheEntries(Set<ChannelID> channelIDs) throws IOException, InterruptedException;
 
 	/**
 	 * Triggers the task manager write the current utilization of its read and write buffers to its logs.
@@ -124,14 +140,18 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 * 
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void logBufferUtilization() throws IOException;
+	void logBufferUtilization() throws IOException, InterruptedException;
 
 	/**
 	 * Kills the task manager. This method is mainly intended to test and debug Nephele's fault tolerance mechanisms.
 	 * 
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void killTaskManager() throws IOException;
+	void killTaskManager() throws IOException, InterruptedException;
 }

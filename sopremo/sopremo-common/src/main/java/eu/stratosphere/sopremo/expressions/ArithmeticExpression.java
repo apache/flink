@@ -7,6 +7,8 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.AbstractJsonNode;
 import eu.stratosphere.sopremo.type.BigIntegerNode;
@@ -26,7 +28,7 @@ import eu.stratosphere.sopremo.type.NumberCoercer;
  * @author Arvid Heise
  */
 @OptimizerHints(scope = Scope.NUMBER, minNodes = 2, maxNodes = 2, transitive = true)
-public class ArithmeticExpression extends EvaluationExpression {
+public class ArithmeticExpression extends EvaluationExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -121,7 +123,6 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 	@Override
 	public IJsonNode evaluate(final IJsonNode node, final IJsonNode target, final EvaluationContext context) {
-		// TODO Reuse target (problem: result could be any kind of NumericNode)
 		this.lastFirstValue = this.firstOperand.evaluate(node, this.lastFirstValue, context);
 		this.lastSecondValue = this.secondOperand.evaluate(node, this.lastSecondValue, context);
 		return this.operator.evaluate((INumericNode) this.lastFirstValue, (INumericNode) this.lastSecondValue, target);
@@ -129,17 +130,28 @@ public class ArithmeticExpression extends EvaluationExpression {
 
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.firstOperand = this.firstOperand.transformRecursively(function);
-		this.secondOperand = this.secondOperand.transformRecursively(function);
-		return function.call(this);
-	}
+	public ChildIterator iterator() {
+		return new NamedChildIterator("firstOperand", "second") {
 
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				if(index == 0)
+					ArithmeticExpression.this.firstOperand = childExpression;
+				else ArithmeticExpression.this.secondOperand = childExpression;
+			}
+
+			@Override
+			protected EvaluationExpression get(int index) {
+				if(index == 0)
+					return ArithmeticExpression.this.firstOperand;
+				return ArithmeticExpression.this.secondOperand;
+			}
+		};
+	}
+	
 	@Override
 	public int hashCode() {
 		int result = super.hashCode();

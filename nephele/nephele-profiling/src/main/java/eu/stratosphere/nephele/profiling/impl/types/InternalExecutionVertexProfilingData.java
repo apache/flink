@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,10 +15,6 @@
 
 package eu.stratosphere.nephele.profiling.impl.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
@@ -28,12 +24,15 @@ public abstract class InternalExecutionVertexProfilingData implements InternalPr
 
 	private final JobID jobId;
 
-	public InternalExecutionVertexProfilingData() {
-		this.jobId = new JobID();
-		this.executionVertexID = new ExecutionVertexID();
+	/**
+	 * Default constructor required by kryo.
+	 */
+	protected InternalExecutionVertexProfilingData() {
+		this.jobId = null;
+		this.executionVertexID = null;
 	}
 
-	public InternalExecutionVertexProfilingData(JobID jobID, ExecutionVertexID executionVertexID) {
+	public InternalExecutionVertexProfilingData(final JobID jobID, final ExecutionVertexID executionVertexID) {
 		this.jobId = jobID;
 		this.executionVertexID = executionVertexID;
 	}
@@ -46,19 +45,5 @@ public abstract class InternalExecutionVertexProfilingData implements InternalPr
 	public JobID getJobID() {
 
 		return this.jobId;
-	}
-
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		this.jobId.read(in);
-		this.executionVertexID.read(in);
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		this.jobId.write(out);
-		this.executionVertexID.write(out);
 	}
 }

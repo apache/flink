@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializerFactory;
+import eu.stratosphere.nephele.io.RecordFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -120,20 +120,6 @@ public interface Environment {
 	String getTaskName();
 
 	/**
-	 * Returns the next unbound input gate ID or <code>null</code> if no such ID exists
-	 * 
-	 * @return the next unbound input gate ID or <code>null</code> if no such ID exists
-	 */
-	GateID getNextUnboundInputGateID();
-
-	/**
-	 * Returns the next unbound output gate ID or <code>null</code> if no such ID exists
-	 * 
-	 * @return the next unbound output gate ID or <code>null</code> if no such ID exists
-	 */
-	GateID getNextUnboundOutputGateID();
-
-	/**
 	 * Returns the number of output gates registered with this environment.
 	 * 
 	 * @return the number of output gates registered with this environment
@@ -162,46 +148,25 @@ public interface Environment {
 	int getNumberOfInputChannels();
 
 	/**
-	 * Creates an output gate.
+	 * Creates an registers output gate.
 	 * 
-	 * @param gateID
-	 * @param outputClass
 	 * @param selector
 	 * @param isBroadcast
 	 * @param <T>
 	 *        The type of the record consumed by the output gate.
 	 * @return The created output gate.
 	 */
-	<T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
-															ChannelSelector<T> selector, boolean isBroadcast);
+	<T extends Record> OutputGate<T> createAndRegisterOutputGate(ChannelSelector<T> selector, boolean isBroadcast);
 
 	/**
-	 * Creates an input gate.
+	 * Creates and registers an input gate.
 	 * 
-	 * @param gateID
-	 * @param deserializer
-	 * @param distributionPattern
+	 * @param recordFactory
 	 * @param <T>
 	 *        The type of the record read from the input gate.
 	 * @return The created input gate.
 	 */
-	<T extends Record> InputGate<T> createInputGate(GateID gateID, RecordDeserializerFactory<T> deserializerFactory);
-
-	/**
-	 * Registers an output gate with this environment.
-	 * 
-	 * @param outputGate
-	 *        the output gate to be registered
-	 */
-	void registerOutputGate(OutputGate<? extends Record> outputGate);
-
-	/**
-	 * Registers an input gate with this environment.
-	 * 
-	 * @param inputGate
-	 *        the input gate to be registered
-	 */
-	void registerInputGate(InputGate<? extends Record> inputGate);
+	<T extends Record> InputGate<T> createAndRegisterInputGate(RecordFactory<T> recordFactory);
 
 	/**
 	 * Returns the IDs of all output channels connected to this environment.

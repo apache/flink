@@ -21,11 +21,12 @@ public class TernaryExpressionTest extends EvaluableExpressionTest<TernaryExpres
 
 	@Test
 	public void shouldEvaluateIfExpIfClauseIsTrue() {
-		final IJsonNode result = new TernaryExpression(new InputSelection(0),
-			new ConstantExpression(IntNode.valueOf(0)), new ConstantExpression(IntNode.valueOf(1))).evaluate(
+		TernaryExpression ternaryExpression = new TernaryExpression(new InputSelection(0),
+			new ConstantExpression(TextNode.valueOf("if")), new ConstantExpression(TextNode.valueOf("else")));
+		final IJsonNode result = ternaryExpression.evaluate(
 			createArrayNode(BooleanNode.TRUE, BooleanNode.FALSE), null, this.context);
 
-		Assert.assertEquals(IntNode.valueOf(0), result);
+		Assert.assertEquals(TextNode.valueOf("if"), result);
 	}
 
 	@Test

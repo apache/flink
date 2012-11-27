@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -22,13 +22,13 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
+import eu.stratosphere.nephele.io.channels.ChannelCloseEvent;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
+import eu.stratosphere.nephele.taskmanager.routing.AbstractOutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.routing.ReceiverNotFoundEvent;
+import eu.stratosphere.nephele.taskmanager.routing.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 final class ReplayOutputChannelBroker extends AbstractOutputChannelForwarder implements BufferProvider {
@@ -60,7 +60,7 @@ final class ReplayOutputChannelBroker extends AbstractOutputChannelForwarder imp
 	@Override
 	public void processEvent(final AbstractEvent event) {
 
-		if (event instanceof ByteBufferedChannelCloseEvent) {
+		if (event instanceof ChannelCloseEvent) {
 			LOG.info("Replay output broker received event to close channel");
 		} else if (event instanceof UnexpectedEnvelopeEvent) {
 			final UnexpectedEnvelopeEvent uee = (UnexpectedEnvelopeEvent) event;

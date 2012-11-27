@@ -52,15 +52,15 @@ public class Source extends ElementaryOperator<Source> {
 	/**
 	 * Initializes a Source with the given {@link FileInputFormat} and the given path.
 	 * 
-	 * @param inputformat
+	 * @param inputFormat
 	 *        the InputFormat that should be used
 	 * @param inputPath
 	 *        the path to the input file
 	 */
-	public Source(final Class<? extends FileInputFormat> inputformat,
+	public Source(final Class<? extends FileInputFormat> inputFormat,
 			final String inputPath) {
 		this.inputPath = inputPath;
-		this.inputFormat = inputformat;
+		this.inputFormat = inputFormat;
 	}
 
 	/**
@@ -165,7 +165,7 @@ public class Source extends ElementaryOperator<Source> {
 			try {
 				final URI validURI = new URI(inputPath);
 				if (validURI.getScheme() == null)
-					throw new IllegalStateException("Source does not have a valid file schema: " + inputPath);
+					throw new IllegalStateException("File name of source does not have a valid schema (such as hdfs or file): " + inputPath);
 			} catch (final URISyntaxException e) {
 				throw new IllegalStateException("Source does not have a valid path: " + inputPath, e);
 			}

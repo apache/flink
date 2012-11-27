@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,22 +15,19 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-
 /**
- * An abstract event is transmitted from the job manager to the
- * job client in order to inform the user about the job progress.
+ * An abstract event is transmitted from the job manager to the job client in order to inform the user about the job
+ * progress.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public abstract class AbstractEvent implements IOReadableWritable {
+public abstract class AbstractEvent {
 
 	/**
 	 * Static variable that points to the current global sequence number
@@ -40,17 +37,26 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	/**
 	 * Auxiliary object which helps to convert a {@link Date} object to the given string representation.
 	 */
-	private static final SimpleDateFormat DATA_FORMATTER = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+	private static final ThreadLocal<SimpleDateFormat> DATA_FORMATTER = new ThreadLocal<SimpleDateFormat>() {
+
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		protected SimpleDateFormat initialValue() {
+			return new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+		}
+	};
 
 	/**
 	 * The timestamp of the event.
 	 */
-	private long timestamp = -1;
+	private final long timestamp;
 
 	/**
 	 * The sequence number of the event.
 	 */
-	private long sequenceNumber = -1;
+	private final long sequenceNumber;
 
 	/**
 	 * Constructs a new abstract event object.
@@ -68,33 +74,11 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	}
 
 	/**
-	 * Constructs a new abstract event object. This constructor
-	 * is required for the deserialization process and is not
-	 * supposed to be called directly.
+	 * Default constructor required by kryo.
 	 */
-	public AbstractEvent() {
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		// Read the timestamp
-		this.timestamp = in.readLong();
-		this.sequenceNumber = in.readLong();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		// Write the timestamp
-		out.writeLong(this.timestamp);
-		out.writeLong(this.sequenceNumber);
+	protected AbstractEvent() {
+		this.timestamp = 0L;
+		this.sequenceNumber = 0L;
 	}
 
 	/**
@@ -116,8 +100,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 */
 	public static String timestampToString(final long timestamp) {
 
-		return DATA_FORMATTER.format(new Date(timestamp));
-
+		return DATA_FORMATTER.get().format(new Date(timestamp));
 	}
 
 	/**

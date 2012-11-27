@@ -154,8 +154,20 @@ public class JsonUtil {
 	 *        the constants that should be used to fill the array
 	 * @return the array
 	 */
-	public static ArrayNode createArrayNode(final Object... constants) {
-		return (ArrayNode) JsonUtil.OBJECT_MAPPER.valueToTree(constants);
+	public static IArrayNode createArrayNode(final Object... constants) {
+		return (IArrayNode) JsonUtil.OBJECT_MAPPER.valueToTree(constants);
+	}
+
+	/**
+	 * Creates an {@link StreamArrayNode} that contains all given constants as elements. This method converts the whole array
+	 * of parameters to an StreamArrayNode.
+	 * 
+	 * @param constants
+	 *        the constants that should be used to fill the array
+	 * @return the array
+	 */
+	public static IStreamArrayNode createStreamArrayNode(final Object... constants) {
+		return new StreamArrayNode(createArrayNode(constants).iterator());
 	}
 
 	/**

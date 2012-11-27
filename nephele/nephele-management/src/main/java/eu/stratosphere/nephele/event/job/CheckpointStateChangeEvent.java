@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,12 +15,7 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-import eu.stratosphere.nephele.types.StringRecord;
 
 /**
  * An {@link CheckpointStateChangeEvent} can be used to notify other objects about changes of a vertex's checkpoint
@@ -33,12 +28,12 @@ public class CheckpointStateChangeEvent extends AbstractEvent implements Managem
 	/**
 	 * The ID identifies the vertex this events refers to.
 	 */
-	private ManagementVertexID managementVertexID;
+	private final ManagementVertexID managementVertexID;
 
 	/**
 	 * The new state of the vertex's checkpoint.
 	 */
-	private String newCheckpointState;
+	private final String newCheckpointState;
 
 	/**
 	 * Constructs a checkpoint state change event object.
@@ -65,7 +60,7 @@ public class CheckpointStateChangeEvent extends AbstractEvent implements Managem
 	 */
 	public CheckpointStateChangeEvent() {
 
-		this.managementVertexID = new ManagementVertexID();
+		this.managementVertexID = null;
 		this.newCheckpointState = null;
 	}
 
@@ -85,30 +80,6 @@ public class CheckpointStateChangeEvent extends AbstractEvent implements Managem
 	 */
 	public String getNewCheckpointState() {
 		return this.newCheckpointState;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		super.read(in);
-
-		this.managementVertexID.read(in);
-		this.newCheckpointState = StringRecord.readString(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		super.write(out);
-
-		this.managementVertexID.write(out);
-		StringRecord.writeString(out, this.newCheckpointState);
 	}
 
 	/**

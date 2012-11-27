@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import eu.stratosphere.sopremo.EvaluationContext;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.ListChildIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
@@ -16,7 +18,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
  * @author Arvid Heise
  */
 @OptimizerHints(scope = Scope.ANY)
-public class ArrayCreation extends ContainerExpression {
+public class ArrayCreation extends EvaluationExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -42,6 +44,11 @@ public class ArrayCreation extends ContainerExpression {
 	 */
 	public ArrayCreation(final List<EvaluationExpression> elements) {
 		this.elements = new ArrayList<EvaluationExpression>(elements);
+	}
+	
+	public ArrayCreation add(EvaluationExpression expression) {
+		this.elements.add(expression);
+		return this;
 	}
 
 	public int size() {
@@ -73,25 +80,15 @@ public class ArrayCreation extends ContainerExpression {
 
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#getChildren()
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	public List<? extends EvaluationExpression> getChildren() {
-		return this.elements;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.expressions.ContainerExpression#setChildren(java.util.List)
-	 */
-	@Override
-	public void setChildren(final List<? extends EvaluationExpression> children) {
-		this.elements.clear();
-		this.elements.addAll(children);
+	public ChildIterator iterator() {
+		return new ListChildIterator(this.elements.listIterator()) ;
 	}
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		this.appendChildExpressions(builder, this.getChildren(), ", ");
+		this.appendChildExpressions(builder, this.elements, ", ");
 	}
 }

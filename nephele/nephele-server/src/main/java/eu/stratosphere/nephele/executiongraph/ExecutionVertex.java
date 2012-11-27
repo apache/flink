@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -32,7 +32,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.ExecutionStateTransition;
 import eu.stratosphere.nephele.instance.AllocatedResource;
@@ -45,7 +44,6 @@ import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.util.AtomicEnum;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -103,9 +101,9 @@ public final class ExecutionVertex {
 	private final CopyOnWriteArrayList<CheckpointStateListener> checkpointStateListeners = new CopyOnWriteArrayList<CheckpointStateListener>();
 
 	/**
-	 * A map of {@link ExecutionListener} objects to be notified about the state changes of a vertex.
+	 * A map of {@link ExecutionStateListener} objects to be notified about the state changes of a vertex.
 	 */
-	private final ConcurrentMap<Integer, ExecutionListener> executionListeners = new ConcurrentSkipListMap<Integer, ExecutionListener>();
+	private final ConcurrentMap<Integer, ExecutionStateListener> executionStateListeners = new ConcurrentSkipListMap<Integer, ExecutionStateListener>();
 
 	/**
 	 * The current execution state of the task represented by this vertex
@@ -126,6 +124,11 @@ public final class ExecutionVertex {
 	 * The index of this vertex in the vertex group.
 	 */
 	private volatile int indexInVertexGroup = 0;
+
+	/**
+	 * Stores if the task represented by this vertex has already been deployed at least once.
+	 */
+	private volatile boolean hasAlreadyBeenDeployed = false;
 
 	/**
 	 * Stores the number of times the vertex may be still be started before the corresponding task is considered to be
@@ -163,7 +166,7 @@ public final class ExecutionVertex {
 	 */
 	public ExecutionVertex(final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
 			final int numberOfOutputGates, final int numberOfInputGates) {
-		this(new ExecutionVertexID(), executionGraph, groupVertex, numberOfOutputGates, numberOfInputGates);
+		this(ExecutionVertexID.generate(), executionGraph, groupVertex, numberOfOutputGates, numberOfInputGates);
 
 		this.groupVertex.addInitialSubtask(this);
 
@@ -200,7 +203,7 @@ public final class ExecutionVertex {
 		this.executionGraph.registerExecutionVertex(this);
 
 		// Register the vertex itself as a listener for state changes
-		registerExecutionListener(this.executionGraph);
+		registerExecutionStateListener(this.executionGraph);
 	}
 
 	/**
@@ -234,7 +237,7 @@ public final class ExecutionVertex {
 		if (preserveVertexID) {
 			newVertexID = this.vertexID;
 		} else {
-			newVertexID = new ExecutionVertexID();
+			newVertexID = ExecutionVertexID.generate();
 		}
 
 		final ExecutionVertex duplicatedVertex = new ExecutionVertex(newVertexID, this.executionGraph,
@@ -242,12 +245,12 @@ public final class ExecutionVertex {
 
 		// Duplicate gates
 		for (int i = 0; i < this.outputGates.length; ++i) {
-			duplicatedVertex.outputGates[i] = new ExecutionGate(new GateID(), duplicatedVertex,
+			duplicatedVertex.outputGates[i] = new ExecutionGate(GateID.generate(), duplicatedVertex,
 				this.outputGates[i].getGroupEdge(), false);
 		}
 
 		for (int i = 0; i < this.inputGates.length; ++i) {
-			duplicatedVertex.inputGates[i] = new ExecutionGate(new GateID(), duplicatedVertex,
+			duplicatedVertex.inputGates[i] = new ExecutionGate(GateID.generate(), duplicatedVertex,
 				this.inputGates[i].getGroupEdge(), true);
 		}
 
@@ -368,6 +371,7 @@ public final class ExecutionVertex {
 	 *        the new execution state
 	 * @param optionalMessage
 	 *        an optional message related to the state change
+	 * @return the previous execution state
 	 */
 	public ExecutionState updateExecutionState(ExecutionState newExecutionState, final String optionalMessage) {
 
@@ -400,8 +404,13 @@ public final class ExecutionVertex {
 		// Check the transition
 		ExecutionStateTransition.checkTransition(true, toString(), previousState, newExecutionState);
 
+		// Store that this task has already been deployed once
+		if (newExecutionState == ExecutionState.STARTING) {
+			this.hasAlreadyBeenDeployed = true;
+		}
+
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
+		final Iterator<ExecutionStateListener> it = this.executionStateListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, newExecutionState,
 				optionalMessage);
@@ -427,7 +436,7 @@ public final class ExecutionVertex {
 		ExecutionStateTransition.checkTransition(true, toString(), expected, update);
 
 		// Notify the listener objects
-		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
+		final Iterator<ExecutionStateListener> it = this.executionStateListeners.values().iterator();
 		while (it.hasNext()) {
 			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, update,
 				null);
@@ -446,11 +455,15 @@ public final class ExecutionVertex {
 	private void checkCancelRequestedFlag() {
 
 		if (this.cancelRequested.compareAndSet(true, false)) {
-			final TaskCancelResult tsr = cancelTask();
-			if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS
-				&& tsr.getReturnCode() != AbstractTaskResult.ReturnCode.TASK_NOT_FOUND) {
-				LOG.error("Unable to cancel vertex " + this + ": " + tsr.getReturnCode().toString()
-					+ ((tsr.getDescription() != null) ? (" (" + tsr.getDescription() + ")") : ""));
+			try {
+				final TaskCancelResult tsr = cancelTask();
+				if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS
+					&& tsr.getReturnCode() != AbstractTaskResult.ReturnCode.TASK_NOT_FOUND) {
+					LOG.error("Unable to cancel vertex " + this + ": " + tsr.getReturnCode().toString()
+						+ ((tsr.getDescription() != null) ? (" (" + tsr.getDescription() + ")") : ""));
+				}
+			} catch (InterruptedException ie) {
+				LOG.debug(StringUtils.stringifyException(ie));
 			}
 		}
 	}
@@ -724,12 +737,13 @@ public final class ExecutionVertex {
 	}
 
 	/**
-	 * Deploys and starts the task represented by this vertex
-	 * on the assigned instance.
+	 * Deploys and starts the task represented by this vertex on the assigned instance.
 	 * 
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the task submission attempt
 	 */
-	public TaskSubmissionResult startTask() {
+	public TaskSubmissionResult startTask() throws InterruptedException {
 
 		final AllocatedResource ar = this.allocatedResource.get();
 
@@ -740,7 +754,7 @@ public final class ExecutionVertex {
 			return result;
 		}
 
-		final List<TaskDeploymentDescriptor> tasks = new SerializableArrayList<TaskDeploymentDescriptor>();
+		final List<TaskDeploymentDescriptor> tasks = new ArrayList<TaskDeploymentDescriptor>();
 		tasks.add(constructDeploymentDescriptor());
 
 		try {
@@ -759,12 +773,13 @@ public final class ExecutionVertex {
 	/**
 	 * Kills and removes the task represented by this vertex from the instance it is currently running on. If the
 	 * corresponding task is not in the state <code>RUNNING</code>, this call will be ignored. If the call has been
-	 * executed
-	 * successfully, the task will change the state <code>FAILED</code>.
+	 * executed successfully, the task will change the state <code>FAILED</code>.
 	 * 
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the task kill attempt
 	 */
-	public TaskKillResult killTask() {
+	public TaskKillResult killTask() throws InterruptedException {
 
 		final ExecutionState state = this.executionState.get();
 
@@ -791,7 +806,7 @@ public final class ExecutionVertex {
 		}
 	}
 
-	public TaskCheckpointResult requestCheckpointDecision() {
+	public TaskCheckpointResult requestCheckpointDecision() throws InterruptedException {
 
 		final AllocatedResource ar = this.allocatedResource.get();
 
@@ -814,14 +829,14 @@ public final class ExecutionVertex {
 	}
 
 	/**
-	 * Cancels and removes the task represented by this vertex
-	 * from the instance it is currently running on. If the task
-	 * is not currently running, its execution state is simply
-	 * updated to <code>CANCELLED</code>.
+	 * Cancels and removes the task represented by this vertex from the instance it is currently running on. If the task
+	 * is not currently running, its execution state is simply updated to <code>CANCELLED</code>.
 	 * 
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the task cancel attempt
 	 */
-	public TaskCancelResult cancelTask() {
+	public TaskCancelResult cancelTask() throws InterruptedException {
 
 		while (true) {
 
@@ -862,7 +877,8 @@ public final class ExecutionVertex {
 			// Check if we had a race. If state change is accepted, send cancel request
 			if (compareAndUpdateExecutionState(previousState, ExecutionState.CANCELING)) {
 
-				if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
+				if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()
+					&& previousState != ExecutionState.REPLAYING && previousState != ExecutionState.FINISHING) {
 					// Set to canceled directly
 					updateExecutionState(ExecutionState.CANCELED, null);
 					return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
@@ -921,21 +937,6 @@ public final class ExecutionVertex {
 		sb.append(')');
 
 		return sb.toString();
-	}
-
-	/**
-	 * Returns the task represented by this vertex has
-	 * a retry attempt left in case of an execution
-	 * failure.
-	 * 
-	 * @return <code>true</code> if the task has a retry attempt left, <code>false</code> otherwise
-	 */
-	@Deprecated
-	public boolean hasRetriesLeft() {
-		if (this.retriesLeft.get() <= 0) {
-			return false;
-		}
-		return true;
 	}
 
 	/**
@@ -998,39 +999,41 @@ public final class ExecutionVertex {
 	}
 
 	/**
-	 * Registers the {@link ExecutionListener} object for this vertex. This object
+	 * Registers the {@link ExecutionStateListener} object for this vertex. This object
 	 * will be notified about particular events during the vertex's lifetime.
 	 * 
-	 * @param executionListener
+	 * @param executionStateListener
 	 *        the object to be notified about particular events during the vertex's lifetime
 	 */
-	public void registerExecutionListener(final ExecutionListener executionListener) {
+	public void registerExecutionStateListener(final ExecutionStateListener executionStateListener) {
 
-		final Integer priority = Integer.valueOf(executionListener.getPriority());
+		final Integer priority = Integer.valueOf(executionStateListener.getPriority());
 
 		if (priority.intValue() < 0) {
-			LOG.error("Priority for execution listener " + executionListener.getClass() + " must be non-negative.");
+			LOG.error("Priority for execution state listener " + executionStateListener.getClass()
+				+ " must be non-negative.");
 			return;
 		}
 
-		final ExecutionListener previousValue = this.executionListeners.putIfAbsent(priority, executionListener);
+		final ExecutionStateListener previousValue = this.executionStateListeners.putIfAbsent(priority,
+			executionStateListener);
 
 		if (previousValue != null) {
-			LOG.error("Cannot register " + executionListener.getClass() + " as an execution listener. Priority "
+			LOG.error("Cannot register " + executionStateListener.getClass() + " as an execution listener. Priority "
 				+ priority.intValue() + " is already taken.");
 		}
 	}
 
 	/**
-	 * Unregisters the {@link ExecutionListener} object for this vertex. This object
+	 * Unregisters the {@link ExecutionStateListener} object for this vertex. This object
 	 * will no longer be notified about particular events during the vertex's lifetime.
 	 * 
 	 * @param checkpointStateChangeListener
 	 *        the object to be unregistered
 	 */
-	public void unregisterExecutionListener(final ExecutionListener executionListener) {
+	public void unregisterExecutionStateListener(final ExecutionStateListener executionStateListener) {
 
-		this.executionListeners.remove(Integer.valueOf(executionListener.getPriority()));
+		this.executionStateListeners.remove(Integer.valueOf(executionStateListener.getPriority()));
 	}
 
 	/**
@@ -1076,7 +1079,7 @@ public final class ExecutionVertex {
 	 */
 	public TaskDeploymentDescriptor constructDeploymentDescriptor() {
 
-		final SerializableArrayList<GateDeploymentDescriptor> ogd = new SerializableArrayList<GateDeploymentDescriptor>(
+		final ArrayList<GateDeploymentDescriptor> ogd = new ArrayList<GateDeploymentDescriptor>(
 			this.outputGates.length);
 		for (int i = 0; i < this.outputGates.length; ++i) {
 
@@ -1090,10 +1093,11 @@ public final class ExecutionVertex {
 				cdd.add(new ChannelDeploymentDescriptor(ee.getOutputChannelID(), ee.getInputChannelID()));
 			}
 
-			ogd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), eg.getCompressionLevel(), cdd));
+			ogd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), eg.getCompressionLevel(), eg
+				.allowSpanningRecords(), cdd));
 		}
 
-		final SerializableArrayList<GateDeploymentDescriptor> igd = new SerializableArrayList<GateDeploymentDescriptor>(
+		final ArrayList<GateDeploymentDescriptor> igd = new ArrayList<GateDeploymentDescriptor>(
 			this.inputGates.length);
 		for (int i = 0; i < this.inputGates.length; ++i) {
 
@@ -1107,14 +1111,15 @@ public final class ExecutionVertex {
 				cdd.add(new ChannelDeploymentDescriptor(ee.getOutputChannelID(), ee.getInputChannelID()));
 			}
 
-			igd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), eg.getCompressionLevel(), cdd));
+			igd.add(new GateDeploymentDescriptor(eg.getGateID(), eg.getChannelType(), eg.getCompressionLevel(), eg
+				.allowSpanningRecords(), cdd));
 		}
 
 		final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(this.executionGraph.getJobID(),
 			this.vertexID, this.groupVertex.getName(), this.indexInVertexGroup,
 			this.groupVertex.getCurrentNumberOfGroupMembers(), this.executionGraph.getJobConfiguration(),
 			this.groupVertex.getConfiguration(), this.checkpointState.get(), this.groupVertex.getInvokableClass(), ogd,
-			igd);
+			igd, this.hasAlreadyBeenDeployed);
 
 		return tdd;
 	}

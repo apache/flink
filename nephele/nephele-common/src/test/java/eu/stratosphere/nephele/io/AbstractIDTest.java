@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,8 +17,6 @@ package eu.stratosphere.nephele.io;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
@@ -32,34 +30,15 @@ import eu.stratosphere.nephele.util.CommonTestUtils;
 public class AbstractIDTest {
 
 	/**
-	 * Tests the setID method of an abstract ID.
-	 */
-	@Test
-	public void testSetID() {
-
-		final ChannelID id1 = new ChannelID();
-		final ChannelID id2 = new ChannelID();
-		id1.setID(id2);
-
-		assertEquals(id1.hashCode(), id2.hashCode());
-		assertEquals(id1, id2);
-	}
-
-	/**
 	 * Tests the serialization/deserialization of an abstract ID.
 	 */
 	@Test
 	public void testSerialization() {
 
-		final ChannelID origID = new ChannelID();
-		try {
-			final ChannelID copyID = (ChannelID) CommonTestUtils.createCopy(origID);
+		final ChannelID origID = ChannelID.generate();
+		final ChannelID copyID = (ChannelID) CommonTestUtils.createCopy(origID);
 
-			assertEquals(origID.hashCode(), copyID.hashCode());
-			assertEquals(origID, copyID);
-
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		assertEquals(origID.hashCode(), copyID.hashCode());
+		assertEquals(origID, copyID);
 	}
 }

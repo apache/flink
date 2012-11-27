@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -131,7 +131,7 @@ public class EC2CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		EC2CloudManager cm = new EC2CloudManager();
+		EC2CloudManager cm = new EC2CloudManager(null);
 		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType defaultIT = cm.getDefaultInstanceType();
@@ -151,7 +151,7 @@ public class EC2CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		EC2CloudManager cm = new EC2CloudManager();
+		EC2CloudManager cm = new EC2CloudManager(null);
 		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType type1 = cm.getSuitableInstanceType(16, 16, 2048, 40, 80);
@@ -183,7 +183,7 @@ public class EC2CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		EC2CloudManager cm = new EC2CloudManager();
+		EC2CloudManager cm = new EC2CloudManager(null);
 		cm.setInstanceListener(myInstanceListener);
 
 		InstanceType type = cm.getInstanceTypeByName("m1.small");
@@ -203,10 +203,10 @@ public class EC2CloudManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty("user.dir") + "/correct-conf");
 
 		MyInstanceListener myInstanceListener = new MyInstanceListener();
-		EC2CloudManager cm = new EC2CloudManager();
+		EC2CloudManager cm = new EC2CloudManager(null);
 		cm.setInstanceListener(myInstanceListener);
 
-		JobID jobID = new JobID();
+		JobID jobID = JobID.generate();
 		Configuration conf = new Configuration();
 
 		// check whether EC2 account XML file exists

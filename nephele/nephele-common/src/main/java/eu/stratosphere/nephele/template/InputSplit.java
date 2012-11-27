@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,14 +15,12 @@
 
 package eu.stratosphere.nephele.template;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
-
 /**
  * This interface must be implemented by all kind of input splits that can be assigned to Nephele's input vertices.
  * 
  * @author warneke
  */
-public interface InputSplit extends IOReadableWritable {
+public interface InputSplit {
 	/**
 	 * Returns the number of this input split.
 	 * 

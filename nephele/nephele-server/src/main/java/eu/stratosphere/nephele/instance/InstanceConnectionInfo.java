@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,47 +15,41 @@
 
 package eu.stratosphere.nephele.instance;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
-
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class encapsulates all connection information necessary to connect to the instance's task manager.
+ * <p>
+ * This class is thread-safe.
  * 
  * @author warneke
  */
-public class InstanceConnectionInfo implements IOReadableWritable, Comparable<InstanceConnectionInfo> {
+public final class InstanceConnectionInfo implements Comparable<InstanceConnectionInfo> {
 
 	/**
 	 * The network address the instance's task manager binds its sockets to.
 	 */
-	private InetAddress inetAddress = null;
+	private final InetAddress inetAddress;
 
 	/**
 	 * The port the instance's task manager runs its IPC service on.
 	 */
-	private int ipcPort = 0;
+	private final int ipcPort;
 
 	/**
 	 * The port the instance's task manager expects to receive transfer envelopes on.
 	 */
-	private int dataPort = 0;
+	private final int dataPort;
 
 	/**
 	 * The host name of the instance.
 	 */
-	private String hostName = null;
+	private final String hostName;
 
 	/**
 	 * The domain name of the instance.
 	 */
-	private String domainName = null;
+	private final String domainName;
 
 	/**
 	 * Constructs a new instance connection info object. The constructor will attempt to retrieve the instance's
@@ -148,9 +142,15 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	}
 
 	/**
-	 * Constructs an empty {@link InstanceConnectionInfo} object.
+	 * Default constructor required by kryo.
 	 */
-	public InstanceConnectionInfo() {
+	@SuppressWarnings("unused")
+	private InstanceConnectionInfo() {
+		this.inetAddress = null;
+		this.hostName = null;
+		this.domainName = null;
+		this.ipcPort = 0;
+		this.dataPort = 0;
 	}
 
 	/**
@@ -202,42 +202,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	public String getDomainName() {
 
 		return this.domainName;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		final int addr_length = in.readInt();
-		byte[] address = new byte[addr_length];
-		in.readFully(address);
-		this.hostName = StringRecord.readString(in);
-		this.domainName = StringRecord.readString(in);
-
-		try {
-			this.inetAddress = InetAddress.getByAddress(address);
-		} catch (UnknownHostException uhe) {
-			throw new IOException(StringUtils.stringifyException(uhe));
-		}
-
-		this.ipcPort = in.readInt();
-		this.dataPort = in.readInt();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		out.writeInt(this.inetAddress.getAddress().length);
-		out.write(this.inetAddress.getAddress());
-		StringRecord.writeString(out, this.hostName);
-		StringRecord.writeString(out, this.domainName);
-		out.writeInt(this.ipcPort);
-		out.writeInt(this.dataPort);
 	}
 
 	/**

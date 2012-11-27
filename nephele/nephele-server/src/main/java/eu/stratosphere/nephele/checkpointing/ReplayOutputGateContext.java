@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,10 +17,10 @@ package eu.stratosphere.nephele.checkpointing;
 
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.routing.OutputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.runtime.ForwardingBarrier;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeDispatcher;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
@@ -48,7 +48,7 @@ final class ReplayOutputGateContext extends AbstractReplayGateContext implements
 
 		// Construct new forwarding chain for the replay output channel context
 		final RuntimeDispatcher runtimeDispatcher = new RuntimeDispatcher(
-			this.taskContext.getTransferEnvelopeDispatcher());
+			this.taskContext.getRoutingService());
 		/*
 		 * final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
 		 * runtimeDispatcher);

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -25,6 +25,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.nephele.util.FileUtils;
 
 final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 
@@ -123,7 +125,7 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 					LOG.error("Error while closing spill file for file buffers: " + ioex.getMessage(), ioex);
 			}
 			if (this.deleteOnClose.get()) {
-				this.file.delete();
+				FileUtils.deleteSilently(this.file);
 			}
 			return current;
 		} else {
@@ -168,7 +170,7 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 		}
 
 		if (this.deleteOnClose.get()) {
-			this.file.delete();
+			FileUtils.deleteSilently(this.file);
 		}
 	}
 

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,11 +15,11 @@
 package eu.stratosphere.sopremo.base;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.function.TransitiveAggregationFunction;
+import eu.stratosphere.sopremo.aggregation.TransitiveAggregation;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.IArrayNode;
 
-final class ArrayUnion extends TransitiveAggregationFunction<IArrayNode, ArrayNode> {
+final class ArrayUnion extends TransitiveAggregation<IArrayNode, ArrayNode> {
 	/**
 	 * 
 	 */

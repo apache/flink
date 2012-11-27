@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -76,15 +76,10 @@ public class Client {
 		this.nepheleConfig = nepheleConfig;
 		
 		// instantiate the address to the job manager
-		final String address = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		if (address == null) {
-			throw new CompilerException("Cannot find address to job manager's RPC service in the global configuration.");
-		}
-		
-		final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-		if (port < 0) {
-			throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
-		}
+		final String address = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, 
+			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_ADDRESS);
+		final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 
+			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		final InetSocketAddress jobManagerAddress = new InetSocketAddress(address, port);
 		this.compiler = new PactCompiler(new DataStatistics(), new FixedSizeClusterCostEstimator(), jobManagerAddress);
@@ -186,7 +181,7 @@ public class Client {
 	}
 	
 	/**
-	 * Submits the given program to the nephele job-manager for execution. The first step of teh compilation process is skipped and
+	 * Submits the given program to the nephele job-manager for execution. The first step of the compilation process is skipped and
 	 * the given compiled plan is taken.
 	 * 
 	 * @param prog The original pact program.
@@ -270,6 +265,9 @@ public class Client {
 			} else {
 				throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
 			}
+		}
+		catch (InterruptedException ie) {
+			throw new ProgramInvocationException("The program has been interrupted: " + ie.getMessage());
 		}
 		finally {
 			program.deleteExtractedLibraries();

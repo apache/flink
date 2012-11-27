@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -53,9 +54,6 @@ public class CLClient {
 
 	@SuppressWarnings("static-access")
 	private void initOptions() {
-		this.options.addOption(OptionBuilder.isRequired().
-			withArgName("file").hasArg(true).
-			withDescription("Executes the given script").create("f"));
 		this.options.addOption(OptionBuilder.
 			withArgName("config").hasArg(true).
 			withDescription("Uses the given configuration").withLongOpt("configDir").create());
@@ -67,7 +65,7 @@ public class CLClient {
 			withDescription("Uses the specified port").withLongOpt("port").create());
 		this.options.addOption(OptionBuilder.
 			withArgName("updateTime").hasArg(true).
-			withDescription("Checks with the given update time for the current status").withLongOpt("updateTime").create());
+			withDescription("Checks with the given update time in ms for the current status").withLongOpt("updateTime").create());
 		this.options.addOption(OptionBuilder.
 			hasArg(false).
 			withDescription("Waits until the script terminates on the server").withLongOpt("wait").create());
@@ -79,37 +77,46 @@ public class CLClient {
 
 	private void process(String[] args) {
 		CommandLine cmd = this.parseOptions(args);
-		final SopremoPlan plan = this.parseScript(cmd);
+		@SuppressWarnings("unchecked")
+		final List<String> scripts = cmd.getArgList();
+		if (scripts.size() == 0)
+			dealWithError(null, "No scripts to execute");
+		
 		this.configureClient(cmd);
+		for (final String script : scripts) {
+			final SopremoPlan plan = this.parseScript(script);
 
-		this.sopremoClient.submit(plan, new StateListener() {
-			@Override
-			public void stateChanged(ExecutionState executionState, String detail) {
-				System.out.println();
-				switch (executionState) {
-				case ENQUEUED:
-					System.out.print("Submitted script");
-					break;
-				case RUNNING:
-					System.out.print("Executing script");
-					break;
-				case FINISHED:
-					System.out.print(detail);
-					break;
-				case ERROR:			
-					System.out.print(detail);
-					break;
+			this.sopremoClient.submit(plan, new StateListener() {
+				@Override
+				public void stateChanged(ExecutionState executionState, String detail) {
+					System.out.println();
+					switch (executionState) {
+					case ENQUEUED:
+						System.out.print("Submitted script " + script);
+						break;
+					case RUNNING:
+						System.out.print("Executing script "  + script);
+						break;
+					case FINISHED:
+						System.out.print(detail);
+						break;
+					case ERROR:
+						System.out.print(detail);
+						break;
+					}
 				}
-			}
 
-			/* (non-Javadoc)
-			 * @see eu.stratosphere.sopremo.client.StateListener#stateNotChanged(eu.stratosphere.sopremo.execution.ExecutionResponse.ExecutionState, java.lang.String)
-			 */
-			@Override
-			protected void stateNotChanged(ExecutionState state, String detail) {
-				System.out.print(".");
-			}
-		}, cmd.hasOption("wait"));
+				/*
+				 * (non-Javadoc)
+				 * @see eu.stratosphere.sopremo.client.StateListener#stateNotChanged(eu.stratosphere.sopremo.execution.
+				 * ExecutionResponse.ExecutionState, java.lang.String)
+				 */
+				@Override
+				protected void stateNotChanged(ExecutionState state, String detail) {
+					System.out.print(".");
+				}
+			}, cmd.hasOption("wait"));
+		}
 
 		this.sopremoClient.close();
 	}
@@ -151,8 +158,8 @@ public class CLClient {
 		System.exit(1);
 	}
 
-	private SopremoPlan parseScript(CommandLine cmd) {
-		File file = new File(cmd.getOptionValue("f"));
+	private SopremoPlan parseScript(String script) {
+		File file = new File(script);
 		if (!file.exists())
 			this.dealWithError(null, "Given file %s not found", file);
 
@@ -171,7 +178,7 @@ public class CLClient {
 		} catch (ParseException e) {
 			System.err.println("Cannot process the given arguments: " + e);
 			HelpFormatter formatter = new HelpFormatter();
-			formatter.printHelp("meteor-client.sh", this.options);
+			formatter.printHelp("meteor-client.sh <scripts>", this.options);
 			System.exit(1);
 			return null;
 		}

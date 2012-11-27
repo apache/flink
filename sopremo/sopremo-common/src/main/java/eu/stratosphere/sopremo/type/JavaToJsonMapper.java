@@ -28,7 +28,7 @@ public class JavaToJsonMapper {
 			this.typeDict.put(BigDecimal.class, DecimalNode.class.getConstructor(BigDecimal.class));
 			this.typeDict.put(Double.class, DoubleNode.class.getConstructor(Double.TYPE));
 			this.typeDict.put(Float.class, DoubleNode.class.getConstructor(Float.TYPE));
-			this.typeDict.put(String.class, TextNode.class.getConstructor(String.class));
+			this.typeDict.put(String.class, TextNode.class.getConstructor(CharSequence.class));
 		} catch (final SecurityException e) {
 			e.printStackTrace();
 		} catch (final NoSuchMethodException e) {
@@ -71,8 +71,8 @@ public class JavaToJsonMapper {
 			return NullNode.getInstance();
 
 		final Class<? extends Object> valueClass = value.getClass();
-		if (value instanceof AbstractJsonNode)
-			return (AbstractJsonNode) value;
+		if (value instanceof IJsonNode)
+			return (IJsonNode) value;
 
 		if (value instanceof CharSequence)
 			return TextNode.valueOf(value.toString());

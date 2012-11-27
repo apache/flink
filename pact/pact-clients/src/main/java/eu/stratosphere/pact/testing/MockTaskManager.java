@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 package eu.stratosphere.pact.testing;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -53,7 +54,6 @@ import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -245,7 +245,7 @@ class MockTaskManager implements TaskOperationProtocol {
 	 */
 	@Override
 	public List<TaskSubmissionResult> submitTasks(List<TaskDeploymentDescriptor> tasks) throws IOException {
-		final List<TaskSubmissionResult> submissionResultList = new SerializableArrayList<TaskSubmissionResult>();
+		final List<TaskSubmissionResult> submissionResultList = new ArrayList<TaskSubmissionResult>();
 		final Map<ExecutionVertexID, RuntimeEnvironment> tasksToStart =
 			new LinkedHashMap<ExecutionVertexID, RuntimeEnvironment>();
 

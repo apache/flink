@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,9 +18,10 @@ package eu.stratosphere.nephele.taskmanager.transferenvelope;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Queue;
 
-import eu.stratosphere.nephele.event.task.EventList;
+import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
@@ -45,7 +46,7 @@ final class SpillingQueueElement {
 
 	private Object bufferRef = null;
 
-	private EventList eventList = null;
+	private List<AbstractEvent> eventList = null;
 
 	private SpillingQueueElement nextElement = null;
 
@@ -57,10 +58,10 @@ final class SpillingQueueElement {
 
 		private final Iterator<Object> bufferIterator;
 
-		private final EventList eventList;
+		private final List<AbstractEvent> eventList;
 
 		private SpillingQueueElementIterator(final int headSequenceNumber, final int tailSequenceNumber,
-				final Iterator<Object> bufferIterator, final EventList eventList) {
+				final Iterator<Object> bufferIterator, final List<AbstractEvent> eventList) {
 
 			this.headSequenceNumber = headSequenceNumber;
 			this.tailSequenceNumber = tailSequenceNumber;
@@ -121,7 +122,7 @@ final class SpillingQueueElement {
 			return true;
 		}
 
-		final EventList eventList = transferEnvelope.getEventList();
+		final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 		if (eventList != null) {
 			if (!eventList.isEmpty()) {
 				return false;

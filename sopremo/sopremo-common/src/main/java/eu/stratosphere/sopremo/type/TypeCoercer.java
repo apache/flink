@@ -10,7 +10,7 @@ import java.util.Map.Entry;
 
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.util.Reference;
-import eu.stratosphere.util.reflect.BoundTypeUtil;
+import eu.stratosphere.util.reflect.ReflectUtil;
 import eu.stratosphere.util.reflect.TypeHierarchyBrowser;
 import eu.stratosphere.util.reflect.TypeHierarchyBrowser.Mode;
 import eu.stratosphere.util.reflect.Visitor;
@@ -21,7 +21,7 @@ public class TypeCoercer {
 		new IdentityHashMap<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer<?, ?>>>();
 
 	@SuppressWarnings("unchecked")
-	public static final List<Class<? extends AbstractNumericNode>> NUMERIC_TYPES = Arrays.asList(
+	public static final List<Class<? extends INumericNode>> NUMERIC_TYPES = Arrays.asList((Class<? extends INumericNode>)
 		IntNode.class, DoubleNode.class, LongNode.class, DecimalNode.class, BigIntegerNode.class);
 
 	private static final Coercer<IJsonNode, IJsonNode> NULL_COERCER = new Coercer<IJsonNode, IJsonNode>(null) {
@@ -43,11 +43,12 @@ public class TypeCoercer {
 		this.addCoercers(IArrayNode.class, this.getToArrayCoercers());
 		this.addCoercers(IObjectNode.class, new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, IObjectNode>>());
 		this.addNumericCoercers(this.coercers);
+		this.addCoercers(IJsonNode.class, new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, IJsonNode>>());
 		this.addSelfCoercers();
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private <To extends IJsonNode> void addCoercers(final Class<To> targetClass, final Map<?, Coercer<?, To>> coercers) {
+	public <To extends IJsonNode> void addCoercers(final Class<To> targetClass, final Map<?, Coercer<?, To>> coercers) {
 		this.coercers.put(targetClass, (Map) coercers);
 	}
 
@@ -56,7 +57,7 @@ public class TypeCoercer {
 		coercers.put(AbstractNumericNode.class, new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, ?>>());
 
 		// init number to number
-		for (final Class<? extends AbstractNumericNode> numericType : NUMERIC_TYPES) {
+		for (final Class<? extends INumericNode> numericType : NUMERIC_TYPES) {
 			final IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, ?>> typeCoercers =
 				new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, ?>>();
 			coercers.put(numericType, typeCoercers);
@@ -64,42 +65,42 @@ public class TypeCoercer {
 		}
 
 		// boolean to number
-		coercers.get(AbstractNumericNode.class).put(BooleanNode.class, new Coercer<BooleanNode, IntNode>() {
+		coercers.get(AbstractNumericNode.class).put(BooleanNode.class, new Coercer<BooleanNode, IntNode>(IntNode.class) {
 			@Override
 			public IntNode coerce(final BooleanNode from, final IntNode target) {
 				target.setValue(from == BooleanNode.TRUE ? 1 : 0);
 				return target;
 			}
 		});
-		coercers.get(IntNode.class).put(BooleanNode.class, new Coercer<BooleanNode, IntNode>() {
+		coercers.get(IntNode.class).put(BooleanNode.class, new Coercer<BooleanNode, IntNode>(IntNode.class) {
 			@Override
 			public IntNode coerce(final BooleanNode from, final IntNode target) {
 				target.setValue(from == BooleanNode.TRUE ? 1 : 0);
 				return target;
 			}
 		});
-		coercers.get(DoubleNode.class).put(BooleanNode.class, new Coercer<BooleanNode, DoubleNode>() {
+		coercers.get(DoubleNode.class).put(BooleanNode.class, new Coercer<BooleanNode, DoubleNode>(DoubleNode.class) {
 			@Override
 			public DoubleNode coerce(final BooleanNode from, final DoubleNode target) {
 				target.setValue(from == BooleanNode.TRUE ? 1 : 0);
 				return target;
 			}
 		});
-		coercers.get(LongNode.class).put(BooleanNode.class, new Coercer<BooleanNode, LongNode>() {
+		coercers.get(LongNode.class).put(BooleanNode.class, new Coercer<BooleanNode, LongNode>(LongNode.class) {
 			@Override
 			public LongNode coerce(final BooleanNode from, final LongNode target) {
 				target.setValue(from == BooleanNode.TRUE ? 1 : 0);
 				return target;
 			}
 		});
-		coercers.get(DecimalNode.class).put(BooleanNode.class, new Coercer<BooleanNode, DecimalNode>() {
+		coercers.get(DecimalNode.class).put(BooleanNode.class, new Coercer<BooleanNode, DecimalNode>(DecimalNode.class) {
 			@Override
 			public DecimalNode coerce(final BooleanNode from, final DecimalNode target) {
 				target.setValue(from == BooleanNode.TRUE ? BigDecimal.ONE : BigDecimal.ZERO);
 				return target;
 			}
 		});
-		coercers.get(BigIntegerNode.class).put(BooleanNode.class, new Coercer<BooleanNode, BigIntegerNode>() {
+		coercers.get(BigIntegerNode.class).put(BooleanNode.class, new Coercer<BooleanNode, BigIntegerNode>(BigIntegerNode.class) {
 			@Override
 			public BigIntegerNode coerce(final BooleanNode from, final BigIntegerNode target) {
 				target.setValue(from == BooleanNode.TRUE ? BigInteger.ONE : BigInteger.ZERO);
@@ -111,76 +112,82 @@ public class TypeCoercer {
 			coercers.get(IntNode.class).get(BooleanNode.class));
 
 		// string to number
-		coercers.get(IntNode.class).put(TextNode.class, new Coercer<TextNode, IntNode>() {
+		coercers.get(IntNode.class).put(TextNode.class, new Coercer<TextNode, IntNode>(IntNode.class) {
 			@Override
 			public IntNode coerce(final TextNode from, final IntNode target) {
 				try {
-					target.setValue(Integer.parseInt(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(Integer.parseInt(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;
 				}
 			}
 		});
-		coercers.get(DoubleNode.class).put(TextNode.class, new Coercer<TextNode, DoubleNode>() {
+		coercers.get(DoubleNode.class).put(TextNode.class, new Coercer<TextNode, DoubleNode>(DoubleNode.class) {
 			@Override
 			public DoubleNode coerce(final TextNode from, final DoubleNode target) {
 				try {
-					target.setValue(Double.parseDouble(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(Double.parseDouble(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;
 				}
 			}
 		});
-		coercers.get(LongNode.class).put(TextNode.class, new Coercer<TextNode, LongNode>() {
+		coercers.get(LongNode.class).put(TextNode.class, new Coercer<TextNode, LongNode>(LongNode.class) {
 			@Override
 			public LongNode coerce(final TextNode from, final LongNode target) {
 				try {
-					target.setValue(Long.parseLong(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(Long.parseLong(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;
 				}
 			}
 		});
-		coercers.get(DecimalNode.class).put(TextNode.class, new Coercer<TextNode, DecimalNode>() {
+		coercers.get(DecimalNode.class).put(TextNode.class, new Coercer<TextNode, DecimalNode>(DecimalNode.class) {
 			@Override
 			public DecimalNode coerce(final TextNode from, final DecimalNode target) {
 				try {
-					target.setValue(new BigDecimal(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(new BigDecimal(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;
 				}
 			}
 		});
-		coercers.get(BigIntegerNode.class).put(TextNode.class, new Coercer<TextNode, BigIntegerNode>() {
+		coercers.get(BigIntegerNode.class).put(TextNode.class, new Coercer<TextNode, BigIntegerNode>(BigIntegerNode.class) {
 			@Override
 			public BigIntegerNode coerce(final TextNode from, final BigIntegerNode target) {
 				try {
-					target.setValue(new BigInteger(from.getTextValue()));
+					// TODO: bottleneck
+					target.setValue(new BigInteger(from.getTextValue().toString()));
 					return target;
 				} catch (final NumberFormatException e) {
 					return null;
 				}
 			}
 		});
-		// default boolean to number conversion -> decimal
+		// default text to number conversion -> decimal
 		coercers.get(AbstractNumericNode.class).put(TextNode.class,
 			coercers.get(DecimalNode.class).get(TextNode.class));
 	}
 
-	private void addSelfCoercers() {
-		final Coercer<?, ?> selfCoercer = new Coercer<IJsonNode, IJsonNode>(null) {
-			@Override
-			public IJsonNode coerce(final IJsonNode node, final IJsonNode target) {
-				return node;
-			}
-		};
-		for (final Entry<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer<?, ?>>> toCoercers : this.coercers
-			.entrySet())
-			toCoercers.getValue().put(toCoercers.getKey(), selfCoercer);
+	private void addSelfCoercers() {		
+		for (final Entry<Class<? extends IJsonNode>, Map<Class<? extends IJsonNode>, Coercer<?, ?>>> toCoercers : this.coercers.entrySet()) {
+			final Class<? extends IJsonNode> targetClass = toCoercers.getKey();
+			Map<Class<? extends IJsonNode>, Coercer<?, ?>> coercers = toCoercers.getValue();
+			if(coercers.containsKey(targetClass))
+				continue;
+			if(targetClass.isInterface())
+				coercers.put(targetClass, new CopyCoercer());
+			else
+				coercers.put(targetClass, new SelfCoercer(targetClass));
+		}
 	}
 
 	public <From extends IJsonNode, To extends IJsonNode> To coerce(final From node, final To target,
@@ -300,37 +307,43 @@ public class TypeCoercer {
 	private Map<Class<? extends IJsonNode>, Coercer<?, BooleanNode>> getToBooleanCoercers() {
 		final Map<Class<? extends IJsonNode>, Coercer<?, BooleanNode>> toBooleanCoercers =
 			new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, BooleanNode>>();
-		toBooleanCoercers.put(INumericNode.class, new Coercer<INumericNode, BooleanNode>() {
+		toBooleanCoercers.put(BooleanNode.class, new Coercer<BooleanNode, BooleanNode>(BooleanNode.class) {
+			@Override
+			public BooleanNode coerce(final BooleanNode from, final BooleanNode target) {
+				return from;
+			}
+		});
+		toBooleanCoercers.put(INumericNode.class, new Coercer<INumericNode, BooleanNode>(BooleanNode.class) {
 			@Override
 			public BooleanNode coerce(final INumericNode from, final BooleanNode target) {
 				return BooleanNode.valueOf(from.getDoubleValue() != 0);
 			}
 		});
-		toBooleanCoercers.put(TextNode.class, new Coercer<TextNode, BooleanNode>() {
+		toBooleanCoercers.put(TextNode.class, new Coercer<TextNode, BooleanNode>(BooleanNode.class) {
 			@Override
 			public BooleanNode coerce(final TextNode from, final BooleanNode target) {
 				return BooleanNode.valueOf(from.getTextValue().length() > 0);
 			}
 		});
-		toBooleanCoercers.put(NullNode.class, new Coercer<NullNode, BooleanNode>() {
+		toBooleanCoercers.put(NullNode.class, new Coercer<NullNode, BooleanNode>(BooleanNode.class) {
 			@Override
 			public BooleanNode coerce(final NullNode from, final BooleanNode target) {
 				return BooleanNode.FALSE;
 			}
 		});
-		toBooleanCoercers.put(MissingNode.class, new Coercer<MissingNode, BooleanNode>() {
+		toBooleanCoercers.put(MissingNode.class, new Coercer<MissingNode, BooleanNode>(BooleanNode.class) {
 			@Override
 			public BooleanNode coerce(final MissingNode from, final BooleanNode target) {
 				return BooleanNode.FALSE;
 			}
 		});
-		toBooleanCoercers.put(IArrayNode.class, new Coercer<IArrayNode, BooleanNode>() {
+		toBooleanCoercers.put(IArrayNode.class, new Coercer<IArrayNode, BooleanNode>(BooleanNode.class) {
 			@Override
 			public BooleanNode coerce(final IArrayNode from, final BooleanNode target) {
 				return BooleanNode.valueOf(from.size() > 0);
 			}
 		});
-		toBooleanCoercers.put(IObjectNode.class, new Coercer<IObjectNode, BooleanNode>() {
+		toBooleanCoercers.put(IObjectNode.class, new Coercer<IObjectNode, BooleanNode>(BooleanNode.class) {
 			@Override
 			public BooleanNode coerce(final IObjectNode from, final BooleanNode target) {
 				return BooleanNode.valueOf(from.size() > 0);
@@ -342,10 +355,17 @@ public class TypeCoercer {
 	private Map<Class<? extends IJsonNode>, Coercer<?, TextNode>> getToStringCoercers() {
 		final Map<Class<? extends IJsonNode>, Coercer<?, TextNode>> toStringCoercers =
 			new IdentityHashMap<Class<? extends IJsonNode>, Coercer<?, TextNode>>();
-		toStringCoercers.put(IJsonNode.class, new Coercer<IJsonNode, TextNode>() {
+		toStringCoercers.put(IJsonNode.class, new Coercer<IJsonNode, TextNode>(TextNode.class) {
 			@Override
 			public TextNode coerce(final IJsonNode from, final TextNode target) {
 				target.setValue(from.toString());
+				return target;
+			}
+		});
+		toStringCoercers.put(NullNode.class, new Coercer<IJsonNode, TextNode>(TextNode.class) {
+			@Override
+			public TextNode coerce(final IJsonNode from, final TextNode target) {
+				target.setValue("");
 				return target;
 			}
 		});
@@ -360,6 +380,44 @@ public class TypeCoercer {
 		toCoercers.put(from, coercer);
 	}
 
+	/**
+	 * @author Arvid Heise
+	 */
+	private static final class SelfCoercer extends Coercer<IJsonNode, IJsonNode> {
+		/**
+		 * Initializes SelfCoercer.
+		 */
+		public SelfCoercer(Class<? extends IJsonNode> defaultType) {
+			super(defaultType);
+		}
+
+		@Override
+		public IJsonNode coerce(final IJsonNode node, final IJsonNode target) {
+			target.copyValueFrom(node);
+			return target;
+		}
+	}
+	
+	/**
+	 * @author Arvid Heise
+	 */
+	private static final class CopyCoercer extends Coercer<IJsonNode, IJsonNode> {
+		/**
+		 * Initializes SuperCoercer.
+		 */
+		public CopyCoercer() {
+			super(null);
+		}
+
+		@Override
+		public IJsonNode coerce(final IJsonNode node, IJsonNode target) {
+			if(target == null)
+				target = ReflectUtil.newInstance(node.getClass());
+			target.copyValueFrom(node);
+			return target;
+		}
+	}
+
 	public static abstract class Coercer<From, To> {
 		private final Class<? extends To> defaultType;
 
@@ -367,22 +425,22 @@ public class TypeCoercer {
 			this.defaultType = defaultType;
 		}
 
-		/**
-		 * Initializes TypeCoercer.Coercer.
-		 */
-		@SuppressWarnings("unchecked")
-		public Coercer() {
-			this.defaultType =
-				(Class<To>) BoundTypeUtil.getBindingOfSuperclass(this.getClass(), Coercer.class).getParameters()[1]
-					.getType();
-			try {
-				this.defaultType.newInstance();
-			} catch (final InstantiationException e) {
-				e.printStackTrace();
-			} catch (final IllegalAccessException e) {
-				e.printStackTrace();
-			}
-		}
+//		/**
+//		 * Initializes TypeCoercer.Coercer.
+//		 */
+//		@SuppressWarnings("unchecked")
+//		public Coercer() {
+//			this.defaultType =
+//				(Class<To>) BoundTypeUtil.getBindingOfSuperclass(this.getClass(), Coercer.class).getParameters()[1]
+//					.getType();
+//			try {
+//				this.defaultType.newInstance();
+//			} catch (final InstantiationException e) {
+//				e.printStackTrace();
+//			} catch (final IllegalAccessException e) {
+//				e.printStackTrace();
+//			}
+//		}
 
 		public abstract To coerce(From from, To target);
 

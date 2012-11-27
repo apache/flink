@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -26,12 +26,11 @@ import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.JobEvent;
-import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.JobManagementProtocol;
-import eu.stratosphere.nephele.types.IntegerRecord;
+import eu.stratosphere.nephele.rpc.CommonTypeUtils;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -47,6 +46,11 @@ public class JobClient {
 	 * The logging object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(JobClient.class);
+
+	/**
+	 * The RPC service.
+	 */
+	private final RPCService rpcService;
 
 	/**
 	 * The job management server stub.
@@ -71,7 +75,7 @@ public class JobClient {
 	/**
 	 * The sequence number of the last processed event received from the job manager.
 	 */
-	private long lastProcessedEventSequenceNumber = -1;
+	private volatile long lastProcessedEventSequenceNumber = -1;
 
 	/**
 	 * Inner class used to perform clean up tasks when the
@@ -113,15 +117,13 @@ public class JobClient {
 						+ ":\tJobClient is shutting down, canceling job...");
 					this.jobClient.cancelJob();
 				}
-
-				// Close the RPC object
-				this.jobClient.close();
-
-			} catch (IOException ioe) {
-				LOG.warn(StringUtils.stringifyException(ioe));
+			} catch (Exception e) {
+				LOG.debug(StringUtils.stringifyException(e));
 			}
-		}
 
+			// Close the RPC object
+			this.jobClient.close();
+		}
 	}
 
 	/**
@@ -151,12 +153,14 @@ public class JobClient {
 	 */
 	public JobClient(final JobGraph jobGraph, final Configuration configuration) throws IOException {
 
-		final String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		final String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
+			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_ADDRESS);
 		final int port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
-		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, inetaddr, NetUtils.getSocketFactory());
+		this.rpcService = new RPCService(CommonTypeUtils.getRPCTypesToRegister());
+		this.jobSubmitClient = this.rpcService.getProxy(inetaddr, JobManagementProtocol.class);
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
@@ -179,7 +183,8 @@ public class JobClient {
 			final InetSocketAddress jobManagerAddress)
 			throws IOException {
 
-		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, jobManagerAddress,	NetUtils.getSocketFactory());
+		this.rpcService = new RPCService(CommonTypeUtils.getRPCTypesToRegister());
+		this.jobSubmitClient = this.rpcService.getProxy(jobManagerAddress, JobManagementProtocol.class);
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
@@ -190,9 +195,7 @@ public class JobClient {
 	 */
 	public void close() {
 
-		synchronized (this.jobSubmitClient) {
-			RPC.stopProxy(this.jobSubmitClient);
-		}
+		this.rpcService.shutDown();
 	}
 
 	/**
@@ -211,13 +214,12 @@ public class JobClient {
 	 * @return a <code>JobSubmissionResult</code> object encapsulating the results of the job submission
 	 * @throws IOException
 	 *         thrown in case of submission errors while transmitting the data to the job manager
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public JobSubmissionResult submitJob() throws IOException {
+	public JobSubmissionResult submitJob() throws IOException, InterruptedException {
 
-		synchronized (this.jobSubmitClient) {
-
-			return this.jobSubmitClient.submitJob(this.jobGraph);
-		}
+		return this.jobSubmitClient.submitJob(this.jobGraph);
 	}
 
 	/**
@@ -226,12 +228,12 @@ public class JobClient {
 	 * @return a <code>JobCancelResult</code> object encapsulating the result of the job cancel request
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request to the job manager
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public JobCancelResult cancelJob() throws IOException {
+	public JobCancelResult cancelJob() throws IOException, InterruptedException {
 
-		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.cancelJob(this.jobGraph.getJobID());
-		}
+		return this.jobSubmitClient.cancelJob(this.jobGraph.getJobID());
 	}
 
 	/**
@@ -240,12 +242,12 @@ public class JobClient {
 	 * @return a <code>JobProgressResult</code> object including the current job progress
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public JobProgressResult getJobProgress() throws IOException {
+	public JobProgressResult getJobProgress() throws IOException, InterruptedException {
 
-		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.getJobProgress(this.jobGraph.getJobID());
-		}
+		return this.jobSubmitClient.getJobProgress(this.jobGraph.getJobID());
 	}
 
 	/**
@@ -255,27 +257,26 @@ public class JobClient {
 	 * @return the duration of the job execution in milliseconds
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @throws JobExecutionException
 	 *         thrown if the job has been aborted either by the user or as a result of an error
 	 */
-	public long submitJobAndWait() throws IOException, JobExecutionException {
+	public long submitJobAndWait() throws IOException, InterruptedException, JobExecutionException {
 
-		synchronized (this.jobSubmitClient) {
-
-			final JobSubmissionResult submissionResult = this.jobSubmitClient.submitJob(this.jobGraph);
-			if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
-				LOG.error("ERROR: " + submissionResult.getDescription());
-				throw new JobExecutionException(submissionResult.getDescription(), false);
-			}
-
-			// Make sure the job is properly terminated when the user shut's down the client
-			Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
+		final JobSubmissionResult submissionResult = this.jobSubmitClient.submitJob(this.jobGraph);
+		if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
+			LOG.error("ERROR: " + submissionResult.getDescription());
+			throw new JobExecutionException(submissionResult.getDescription(), false);
 		}
+
+		// Make sure the job is properly terminated when the user shut's down the client
+		Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
 
 		long sleep = 0;
 		try {
-			final IntegerRecord interval = this.jobSubmitClient.getRecommendedPollingInterval();
-			sleep = interval.getValue() * 1000;
+			final int interval = this.jobSubmitClient.getRecommendedPollingInterval();
+			sleep = interval * 1000;
 		} catch (IOException ioe) {
 			Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 			// Rethrow error
@@ -336,11 +337,13 @@ public class JobClient {
 						startTimestamp = jobEvent.getTimestamp();
 					}
 					if (jobStatus == JobStatus.FINISHED) {
+						close();
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						final long jobDuration = jobEvent.getTimestamp() - startTimestamp;
 						System.out.println("Job duration (in ms): " + jobDuration);
 						return jobDuration;
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
+						close();
 						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());
 						if (jobStatus == JobStatus.CANCELED) {
@@ -367,12 +370,12 @@ public class JobClient {
 	 * @return the interval in seconds
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public int getRecommendedPollingInterval() throws IOException {
+	public int getRecommendedPollingInterval() throws IOException, InterruptedException {
 
-		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.getRecommendedPollingInterval().getValue();
-		}
+		return this.jobSubmitClient.getRecommendedPollingInterval();
 	}
 
 	/**

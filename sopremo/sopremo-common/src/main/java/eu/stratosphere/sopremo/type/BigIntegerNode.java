@@ -141,12 +141,7 @@ public class BigIntegerNode extends AbstractNumericNode implements INumericNode 
 		return Type.BigIntegerNode;
 	}
 
-	@Override
-	public StringBuilder toString(final StringBuilder sb) {
-		return sb.append(this.value);
-	}
-
-	@Override
+		@Override
 	public void copyValueFrom(final IJsonNode otherNode) {
 		this.checkForSameType(otherNode);
 		this.value = ((BigIntegerNode) otherNode).value;

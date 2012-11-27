@@ -45,7 +45,7 @@ public class DynamicConstructor<DeclaringClass> extends
 		return member.newInstance(params);
 	}
 
-	public DeclaringClass invoke(final Object... params) {
+	public DeclaringClass invoke(final Object... params) throws Exception {
 		return super.invoke(null, params);
 	}
 

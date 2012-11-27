@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -52,9 +52,9 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.util.SerializableHashMap;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -136,6 +136,11 @@ public class ClusterManager implements InstanceManager {
 	// ------------------------------------------------------------------------
 	// Fields
 	// ------------------------------------------------------------------------
+
+	/**
+	 * The RPC service to use when a proxy for a cluster instance shall be created.
+	 */
+	private final RPCService rpcService;
 
 	/**
 	 * Duration after which a host is purged in case it did not send a
@@ -272,20 +277,25 @@ public class ClusterManager implements InstanceManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Constructor.
+	 * Constructs a new cluster manager.
+	 * 
+	 * @param rpcService
+	 *        the RPC service to use when a proxy for a cluster instance shall be created.
 	 */
-	public ClusterManager() {
+	public ClusterManager(final RPCService rpcService) {
 
 		this.registeredHosts = new HashMap<InstanceConnectionInfo, ClusterInstance>();
 
 		this.slicesOfJobs = new HashMap<JobID, List<AllocatedSlice>>();
+
+		this.rpcService = rpcService;
 
 		// Load the instance type this cluster can offer
 		this.availableInstanceTypes = populateInstanceTypeArray();
 
 		this.instanceAccommodationMatrix = calculateInstanceAccommodationMatrix();
 
-		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
+		this.instanceTypeDescriptionMap = new HashMap<InstanceType, InstanceTypeDescription>();
 
 		long tmpCleanUpInterval = (long) GlobalConfiguration.getInteger(CLEANUP_INTERVAL_KEY, DEFAULT_CLEANUP_INTERVAL) * 1000;
 
@@ -443,10 +453,6 @@ public class ClusterManager implements InstanceManager {
 	@Override
 	public synchronized void shutdown() {
 
-		final Iterator<ClusterInstance> it = this.registeredHosts.values().iterator();
-		while (it.hasNext()) {
-			it.next().destroyProxies();
-		}
 		this.registeredHosts.clear();
 
 		this.cleanupStaleMachines.cancel();
@@ -654,8 +660,8 @@ public class ClusterManager implements InstanceManager {
 
 		LOG.info("Creating instance of type " + instanceType + " for " + instanceConnectionInfo + ", parent is "
 			+ parentNode.getName());
-		final ClusterInstance host = new ClusterInstance(instanceConnectionInfo, instanceType, parentNode,
-			this.networkTopology, hardwareDescription);
+		final ClusterInstance host = new ClusterInstance(instanceConnectionInfo, this.rpcService, instanceType,
+			parentNode, this.networkTopology, hardwareDescription);
 
 		return host;
 	}

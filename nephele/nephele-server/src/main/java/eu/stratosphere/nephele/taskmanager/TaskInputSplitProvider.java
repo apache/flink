@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -24,7 +24,6 @@ import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.template.InputSplit;
 import eu.stratosphere.nephele.template.InputSplitProvider;
-import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -62,16 +61,18 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 
 		try {
 
-			synchronized (this.globalInputSplitProvider) {
-				final InputSplitWrapper wrapper = this.globalInputSplitProvider.requestNextInputSplit(this.jobID,
-					this.executionVertexID, new IntegerRecord(this.sequenceNumber.getAndIncrement()));
-				return wrapper.getInputSplit();
-			}
+			final InputSplitWrapper wrapper = this.globalInputSplitProvider.requestNextInputSplit(this.jobID,
+				this.executionVertexID, this.sequenceNumber.getAndIncrement());
+
+			return wrapper.getInputSplit();
 
 		} catch (IOException ioe) {
 			// Convert IOException into a RuntimException and let the regular fault tolerance routines take care of the
 			// rest
 			throw new RuntimeException(StringUtils.stringifyException(ioe));
+		} catch (InterruptedException ie) {
+			// The thread was interrupted, return <code>null</code> to indicate there is no more data that follows
+			return null;
 		}
 	}
 }

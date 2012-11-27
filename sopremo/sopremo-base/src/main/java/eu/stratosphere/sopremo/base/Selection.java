@@ -1,6 +1,5 @@
 package eu.stratosphere.sopremo.base;
 
-import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.sopremo.expressions.BooleanExpression;
 import eu.stratosphere.sopremo.expressions.ConstantExpression;
 import eu.stratosphere.sopremo.expressions.EvaluationExpression;
@@ -54,8 +53,9 @@ public class Selection extends ElementaryOperator<Selection> {
 		if (condition == null)
 			throw new NullPointerException("condition must not be null");
 
-		this.condition = (BooleanExpression) BooleanExpression.ensureBooleanExpression(condition).clone();
-		this.condition.remove(new InputSelection(0));
+		this.condition =
+			(BooleanExpression) BooleanExpression.ensureBooleanExpression(condition).clone().remove(
+				new InputSelection(0)).simplify();
 	}
 
 	public Selection withCondition(BooleanExpression condition) {
@@ -73,20 +73,10 @@ public class Selection extends ElementaryOperator<Selection> {
 	public static class Implementation extends SopremoMap {
 		private BooleanExpression condition;
 
-		/*
-		 * (non-Javadoc)
-		 * @see eu.stratosphere.sopremo.pact.SopremoMap#open(eu.stratosphere.nephele.configuration.Configuration)
-		 */
-		@Override
-		public void open(Configuration parameters) {
-			super.open(parameters);
-		}
-
 		@Override
 		protected void map(final IJsonNode value, final JsonCollector out) {
 			if (this.condition.evaluate(value, null, this.getContext()) == BooleanNode.TRUE)
 				out.collect(value);
 		}
-
 	}
 }

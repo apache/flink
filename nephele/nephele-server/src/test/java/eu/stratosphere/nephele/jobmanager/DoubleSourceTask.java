@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -71,8 +71,8 @@ public class DoubleSourceTask extends AbstractFileInputTask {
 
 	@Override
 	public void registerInputOutput() {
-		this.output1 = new RecordWriter<StringRecord>(this, StringRecord.class);
-		this.output2 = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output1 = new RecordWriter<StringRecord>(this);
+		this.output2 = new RecordWriter<StringRecord>(this);
 	}
 
 }

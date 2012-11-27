@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,13 +19,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
-
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.util.ServerTestUtils;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class contains unit tests for the {@link ChannelDeploymentDescriptor} class.
@@ -40,8 +37,8 @@ public class ChannelDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithValidArguments() {
 
-		final ChannelID outputChannelID = new ChannelID();
-		final ChannelID inputChannelID = new ChannelID();
+		final ChannelID outputChannelID = ChannelID.generate();
+		final ChannelID inputChannelID = ChannelID.generate();
 
 		final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(outputChannelID, inputChannelID);
 
@@ -55,7 +52,7 @@ public class ChannelDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithInvalidArguments() {
 
-		final ChannelID channelID = new ChannelID();
+		final ChannelID channelID = ChannelID.generate();
 
 		boolean firstExceptionCaught = false;
 		boolean secondExceptionCaught = false;
@@ -91,18 +88,11 @@ public class ChannelDeploymentDescriptorTest {
 	@Test
 	public void testSerialization() {
 
-		final ChannelID outputChannelID = new ChannelID();
-		final ChannelID inputChannelID = new ChannelID();
+		final ChannelID outputChannelID = ChannelID.generate();
+		final ChannelID inputChannelID = ChannelID.generate();
 
 		final ChannelDeploymentDescriptor orig = new ChannelDeploymentDescriptor(outputChannelID, inputChannelID);
-
-		ChannelDeploymentDescriptor copy = null;
-
-		try {
-			copy = ServerTestUtils.createCopy(orig);
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		}
+		final ChannelDeploymentDescriptor copy = ServerTestUtils.createCopy(orig);
 
 		assertFalse(orig.getOutputChannelID() == copy.getOutputChannelID());
 		assertFalse(orig.getInputChannelID() == copy.getInputChannelID());

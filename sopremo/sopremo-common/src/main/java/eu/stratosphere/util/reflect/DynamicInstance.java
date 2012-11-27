@@ -9,12 +9,12 @@ public class DynamicInstance<Type> {
 		return this.dynamicClass;
 	}
 
-	public DynamicInstance(final DynamicClass<Type> dynamicClass, final Object... params) {
+	public DynamicInstance(final DynamicClass<Type> dynamicClass, final Object... params) throws Exception {
 		this.dynamicClass = dynamicClass;
 		this.instance = dynamicClass.getConstructor().invoke(params);
 	}
 
-	public Object invoke(final String name, final Object... params) {
+	public Object invoke(final String name, final Object... params) throws Exception {
 		return this.dynamicClass.invoke(this.instance, name, params);
 	}
 }

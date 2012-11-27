@@ -240,7 +240,7 @@ public class CsvInputFormat extends FileInputFormat {
 		}
 
 		// skip to beginning of the first record
-		if (split.getSplitNumber() > 0) {
+		if (this.splitStart > 0) {
 			if (this.usesQuotation) {
 				// TODO: how to detect if where are inside a quotation?
 				this.reader.seek(this.splitStart - 1);

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -40,7 +40,6 @@ import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult.ReturnCode;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
-import eu.stratosphere.nephele.util.SerializableHashSet;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -61,7 +60,7 @@ public final class RecoveryLogic {
 
 	public static boolean recover(final ExecutionVertex failedVertex,
 			final Map<ExecutionVertexID, ExecutionVertex> verticesToBeRestarted,
-			final Set<ExecutionVertex> assignedVertices) {
+			final Set<ExecutionVertex> assignedVertices) throws InterruptedException {
 
 		// Perform initial sanity check
 		if (failedVertex.getExecutionState() != ExecutionState.FAILED) {
@@ -99,7 +98,7 @@ public final class RecoveryLogic {
 				final TaskCancelResult cancelResult = vertex.cancelTask();
 
 				if (cancelResult.getReturnCode() != ReturnCode.SUCCESS
-						&& cancelResult.getReturnCode() != ReturnCode.TASK_NOT_FOUND) {
+					&& cancelResult.getReturnCode() != ReturnCode.TASK_NOT_FOUND) {
 
 					verticesToBeRestarted.remove(vertex.getID());
 					LOG.error("Unable to cancel vertex" + cancelResult.getDescription());
@@ -152,7 +151,7 @@ public final class RecoveryLogic {
 
 	private static void findVerticesToRestart(final ExecutionVertex failedVertex,
 			final Set<ExecutionVertex> verticesToBeCanceled,
-			final Set<ExecutionVertex> checkpointsToBeReplayed) {
+			final Set<ExecutionVertex> checkpointsToBeReplayed) throws InterruptedException {
 
 		final Queue<ExecutionVertex> verticesToTest = new ArrayDeque<ExecutionVertex>();
 		final Set<ExecutionVertex> visited = new HashSet<ExecutionVertex>();
@@ -164,6 +163,7 @@ public final class RecoveryLogic {
 
 			// Predecessors must be either checkpoints or need to be restarted, too
 			for (int j = 0; j < vertex.getNumberOfPredecessors(); j++) {
+
 				final ExecutionVertex predecessor = vertex.getPredecessor(j);
 
 				if (hasInstanceAssigned(predecessor)) {
@@ -187,11 +187,19 @@ public final class RecoveryLogic {
 						}
 					}
 
-					if (predecessor.getCheckpointState() == CheckpointState.NONE) {
+					final CheckpointState checkpointState = predecessor.getCheckpointState();
+					switch (checkpointState) {
+					case NONE:
 						verticesToBeCanceled.add(predecessor);
-					} else {
+						break;
+					case COMPLETE:
+						verticesToBeCanceled.add(predecessor);
+						continue;
+					case PARTIAL:
 						checkpointsToBeReplayed.add(predecessor);
 						continue;
+					default:
+						LOG.error(predecessor + " has unexpected checkpoint state " + checkpointState);
 					}
 				}
 
@@ -204,7 +212,7 @@ public final class RecoveryLogic {
 	}
 
 	private static final boolean invalidateReceiverLookupCaches(final ExecutionVertex failedVertex,
-			final Set<ExecutionVertex> verticesToBeCanceled) {
+			final Set<ExecutionVertex> verticesToBeCanceled) throws InterruptedException {
 
 		final Map<AbstractInstance, Set<ChannelID>> entriesToInvalidate = new HashMap<AbstractInstance, Set<ChannelID>>();
 
@@ -259,7 +267,7 @@ public final class RecoveryLogic {
 
 				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
 				if (channelIDs == null) {
-					channelIDs = new SerializableHashSet<ChannelID>();
+					channelIDs = new HashSet<ChannelID>();
 					entriesToInvalidate.put(instance, channelIDs);
 				}
 
@@ -291,7 +299,7 @@ public final class RecoveryLogic {
 
 				Set<ChannelID> channelIDs = entriesToInvalidate.get(instance);
 				if (channelIDs == null) {
-					channelIDs = new SerializableHashSet<ChannelID>();
+					channelIDs = new HashSet<ChannelID>();
 					entriesToInvalidate.put(instance, channelIDs);
 				}
 

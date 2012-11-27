@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -66,9 +66,9 @@ public class JobManagerITCase {
 	 */
 	private static final String INPUT_DIRECTORY = "testDirectory";
 
-	private static JobManagerThread jobManagerThread = null;
+	private static JobManagerThread JOB_MANAGER_THREAD = null;
 
-	private static Configuration configuration;
+	private static Configuration CONFIGURATION;
 
 	/**
 	 * This is an auxiliary class to run the job manager thread.
@@ -88,7 +88,7 @@ public class JobManagerITCase {
 		 * @param jobManager
 		 *        the job manager to run in this thread.
 		 */
-		private JobManagerThread(JobManager jobManager) {
+		private JobManagerThread(final JobManager jobManager) {
 
 			this.jobManager = jobManager;
 		}
@@ -101,20 +101,13 @@ public class JobManagerITCase {
 
 			// Run task loop
 			this.jobManager.runTaskLoop();
-
-			// Shut down
-			this.jobManager.shutdown();
 		}
 
 		/**
-		 * Checks whether the encapsulated job manager is completely shut down.
-		 * 
-		 * @return <code>true</code> if the encapsulated job manager is completely shut down, <code>false</code>
-		 *         otherwise
+		 * Shuts down the job manager.
 		 */
-		public boolean isShutDown() {
-
-			return this.jobManager.isShutDown();
+		public void shutDown() {
+			this.jobManager.shutDown();
 		}
 	}
 
@@ -124,7 +117,7 @@ public class JobManagerITCase {
 	@BeforeClass
 	public static void startNephele() {
 
-		if (jobManagerThread == null) {
+		if (JOB_MANAGER_THREAD == null) {
 
 			// create the job manager
 			JobManager jobManager = null;
@@ -151,13 +144,13 @@ public class JobManagerITCase {
 				fail(e.getMessage());
 			}
 
-			configuration = GlobalConfiguration
+			CONFIGURATION = GlobalConfiguration
 				.getConfiguration(new String[] { ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY });
 
 			// Start job manager thread
 			if (jobManager != null) {
-				jobManagerThread = new JobManagerThread(jobManager);
-				jobManagerThread.start();
+				JOB_MANAGER_THREAD = new JobManagerThread(jobManager);
+				JOB_MANAGER_THREAD.start();
 			}
 
 			// Wait for the local task manager to arrive
@@ -175,15 +168,12 @@ public class JobManagerITCase {
 	@AfterClass
 	public static void stopNephele() {
 
-		if (jobManagerThread != null) {
-			jobManagerThread.interrupt();
+		if (JOB_MANAGER_THREAD != null) {
+			JOB_MANAGER_THREAD.shutDown();
 
-			while (!jobManagerThread.isShutDown()) {
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException i) {
-					break;
-				}
+			try {
+				JOB_MANAGER_THREAD.join();
+			} catch (InterruptedException ie) {
 			}
 		}
 	}
@@ -275,7 +265,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 			jobClient.submitJobAndWait();
 
 			// Finally, compare output file to initial number sequence
@@ -291,15 +281,9 @@ public class JobManagerITCase {
 
 			bufferedReader.close();
 
-		} catch (NumberFormatException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		} catch (JobExecutionException e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		} catch (IOException ioe) {
-			ioe.printStackTrace();
-			fail(ioe.getMessage());
 		} finally {
 			// Remove temporary files
 			if (inputFile1 != null) {
@@ -374,7 +358,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -396,6 +380,8 @@ public class JobManagerITCase {
 			fail(jgde.getMessage());
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -462,7 +448,7 @@ public class JobManagerITCase {
 				+ ".jar").toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -486,6 +472,8 @@ public class JobManagerITCase {
 			fail(jgde.getMessage());
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -552,7 +540,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -587,6 +575,8 @@ public class JobManagerITCase {
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 			if (jobClient != null) {
 				jobClient.close();
@@ -607,6 +597,9 @@ public class JobManagerITCase {
 	private void test(final int limit) {
 
 		JobClient jobClient = null;
+		File inputFile = null;
+		File outputFile = null;
+		File jarFile = null;
 
 		try {
 
@@ -614,10 +607,10 @@ public class JobManagerITCase {
 			final String forwardClassName = ForwardTask.class.getSimpleName();
 
 			// Create input and jar files
-			final File inputFile = ServerTestUtils.createInputFile(limit);
-			final File outputFile = new File(ServerTestUtils.getTempDir() + File.separator
+			inputFile = ServerTestUtils.createInputFile(limit);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator
 				+ ServerTestUtils.getRandomFilename());
-			final File jarFile = ServerTestUtils.createJarFile(forwardClassName);
+			jarFile = ServerTestUtils.createJarFile(forwardClassName);
 
 			// Create job graph
 			final JobGraph jg = new JobGraph("Job Graph 1");
@@ -658,7 +651,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -678,15 +671,26 @@ public class JobManagerITCase {
 
 			bufferedReader.close();
 
-			// Remove temporary files
-			inputFile.delete();
-			outputFile.delete();
-			jarFile.delete();
-
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
+
+			// Remove temporary files
+			if (inputFile != null) {
+				inputFile.delete();
+			}
+
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+
 			if (jobClient != null) {
 				jobClient.close();
 			}
@@ -745,16 +749,12 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			jobClient.submitJobAndWait();
 
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(e.getMessage());
-		} catch (JobGraphDefinitionException jgde) {
-			fail(jgde.getMessage());
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -818,15 +818,11 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 			jobClient.submitJobAndWait();
 
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
 			fail(e.getMessage());
-		} catch (JobGraphDefinitionException jgde) {
-			fail(jgde.getMessage());
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -922,7 +918,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -981,6 +977,8 @@ public class JobManagerITCase {
 			fail(jgde.getMessage());
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -1039,6 +1037,7 @@ public class JobManagerITCase {
 			i1.setFilePath(new Path(inputFile1.toURI()));
 			i1.setNumberOfSubtasks(numberOfSubtasks);
 			i1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
+			i1.setNumberOfExecutionRetries(1);
 
 			// input vertex 2
 			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
@@ -1046,12 +1045,14 @@ public class JobManagerITCase {
 			i2.setFilePath(new Path(inputFile2.toURI()));
 			i2.setNumberOfSubtasks(numberOfSubtasks);
 			i2.setNumberOfSubtasksPerInstance(numberOfSubtasks);
+			i2.setNumberOfExecutionRetries(1);
 
 			// union task
 			final JobTaskVertex f1 = new JobTaskVertex("Forward 1", jg);
 			f1.setTaskClass(DoubleTargetTask.class);
 			f1.setNumberOfSubtasks(numberOfSubtasks);
 			f1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
+			f1.setNumberOfExecutionRetries(1);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output", jg);
@@ -1059,6 +1060,7 @@ public class JobManagerITCase {
 			o1.setFilePath(new Path(outputFile.toURI()));
 			o1.setNumberOfSubtasks(numberOfSubtasks);
 			o1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
+			o1.setNumberOfExecutionRetries(1);
 
 			i1.setVertexToShareInstancesWith(o1);
 			i2.setVertexToShareInstancesWith(o1);
@@ -1073,7 +1075,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, CONFIGURATION);
 
 			try {
 				jobClient.submitJobAndWait();
@@ -1088,6 +1090,8 @@ public class JobManagerITCase {
 			fail(jgde.getMessage());
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
+		} catch (InterruptedException ie) {
+			fail(ie.getMessage());
 		} finally {
 
 			// Remove temporary files

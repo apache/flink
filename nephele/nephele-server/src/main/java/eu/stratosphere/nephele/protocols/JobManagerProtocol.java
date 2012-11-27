@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,7 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.protocols.VersionedProtocol;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointState;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 
@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
  * 
  * @author warneke
  */
-public interface JobManagerProtocol extends VersionedProtocol {
+public interface JobManagerProtocol extends RPCProtocol {
 
 	/**
 	 * Sends a heart beat to the job manager.
@@ -41,9 +41,11 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	 *        a hardware description with details on the instance's compute resources.
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
 	void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription)
-			throws IOException;
+			throws IOException, InterruptedException;
 
 	/**
 	 * Reports an update of a task's execution state to the job manager.
@@ -52,8 +54,10 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	 *        the new task execution state
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void updateTaskExecutionState(TaskExecutionState taskExecutionState) throws IOException;
+	void updateTaskExecutionState(TaskExecutionState taskExecutionState) throws IOException, InterruptedException;
 
 	/**
 	 * Reports an update of a task's checkpoint state to the job manager.
@@ -62,6 +66,8 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	 *        the new checkpoint state of the task
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	void updateCheckpointState(TaskCheckpointState taskCheckpointState) throws IOException;
+	void updateCheckpointState(TaskCheckpointState taskCheckpointState) throws IOException, InterruptedException;
 }

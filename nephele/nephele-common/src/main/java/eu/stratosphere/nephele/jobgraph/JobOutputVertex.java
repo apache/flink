@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -69,16 +69,6 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 	 *        The class of the vertex's output task.
 	 */
 	public void setOutputClass(final Class<? extends AbstractOutputTask> outputClass) {
-		this.invokableClass = outputClass;
-	}
-
-	/**
-	 * Returns the class of the vertex's output task.
-	 * 
-	 * @return The class of the vertex's output task or <code>null</code> if no task has yet been set.
-	 */
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractOutputTask> getOutputClass() {
-		return (Class<? extends AbstractOutputTask>) this.invokableClass;
+		this.invokableClassName = outputClass.getName();
 	}
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,9 +15,6 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,11 +25,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
@@ -44,7 +44,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * 
  * @author warneke
  */
-public final class ManagementGraph extends ManagementAttachment implements IOReadableWritable {
+public final class ManagementGraph extends ManagementAttachment implements KryoSerializable {
 
 	/**
 	 * List of stages the graph is divided into.
@@ -54,7 +54,7 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 	/**
 	 * The ID of the job this graph describes.
 	 */
-	private final JobID jobID;
+	private JobID jobID;
 
 	/**
 	 * A map of vertices this graph consists of.
@@ -80,7 +80,7 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 	 * Constructs a new management graph with a random job ID.
 	 */
 	public ManagementGraph() {
-		this.jobID = new JobID();
+		this.jobID = JobID.generate();
 	}
 
 	/**
@@ -412,79 +412,70 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
 		// Read job ID
-		this.jobID.read(in);
+		this.jobID = kryo.readObject(input, JobID.class);
 
 		// Recreate stages
-		final int numberOfStages = in.readInt();
+		final int numberOfStages = input.readInt();
 		for (int i = 0; i < numberOfStages; i++) {
 			new ManagementStage(this, i);
 		}
 
 		// Read number of group vertices and their corresponding IDs
-		final int numberOfGroupVertices = in.readInt();
+		final int numberOfGroupVertices = input.readInt();
 		for (int i = 0; i < numberOfGroupVertices; i++) {
 
-			final ManagementGroupVertexID groupVertexID = new ManagementGroupVertexID();
-			groupVertexID.read(in);
-			final ManagementStage stage = this.stages.get(in.readInt());
-			final String groupVertexName = StringRecord.readString(in);
+			final ManagementGroupVertexID groupVertexID = kryo.readObject(input, ManagementGroupVertexID.class);
+			final ManagementStage stage = this.stages.get(input.readInt());
+			final String groupVertexName = input.readString();
 			new ManagementGroupVertex(stage, groupVertexID, groupVertexName);
 		}
 
 		for (int i = 0; i < numberOfGroupVertices; i++) {
-			final ManagementGroupVertexID groupVertexID = new ManagementGroupVertexID();
-			groupVertexID.read(in);
+			final ManagementGroupVertexID groupVertexID = kryo.readObject(input, ManagementGroupVertexID.class);
 			final ManagementGroupVertex groupVertex = this.groupVertices.get(groupVertexID);
-			groupVertex.read(in);
+			groupVertex.read(kryo, input);
 		}
 
 		// Read the management vertices
-		int numberOfVertices = in.readInt();
+		int numberOfVertices = input.readInt();
 		for (int i = 0; i < numberOfVertices; i++) {
 
-			final ManagementVertexID vertexID = new ManagementVertexID();
-			vertexID.read(in);
-			final ManagementGroupVertexID groupVertexID = new ManagementGroupVertexID();
-			groupVertexID.read(in);
+			final ManagementVertexID vertexID = kryo.readObject(input, ManagementVertexID.class);
+			final ManagementGroupVertexID groupVertexID = kryo.readObject(input, ManagementGroupVertexID.class);
 			final ManagementGroupVertex groupVertex = this.getGroupVertexByID(groupVertexID);
-			final String instanceName = StringRecord.readString(in);
-			final String instanceType = StringRecord.readString(in);
-			final String checkpointState = StringRecord.readString(in);
-			final int indexInGroup = in.readInt();
+			final String instanceName = input.readString();
+			final String instanceType = input.readString();
+			final String checkpointState = input.readString();
+			final int indexInGroup = input.readInt();
 			final ManagementVertex vertex = new ManagementVertex(groupVertex, vertexID, instanceName, instanceType,
 				checkpointState, indexInGroup);
-			vertex.read(in);
+			vertex.read(kryo, input);
 		}
 
 		for (int i = 0; i < numberOfVertices; i++) {
 
-			final ManagementVertexID sourceID = new ManagementVertexID();
-			sourceID.read(in);
+			final ManagementVertexID sourceID = kryo.readObject(input, ManagementVertexID.class);
 			final ManagementVertex sourceVertex = getVertexByID(sourceID);
 			for (int j = 0; j < sourceVertex.getNumberOfOutputGates(); j++) {
 				final ManagementGate sourceGate = sourceVertex.getOutputGate(j);
-				int numberOfForwardEdges = in.readInt();
+				int numberOfForwardEdges = input.readInt();
 				for (int k = 0; k < numberOfForwardEdges; k++) {
-					final ManagementEdgeID sourceEdgeID = new ManagementEdgeID();
-					sourceEdgeID.read(in);
+					final ManagementEdgeID sourceEdgeID = kryo.readObject(input, ManagementEdgeID.class);
+					final ManagementEdgeID targetEdgeID = kryo.readObject(input, ManagementEdgeID.class);
 
-					final ManagementEdgeID targetEdgeID = new ManagementEdgeID();
-					targetEdgeID.read(in);
-
-					final ManagementVertexID targetID = new ManagementVertexID();
-					targetID.read(in);
+					final ManagementVertexID targetID = kryo.readObject(input, ManagementVertexID.class);
 					final ManagementVertex targetVertex = getVertexByID(targetID);
-					final int targetGateIndex = in.readInt();
+					final int targetGateIndex = input.readInt();
 					final ManagementGate targetGate = targetVertex.getInputGate(targetGateIndex);
 
-					final int sourceIndex = in.readInt();
-					final int targetIndex = in.readInt();
+					final int sourceIndex = input.readInt();
+					final int targetIndex = input.readInt();
 
-					final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-					final CompressionLevel compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
+					final ChannelType channelType = EnumUtils.readEnum(input, ChannelType.class);
+					final CompressionLevel compressionLevel = EnumUtils.readEnum(input, CompressionLevel.class);
 					new ManagementEdge(sourceEdgeID, targetEdgeID, sourceGate, sourceIndex, targetGate, targetIndex,
 						channelType, compressionLevel);
 				}
@@ -497,47 +488,47 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final Kryo kryo, final Output output) {
 
 		// Write job ID
-		this.jobID.write(out);
+		kryo.writeObject(output, this.jobID);
 
 		// Write number of stages
-		out.writeInt(this.stages.size());
+		output.writeInt(this.stages.size());
 
 		// Write number of group vertices and their corresponding IDs
-		out.writeInt(this.groupVertices.size());
+		output.writeInt(this.groupVertices.size());
 		Iterator<ManagementGroupVertex> it = new ManagementGroupVertexIterator(this, true, -1);
 
 		while (it.hasNext()) {
 
 			final ManagementGroupVertex groupVertex = it.next();
-			groupVertex.getID().write(out);
-			out.writeInt(groupVertex.getStage().getStageNumber());
-			StringRecord.writeString(out, groupVertex.getName());
+			kryo.writeObject(output, groupVertex.getID());
+			output.writeInt(groupVertex.getStage().getStageNumber());
+			output.writeString(groupVertex.getName());
 		}
 
 		it = new ManagementGroupVertexIterator(this, true, -1);
 		while (it.hasNext()) {
 
 			final ManagementGroupVertex groupVertex = it.next();
-			groupVertex.getID().write(out);
-			groupVertex.write(out);
+			kryo.writeObject(output, groupVertex.getID());
+			groupVertex.write(kryo, output);
 		}
 
 		// Write out the management vertices and their corresponding IDs
-		out.writeInt(this.vertices.size());
+		output.writeInt(this.vertices.size());
 		Iterator<ManagementVertex> it2 = new ManagementGraphIterator(this, true);
 		while (it2.hasNext()) {
 
 			final ManagementVertex managementVertex = it2.next();
-			managementVertex.getID().write(out);
-			managementVertex.getGroupVertex().getID().write(out);
-			StringRecord.writeString(out, managementVertex.getInstanceName());
-			StringRecord.writeString(out, managementVertex.getInstanceType());
-			StringRecord.writeString(out, managementVertex.getCheckpointState());
-			out.writeInt(managementVertex.getIndexInGroup());
-			managementVertex.write(out);
+			kryo.writeObject(output, managementVertex.getID());
+			kryo.writeObject(output, managementVertex.getGroupVertex().getID());
+			output.writeString(managementVertex.getInstanceName());
+			output.writeString(managementVertex.getInstanceType());
+			output.writeString(managementVertex.getCheckpointState());
+			output.writeInt(managementVertex.getIndexInGroup());
+			managementVertex.write(kryo, output);
 		}
 
 		// Finally, serialize the edges between the management vertices
@@ -545,25 +536,25 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 		while (it2.hasNext()) {
 
 			final ManagementVertex managementVertex = it2.next();
-			managementVertex.getID().write(out);
+			kryo.writeObject(output, managementVertex.getID());
 			for (int i = 0; i < managementVertex.getNumberOfOutputGates(); i++) {
 				final ManagementGate outputGate = managementVertex.getOutputGate(i);
-				out.writeInt(outputGate.getNumberOfForwardEdges());
+				output.writeInt(outputGate.getNumberOfForwardEdges());
 				for (int j = 0; j < outputGate.getNumberOfForwardEdges(); j++) {
 					final ManagementEdge edge = outputGate.getForwardEdge(j);
 
-					edge.getSourceEdgeID().write(out);
-					edge.getTargetEdgeID().write(out);
+					kryo.writeObject(output, edge.getSourceEdgeID());
+					kryo.writeObject(output, edge.getTargetEdgeID());
 
 					// This identifies the target gate
-					edge.getTarget().getVertex().getID().write(out);
-					out.writeInt(edge.getTarget().getIndex());
+					kryo.writeObject(output, edge.getTarget().getVertex().getID());
+					output.writeInt(edge.getTarget().getIndex());
 
-					out.writeInt(edge.getSourceIndex());
-					out.writeInt(edge.getTargetIndex());
+					output.writeInt(edge.getSourceIndex());
+					output.writeInt(edge.getTargetIndex());
 
-					EnumUtils.writeEnum(out, edge.getChannelType());
-					EnumUtils.writeEnum(out, edge.getCompressionLevel());
+					EnumUtils.writeEnum(output, edge.getChannelType());
+					EnumUtils.writeEnum(output, edge.getCompressionLevel());
 				}
 			}
 		}

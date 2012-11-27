@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -55,7 +55,7 @@ public final class ConfigConstants {
 	 * The key for the config parameter defining the directories for temporary files.
 	 */
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
-	
+
 	/**
 	 * The key for the config parameter defining the default number of retries for failed tasks.
 	 */
@@ -77,6 +77,11 @@ public final class ConfigConstants {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * The default network address to connect to for communication with the job manager.
+	 */
+	public static final String DEFAULT_JOB_MANAGER_IPC_ADDRESS = "localhost";
+
+	/**
 	 * The default network port to connect to for communication with the job manager.
 	 */
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
@@ -95,7 +100,7 @@ public final class ConfigConstants {
 	 * The default amount of memory assigned to each task manager (in megabytes).
 	 */
 	public static final int DEFAULT_MEMORY_MANAGER_AVAILABLE_MEMORY = 512;
-	
+
 	/**
 	 * The default number of retries for failed tasks.
 	 */

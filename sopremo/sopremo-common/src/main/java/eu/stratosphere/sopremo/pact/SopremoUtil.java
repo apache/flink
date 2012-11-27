@@ -19,6 +19,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
@@ -38,6 +39,7 @@ import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IPrimitiveNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.LongNode;
+import eu.stratosphere.sopremo.type.TextNode;
 import eu.stratosphere.util.reflect.BoundType;
 import eu.stratosphere.util.reflect.ReflectUtil;
 
@@ -122,17 +124,25 @@ public class SopremoUtil {
 
 	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
 			final Class<T> objectClass) {
+		return deserialize(config, key, objectClass, null, ClassLoader.getSystemClassLoader());
+	}
 
-		return deserialize(config, key, objectClass, ClassLoader.getSystemClassLoader());
+	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
+			final Class<T> objectClass, final ClassLoader classLoader) {
+		return deserialize(config, key, objectClass, null, classLoader);
+	}
 
+	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
+			final Class<T> objectClass, final T defaultValue) {
+		return deserialize(config, key, objectClass, defaultValue, ClassLoader.getSystemClassLoader());
 	}
 
 	@SuppressWarnings("unchecked")
 	public static <T extends Serializable> T deserialize(final Configuration config, final String key,
-			@SuppressWarnings("unused") final Class<T> objectClass, final ClassLoader classLoader) {
+			@SuppressWarnings("unused") final Class<T> objectClass, final T defaultValue, final ClassLoader classLoader) {
 		final String string = config.getString(key, null);
 		if (string == null)
-			return null;
+			return defaultValue;
 		return (T) stringToObject(string, classLoader);
 	}
 
@@ -497,8 +507,9 @@ public class SopremoUtil {
 		return byteArrayToSerializable(buffer, clazz, clazz.getClassLoader());
 	}
 
-	@SuppressWarnings("unchecked")
-	public static <T extends Serializable> T byteArrayToSerializable(byte[] buffer, Class<T> clazz, final ClassLoader classLoader)
+	@SuppressWarnings({ "unchecked", "unused" })
+	public static <T extends Serializable> T byteArrayToSerializable(byte[] buffer, Class<T> clazz,
+			final ClassLoader classLoader)
 			throws IOException {
 		final ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(buffer)) {
 			/*
@@ -542,6 +553,22 @@ public class SopremoUtil {
 		} catch (IOException e) {
 			throw new IllegalStateException("IO exceptions should not occur locally", e);
 		}
+	}
+
+	private static ThreadLocal<Map<CharSequence, Pattern>> CACHED_PATTERN =
+		new ThreadLocal<Map<CharSequence, Pattern>>() {
+			@Override
+			protected Map<CharSequence, Pattern> initialValue() {
+				return new HashMap<CharSequence, Pattern>();
+			}
+		};
+
+	public static Pattern getPatternOf(TextNode node) {
+		final Map<CharSequence, Pattern> localCache = CACHED_PATTERN.get();
+		Pattern pattern = localCache.get(node);
+		if (pattern == null)
+			localCache.put(node, pattern = Pattern.compile(node.getJavaValue().toString()));
+		return pattern;
 	}
 
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,13 +18,12 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.InputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
@@ -33,9 +32,9 @@ import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityList
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.taskmanager.routing.InputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.InputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.types.Record;
 
 final class RuntimeInputGateContext implements BufferProvider, InputGateContext, LocalBufferPoolOwner {
@@ -44,9 +43,9 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private final LocalBufferPool localBufferPool;
 
-	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private final RoutingService routingService;
 
-	private final InputGate<? extends Record> inputGate;
+	private final RuntimeInputGate<? extends Record> inputGate;
 
 	private final EnvelopeConsumptionLog envelopeConsumptionLog;
 
@@ -54,13 +53,13 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 
 	private Decompressor decompressor = null;
 
-	RuntimeInputGateContext(final String taskName, final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final InputGate<? extends Record> inputGate, final EnvelopeConsumptionLog envelopeConsumptionLog) {
+	RuntimeInputGateContext(final String taskName, final RoutingService routingService,
+			final RuntimeInputGate<? extends Record> inputGate, final EnvelopeConsumptionLog envelopeConsumptionLog) {
 
 		this.taskName = taskName;
 		this.localBufferPool = new LocalBufferPool(1, false);
 
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.routingService = routingService;
 		this.inputGate = inputGate;
 		this.envelopeConsumptionLog = envelopeConsumptionLog;
 
@@ -122,8 +121,11 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 		this.localBufferPool.reportAsynchronousEvent();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int getNumberOfChannels() {
+	public int getMinimumNumberOfRequiredBuffers() {
 
 		return this.inputGate.getNumberOfInputChannels();
 	}
@@ -190,13 +192,13 @@ final class RuntimeInputGateContext implements BufferProvider, InputGateContext,
 			throw new IllegalArgumentException("Cannot find input channel with ID " + channelID);
 		}
 
-		if (!(channel instanceof AbstractByteBufferedInputChannel)) {
+		if (!(channel instanceof AbstractInputChannel)) {
 			throw new IllegalStateException("Channel with ID" + channelID
 				+ " is not of type AbstractByteBufferedInputChannel");
 		}
 
-		return new RuntimeInputChannelContext(this, this.transferEnvelopeDispatcher,
-			(AbstractByteBufferedInputChannel<? extends Record>) channel, this.envelopeConsumptionLog);
+		return new RuntimeInputChannelContext(this, this.routingService,
+			(AbstractInputChannel<? extends Record>) channel, this.envelopeConsumptionLog);
 	}
 
 	/**

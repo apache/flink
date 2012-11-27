@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -22,7 +22,7 @@ import eu.stratosphere.nephele.client.JobProgressResult;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.types.IntegerRecord;
+import eu.stratosphere.nephele.rpc.RPCProtocol;
 
 /**
  * The JobManagementProtocol specifies methods required to manage
@@ -30,7 +30,7 @@ import eu.stratosphere.nephele.types.IntegerRecord;
  * 
  * @author warneke
  */
-public interface JobManagementProtocol extends VersionedProtocol {
+public interface JobManagementProtocol extends RPCProtocol {
 
 	/**
 	 * Submits the specified job to the job manager.
@@ -40,8 +40,10 @@ public interface JobManagementProtocol extends VersionedProtocol {
 	 * @return a protocol of the job submission including the success status
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the submit request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	JobSubmissionResult submitJob(JobGraph job) throws IOException;
+	JobSubmissionResult submitJob(JobGraph job) throws IOException, InterruptedException;
 
 	/**
 	 * Retrieves the current status of the job specified by the given ID. Consecutive
@@ -53,8 +55,10 @@ public interface JobManagementProtocol extends VersionedProtocol {
 	 * @return a {@link JobProgressResult} object including the current job progress
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	JobProgressResult getJobProgress(JobID jobID) throws IOException;
+	JobProgressResult getJobProgress(JobID jobID) throws IOException, InterruptedException;
 
 	/**
 	 * Requests to cancel the job specified by the given ID.
@@ -64,8 +68,10 @@ public interface JobManagementProtocol extends VersionedProtocol {
 	 * @return a {@link JobCancelResult} containing the result of the cancel request
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	JobCancelResult cancelJob(JobID jobID) throws IOException;
+	JobCancelResult cancelJob(JobID jobID) throws IOException, InterruptedException;
 
 	/**
 	 * Returns the recommended interval in seconds in which a client
@@ -74,6 +80,8 @@ public interface JobManagementProtocol extends VersionedProtocol {
 	 * @return the interval in seconds
 	 * @throws IOException
 	 *         thrown if an error occurred while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	IntegerRecord getRecommendedPollingInterval() throws IOException;
+	int getRecommendedPollingInterval() throws IOException, InterruptedException;
 }

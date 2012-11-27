@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -38,9 +38,11 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionPipeline;
 import eu.stratosphere.nephele.executiongraph.ExecutionStage;
+import eu.stratosphere.nephele.executiongraph.ExecutionStageListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
+import eu.stratosphere.nephele.executiongraph.JobStatusListener;
 import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.AllocationID;
@@ -63,7 +65,7 @@ import eu.stratosphere.nephele.util.StringUtils;
  * 
  * @author warneke
  */
-public abstract class AbstractScheduler implements InstanceListener {
+public abstract class AbstractScheduler implements ExecutionStageListener, InstanceListener, JobStatusListener {
 
 	/**
 	 * The LOG object to report events within the scheduler.
@@ -609,7 +611,7 @@ public abstract class AbstractScheduler implements InstanceListener {
 							.getInstance()
 							.getType());
 						final AllocatedResource dummyResource = new AllocatedResource(dummyInstance,
-							allocatedResource.getInstanceType(), new AllocationID());
+							allocatedResource.getInstanceType(), AllocationID.generate());
 
 						while (vertexIter.hasNext()) {
 							final ExecutionVertex vertex = vertexIter.next();
@@ -635,43 +637,72 @@ public abstract class AbstractScheduler implements InstanceListener {
 							case RUNNING:
 							case FINISHING:
 
-							vertex.updateExecutionState(ExecutionState.FAILED, failureMessage);
+								vertex.updateExecutionState(ExecutionState.FAILED, failureMessage);
 
-							break;
-						default:
+								break;
+							default:
 							}
+						}
+
+						// TODO: Fix this
+						/*
+						 * try {
+						 * requestInstances(this.executionVertex.getGroupVertex().getExecutionStage());
+						 * } catch (InstanceException e) {
+						 * e.printStackTrace();
+						 * // TODO: Cancel the entire job in this case
+						 * }
+						 */
 					}
+				}
+
+				final InternalJobStatus js = eg.getJobStatus();
+				if (js != InternalJobStatus.FAILING && js != InternalJobStatus.FAILED) {
 
 					// TODO: Fix this
-					/*
-					 * try {
-					 * requestInstances(this.executionVertex.getGroupVertex().getExecutionStage());
-					 * } catch (InstanceException e) {
-					 * e.printStackTrace();
-					 * // TODO: Cancel the entire job in this case
-					 * }
-					 */
+					// deployAssignedVertices(eg);
+
+					final ExecutionStage stage = eg.getCurrentExecutionStage();
+
+					try {
+						requestInstances(stage);
+					} catch (InstanceException e) {
+						e.printStackTrace();
+						// TODO: Cancel the entire job in this case
+					}
 				}
 			}
-
-			final InternalJobStatus js = eg.getJobStatus();
-			if (js != InternalJobStatus.FAILING && js != InternalJobStatus.FAILED) {
-
-				// TODO: Fix this
-				// deployAssignedVertices(eg);
-
-				final ExecutionStage stage = eg.getCurrentExecutionStage();
-
-				try {
-					requestInstances(stage);
-				} catch (InstanceException e) {
-					e.printStackTrace();
-					// TODO: Cancel the entire job in this case
-				}
-			}
-		}
 		};
 
 		eg.executeCommand(command);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	public int getPriority() {
+
+		return 1;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void nextExecutionStageEntered(final JobID jobID, final ExecutionStage executionStage) {
+
+		// Request new instances if necessary
+		try {
+			requestInstances(executionStage);
+		} catch (InstanceException e) {
+			// TODO: Handle this error correctly
+			LOG.error(StringUtils.stringifyException(e));
+		}
+
+		// Deploy the assigned vertices
+		deployAssignedInputVertices(executionStage.getExecutionGraph());
+
+		// Initiate the replay of the previous stage's checkpoints
+		replayCheckpointsFromPreviousStage(executionStage.getExecutionGraph());
 	}
 }

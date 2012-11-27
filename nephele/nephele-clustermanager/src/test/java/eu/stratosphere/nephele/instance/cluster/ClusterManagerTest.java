@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -104,7 +104,7 @@ public class ClusterManagerTest {
 		GlobalConfiguration.loadConfiguration(configDir);
 
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
+		final ClusterManager cm = new ClusterManager(null);
 		cm.setInstanceListener(testInstanceListener);
 		try {
 
@@ -145,7 +145,7 @@ public class ClusterManagerTest {
 		GlobalConfiguration.loadConfiguration(configDir);
 
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
+		final ClusterManager cm = new ClusterManager(null);
 		cm.setInstanceListener(testInstanceListener);
 
 		Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptions = null;
@@ -242,7 +242,7 @@ public class ClusterManagerTest {
 
 		GlobalConfiguration.loadConfiguration(configDir);
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
+		final ClusterManager cm = new ClusterManager(null);
 		cm.setInstanceListener(testInstanceListener);
 
 		try {
@@ -255,7 +255,7 @@ public class ClusterManagerTest {
 			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
 
 			// now we should be able to request two instances of type small and one of type medium
-			final JobID jobID = new JobID();
+			final JobID jobID = JobID.generate();
 			final Configuration conf = new Configuration();
 
 			final InstanceRequestMap instanceRequestMap = new InstanceRequestMap();
@@ -339,7 +339,7 @@ public class ClusterManagerTest {
 		GlobalConfiguration.loadConfiguration(System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR);
 
 		final TestInstanceListener testInstanceListener = new TestInstanceListener();
-		final ClusterManager cm = new ClusterManager();
+		final ClusterManager cm = new ClusterManager(null);
 		cm.setInstanceListener(testInstanceListener);
 
 		try {
@@ -351,7 +351,7 @@ public class ClusterManagerTest {
 				8L * 1024L * 1024L * 1024L, 8L * 1024L * 1024L * 1024L);
 			cm.reportHeartBeat(instanceConnectionInfo, hardwareDescription);
 
-			final JobID jobID = new JobID();
+			final JobID jobID = JobID.generate();
 			final Configuration conf = new Configuration();
 
 			try {

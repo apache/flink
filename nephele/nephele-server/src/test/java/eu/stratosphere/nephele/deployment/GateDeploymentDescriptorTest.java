@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,7 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,7 +29,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.util.ServerTestUtils;
-import eu.stratosphere.nephele.util.StringUtils;
 
 /**
  * This class contains unit tests for the {@link GateDeploymentDescriptor} class.
@@ -45,12 +43,12 @@ public class GateDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithValidArguments() {
 
-		final GateID gateID = new GateID();
+		final GateID gateID = GateID.generate();
 		final ChannelType channelType = ChannelType.INMEMORY;
 		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
 
-		final GateDeploymentDescriptor gdd = new GateDeploymentDescriptor(gateID, channelType, compressionLevel,
+		final GateDeploymentDescriptor gdd = new GateDeploymentDescriptor(gateID, channelType, compressionLevel, false,
 			channels);
 
 		assertEquals(gateID, gdd.getGateID());
@@ -65,7 +63,7 @@ public class GateDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithInvalidArguments() {
 
-		final GateID gateID = new GateID();
+		final GateID gateID = GateID.generate();
 		final ChannelType channelType = ChannelType.INMEMORY;
 		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
@@ -76,25 +74,25 @@ public class GateDeploymentDescriptorTest {
 		boolean forthExceptionCaught = false;
 
 		try {
-			new GateDeploymentDescriptor(null, channelType, compressionLevel, channels);
+			new GateDeploymentDescriptor(null, channelType, compressionLevel, false, channels);
 		} catch (IllegalArgumentException e) {
 			firstExceptionCaught = true;
 		}
 
 		try {
-			new GateDeploymentDescriptor(gateID, null, compressionLevel, channels);
+			new GateDeploymentDescriptor(gateID, null, compressionLevel, false, channels);
 		} catch (IllegalArgumentException e) {
 			secondExceptionCaught = true;
 		}
 
 		try {
-			new GateDeploymentDescriptor(gateID, channelType, null, channels);
+			new GateDeploymentDescriptor(gateID, channelType, null, false, channels);
 		} catch (IllegalArgumentException e) {
 			thirdExceptionCaught = true;
 		}
 
 		try {
-			new GateDeploymentDescriptor(gateID, channelType, compressionLevel, null);
+			new GateDeploymentDescriptor(gateID, channelType, compressionLevel, false, null);
 		} catch (IllegalArgumentException e) {
 			forthExceptionCaught = true;
 		}
@@ -122,23 +120,18 @@ public class GateDeploymentDescriptorTest {
 	@Test
 	public void testSerialization() {
 
-		final GateID gateID = new GateID();
+		final GateID gateID = GateID.generate();
 		final ChannelType channelType = ChannelType.INMEMORY;
 		final CompressionLevel compressionLevel = CompressionLevel.HEAVY_COMPRESSION;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
-		final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(new ChannelID(), new ChannelID());
+		final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(ChannelID.generate(),
+			ChannelID.generate());
 		channels.add(cdd);
 
 		final GateDeploymentDescriptor orig = new GateDeploymentDescriptor(gateID, channelType, compressionLevel,
-			channels);
+			false, channels);
 
-		GateDeploymentDescriptor copy = null;
-
-		try {
-			copy = ServerTestUtils.createCopy(orig);
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
-		}
+		final GateDeploymentDescriptor copy = ServerTestUtils.createCopy(orig);
 
 		assertFalse(orig.getGateID() == copy.getGateID());
 

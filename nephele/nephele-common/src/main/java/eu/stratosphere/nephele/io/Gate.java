@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -124,20 +124,4 @@ public interface Gate<T extends Record> {
 	 * @return <code>true</code> if the considered gate is an input gate, <code>false</code> if it is an output gate
 	 */
 	boolean isInputGate();
-
-	/**
-	 * Sets the type of the input/output channels which are connected to this gate.
-	 * 
-	 * @param channelType
-	 *        the type of input/output channels which are connected to this gate
-	 */
-	void setChannelType(ChannelType channelType);
-
-	/**
-	 * Sets the compression level to be applied by the input/output channels connected to this gate.
-	 * 
-	 * @param compressionLevel
-	 *        the compression level to be applied by the input/output channels connected to this gate
-	 */
-	void setCompressionLevel(CompressionLevel compressionLevel);
 }

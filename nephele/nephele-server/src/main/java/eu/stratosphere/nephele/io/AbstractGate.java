@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -60,12 +60,12 @@ public abstract class AbstractGate<T extends Record> implements Gate<T> {
 	/**
 	 * The type of input/output channels connected to this gate.
 	 */
-	private ChannelType channelType = ChannelType.NETWORK;
+	private final ChannelType channelType;
 
 	/**
 	 * The compression level of the input/output channels connected to this gate.
 	 */
-	private CompressionLevel compressionLevel = CompressionLevel.NO_COMPRESSION;
+	private final CompressionLevel compressionLevel;
 
 	/**
 	 * Constructs a new abstract gate
@@ -75,12 +75,19 @@ public abstract class AbstractGate<T extends Record> implements Gate<T> {
 	 * @param gateID
 	 *        the ID of this gate
 	 * @param index
-	 *        the index of the gate in the list of available input/output gates.
+	 *        the index of the gate in the list of available input/output gates
+	 * @param channelType
+	 *        the type of the channels connected to this gate
+	 * @param compressionLevel
+	 *        the compression level of the channels which are connected to this gate
 	 */
-	protected AbstractGate(final JobID jobID, final GateID gateID, final int index) {
+	protected AbstractGate(final JobID jobID, final GateID gateID, final int index, final ChannelType channelType,
+			final CompressionLevel compressionLevel) {
 		this.jobID = jobID;
 		this.gateID = gateID;
 		this.index = index;
+		this.channelType = channelType;
+		this.compressionLevel = compressionLevel;
 	}
 
 	/**
@@ -141,27 +148,9 @@ public abstract class AbstractGate<T extends Record> implements Gate<T> {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void setChannelType(final ChannelType channelType) {
-
-		this.channelType = channelType;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public final ChannelType getChannelType() {
 
 		return this.channelType;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public final void setCompressionLevel(final CompressionLevel compressionLevel) {
-
-		this.compressionLevel = compressionLevel;
 	}
 
 	/**

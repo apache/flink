@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -29,8 +29,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.AbstractID;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
+import eu.stratosphere.nephele.util.FileUtils;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -136,7 +135,7 @@ public final class FileBufferManager {
 		final FileBufferManager fbm = getInstance();
 		final File f = fbm.constructLocalFile(ownerID);
 		if (f.exists()) {
-			f.delete();
+			FileUtils.deleteSilently(f);
 			return true;
 		}
 

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,7 +15,9 @@
 
 package eu.stratosphere.nephele.types;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
 /**
  * This interface must be implemented by any type of data object that is supposed to be transfered
@@ -23,6 +25,26 @@ import eu.stratosphere.nephele.io.IOReadableWritable;
  * 
  * @author warneke
  */
-public interface Record extends IOReadableWritable {
+public interface Record {
+
+	/**
+	 * Writes the object's internal data to the given data output stream.
+	 * 
+	 * @param out
+	 *        the output stream to receive the data.
+	 * @throws IOException
+	 *         thrown if any error occurs while writing to the output stream
+	 */
+	void write(DataOutput out) throws IOException;
+
+	/**
+	 * Reads the object's internal data from the given data input stream.
+	 * 
+	 * @param in
+	 *        the input stream to read the data from
+	 * @throws IOException
+	 *         thrown if any error occurs while reading from the input stream
+	 */
+	void read(DataInput in) throws IOException;
 
 }

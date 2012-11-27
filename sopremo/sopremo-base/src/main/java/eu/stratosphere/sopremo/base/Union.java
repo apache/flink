@@ -6,7 +6,7 @@ import eu.stratosphere.sopremo.operator.JsonStream;
 import eu.stratosphere.sopremo.operator.Name;
 import eu.stratosphere.sopremo.pact.JsonCollector;
 import eu.stratosphere.sopremo.pact.SopremoCoGroup;
-import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 
 /**
  * Calculates the set-based union of two or more input streams.<br>
@@ -41,12 +41,12 @@ public class Union extends SetOperation<Union> {
 
 		public static class Implementation extends SopremoCoGroup {
 			@Override
-			protected void coGroup(final IArrayNode values1, final IArrayNode values2,
+			protected void coGroup(final IStreamArrayNode values1, final IStreamArrayNode values2,
 					final JsonCollector out) {
 				if (!values1.isEmpty())
-					out.collect(values1.get(0));
-				else if (!values2.isEmpty())
-					out.collect(values2.get(0));
+					out.collect(values1.getFirst());
+				else
+					out.collect(values2.getFirst());
 			}
 		}
 

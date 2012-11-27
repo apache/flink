@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -77,7 +77,7 @@ public final class ExecutionGate {
 	}
 
 	void replaceAllEdges(final Collection<ExecutionEdge> newEdges) {
-		
+
 		this.edges.clear();
 		this.edges.addAll(newEdges);
 	}
@@ -90,6 +90,11 @@ public final class ExecutionGate {
 	public CompressionLevel getCompressionLevel() {
 
 		return this.groupEdge.getCompressionLevel();
+	}
+
+	public boolean allowSpanningRecords() {
+
+		return this.groupEdge.allowSpanningRecords();
 	}
 
 	ExecutionGroupEdge getGroupEdge() {

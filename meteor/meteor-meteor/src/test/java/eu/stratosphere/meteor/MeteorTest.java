@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -37,9 +37,9 @@ public class MeteorTest {
 	 * @param expectedPlan
 	 * @param actualPlan
 	 */
-	protected static void assertEquals(final SopremoPlan expectedPlan, final SopremoPlan actualPlan) {
+	protected static void assertPlanEquals(final SopremoPlan expectedPlan, final SopremoPlan actualPlan) {
 		final List<Operator<?>> unmatchingOperators = actualPlan.getUnmatchingOperators(expectedPlan);
-		if (unmatchingOperators != null)
+		if (!unmatchingOperators.isEmpty())
 			if (unmatchingOperators.get(0).getClass() == unmatchingOperators.get(1).getClass())
 				Assert.failNotEquals("operators are different", "\n" + unmatchingOperators.get(1), "\n"
 					+ unmatchingOperators.get(0));

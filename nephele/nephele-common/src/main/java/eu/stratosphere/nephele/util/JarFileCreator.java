@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -92,7 +92,11 @@ public class JarFileCreator {
 
 		// If output file already exists, delete it
 		if (this.outputFile.exists()) {
-			this.outputFile.delete();
+			try {
+				this.outputFile.delete();
+			} catch (SecurityException se) {
+				throw new IOException(se);
+			}
 		}
 
 		final JarOutputStream jos = new JarOutputStream(new FileOutputStream(this.outputFile), new Manifest());
@@ -104,16 +108,21 @@ public class JarFileCreator {
 
 			jos.putNextEntry(new JarEntry(entry));
 
-			final InputStream classInputStream = clazz.getResourceAsStream(clazz.getSimpleName() + CLASS_EXTENSION);
+			InputStream classInputStream = null;
+			try {
+				classInputStream = clazz.getResourceAsStream(clazz.getSimpleName() + CLASS_EXTENSION);
 
-			int num = classInputStream.read(buf);
-			while (num != -1) {
-				jos.write(buf, 0, num);
-				num = classInputStream.read(buf);
+				int num = classInputStream.read(buf);
+				while (num != -1) {
+					jos.write(buf, 0, num);
+					num = classInputStream.read(buf);
+				}
+
+				classInputStream.close();
+				jos.closeEntry();
+			} finally {
+				CloseableUtils.closeSilently(classInputStream);
 			}
-
-			classInputStream.close();
-			jos.closeEntry();
 		}
 
 		jos.close();

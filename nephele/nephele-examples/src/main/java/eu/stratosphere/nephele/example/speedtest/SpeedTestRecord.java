@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -31,7 +31,7 @@ public final class SpeedTestRecord implements Record {
 	/**
 	 * The size of a single record in bytes.
 	 */
-	static final int RECORD_SIZE = 128;
+	static final int RECORD_SIZE = 50;
 
 	/**
 	 * The byte buffer which actually stored the record's data.
@@ -42,12 +42,30 @@ public final class SpeedTestRecord implements Record {
 	 * Constructs a new record and initializes it.
 	 */
 	public SpeedTestRecord() {
-
-		for (int i = 0; i < RECORD_SIZE; ++i) {
-			this.buf[i] = (byte) (i % 128);
-		}
 	}
 
+	public static SpeedTestRecord create() {
+
+		final SpeedTestRecord record = new SpeedTestRecord();
+
+		for (int i = 0; i < RECORD_SIZE; ++i) {
+			record.buf[i] = (byte) (i % 128);
+		}
+
+		return record;
+	}
+
+	public boolean check() {
+		
+		for (int i = 0; i < RECORD_SIZE; ++i) {
+			if(this.buf[i] != (byte) (i % 128)) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 */

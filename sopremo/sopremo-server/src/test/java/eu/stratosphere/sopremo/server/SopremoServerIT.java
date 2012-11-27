@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -69,7 +69,7 @@ public class SopremoServerIT {
 	}
 
 	@Test
-	public void testSuccessfulExecution() throws IOException {
+	public void testSuccessfulExecution() throws IOException, InterruptedException {
 		final SopremoPlan plan = createPlan("output.json");
 
 		ExecutionResponse response = this.testServer.execute(new ExecutionRequest(plan));
@@ -84,12 +84,12 @@ public class SopremoServerIT {
 			JsonUtil.createObjectNode("name", "Jane Dean", "income", 72000, "mgr", true));
 	}
 
-	private ExecutionResponse waitForStateToFinish(ExecutionResponse response, ExecutionState status) {
+	private ExecutionResponse waitForStateToFinish(ExecutionResponse response, ExecutionState status) throws IOException, InterruptedException {
 		return SopremoTestServer.waitForStateToFinish(this.testServer, response, status);
 	}
 
 	@Test
-	public void testMultipleSuccessfulExecutions() throws IOException {
+	public void testMultipleSuccessfulExecutions() throws IOException, InterruptedException {
 		ExecutionResponse[] responses = new ExecutionResponse[3];
 		for (int index = 0; index < responses.length; index++) {
 			final SopremoPlan plan = createPlan("output" + index + ".json");
@@ -110,7 +110,7 @@ public class SopremoServerIT {
 	}
 
 	@Test
-	public void testFailIfInvalidPlan() {
+	public void testFailIfInvalidPlan() throws IOException, InterruptedException {
 		final SopremoPlan plan = new SopremoPlan();
 		plan.setSinks(new Sink("invalidSink"));
 
@@ -122,7 +122,7 @@ public class SopremoServerIT {
 	}
 
 	@Test
-	public void testFailIfRuntimeException() {
+	public void testFailIfRuntimeException() throws IOException, InterruptedException {
 		final SopremoPlan plan = createPlan("output.json");
 		for (Operator<?> op : plan.getContainedOperators())
 			if (op instanceof Selection)
@@ -137,7 +137,7 @@ public class SopremoServerIT {
 	}
 
 	@Test
-	public void testFailIfSubmissionFails() throws IOException {
+	public void testFailIfSubmissionFails() throws IOException, InterruptedException {
 		// job manager cannot determine input splits
 		this.testServer.delete("input", true);
 		final SopremoPlan plan = createPlan("output.json");

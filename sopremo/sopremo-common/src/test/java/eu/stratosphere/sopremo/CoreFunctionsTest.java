@@ -10,9 +10,10 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import eu.stratosphere.sopremo.function.Aggregation;
+import eu.stratosphere.sopremo.aggregation.Aggregation;
 import eu.stratosphere.sopremo.type.ArrayNode;
 import eu.stratosphere.sopremo.type.DoubleNode;
+import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.INumericNode;
 import eu.stratosphere.sopremo.type.IntNode;
@@ -38,8 +39,8 @@ public class CoreFunctionsTest {
 	/**
 	 * 
 	 */
-	@Test
-	public void shouldConcatenateObjects() {
+	@Test(expected = ClassCastException.class)
+	public void shouldNotConcatenateObjects() {
 		shouldAggregate("bla1blu2", CoreFunctions.CONCAT, "bla", 1, "blu", 2);
 	}
 
@@ -90,7 +91,7 @@ public class CoreFunctionsTest {
 	 */
 	@Test
 	public void shouldSortArrays() {
-		final ArrayNode expected =
+		final IArrayNode expected =
 			createArrayNode(new Number[] { 1, 2.4 }, new Number[] { 1, 3.4 }, new Number[] { 2, 2.4 },
 				new Number[] { 2, 2.4, 3 });
 		shouldAggregate(expected, CoreFunctions.SORT, new Number[] { 1, 3.4 }, new Number[] { 2, 2.4 },
@@ -162,7 +163,7 @@ public class CoreFunctionsTest {
 	 */
 	@Test
 	public void shouldUnionAllCompactArrays() {
-		final ArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
+		final IArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
 		final ArrayNode result = new ArrayNode();
 		CoreFunctions.unionAll(result, createCompactArray(1, 2, 3), createCompactArray(4, 5), createCompactArray(6));
 		Assert.assertEquals(expectedResult, result);
@@ -173,7 +174,7 @@ public class CoreFunctionsTest {
 	 */
 	@Test
 	public void shouldUnionAllMixedArrayTypes() {
-		final ArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
+		final IArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
 		final ArrayNode result = new ArrayNode();
 		CoreFunctions.unionAll(result, createArrayNode(1, 2, 3), createCompactArray(4, 5), JsonUtil.createArrayNode(6));
 		Assert.assertEquals(expectedResult, result);
@@ -184,7 +185,7 @@ public class CoreFunctionsTest {
 	 */
 	@Test
 	public void shouldUnionAllNormalArrays() {
-		final ArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
+		final IArrayNode expectedResult = createArrayNode(1, 2, 3, 4, 5, 6);
 		final ArrayNode result = new ArrayNode();
 		CoreFunctions.unionAll(result, createArrayNode(1, 2, 3), createArrayNode(4, 5, 6));
 		Assert.assertEquals(expectedResult, result);
@@ -203,25 +204,25 @@ public class CoreFunctionsTest {
 
 	@Test
 	public void shouldCalculateAvg() {
-		ArrayNode aggregator = CoreFunctions.AVERAGE.initialize(null);
-		CoreFunctions.AVERAGE.aggregate(IntNode.valueOf(50), aggregator, this.context);
-		CoreFunctions.AVERAGE.aggregate(IntNode.valueOf(25), aggregator, this.context);
-		CoreFunctions.AVERAGE.aggregate(IntNode.valueOf(75), aggregator, this.context);
+		CoreFunctions.AverageState aggregator = CoreFunctions.MEAN.initialize(null);
+		CoreFunctions.MEAN.aggregate(IntNode.valueOf(50), aggregator, this.context);
+		CoreFunctions.MEAN.aggregate(IntNode.valueOf(25), aggregator, this.context);
+		CoreFunctions.MEAN.aggregate(IntNode.valueOf(75), aggregator, this.context);
 
-		final IJsonNode result = CoreFunctions.AVERAGE.getFinalAggregate(aggregator, null);
+		final IJsonNode result = CoreFunctions.MEAN.getFinalAggregate(aggregator, null);
 		Assert.assertTrue(result instanceof INumericNode);
 		Assert.assertEquals(50.0, ((INumericNode) result).getDoubleValue());
 	}
 
 	@Test
 	public void shouldCalculateAvgWithDifferentNodes() {
-		ArrayNode aggregator = CoreFunctions.AVERAGE.initialize(null);
+		CoreFunctions.AverageState aggregator = CoreFunctions.MEAN.initialize(null);
 
 		for (int i = 1; i < 500; i++)
-			aggregator = CoreFunctions.AVERAGE.aggregate(
+			aggregator = CoreFunctions.MEAN.aggregate(
 				i % 2 == 0 ? IntNode.valueOf(i) : DoubleNode.valueOf(i), aggregator, this.context);
 
-		Assert.assertEquals(DoubleNode.valueOf(250), CoreFunctions.AVERAGE.getFinalAggregate(aggregator, null));
+		Assert.assertEquals(DoubleNode.valueOf(250), CoreFunctions.MEAN.getFinalAggregate(aggregator, null));
 	}
 
 	// Assertion failed: Expected <NaN> but was: <NaN>

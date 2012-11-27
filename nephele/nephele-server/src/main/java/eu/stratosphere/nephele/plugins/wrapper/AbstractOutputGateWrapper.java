@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,19 +16,14 @@
 package eu.stratosphere.nephele.plugins.wrapper;
 
 import java.io.IOException;
-import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.types.Record;
@@ -189,45 +184,9 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void setChannelType(final ChannelType channelType) {
-
-		this.wrappedOutputGate.setChannelType(channelType);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setCompressionLevel(final CompressionLevel compressionLevel) {
-
-		this.wrappedOutputGate.setCompressionLevel(compressionLevel);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Class<T> getType() {
-
-		return this.wrappedOutputGate.getType();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public void writeRecord(final T record) throws IOException, InterruptedException {
 
 		this.wrappedOutputGate.writeRecord(record);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public List<AbstractOutputChannel<T>> getOutputChannels() {
-
-		return this.wrappedOutputGate.getOutputChannels();
 	}
 
 	/**
@@ -246,24 +205,6 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	public boolean isBroadcast() {
 
 		return this.wrappedOutputGate.isBroadcast();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getNumberOfOutputChannels() {
-
-		return this.wrappedOutputGate.getNumberOfOutputChannels();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public AbstractOutputChannel<T> getOutputChannel(final int pos) {
-
-		return this.wrappedOutputGate.getOutputChannel(pos);
 	}
 
 	/**
@@ -297,32 +238,29 @@ public abstract class AbstractOutputGateWrapper<T extends Record> implements Out
 	 * {@inheritDoc}
 	 */
 	@Override
-	public NetworkOutputChannel<T> createNetworkOutputChannel(final OutputGate<T> outputGate,
-			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
-
-		return this.wrappedOutputGate.createNetworkOutputChannel(outputGate, channelID, connectedChannelID,
-			compressionLevel);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public FileOutputChannel<T> createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
+	public void createNetworkOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
 			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		return this.wrappedOutputGate.createFileOutputChannel(outputGate, channelID, connectedChannelID,
-			compressionLevel);
+		this.wrappedOutputGate.createNetworkOutputChannel(outputGate, channelID, connectedChannelID, compressionLevel);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public InMemoryOutputChannel<T> createInMemoryOutputChannel(final OutputGate<T> outputGate,
-			final ChannelID channelID, final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
+	public void createFileOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
 
-		return this.wrappedOutputGate.createInMemoryOutputChannel(outputGate, channelID, connectedChannelID,
-			compressionLevel);
+		this.wrappedOutputGate.createFileOutputChannel(outputGate, channelID, connectedChannelID, compressionLevel);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void createInMemoryOutputChannel(final OutputGate<T> outputGate, final ChannelID channelID,
+			final ChannelID connectedChannelID, final CompressionLevel compressionLevel) {
+
+		this.wrappedOutputGate.createInMemoryOutputChannel(outputGate, channelID, connectedChannelID, compressionLevel);
 	}
 }

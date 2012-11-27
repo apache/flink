@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
@@ -60,6 +61,8 @@ class ClusterInstance extends AbstractInstance {
 	 * 
 	 * @param instanceConnectionInfo
 	 *        the instance connection info identifying the host
+	 * @param rpcService
+	 *        the RPC service to use when a proxy for a cluster instance shall be created
 	 * @param capacity
 	 *        capacity of this host
 	 * @param parentNode
@@ -69,11 +72,10 @@ class ClusterInstance extends AbstractInstance {
 	 * @param hardwareDescription
 	 *        the hardware description reported by the instance itself
 	 */
-	public ClusterInstance(final InstanceConnectionInfo instanceConnectionInfo, final InstanceType capacity,
-			final NetworkNode parentNode, final NetworkTopology networkTopology,
+	public ClusterInstance(final InstanceConnectionInfo instanceConnectionInfo, final RPCService rpcService,
+			final InstanceType capacity, final NetworkNode parentNode, final NetworkTopology networkTopology,
 			final HardwareDescription hardwareDescription) {
-
-		super(capacity, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
+		super(capacity, instanceConnectionInfo, rpcService, parentNode, networkTopology, hardwareDescription);
 
 		this.remainingCapacity = capacity;
 	}

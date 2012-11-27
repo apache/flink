@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -49,7 +49,7 @@ public class DeserializationDelegate<T> implements Record
 	}
 	
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
+	 * @see eu.stratosphere.nephele.types.Record#write(java.io.DataOutput)
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
@@ -57,7 +57,7 @@ public class DeserializationDelegate<T> implements Record
 	}
 
 	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
+	 * @see eu.stratosphere.nephele.types.Record#read(java.io.DataInput)
 	 */
 	@Override
 	public void read(DataInput in) throws IOException

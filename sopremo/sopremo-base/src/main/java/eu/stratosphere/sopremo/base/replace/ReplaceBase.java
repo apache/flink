@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -42,7 +42,7 @@ public abstract class ReplaceBase<Self extends ReplaceBase<Self>> extends Elemen
 
 	public Self withReplaceExpression(EvaluationExpression replaceExpression) {
 		this.setReplaceExpression(replaceExpression);
-		return self();
+		return this.self();
 	}
 
 	public void setDictionaryValueExtraction(EvaluationExpression dictionaryValueExtraction) {
@@ -54,7 +54,7 @@ public abstract class ReplaceBase<Self extends ReplaceBase<Self>> extends Elemen
 
 	public Self withDictionaryValueExtraction(EvaluationExpression dictionaryValueExtraction) {
 		this.setDictionaryValueExtraction(dictionaryValueExtraction);
-		return self();
+		return this.self();
 	}
 
 	public EvaluationExpression getDictionaryValueExtraction() {

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -27,15 +28,14 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.fs.FileChannelWrapper;
 import eu.stratosphere.nephele.fs.FileSystem;
 import eu.stratosphere.nephele.fs.Path;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.BufferFactory;
+import eu.stratosphere.nephele.io.channels.ChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.FileBufferManager;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.CheckpointSerializer;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
@@ -323,11 +323,11 @@ final class WriteThread extends Thread {
 		// At this point, all resources are either recycled or saved to firstSerializedFileBuffer
 
 		// Look for close event
-		final EventList eventList = transferEnvelope.getEventList();
+		final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 		if (eventList != null) {
 			final Iterator<AbstractEvent> it = eventList.iterator();
 			while (it.hasNext()) {
-				if (it.next() instanceof ByteBufferedChannelCloseEvent) {
+				if (it.next() instanceof ChannelCloseEvent) {
 					++this.numberOfClosedChannels;
 				}
 			}

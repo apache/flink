@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -24,11 +24,11 @@ package eu.stratosphere.nephele.taskmanager.bufferprovider;
 public interface LocalBufferPoolOwner {
 
 	/**
-	 * Returns the number of byte-buffered channels that will retrieve their buffers from the local buffer pool.
+	 * Returns the minimum number of buffers required by this local buffer pool owner.
 	 * 
-	 * @return the number of byte-buffered channels that will retrieve their buffers from the local buffer pool
+	 * @return the minimum number of buffers required by this local buffer pool owner
 	 */
-	int getNumberOfChannels();
+	int getMinimumNumberOfRequiredBuffers();
 
 	/**
 	 * Sets the designated number of buffers the local buffer pool owner is allowed to fetch from the global buffer pool

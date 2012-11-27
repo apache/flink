@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -38,8 +38,7 @@ import eu.stratosphere.nephele.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.ipc.RPC.Server;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.util.StringUtils;
 import eu.stratosphere.sopremo.execution.ExecutionRequest;
 import eu.stratosphere.sopremo.execution.ExecutionResponse;
@@ -53,7 +52,8 @@ import eu.stratosphere.sopremo.execution.SopremoID;
  * @author Arvid Heise
  */
 public class SopremoServer implements SopremoExecutionProtocol, Closeable {
-	private Server server;
+	
+	private RPCService rpcService;
 
 	private Configuration configuration;
 
@@ -86,9 +86,9 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	 */
 	@Override
 	public void close() {
-		if (this.server != null) {
-			this.server.stop();
-			this.server = null;
+		if (this.rpcService != null) {
+			this.rpcService.shutDown();
+			this.rpcService = null;
 		}
 		this.executorService.shutdownNow();
 	}
@@ -99,11 +99,16 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	 */
 	@Override
 	public ExecutionResponse execute(ExecutionRequest request) {
-		SopremoID jobId = new SopremoID();
+		SopremoID jobId = SopremoID.generate();
 		LOG.info("Receive execution request for job " + jobId);
 		final SopremoJobInfo info = new SopremoJobInfo(jobId, request, this.configuration);
 		this.meteorInfo.put(jobId, info);
-		this.executorService.submit(new SopremoExecutionThread(info, getJobManagerAddress()));
+		if (request.getQuery() == null)
+			info.setStatusAndDetail(ExecutionState.ERROR, "No plan submitted");
+		else if (request.getMode() == null)
+			info.setStatusAndDetail(ExecutionState.ERROR, "No mode set");
+		else
+			this.executorService.submit(new SopremoExecutionThread(info, getJobManagerAddress()));
 		return this.getState(jobId);
 	}
 
@@ -204,11 +209,9 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 	}
 
 	private void startServer() throws IOException {
-		final int handlerCount = this.configuration.getInteger(SopremoConstants.SOPREMO_SERVER_HANDLER_COUNT_KEY, 1);
 		InetSocketAddress rpcServerAddress = getServerAddress();
-		this.server = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
-			handlerCount);
-		this.server.start();
+		this.rpcService = new RPCService(rpcServerAddress.getPort(), 2, null);
+		this.rpcService.setProtocolCallbackHandler(SopremoExecutionProtocol.class, this);
 	}
 
 	/**
@@ -257,6 +260,8 @@ public class SopremoServer implements SopremoExecutionProtocol, Closeable {
 			}
 			// Do nothing here
 		}
+
+		sopremoServer.close();
 	}
 
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,14 +15,7 @@
 
 package eu.stratosphere.nephele.taskmanager;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * An <code>AbstractTaskResult</code> is used to report the results
@@ -31,17 +24,17 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * 
  * @author warneke
  */
-public abstract class AbstractTaskResult implements IOReadableWritable {
+public abstract class AbstractTaskResult {
 
 	public enum ReturnCode {
 		SUCCESS, DEPLOYMENT_ERROR, IPC_ERROR, NO_INSTANCE, ILLEGAL_STATE, TASK_NOT_FOUND, INSUFFICIENT_RESOURCES
 	};
 
-	private ExecutionVertexID vertexID;
+	private final ExecutionVertexID vertexID;
 
-	private ReturnCode returnCode;
+	private final ReturnCode returnCode;
 
-	private String description;
+	private String description = null;
 
 	/**
 	 * Constructs a new abstract task result.
@@ -51,7 +44,7 @@ public abstract class AbstractTaskResult implements IOReadableWritable {
 	 * @param returnCode
 	 *        the return code of the operation
 	 */
-	public AbstractTaskResult(ExecutionVertexID vertexID, ReturnCode returnCode) {
+	public AbstractTaskResult(final ExecutionVertexID vertexID, final ReturnCode returnCode) {
 		this.vertexID = vertexID;
 		this.returnCode = returnCode;
 	}
@@ -61,7 +54,7 @@ public abstract class AbstractTaskResult implements IOReadableWritable {
 	 */
 	public AbstractTaskResult() {
 		this.vertexID = null;
-		this.returnCode = ReturnCode.SUCCESS;
+		this.returnCode = null;
 	}
 
 	/**
@@ -100,46 +93,4 @@ public abstract class AbstractTaskResult implements IOReadableWritable {
 	public ReturnCode getReturnCode() {
 		return this.returnCode;
 	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(DataInput in) throws IOException {
-
-		// Read the jobID
-		boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-			this.vertexID = new ExecutionVertexID();
-			this.vertexID.read(in);
-		}
-
-		// Read the return code
-		this.returnCode = EnumUtils.readEnum(in, ReturnCode.class);
-
-		// Read the description
-		this.description = StringRecord.readString(in);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-
-		// Write jobID
-		if (this.vertexID == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			this.vertexID.write(out);
-		}
-
-		// Write return code
-		EnumUtils.writeEnum(out, this.returnCode);
-
-		// Write the description
-		StringRecord.writeString(out, this.description);
-	}
-
 }

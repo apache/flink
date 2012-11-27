@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -21,14 +21,14 @@ import java.util.Queue;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedOutputChannelBroker;
+import eu.stratosphere.nephele.io.channels.ByteBufferedOutputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 
 /**
  * @author Arvid Heise
@@ -40,21 +40,21 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 	/**
 	 * The byte buffered output channel this context belongs to.
 	 */
-	private final AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel;
+	private final AbstractOutputChannel<?> outputChannel;
 
 	private LocalBufferPool transitBufferPool;
 
 	private Queue<TransferEnvelope> queuedOutgoingEnvelopes = new LinkedList<TransferEnvelope>();
 
-	private TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private RoutingService routingService;
 
 	private TransferEnvelope outgoingTransferEnvelope;
 
-	public MockOutputChannelBroker(AbstractByteBufferedOutputChannel<?> byteBufferedOutputChannel,
-			LocalBufferPool transitBufferPool, TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
-		this.byteBufferedOutputChannel = byteBufferedOutputChannel;
+	public MockOutputChannelBroker(AbstractOutputChannel<?> byteBufferedOutputChannel,
+			LocalBufferPool transitBufferPool, RoutingService routingService) {
+		this.outputChannel = byteBufferedOutputChannel;
 		this.transitBufferPool = transitBufferPool;
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.routingService = routingService;
 	}
 
 	/*
@@ -67,13 +67,13 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 		this.outgoingTransferEnvelope = this.newEnvelope();
 		final int uncompressedBufferSize = this.transitBufferPool.getMaximumBufferSize();
 
-		return this.transitBufferPool.requestEmptyBuffer(uncompressedBufferSize);
+		return this.transitBufferPool.requestEmptyBufferBlocking(uncompressedBufferSize);
 	}
 
 	protected TransferEnvelope newEnvelope() {
 		TransferEnvelope transferEnvelope = new TransferEnvelope(this.sequenceNumber++,
-			this.byteBufferedOutputChannel.getJobID(),
-			this.byteBufferedOutputChannel.getID());
+			this.outputChannel.getJobID(),
+			this.outputChannel.getID());
 
 		return transferEnvelope;
 	}
@@ -91,7 +91,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 		this.outgoingTransferEnvelope.setBuffer(buffer);
 
 		if (this.queuedOutgoingEnvelopes.isEmpty())
-			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(this.outgoingTransferEnvelope);
+			this.routingService.routeEnvelopeFromOutputChannel(this.outgoingTransferEnvelope);
 		else {
 			this.queuedOutgoingEnvelopes.add(this.outgoingTransferEnvelope);
 			this.flushQueuedOutgoingEnvelopes();
@@ -113,7 +113,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 
 	protected void flushQueuedOutgoingEnvelopes() throws IOException, InterruptedException {
 		while (!this.queuedOutgoingEnvelopes.isEmpty())
-			this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(this.queuedOutgoingEnvelopes.poll());
+			this.routingService.routeEnvelopeFromOutputChannel(this.queuedOutgoingEnvelopes.poll());
 	}
 
 	/*
@@ -129,7 +129,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 			final AbstractEvent event = it.next();
 
 			if (event instanceof AbstractTaskEvent) {
-				this.byteBufferedOutputChannel.processEvent(event);
+				this.outputChannel.processEvent(event);
 			}
 		}
 	}
@@ -151,7 +151,7 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 			ephemeralTransferEnvelope.addEvent(event);
 
 			if (this.queuedOutgoingEnvelopes.isEmpty())
-				this.transferEnvelopeDispatcher.processEnvelopeFromOutputChannel(ephemeralTransferEnvelope);
+				this.routingService.routeEnvelopeFromOutputChannel(ephemeralTransferEnvelope);
 			else {
 				this.queuedOutgoingEnvelopes.add(ephemeralTransferEnvelope);
 				this.flushQueuedOutgoingEnvelopes();
@@ -164,8 +164,8 @@ public class MockOutputChannelBroker implements ByteBufferedOutputChannelBroker,
 	 * @see eu.stratosphere.pact.testing.MockChannelBroker#getChannel()
 	 */
 	@Override
-	public AbstractByteBufferedOutputChannel<?> getChannel() {
-		return this.byteBufferedOutputChannel;
+	public AbstractOutputChannel<?> getChannel() {
+		return this.outputChannel;
 	}
 
 	/*

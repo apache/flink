@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,9 +18,9 @@ package eu.stratosphere.nephele.checkpointing;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.routing.AbstractOutputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelForwardingChain;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 /**

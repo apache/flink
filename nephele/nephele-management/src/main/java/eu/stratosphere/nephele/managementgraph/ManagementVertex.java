@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,15 +15,15 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.io.IOReadableWritable;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
@@ -34,7 +34,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * 
  * @author warneke
  */
-public final class ManagementVertex extends ManagementAttachment implements IOReadableWritable {
+public final class ManagementVertex extends ManagementAttachment implements KryoSerializable {
 
 	/**
 	 * The management group vertex this vertex belongs to.
@@ -312,48 +312,48 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final Kryo kryo, final Input input) {
 
 		// Read the execution state
-		this.executionState = EnumUtils.readEnum(in, ExecutionState.class);
+		this.executionState = EnumUtils.readEnum(input, ExecutionState.class);
 
 		// Read number of input gates
-		int numberOfInputGates = in.readInt();
+		int numberOfInputGates = input.readInt();
 		for (int i = 0; i < numberOfInputGates; i++) {
 			new ManagementGate(this, new ManagementGateID(), i, true);
 		}
 
 		// Read number of input gates
-		int numberOfOutputGates = in.readInt();
+		int numberOfOutputGates = input.readInt();
 		for (int i = 0; i < numberOfOutputGates; i++) {
 			new ManagementGate(this, new ManagementGateID(), i, false);
 		}
 
-		this.instanceName = StringRecord.readString(in);
-		this.instanceType = StringRecord.readString(in);
-		this.checkpointState = StringRecord.readString(in);
+		this.instanceName = input.readString();
+		this.instanceType = input.readString();
+		this.checkpointState = input.readString();
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final Kryo kryo, final Output output) {
 
 		// Write the execution state
-		EnumUtils.writeEnum(out, this.executionState);
+		EnumUtils.writeEnum(output, this.executionState);
 
 		// Write out number of input gates
-		out.writeInt(this.inputGates.size());
+		output.writeInt(this.inputGates.size());
 
 		// Write out number of output gates
-		out.writeInt(this.outputGates.size());
+		output.writeInt(this.outputGates.size());
 
-		StringRecord.writeString(out, this.instanceName);
-		StringRecord.writeString(out, this.instanceType);
-		StringRecord.writeString(out, this.checkpointState);
+		output.writeString(this.instanceName);
+		output.writeString(this.instanceType);
+		output.writeString(this.checkpointState);
 	}
-	
+
 	@Override
 	public String toString() {
 		return String.format("%s_%d", getGroupVertex().getName(), indexInGroup);

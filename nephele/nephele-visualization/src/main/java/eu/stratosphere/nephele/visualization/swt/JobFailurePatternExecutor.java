@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -104,6 +104,9 @@ public final class JobFailurePatternExecutor implements Runnable {
 					this.jobManager.killTask(this.jobID, vertexID);
 				} catch (IOException ioe) {
 					LOG.error(StringUtils.stringifyException(ioe));
+				} catch (InterruptedException ie) {
+					LOG.debug(StringUtils.stringifyException(ie));
+					return;
 				}
 			}
 
@@ -112,6 +115,9 @@ public final class JobFailurePatternExecutor implements Runnable {
 				this.jobManager.killInstance(new StringRecord(this.nextEvent.getName()));
 			} catch (IOException ioe) {
 				LOG.error(StringUtils.stringifyException(ioe));
+			} catch (InterruptedException ie) {
+				LOG.debug(StringUtils.stringifyException(ie));
+				return;
 			}
 		}
 

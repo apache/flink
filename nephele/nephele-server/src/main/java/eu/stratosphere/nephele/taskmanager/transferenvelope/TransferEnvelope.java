@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,10 +16,13 @@
 package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelCloseEvent;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
@@ -31,7 +34,7 @@ public final class TransferEnvelope {
 
 	private final int sequenceNumber;
 
-	private EventList eventList;
+	private List<AbstractEvent> eventList;
 
 	private Buffer buffer = null;
 
@@ -39,7 +42,7 @@ public final class TransferEnvelope {
 		this(sequenceNumber, jobID, source, null);
 	}
 
-	public TransferEnvelope(int sequenceNumber, JobID jobID, ChannelID source, EventList eventList) {
+	public TransferEnvelope(int sequenceNumber, JobID jobID, ChannelID source, List<AbstractEvent> eventList) {
 
 		this.sequenceNumber = sequenceNumber;
 		this.jobID = jobID;
@@ -58,13 +61,13 @@ public final class TransferEnvelope {
 	public void addEvent(AbstractEvent event) {
 
 		if (this.eventList == null) {
-			this.eventList = new EventList();
+			this.eventList = new ArrayList<AbstractEvent>();
 		}
 
 		this.eventList.add(event);
 	}
 
-	public EventList getEventList() {
+	public List<AbstractEvent> getEventList() {
 
 		return this.eventList;
 	}
@@ -103,6 +106,22 @@ public final class TransferEnvelope {
 		duplicatedTransferEnvelope.buffer = null;
 
 		return duplicatedTransferEnvelope;
+	}
+
+	public boolean isLastEnvelope() {
+
+		if (this.eventList == null) {
+			return false;
+		}
+
+		final Iterator<AbstractEvent> it = this.eventList.iterator();
+		while (it.hasNext()) {
+			if (it.next() instanceof ChannelCloseEvent) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	@Override

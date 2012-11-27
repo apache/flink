@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -90,8 +90,12 @@ public class S3FileSystemTest {
 		final String secretKey = System.getenv("SK");
 
 		final Configuration conf = new Configuration();
-		conf.setString(S3FileSystem.S3_ACCESS_KEY_KEY, accessKey);
-		conf.setString(S3FileSystem.S3_SECRET_KEY_KEY, secretKey);
+		if (accessKey != null) {
+			conf.setString(S3FileSystem.S3_ACCESS_KEY_KEY, accessKey);
+		}
+		if (secretKey != null) {
+			conf.setString(S3FileSystem.S3_SECRET_KEY_KEY, secretKey);
+		}
 		GlobalConfiguration.includeConfiguration(conf);
 	}
 

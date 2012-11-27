@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -41,11 +41,11 @@ import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraphIterator;
+import eu.stratosphere.nephele.executiongraph.ExecutionStateListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
@@ -683,6 +683,8 @@ public class TestPlan implements Closeable {
 			e1.printStackTrace();
 		} catch (JobExecutionException e1) {
 			e1.printStackTrace();
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
 		}
 
 		try {
@@ -756,7 +758,7 @@ public class TestPlan implements Closeable {
 		while (executionGraphIterator.hasNext()) {
 			ExecutionVertex executionVertex = executionGraphIterator.next();
 			ExecutionExceptionHandler errorHandler = new ExecutionExceptionHandler(executionVertex);
-			executionVertex.registerExecutionListener(errorHandler);
+			executionVertex.registerExecutionStateListener(errorHandler);
 			this.errorHandlers.add(errorHandler);
 		}
 	}
@@ -1087,7 +1089,7 @@ public class TestPlan implements Closeable {
 		// }
 	}
 
-	private final class ExecutionExceptionHandler implements ExecutionListener {
+	private static final class ExecutionExceptionHandler implements ExecutionStateListener {
 		private String executionError;
 
 		public ExecutionVertex executionVertex;
@@ -1118,27 +1120,6 @@ public class TestPlan implements Closeable {
 		public int getPriority() {
 			return 13;
 		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.nephele.execution.ExecutionListener#userThreadFinished(eu.stratosphere.nephele.jobgraph.JobID
-		 * , eu.stratosphere.nephele.executiongraph.ExecutionVertexID, java.lang.Thread)
-		 */
-		@Override
-		public void userThreadFinished(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * @see
-		 * eu.stratosphere.nephele.execution.ExecutionListener#userThreadStarted(eu.stratosphere.nephele.jobgraph.JobID,
-		 * eu.stratosphere.nephele.executiongraph.ExecutionVertexID, java.lang.Thread)
-		 */
-		@Override
-		public void userThreadStarted(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
-		}
-
 	}
 
 }

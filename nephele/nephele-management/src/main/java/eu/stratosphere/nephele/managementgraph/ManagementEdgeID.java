@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,42 +19,63 @@ import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 
 /**
- * A management edge ID uniquely identifies a {@link ManagementEdge}.
+ * A class for statistically unique management edge IDs.
  * <p>
- * This class is not thread-safe.
+ * This class is thread-safe.
  * 
- * @author Bjoern Lohrmann
+ * @author warneke
  */
-public class ManagementEdgeID extends AbstractID {
+public final class ManagementEdgeID extends AbstractID {
 
 	/**
-	 * Initializes ManagementEdgeID.
+	 * Default constructor required by kryo.
 	 */
-	ManagementEdgeID() {
+	private ManagementEdgeID() {
 	}
 
 	/**
-	 * A ManagementEdgeID is derived from the #{@link ChannelID} of the corresponding
-	 * output channel in the execution graph.
+	 * Constructs a new management edge ID.
 	 * 
-	 * @param source
-	 *        ID of the corresponding output channel
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
 	 */
-	public ManagementEdgeID(ChannelID source) {
-		super();
-		this.setID(source);
+	private ManagementEdgeID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
 	}
 
 	/**
-	 * Converts the management edge ID into a {@link ChannelID}.
+	 * Constructs a new management edge ID from the given channel ID.
 	 * 
-	 * @return the corresponding channelID.
+	 * @param channelID
+	 *        the channel ID to construct the management edge ID from
 	 */
-	public ChannelID toChannelID() {
+	private ManagementEdgeID(final ChannelID channelID) {
+		super(channelID);
+	}
 
-		final ChannelID channelID = new ChannelID();
-		channelID.setID(this);
+	/**
+	 * Generates a new statistically unique management edge ID.
+	 * 
+	 * @return a new statistically unique management edge ID
+	 */
+	public static ManagementEdgeID generate() {
 
-		return channelID;
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
+
+		return new ManagementEdgeID(lowerPart, upperPart);
+	}
+
+	/**
+	 * Converts the channel ID into a management edge ID. The new management edge ID will be equal to the channel ID in
+	 * the sense that the <code>equals</code> method will return <code>true</code> when both IDs are compared.
+	 * 
+	 * @return the new management edge ID
+	 */
+	public static ManagementEdgeID fromChannelID(final ChannelID channelID) {
+
+		return new ManagementEdgeID(channelID);
 	}
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -249,7 +249,7 @@ public class LazyObjectNode extends AbstractObjectNode {
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#toString(java.lang.StringBuilder)
 	 */
 	@Override
-	public StringBuilder toString(final StringBuilder sb) {
+	public void toString(final StringBuilder sb) {
 		sb.append('{');
 
 		int count = 0;
@@ -264,7 +264,6 @@ public class LazyObjectNode extends AbstractObjectNode {
 		}
 
 		sb.append('}');
-		return sb;
 	}
 
 	@Override

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -45,9 +45,9 @@ import eu.stratosphere.sopremo.pact.SopremoMap;
 import eu.stratosphere.sopremo.pact.SopremoReduce;
 import eu.stratosphere.sopremo.serialization.ObjectSchema;
 import eu.stratosphere.sopremo.serialization.Schema;
-import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
 import eu.stratosphere.sopremo.type.IObjectNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 import eu.stratosphere.sopremo.type.IntNode;
 import eu.stratosphere.sopremo.type.JsonUtil;
 import eu.stratosphere.sopremo.type.TextNode;
@@ -142,6 +142,7 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 		testPlan.run();
 	}
 
+	@SuppressWarnings("resource")
 	@Override
 	protected void initVerifier(final EqualsVerifier<SopremoTestPlan> equalVerifier) {
 		super.initVerifier(equalVerifier);
@@ -322,14 +323,13 @@ public class SopremoTestPlanTest extends SopremoTest<SopremoTestPlan> {
 			 * eu.stratosphere.sopremo.pact.JsonCollector)
 			 */
 			@Override
-			protected void reduce(final IArrayNode values, final JsonCollector out) {
+			protected void reduce(final IStreamArrayNode values, final JsonCollector out) {
 				final Iterator<IJsonNode> valueIterator = values.iterator();
 				final IObjectNode firstEntry = (IObjectNode) valueIterator.next();
-				final String word = ((TextNode) firstEntry.get("word")).getTextValue();
 				int sum = this.getCount(firstEntry);
 				while (valueIterator.hasNext())
 					sum += this.getCount((IObjectNode) valueIterator.next());
-				out.collect(JsonUtil.createObjectNode("word", TextNode.valueOf(word), "count", sum));
+				out.collect(JsonUtil.createObjectNode("word", firstEntry.get("word"), "count", sum));
 			}
 
 			protected int getCount(final IObjectNode entry) {

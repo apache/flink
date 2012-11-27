@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,6 +15,7 @@
 
 package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
@@ -40,12 +41,7 @@ public class TestDeploymentManager implements DeploymentManager {
 	/**
 	 * The list of vertices to be deployed.
 	 */
-	private volatile List<ExecutionVertex> verticesToBeDeployed = null;
-
-	/**
-	 * Auxiliary object to synchronize on.
-	 */
-	private final Object synchronizationObject = new Object();
+	private final ArrayList<ExecutionVertex> verticesToBeDeployed = new ArrayList<ExecutionVertex>();
 
 	/**
 	 * {@inheritDoc}
@@ -55,10 +51,9 @@ public class TestDeploymentManager implements DeploymentManager {
 			final List<ExecutionVertex> verticesToBeDeployed) {
 
 		this.jobID = jobID;
-		this.verticesToBeDeployed = verticesToBeDeployed;
-
-		synchronized (this.synchronizationObject) {
-			this.synchronizationObject.notify();
+		synchronized (this.verticesToBeDeployed) {
+			this.verticesToBeDeployed.addAll(verticesToBeDeployed);
+			this.verticesToBeDeployed.notify();
 		}
 	}
 
@@ -77,7 +72,9 @@ public class TestDeploymentManager implements DeploymentManager {
 	 */
 	List<ExecutionVertex> getListOfLastDeployedVertices() {
 
-		return this.verticesToBeDeployed;
+		synchronized (this.verticesToBeDeployed) {
+			return new ArrayList<ExecutionVertex>(this.verticesToBeDeployed);
+		}
 	}
 
 	/**
@@ -86,22 +83,28 @@ public class TestDeploymentManager implements DeploymentManager {
 	void clear() {
 
 		this.jobID = null;
-		this.verticesToBeDeployed = null;
+		synchronized (this.verticesToBeDeployed) {
+			this.verticesToBeDeployed.clear();
+		}
 	}
 
 	/**
 	 * Wait for the scheduler to complete the deployment.
+	 * 
+	 * @param expectedNumberOfDeployedVertices
+	 *        the expected number of vertices to be deployed
 	 */
-	void waitForDeployment() {
+	void waitForDeployment(final int expectedNumberOfDeployedVertices) {
 
-		while (this.jobID == null) {
-			synchronized (this.synchronizationObject) {
-				try {
-					this.synchronizationObject.wait(50);
-				} catch (InterruptedException e) {
-					// Ignore exception
+		try {
+			synchronized (this.verticesToBeDeployed) {
+
+				while (this.verticesToBeDeployed.size() < expectedNumberOfDeployedVertices) {
+					this.verticesToBeDeployed.wait();
 				}
 			}
+		} catch (InterruptedException ie) {
+			// Ignore exception
 		}
 	}
 }

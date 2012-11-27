@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,11 +17,7 @@ package eu.stratosphere.nephele.io;
 
 import java.io.IOException;
 
-import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.bytebuffered.FileInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkInputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.types.Record;
@@ -52,22 +48,6 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 */
 
 	T readRecord(T target) throws IOException, InterruptedException;
-
-	/**
-	 * Returns the number of input channels associated with this input gate.
-	 * 
-	 * @return the number of input channels associated with this input gate
-	 */
-	int getNumberOfInputChannels();
-
-	/**
-	 * Returns the input channel from position <code>pos</code> of the gate's internal channel list.
-	 * 
-	 * @param pos
-	 *        the position to retrieve the channel from
-	 * @return the channel from the given position or <code>null</code> if such position does not exist.
-	 */
-	AbstractInputChannel<T> getInputChannel(int pos);
 
 	/**
 	 * Notify the gate that the channel with the given index has
@@ -128,9 +108,8 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
-	 * @return the new network input channel
 	 */
-	NetworkInputChannel<T> createNetworkInputChannel(InputGate<T> inputGate, ChannelID channelID,
+	void createNetworkInputChannel(InputGate<T> inputGate, ChannelID channelID,
 			ChannelID connectedChannelID, CompressionLevel compressionLevel);
 
 	/**
@@ -144,10 +123,9 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
-	 * @return the new file input channel
 	 */
-	FileInputChannel<T> createFileInputChannel(InputGate<T> inputGate, ChannelID channelID,
-			ChannelID connectedChannelID, CompressionLevel compressionLevel);
+	void createFileInputChannel(InputGate<T> inputGate, ChannelID channelID, ChannelID connectedChannelID,
+			CompressionLevel compressionLevel);
 
 	/**
 	 * Creates a new in-memory input channel and assigns it to the given input gate.
@@ -160,10 +138,9 @@ public interface InputGate<T extends Record> extends Gate<T> {
 	 *        the ID of the channel this channel is connected to
 	 * @param compressionLevel
 	 *        the level of compression to be used for this channel
-	 * @return the new in-memory input channel
 	 */
-	InMemoryInputChannel<T> createInMemoryInputChannel(InputGate<T> inputGate, ChannelID channelID,
-			ChannelID connectedChannelID, CompressionLevel compressionLevel);
+	void createInMemoryInputChannel(InputGate<T> inputGate, ChannelID channelID, ChannelID connectedChannelID,
+			CompressionLevel compressionLevel);
 
 	/**
 	 * Removes all input channels from the input gate.

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -100,7 +100,7 @@ public final class TestInstanceManager implements InstanceManager {
 		public TestInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
 				final NetworkNode parentNode, final NetworkTopology networkTopology,
 				final HardwareDescription hardwareDescription) {
-			super(instanceType, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
+			super(instanceType, instanceConnectionInfo, null, parentNode, networkTopology, hardwareDescription);
 		}
 	}
 
@@ -118,7 +118,7 @@ public final class TestInstanceManager implements InstanceManager {
 			final InstanceConnectionInfo ici = new InstanceConnectionInfo(Inet4Address.getLocalHost(), 1, 1);
 			final NetworkTopology nt = new NetworkTopology();
 			final TestInstance ti = new TestInstance(INSTANCE_TYPE, ici, nt.getRootNode(), nt, hd);
-			this.allocatedResources.add(new AllocatedResource(ti, INSTANCE_TYPE, new AllocationID()));
+			this.allocatedResources.add(new AllocatedResource(ti, INSTANCE_TYPE, AllocationID.generate()));
 		} catch (UnknownHostException e) {
 			throw new RuntimeException(StringUtils.stringifyException(e));
 		}

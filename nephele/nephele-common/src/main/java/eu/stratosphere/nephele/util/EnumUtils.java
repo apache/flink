@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,11 +15,8 @@
 
 package eu.stratosphere.nephele.util;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.types.StringRecord;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Auxiliary class to (de)serialize enumeration values.
@@ -44,16 +41,14 @@ public final class EnumUtils {
 	 * @param enumType
 	 *        the class of the enumeration
 	 * @return the value of the given enumeration read from the input stream
-	 * @throws IOException
-	 *         thrown if any error occurred while reading data from the stream
 	 */
-	public static <T extends Enum<T>> T readEnum(final DataInput in, final Class<T> enumType) throws IOException {
+	public static <T extends Enum<T>> T readEnum(final Input in, final Class<T> enumType) {
 
 		if (!in.readBoolean()) {
 			return null;
 		}
 
-		return T.valueOf(enumType, StringRecord.readString(in));
+		return T.valueOf(enumType, in.readString());
 	}
 
 	/**
@@ -63,16 +58,14 @@ public final class EnumUtils {
 	 *        the output stream to write to
 	 * @param enumVal
 	 *        the value of a enumeration to be written to the output stream
-	 * @throws IOException
-	 *         thrown if any error occurred while writing data to the stream
 	 */
-	public static void writeEnum(final DataOutput out, final Enum<?> enumVal) throws IOException {
+	public static void writeEnum(final Output out, final Enum<?> enumVal) {
 
 		if (enumVal == null) {
 			out.writeBoolean(false);
 		} else {
 			out.writeBoolean(true);
-			StringRecord.writeString(out, enumVal.name());
+			out.writeString(enumVal.name());
 		}
 	}
 }

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -26,14 +26,10 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.net.NetUtils;
-import eu.stratosphere.nephele.plugins.PluginID;
-import eu.stratosphere.nephele.protocols.PluginCommunicationProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskCheckpointResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
@@ -64,14 +60,14 @@ public abstract class AbstractInstance extends NetworkNode {
 	private final HardwareDescription hardwareDescription;
 
 	/**
+	 * The RPC service to use when a proxy for the task manager on this instance shall be created.
+	 */
+	private final RPCService rpcService;
+
+	/**
 	 * Stores the RPC stub object for the instance's task manager.
 	 */
 	private TaskOperationProtocol taskManager = null;
-
-	/**
-	 * Stores the RPC stub object for the instance's task manager plugin component.
-	 */
-	private PluginCommunicationProtocol taskManagerPluginComponent = null;
 
 	/**
 	 * Constructs an abstract instance object.
@@ -80,6 +76,8 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the type of the instance
 	 * @param instanceConnectionInfo
 	 *        the connection info identifying the instance
+	 * @param rpcService
+	 *        the RPC service to used to create a proxy for this instance
 	 * @param parentNode
 	 *        the parent node in the network topology
 	 * @param networkTopology
@@ -88,12 +86,14 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the hardware description provided by the instance itself
 	 */
 	public AbstractInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
-			final NetworkNode parentNode, final NetworkTopology networkTopology,
+			final RPCService rpcService, final NetworkNode parentNode, final NetworkTopology networkTopology,
 			final HardwareDescription hardwareDescription) {
 		super((instanceConnectionInfo == null) ? null : instanceConnectionInfo.toString(), parentNode, networkTopology);
 		this.instanceType = instanceType;
 		this.instanceConnectionInfo = instanceConnectionInfo;
+		this.rpcService = rpcService;
 		this.hardwareDescription = hardwareDescription;
+
 	}
 
 	/**
@@ -106,54 +106,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	private TaskOperationProtocol getTaskManagerProxy() throws IOException {
 
 		if (this.taskManager == null) {
-
-			this.taskManager = RPC.getProxy(TaskOperationProtocol.class,
-				new InetSocketAddress(getInstanceConnectionInfo().getAddress(),
-					getInstanceConnectionInfo().getIPCPort()), NetUtils.getSocketFactory());
+			this.taskManager = this.rpcService.getProxy(new InetSocketAddress(getInstanceConnectionInfo().getAddress(),
+				getInstanceConnectionInfo().getIPCPort()), TaskOperationProtocol.class);
 		}
 
 		return this.taskManager;
-	}
-
-	/**
-	 * Destroys and removes the RPC stub object for this instance's task manager.
-	 */
-	private void destroyTaskManagerProxy() {
-
-		if (this.taskManager != null) {
-			RPC.stopProxy(this.taskManager);
-			this.taskManager = null;
-		}
-	}
-
-	/**
-	 * Creates or returns the RPC stub object for the instance's task manager plugin component.
-	 * 
-	 * @return the RPC stub object for the instance's task manager plugin component
-	 * @throws IOException
-	 *         thrown if the RPC stub object for the task manager plugin component cannot be created
-	 */
-	private PluginCommunicationProtocol getTaskManagerPluginProxy() throws IOException {
-
-		if (this.taskManagerPluginComponent == null) {
-
-			this.taskManagerPluginComponent = RPC.getProxy(PluginCommunicationProtocol.class, 
-				new InetSocketAddress(getInstanceConnectionInfo().getAddress(), 
-					getInstanceConnectionInfo().getIPCPort()), NetUtils.getSocketFactory());
-		}
-
-		return this.taskManagerPluginComponent;
-	}
-
-	/**
-	 * Destroys and removes the RPC stub object for this instance's task manager plugin component.
-	 */
-	private void destroyTaskManagerPluginProxy() {
-
-		if (this.taskManagerPluginComponent != null) {
-			RPC.stopProxy(this.taskManagerPluginComponent);
-			this.taskManagerPluginComponent = null;
-		}
 	}
 
 	/**
@@ -184,16 +141,17 @@ public abstract class AbstractInstance extends NetworkNode {
 	}
 
 	/**
-	 * Checks if all the libraries required to run the job with the given
-	 * job ID are available on this instance. Any libary that is missing
-	 * is transferred to the instance as a result of this call.
+	 * Checks if all the libraries required to run the job with the given job ID are available on this instance. Any
+	 * libary that is missing is transferred to the instance as a result of this call.
 	 * 
 	 * @param jobID
 	 *        the ID of the job whose libraries are to be checked for
 	 * @throws IOException
 	 *         thrown if an error occurs while checking for the libraries
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void checkLibraryAvailability(final JobID jobID) throws IOException {
+	public synchronized void checkLibraryAvailability(final JobID jobID) throws IOException, InterruptedException {
 
 		// Now distribute the required libraries for the job
 		String[] requiredLibraries = LibraryCacheManager.getRequiredJarFiles(jobID);
@@ -205,8 +163,7 @@ public abstract class AbstractInstance extends NetworkNode {
 		request.setRequiredLibraries(requiredLibraries);
 
 		// Send the request
-		LibraryCacheProfileResponse response = null;
-		response = getTaskManagerProxy().getLibraryCacheProfile(request);
+		final LibraryCacheProfileResponse response = getTaskManagerProxy().getLibraryCacheProfile(request);
 
 		// Check response and transfer libraries if necessary
 		for (int k = 0; k < requiredLibraries.length; k++) {
@@ -225,9 +182,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @return the result of the submission attempt
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the task
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
 	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskDeploymentDescriptor> tasks)
-			throws IOException {
+			throws IOException, InterruptedException {
 
 		return getTaskManagerProxy().submitTasks(tasks);
 	}
@@ -240,14 +199,18 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the ID identifying the task to be canceled
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request or receiving the response
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the cancel attempt
 	 */
-	public synchronized TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
+	public synchronized TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException,
+			InterruptedException {
 
 		return getTaskManagerProxy().cancelTask(id);
 	}
 
-	public synchronized TaskCheckpointResult requestCheckpointDecision(final ExecutionVertexID id) throws IOException {
+	public synchronized TaskCheckpointResult requestCheckpointDecision(final ExecutionVertexID id) throws IOException,
+			InterruptedException {
 
 		return getTaskManagerProxy().requestCheckpointDecision(id);
 	}
@@ -260,9 +223,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the ID identifying the task to be killed
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request or receiving the response
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 * @return the result of the kill attempt
 	 */
-	public synchronized TaskKillResult killTask(final ExecutionVertexID id) throws IOException {
+	public synchronized TaskKillResult killTask(final ExecutionVertexID id) throws IOException, InterruptedException {
 
 		return getTaskManagerProxy().killTask(id);
 	}
@@ -275,8 +240,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the list of vertex IDs which identify the checkpoints to be removed
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException {
+	public synchronized void removeCheckpoints(final List<ExecutionVertexID> listOfVertexIDs) throws IOException,
+			InterruptedException {
 
 		getTaskManagerProxy().removeCheckpoints(listOfVertexIDs);
 	}
@@ -320,8 +288,10 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * 
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void logBufferUtilization() throws IOException {
+	public synchronized void logBufferUtilization() throws IOException, InterruptedException {
 
 		getTaskManagerProxy().logBufferUtilization();
 	}
@@ -332,42 +302,12 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * 
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the request
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void killTaskManager() throws IOException {
+	public synchronized void killTaskManager() throws IOException, InterruptedException {
 
 		getTaskManagerProxy().killTaskManager();
-	}
-
-	/**
-	 * Connects to the plugin component of this instance's task manager and sends data to the plugin with the given ID.
-	 * 
-	 * @param pluginID
-	 *        the ID of the plugin to send data to
-	 * @param data
-	 *        the data to send
-	 * @throws IOException
-	 *         thrown if an error occurs while sending the data from the plugin
-	 */
-	public synchronized void sendData(final PluginID pluginID, final IOReadableWritable data) throws IOException {
-
-		getTaskManagerPluginProxy().sendData(pluginID, data);
-	}
-
-	/**
-	 * Connects to the plugin component of this instance's task manager and requests data from the plugin with the given
-	 * ID.
-	 * 
-	 * @param pluginID
-	 *        the ID of the plugin to request data from
-	 * @param data
-	 *        data to specify the request
-	 * @return the requested data, possibly <code>null</code>
-	 * @throws IOException
-	 *         thrown if an error occurs while requesting the data from the plugin
-	 */
-	public synchronized IOReadableWritable requestData(PluginID pluginID, IOReadableWritable data) throws IOException {
-
-		return getTaskManagerPluginProxy().requestData(pluginID, data);
 	}
 
 	/**
@@ -377,19 +317,12 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *        the channel IDs identifying the cache entries to invalidate
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
+	 * @throws InterruptedException
+	 *         thrown if the caller is interrupted while waiting for the response of the remote procedure call
 	 */
-	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
+	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException,
+			InterruptedException {
 
 		getTaskManagerProxy().invalidateLookupCacheEntries(channelIDs);
-	}
-
-	/**
-	 * Destroys all RPC stub objects attached to this instance.
-	 */
-	public synchronized void destroyProxies() {
-
-		destroyTaskManagerProxy();
-		destroyTaskManagerPluginProxy();
-
 	}
 }

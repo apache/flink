@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -24,16 +24,16 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.IOReadableWritable;
+import eu.stratosphere.nephele.types.Record;
 
 /**
- * Creates deep copies of {@link IOReadableWritable} objects.
+ * Creates deep copies of {@link Record} objects.
  * Objects are serialized into a byte array and later deserialized from there.
  * 
  * @author Fabian Hueske (fabian.hueske@tu-berlin.de)
  * @param <T>
  */
-public class SerializationCopier<T extends IOReadableWritable> {
+public class SerializationCopier<T extends Record> {
 
 	private byte[] serializedCopy;
 

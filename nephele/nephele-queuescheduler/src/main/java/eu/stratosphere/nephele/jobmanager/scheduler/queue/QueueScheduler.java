@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -139,7 +139,7 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 		while (it2.hasNext()) {
 
 			final ExecutionVertex vertex = it2.next();
-			vertex.registerExecutionListener(new QueueExecutionListener(this, vertex));
+			vertex.registerExecutionStateListener(new QueueExecutionStateListener(this, vertex));
 		}
 
 		// Register the scheduler as an execution stage listener
@@ -207,23 +207,5 @@ public class QueueScheduler extends AbstractScheduler implements JobStatusListen
 			|| newJobStatus == InternalJobStatus.CANCELED) {
 			removeJobFromSchedule(executionGraph);
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void nextExecutionStageEntered(final JobID jobID, final ExecutionStage executionStage) {
-
-		// Request new instances if necessary
-		try {
-			requestInstances(executionStage);
-		} catch (InstanceException e) {
-			// TODO: Handle error correctly
-			LOG.error(StringUtils.stringifyException(e));
-		}
-
-		// Deploy the assigned vertices
-		deployAssignedInputVertices(executionStage.getExecutionGraph());
 	}
 }

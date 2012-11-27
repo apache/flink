@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -26,7 +26,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializerFactory;
+import eu.stratosphere.nephele.io.RecordFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -35,6 +35,7 @@ import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.Record;
 
 final class CheckpointEnvironment implements Environment {
+
 	private final ExecutionVertexID vertexID;
 
 	private final Environment environment;
@@ -176,24 +177,6 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public GateID getNextUnboundInputGateID() {
-
-		throw new IllegalStateException("Checkpoint replay task called getNextUnboundInputGateID");
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public GateID getNextUnboundOutputGateID() {
-
-		throw new IllegalStateException("Checkpoint replay task called getNextUnboundOutputGateID");
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public int getNumberOfOutputGates() {
 
 		return this.environment.getNumberOfOutputGates();
@@ -230,8 +213,8 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(final GateID gateID,
-			final Class<T> outputClass, final ChannelSelector<T> selector, final boolean isBroadcast) {
+	public <T extends Record> OutputGate<T> createAndRegisterOutputGate(final ChannelSelector<T> selector,
+			final boolean isBroadcast) {
 
 		throw new IllegalStateException("Checkpoint replay task called createOutputGate");
 	}
@@ -240,28 +223,9 @@ final class CheckpointEnvironment implements Environment {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(final GateID gateID,
-			final RecordDeserializerFactory<T> deserializer) {
+	public <T extends Record> InputGate<T> createAndRegisterInputGate(final RecordFactory<T> recordFactory) {
 
 		throw new IllegalStateException("Checkpoint replay task called createInputGate");
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
-
-		throw new IllegalStateException("Checkpoint replay task called registerOutputGate");
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputGate(final InputGate<? extends Record> inputGate) {
-
-		throw new IllegalStateException("Checkpoint replay task called registerInputGate");
 	}
 
 	/**

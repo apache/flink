@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -57,17 +57,17 @@ public abstract class FileSystem {
 	 * 
 	 * @author warneke
 	 */
-	public static class FSKey {
+	public static final class FSKey {
 
 		/**
 		 * The scheme of the file system.
 		 */
-		private String scheme;
+		private final String scheme;
 
 		/**
 		 * The authority of the file system.
 		 */
-		private String authority;
+		private final String authority;
 
 		/**
 		 * Creates a file system key from a given scheme and an

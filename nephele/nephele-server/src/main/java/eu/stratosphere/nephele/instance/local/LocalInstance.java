@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,14 +19,16 @@ import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
 public class LocalInstance extends AbstractInstance {
 
-	public LocalInstance(InstanceType instanceType, InstanceConnectionInfo instanceConnectionInfo,
-			NetworkNode parentNode, NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
-		super(instanceType, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
+	public LocalInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
+			final RPCService rpcService, final NetworkNode parentNode, final NetworkTopology networkTopology,
+			final HardwareDescription hardwareDescription) {
+		super(instanceType, instanceConnectionInfo, rpcService, parentNode, networkTopology, hardwareDescription);
 	}
 
 	/**

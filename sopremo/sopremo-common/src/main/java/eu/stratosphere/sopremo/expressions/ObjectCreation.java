@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 
 import eu.stratosphere.sopremo.AbstractSopremoType;
 import eu.stratosphere.sopremo.EvaluationContext;
 import eu.stratosphere.sopremo.EvaluationException;
 import eu.stratosphere.sopremo.ISerializableSopremoType;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
 import eu.stratosphere.sopremo.pact.SopremoUtil;
 import eu.stratosphere.sopremo.type.IArrayNode;
 import eu.stratosphere.sopremo.type.IJsonNode;
@@ -19,7 +21,7 @@ import eu.stratosphere.sopremo.type.ObjectNode;
  * Creates an object with the given {@link Mapping}s.
  */
 @OptimizerHints(scope = Scope.ANY)
-public class ObjectCreation extends EvaluationExpression {
+public class ObjectCreation extends EvaluationExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -79,8 +81,11 @@ public class ObjectCreation extends EvaluationExpression {
 	 * @param mapping
 	 *        the new mapping
 	 */
-	public void addMapping(final Mapping<?> mapping) {
+	public ObjectCreation addMapping(final Mapping<?> mapping) {
+		if (mapping == null)
+			throw new NullPointerException();
 		this.mappings.add(mapping);
+		return this;
 	}
 
 	/**
@@ -91,8 +96,11 @@ public class ObjectCreation extends EvaluationExpression {
 	 * @param expression
 	 *        the expression that should be used for the created FieldAssignemt
 	 */
-	public void addMapping(final String target, final EvaluationExpression expression) {
+	public ObjectCreation addMapping(final String target, final EvaluationExpression expression) {
+		if (target == null || expression == null)
+			throw new NullPointerException();
 		this.mappings.add(new FieldAssignment(target, expression));
+		return this;
 	}
 
 	/**
@@ -103,8 +111,11 @@ public class ObjectCreation extends EvaluationExpression {
 	 * @param expression
 	 *        the expression that should be used for the created FieldAssignemt
 	 */
-	public void addMapping(final EvaluationExpression target, final EvaluationExpression expression) {
+	public ObjectCreation addMapping(final EvaluationExpression target, final EvaluationExpression expression) {
+		if (target == null || expression == null)
+			throw new NullPointerException();
 		this.mappings.add(new ExpressionAssignment(target, expression));
+		return this;
 	}
 
 	@Override
@@ -123,33 +134,26 @@ public class ObjectCreation extends EvaluationExpression {
 		return targetObject;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.expressions.EvaluationExpression#clone()
 	 */
 	@Override
 	public ObjectCreation clone() {
 		final ObjectCreation clone = (ObjectCreation) super.clone();
 		clone.mappings = new ArrayList<ObjectCreation.Mapping<?>>(this.mappings.size());
-		for (Mapping<?> mapping : this.mappings) 
+		for (Mapping<?> mapping : this.mappings)
 			clone.mappings.add(mapping.clone());
 		return clone;
 	}
-	
+
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.ContainerExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
 	@Override
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		for (final Mapping mapping : this.mappings) {
-			mapping.expression = mapping.expression.transformRecursively(function);
-			if (mapping.target instanceof EvaluationExpression)
-				mapping.target = ((EvaluationExpression) mapping.target).transformRecursively(function);
-		}
-		return function.call(this);
+	public ChildIterator iterator() {
+		return new MappingIterator();
 	}
 
 	/**
@@ -200,6 +204,133 @@ public class ObjectCreation extends EvaluationExpression {
 				builder.append(", ");
 		}
 		builder.append("}");
+	}
+
+	/**
+	 * @author Arvid Heise
+	 */
+	private final class MappingIterator implements ChildIterator {
+		private boolean lastReturnedWasKey = false;
+
+		private ListIterator<Mapping<?>> iterator = ObjectCreation.this.mappings.listIterator();
+
+		private Mapping<?> lastMapping;
+
+		private int index = 0;
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.util.ListIterator#hasNext()
+		 */
+		@Override
+		public boolean hasNext() {
+			return this.lastReturnedWasKey || this.iterator.hasNext();
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.util.ListIterator#next()
+		 */
+		@Override
+		public EvaluationExpression next() {
+			this.index++;
+			if (this.lastReturnedWasKey)
+				return this.lastMapping.expression;
+			this.lastMapping = this.iterator.next();
+			if (this.lastReturnedWasKey = (this.lastMapping.target instanceof EvaluationExpression))
+				return (EvaluationExpression) this.lastMapping.target;
+			return this.lastMapping.expression;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.util.ListIterator#hasPrevious()
+		 */
+		@Override
+		public boolean hasPrevious() {
+			return this.iterator.hasPrevious() ||
+				(!this.lastReturnedWasKey && this.lastMapping.target instanceof EvaluationExpression);
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.util.ListIterator#previous()
+		 */
+		@Override
+		public EvaluationExpression previous() {
+			this.index--;
+			if (!this.lastReturnedWasKey &&
+				(this.lastReturnedWasKey = this.lastMapping.target instanceof EvaluationExpression))
+				return (EvaluationExpression) this.lastMapping.target;
+			return this.lastMapping.expression;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.util.ListIterator#nextIndex()
+		 */
+		@Override
+		public int nextIndex() {
+			return this.index;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.util.ListIterator#previousIndex()
+		 */
+		@Override
+		public int previousIndex() {
+			return this.index;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.util.ListIterator#remove()
+		 */
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.util.ListIterator#set(java.lang.Object)
+		 */
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		@Override
+		public void set(EvaluationExpression e) {
+			if (this.lastReturnedWasKey)
+				((Mapping) this.lastMapping).target = e;
+			else
+				this.lastMapping.expression = e;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see java.util.ListIterator#add(java.lang.Object)
+		 */
+		@Override
+		public void add(EvaluationExpression e) {
+			throw new UnsupportedOperationException();
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.expressions.tree.ChildIterator#isNamed()
+		 */
+		@Override
+		public boolean canChildrenBeRemoved() {
+			return false;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see eu.stratosphere.sopremo.expressions.tree.ChildIterator#getChildName()
+		 */
+		@Override
+		public String getChildName() {
+			return null;
+		}
 	}
 
 	/**
@@ -293,7 +424,8 @@ public class ObjectCreation extends EvaluationExpression {
 			super(target, expression);
 		}
 
-		/* (non-Javadoc)
+		/*
+		 * (non-Javadoc)
 		 * @see eu.stratosphere.sopremo.expressions.ObjectCreation.Mapping#clone()
 		 */
 		@Override
@@ -302,7 +434,7 @@ public class ObjectCreation extends EvaluationExpression {
 			clone.target = clone.target.clone();
 			return clone;
 		}
-		
+
 		private IJsonNode lastResult;
 
 		@Override
@@ -312,7 +444,8 @@ public class ObjectCreation extends EvaluationExpression {
 		}
 	}
 
-	public abstract static class Mapping<Target> extends AbstractSopremoType implements ISerializableSopremoType, Cloneable {
+	public abstract static class Mapping<Target> extends AbstractSopremoType implements ISerializableSopremoType,
+			Cloneable {
 		/**
 		 * 
 		 */
@@ -347,8 +480,9 @@ public class ObjectCreation extends EvaluationExpression {
 
 			this.expression = expression;
 		}
-		
-		/* (non-Javadoc)
+
+		/*
+		 * (non-Javadoc)
 		 * @see java.lang.Object#clone()
 		 */
 		@SuppressWarnings("unchecked")

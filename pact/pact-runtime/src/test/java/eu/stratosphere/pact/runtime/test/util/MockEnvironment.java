@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -25,12 +25,13 @@ import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.GateID;
 import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.MutableRecordDeserializerFactory;
 import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializerFactory;
+import eu.stratosphere.nephele.io.RecordFactory;
 import eu.stratosphere.nephele.io.RuntimeInputGate;
 import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.io.compression.CompressionLevel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -56,7 +57,7 @@ public class MockEnvironment implements Environment
 
 	private final List<RuntimeOutputGate<PactRecord>> outputs;
 
-	private final JobID jobID = new JobID();
+	private final JobID jobID = JobID.generate();
 
 	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider)
 {
@@ -118,7 +119,7 @@ public class MockEnvironment implements Environment
 		private MutableObjectIterator<PactRecord> it;
 
 		public MockInputGate(int id, MutableObjectIterator<PactRecord> it) {
-			super(new JobID(), new GateID(), MutableRecordDeserializerFactory.<PactRecord>get(), id);
+			super(JobID.generate(), GateID.generate(), id, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, null);
 			this.it = it;
 		}
 
@@ -138,7 +139,7 @@ public class MockEnvironment implements Environment
 		private List<PactRecord> out;
 
 		public MockOutputGate(int index, List<PactRecord> outList) {
-			super(new JobID(), new GateID(), PactRecord.class, index, null, false);
+			super(JobID.generate(), GateID.generate(), index, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, null, false, null);
 			this.out = outList;
 		}
 
@@ -208,22 +209,6 @@ public class MockEnvironment implements Environment
 	 * {@inheritDoc}
 	 */
 	@Override
-	public GateID getNextUnboundInputGateID() {
-		return null;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public GateID getNextUnboundOutputGateID() {
-		return null;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	public int getNumberOfOutputGates() {
 		return this.outputs.size();
 	}
@@ -234,22 +219,6 @@ public class MockEnvironment implements Environment
 	@Override
 	public int getNumberOfInputGates() {
 		return this.inputs.size();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerOutputGate(final OutputGate<? extends Record> outputGate) {
-		// Nothing to do here
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void registerInputGate(final InputGate<? extends Record> inputGate) {
-		// Nothing to do here
 	}
 
 	/**
@@ -305,8 +274,7 @@ public class MockEnvironment implements Environment
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends Record> OutputGate<T> createOutputGate(GateID gateID, Class<T> outputClass,
-			ChannelSelector<T> selector, boolean isBroadcast)
+	public <T extends Record> OutputGate<T> createAndRegisterOutputGate(ChannelSelector<T> selector, boolean isBroadcast)
 	{
 		return (OutputGate<T>) this.outputs.remove(0);
 	}
@@ -316,8 +284,7 @@ public class MockEnvironment implements Environment
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends Record> InputGate<T> createInputGate(GateID gateID,
-			RecordDeserializerFactory<T> deserializerFactory)
+	public <T extends Record> InputGate<T> createAndRegisterInputGate(RecordFactory<T> recordFactory)
 	{
 		return (InputGate<T>) this.inputs.remove(0);
 	}

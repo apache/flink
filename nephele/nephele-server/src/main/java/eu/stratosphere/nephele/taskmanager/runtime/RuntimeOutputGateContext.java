@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -21,32 +21,31 @@ import eu.stratosphere.nephele.checkpointing.EphemeralCheckpoint;
 import eu.stratosphere.nephele.checkpointing.EphemeralCheckpointForwarder;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedOutputChannel;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.CompressionLoader;
 import eu.stratosphere.nephele.io.compression.Compressor;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.AbstractOutputChannelForwarder;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputChannelForwardingChain;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.AbstractOutputChannelForwarder;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.OutputChannelForwardingChain;
+import eu.stratosphere.nephele.taskmanager.routing.OutputGateContext;
 import eu.stratosphere.nephele.types.Record;
 
 final class RuntimeOutputGateContext implements BufferProvider, OutputGateContext {
 
 	private final RuntimeTaskContext taskContext;
 
-	private final OutputGate<? extends Record> outputGate;
+	private final RuntimeOutputGate<? extends Record> outputGate;
 
 	private Compressor compressor = null;
 
-	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final OutputGate<? extends Record> outputGate) {
+	RuntimeOutputGateContext(final RuntimeTaskContext taskContext, final RuntimeOutputGate<? extends Record> outputGate) {
 
 		this.taskContext = taskContext;
 		this.outputGate = outputGate;
@@ -147,13 +146,13 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 			throw new IllegalArgumentException("Cannot find output channel with ID " + channelID);
 		}
 
-		if (!(channel instanceof AbstractByteBufferedOutputChannel)) {
+		if (!(channel instanceof AbstractOutputChannel)) {
 			throw new IllegalStateException("Channel with ID" + channelID
 				+ " is not of type AbstractByteBufferedOutputChannel");
 		}
 
 		// The output channel for this context
-		final AbstractByteBufferedOutputChannel<? extends Record> outputChannel = (AbstractByteBufferedOutputChannel<? extends Record>) channel;
+		final AbstractOutputChannel<? extends Record> outputChannel = (AbstractOutputChannel<? extends Record>) channel;
 
 		// Construct the forwarding chain
 		RuntimeOutputChannelBroker outputChannelBroker;
@@ -174,7 +173,7 @@ final class RuntimeOutputGateContext implements BufferProvider, OutputGateContex
 
 			// Construction for in-memory and network channels
 			final RuntimeDispatcher runtimeDispatcher = new RuntimeDispatcher(
-				this.taskContext.getTransferEnvelopeDispatcher());
+				this.taskContext.getRoutingService());
 			/*
 			 * final SpillingBarrier spillingBarrier = new SpillingBarrier(isReceiverRunning, mergeSpillBuffers,
 			 * runtimeDispatcher);

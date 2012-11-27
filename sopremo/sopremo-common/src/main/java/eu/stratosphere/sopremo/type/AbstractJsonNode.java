@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import eu.stratosphere.pact.common.type.Key;
+import eu.stratosphere.pact.common.util.ReflectionUtil;
 
 /**
  * Abstract class to provide basic implementations for all node types.
@@ -38,25 +39,17 @@ public abstract class AbstractJsonNode implements IJsonNode {
 		return this;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.IJsonNode#clone()
-	 */
-
 	@Override
-	public IJsonNode clone() {
-		try {
-			return (AbstractJsonNode) super.clone();
-		} catch (final CloneNotSupportedException e) {
-			return null;
-		}
+	public IJsonNode copy() {
+		IJsonNode copy = ReflectionUtil.newInstance(getClass());
+		copy.copyValueFrom(this);
+		return copy;
 	}
 
 	/*
 	 * (non-Javadoc)
 	 * @see eu.stratosphere.sopremo.type.IJsonNode#read(java.io.DataInput)
 	 */
-
 	@Override
 	public abstract void read(DataInput in) throws IOException;
 
@@ -153,12 +146,10 @@ public abstract class AbstractJsonNode implements IJsonNode {
 		return sb.toString();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.sopremo.type.IJsonNode#toString(java.lang.StringBuilder)
-	 */
 	@Override
-	public abstract StringBuilder toString(StringBuilder sb);
+	public void toString(final StringBuilder sb) {
+		sb.append(this.getJavaValue());
+	}
 
 	@Override
 	public int getMaxNormalizedKeyLen() {

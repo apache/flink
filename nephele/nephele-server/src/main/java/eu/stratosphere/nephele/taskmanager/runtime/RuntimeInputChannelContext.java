@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,28 +18,28 @@ package eu.stratosphere.nephele.taskmanager.runtime;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.event.task.EventList;
+import eu.stratosphere.nephele.io.channels.AbstractInputChannel;
 import eu.stratosphere.nephele.io.channels.Buffer;
+import eu.stratosphere.nephele.io.channels.ChannelCloseEvent;
+import eu.stratosphere.nephele.io.channels.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.AbstractByteBufferedInputChannel;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedChannelCloseEvent;
-import eu.stratosphere.nephele.io.channels.bytebuffered.ByteBufferedInputChannelBroker;
 import eu.stratosphere.nephele.io.compression.CompressionException;
 import eu.stratosphere.nephele.io.compression.Decompressor;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.InputChannelContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.ReceiverNotFoundEvent;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.UnexpectedEnvelopeEvent;
+import eu.stratosphere.nephele.taskmanager.routing.InputChannelContext;
+import eu.stratosphere.nephele.taskmanager.routing.ReceiverNotFoundEvent;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
+import eu.stratosphere.nephele.taskmanager.routing.UnexpectedEnvelopeEvent;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
 import eu.stratosphere.nephele.util.StringUtils;
 
 final class RuntimeInputChannelContext implements InputChannelContext, ByteBufferedInputChannelBroker {
@@ -48,9 +48,9 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private final RuntimeInputGateContext inputGateContext;
 
-	private final AbstractByteBufferedInputChannel<?> byteBufferedInputChannel;
+	private final AbstractInputChannel<?> inputChannel;
 
-	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private final RoutingService routingService;
 
 	private final Queue<TransferEnvelope> queuedEnvelopes = new ArrayDeque<TransferEnvelope>();
 
@@ -62,15 +62,13 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 	private boolean destroyCalled = false;
 
-	RuntimeInputChannelContext(final RuntimeInputGateContext inputGateContext,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher,
-			final AbstractByteBufferedInputChannel<?> byteBufferedInputChannel,
-			final EnvelopeConsumptionLog envelopeConsumptionLog) {
+	RuntimeInputChannelContext(final RuntimeInputGateContext inputGateContext, final RoutingService routingService,
+			final AbstractInputChannel<?> inputChannel, final EnvelopeConsumptionLog envelopeConsumptionLog) {
 
 		this.inputGateContext = inputGateContext;
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
-		this.byteBufferedInputChannel = byteBufferedInputChannel;
-		this.byteBufferedInputChannel.setInputChannelBroker(this);
+		this.routingService = routingService;
+		this.inputChannel = inputChannel;
+		this.inputChannel.setInputChannelBroker(this);
 		this.envelopeConsumptionLog = envelopeConsumptionLog;
 		this.isReexecuted = (envelopeConsumptionLog.getNumberOfInitialLogEntries() > 0L);
 	}
@@ -101,18 +99,18 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		if (transferEnvelope.getBuffer() == null) {
 
 			// No buffers necessary
-			final EventList eventList = transferEnvelope.getEventList();
+			final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 			if (eventList != null) {
 				if (!eventList.isEmpty()) {
 					final Iterator<AbstractEvent> it = eventList.iterator();
 					while (it.hasNext()) {
-						this.byteBufferedInputChannel.processEvent(it.next());
+						this.inputChannel.processEvent(it.next());
 					}
 				}
 			}
 
 			// Notify the channel that an envelope has been consumed
-			this.envelopeConsumptionLog.reportEnvelopeConsumed(this.byteBufferedInputChannel);
+			this.envelopeConsumptionLog.reportEnvelopeConsumed(this.inputChannel);
 
 			return null;
 		}
@@ -140,18 +138,18 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		}
 
 		// Process events
-		final EventList eventList = transferEnvelope.getEventList();
+		final List<AbstractEvent> eventList = transferEnvelope.getEventList();
 		if (eventList != null) {
 			if (!eventList.isEmpty()) {
 				final Iterator<AbstractEvent> it = eventList.iterator();
 				while (it.hasNext()) {
-					this.byteBufferedInputChannel.processEvent(it.next());
+					this.inputChannel.processEvent(it.next());
 				}
 			}
 		}
 
 		// Notify the channel that an envelope has been consumed
-		this.envelopeConsumptionLog.reportEnvelopeConsumed(this.byteBufferedInputChannel);
+		this.envelopeConsumptionLog.reportEnvelopeConsumed(this.inputChannel);
 
 		if (buffer.remaining() > 0) {
 			LOG.warn("ConsumedReadBuffer has " + buffer.remaining() + " unconsumed bytes left (early end of reading?).");
@@ -170,7 +168,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 		final TransferEnvelope ephemeralTransferEnvelope = new TransferEnvelope(0, getJobID(), getChannelID());
 
 		ephemeralTransferEnvelope.addEvent(event);
-		this.transferEnvelopeDispatcher.processEnvelopeFromInputChannel(ephemeralTransferEnvelope);
+		this.routingService.routeEnvelopeFromInputChannel(ephemeralTransferEnvelope);
 	}
 
 	/**
@@ -212,9 +210,9 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 					if (!this.isReexecuted) {
 
 						// This is a problem, now we are actually missing some data
-						this.byteBufferedInputChannel.reportIOException(new IOException("Expected data packet "
+						this.inputChannel.reportIOException(new IOException("Expected data packet "
 							+ expectedSequenceNumber + " but received " + sequenceNumber));
-						this.byteBufferedInputChannel.checkForNetworkEvents();
+						this.inputChannel.checkForNetworkEvents();
 					}
 
 				} else {
@@ -245,7 +243,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 				this.lastReceivedEnvelope = sequenceNumber;
 
 				// Notify the channel about the new data
-				this.envelopeConsumptionLog.reportEnvelopeAvailability(this.byteBufferedInputChannel);
+				this.envelopeConsumptionLog.reportEnvelopeAvailability(this.inputChannel);
 			}
 		}
 
@@ -259,16 +257,16 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	}
 
 	/**
-	 * Looks for a {@link ByteBufferedChannelCloseEvent} in the given envelope returns it if it is found.
+	 * Looks for a {@link ChannelCloseEvent} in the given envelope returns it if it is found.
 	 * 
 	 * @param envelope
 	 *        the envelope to be inspected
-	 * @return the found {@link ByteBufferedChannelCloseEvent} or <code>null</code> if no such event was stored inside
+	 * @return the found {@link ChannelCloseEvent} or <code>null</code> if no such event was stored inside
 	 *         the given envelope
 	 */
 	private AbstractEvent lookForCloseEvent(final TransferEnvelope envelope) {
 
-		final EventList eventList = envelope.getEventList();
+		final List<AbstractEvent> eventList = envelope.getEventList();
 		if (eventList == null) {
 			return null;
 		}
@@ -278,7 +276,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 			final AbstractEvent event = it.next();
 
-			if (event instanceof ByteBufferedChannelCloseEvent) {
+			if (event instanceof ChannelCloseEvent) {
 				return event;
 			}
 		}
@@ -289,25 +287,25 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	@Override
 	public ChannelID getChannelID() {
 
-		return this.byteBufferedInputChannel.getID();
+		return this.inputChannel.getID();
 	}
 
 	@Override
 	public ChannelID getConnectedChannelID() {
 
-		return this.byteBufferedInputChannel.getConnectedChannelID();
+		return this.inputChannel.getConnectedChannelID();
 	}
 
 	@Override
 	public JobID getJobID() {
 
-		return this.byteBufferedInputChannel.getJobID();
+		return this.inputChannel.getJobID();
 	}
 
 	@Override
 	public boolean isInputChannel() {
 
-		return this.byteBufferedInputChannel.isInputChannel();
+		return this.inputChannel.isInputChannel();
 	}
 
 	/**
@@ -421,7 +419,7 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 	@Override
 	public ChannelType getType() {
 
-		return this.byteBufferedInputChannel.getType();
+		return this.inputChannel.getType();
 	}
 
 	/**
@@ -435,10 +433,10 @@ final class RuntimeInputChannelContext implements InputChannelContext, ByteBuffe
 
 		sb.append(' ');
 		sb.append('(');
-		sb.append(this.byteBufferedInputChannel.getChannelIndex());
+		sb.append(this.inputChannel.getChannelIndex());
 		sb.append(',');
 		sb.append(' ');
-		sb.append(this.byteBufferedInputChannel.getID());
+		sb.append(this.inputChannel.getID());
 		sb.append(')');
 
 		return sb.toString();

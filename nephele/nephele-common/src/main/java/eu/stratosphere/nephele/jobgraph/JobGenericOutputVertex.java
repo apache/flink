@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,15 +15,9 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.IllegalConfigurationException;
-import eu.stratosphere.nephele.types.StringRecord;
 import eu.stratosphere.nephele.util.StringUtils;
 
 /**
@@ -36,12 +30,6 @@ import eu.stratosphere.nephele.util.StringUtils;
 public class JobGenericOutputVertex extends JobOutputVertex {
 
 	/**
-	 * The class of the output task.
-	 */
-	protected Class<? extends AbstractOutputTask> outputClass = null;
-
-
-	/**
 	 * Creates a new job file output vertex with the specified name.
 	 * 
 	 * @param name
@@ -51,7 +39,7 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobGenericOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public JobGenericOutputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
 		super(name, id, jobGraph);
 	}
 
@@ -63,7 +51,7 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobGenericOutputVertex(String name, JobGraph jobGraph) {
+	public JobGenericOutputVertex(final String name, final JobGraph jobGraph) {
 		super(name, null, jobGraph);
 	}
 
@@ -73,95 +61,34 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobGenericOutputVertex(JobGraph jobGraph) {
+	public JobGenericOutputVertex(final JobGraph jobGraph) {
 		super(null, null, jobGraph);
 	}
 
 	/**
 	 * Sets the class of the vertex's output task.
 	 * 
-	 * @param outputClass The class of the vertex's output task.
+	 * @param outputClass
+	 *        The class of the vertex's output task.
 	 */
-	public void setOutputClass(Class<? extends AbstractOutputTask> outputClass) {
-		this.outputClass = outputClass;
-	}
-
-	/**
-	 * Returns the class of the vertex's output task.
-	 * 
-	 * @return The class of the vertex's output task or <code>null</code> if no task has yet been set.
-	 */
-	public Class<? extends AbstractOutputTask> getOutputClass() {
-		return this.outputClass;
+	public void setOutputClass(final Class<? extends AbstractOutputTask> outputClass) {
+		this.invokableClassName = outputClass.getName();
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void read(DataInput in) throws IOException {
-		super.read(in);
-
-		// Read class
-		boolean isNotNull = in.readBoolean();
-		if (isNotNull) {
-
-			// Read the name of the class and try to instantiate the class object
-			final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
-			if (cl == null) {
-				throw new IOException("Cannot find class loader for vertex " + getID());
-			}
-
-			// Read the name of the expected class
-			final String className = StringRecord.readString(in);
-
-			try {
-				this.outputClass = Class.forName(className, true, cl).asSubclass(AbstractOutputTask.class);
-			}
-			catch (ClassNotFoundException cnfe) {
-				throw new IOException("Class " + className + " not found in one of the supplied jar files: "
-					+ StringUtils.stringifyException(cnfe));
-			}
-			catch (ClassCastException ccex) {
-				throw new IOException("Class " + className + " is not a subclass of "
-					+ AbstractOutputTask.class.getName() + ": " + StringUtils.stringifyException(ccex));
-			}
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(DataOutput out) throws IOException {
-		super.write(out);
-
-		// Write out the name of the class
-		if (this.outputClass == null) {
-			out.writeBoolean(false);
-		}
-		else {
-			out.writeBoolean(true);
-			StringRecord.writeString(out, this.outputClass.getName());
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void checkConfiguration(AbstractInvokable invokable) throws IllegalConfigurationException
+	public void checkConfiguration(final AbstractInvokable invokable) throws IllegalConfigurationException
 	{
 		// see if the task itself has a valid configuration
 		// because this is user code running on the master, we embed it in a catch-all block
 		try {
 			invokable.checkConfiguration();
-		}
-		catch (IllegalConfigurationException icex) {
+		} catch (IllegalConfigurationException icex) {
 			throw icex; // simply forward
-		}
-		catch (Throwable t) {
-			throw new IllegalConfigurationException("Checking the invokable's configuration caused an error: " 
+		} catch (Throwable t) {
+			throw new IllegalConfigurationException("Checking the invokable's configuration caused an error: "
 				+ StringUtils.stringifyException(t));
 		}
 	}
@@ -170,16 +97,7 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public Class<? extends AbstractInvokable> getInvokableClass() {
-
-		return this.outputClass;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getMaximumNumberOfSubtasks(AbstractInvokable invokable)
+	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable)
 	{
 		// Delegate call to invokable
 		return invokable.getMaximumNumberOfSubtasks();
@@ -189,7 +107,7 @@ public class JobGenericOutputVertex extends JobOutputVertex {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getMinimumNumberOfSubtasks(AbstractInvokable invokable)
+	public int getMinimumNumberOfSubtasks(final AbstractInvokable invokable)
 	{
 		// Delegate call to invokable
 		return invokable.getMinimumNumberOfSubtasks();

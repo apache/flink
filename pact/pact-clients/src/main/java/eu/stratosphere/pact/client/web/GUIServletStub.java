@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -145,7 +145,6 @@ public abstract class GUIServletStub extends HttpServlet {
 			.println("    <h1><img src=\"img/StratosphereLogo.png\" width=\"326\" height=\"100\" alt=\"Stratosphere Logo\" align=\"middle\"/>Nephele and PACTs Query Interface</h1>");
 		writer.println("  </div>");
 
-		@SuppressWarnings("unchecked")
 		Map<String, String[]> m = (Map<String, String[]>) req.getParameterMap();
 
 		// let the content be printed by the child class

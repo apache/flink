@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -78,8 +78,8 @@ public class HostInClusterTest {
 			memorySize * 1024L * 1024L, memorySize * 1024L * 1024L);
 
 		final NetworkTopology topology = NetworkTopology.createEmptyTopology();
-		ClusterInstance host = new ClusterInstance(instanceConnectionInfo, capacity, topology.getRootNode(), topology,
-			hardwareDescription);
+		ClusterInstance host = new ClusterInstance(instanceConnectionInfo, null, capacity, topology.getRootNode(),
+			topology, hardwareDescription);
 
 		return host;
 	}
@@ -113,7 +113,7 @@ public class HostInClusterTest {
 	public void testAccounting() {
 		// check whether the accounting of capacity works correctly
 		final ClusterInstance host = createTestClusterInstance();
-		final JobID jobID = new JobID();
+		final JobID jobID = JobID.generate();
 		final int numComputeUnits = 8 / 8;
 		final int numCores = 8 / 8;
 		final int memorySize = 32 * 1024 / 8;
@@ -148,10 +148,10 @@ public class HostInClusterTest {
 	 */
 	@Test
 	public void testTermination() {
-		
+
 		// check whether the accounting of capacity works correctly if terminateAllInstances is called
 		final ClusterInstance host = createTestClusterInstance();
-		final JobID jobID = new JobID();
+		final JobID jobID = JobID.generate();
 		final int numComputeUnits = 8 / 8;
 		final int numCores = 8 / 8;
 		final int memorySize = 32 * 1024 / 8;
@@ -177,19 +177,19 @@ public class HostInClusterTest {
 			List<AllocatedSlice> removedSlices = host.removeAllAllocatedSlices();
 
 			final Set<AllocatedSlice> slicesSet = new HashSet<AllocatedSlice>();
-			for(int i = 0; i < slices.length; ++i) {
+			for (int i = 0; i < slices.length; ++i) {
 				slicesSet.add(slices[i]);
 			}
-			
+
 			final Set<AllocatedSlice> removedSlicesSet = new HashSet<AllocatedSlice>(removedSlices);
-			
-			//Check if both sets are equal
+
+			// Check if both sets are equal
 			assertEquals(slicesSet.size(), removedSlices.size());
 			final Iterator<AllocatedSlice> it = slicesSet.iterator();
-			while(it.hasNext()) {
+			while (it.hasNext()) {
 				assertTrue(removedSlicesSet.remove(it.next()));
 			}
-			
+
 			assertEquals(0, removedSlicesSet.size());
 		}
 	}

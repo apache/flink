@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,18 +15,11 @@
 
 package eu.stratosphere.nephele.deployment;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.io.compression.CompressionLevel;
-import eu.stratosphere.nephele.util.EnumUtils;
 
 /**
  * A gate deployment descriptor contains all the information necessary to deploy either an input or an output gate as
@@ -36,7 +29,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
  * 
  * @author warneke
  */
-public final class GateDeploymentDescriptor implements IOReadableWritable {
+public final class GateDeploymentDescriptor {
 
 	/**
 	 * The ID of the gate.
@@ -46,12 +39,17 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	/**
 	 * The channel type of the gate.
 	 */
-	private ChannelType channelType;
+	private final ChannelType channelType;
 
 	/**
 	 * The compression level of the gate.
 	 */
-	private CompressionLevel compressionLevel;
+	private final CompressionLevel compressionLevel;
+
+	/**
+	 * Stores whether the channels connected to this gate shall allow spanning records at runtime.
+	 */
+	private boolean allowSpanningRecords;
 
 	/**
 	 * The list of channel deployment descriptors attached to this gate.
@@ -67,11 +65,15 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	 *        the channel type of the gate
 	 * @param compressionLevel
 	 *        the compression level of the gate
+	 * @param allowSpanningRecords
+	 *        <code>true</code> to indicate that the channels connected to this gate shall allow spanning records at
+	 *        runtime, <code>false</code> otherwise
 	 * @param channels
 	 *        the list of channel deployment descriptors attached to this gate
 	 */
 	public GateDeploymentDescriptor(final GateID gateID, final ChannelType channelType,
-			final CompressionLevel compressionLevel, List<ChannelDeploymentDescriptor> channels) {
+			final CompressionLevel compressionLevel, final boolean allowSpanningRecords,
+			List<ChannelDeploymentDescriptor> channels) {
 
 		if (gateID == null) {
 			throw new IllegalArgumentException("Argument gateID must no be null");
@@ -92,51 +94,20 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 		this.gateID = gateID;
 		this.channelType = channelType;
 		this.compressionLevel = compressionLevel;
+		this.allowSpanningRecords = allowSpanningRecords;
 		this.channels = channels;
 	}
 
 	/**
-	 * Default constructor for serialization/deserialization.
+	 * Default constructor required by kryo.
 	 */
-	public GateDeploymentDescriptor() {
+	@SuppressWarnings("unused")
+	private GateDeploymentDescriptor() {
 
-		this.gateID = new GateID();
+		this.gateID = null;
 		this.channelType = null;
 		this.compressionLevel = null;
-		this.channels = new ArrayList<ChannelDeploymentDescriptor>();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutput out) throws IOException {
-
-		this.gateID.write(out);
-		EnumUtils.writeEnum(out, channelType);
-		EnumUtils.writeEnum(out, this.compressionLevel);
-		out.writeInt(this.channels.size());
-		final Iterator<ChannelDeploymentDescriptor> it = this.channels.iterator();
-		while (it.hasNext()) {
-			it.next().write(out);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInput in) throws IOException {
-
-		this.gateID.read(in);
-		this.channelType = EnumUtils.readEnum(in, ChannelType.class);
-		this.compressionLevel = EnumUtils.readEnum(in, CompressionLevel.class);
-		final int nocdd = in.readInt();
-		for (int i = 0; i < nocdd; ++i) {
-			final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor();
-			cdd.read(in);
-			this.channels.add(cdd);
-		}
+		this.channels = null;
 	}
 
 	/**
@@ -167,6 +138,16 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	public CompressionLevel getCompressionLevel() {
 
 		return this.compressionLevel;
+	}
+
+	/**
+	 * Returns <code>true</code> if the gate shall allow spanning records, <code>false</code> otherwise.
+	 * 
+	 * @return <code>true</code> if the gate shall allow spanning records, <code>false</code> otherwise
+	 */
+	public boolean spanningRecordsAllowed() {
+
+		return this.allowSpanningRecords;
 	}
 
 	/**

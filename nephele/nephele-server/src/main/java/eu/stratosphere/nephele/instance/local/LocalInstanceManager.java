@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,6 +17,7 @@ package eu.stratosphere.nephele.instance.local;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -42,8 +43,8 @@ import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.rpc.RPCService;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.util.SerializableHashMap;
 
 /**
  * The local instance manager is designed to manage instance allocation/deallocation for a single-node setup. It spans a
@@ -71,9 +72,9 @@ public class LocalInstanceManager implements InstanceManager {
 	private static final String LOCALINSTANCE_TYPE_KEY = "instancemanager.local.type";
 
 	/**
-	 * The instance listener registered with this instance manager.
+	 * The RPC service to use when creating the local instance object.
 	 */
-	private InstanceListener instanceListener;
+	private final RPCService rpcService;
 
 	/**
 	 * The default instance type which is either generated from the hardware characteristics of the machine the local
@@ -85,16 +86,6 @@ public class LocalInstanceManager implements InstanceManager {
 	 * A synchronization object to protect critical sections.
 	 */
 	private final Object synchronizationObject = new Object();
-
-	/**
-	 * Stores if the local task manager is currently by a job.
-	 */
-	private AllocatedResource allocatedResource = null;
-
-	/**
-	 * The local instance encapsulating the task manager
-	 */
-	private LocalInstance localInstance = null;
 
 	/**
 	 * The thread running the local task manager.
@@ -112,12 +103,29 @@ public class LocalInstanceManager implements InstanceManager {
 	private final Map<InstanceType, InstanceTypeDescription> instanceTypeDescriptionMap;
 
 	/**
+	 * The instance listener registered with this instance manager.
+	 */
+	private InstanceListener instanceListener;
+
+	/**
+	 * Stores if the local task manager is currently by a job.
+	 */
+	private AllocatedResource allocatedResource = null;
+
+	/**
+	 * The local instance encapsulating the task manager
+	 */
+	private LocalInstance localInstance = null;
+
+	/**
 	 * Constructs a new local instance manager.
 	 * 
 	 * @param configDir
 	 *        the path to the configuration directory
+	 * @param rpcService
+	 *        the RPC service to use when communicating with the local instance
 	 */
-	public LocalInstanceManager(final String configDir) {
+	public LocalInstanceManager(final String configDir, final RPCService rpcService) {
 
 		final Configuration config = GlobalConfiguration.getConfiguration();
 
@@ -132,13 +140,15 @@ public class LocalInstanceManager implements InstanceManager {
 			}
 		}
 
+		this.rpcService = rpcService;
+
 		this.defaultInstanceType = (type != null) ? type : createDefaultInstanceType();
 
 		LOG.info("Default instance type is " + this.defaultInstanceType.getIdentifier());
 
 		this.networkTopology = NetworkTopology.createEmptyTopology();
 
-		this.instanceTypeDescriptionMap = new SerializableHashMap<InstanceType, InstanceTypeDescription>();
+		this.instanceTypeDescriptionMap = new HashMap<InstanceType, InstanceTypeDescription>();
 
 		this.localTaskManagerThread = new LocalTaskManagerThread(configDir);
 		this.localTaskManagerThread.start();
@@ -230,7 +240,7 @@ public class LocalInstanceManager implements InstanceManager {
 		synchronized (this.synchronizationObject) {
 			if (this.localInstance == null) {
 				this.localInstance = new LocalInstance(this.defaultInstanceType,
-					instanceConnectionInfo, this.networkTopology.getRootNode(), this.networkTopology,
+					instanceConnectionInfo, this.rpcService, this.networkTopology.getRootNode(), this.networkTopology,
 					hardwareDescription);
 
 				this.instanceTypeDescriptionMap.put(this.defaultInstanceType,
@@ -264,10 +274,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 		// Destroy local instance
 		synchronized (this.synchronizationObject) {
-			if (this.localInstance != null) {
-				this.localInstance.destroyProxies();
-				this.localInstance = null;
-			}
+			this.localInstance = null;
 		}
 	}
 
@@ -303,7 +310,7 @@ public class LocalInstanceManager implements InstanceManager {
 		int diskCapacityInGB = 0;
 		final String tempDirs[] = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
-		
+
 		for (final String tempDir : tempDirs) {
 			if (tempDir != null) {
 				File f = new File(tempDir);
@@ -348,7 +355,7 @@ public class LocalInstanceManager implements InstanceManager {
 					if (this.localInstance != null) { // Instance is available
 						if (this.allocatedResource == null) { // Instance is not used by another job
 							allocatedResource = new AllocatedResource(this.localInstance, entry.getKey(),
-								new AllocationID());
+								AllocationID.generate());
 							this.allocatedResource = allocatedResource;
 							assignmentSuccessful = true;
 						}

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -70,4 +70,43 @@ public class LocalBlockLocation implements BlockLocation {
 		return 0;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+
+		if (!(obj instanceof LocalBlockLocation)) {
+			return false;
+		}
+
+		final LocalBlockLocation lbl = (LocalBlockLocation) obj;
+
+		if (this.length != lbl.length) {
+			return false;
+		}
+
+		if (this.hosts[0] == null) {
+			if (lbl.hosts[0] != null) {
+				return false;
+			} else {
+				return true;
+			}
+		} else {
+			if (lbl.hosts[0] == null) {
+				return false;
+			} else {
+				return this.hosts[0].equals(lbl.hosts[0]);
+			}
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+
+		return (int) (this.length % Integer.MAX_VALUE);
+	}
 }

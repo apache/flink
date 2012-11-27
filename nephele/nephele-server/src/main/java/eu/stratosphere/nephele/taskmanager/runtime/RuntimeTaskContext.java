@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -25,18 +25,18 @@ import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.executiongraph.CheckpointState;
 import eu.stratosphere.nephele.io.AbstractID;
 import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
+import eu.stratosphere.nephele.io.RuntimeInputGate;
+import eu.stratosphere.nephele.io.RuntimeOutputGate;
 import eu.stratosphere.nephele.io.channels.Buffer;
 import eu.stratosphere.nephele.io.compression.CompressionBufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.AsynchronousEventListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.BufferProvider;
 import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.InputGateContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.OutputGateContext;
-import eu.stratosphere.nephele.taskmanager.bytebuffered.TaskContext;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelopeDispatcher;
+import eu.stratosphere.nephele.taskmanager.routing.InputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.OutputGateContext;
+import eu.stratosphere.nephele.taskmanager.routing.RoutingService;
+import eu.stratosphere.nephele.taskmanager.routing.TaskContext;
 import eu.stratosphere.nephele.types.Record;
 
 public final class RuntimeTaskContext implements BufferProvider, AsynchronousEventListener, TaskContext {
@@ -49,7 +49,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 
 	private final int numberOfOutputChannels;
 
-	private final TransferEnvelopeDispatcher transferEnvelopeDispatcher;
+	private final RoutingService routingService;
 
 	private final EphemeralCheckpoint ephemeralCheckpoint;
 
@@ -58,7 +58,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	private CompressionBufferProvider compressionBufferProvider = null;
 
 	RuntimeTaskContext(final RuntimeTask task, final CheckpointState initialCheckpointState,
-			final TransferEnvelopeDispatcher transferEnvelopeDispatcher) {
+			final RoutingService routingService) {
 
 		this.localBufferPool = new LocalBufferPool(1, false, this);
 		this.task = task;
@@ -68,7 +68,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 		// Compute number of output input channels
 		int nooc = 0;
 		for (int i = 0; i < environment.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> outputGate = environment.getOutputGate(i);
+			final RuntimeOutputGate<? extends Record> outputGate = environment.getOutputGate(i);
 			if (outputGate.isBroadcast()) {
 				++nooc;
 			} else {
@@ -85,13 +85,13 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			this.task.registerCheckpointDecisionRequester(this.ephemeralCheckpoint);
 		}
 
-		this.transferEnvelopeDispatcher = transferEnvelopeDispatcher;
+		this.routingService = routingService;
 		this.envelopeConsumptionLog = new EnvelopeConsumptionLog(task.getVertexID(), environment);
 	}
 
-	TransferEnvelopeDispatcher getTransferEnvelopeDispatcher() {
+	RoutingService getRoutingService() {
 
-		return this.transferEnvelopeDispatcher;
+		return this.routingService;
 	}
 
 	EphemeralCheckpoint getEphemeralCheckpoint() {
@@ -229,7 +229,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int getNumberOfChannels() {
+	public int getMinimumNumberOfRequiredBuffers() {
 
 		return this.numberOfOutputChannels;
 	}
@@ -258,10 +258,10 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			throw new IllegalArgumentException("Argument gateID must not be null");
 		}
 
-		OutputGate<? extends Record> outputGate = null;
+		RuntimeOutputGate<? extends Record> outputGate = null;
 		final RuntimeEnvironment re = this.task.getRuntimeEnvironment();
 		for (int i = 0; i < re.getNumberOfOutputGates(); ++i) {
-			final OutputGate<? extends Record> candidateGate = re.getOutputGate(i);
+			final RuntimeOutputGate<? extends Record> candidateGate = re.getOutputGate(i);
 			if (candidateGate.getGateID().equals(gateID)) {
 				outputGate = candidateGate;
 				break;
@@ -285,10 +285,10 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			throw new IllegalArgumentException("Argument gateID must not be null");
 		}
 
-		InputGate<? extends Record> inputGate = null;
+		RuntimeInputGate<? extends Record> inputGate = null;
 		final RuntimeEnvironment re = this.task.getRuntimeEnvironment();
 		for (int i = 0; i < re.getNumberOfInputGates(); ++i) {
-			final InputGate<? extends Record> candidateGate = re.getInputGate(i);
+			final RuntimeInputGate<? extends Record> candidateGate = re.getInputGate(i);
 			if (candidateGate.getGateID().equals(gateID)) {
 				inputGate = candidateGate;
 				break;
@@ -299,7 +299,7 @@ public final class RuntimeTaskContext implements BufferProvider, AsynchronousEve
 			throw new IllegalStateException("Cannot find input gate with ID " + gateID);
 		}
 
-		return new RuntimeInputGateContext(re.getTaskNameWithIndex(), this.transferEnvelopeDispatcher, inputGate,
+		return new RuntimeInputGateContext(re.getTaskNameWithIndex(), this.routingService, inputGate,
 			this.envelopeConsumptionLog);
 	}
 

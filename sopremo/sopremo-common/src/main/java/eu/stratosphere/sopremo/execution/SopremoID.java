@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -20,20 +20,36 @@ import eu.stratosphere.nephele.io.AbstractID;
  * @author Arvid Heise
  */
 public class SopremoID extends AbstractID {
+	
 	/**
-	 * Initializes SopremoID.
+	 * Default constructor required by kryo.
 	 */
-	public SopremoID() {
-		super();
+	private SopremoID() {
 	}
 
 	/**
-	 * Initializes SopremoID.
+	 * Constructs a new Sopremo ID.
 	 * 
-	 * @param bytes
+	 * @param lowerPart
+	 *        the lower bytes of the ID
+	 * @param upperPart
+	 *        the higher bytes of the ID
 	 */
-	public SopremoID(byte[] bytes) {
-		super(bytes);
+	private SopremoID(final long lowerPart, final long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	/**
+	 * Generates a new statistically unique Sopremo ID.
+	 * 
+	 * @return a new statistically unique Sopremo ID
+	 */
+	public static SopremoID generate() {
+
+		final long lowerPart = AbstractID.generateRandomBytes();
+		final long upperPart = AbstractID.generateRandomBytes();
+
+		return new SopremoID(lowerPart, upperPart);
 	}
 
 }

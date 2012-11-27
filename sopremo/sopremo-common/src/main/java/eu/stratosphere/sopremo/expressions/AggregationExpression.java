@@ -1,15 +1,17 @@
 package eu.stratosphere.sopremo.expressions;
 
 import eu.stratosphere.sopremo.EvaluationContext;
-import eu.stratosphere.sopremo.function.Aggregation;
-import eu.stratosphere.sopremo.type.IArrayNode;
+import eu.stratosphere.sopremo.aggregation.Aggregation;
+import eu.stratosphere.sopremo.expressions.tree.ChildIterator;
+import eu.stratosphere.sopremo.expressions.tree.NamedChildIterator;
 import eu.stratosphere.sopremo.type.IJsonNode;
+import eu.stratosphere.sopremo.type.IStreamArrayNode;
 
 /**
  * Returns an aggregate of the elements of a {@link IArrayNode}.
  * The result is calculated with help of the specified {@link AggregationExpression}.
  */
-public class AggregationExpression extends EvaluationExpression {
+public class AggregationExpression extends EvaluationExpression implements ExpressionParent {
 	/**
 	 * 
 	 */
@@ -49,7 +51,7 @@ public class AggregationExpression extends EvaluationExpression {
 	@Override
 	public IJsonNode evaluate(final IJsonNode nodes, final IJsonNode target, final EvaluationContext context) {
 		this.aggregator = this.function.initialize(this.aggregator);
-		for (final IJsonNode node : (IArrayNode) nodes)
+		for (final IJsonNode node : (IStreamArrayNode) nodes)
 			this.aggregator =
 				this.function.aggregate(this.preprocessing.evaluate(node, context), this.aggregator, context);
 		return this.function.getFinalAggregate(this.aggregator, target);
@@ -57,15 +59,21 @@ public class AggregationExpression extends EvaluationExpression {
 
 	/*
 	 * (non-Javadoc)
-	 * @see
-	 * eu.stratosphere.sopremo.expressions.EvaluationExpression#transformRecursively(eu.stratosphere.sopremo.expressions
-	 * .TransformFunction)
+	 * @see eu.stratosphere.sopremo.expressions.ExpressionParent#iterator()
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
-	public EvaluationExpression transformRecursively(final TransformFunction function) {
-		this.preprocessing = (CachingExpression<IJsonNode>) this.preprocessing.transformRecursively(function);
-		return function.call(this);
+	public ChildIterator iterator() {
+		return new NamedChildIterator("preprocessing") {
+			@Override
+			protected void set(int index, EvaluationExpression childExpression) {
+				AggregationExpression.this.preprocessing.innerExpression = childExpression;
+			}
+
+			@Override
+			protected EvaluationExpression get(int index) {
+				return AggregationExpression.this.preprocessing.innerExpression;
+			}
+		};
 	}
 
 	/**
@@ -105,11 +113,11 @@ public class AggregationExpression extends EvaluationExpression {
 
 	@Override
 	public void toString(final StringBuilder builder) {
-		super.toString(builder);
-		builder.append('.');
+//		super.toString(builder);
+//		builder.append('.');
 		this.function.toString(builder);
 		builder.append('(');
-		if (this.preprocessing != EvaluationExpression.VALUE)
+		if (this.preprocessing.innerExpression != EvaluationExpression.VALUE)
 			this.preprocessing.toString(builder);
 		// builder.append(this.preprocessing);
 		builder.append(')');
