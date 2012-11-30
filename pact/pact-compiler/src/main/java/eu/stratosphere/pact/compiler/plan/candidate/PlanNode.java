@@ -182,6 +182,10 @@ public abstract class PlanNode implements Visitable<PlanNode>
 		return this.template.getDegreeOfParallelism();
 	}
 	
+	public int getSubtasksPerInstance() {
+		return this.template.getSubtasksPerInstance();
+	}
+	
 	public long getGuaranteedAvailableMemory() {
 		return this.template.getTotalMemoryAcrossAllSubTasks();
 	}
@@ -291,6 +295,10 @@ public abstract class PlanNode implements Visitable<PlanNode>
 		}
 	}
 	
+	public PlanNode getCandidateAtBranchPoint(OptimizerNode branchPoint) {
+		return this.branchPlan.get(branchPoint);
+	}
+	
 	/**
 	 * Sets the pruning marker to true.
 	 */
@@ -305,9 +313,5 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	 */
 	public boolean isPruneMarkerSet() {
 		return this.pFlag;
-	}
-	
-	public PlanNode getCandidateAtBranchPoint(OptimizerNode branchPoint) {
-		return this.branchPlan.get(branchPoint);
 	}
 }

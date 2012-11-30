@@ -39,8 +39,6 @@ import eu.stratosphere.pact.common.type.NormalizableKey;
  * @see java.lang.Object#hashCode()
  * @see java.lang.Object#equals(Object)
  * @see java.util.Comparator#compare(Object, Object)
- *
- * @author Stephan Ewen
  * 
  * @param T The data type that the comparator works on.
  */

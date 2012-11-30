@@ -301,11 +301,9 @@ class MultiLevelHashTester {
 					int countForBucketSize = levelMap.get(bucketSize);
 					bucketCountInLevel += countForBucketSize;
 					Formatter formatter = new Formatter();
-					formatter.format(" %10d | %10d", bucketSize,
-							countForBucketSize);
+					formatter.format(" %10d | %10d", bucketSize, countForBucketSize);
 
-					if (levelMap.size() < 20 || i < 3
-							|| i >= (levelMap.size() - 3)) {
+					if (levelMap.size() < 20 || i < 3 || i >= (levelMap.size() - 3)) {
 						LOG.debug(formatter.out());
 					} else if (levelMap.size() / 2 == i) {
 						LOG.debug("         .. |         ..");
@@ -313,6 +311,7 @@ class MultiLevelHashTester {
 						LOG.debug("         .. |         ..");
 					}
 					i++;
+					formatter.close();
 				}
 			}
 

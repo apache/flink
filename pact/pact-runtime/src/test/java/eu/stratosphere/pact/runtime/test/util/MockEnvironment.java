@@ -58,8 +58,8 @@ public class MockEnvironment implements Environment
 
 	private final JobID jobID = new JobID();
 
-	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider)
-{
+	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider) 
+	{
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
 		this.inputs = new LinkedList<RuntimeInputGate<PactRecord>>();

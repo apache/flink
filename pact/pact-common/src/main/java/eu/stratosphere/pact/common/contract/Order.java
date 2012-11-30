@@ -17,8 +17,6 @@ package eu.stratosphere.pact.common.contract;
 
 /**
  * Enumeration representing order. May represent no order, an ascending order or a descending order.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public enum Order {
 	/**

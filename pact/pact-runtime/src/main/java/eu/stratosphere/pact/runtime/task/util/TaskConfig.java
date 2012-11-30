@@ -67,13 +67,13 @@ public class TaskConfig
 	/*
 	 * If one input has multiple predecessors (bag union), multiple
 	 * inputs must be grouped together. For a map or reduce there is
-	 * one group and "pact.size.inputGroup.1" will be equal to
-	 * "pact.inputs.number"
+	 * one group and "pact.size.inputGroup.0" will be equal to
+	 * "pact.in.num"
 	 * 
 	 * In the case of a dual input pact (eg. match) there might be
 	 * 2 predecessors for the first group and one for the second group.
-	 * Hence, "pact.inputs.number" would be 3, "pact.size.inputGroup.1"
-	 * would be 2, and "pact.size.inputGroup.2" would be 1.
+	 * Hence, "pact.in.num" would be 3, "pact.size.inputGroup.0"
+	 * would be 2, and "pact.size.inputGroup.1" would be 1.
 	 */
 	private static final String INPUT_GROUP_SIZE_PREFIX = "pact.in.groupsize.";
 	

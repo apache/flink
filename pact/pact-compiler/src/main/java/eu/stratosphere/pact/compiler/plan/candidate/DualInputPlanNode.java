@@ -25,6 +25,7 @@ import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
+import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
@@ -49,6 +50,7 @@ public class DualInputPlanNode extends PlanNode
 	
 	private TypeComparatorFactory<?> comparator1;
 	private TypeComparatorFactory<?> comparator2;
+	private TypePairComparatorFactory<?, ?> pairComparator;
 	
 	public Object postPassHelper1;
 	public Object postPassHelper2;
@@ -210,6 +212,14 @@ public class DualInputPlanNode extends PlanNode
 	
 	public void setComparator2(TypeComparatorFactory<?> comparator) {
 		this.comparator2 = comparator;
+	}
+	
+	public TypePairComparatorFactory<?, ?> getPairComparator() {
+		return this.pairComparator;
+	}
+	
+	public void setPairComparator(TypePairComparatorFactory<?, ?> comparator) {
+		this.pairComparator = comparator;
 	}
 	
 	/**

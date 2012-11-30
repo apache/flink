@@ -32,6 +32,7 @@ import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.stubs.Stub;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
@@ -56,11 +57,15 @@ public abstract class TaskTestBase
 
 	public void addInput(MutableObjectIterator<PactRecord> input, int groupId) {
 		this.mockEnv.addInput(input);
+		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
+		conf.setInputSerializer(PactRecordSerializerFactory.get(), groupId);
 	}
 
 	public void addOutput(List<PactRecord> output) {
 		this.mockEnv.addOutput(output);
-		new TaskConfig(this.mockEnv.getTaskConfiguration()).addOutputShipStrategy(ShipStrategyType.FORWARD);
+		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
+		conf.addOutputShipStrategy(ShipStrategyType.FORWARD);
+		conf.setOutputSerializert(PactRecordSerializerFactory.get());
 	}
 
 	public TaskConfig getTaskConfig() {

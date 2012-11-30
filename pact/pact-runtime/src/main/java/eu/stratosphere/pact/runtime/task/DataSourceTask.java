@@ -147,8 +147,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 						@SuppressWarnings("unchecked")
 						final InputFormat<PactRecord, InputSplit> inFormat = (InputFormat<PactRecord, InputSplit>) format;
 						
-						if (this.output instanceof PactRecordOutputCollector)
-						{
+						if (this.output instanceof PactRecordOutputCollector) {
 							// PactRecord going directly into network channels
 							final PactRecordOutputCollector output = (PactRecordOutputCollector) this.output;
 							while (!this.taskCanceled && !inFormat.reachedEnd()) {
@@ -187,10 +186,8 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 					} else {
 						// general types. we make a case distinction here for the common cases, in order to help
 						// JIT method inlining
-						if (this.output instanceof OutputCollector)
-						{
+						if (this.output instanceof OutputCollector) {
 							final OutputCollector<OT> output = (OutputCollector<OT>) this.output;
-							
 							// as long as there is data to read
 							while (!this.taskCanceled && !format.reachedEnd()) {
 								// build next pair and ship pair if it is valid
@@ -198,12 +195,9 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 									output.collect(record);
 								}
 							}
-						}
-						else if (this.output instanceof ChainedMapDriver)
-						{
+						} else if (this.output instanceof ChainedMapDriver) {
 							@SuppressWarnings("unchecked")
 							final ChainedMapDriver<OT, ?> output = (ChainedMapDriver<OT, ?>) this.output;
-							
 							// as long as there is data to read
 							while (!this.taskCanceled && !format.reachedEnd()) {
 								// build next pair and ship pair if it is valid
@@ -211,10 +205,8 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 									output.collect(record);
 								}
 							}
-						}
-						else {
+						} else {
 							final Collector<OT> output = this.output;
-							
 							// as long as there is data to read
 							while (!this.taskCanceled && !format.reachedEnd()) {
 								// build next pair and ship pair if it is valid

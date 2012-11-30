@@ -52,6 +52,18 @@ public final class PactConfigConstants {
 	// ------------------------------- Runtime --------------------------------
 	
 	/**
+	 * Key for the default maximum fan. Corresponds to the maximum fan-in for merge-sorts and the maximum fan-out
+	 * for hybrid hash joins. 
+	 */
+	public static final String DEFAULT_SPILLING_MAX_FAN_KEY = "pact.runtime.max-fan";
+
+	/**
+	 * Key for the default spilling threshold. When more than the threshold memory of the sort buffers is full, the
+	 * sorter will start spilling to disk.
+	 */
+	public static final String DEFAULT_SORT_SPILLING_THRESHOLD_KEY = "pact.runtime.sort-spilling-threshold";
+	
+	/**
 	 * The key for the config parameter defining the timeout for filesystem stream opening.
 	 * A value of 0 indicates infinite waiting.
 	 */
@@ -122,6 +134,16 @@ public final class PactConfigConstants {
 	public static final String DEFAULT_INSTANCE_TYPE_DESCRIPTION = "standard,2,1,300,10,0";
 
 	// ------------------------------- Runtime --------------------------------
+	
+	/**
+	 * The default value for the maximum spilling fan in/out.
+	 */
+	public static final int DEFAULT_SPILLING_MAX_FAN = 128;
+	
+	/**
+	 * The default percentage of the sort memory to be full before data is spilled.
+	 */
+	public static final float DEFAULT_SORT_SPILLING_THRESHOLD = 0.75f;
 	
 	/**
 	 * The default timeout for filesystem stream opening: 10 seconds.

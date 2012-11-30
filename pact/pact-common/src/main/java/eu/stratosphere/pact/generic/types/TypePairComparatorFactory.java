@@ -16,7 +16,7 @@
 package eu.stratosphere.pact.generic.types;
 
 /**
- * @author Stephan Ewen
+ * 
  */
 public interface TypePairComparatorFactory<T1, T2>
 {

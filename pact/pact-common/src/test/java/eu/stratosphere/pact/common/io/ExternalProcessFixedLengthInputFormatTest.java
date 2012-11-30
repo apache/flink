@@ -188,6 +188,7 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		PactRecord record = new PactRecord();
 
 		boolean incompleteRecordDetected = false;
+		@SuppressWarnings("unused")
 		int cnt = 0;
 		try {
 			format.configure(config);

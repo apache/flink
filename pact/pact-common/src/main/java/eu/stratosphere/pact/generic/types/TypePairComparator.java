@@ -23,9 +23,7 @@ package eu.stratosphere.pact.generic.types;
  * The class compares instances of two different data types. One is always used as the reference data type,
  * and the other is checked against the reference. An instance of the reference data type is normally set as the
  * reference for comparisons. Afterwards one or more instances of the other data type are checked against the
- * reference. 
- *
- * @author Stephan Ewen
+ * reference.
  * 
  * @param <T1> The class of the first data type.
  * @param <T2> The class of the second data type. 

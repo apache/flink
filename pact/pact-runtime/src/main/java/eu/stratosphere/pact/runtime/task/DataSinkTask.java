@@ -32,15 +32,9 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.io.OutputFormat;
-import eu.stratosphere.pact.generic.types.TypeComparator;
-import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
-import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.NepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.PactRecordNepheleReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -50,14 +44,10 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * The task hands the data to an output format.
  * 
  * @see eu.eu.stratosphere.pact.common.generic.io.OutputFormat
- * 
- * @author Fabian Hueske
  */
 public class DataSinkTask<IT> extends AbstractOutputTask
 {
 	public static final String DEGREE_OF_PARALLELISM_KEY = "pact.sink.dop";
-	
-	public static final String SORT_ORDER = "sink.sort.order";
 	
 	// Obtain DataSinkTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
@@ -109,47 +99,6 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	{
 		if (LOG.isInfoEnabled())
 			LOG.info(getLogString("Start PACT code"));
-		
-		final UnilateralSortMerger<IT> sorter;
-		// check whether we need to sort the output
-		if (this.config.getLocalStrategy() == LocalStrategy.SORT)
-		{
-			final Class<? extends TypeComparatorFactory<IT>> comparatorFactoryClass = 
-					this.config.getComparatorFactoryForInput(0, this.userCodeClassLoader);
-
-			final TypeComparatorFactory<IT> comparatorFactory;
-			if (comparatorFactoryClass == null) {
-				// fall back to PactRecord
-				@SuppressWarnings("unchecked")
-				TypeComparatorFactory<IT> cf = (TypeComparatorFactory<IT>) PactRecordComparatorFactory.get();
-				comparatorFactory = cf;
-			} else {
-				comparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClass, TypeComparatorFactory.class);
-			}
-
-			TypeComparator<IT> comparator;
-			try {
-				comparator = comparatorFactory.createComparator(this.config.getConfigForInputParameters(0), this.userCodeClassLoader);
-			} catch (ClassNotFoundException cnfex) {
-				throw new Exception("The instantiation of the type comparator from factory '" +	
-					comparatorFactory.getClass().getName() + 
-				"' failed. A referenced class from the user code could not be loaded."); 
-			}
-			
-			// set up memory and I/O parameters
-			final long availableMemory = this.config.getMemorySize();
-			final int maxFileHandles = this.config.getNumFilehandles();
-			final float spillThreshold = this.config.getSortSpillingTreshold();
-			
-			sorter = new UnilateralSortMerger<IT>(getEnvironment().getMemoryManager(),
-					getEnvironment().getIOManager(), this.reader, this, 
-					this.inputTypeSerializer, comparator, availableMemory, maxFileHandles, spillThreshold);
-			
-			// replace the reader by the sorted input
-			this.reader = sorter.getIterator();
-		} else {
-			sorter = null;
-		}
 		
 		try {
 			// read the reader and write it to the output
@@ -212,10 +161,6 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 					if (LOG.isWarnEnabled())
 						LOG.warn(getLogString("Error closing the ouput format."), t);
 				}
-			}
-			
-			if (sorter != null) {
-				sorter.close();
 			}
 		}
 
@@ -312,29 +257,8 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	 * @throws RuntimeException
 	 *         Thrown if no input ship strategy was provided.
 	 */
-	private void initInputReader()
-	{
-		// get data type serializer
-		final Class<? extends TypeSerializerFactory<IT>> serializerFactoryClass;
-		try {
-			serializerFactoryClass = this.config.getSerializerFactoryForInput(0, this.userCodeClassLoader);
-		} catch (ClassNotFoundException cnfex) {
-			throw new RuntimeException("The serializer factory noted in the configuration could not be loaded.", cnfex);
-		}
-						
-		
-		final TypeSerializerFactory<IT> serializerFactory;
-		if (serializerFactoryClass == null) {
-			// fall back to PactRecord
-			@SuppressWarnings("unchecked")
-			TypeSerializerFactory<IT> ps = (TypeSerializerFactory<IT>) PactRecordSerializerFactory.get();
-			serializerFactory = ps;
-		} else {
-			@SuppressWarnings("unchecked")
-			Class<TypeSerializerFactory<IT>> clazz = (Class<TypeSerializerFactory<IT>>) (Class<?>) TypeSerializerFactory.class;
-			serializerFactory = InstantiationUtil.instantiate(serializerFactoryClass, clazz);
-		}
-		
+	private void initInputReader() {
+		final TypeSerializerFactory<IT> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
 		this.inputTypeSerializer = serializerFactory.getSerializer();
 		
 		// create reader
@@ -429,17 +353,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask
 	 * @param message The main message for the log.
 	 * @return The string ready for logging.
 	 */
-	private String getLogString(String message)
-	{
-		StringBuilder bld = new StringBuilder(128);
-		bld.append(message);
-		bld.append(':').append(' ');
-		bld.append(this.getEnvironment().getTaskName());
-		bld.append(' ').append('(');
-		bld.append(this.getEnvironment().getIndexInSubtaskGroup() + 1);
-		bld.append('/');
-		bld.append(this.getEnvironment().getCurrentNumberOfSubtasks());
-		bld.append(')');
-		return bld.toString();
+	private String getLogString(String message) {
+		return RegularPactTask.constructLogString(message, this.getEnvironment().getTaskName(), this);
 	}
 }

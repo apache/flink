@@ -27,8 +27,6 @@ import eu.stratosphere.nephele.services.memorymanager.DataOutputView;
  * The methods in this class are assumed to be stateless, such that it is effectively thread safe. Stateful
  * implementations of the methods may lead to unpredictable side effects and will compromise both stability and
  * correctness of the program.
- *
- * @author Stephan Ewen
  * 
  * @param T The data type that the serializer serializes.
  */

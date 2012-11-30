@@ -31,11 +31,9 @@ import org.junit.After;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
-import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.io.DelimitedOutputFormat;
 import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactInteger;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.UniformPactRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
@@ -45,7 +43,7 @@ public class DataSinkTaskTest extends TaskTestBase
 {
 	private static final Log LOG = LogFactory.getLog(DataSinkTaskTest.class);
 	
-	String tempTestPath = System.getProperty("java.io.tmpdir")+"/dst_test";
+	private final String tempTestPath = System.getProperty("java.io.tmpdir")+"/dst_test";
 	
 	@After
 	public void cleanUp() {
@@ -62,11 +60,9 @@ public class DataSinkTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		super.initEnvironment(1024 * 1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
 		
 		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
-		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+this.tempTestPath);
 		
@@ -81,9 +77,11 @@ public class DataSinkTaskTest extends TaskTestBase
 		
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 		
+		FileReader fr = null;
+		BufferedReader br = null;
 		try {
-			FileReader fr = new FileReader(tempTestFile);
-			BufferedReader br = new BufferedReader(fr);
+			fr = new FileReader(tempTestFile);
+			br = new BufferedReader(fr);
 			
 			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
 			
@@ -111,118 +109,15 @@ public class DataSinkTaskTest extends TaskTestBase
 			Assert.fail("Out file got lost...");
 		} catch (IOException ioe) {
 			Assert.fail("Caught IOE while reading out file");
+		} finally {
+			if (br != null) {
+				try { br.close(); } catch (Throwable t) {}
+			}
+			if (fr != null) {
+				try { fr.close(); } catch (Throwable t) {}
+			}
 		}
-		
 	}
-	
-//	@Test
-//	public void testLocalSortAscDataSinkTask() {
-//
-//		int keyCnt = 100;
-//		int valCnt = 20;
-//		
-//		super.initEnvironment(3*1024*1024);
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-//		
-//		DataSinkTask testTask = new DataSinkTask();
-//		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-//		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-//		super.getTaskConfig().setNumFilehandles(4);
-//		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.ASCENDING.name());
-//		
-//		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
-//		
-//		try {
-//			testTask.invoke();
-//		} catch (Exception e) {
-//			LOG.debug(e);
-//			Assert.fail("Invoke method caused exception.");
-//		}
-//		
-//		File tempTestFile = new File(tempTestPath);
-//		
-//		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
-//		
-//		try {
-//			FileReader fr = new FileReader(tempTestFile);
-//			BufferedReader br = new BufferedReader(fr);
-//					
-//			Integer oldKey = null;
-//			
-//			while(br.ready()) {
-//				String line = br.readLine();
-//				
-//				Integer key = Integer.parseInt(line.substring(0,line.indexOf("_")));
-//				
-//				if(oldKey != null) {
-//					Assert.assertTrue("Data is not written in correct order", oldKey.intValue() <= key.intValue());
-//				}
-//				
-//				oldKey = key;
-//			}
-//			
-//		} catch (FileNotFoundException e) {
-//			Assert.fail("Out file got lost...");
-//		} catch (IOException ioe) {
-//			Assert.fail("Caught IOE while reading out file");
-//		}
-//		
-//	}
-//	
-//	@Test
-//	public void testLocalSortDescDataSinkTask() {
-//
-//		int keyCnt = 100;
-//		int valCnt = 20;
-//		
-//		super.initEnvironment(3*1024*1024);
-//		super.addInput(new RegularlyGeneratedInputGenerator(keyCnt, valCnt, false));
-//		
-//		DataSinkTask testTask = new DataSinkTask();
-//		super.getTaskConfig().setLocalStrategy(LocalStrategy.SORT);
-//		super.getTaskConfig().setMemorySize(3 * 1024 * 1024);
-//		super.getTaskConfig().setNumFilehandles(4);
-//		super.getConfiguration().setString(DataSinkTask.SORT_ORDER, Order.DESCENDING.name());
-//		
-//		super.registerFileOutputTask(testTask, MockOutputFormat.class, "file://"+tempTestPath);
-//		
-//		try {
-//			testTask.invoke();
-//		} catch (Exception e) {
-//			LOG.debug(e);
-//			e.printStackTrace();
-//			Assert.fail("Invoke method caused exception.");
-//		}
-//		
-//		File tempTestFile = new File(tempTestPath);
-//		
-//		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
-//		
-//		try {
-//			FileReader fr = new FileReader(tempTestFile);
-//			BufferedReader br = new BufferedReader(fr);
-//			
-//			Integer oldKey = null;
-//			
-//			while(br.ready()) {
-//				String line = br.readLine();
-//				
-//				Integer key = Integer.parseInt(line.substring(0,line.indexOf("_")));
-//				
-//				if(oldKey != null) {
-//					Assert.assertTrue("Data is not written in correct order", oldKey.intValue() >= key.intValue());
-//				}
-//				
-//				oldKey = key;
-//			}
-//			
-//		} catch (FileNotFoundException e) {
-//			Assert.fail("Out file got lost...");
-//		} catch (IOException ioe) {
-//			Assert.fail("Caught IOE while reading out file");
-//		}
-//		
-//	}
 	
 	@Test
 	public void testFailingDataSinkTask() {
@@ -231,12 +126,10 @@ public class DataSinkTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		super.initEnvironment(1024 * 1024);
-		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
 
 		DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
 		Configuration stubParams = new Configuration();
-		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		super.getTaskConfig().setStubParameters(stubParams);
 		
 		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, "file://"+this.tempTestPath);
@@ -261,12 +154,10 @@ public class DataSinkTaskTest extends TaskTestBase
 	public void testCancelDataSinkTask() {
 		
 		super.initEnvironment(1024 * 1024);
-		super.addInput(new InfiniteInputIterator(), 1);
+		super.addInput(new InfiniteInputIterator(), 0);
 		
 		final DataSinkTask<PactRecord> testTask = new DataSinkTask<PactRecord>();
-		super.getTaskConfig().setLocalStrategy(LocalStrategy.NONE);
 		Configuration stubParams = new Configuration();
-		stubParams.setString(DataSinkTask.SORT_ORDER, Order.NONE.name());
 		super.getTaskConfig().setStubParameters(stubParams);
 		
 		super.registerFileOutputTask(testTask, MockOutputFormat.class,  "file://"+this.tempTestPath);

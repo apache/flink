@@ -18,7 +18,7 @@ package eu.stratosphere.pact.generic.types;
 import eu.stratosphere.nephele.configuration.Configuration;
 
 /**
- * @author Stephan Ewen
+ * 
  */
 public interface TypeComparatorFactory<T>
 {

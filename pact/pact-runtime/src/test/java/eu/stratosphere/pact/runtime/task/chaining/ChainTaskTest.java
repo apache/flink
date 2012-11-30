@@ -21,8 +21,6 @@ import java.util.List;
 
 import junit.framework.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -46,37 +44,32 @@ import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
  */
 public class ChainTaskTest extends TaskTestBase
 {
-
-	private static final Log LOG = LogFactory.getLog(ChainTaskTest.class);
-	
 	private final List<PactRecord> outList = new ArrayList<PactRecord>();
 		
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testMapTask() {
-
-		int keyCnt = 100;
-		int valCnt = 20;
+		final int keyCnt = 100;
+		final int valCnt = 20;
 		
 		// environment
-		{
-			super.initEnvironment(3*1024*1024);
-			super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-			super.addOutput(this.outList);
-		}
+		initEnvironment(3*1024*1024);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 0);
+		addOutput(this.outList);
 		
 		// chained combine config
 		{
-			Configuration config = new Configuration();
+			final Configuration config = new Configuration();
 			config.addAll(super.getConfiguration(), "");
-			TaskConfig combineConfig = new TaskConfig(config);
+			final TaskConfig combineConfig = new TaskConfig(config);
 			
 			combineConfig.setStubClass(MockReduceStub.class);
-			combineConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
-			combineConfig.setMemorySize(3 * 1024 * 1024);
-			combineConfig.setNumFilehandles(2);
+			combineConfig.setInputLocalStrategy(0, LocalStrategy.COMBININGSORT);
+			combineConfig.setMemoryInput(0, 3 * 1024 * 1024);
+			combineConfig.setFilehandlesInput(0, 2);
 			
-			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfigForInputParameters(0), new int[]{0}, new Class[]{PactInteger.class}, new boolean[] {true});
+			PactRecordComparatorFactory fact = new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactInteger.class}, new boolean[] {true});
+			combineConfig.setInputComparator(fact, 0);
 			
 			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}
@@ -91,7 +84,7 @@ public class ChainTaskTest extends TaskTestBase
 			try {
 				testTask.invoke();
 			} catch (Exception e) {
-				LOG.debug(e);
+				e.printStackTrace();
 				Assert.fail("Invoke method caused exception.");
 			}
 		}
@@ -100,13 +93,7 @@ public class ChainTaskTest extends TaskTestBase
 		
 	}
 	
-	/**
-	 * TODO: enable and fix bug
-	 * 1. ChainedCombineTask.collect gets called
-	 * 2. ChainedCombineTask.collect calls done ... combing takes a while ...
-	 * 3. ChainedCombineTask.CombinerThread sets ChainedCombineTask.exception
-	 * 4. Additional call to ChainedCombineTask.collect (which triggers exception throwing) is missing
-	 */
+
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testFailingMapTask() {
@@ -115,11 +102,9 @@ public class ChainTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		// environment
-		{
-			super.initEnvironment(3*1024*1024);
-			super.addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
-			super.addOutput(this.outList);
-		}
+		initEnvironment(3*1024*1024);
+		addInput(new UniformPactRecordGenerator(keyCnt, valCnt, false), 1);
+		addOutput(this.outList);
 
 		// chained combine config
 		{
@@ -128,11 +113,12 @@ public class ChainTaskTest extends TaskTestBase
 			TaskConfig combineConfig = new TaskConfig(config);
 			
 			combineConfig.setStubClass(MockFailingCombineStub.class);
-			combineConfig.setLocalStrategy(LocalStrategy.COMBININGSORT);
-			combineConfig.setMemorySize(3 * 1024 * 1024);
-			combineConfig.setNumFilehandles(2);
-			PactRecordComparatorFactory.writeComparatorSetupToConfig(combineConfig.getConfigForInputParameters(0),
-					new int[]{0}, new Class[]{PactInteger.class}, new boolean[]{true});
+			combineConfig.setInputLocalStrategy(0, LocalStrategy.COMBININGSORT);
+			combineConfig.setMemoryInput(0, 3 * 1024 * 1024);
+			combineConfig.setFilehandlesInput(0, 2);
+			
+			PactRecordComparatorFactory fact = new PactRecordComparatorFactory(new int[]{0}, new Class[]{PactInteger.class}, new boolean[] {true});
+			combineConfig.setInputComparator(fact, 0);
 			
 			super.getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
 		}

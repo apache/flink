@@ -23,7 +23,6 @@ import eu.stratosphere.pact.common.util.FieldSet;
 
 /**
  *
- *
  */
 public class Ordering
 {	

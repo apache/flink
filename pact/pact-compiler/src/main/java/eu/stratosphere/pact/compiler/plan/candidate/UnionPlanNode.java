@@ -13,22 +13,42 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.array.stubs;
+package eu.stratosphere.pact.compiler.plan.candidate;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.util.Iterator;
 
-import eu.stratosphere.pact.common.type.Value;
-
+import eu.stratosphere.pact.common.plan.Visitor;
 
 /**
- *
+ * 
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface DataTypes {
-	
-	Class<? extends Value>[] value();
+public class UnionPlanNode extends PlanNode {
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.common.plan.Visitable#accept(eu.stratosphere.pact.common.plan.Visitor)
+	 */
+	@Override
+	public void accept(Visitor<PlanNode> visitor) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getInputs()
+	 */
+	@Override
+	public Iterator<Channel> getInputs() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#getPredecessors()
+	 */
+	@Override
+	public Iterator<PlanNode> getPredecessors() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }

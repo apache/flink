@@ -20,15 +20,12 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.common.stubs.Collector;
 import eu.stratosphere.pact.common.stubs.Stub;
-import eu.stratosphere.pact.common.util.InstantiationUtil;
 import eu.stratosphere.pact.common.util.MutableObjectIterator;
 import eu.stratosphere.pact.generic.stub.GenericReducer;
 import eu.stratosphere.pact.generic.types.TypeComparator;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.PactRecordSerializerFactory;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorterCollector;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.InputDataCollector;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
@@ -36,14 +33,11 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
-
 /**
- * @author Stephan Ewen
+ * 
  */
 public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 {
-	private static final long MIN_REQUIRED_MEMORY = 1 * 1024 * 1024; // the minimal amount of memory for the task to operate
-	
 	private InputDataCollector<T> inputCollector;
 	
 	private volatile Exception exception;
@@ -98,69 +92,25 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 		stubConfig.setInteger("pact.parallel.task.id", this.parent.getEnvironment().getIndexInSubtaskGroup());
 		stubConfig.setInteger("pact.parallel.task.count", this.parent.getEnvironment().getCurrentNumberOfSubtasks());
 		
-		if(this.parent.getEnvironment().getTaskName() != null) {
+		if (this.parent.getEnvironment().getTaskName() != null) {
 			stubConfig.setString("pact.parallel.task.name", this.parent.getEnvironment().getTaskName());
 		}
 		RegularPactTask.openUserCode(this.combiner, stubConfig);
 		
-		// ----------------- Set up the asynchonous sorter -------------------------
+		// ----------------- Set up the asynchronous sorter -------------------------
 		
-		final long availableMemory = this.config.getMemorySize();
-		LocalStrategy ls = config.getLocalStrategy();
-		
-		long strategyMinMem = 0;
-		switch (ls) {
-			case COMBININGSORT:
-				strategyMinMem = MIN_REQUIRED_MEMORY;
-				break;
-		}
-	
-		if (availableMemory < strategyMinMem) {
-			throw new RuntimeException(
-					"The Combine task was initialized with too little memory for local strategy "+
-					config.getLocalStrategy()+" : " + availableMemory + " bytes." +
-					"Required is at least " + strategyMinMem + " bytes.");
-		}
+		final long availableMemory = this.config.getMemoryInput(0);
+		final LocalStrategy ls = this.config.getInputLocalStrategy(0);
 		
 		final MemoryManager memoryManager = this.parent.getEnvironment().getMemoryManager();
 		
 		// instantiate the serializer / comparator
-		final TypeSerializer<T> serializer;
-		final TypeComparator<T> comparator;
-		
-		try {
-			final Class<? extends TypeSerializerFactory<T>> serializerFactoryClazz = this.config.getSerializerFactoryForInput(0, this.userCodeClassLoader);
-			final Class<? extends TypeComparatorFactory<T>> comparatorFactoryClazz = this.config.getComparatorFactoryForInput(0, this.userCodeClassLoader);
-			
-			final TypeSerializerFactory<T> serializerFactory;
-			final TypeComparatorFactory<T> comparatorFactory;
-			if (serializerFactoryClazz == null) {
-				@SuppressWarnings("unchecked")
-				TypeSerializerFactory<T> pf = (TypeSerializerFactory<T>) PactRecordSerializerFactory.get();
-				serializerFactory = pf;
-			} else {
-				serializerFactory = InstantiationUtil.instantiate(serializerFactoryClazz, TypeSerializerFactory.class);
-			}
-			if (comparatorFactoryClazz == null) {
-				@SuppressWarnings("unchecked")
-				TypeComparatorFactory<T> pf = (TypeComparatorFactory<T>) PactRecordComparatorFactory.get();
-				comparatorFactory = pf;
-			} else {
-				comparatorFactory = InstantiationUtil.instantiate(comparatorFactoryClazz, TypeComparatorFactory.class);
-			}
-			
-			serializer = serializerFactory.getSerializer();
-			try {
-				comparator = comparatorFactory.createComparator(this.config.getConfigForInputParameters(0), this.userCodeClassLoader);
-			}  catch (ClassNotFoundException cnfex) {
-				throw new Exception("The comparator could not be created, because it cannot load dependent data types.", cnfex);
-			}
-		} catch (ClassNotFoundException cnfex) {
-			throw new Exception("The registered serializer/comparator factory could not be loaded.", cnfex);
-		}
+		final TypeSerializerFactory<T> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
+		final TypeComparatorFactory<T> comparatorFactory = this.config.getInputComparator(0, this.userCodeClassLoader);
+		final TypeSerializer<T> serializer = serializerFactory.getSerializer();
+		final TypeComparator<T> comparator = comparatorFactory.createComparator();
 
 		switch (ls) {
-
 			// local strategy is COMBININGSORT
 			// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
 			// the combine() method of the ReduceStub.
@@ -275,8 +225,7 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 	 * @see eu.stratosphere.pact.common.stubs.Collector#close()
 	 */
 	@Override
-	public void close()
-	{
+	public void close() {
 		this.inputCollector.close();
 		
 		if (this.exception != null)
