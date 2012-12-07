@@ -45,6 +45,10 @@ public class FieldList extends FieldSet
 		return get().get(pos);
 	}
 	
+	public FieldList toFieldList() {
+		return this;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/* (non-Javadoc)

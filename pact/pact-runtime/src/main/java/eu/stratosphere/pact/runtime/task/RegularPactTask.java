@@ -535,7 +535,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 		
 		for (int i = 0; i < numInputs; i++) {
 			if (this.config.isInputDammed(i)) {
-				final long memory = this.config.getInputDamReplayableMemory(i);
+				final long memory = this.config.getInputDamMemory(i);
 				final int pages = memMan.computeNumberOfPages(memory);
 				
 				@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -544,7 +544,7 @@ public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements
 				this.tempBarriers[i] = barrier;
 				this.inputs[i] = null;
 			} else if (this.config.isInputReplayable(i)) {
-				final long memory = this.config.getInputDamReplayableMemory(i);
+				final long memory = this.config.getInputDamMemory(i);
 				@SuppressWarnings({ "unchecked", "rawtypes" })
 				SpillingResettableMutableObjectIterator<?> iter = new SpillingResettableMutableObjectIterator(
 					getInput(i), inputSerializers[i], getMemoryManager(), getIOManager(), memory, this);

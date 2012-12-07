@@ -15,13 +15,10 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
@@ -38,7 +35,7 @@ public class PactConnection implements EstimateProvider
 
 	private final OptimizerNode targetPact; // The target node of the connection.
 
-	private List<InterestingProperties> interestingProps; // local properties that succeeding nodes are interested in
+	private InterestingProperties interestingProps; // local properties that succeeding nodes are interested in
 
 	private ShipStrategyType shipStrategy; // The data distribution strategy, if preset
 
@@ -109,74 +106,31 @@ public class PactConnection implements EstimateProvider
 	 *        The shipping strategy to be applied to this connection.
 	 */
 	public void setShipStrategy(ShipStrategyType strategy) {
-//		// adjust the ship strategy to the interesting properties, if necessary
-//		if (strategy.type() == ShipStrategyType.FORWARD && this.sourcePact.getDegreeOfParallelism() < this.targetPact.getDegreeOfParallelism()) {
-//			// check, whether we have an interesting property on partitioning. if so, make sure that we use a
-//			// forward strategy that preserves that partitioning by locally routing the keys correctly
-//			if (this.interestingProps != null) {
-//				for (InterestingProperties props : this.interestingProps) {
-//					PartitionProperty pp = props.getGlobalProperties().getPartitioning();
-//					if (pp == PartitionProperty.HASH_PARTITIONED || pp == PartitionProperty.ANY) {
-//						strategy = new PartitionLocalHashSS(props.getGlobalProperties().getPartitionedFields());
-//						break;
-//					}
-//					else if (pp == PartitionProperty.RANGE_PARTITIONED) {
-//						throw new CompilerException("Range partitioning during forwards with changing degree " +
-//								"of parallelism is currently not handled!");
-//					}
-//				}
-//			}
-//		}
-
 		this.shipStrategy = strategy;
 	}
 
 	/**
 	 * Gets the interesting properties object for this pact connection.
 	 * If the interesting properties for this connections have not yet been set,
-	 * this method returns null. If they have been set, but no interesting properties
-	 * exist, this returns an empty collection.
+	 * this method returns null.
 	 * 
 	 * @return The collection of all interesting properties, or null, if they have not yet been set.
 	 */
-	public List<InterestingProperties> getInterestingProperties() {
+	public InterestingProperties getInterestingProperties() {
 		return this.interestingProps;
 	}
 
 	/**
-	 * Adds a set of interesting properties to this pact connection.
+	 * Sets the interesting properties for this pact connection.
 	 * 
-	 * @param props
-	 *        The set of interesting properties to add.
+	 * @param props The interesting properties.
 	 */
-	public void addInterestingProperties(InterestingProperties props) {
+	public void setInterestingProperties(InterestingProperties props) {
 		if (this.interestingProps == null) {
-			this.interestingProps = new ArrayList<InterestingProperties>();
+			this.interestingProps = props;
+		} else {
+			throw new IllegalStateException("Interesting Properties have already been set.");
 		}
-
-		this.interestingProps.add(props);
-	}
-
-	/**
-	 * Adds a collection of interesting property sets to this pact connection.
-	 * 
-	 * @param props
-	 *        The collection of interesting properties to add.
-	 */
-	public void addAllInterestingProperties(Collection<InterestingProperties> props) {
-		if (this.interestingProps == null) {
-			this.interestingProps = new ArrayList<InterestingProperties>();
-		}
-
-		this.interestingProps.addAll(props);
-	}
-
-	/**
-	 * Sets the interesting properties of this connection to an empty collection.
-	 * That means, the interesting properties have been set, but none exist.
-	 */
-	public void setNoInterestingProperties() {
-		this.interestingProps = Collections.emptyList();
 	}
 
 	// --------------------------------------------------------------------------------------------

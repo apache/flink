@@ -29,8 +29,11 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.DataStatistics;
-import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
+import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
 import eu.stratosphere.pact.compiler.util.PactType;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -39,8 +42,6 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
  * The Optimizer representation of a <i>Union</i>. A Union is automatically
  * inserted before any node which has more than one incoming connection per
  * input.
- * 
- * @author Matthias Ringwald (matthias.ringwald@campus.tu-berlin.de)
  */
 public class UnionNode extends OptimizerNode {
 
@@ -86,7 +87,7 @@ public class UnionNode extends OptimizerNode {
 	 * @param lp
 	 *        The local properties of this copy.
 	 */
-	public UnionNode(UnionNode template, Stack<OptimizerNode> preds, InterestingGlobalProperties gp, InterestingLocalProperties lp) {
+	public UnionNode(UnionNode template, Stack<OptimizerNode> preds, RequestedGlobalProperties gp, RequestedLocalProperties lp) {
 		super(template, gp, lp);
 		this.inConns = new LinkedList<PactConnection>();
 		for (int i = 0; i < preds.size(); i++){
@@ -229,7 +230,7 @@ public class UnionNode extends OptimizerNode {
 				FieldList newPartitionedFieldsInCommon = partitionedFieldsInCommon;
 				
 				// only property which would survive is a hash partitioning on every input
-				InterestingGlobalProperties gpForInput = alternative.getGlobalPropertiesForParent(this);
+				RequestedGlobalProperties gpForInput = alternative.getGlobalPropertiesForParent(this);
 				if (index == 0 && gpForInput.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
 					newPartitionedFieldsInCommon = gpForInput.getPartitionedFields();
 				}
@@ -245,12 +246,12 @@ public class UnionNode extends OptimizerNode {
 				}
 				else {
 					//we have found a valid combination, create the according UnionNode for it
-					InterestingGlobalProperties gp = new InterestingGlobalProperties();
+					RequestedGlobalProperties gp = new RequestedGlobalProperties();
 					
 					if (newPartitionedFieldsInCommon != null) {
 						gp.setPartitioning(PartitioningProperty.HASH_PARTITIONED, newPartitionedFieldsInCommon);
 					}
-					UnionNode unionNode = new UnionNode(this, subplanStack, gp, new InterestingLocalProperties());
+					UnionNode unionNode = new UnionNode(this, subplanStack, gp, new RequestedLocalProperties());
 					unionNode.branchPlan = newBranchPlan;
 					target.add(unionNode);
 				}

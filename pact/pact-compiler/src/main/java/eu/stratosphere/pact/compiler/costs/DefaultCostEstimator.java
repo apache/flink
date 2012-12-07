@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.compiler.costs;
 
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 
 /**

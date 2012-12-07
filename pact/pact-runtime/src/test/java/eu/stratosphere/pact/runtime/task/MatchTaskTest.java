@@ -541,7 +541,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -572,7 +572,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -603,7 +603,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -634,7 +634,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -665,7 +665,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -696,7 +696,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -726,7 +726,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -753,7 +753,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -797,7 +797,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -841,7 +841,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_FIRST);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();
@@ -885,7 +885,7 @@ public class MatchTaskTest extends DriverTestBase<GenericMatcher<PactRecord, Pac
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(PactRecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
-		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_SECOND);
+		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setMemoryDriver(HASH_MEM);
 		
 		final MatchDriver<PactRecord, PactRecord, PactRecord> testTask = new MatchDriver<PactRecord, PactRecord, PactRecord>();

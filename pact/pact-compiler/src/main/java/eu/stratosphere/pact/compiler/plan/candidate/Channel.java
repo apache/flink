@@ -21,6 +21,8 @@ import java.util.Map;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 import eu.stratosphere.pact.compiler.util.Utils;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
@@ -37,15 +39,15 @@ public class Channel implements EstimateProvider
 	/**
 	 * Enumeration to indicate the mode of temporarily materializing the data that flows across a connection.
 	 * Introducing such an artificial dam is sometimes necessary to avoid that a certain data flows deadlock
-	 * themselves.
+	 * themselves, or as a cache to replay an intermediate result.
 	 */
 	public enum TempMode {
-		NONE, TEMP_SENDER_SIDE, TEMP_RECEIVER_SIDE
+		NONE, MATERIALIZE, MATERIALIZE_REPLAYABLE
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private PlanNode source;
+	private final PlanNode source;
 	
 	private PlanNode target;
 	
@@ -72,6 +74,8 @@ public class Channel implements EstimateProvider
 	private TypeComparatorFactory<?> localStrategyComparator;
 	
 	private TempMode tempMode;
+	
+	private long tempMemory;
 	
 	private int replicationFactor = 1;
 	
@@ -124,6 +128,7 @@ public class Channel implements EstimateProvider
 		this.shipStrategy = strategy;
 		this.shipKeys = keys;
 		this.shipSortOrder = sortDirection;
+		this.globalProps = null;		// reset the global properties
 	}
 	
 	
@@ -139,8 +144,6 @@ public class Channel implements EstimateProvider
 		return this.shipSortOrder;
 	}
 	
-	
-	
 	public void setLocalStrategy(LocalStrategy strategy) {
 		setLocalStrategy(strategy, null, null);
 	}
@@ -153,6 +156,7 @@ public class Channel implements EstimateProvider
 		this.localStrategy = strategy;
 		this.localKeys = keys;
 		this.localSortOrder = sortDirection;
+		this.localProps = null;		// reset the local properties
 	}
 	
 	public LocalStrategy getLocalStrategy() {
@@ -167,13 +171,6 @@ public class Channel implements EstimateProvider
 		return this.localSortOrder;
 	}
 	
-	/**
-	 * Returns the TempMode of the Connection. NONE if the connection is not temped,
-	 * TEMP_SENDER_SIDE if the connection is temped on the sender node, and
-	 * TEMP_RECEIVER_SIDE if the connection is temped on the receiver node.
-	 * 
-	 * @return TempMode of the connection
-	 */
 	public TempMode getTempMode() {
 		return this.tempMode;
 	}
@@ -186,6 +183,24 @@ public class Channel implements EstimateProvider
 	 */
 	public void setTempMode(TempMode tempMode) {
 		this.tempMode = tempMode;
+	}
+	
+	/**
+	 * Gets the memory for materializing the channel's result from this Channel.
+	 *
+	 * @return The temp memory.
+	 */
+	public long getTempMemory() {
+		return this.tempMemory;
+	}
+	
+	/**
+	 * Sets the memory for materializing the channel's result from this Channel.
+	 *
+	 * @param tempMemory The memory for materialization.
+	 */
+	public void setTempMemory(long tempMemory) {
+		this.tempMemory = tempMemory;
 	}
 	
 	/**

@@ -21,7 +21,6 @@ import java.util.NoSuchElementException;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
@@ -29,9 +28,8 @@ import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
-
 /**
- * @author Stephan Ewen
+ * 
  */
 public class SingleInputPlanNode extends PlanNode
 {
@@ -49,21 +47,21 @@ public class SingleInputPlanNode extends PlanNode
 	
 	// --------------------------------------------------------------------------------------------
 
-	public SingleInputPlanNode(OptimizerNode template, Channel input, DriverStrategy localStrategy)
+	public SingleInputPlanNode(OptimizerNode template, Channel input, DriverStrategy driverStrategy)
 	{
-		this(template, input, localStrategy, null);
+		this(template, input, driverStrategy, null);
 	}
 	
 	public SingleInputPlanNode(OptimizerNode template, Channel input, 
-			DriverStrategy localStrategy, FieldList driverKeyFields)
+			DriverStrategy driverStrategy, FieldList driverKeyFields)
 	{
-		this(template, input, localStrategy, driverKeyFields, null);
+		this(template, input, driverStrategy, driverKeyFields, null);
 	}
 	
 	public SingleInputPlanNode(OptimizerNode template, Channel input, 
-			DriverStrategy localStrategy, FieldList driverKeyFields, boolean[] driverSortOrders)
+			DriverStrategy driverStrategy, FieldList driverKeyFields, boolean[] driverSortOrders)
 	{
-		super(template, localStrategy);
+		super(template, driverStrategy);
 		this.input = input;
 		this.keys = driverKeyFields;
 		this.sortOrders = driverSortOrders;
@@ -75,19 +73,23 @@ public class SingleInputPlanNode extends PlanNode
 		// adjust the global properties
 		this.globalProps = input.getGlobalProperties().clone();
 		this.globalProps.clearUniqueFieldSets();
-		this.globalProps.filterByNodesConstantSet(template, 0);
 		
-		
-		// adjust the local properties
+		// adjust the local properties by driver strategy
 		this.localProps = input.getLocalProperties().clone();
-		switch (this.getDriverStrategy()) {
+		this.localProps.clearUniqueFieldSets();
+		switch (driverStrategy) {
 			case NONE:
+			case MAP:
+				break;
+			case PARTIAL_GROUP:
 			case GROUP:
 				break;
 			default:
 				throw new CompilerException("Unrecognized diver strategy impacting local properties.");
 		}
-		this.localProps.clearUniqueFieldSets();
+		
+		// apply user code modifications
+		this.globalProps.filterByNodesConstantSet(template, 0);
 		this.localProps.filterByNodesConstantSet(template, 0);
 		
 		// add the new unique information
@@ -104,23 +106,21 @@ public class SingleInputPlanNode extends PlanNode
 		}
 	}
 	
+	/**
+	 * Gets the input channel to this node.
+	 * 
+	 * @return The input channel to this node.
+	 */
+	public Channel getInput() {
+		return this.input;
+	}
+	
 	public FieldList getKeys() {
 		return this.keys;
 	}
 	
 	public boolean[] getSortOrders() {
 		return sortOrders;
-	}
-	
-	/**
-	 * This function overrides the standard behavior of computing costs in the {@link eu.stratosphere.pact.compiler.plan.candidate.PlanNode}.
-	 * It adds a check for correct branch handling.
-	 * 
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#setCosts(eu.stratosphere.pact.compiler.Costs)
-	 */
-	@Override
-	public void setCosts(Costs nodeCosts) {
-		super.setCosts(nodeCosts);
 	}
 	
 	/**
@@ -222,14 +222,5 @@ public class SingleInputPlanNode extends PlanNode
 				throw new UnsupportedOperationException();
 			}
 		};
-	}
-	
-	/**
-	 * Gets the input channel to this node.
-	 * 
-	 * @return The input channel to this node.
-	 */
-	public Channel getInput() {
-		return this.input;
 	}
 }

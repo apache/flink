@@ -89,7 +89,6 @@ public class WordCount implements PlanAssembler, PlanAssemblerDescription
 	 * in the record. The other fields are not modified.
 	 */
 	@ConstantFields(fields={0})
-	@OutCardBounds(lowerBound=1, upperBound=1)
 	@ReduceContract.Combinable
 	public static class CountWords extends ReduceStub
 	{

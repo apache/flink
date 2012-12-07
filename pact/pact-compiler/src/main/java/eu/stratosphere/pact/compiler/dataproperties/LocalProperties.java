@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.plan.candidate;
+package eu.stratosphere.pact.compiler.dataproperties;
 
 import java.util.HashSet;
 import java.util.Set;

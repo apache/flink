@@ -13,14 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.plan;
+package eu.stratosphere.pact.compiler.dataproperties;
 
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.PartitioningProperty;
+import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.costs.Costs;
+import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.GlobalProperties;
 import eu.stratosphere.pact.compiler.util.Utils;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
@@ -31,7 +32,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
  * Currently, the properties are the following: A partitioning type (ANY, HASH, RANGE), and EITHER an ordering (for range partitioning)
  * or an FieldSet with the hash partitioning columns.
  */
-public final class InterestingGlobalProperties implements Cloneable
+public final class RequestedGlobalProperties implements Cloneable
 {
 	private PartitioningProperty partitioning;	// the type partitioning
 	
@@ -44,7 +45,7 @@ public final class InterestingGlobalProperties implements Cloneable
 	/**
 	 * Initializes the global properties with no partitioning.
 	 */
-	public InterestingGlobalProperties() {
+	public RequestedGlobalProperties() {
 		this.partitioning = PartitioningProperty.RANDOM;
 	}
 	
@@ -138,7 +139,7 @@ public final class InterestingGlobalProperties implements Cloneable
 	 * @param input The index of the input.
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
-	public InterestingGlobalProperties filterByNodesConstantSet(OptimizerNode node, int input)
+	public RequestedGlobalProperties filterByNodesConstantSet(OptimizerNode node, int input)
 	{
 		// check if partitioning survives
 		if (this.ordering != null) {
@@ -190,8 +191,7 @@ public final class InterestingGlobalProperties implements Cloneable
 	 * 
 	 * @param channel The channel to parameterize.
 	 */
-	public void parameterizeChannel(Channel channel)
-	{
+	public void parameterizeChannel(Channel channel) {
 		if (this.partitioning == null || this.partitioning == PartitioningProperty.RANDOM) {
 			channel.setShipStrategy(ShipStrategyType.FORWARD);
 		} else switch (this.partitioning) {
@@ -203,6 +203,24 @@ public final class InterestingGlobalProperties implements Cloneable
 				break;
 			case RANGE_PARTITIONED:
 				channel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
+				break;
+			default:
+				throw new CompilerException();
+		}
+	}
+	
+	public void addMinimalRequiredCosts(Costs to, CostEstimator estimator, OptimizerNode source, OptimizerNode target) {
+		if (this.partitioning == null || this.partitioning == PartitioningProperty.RANDOM) {
+			return;
+		} else switch (this.partitioning) {
+			case FULL_REPLICATION:
+				estimator.addBroadcastCost(source, target.getDegreeOfParallelism(), to);
+			case ANY_PARTITIONING:
+			case HASH_PARTITIONED:
+				estimator.addHashPartitioningCost(source, to);
+				break;
+			case RANGE_PARTITIONED:
+				estimator.addRangePartitionCost(source, to);
 				break;
 			default:
 				throw new CompilerException();
@@ -231,8 +249,8 @@ public final class InterestingGlobalProperties implements Cloneable
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof InterestingGlobalProperties) {
-			InterestingGlobalProperties other = (InterestingGlobalProperties) obj;
+		if (obj != null && obj instanceof RequestedGlobalProperties) {
+			RequestedGlobalProperties other = (RequestedGlobalProperties) obj;
 			return (ordering == other.getOrdering() || (ordering != null && ordering.equals(other.getOrdering())))
 					&& (partitioning == other.getPartitioning())
 					&& (partitioningFields == other.partitioningFields || 
@@ -257,9 +275,9 @@ public final class InterestingGlobalProperties implements Cloneable
 	 * (non-Javadoc)
 	 * @see java.lang.Object#clone()
 	 */
-	public InterestingGlobalProperties clone() {
+	public RequestedGlobalProperties clone() {
 		try {
-			return (InterestingGlobalProperties) super.clone();
+			return (RequestedGlobalProperties) super.clone();
 		} catch (CloneNotSupportedException cnse) {
 			// should never happen, but propagate just in case
 			throw new RuntimeException(cnse);

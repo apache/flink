@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler;
+package eu.stratosphere.pact.compiler.costs;
 
 /**
  * Simple class to represent the costs of an operation.
@@ -30,11 +30,11 @@ public class Costs implements Comparable<Costs>, Cloneable {
 	private long secondaryStorageCost; // bytes to be written and read, in bytes
 
 	/**
-	 * Default constructor. Initialized the costs to "unknown" (-1).
+	 * Default constructor. Initialized the costs to 0;
 	 */
 	public Costs() {
-		this.networkCost = -1;
-		this.secondaryStorageCost = -1;
+		this.networkCost = 0;
+		this.secondaryStorageCost = 0;
 	}
 
 	/**

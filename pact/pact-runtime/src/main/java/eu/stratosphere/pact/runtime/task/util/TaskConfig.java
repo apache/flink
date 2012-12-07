@@ -89,9 +89,9 @@ public class TaskConfig
 	
 	private static final String INPUT_DAM_PREFIX = "pact.in.dam.";
 	
-	private static final String INPUT_REPLAYABLE_PREFIX = "pact.in.replay.";
+	private static final String INPUT_REPLAYABLE_PREFIX = "pact.in.dam.replay.";
 	
-	private static final String INPUT_DAM_REPLAY_MEMORY_PREFIX = "pact.in.temp.mem.";
+	private static final String INPUT_DAM_MEMORY_PREFIX = "pact.in.dam.mem.";
 	
 	
 	// -------------------------------------- Outputs ---------------------------------------------
@@ -316,7 +316,7 @@ public class TaskConfig
 	}
 	
 	public int getNumInputs() {
-		return this.config.getInteger(NUM_INPUTS, -1);
+		return this.config.getInteger(NUM_INPUTS, 0);
 	}
 	
 	public int getGroupSize(int groupIndex) {
@@ -345,12 +345,12 @@ public class TaskConfig
 		return this.config.getBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, false);
 	}
 	
-	public void setInputDamReplayableMemory(int inputNum, long memory) {
-		this.config.setLong(INPUT_DAM_REPLAY_MEMORY_PREFIX + inputNum, memory);
+	public void setInputDamMemory(int inputNum, long memory) {
+		this.config.setLong(INPUT_DAM_MEMORY_PREFIX + inputNum, memory);
 	}
 	
-	public long getInputDamReplayableMemory(int inputNum) {
-		return this.config.getLong(INPUT_DAM_REPLAY_MEMORY_PREFIX + inputNum, -1);
+	public long getInputDamMemory(int inputNum) {
+		return this.config.getLong(INPUT_DAM_MEMORY_PREFIX + inputNum, -1);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -364,7 +364,7 @@ public class TaskConfig
 	}
 	
 	public int getNumOutputs() {
-		return this.config.getInteger(OUTPUTS_NUM, -1);
+		return this.config.getInteger(OUTPUTS_NUM, 0);
 	}
 
 	public ShipStrategyType getOutputShipStrategy(int outputNum) {

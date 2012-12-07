@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.plan.candidate;
+package eu.stratosphere.pact.compiler.dataproperties;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -22,7 +22,6 @@ import eu.stratosphere.pact.common.contract.Order;
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.compiler.PartitioningProperty;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 
 /**
@@ -254,11 +253,11 @@ public final class GlobalProperties implements Cloneable
 			(this.ordering == null ? "" : ", with ordering " + this.ordering));
 		
 		if (this.uniqueFieldCombinations == null) {
-			bld.append('.');
+			bld.append(']');
 		} else {
-			bld.append(". Unique field groups: ");
+			bld.append(" - Unique field groups: ");
 			bld.append(this.uniqueFieldCombinations);
-			bld.append('.');
+			bld.append(']');
 		}
 		return bld.toString();
 	}

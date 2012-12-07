@@ -28,9 +28,9 @@ import eu.stratosphere.pact.common.contract.CompilerHints;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.PartitioningProperty;
-import eu.stratosphere.pact.compiler.plan.InterestingGlobalProperties;
-import eu.stratosphere.pact.compiler.plan.InterestingLocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.PartitioningProperty;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.PactConnection;
 import eu.stratosphere.pact.compiler.plan.PactConnection.TempMode;
@@ -340,7 +340,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 		{
 			// output node global properties
-			InterestingGlobalProperties gp = visitable.getGlobalProperties();
+			RequestedGlobalProperties gp = visitable.getGlobalProperties();
 
 			this.jsonString.append(",\n\t\t\"global_properties\": [\n");
 
@@ -366,7 +366,7 @@ public class JSONGenerator implements Visitor<OptimizerNode> {
 
 		{
 			// output node local properties
-			InterestingLocalProperties lp = visitable.getLocalProperties();
+			RequestedLocalProperties lp = visitable.getLocalProperties();
 
 			this.jsonString.append(",\n\t\t\"local_properties\": [\n");
 

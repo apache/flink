@@ -78,8 +78,6 @@ import eu.stratosphere.pact.generic.contract.GenericReduceContract;
  * <p>
  * The optimizer also assigns the memory to the individual tasks. This is currently done in a very simple fashion: All
  * sub-tasks that need memory (e.g. reduce or match) are given an equal share of memory.
- * 
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
  */
 public class PactCompiler {
 
@@ -109,14 +107,22 @@ public class PactCompiler {
 	public static final String HINT_SHIP_STRATEGY_SECOND_INPUT = "INPUT_RIGHT_SHIP_STRATEGY";
 
 	/**
-	 * Value for the shipping strategy compiler hint that enforces a <b>repartition</b> strategy on the
-	 * input channel.
+	 * Value for the shipping strategy compiler hint that enforces a hash-partition strategy.
 	 * 
 	 * @see #HINT_SHIP_STRATEGY
 	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
 	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
 	 */
-	public static final String HINT_SHIP_STRATEGY_REPARTITION = "SHIP_REPARTITION";
+	public static final String HINT_SHIP_STRATEGY_REPARTITION_HASH = "SHIP_REPARTITION_HASH";
+	
+	/**
+	 * Value for the shipping strategy compiler hint that enforces a range-partition strategy.
+	 * 
+	 * @see #HINT_SHIP_STRATEGY
+	 * @see #HINT_SHIP_STRATEGY_FIRST_INPUT
+	 * @see #HINT_SHIP_STRATEGY_SECOND_INPUT
+	 */
+	public static final String HINT_SHIP_STRATEGY_REPARTITION_RANGE = "SHIP_REPARTITION_RANGE";
 
 	/**
 	 * Value for the shipping strategy compiler hint that enforces a <b>broadcast</b> strategy on the
@@ -607,7 +613,9 @@ public class PactCompiler {
 
 		// now that we have all nodes created and recorded which ones consume memory, tell the nodes their minimal
 		// guaranteed memory, for further cost estimations. we assume an equal distribution of memory among consumer tasks
-		rootNode.accept(new MemoryDistributer(memoryPerInstance / graphCreator.getMemoryConsumerCount()));
+		
+		rootNode.accept(new MemoryDistributer(
+			graphCreator.getMemoryConsumerCount() == 0 ? 0 : memoryPerInstance / graphCreator.getMemoryConsumerCount()));
 		
 		// Now that the previous step is done, the next step is to traverse the graph again for the two
 		// steps that cannot directly be performed during the plan enumeration, because we are dealing with DAGs

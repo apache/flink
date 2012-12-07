@@ -27,20 +27,17 @@ import eu.stratosphere.pact.common.io.FileInputFormat;
 import eu.stratosphere.pact.common.io.statistics.BaseStatistics;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.costs.Costs;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.io.InputFormat;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * The optimizer's internal representation of a data source.
- * 
- * @author Stephan Ewen
  */
 public class DataSourceNode extends OptimizerNode
 {
@@ -56,7 +53,6 @@ public class DataSourceNode extends OptimizerNode
 	 */
 	public DataSourceNode(GenericDataSource<?> pactContract) {
 		super(pactContract);
-		setDriverStrategy(DriverStrategy.NONE);
 	}
 
 	/**

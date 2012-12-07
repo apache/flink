@@ -26,18 +26,19 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.costs.Costs;
+import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The Optimizer representation of a data sink.
- * 
- * @author Stephan Ewen
  */
 public class DataSinkNode extends OptimizerNode
 {
@@ -49,15 +50,14 @@ public class DataSinkNode extends OptimizerNode
 	/**
 	 * Creates a new DataSinkNode for the given contract.
 	 * 
-	 * @param pactContract
-	 *        The data sink contract object.
+	 * @param pactContract The data sink contract object.
 	 */
 	public DataSinkNode(GenericDataSink pactContract) {
 		super(pactContract);
-		setDriverStrategy(DriverStrategy.NONE);
 	}
 
 	// --------------------------------------------------------------------------------------
+	
 	/**
 	 * Gets the <tt>PactConnection</tt> through which this node receives its input.
 	 * 
@@ -187,48 +187,32 @@ public class DataSinkNode extends OptimizerNode
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator)
 	{
-		// interesting properties that a data sink may generate are
-		// 1) an interest in globally sorted data (range partitioned and locally sorted)
-		// 2) an interest in range partitioned data
-		// 2) an interest in locally sorted data
-		final Ordering partitioning = getPactContract().getPartitionOrdering();
-		final Ordering localOrder = getPactContract().getLocalOrder();
+		final InterestingProperties iProps = new InterestingProperties();
 		
-		if (partitioning != null) {
-			// range partitioned only or global sort
-			// in both cases create a range partitioned only IP
-			InterestingProperties partitioningProps = new InterestingProperties();
-			
-			partitioningProps.getGlobalProperties().setRangePartitioned(partitioning);
-			estimator.addRangePartitionCost(this.input, partitioningProps.getMaximalCosts());
-			
-			this.input.addInterestingProperties(partitioningProps);
-		} else if (localOrder == null) {
-			this.input.setNoInterestingProperties();
-		}
-		
-		if (localOrder != null) {
-			if (partitioning != null && localOrder.equals(partitioning)) {
-				// global sort case: create IP for range partitioned and sorted
-				InterestingProperties globalSortProps = new InterestingProperties();
-				
-				globalSortProps.getGlobalProperties().setRangePartitioned(partitioning);
-				estimator.addRangePartitionCost(this.input, globalSortProps.getMaximalCosts());
-				
-				globalSortProps.getLocalProperties().setOrdering(partitioning);
-				estimator.addLocalSortCost(this.input, -1, globalSortProps.getMaximalCosts());
-				
-				this.input.addInterestingProperties(globalSortProps);
-			} else {
-				// local order only
-				InterestingProperties localSortProps = new InterestingProperties();
-				
-				localSortProps.getLocalProperties().setOrdering(partitioning);
-				estimator.addLocalSortCost(this.input, -1, localSortProps.getMaximalCosts());
-				
-				this.input.addInterestingProperties(localSortProps);
+		{
+			final Ordering partitioning = getPactContract().getPartitionOrdering();
+			final RequestedGlobalProperties partitioningProps = new RequestedGlobalProperties();
+			final Costs maxCosts = new Costs();
+			if (partitioning != null) {
+				partitioningProps.setRangePartitioned(partitioning);
+				estimator.addRangePartitionCost(this.input, maxCosts);
+				iProps.addGlobalProperties(partitioningProps, maxCosts);
 			}
+			iProps.addGlobalProperties(partitioningProps, maxCosts);
 		}
+		
+		{
+			final Ordering localOrder = getPactContract().getLocalOrder();
+			final RequestedLocalProperties orderProps = new RequestedLocalProperties();
+			Costs maxCosts = new Costs();
+			if (localOrder != null) {
+				orderProps.setOrdering(localOrder);
+				estimator.addLocalSortCost(this.input, getMinimalMemoryAcrossAllSubTasks(), maxCosts);
+			}
+			iProps.addLocalProperties(orderProps, maxCosts);
+		}
+		
+		this.input.setInterestingProperties(iProps);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -246,12 +230,7 @@ public class DataSinkNode extends OptimizerNode
 		}
 
 		addClosedBranches(getPredecessorNode().closedBranchingNodes);
-		
-		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
-		// TODO: check if merge is necessary
-		result = mergeLists(result, getPredecessorNode().getBranchesForParent(this));
-
-		this.openBranches = result;
+		this.openBranches = getPredecessorNode().getBranchesForParent(this);
 	}
 	
 	/* (non-Javadoc)
@@ -279,22 +258,29 @@ public class DataSinkNode extends OptimizerNode
 			return this.cachedPlans;
 		}
 		
-		// calculate alternative subplans for predecessor
+		// calculate alternative sub-plans for predecessor
 		List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
 		List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
-		List<InterestingProperties> ips = this.input.getInterestingProperties();
+		InterestingProperties ips = this.input.getInterestingProperties();
 		for (PlanNode p : subPlans) {
-			if (ips.isEmpty()) {
-				// create a simple forwarding channel
-				Channel c = new Channel(p);
-				c.setShipStrategy(ShipStrategyType.FORWARD);
-				c.setLocalStrategy(LocalStrategy.NONE);
-				outputPlans.add(new SinkPlanNode(this, c));
-			} else {
-				for (InterestingProperties ip : ips) {
-					// create a channel that realizes the properties
-					Channel c = ip.createChannelRealizingProperties(p);
+			for (RequestedGlobalProperties gp : ips.getGlobalProperties()) {
+				for (RequestedLocalProperties lp : ips.getLocalProperties()) {
+					Channel c = new Channel(p);
+					if (gp.isMetBy(p.getGlobalProperties())) {
+						c.setShipStrategy(ShipStrategyType.FORWARD);
+					} else {
+						gp.parameterizeChannel(c);
+					}
+					if (lp.isMetBy(c.getLocalPropertiesAfterShippingOnly())) {
+						c.setLocalStrategy(LocalStrategy.NONE);
+					} else {
+						lp.parameterizeChannel(c);
+					}
+					
+					// no need to check whether the created properties meet what we need in case
+					// of ordering or global ordering, because the only interesting properties we have
+					// are what we require
 					outputPlans.add(new SinkPlanNode(this, c));
 				}
 			}

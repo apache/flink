@@ -18,7 +18,6 @@ package eu.stratosphere.pact.compiler.costs;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.plan.EstimateProvider;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
@@ -114,16 +113,18 @@ public abstract class CostEstimator {
 		// determine the local costs
 		switch (n.getDriverStrategy()) {
 		case NONE:
+		case MAP:
+		case PARTIAL_GROUP:
 		case GROUP:
 		case CO_GROUP:
 			break;
 		case MERGE:
 			addLocalMergeCost(firstInput, secondInput, availableMemory, costs);
 			break;
-		case HYBRIDHASH_FIRST:
+		case HYBRIDHASH_BUILD_FIRST:
 			addHybridHashCosts(firstInput, secondInput, availableMemory, costs);
 			break;
-		case HYBRIDHASH_SECOND:
+		case HYBRIDHASH_BUILD_SECOND:
 			addHybridHashCosts(secondInput, firstInput, availableMemory, costs);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_FIRST:

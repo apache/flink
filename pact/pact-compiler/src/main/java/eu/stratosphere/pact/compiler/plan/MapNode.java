@@ -15,31 +15,25 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
-import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
+import eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesFactory;
+import eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle;
 import eu.stratosphere.pact.generic.contract.GenericMapContract;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * The optimizer's internal representation of a <i>Map</i> contract node.
- * 
- * @author Stephan Ewen
  */
 public class MapNode extends SingleInputNode
 {
 	/**
 	 * Creates a new MapNode for the given contract.
 	 * 
-	 * @param pactContract
-	 *        The map contract object.
+	 * @param pactContract The map contract object.
 	 */
 	public MapNode(GenericMapContract<?> pactContract) {
 		super(pactContract);
-		setDriverStrategy(DriverStrategy.NONE);
 	}
 
 	/**
@@ -61,42 +55,6 @@ public class MapNode extends SingleInputNode
 		return "Map";
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
-	@Override
-	public boolean isMemoryConsumer() {
-		return false;
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
-	 */
-	@Override
-	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-		// the map itself has no interesting properties.
-		// check, if there is an output contract that tells us that certain properties are preserved.
-		// if so, propagate to the child.
-		List<InterestingProperties> thisNodesIntProps = getInterestingProperties();
-		List<InterestingProperties> props = InterestingProperties.filterInterestingPropertiesForInput(thisNodesIntProps, this, 0);
-		if (props.isEmpty()) {
-			this.inConn.setNoInterestingProperties();
-		} else {
-			this.inConn.addAllInterestingProperties(props);
-		} 
-	}
-
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#createPlanAlternatives(java.util.List, java.util.List)
-	 */
-	@Override
-	protected void createPlanAlternatives(List<Channel> inputs, List<PlanNode> outputPlans)
-	{
-		for (Channel c : inputs) {
-			outputPlans.add(new SingleInputPlanNode(this, c, DriverStrategy.NONE));
-		}
-	}
-
 	/**
 	 * Computes the number of stub calls.
 	 * 
@@ -107,5 +65,13 @@ public class MapNode extends SingleInputNode
 			return getPredecessorNode().estimatedNumRecords;
 		else
 			return -1;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#getPossibleProperties()
+	 */
+	@Override
+	protected List<DriverPropertiesSingle> getPossibleProperties() {
+		return Collections.singletonList((DriverPropertiesSingle) new DriverPropertiesFactory.MapProperties());
 	}
 }

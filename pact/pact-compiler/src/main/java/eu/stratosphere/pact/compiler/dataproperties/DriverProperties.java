@@ -13,33 +13,14 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.plan;
+package eu.stratosphere.pact.compiler.dataproperties;
 
-import java.util.Map;
-
-import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 
  */
-public interface EstimateProvider
+public interface DriverProperties
 {
-	/**
-	 * Gets the estimated output size from this node.
-	 * 
-	 * @return The estimated output size.
-	 */
-	long getEstimatedOutputSize();
-
-	/**
-	 * Gets the estimated number of records in the output of this node.
-	 * 
-	 * @return The estimated number of records.
-	 */
-	long getEstimatedNumRecords();
-
-	
-	Map<FieldSet, Long> getEstimatedCardinalities();
-	
-	long getEstimatedCardinality(FieldSet cP);
+	DriverStrategy getStrategy();
 }

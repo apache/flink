@@ -15,10 +15,10 @@
 
 package eu.stratosphere.pact.common.util;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
-
 
 /**
  *
@@ -95,6 +95,12 @@ public class FieldSet implements Iterable<Integer>
 	@Override
 	public Iterator<Integer> iterator() {
 		return this.collection.iterator();
+	}
+	
+	public FieldList toFieldList() {
+		int[] pos = toArray();
+		Arrays.sort(pos);
+		return new FieldList(pos);
 	}
 	
 	public int[] toArray() {

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
@@ -29,6 +30,13 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.costs.Costs;
+import eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
@@ -39,16 +47,20 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  * A node in the optimizer's program representation for a PACT with a single input.
  * 
- * @author Stephan Ewen
+ * This class contains all the generic logic for branch handling, interesting properties,
+ * and candidate plan enumeration. The subclasses for specific operators simply add logic
+ * for cost estimates and specify possible strategies for their realization.
  */
 public abstract class SingleInputNode extends OptimizerNode
 {
+	protected final FieldSet keys; 			// The set of key fields
+	
+	private final List<DriverPropertiesSingle> possibleProperties;
+	
 	protected PactConnection inConn; 		// the input of the node
 	
-	protected FieldSet constantSet; 		// set of fields that are left unchanged by the stub
-	protected FieldSet notConstantSet;		// set of fields that are changed by the stub
-	
-	protected final FieldSet keys; 			// The set of key fields
+	private FieldSet constantSet; 			// set of fields that are left unchanged by the stub
+	private FieldSet notConstantSet;		// set of fields that are changed by the stub
 	
 	private List<PlanNode> cachedPlans;
 
@@ -62,6 +74,8 @@ public abstract class SingleInputNode extends OptimizerNode
 	public SingleInputNode(SingleInputContract<?> pactContract) {
 		super(pactContract);
 		this.keys = new FieldSet(pactContract.getKeyColumns(0));
+		
+		this.possibleProperties = getPossibleProperties();
 	}
 
 	/**
@@ -76,8 +90,7 @@ public abstract class SingleInputNode extends OptimizerNode
 	/**
 	 * Sets the <tt>PactConnection</tt> through which this node receives its input.
 	 * 
-	 * @param conn
-	 *        The input connection to set.
+	 * @param conn The input connection to set.
 	 */
 	public void setIncomingConnection(PactConnection inConn) {
 		this.inConn = inConn;
@@ -113,42 +126,12 @@ public abstract class SingleInputNode extends OptimizerNode
 		return Collections.singletonList(this.inConn);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
+	/**
+	 * @param fieldNumber
+	 * @return
 	 */
-	@Override
-	public void setInputs(Map<Contract, OptimizerNode> contractToNode) throws CompilerException {
-		// get the predecessor node
-		List<Contract> children = ((SingleInputContract<?>) getPactContract()).getInputs();
-		
-		OptimizerNode pred;
-		if (children.size() == 1) {
-			pred = contractToNode.get(children.get(0));
-		} else {
-			pred = new UnionNode(getPactContract(), children, contractToNode);
-			pred.setDegreeOfParallelism(getDegreeOfParallelism());
-			//push id down to newly created union node
-			pred.SetId(this.id);
-			pred.setSubtasksPerInstance(getSubtasksPerInstance());
-			this.id++;
-		}
-		// create the connection and add it
-		PactConnection conn = new PactConnection(pred, this);
-		setIncomingConnection(conn);
-		pred.addOutgoingConnection(conn);
-		
-		// see if an internal hint dictates the strategy to use
-		Configuration conf = getPactContract().getParameters();
-		
-		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
-		if (shipStrategy != null) {
-			if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
-				conn.setShipStrategy(ShipStrategyType.PARTITION_HASH);
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_FORWARD)) {
-				conn.setShipStrategy(ShipStrategyType.FORWARD);
-			}
-		}
+	public boolean isFieldConstant(int fieldNumber) {
+		return isFieldConstant(0, fieldNumber);
 	}
 	
 	/* (non-Javadoc)
@@ -174,43 +157,146 @@ public abstract class SingleInputNode extends OptimizerNode
 		return this.keys;
 	}
 	
-	// --------------------------------------------------------------------------------------------
-	//                                   Recursive Optimization
-	// --------------------------------------------------------------------------------------------
-	
 	/*
 	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans()
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#setInputs(java.util.Map)
 	 */
 	@Override
-	final public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
+	public void setInputs(Map<Contract, OptimizerNode> contractToNode) throws CompilerException {
+		// get the predecessor node
+		List<Contract> children = ((SingleInputContract<?>) getPactContract()).getInputs();
+		
+		OptimizerNode pred;
+		if (children.size() == 1) {
+			pred = contractToNode.get(children.get(0));
+		} else {
+			pred = new UnionNode(null, children, contractToNode);
+			pred.setDegreeOfParallelism(getDegreeOfParallelism());
+			//push id down to newly created union node
+			pred.SetId(this.id);
+			pred.setSubtasksPerInstance(getSubtasksPerInstance());
+			this.id++;
+		}
+		// create the connection and add it
+		PactConnection conn = new PactConnection(pred, this);
+		setIncomingConnection(conn);
+		pred.addOutgoingConnection(conn);
+		
+		// see if an internal hint dictates the strategy to use
+		Configuration conf = getPactContract().getParameters();
+		
+		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
+		if (shipStrategy != null) {
+			if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH)) {
+				conn.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE)) {
+				conn.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
+			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_FORWARD)) {
+				conn.setShipStrategy(ShipStrategyType.FORWARD);
+			} else {
+				throw new CompilerException("Unrecognized ship strategy hint: " + shipStrategy);
+			}
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                             Properties and Optimization
+	// --------------------------------------------------------------------------------------------
+	
+	
+	
+	protected abstract List<DriverPropertiesSingle> getPossibleProperties();
+	
+	@Override
+	public boolean isMemoryConsumer() {
+		for (DriverPropertiesSingle dps : this.possibleProperties) {
+			if (dps.getStrategy().damsInput(0)) {
+				return true;
+			}
+			for (RequestedLocalProperties rlp : dps.getPossibleLocalProperties()) {
+				if (!rlp.isTrivial()) {
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
+	 */
+	@Override
+	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+		// get what we inherit and what is preserved by our user code 
+		final InterestingProperties props = getInterestingProperties().filterByCodeAnnotations(this, 0);
+		final OptimizerNode pred = getPredecessorNode();
+		
+		// add all properties relevant to this node
+		for (DriverPropertiesSingle dps : this.possibleProperties) {
+			for (RequestedGlobalProperties gp : dps.getPossibleGlobalProperties()) {
+				Costs max = new Costs();
+				gp.addMinimalRequiredCosts(max, estimator, pred, this);
+				props.addGlobalProperties(gp, max);
+			}
+			for (RequestedLocalProperties lp : dps.getPossibleLocalProperties()) {
+				Costs max = new Costs();
+				lp.addMinimalRequiredCosts(max, estimator, pred, getMinimalMemoryAcrossAllSubTasks());
+				props.addLocalProperties(lp, max);
+			}
+		}
+		this.inConn.setInterestingProperties(props);
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#getAlternativePlans(eu.stratosphere.pact.compiler.costs.CostEstimator)
+	 */
+	@Override
+	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		// check if we have a cached version
 		if (this.cachedPlans != null) {
 			return this.cachedPlans;
 		}
 
-		// calculate alternative subplans for predecessor
-		List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
-		List<Channel> candidates = new ArrayList<Channel>(subPlans.size());
+		// calculate alternative sub-plans for predecessor
+		final List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
+		final Set<RequestedGlobalProperties> intGlobal = this.inConn.getInterestingProperties().getGlobalProperties();
+		final List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
-		List<InterestingProperties> ips = this.inConn.getInterestingProperties();
-		for (PlanNode p : subPlans) {
-			if (ips.isEmpty()) {
-				// create a simple forwarding channel
-				Channel c = new Channel(p);
-				c.setShipStrategy(ShipStrategyType.FORWARD);
-				c.setLocalStrategy(LocalStrategy.NONE);
-				candidates.add(c);
+		// create all candidates
+		for (PlanNode child : subPlans) {
+			if (this.inConn.getShipStrategy() == null) {
+				// pick the strategy ourselves
+				final GlobalProperties gp = child.getGlobalProperties();
+				// check if the child meets the global properties
+				for (RequestedGlobalProperties igps: intGlobal) {
+					final Channel c = new Channel(child);
+					if (igps.isMetBy(gp)) {
+						// take the current properties
+						c.setShipStrategy(ShipStrategyType.FORWARD);
+					} else {
+						// create an instantiation of the global properties
+						igps.parameterizeChannel(c);
+					}
+					addLocalCandidates(c, outputPlans);
+				}
 			} else {
-				for (InterestingProperties ip : ips) {
-					// create a channel that realizes the properties
-					candidates.add(ip.createChannelRealizingProperties(p));
+				// hint fixed the strategy
+				final Channel c = new Channel(child);
+				if (this.keys != null) {
+					c.setShipStrategy(this.inConn.getShipStrategy(), this.keys.toFieldList());
+				} else {
+					c.setShipStrategy(this.inConn.getShipStrategy());
+				}
+				// check whether we meet any properties
+				for (RequestedGlobalProperties igps: intGlobal) {
+					if (igps.isMetBy(c.getGlobalProperties())) {
+						addLocalCandidates(c, outputPlans);
+						break;
+					}
 				}
 			}
 		}
-		
-		List<PlanNode> outputPlans = new ArrayList<PlanNode>();
-		createPlanAlternatives(candidates, outputPlans);
 		
 		// cost and prune the plans
 		for (PlanNode node : outputPlans) {
@@ -222,13 +308,26 @@ public abstract class SingleInputNode extends OptimizerNode
 		return outputPlans;
 	}
 	
-	/**
-	 * Takes a list with all sub-plans and produces alternative plans for the current node.
-	 *  
-	 * @param inputs The different input alternatives for the current node.
-	 * @param outputPlans The generated output plan candidates.
-	 */
-	protected abstract void createPlanAlternatives(List<Channel> inputs, List<PlanNode> outputPlans);
+	private void addLocalCandidates(Channel in, List<PlanNode> target)
+	{
+		final LocalProperties lp = in.getLocalPropertiesAfterShippingOnly();
+		for (RequestedLocalProperties ilp : this.inConn.getInterestingProperties().getLocalProperties()) {
+			if (ilp.isMetBy(lp)) {
+				in.setLocalStrategy(LocalStrategy.NONE);
+			} else {
+				ilp.parameterizeChannel(in);
+			}
+		
+			for (DriverPropertiesSingle dps: this.possibleProperties) {
+				for (RequestedLocalProperties ilps : dps.getPossibleLocalProperties()) {
+					if (ilps.isMetBy(in.getLocalProperties())) {
+						target.add(dps.instantiate(in, this));
+						break;
+					}
+				}
+			}
+		}
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//                                     Branch Handling
@@ -245,12 +344,7 @@ public abstract class SingleInputNode extends OptimizerNode
 		}
 
 		addClosedBranches(getPredecessorNode().closedBranchingNodes);
-		
-		List<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
-		// TODO: check if merge of lists is really necessary
-		result = mergeLists(result, getPredecessorNode().getBranchesForParent(this)); 
-			
-		this.openBranches = result;
+		this.openBranches = getPredecessorNode().getBranchesForParent(this);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -302,8 +396,7 @@ public abstract class SingleInputNode extends OptimizerNode
 	 */
 	@Override
 	protected void readConstantAnnotation() {
-		
-		SingleInputContract<?> c = (SingleInputContract<?>)super.getPactContract();
+		final SingleInputContract<?> c = (SingleInputContract<?>) super.getPactContract();
 		
 		// get constantSet annotation from stub
 		ConstantFields constantSet = c.getUserCodeClass().getAnnotation(ConstantFields.class);

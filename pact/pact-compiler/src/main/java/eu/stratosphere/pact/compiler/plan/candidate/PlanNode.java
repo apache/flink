@@ -23,13 +23,15 @@ import java.util.Set;
 
 import eu.stratosphere.pact.common.plan.Visitable;
 import eu.stratosphere.pact.common.util.FieldSet;
-import eu.stratosphere.pact.compiler.Costs;
+import eu.stratosphere.pact.compiler.costs.Costs;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
- * @author Stephan Ewen
+ * 
  */
 public abstract class PlanNode implements Visitable<PlanNode>
 {
@@ -187,7 +189,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	}
 	
 	public long getGuaranteedAvailableMemory() {
-		return this.template.getTotalMemoryAcrossAllSubTasks();
+		return this.template.getMinimalMemoryAcrossAllSubTasks();
 	}
 
 	// --------------------------------------------------------------------------------------------

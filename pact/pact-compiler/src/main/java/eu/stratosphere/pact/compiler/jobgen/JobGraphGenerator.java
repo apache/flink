@@ -48,6 +48,7 @@ import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SourcePlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.UnionPlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
@@ -56,6 +57,7 @@ import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
@@ -307,7 +309,7 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 					// sanity check the common serializer
 					if (typeSerFact == null) {
 						typeSerFact = inConn.getSerializer();
-					} else if (typeSerFact != inConn.getSerializer()) {
+					} else if (!typeSerFact.equals(inConn.getSerializer())) {
 						throw new CompilerException("Conflicting types in union operator.");
 					}
 					
@@ -325,9 +327,12 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 					} else {
 						sourceVertexConfig = new TaskConfig(sourceVertex.getConfiguration());
 					}
-
 					connectJobVertices(inConn, inputIndex, sourceVertex, sourceVertexConfig, targetVertex, targetVertexConfig);
 				}
+				
+				// the local strategy is added only once. in non-union case that is the actual edge,
+				// in the union case, it is the edge between union and the target node
+				addLocalInfoFromChannelToConfig(input, targetVertexConfig, inputIndex);
 			}
 		} catch (Exception e) {
 			throw new CompilerException(
@@ -472,208 +477,13 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 	// ------------------------------------------------------------------------
 	// Connecting Vertices
 	// ------------------------------------------------------------------------
-	
-//	/**
-//	 * Adds the necessary vertexes for sampling & histogram creation etc for range partitioning
-//	 * @param connection
-//	 * @param outputVertex
-//	 * @param inputVertex
-//	 * @throws JobGraphDefinitionException 
-//	 */
-//	private void connectWithSamplingPartitionRangeStrategy(PactConnection connection, int inputNumber,
-//			final AbstractJobVertex outputVertex, final TaskConfig outputConfig,
-//			final AbstractJobVertex inputVertex, final TaskConfig inputConfig, boolean firstCall)
-//	throws JobGraphDefinitionException
-//	{
-//		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
-//		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
-//		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
-////		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
-//		Class<?> sourceStub = connection.getSourcePact().getPactContract().getUserCodeClass();
-//		
-//		//TODO: Check for which pact types it makes sense
-//		
-//		//When parallelism is one there is nothing to partition
-//		//if(sourceDOP == 1 && targetDOP == 1) {
-//		if(targetDOP == 1) {
-//			if(sourceDOP == 1) {
-//				outputVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-//			} else {
-//				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-//			}
-//			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-//			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD, inputNumber);
-//			return;
-//		}
-//
-//		
-//		//Add sample vertex
-//		JobTaskVertex sampleVertex = new JobTaskVertex("Range partition - sampling", this.jobGraph);
-//		this.auxVertices.add(sampleVertex);
-//		sampleVertex.setTaskClass(SampleTask.class);
-//		TaskConfig sampleConfig = new TaskConfig(sampleVertex.getConfiguration());
-//		//sampleConfig.setStubClass((Class<? extends Stub<?, ?>>) AdaptiveKeySampleStub.class);
-//		sampleVertex.setNumberOfSubtasks(sourceDOP);
-//		if (sourceIPM >= 1) {
-//			sampleVertex.setNumberOfSubtasksPerInstance(sourceIPM);
-//		}
-//		sampleConfig.setStubClass(sourceStub);
-//		//Connect with input
-//		outputVertex.connectTo(sampleVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-//		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-//		sampleConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
-//		
-//		
-//		// firstCall indicated that this is the first call for one input which might have multiple predecessors
-//		
-//		// on the first call we have to instantiate the histogram which will be use by all predecessors
-//		// -> on all consecutive calls we connect the new output node to the already instantiated histogramVertex
-//		TaskConfig histogramConfig;
-//		if(firstCall) {
-//			//Add histogram building vertex;
-//			this.histogramVertex = new JobTaskVertex("Range partition - histograming", this.jobGraph);
-//			this.auxVertices.add(this.histogramVertex);
-//			this.histogramVertex.setTaskClass(HistogramTask.class);
-//			this.histogramVertex.setNumberOfSubtasks(1);
-//			// reset counter because we instantiated a new histogram
-//			this.numberOfHistogramInputs = 0;
-//			
-//			histogramConfig = new TaskConfig(this.histogramVertex.getConfiguration());
-//			histogramConfig.setStubClass(sourceStub);
-//			histogramConfig.setLocalStrategy(LocalStrategy.SORT);
-//			Configuration histogramStubConfig = new Configuration();
-//			histogramStubConfig.setInteger(HistogramTask.NUMBER_OF_BUCKETS, targetDOP);
-//			histogramConfig.setStubParameters(histogramStubConfig);
-//			assignMemory(histogramConfig, outputConfig.getStubParameters().getInteger(HistogramTask.HISTOGRAM_MEMORY,-1));
-//		} else {
-//			histogramConfig = new TaskConfig(this.histogramVertex.getConfiguration());
-//		}
-//		//Connect with input
-//		histogramConfig.addInputShipStrategy(ShipStrategy.FORWARD, ++this.numberOfHistogramInputs);
-//		sampleConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-//		sampleVertex.connectTo(this.histogramVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-//		
-//		
-//		//Add range distributor vertex
-//		JobTaskVertex partitionVertex = new JobTaskVertex("Range partition - partitioning", this.jobGraph);
-//		this.auxVertices.add(partitionVertex);
-//		partitionVertex.setTaskClass(PartitionTask.class);
-//		partitionVertex.setNumberOfSubtasks(sourceDOP);
-//		if (sourceIPM >= 1) {
-//			partitionVertex.setNumberOfSubtasksPerInstance(sourceIPM);
-//		}
-//		TaskConfig partitionConfig = new TaskConfig(partitionVertex.getConfiguration());
-//		partitionConfig.setStubClass(sourceStub);
-//		Configuration partitionStubConfig = new Configuration();
-//		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
-//			connection.getTargetPact().getGlobalProperties().getOrdering().getOrder(0).name());
-//		partitionConfig.setStubParameters(partitionStubConfig);
-//			
-//		//Add temp vertex to avoid blocking
-//		JobTaskVertex tempVertex = generateTempVertex(
-//				// source pact stub contains out key and value
-//				connection.getSourcePact().getPactContract().getUserCodeClass(),
-//				// keep parallelization of source pact
-//				sourceDOP, sourceIPM);
-//		
-//		tempVertex.setVertexToShareInstancesWith(outputVertex);
-//		TaskConfig tempConfig = new TaskConfig(tempVertex.getConfiguration());
-//
-//		//Connect data to tempVertex (partitioner)
-//		outputVertex.connectTo(tempVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-//		tempConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
-//		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-//		
-//		//Connect tempVertex (data) to partitionVertex
-//		tempVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-//		// tempVertex is always connected as second input to the partitioner (2-input node).
-//		// the second input is the data input
-//		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD, 2);
-//		tempConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-//			
-//		//Connect histogram with partitioner
-//		this.histogramVertex.connectTo(partitionVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
-//		// histogramVertex is always connected as first input to the partitioner (2-input node).
-//		// the first input is the statistic input
-//		partitionConfig.addInputShipStrategy(ShipStrategy.BROADCAST, 1);
-//		histogramConfig.addOutputShipStrategy(ShipStrategy.BROADCAST);
-//
-//		//Connect to receiving vertex
-//		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
-//		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE, inputNumber);
-//		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
-//	}
-//	
-//	/**
-//	 * Implements range partitioning with a user-defined data distribution
-//	 * @param connection
-//	 * @param outputVertex
-//	 * @param inputVertex
-//	 * @throws JobGraphDefinitionException 
-//	 */
-//	private void connectWithGivenDistributionPartitionRangeStrategy(PactConnection connection, int inputNumber,
-//			final AbstractJobVertex outputVertex, final TaskConfig outputConfig,
-//			final AbstractJobVertex inputVertex, final TaskConfig inputConfig)
-//	throws JobGraphDefinitionException
-//	{
-//		int sourceDOP = connection.getSourcePact().getDegreeOfParallelism();
-//		int sourceIPM = connection.getSourcePact().getInstancesPerMachine();
-//		int targetDOP = connection.getTargetPact().getDegreeOfParallelism();
-////		int targetIPM = connection.getTargetPact().getInstancesPerMachine();
-//		Class<?> sourceStub = connection.getSourcePact().getPactContract().getUserCodeClass();
-//		
-//		//When parallelism is one there is nothing to partition
-//		//if(sourceDOP == 1 && targetDOP == 1) {
-//		if(targetDOP == 1) {
-//			if(sourceDOP == 1) {
-//				outputVertex.connectTo(inputVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-//			} else {
-//				outputVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-//			}
-//			outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-//			inputConfig.addInputShipStrategy(ShipStrategy.FORWARD, inputNumber);
-//			return;
-//		}
-//		
-//		//Add range distributor vertex
-//		JobTaskVertex partitionVertex = new JobTaskVertex("Range partition - partitioning", this.jobGraph);
-//		this.auxVertices.add(partitionVertex);
-//		partitionVertex.setTaskClass(PartitionTask.class);
-//		partitionVertex.setNumberOfSubtasks(sourceDOP);
-//		if (sourceIPM >= 1) {
-//			partitionVertex.setNumberOfSubtasksPerInstance(sourceIPM);
-//		}
-//		TaskConfig partitionConfig = new TaskConfig(partitionVertex.getConfiguration());
-//		partitionConfig.setStubClass(sourceStub);
-//		Configuration partitionStubConfig = new Configuration();
-//		partitionStubConfig.setString(PartitionTask.GLOBAL_PARTITIONING_ORDER, 
-//			connection.getTargetPact().getGlobalProperties().getOrdering().getOrder(0).name());
-//		partitionStubConfig.setBoolean(PartitionTask.PARTITION_BY_SAMPLING, false);
-//		partitionStubConfig.setInteger(PartitionTask.NUMBER_OF_PARTITIONS, targetDOP);
-//		partitionStubConfig.setClass(PartitionTask.DATA_DISTRIBUTION_CLASS,
-//			connection.getTargetPact().getPactContract().getCompilerHints().getInputDistributionClass());
-//		partitionConfig.setStubParameters(partitionStubConfig);
-//		
-//		//Connect partitioner with sending vertex
-//		outputVertex.connectTo(partitionVertex, ChannelType.INMEMORY, CompressionLevel.NO_COMPRESSION, DistributionPattern.POINTWISE);
-//		// we don't use the statistic input, because the partitioning strategy is given
-//		// hence partitionVertex in now a single input node, hence we connect to input 1
-//		partitionConfig.addInputShipStrategy(ShipStrategy.FORWARD, 1);
-//		outputConfig.addOutputShipStrategy(ShipStrategy.FORWARD);
-//		
-//		//Connect to receiving vertex
-//		partitionVertex.connectTo(inputVertex, ChannelType.NETWORK, CompressionLevel.NO_COMPRESSION, DistributionPattern.BIPARTITE);
-//		inputConfig.addInputShipStrategy(ShipStrategy.PARTITION_RANGE, inputNumber);
-//		partitionConfig.addOutputShipStrategy(ShipStrategy.PARTITION_RANGE);
-//	}
-
-
 
 	private void connectJobVertices(Channel connection, int inputNumber,
 			final AbstractJobVertex sourceVertex, final TaskConfig sourceConfig,
 			final AbstractJobVertex targetVertex, final TaskConfig targetConfig)
 	throws JobGraphDefinitionException, CompilerException
 	{
+		// ------------ connect the vertices to the job graph --------------
 		final ChannelType channelType;
 		final DistributionPattern distributionPattern;
 
@@ -697,10 +507,9 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 		sourceVertex.connectTo(targetVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
 		sourceConfig.addInputToGroup(inputNumber);
 
-		// configure the source task's ship strategy strategies in task config
+		// -------------- configure the source task's ship strategy strategies in task config --------------
 		final int outputIndex = sourceConfig.getNumOutputs();
 		sourceConfig.addOutputShipStrategy(connection.getShipStrategy());
-		
 		if (outputIndex == 0) {
 			sourceConfig.setOutputSerializert(connection.getSerializer());
 		}
@@ -716,7 +525,30 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 //			}
 //		}
 		
-		// configure the receiving task's input serializer, comparator, ship strategy and temp mode
+		// ---------------- configure the receiver -------------------
+		targetConfig.addInputToGroup(inputNumber);
+	}
+	
+	private void addLocalInfoFromChannelToConfig(Channel channel, TaskConfig config, int inputNum) {
+		// serializer
+		config.setInputSerializer(channel.getSerializer(), inputNum);
+		
+		// local strategy
+		if (channel.getLocalStrategy() != LocalStrategy.NONE) {
+			config.setInputLocalStrategy(inputNum, channel.getLocalStrategy());
+			if (channel.getLocalStrategyComparator() != null) {
+				config.setInputComparator(channel.getLocalStrategyComparator(), inputNum);
+			}
+		}
+		
+		// temping / caching
+		if (channel.getTempMode() != TempMode.NONE) {
+			config.setInputDammed(inputNum, true);
+			config.setInputDamMemory(inputNum, channel.getTempMemory());
+			if (channel.getTempMode() == TempMode.MATERIALIZE_REPLAYABLE) {
+				config.setInputReplayable(inputNum, true);
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------

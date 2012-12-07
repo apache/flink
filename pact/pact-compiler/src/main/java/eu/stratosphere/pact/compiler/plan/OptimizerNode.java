@@ -31,22 +31,18 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.stubs.StubAnnotation.OutCardBounds;
 import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.util.PactType;
 import eu.stratosphere.pact.generic.contract.AbstractPact;
 import eu.stratosphere.pact.generic.contract.Contract;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * This class represents a node in the optimizer's internal representation of the PACT plan. It contains
  * extra information about estimates, hints and data properties.
- * 
- * @author Stephan Ewen
- * @author Fabian Hueske
  */
 public abstract class OptimizerNode implements Visitable<OptimizerNode>, EstimateProvider
 {
@@ -56,11 +52,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	private final Contract pactContract; // The contract (Reduce / Match / DataSource / ...)
 	
-	protected DriverStrategy driverStrategy; // The local strategy, if it is fixed by a hint
-	
 	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
 
-	private List<InterestingProperties> intProps; // the interesting properties of this node
+	private InterestingProperties intProps; // the interesting properties of this node
 	
 	// --------------------------------- Branch Handling ------------------------------------------
 
@@ -105,9 +99,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param pactContract The PACT that the node represents.
 	 */
 	public OptimizerNode(Contract pactContract) {
-		if (pactContract == null) {
-			throw new NullPointerException("The contract must not ne null.");
-		}
 		this.pactContract = pactContract;
 		readStubAnnotations();
 	}
@@ -195,13 +186,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	public abstract List<PactConnection> getIncomingConnections();
 
-
 	/**
 	 * Tells the node to compute the interesting properties for its inputs. The interesting properties
 	 * for the node itself must have been computed before.
 	 * The node must then see how many of interesting properties it preserves and add its own.
 	 * 
-	 * @param estimator		The {@code CostEstimator} instance to use for plan cost estimation. 
+	 * @param estimator	The {@code CostEstimator} instance to use for plan cost estimation.
 	 */
 	public abstract void computeInterestingPropertiesForInputs(CostEstimator estimator);
 
@@ -405,28 +395,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return The total amount of memory across all subtasks.
 	 */
-	public long getTotalMemoryAcrossAllSubTasks() {
+	public long getMinimalMemoryAcrossAllSubTasks() {
 		return this.minimalMemoryPerSubTask == -1 ? -1 : this.minimalMemoryPerSubTask * this.degreeOfParallelism;
-	}
-
-	/**
-	 * Gets the local strategy from this node. This determines for example for a <i>match</i> Pact whether
-	 * to use a sort-merge or a hybrid hash strategy.
-	 * 
-	 * @return The driver strategy.
-	 */
-	public DriverStrategy getDriverStrategy() {
-		return this.driverStrategy;
-	}
-
-	/**
-	 * Sets the driver strategy from this node. This determines the algorithms to be used to prepare the data inside a
-	 * partition.
-	 * 
-	 * @param strategy The driver strategy to be set.
-	 */
-	public void setDriverStrategy(DriverStrategy strategy) {
-		this.driverStrategy = strategy;
 	}
 
 	/**
@@ -434,7 +404,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return The interesting properties for this node, or null, if not yet computed.
 	 */
-	public List<InterestingProperties> getInterestingProperties() {
+	public InterestingProperties getInterestingProperties() {
 		return this.intProps;
 	}
 
@@ -508,27 +478,14 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		List<PactConnection> conns = getOutgoingConnections();
 		if (conns.size() == 0) {
 			// no incoming, we have none ourselves
-			this.intProps = Collections.<InterestingProperties>emptyList();
-		} else if (conns.size() == 1) {
-			// one incoming, no need to make a union, just take them
-			List<InterestingProperties> ips = conns.get(0).getInterestingProperties();
-			this.intProps = ips.isEmpty() ?
-				Collections.<InterestingProperties>emptyList() :
-				new ArrayList<InterestingProperties>(ips);
+			this.intProps = new InterestingProperties();
 		} else {
-			// union them
-			List<InterestingProperties> props = null;
-			for (PactConnection conn : conns) {
-				List<InterestingProperties> ips = conn.getInterestingProperties();
-				if (ips.size() > 0) {
-					if (props == null) {
-						props = new ArrayList<InterestingProperties>();
-					}
-					InterestingProperties.mergeUnionOfInterestingProperties(props, ips);
-				}
+			this.intProps = conns.get(0).getInterestingProperties().clone();
+			for (int i = 1; i < conns.size(); i++) {
+				this.intProps.addInterestingProperties(conns.get(i).getInterestingProperties());
 			}
-			this.intProps = (props == null || props.isEmpty()) ? Collections.<InterestingProperties>emptyList() : props;
 		}
+		this.intProps.dropTrivials();
 	}
 	
 	/**
@@ -716,220 +673,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		return -1;
 	}
 	
-	
-	// --------------------------------------------------------------------------------------------
-	//                       Handling of branches
-	// --------------------------------------------------------------------------------------------
-
-	public boolean hasUnclosedBranches() {
-		return this.openBranches != null && !this.openBranches.isEmpty();
-	}
-	
-	public OptimizerNode getLastJoinedBranchNode() {
-		return this.lastJoinedBranchNode;
-	}
-	
-	/**
-	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
-	 * alternative plans are comparable, if
-	 * 
-	 * a) There is no branch in the sub-plan of this node
-	 * b) Both candidates have the same candidate as the child at the last open branch. 
-	 * 
-	 * @param subPlan1
-	 * @param subPlan2
-	 * @return
-	 */
-	protected boolean areBranchCompatible(Channel plan1, Channel plan2) {
-		if (plan1 == null || plan2 == null)
-			throw new NullPointerException();
-		
-		// if there is no open branch, the children are always compatible.
-		// in most plans, that will be the dominant case
-		if (this.lastJoinedBranchNode == null) {
-			return true;
-		}
-
-		final PlanNode branch1Cand = plan1.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
-		final PlanNode branch2Cand = plan2.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
-		return branch1Cand == branch2Cand;
-	}
-
-	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent) {
-		if (this.outgoingConnections.size() == 1) {
-			// return our own stack of open branches, because nothing is added
-			if (this.openBranches == null)
-				return null;
-			else
-				return new ArrayList<UnclosedBranchDescriptor>(this.openBranches);
-		}
-		else if (this.outgoingConnections.size() > 1) {
-			// we branch add a branch info to the stack
-			List<UnclosedBranchDescriptor> branches = new ArrayList<UnclosedBranchDescriptor>(4);
-			if (this.openBranches != null) {
-				branches.addAll(this.openBranches);
-			}
-
-			// find out, which output number the connection to the parent
-			int num;
-			for (num = 0; num < this.outgoingConnections.size(); num++) {
-				if (this.outgoingConnections.get(num).getTargetPact() == parent) {
-					break;
-				}
-			}
-			if (num >= this.outgoingConnections.size()) {
-				throw new CompilerException("Error in compiler: "
-					+ "Parent to get branch info for is not contained in the outgoing connections.");
-			}
-
-			// create the description and add it
-			long bitvector = 0x1L << num;
-			branches.add(new UnclosedBranchDescriptor(this, bitvector));
-			return branches;
-		}
-		else {
-			throw new CompilerException(
-				"Error in compiler: Cannot get branch info for parent in a node woth no parents.");
-		}
-	}
-
-	
-	protected void removeClosedBranches(List<UnclosedBranchDescriptor> openList) {
-		if (openList == null || openList.isEmpty() || this.closedBranchingNodes == null || this.closedBranchingNodes.isEmpty())
-			return;
-		
-		Iterator<UnclosedBranchDescriptor> it = openList.iterator();
-		while (it.hasNext()) {
-			if (this.closedBranchingNodes.contains(it.next().getBranchingNode())) {
-				//this branch was already closed --> remove it from the list
-				it.remove();
-			}
-		}
-	}
-	
-	protected void addClosedBranches(Set<OptimizerNode> alreadyClosed) {
-		if (alreadyClosed == null || alreadyClosed.isEmpty()) 
-			return;
-		if (this.closedBranchingNodes == null) 
-			this.closedBranchingNodes = new HashSet<OptimizerNode>(alreadyClosed);
-		else 
-			this.closedBranchingNodes.addAll(alreadyClosed);
-	}
-	
-	protected void addClosedBranch(OptimizerNode alreadyClosed) {
-		if (this.closedBranchingNodes == null) 
-			this.closedBranchingNodes = new HashSet<OptimizerNode>();
-		this.closedBranchingNodes.add(alreadyClosed);
-	}
-	/*
-	 * node IDs are assigned in graph-traversal order (pre-order)
-	 * hence, each list is sorted by ID in ascending order and all consecutive lists start with IDs in ascending order
-	 */
-	protected List<UnclosedBranchDescriptor> mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open) {
-
-		//remove branches which have already been closed
-		removeClosedBranches(child1open);
-		removeClosedBranches(child2open);
-		
-		// check how many open branches we have. the cases:
-		// 1) if both are null or empty, the result is null
-		// 2) if one side is null (or empty), the result is the other side.
-		// 3) both are set, then we need to merge.
-		if(child1open == null || child1open.isEmpty()) {
-			return child2open;
-		}
-		
-		if(child2open == null || child2open.isEmpty()) {
-			return child1open;
-		}
-		
-		// both have a history. merge...
-		ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>(4);
-
-
-		int index1 = child1open.size() - 1;
-		int index2 = child2open.size() - 1;
-
-		// as both lists (child1open and child2open) are sorted in ascending ID order
-		// we can do a merge-join-like loop which preserved the order in the result list
-		// and eliminates duplicates
-		while(index1 >= 0 || index2 >= 0) {
-			int id1 = -1;
-			int id2 = index2 >= 0 ? child2open.get(index2).getBranchingNode().getId() : -1;
-
-			while (index1 >= 0 && (id1 = child1open.get(index1).getBranchingNode().getId()) > id2) {
-				result.add(child1open.get(index1));
-				index1--;
-			}
-			while (index2 >= 0 && (id2 = child2open.get(index2).getBranchingNode().getId()) > id1) {
-				result.add(child2open.get(index2));
-				index2--;
-			}
-
-			// match: they share a common branching child
-			if (id1 == id2) {
-				// if this is the latest common child, remember it
-				OptimizerNode currBanchingNode = child1open.get(index1).getBranchingNode();
-
-//				if (this.lastJoinedBranchNode == null) {
-//					this.lastJoinedBranchNode = currBanchingNode;
-//				}
-
-				// see, if this node closes the branch
-				long joinedInputs = child1open.get(index1).getJoinedPathsVector()
-					| child2open.get(index2).getJoinedPathsVector();
-
-				// this is 2^size - 1, which is all bits set at positions 0..size-1
-				long allInputs = (0x1L << currBanchingNode.getOutgoingConnections().size()) - 1;
-
-				if (joinedInputs == allInputs) {
-					// closed - we can remove it from the stack
-					addClosedBranch(currBanchingNode);
-				} else {
-					// not quite closed
-					result.add(new UnclosedBranchDescriptor(currBanchingNode, joinedInputs));
-				}
-
-				index1--;
-				index2--;
-			}
-
-		}
-
-		// merged. now we need to reverse the list, because we added the elements in reverse order
-		Collections.reverse(result);
-		
-		return result;
-	}
-	
-	/**
-	 *
-	 */
-	public static final class UnclosedBranchDescriptor
-	{
-		protected OptimizerNode branchingNode;
-
-		protected long joinedPathsVector;
-
-		/**
-		 * @param branchingNode
-		 * @param joinedPathsVector
-		 */
-		protected UnclosedBranchDescriptor(OptimizerNode branchingNode, long joinedPathsVector)
-		{
-			this.branchingNode = branchingNode;
-			this.joinedPathsVector = joinedPathsVector;
-		}
-
-		public OptimizerNode getBranchingNode() {
-			return this.branchingNode;
-		}
-
-		public long getJoinedPathsVector() {
-			return this.joinedPathsVector;
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	// Reading of stub annotations
 	// ------------------------------------------------------------------------
@@ -1076,6 +819,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 //	}
 	
 	// --------------------------------------------------------------------------------------------
+	//  Miscellaneous
+	// --------------------------------------------------------------------------------------------
 	
 	/*
 	 * (non-Javadoc)
@@ -1087,12 +832,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 		bld.append(getName());
 		bld.append(" (").append(getPactType().name()).append(") ");
-
-		if (this.driverStrategy != null) {
-			bld.append('(');
-			bld.append(this.driverStrategy.name());
-			bld.append(") ");
-		}
 
 		int i = 1; 
 		for(PactConnection conn : getIncomingConnections()) {
@@ -1108,56 +847,272 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected void prunePlanAlternatives(List<PlanNode> plans)
 	{
-		// shortcut for the simple case
-		if (plans.size() == 1) {
-			return;
-		}
+//		if (plans.isEmpty()) {
+//			throw new CompilerException("No plan meeting the requirements could be created.");
+//		}
+//		// shortcut for the simple case
+//		if (plans.size() == 1) {
+//			return;
+//		}
+//		
+//		// for each interesting property, which plans are cheapest
+//		final PlanNode[] toKeep = new PlanNode[this.intProps.size()]; 
+//		PlanNode cheapest = null; // the overall cheapest plan
+//
+//		// go over all plans from the list
+//		for (PlanNode candidate : plans) {
+//			// check if that plan is the overall cheapest
+//			if (cheapest == null || (cheapest.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0)) {
+//				cheapest = candidate;
+//			}
+//
+//			// find the interesting properties that this plan matches
+//			for (int i = 0; i < this.intProps.size(); i++) {
+//				if (this.intProps.get(i).isMetBy(candidate)) {
+//					final PlanNode previous = toKeep[i];
+//					// the candidate meets them. if it is the first one to meet the interesting properties,
+//					// or the previous one was more expensive, keep it
+//					if (previous == null || previous.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0) {
+//						toKeep[i] = candidate;
+//					}
+//				}
+//			}
+//		}
+//
+//		// all plans are set now
+//		plans.clear();
+//
+//		// add the cheapest plan
+//		if (cheapest != null) {
+//			plans.add(cheapest);
+//			cheapest.setPruningMarker(); // remember that that plan is in the set
+//		}
+//		final Costs cheapestCosts = cheapest.getCumulativeCosts();
+//
+//		// add all others, which are optimal for some interesting properties
+//		for (int i = 0; i < toKeep.length; i++) {
+//			final PlanNode n = toKeep[i];
+//			if (n != null && !n.isPruneMarkerSet()) {
+//				final Costs maxDelta = this.intProps.get(i).getMaximalCosts();
+//				if (!cheapestCosts.isOtherMoreThanDeltaAbove(n.getCumulativeCosts(), maxDelta)) {
+//					n.setPruningMarker();
+//					plans.add(n);
+//				}
+//			}
+//		}
+	}
+	
+	
+	// --------------------------------------------------------------------------------------------
+	//                       Handling of branches
+	// --------------------------------------------------------------------------------------------
+
+	public boolean hasUnclosedBranches() {
+		return this.openBranches != null && !this.openBranches.isEmpty();
+	}
+	
+	public OptimizerNode getLastJoinedBranchNode() {
+		return this.lastJoinedBranchNode;
+	}
+	
+	/**
+	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
+	 * alternative plans are comparable, if
+	 * 
+	 * a) There is no branch in the sub-plan of this node
+	 * b) Both candidates have the same candidate as the child at the last open branch. 
+	 * 
+	 * @param subPlan1
+	 * @param subPlan2
+	 * @return
+	 */
+	protected boolean areBranchCompatible(Channel plan1, Channel plan2) {
+		if (plan1 == null || plan2 == null)
+			throw new NullPointerException();
 		
-		// for each interesting property, which plans are cheapest
-		final PlanNode[] toKeep = new PlanNode[this.intProps.size()]; 
-		PlanNode cheapest = null; // the overall cheapest plan
-
-		// go over all plans from the list
-		for (PlanNode candidate : plans) {
-			// check if that plan is the overall cheapest
-			if (cheapest == null || (cheapest.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0)) {
-				cheapest = candidate;
-			}
-
-			// find the interesting properties that this plan matches
-			for (int i = 0; i < this.intProps.size(); i++) {
-				if (this.intProps.get(i).isMetBy(candidate)) {
-					final PlanNode previous = toKeep[i];
-					// the candidate meets them. if it is the first one to meet the interesting properties,
-					// or the previous one was more expensive, keep it
-					if (previous == null || previous.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0) {
-						toKeep[i] = candidate;
-					}
-				}
-			}
+		// if there is no open branch, the children are always compatible.
+		// in most plans, that will be the dominant case
+		if (this.lastJoinedBranchNode == null) {
+			return true;
 		}
 
-		// all plans are set now
-		plans.clear();
+		final PlanNode branch1Cand = plan1.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
+		final PlanNode branch2Cand = plan2.getSource().getCandidateAtBranchPoint(this.lastJoinedBranchNode);
+		return branch1Cand == branch2Cand;
+	}
 
-		// add the cheapest plan
-		if (cheapest != null) {
-			plans.add(cheapest);
-			cheapest.setPruningMarker(); // remember that that plan is in the set
+	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent) {
+		if (this.outgoingConnections.size() == 1) {
+			// return our own stack of open branches, because nothing is added
+			if (this.openBranches == null)
+				return null;
+			else
+				return new ArrayList<UnclosedBranchDescriptor>(this.openBranches);
 		}
-		final Costs cheapestCosts = cheapest.getCumulativeCosts();
+		else if (this.outgoingConnections.size() > 1) {
+			// we branch add a branch info to the stack
+			List<UnclosedBranchDescriptor> branches = new ArrayList<UnclosedBranchDescriptor>(4);
+			if (this.openBranches != null) {
+				branches.addAll(this.openBranches);
+			}
 
-		// add all others, which are optimal for some interesting properties
-		for (int i = 0; i < toKeep.length; i++) {
-			final PlanNode n = toKeep[i];
-			if (n != null && !n.isPruneMarkerSet()) {
-				final Costs maxDelta = this.intProps.get(i).getMaximalCosts();
-				if (!cheapestCosts.isOtherMoreThanDeltaAbove(n.getCumulativeCosts(), maxDelta)) {
-					n.setPruningMarker();
-					plans.add(n);
+			// find out, which output number the connection to the parent
+			int num;
+			for (num = 0; num < this.outgoingConnections.size(); num++) {
+				if (this.outgoingConnections.get(num).getTargetPact() == parent) {
+					break;
 				}
+			}
+			if (num >= this.outgoingConnections.size()) {
+				throw new CompilerException("Error in compiler: "
+					+ "Parent to get branch info for is not contained in the outgoing connections.");
+			}
+
+			// create the description and add it
+			long bitvector = 0x1L << num;
+			branches.add(new UnclosedBranchDescriptor(this, bitvector));
+			return branches;
+		}
+		else {
+			throw new CompilerException(
+				"Error in compiler: Cannot get branch info for parent in a node with no parents.");
+		}
+	}
+
+	
+	protected void removeClosedBranches(List<UnclosedBranchDescriptor> openList) {
+		if (openList == null || openList.isEmpty() || this.closedBranchingNodes == null || this.closedBranchingNodes.isEmpty())
+			return;
+		
+		Iterator<UnclosedBranchDescriptor> it = openList.iterator();
+		while (it.hasNext()) {
+			if (this.closedBranchingNodes.contains(it.next().getBranchingNode())) {
+				//this branch was already closed --> remove it from the list
+				it.remove();
 			}
 		}
 	}
 	
+	protected void addClosedBranches(Set<OptimizerNode> alreadyClosed) {
+		if (alreadyClosed == null || alreadyClosed.isEmpty()) 
+			return;
+		if (this.closedBranchingNodes == null) 
+			this.closedBranchingNodes = new HashSet<OptimizerNode>(alreadyClosed);
+		else 
+			this.closedBranchingNodes.addAll(alreadyClosed);
+	}
+	
+	protected void addClosedBranch(OptimizerNode alreadyClosed) {
+		if (this.closedBranchingNodes == null) 
+			this.closedBranchingNodes = new HashSet<OptimizerNode>();
+		this.closedBranchingNodes.add(alreadyClosed);
+	}
+	/*
+	 * node IDs are assigned in graph-traversal order (pre-order)
+	 * hence, each list is sorted by ID in ascending order and all consecutive lists start with IDs in ascending order
+	 */
+	protected List<UnclosedBranchDescriptor> mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open) {
+
+		//remove branches which have already been closed
+		removeClosedBranches(child1open);
+		removeClosedBranches(child2open);
+		
+		// check how many open branches we have. the cases:
+		// 1) if both are null or empty, the result is null
+		// 2) if one side is null (or empty), the result is the other side.
+		// 3) both are set, then we need to merge.
+		if(child1open == null || child1open.isEmpty()) {
+			return child2open;
+		}
+		
+		if(child2open == null || child2open.isEmpty()) {
+			return child1open;
+		}
+		
+		// both have a history. merge...
+		ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>(4);
+
+
+		int index1 = child1open.size() - 1;
+		int index2 = child2open.size() - 1;
+
+		// as both lists (child1open and child2open) are sorted in ascending ID order
+		// we can do a merge-join-like loop which preserved the order in the result list
+		// and eliminates duplicates
+		while(index1 >= 0 || index2 >= 0) {
+			int id1 = -1;
+			int id2 = index2 >= 0 ? child2open.get(index2).getBranchingNode().getId() : -1;
+
+			while (index1 >= 0 && (id1 = child1open.get(index1).getBranchingNode().getId()) > id2) {
+				result.add(child1open.get(index1));
+				index1--;
+			}
+			while (index2 >= 0 && (id2 = child2open.get(index2).getBranchingNode().getId()) > id1) {
+				result.add(child2open.get(index2));
+				index2--;
+			}
+
+			// match: they share a common branching child
+			if (id1 == id2) {
+				// if this is the latest common child, remember it
+				OptimizerNode currBanchingNode = child1open.get(index1).getBranchingNode();
+
+//				if (this.lastJoinedBranchNode == null) {
+//					this.lastJoinedBranchNode = currBanchingNode;
+//				}
+
+				// see, if this node closes the branch
+				long joinedInputs = child1open.get(index1).getJoinedPathsVector()
+					| child2open.get(index2).getJoinedPathsVector();
+
+				// this is 2^size - 1, which is all bits set at positions 0..size-1
+				long allInputs = (0x1L << currBanchingNode.getOutgoingConnections().size()) - 1;
+
+				if (joinedInputs == allInputs) {
+					// closed - we can remove it from the stack
+					addClosedBranch(currBanchingNode);
+				} else {
+					// not quite closed
+					result.add(new UnclosedBranchDescriptor(currBanchingNode, joinedInputs));
+				}
+
+				index1--;
+				index2--;
+			}
+
+		}
+
+		// merged. now we need to reverse the list, because we added the elements in reverse order
+		Collections.reverse(result);
+		
+		return result;
+	}
+	
+	/**
+	 *
+	 */
+	public static final class UnclosedBranchDescriptor
+	{
+		protected OptimizerNode branchingNode;
+
+		protected long joinedPathsVector;
+
+		/**
+		 * @param branchingNode
+		 * @param joinedPathsVector
+		 */
+		protected UnclosedBranchDescriptor(OptimizerNode branchingNode, long joinedPathsVector)
+		{
+			this.branchingNode = branchingNode;
+			this.joinedPathsVector = joinedPathsVector;
+		}
+
+		public OptimizerNode getBranchingNode() {
+			return this.branchingNode;
+		}
+
+		public long getJoinedPathsVector() {
+			return this.joinedPathsVector;
+		}
+	}
 }

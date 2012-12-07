@@ -134,12 +134,12 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericMatcher<IT1,
 					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
 					memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
 			break;
-		case HYBRIDHASH_FIRST:
+		case HYBRIDHASH_BUILD_FIRST:
 			this.matchIterator = new BuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
 				serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2),
 				memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), availableMemory);
 			break;
-		case HYBRIDHASH_SECOND:
+		case HYBRIDHASH_BUILD_SECOND:
 			this.matchIterator = new BuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
 					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
 					memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), availableMemory);

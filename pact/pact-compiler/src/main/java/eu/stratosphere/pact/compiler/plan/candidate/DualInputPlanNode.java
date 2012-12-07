@@ -21,7 +21,9 @@ import java.util.NoSuchElementException;
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.compiler.CompilerException;
-import eu.stratosphere.pact.compiler.Costs;
+import eu.stratosphere.pact.compiler.costs.Costs;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
@@ -104,8 +106,8 @@ public class DualInputPlanNode extends PlanNode
 		final LocalProperties lp2 = this.input2.getLocalProperties().clone().filterByNodesConstantSet(this.template, 1);
 		
 		switch (getDriverStrategy()) {
-		case HYBRIDHASH_FIRST:
-		case HYBRIDHASH_SECOND:
+		case HYBRIDHASH_BUILD_FIRST:
+		case HYBRIDHASH_BUILD_SECOND:
 		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
 		case NESTEDLOOP_BLOCKED_OUTER_SECOND:
 			lp1.reset();
@@ -245,7 +247,7 @@ public class DualInputPlanNode extends PlanNode
 	 * Since nodes with multiple inputs may join branched plans, care must be taken not to double-count the costs of the subtree rooted
 	 * at the last unjoined branch.
 	 * 
-	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#setCosts(eu.stratosphere.pact.compiler.Costs)
+	 * @see eu.stratosphere.pact.compiler.plan.candidate.PlanNode#setCosts(eu.stratosphere.pact.compiler.costs.Costs)
 	 */
 	@Override
 	public void setCosts(Costs nodeCosts) {

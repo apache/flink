@@ -13,23 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.plan;
+package eu.stratosphere.pact.compiler.dataproperties;
 
 import eu.stratosphere.pact.common.contract.Ordering;
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.costs.Costs;
+import eu.stratosphere.pact.compiler.plan.EstimateProvider;
+import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.LocalProperties;
 import eu.stratosphere.pact.compiler.util.Utils;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
  * within the data of a single partition.
- * 
- * @author Stephan Ewen
  */
-public final class InterestingLocalProperties implements Cloneable
+public final class RequestedLocalProperties implements Cloneable
 {
 	private Ordering ordering;			// order inside a partition, null if not ordered
 
@@ -40,14 +41,14 @@ public final class InterestingLocalProperties implements Cloneable
 	/**
 	 * Default constructor for trivial local properties. No order, no grouping, no uniqueness.
 	 */
-	public InterestingLocalProperties() {}
+	public RequestedLocalProperties() {}
 	
 	/**
 	 * Creates interesting properties for the given ordering.
 	 * 
 	 * @param ordering The interesting ordering.
 	 */
-	public InterestingLocalProperties(Ordering ordering) {
+	public RequestedLocalProperties(Ordering ordering) {
 		this.ordering = ordering;
 	}
 	
@@ -56,7 +57,7 @@ public final class InterestingLocalProperties implements Cloneable
 	 * 
 	 * @param groupedFields The set of fields whose grouping is interesting.
 	 */
-	public InterestingLocalProperties(FieldSet groupedFields) {
+	public RequestedLocalProperties(FieldSet groupedFields) {
 		this.groupedFields = groupedFields;
 	}
 	
@@ -66,7 +67,7 @@ public final class InterestingLocalProperties implements Cloneable
 	 * @param ordering The ordering represented by these local properties.
 	 * @param groupedFields The grouped fields for these local properties.
 	 */
-	private InterestingLocalProperties(Ordering ordering, FieldSet groupedFields) {
+	private RequestedLocalProperties(Ordering ordering, FieldSet groupedFields) {
 		this.ordering = ordering;
 		this.groupedFields = groupedFields;
 	}
@@ -136,7 +137,7 @@ public final class InterestingLocalProperties implements Cloneable
 	 * 
 	 * @return True, if the resulting properties are non trivial.
 	 */
-	public InterestingLocalProperties filterByNodesConstantSet(OptimizerNode node, int input)
+	public RequestedLocalProperties filterByNodesConstantSet(OptimizerNode node, int input)
 	{
 		if (this.ordering != null) {
 			final FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
@@ -186,12 +187,19 @@ public final class InterestingLocalProperties implements Cloneable
 	 * 
 	 * @param channel The channel to parameterize.
 	 */
-	public void parameterizeChannel(Channel channel)
-	{
+	public void parameterizeChannel(Channel channel) {
 		if (this.ordering != null) {
 			channel.setLocalStrategy(LocalStrategy.SORT, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
 		} else if (this.groupedFields != null) {
 			channel.setLocalStrategy(LocalStrategy.SORT, Utils.createOrderedFromSet(this.groupedFields));
+		}
+	}
+	
+	public void addMinimalRequiredCosts(Costs to, CostEstimator estimator, EstimateProvider estimate, long memory) {
+		if (this.ordering != null) {
+			estimator.addLocalSortCost(estimate, memory, to);
+		} else if (this.groupedFields != null) {
+			estimator.addLocalSortCost(estimate, memory, to);
 		}
 	}
 
@@ -216,8 +224,8 @@ public final class InterestingLocalProperties implements Cloneable
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof InterestingLocalProperties) {
-			final InterestingLocalProperties other = (InterestingLocalProperties) obj;
+		if (obj instanceof RequestedLocalProperties) {
+			final RequestedLocalProperties other = (RequestedLocalProperties) obj;
 			return (this.ordering == other.ordering || (this.ordering != null && this.ordering.equals(other.ordering))) &&
 				(this.groupedFields == other.groupedFields || (this.groupedFields != null && this.groupedFields.equals(other.groupedFields)));
 		} else {
@@ -239,7 +247,7 @@ public final class InterestingLocalProperties implements Cloneable
 	 * @see java.lang.Object#clone()
 	 */
 	@Override
-	public InterestingLocalProperties clone() {
-		return new InterestingLocalProperties(this.ordering, this.groupedFields);
+	public RequestedLocalProperties clone() {
+		return new RequestedLocalProperties(this.ordering, this.groupedFields);
 	}
 }

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler;
+package eu.stratosphere.pact.compiler.dataproperties;
 
 /**
  * An enumeration tracking the different types of sharding strategies.

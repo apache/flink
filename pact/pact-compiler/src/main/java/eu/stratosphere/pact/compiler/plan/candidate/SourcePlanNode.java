@@ -19,6 +19,8 @@ import java.util.Collections;
 import java.util.Iterator;
 
 import eu.stratosphere.pact.common.plan.Visitor;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 

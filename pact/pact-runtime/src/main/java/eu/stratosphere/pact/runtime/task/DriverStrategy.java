@@ -24,10 +24,14 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
  */
 public enum DriverStrategy
 {
+	// no local strategy, as for sources and sinks
+	NONE(null, null, false, false),
 	// no special local strategy is applied
-	NONE(MapDriver.class, ChainedMapDriver.class, false, false),
+	MAP(MapDriver.class, ChainedMapDriver.class, false, false),
 	// grouping the inputs
 	GROUP(ReduceDriver.class, null, false, true),
+	// grouping the inputs
+	GROUP_WITH_PARTIAL_GROUP(ReduceDriver.class, null, false, true),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
 	PARTIAL_GROUP(CombineDriver.class, ChainedCombineDriver.class, false, true),
 	// already grouped input, within a key values are crossed in a nested loop fashion
@@ -37,9 +41,9 @@ public enum DriverStrategy
 	// co-grouping inputs
 	CO_GROUP(CoGroupDriver.class, null, false, false, true),
 	// the first input is build side, the second side is probe side of a hybrid hash table
-	HYBRIDHASH_FIRST(MatchDriver.class, null, true, false, true),
+	HYBRIDHASH_BUILD_FIRST(MatchDriver.class, null, true, false, true),
 	// the second input is build side, the first side is probe side of a hybrid hash table
-	HYBRIDHASH_SECOND(MatchDriver.class, null, false, true, true),
+	HYBRIDHASH_BUILD_SECOND(MatchDriver.class, null, false, true, true),
 	// the second input is inner loop, the first input is outer loop and block-wise processed
 	NESTEDLOOP_BLOCKED_OUTER_FIRST(CrossDriver.class, null, false, true, false),
 	// the first input is inner loop, the second input is outer loop and block-wise processed
