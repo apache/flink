@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.compensatable.pagerank;
+package eu.stratosphere.pact.runtime.iterative.compensatable.danglingpagerank;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -25,17 +25,17 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
+import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
 import eu.stratosphere.pact.runtime.iterative.driver.SortingTempDriver;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.IdentityMap;
-import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankInputFormat;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.PageWithRankOutFormat;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.TransitionMatrixInputFormat;
+import eu.stratosphere.pact.runtime.iterative.playing.scopedpagerank.RowPartitionedTransitionMatrixInputFormat;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.CoGroupDriver;
@@ -44,26 +44,28 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.TempDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-public class CompensatablePageRank {
+public class CompensatableDanglingPageRank {
 
   public static void main(String[] args) throws Exception {
 
     int degreeOfParallelism = 2;
     int numSubTasksPerInstance = degreeOfParallelism;
-    String pageWithRankInputPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/pagerank/pageWithRank";
-    String transitionMatrixInputPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/pagerank/transitionMatrix";
+    String pageWithRankInputPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/danglingpagerank/pageWithRank";
+    String transitionMatrixInputPath = "file://" + PlayConstants.PLAY_DIR +
+        "test-inputs/danglingpagerank/transitionMatrix";
     String outputPath = "file:///tmp/stratosphere/iterations";
     String confPath = PlayConstants.PLAY_DIR + "local-conf";
     int memoryPerTask = 25;
     int memoryForMatch = memoryPerTask;
     int numIterations = 25;
     long numVertices = 4;
+    long numDanglingVertices = 1;
 
     int failingWorker = 1;
     int failingIteration = 2;
     double messageLoss = 0.75;
 
-    if (args.length == 13) {
+    if (args.length == 14) {
       degreeOfParallelism = Integer.parseInt(args[0]);
       numSubTasksPerInstance = Integer.parseInt(args[1]);
       pageWithRankInputPath = args[2];
@@ -74,22 +76,23 @@ public class CompensatablePageRank {
       memoryForMatch = Integer.parseInt(args[7]);
       numIterations = Integer.parseInt(args[8]);
       numVertices = Long.parseLong(args[9]);
-      failingWorker = Integer.parseInt(args[10]);
-      failingIteration = Integer.parseInt(args[11]);
-      messageLoss = Double.parseDouble(args[12]);
+      numDanglingVertices = Long.parseLong(args[10]);
+      failingWorker = Integer.parseInt(args[11]);
+      failingIteration = Integer.parseInt(args[12]);
+      messageLoss = Double.parseDouble(args[13]);
     }
 
-    JobGraph jobGraph = new JobGraph("CompensatablePageRank");
+    JobGraph jobGraph = new JobGraph("CompensatableDanglingPageRank");
 
-    JobInputVertex pageWithRankInput = JobGraphUtils.createInput(PageGenerateRankInputFormat.class,
-        pageWithRankInputPath, "PageWithRankInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
+    JobInputVertex pageWithRankInput = JobGraphUtils.createInput(DanglingPageGenerateRankInputFormat.class,
+        pageWithRankInputPath, "DanglingPageWithRankInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig pageWithRankInputConfig = new TaskConfig(pageWithRankInput.getConfiguration());
     pageWithRankInputConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(pageWithRankInputConfig.getConfigForOutputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     pageWithRankInputConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
 
-    JobInputVertex transitionMatrixInput = JobGraphUtils.createInput(TransitionMatrixInputFormat.class,
+    JobInputVertex transitionMatrixInput = JobGraphUtils.createInput(RowPartitionedTransitionMatrixInputFormat.class,
         transitionMatrixInputPath, "TransitionMatrixInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig transitionMatrixInputConfig = new TaskConfig(transitionMatrixInput.getConfiguration());
     transitionMatrixInputConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
@@ -162,6 +165,7 @@ public class CompensatablePageRank {
     tailConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
     tailConfig.setNumFilehandles(10);
     tailConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
+    tailConfig.setStubParameter("pageRank.numDanglingVertices", String.valueOf(numDanglingVertices));
     tailConfig.setStubParameter("compensation.failingWorker", String.valueOf(failingWorker));
     tailConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
     tailConfig.setStubParameter("compensation.messageLoss", String.valueOf(messageLoss));

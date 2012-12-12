@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.playing.connectedcomponents;
+package eu.stratosphere.pact.runtime.iterative.playing.connectedcomponents.rowpartitioned;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.nephele.configuration.GlobalConfiguration;
@@ -26,14 +26,20 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.common.io.FileOutputFormat;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.convergence.SolutionsetEmptyConvergenceCriterion;
+import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
+import eu.stratosphere.pact.runtime.iterative.driver.SolutionsetMatchDriver;
 import eu.stratosphere.pact.runtime.iterative.playing.JobGraphUtils;
 import eu.stratosphere.pact.runtime.iterative.playing.PlayConstants;
+import eu.stratosphere.pact.runtime.iterative.playing.connectedcomponents.ConnectedComponentsOutFormat;
+import eu.stratosphere.pact.runtime.iterative.playing.connectedcomponents.DuplicateLongInputFormat;
+import eu.stratosphere.pact.runtime.iterative.playing.connectedcomponents.LongLongInputFormat;
+import eu.stratosphere.pact.runtime.iterative.playing.connectedcomponents.MinimumComponentIDReduce;
+import eu.stratosphere.pact.runtime.iterative.playing.connectedcomponents.NeighborComponentIDToWorksetMatch;
+import eu.stratosphere.pact.runtime.iterative.playing.connectedcomponents.UpdateCompontentIDMatch;
 import eu.stratosphere.pact.runtime.iterative.playing.pagerank.IdentityMap;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.iterative.driver.RepeatableHashjoinMatchDriverWithCachedBuildside;
-import eu.stratosphere.pact.runtime.iterative.driver.SolutionsetMatchDriver;
 import eu.stratosphere.pact.runtime.iterative.task.WorksetIterationSolutionsetJoinTask;
 import eu.stratosphere.pact.runtime.plugable.PactRecordComparatorFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategy.ShipStrategyType;
@@ -41,7 +47,7 @@ import eu.stratosphere.pact.runtime.task.MapDriver;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
-public class ConnectedComponents {
+public class RowPartitionedConnectedComponents {
 
   public static void main(String[] args) throws Exception {
 
@@ -49,41 +55,47 @@ public class ConnectedComponents {
     int numSubTasksPerInstance = degreeOfParallelism;
     String initialSolutionSetPath = "file://" + PlayConstants.PLAY_DIR +
         "test-inputs/connectedComponents/initialSolutionset";
-    String graphPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/connectedComponents/graph";
+    String initialWorksetPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/connectedComponents/graph";
+    String graphPath = "file://" + PlayConstants.PLAY_DIR + "test-inputs/connectedComponents/graph-adjacency";
     String outputPath = "file:///tmp/stratosphere/iterations";
     String confPath = PlayConstants.PLAY_DIR + "local-conf";
     long memoryPerTask = 10;
     long memoryForMatch = memoryPerTask;
 
 
-    if (args.length == 8) {
+    if (args.length == 9) {
       degreeOfParallelism = Integer.parseInt(args[0]);
       numSubTasksPerInstance = Integer.parseInt(args[1]);
       initialSolutionSetPath = args[2];
-      graphPath = args[3];
-      outputPath = args[4];
-      confPath = args[5];
-      memoryPerTask = Integer.parseInt(args[6]);
-      memoryForMatch = Integer.parseInt(args[7]);
+      initialWorksetPath = args[3];
+      graphPath = args[4];
+      outputPath = args[5];
+      confPath = args[6];
+      memoryPerTask = Integer.parseInt(args[7]);
+      memoryForMatch = Integer.parseInt(args[8]);
     }
 
     JobGraph jobGraph = new JobGraph("RowPartitionedConnectedComponents");
 
-    JobInputVertex initialSolutionset = JobGraphUtils.createInput(LongLongInputFormat.class, initialSolutionSetPath,
-        "InitialSolutionset", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
+    JobInputVertex initialSolutionset = JobGraphUtils.createInput(DuplicateLongInputFormat.class,
+        initialSolutionSetPath,  "InitialSolutionset", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig initialSolutionsetConfig = new TaskConfig(initialSolutionset.getConfiguration());
     initialSolutionsetConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(initialSolutionsetConfig.getConfigForOutputParameters(0),
       new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
 
-    JobInputVertex graph = JobGraphUtils.createInput(LongLongInputFormat.class, graphPath, "Graph", jobGraph,
-        degreeOfParallelism, numSubTasksPerInstance);
+    JobInputVertex initialWorkset = JobGraphUtils.createInput(LongLongInputFormat.class, initialWorksetPath,
+        "InitialWorkset", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
+    TaskConfig initialWorksetConfig = new TaskConfig(initialWorkset.getConfiguration());
+    initialWorksetConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(initialWorksetConfig.getConfigForOutputParameters(0),
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
+
+    JobInputVertex graph = JobGraphUtils.createInput(AdjacencyListInputFormat.class, graphPath, "Graph",
+        jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig graphConfig = new TaskConfig(graph.getConfiguration());
     graphConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(graphConfig.getConfigForOutputParameters(0),
-      new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
-    graphConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 1);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(graphConfig.getConfigForOutputParameters(1),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
 
     JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Head-Repartition", jobGraph,
@@ -94,7 +106,7 @@ public class ConnectedComponents {
     headConfig.setMemorySize((long) ((memoryForMatch * 1.5) * JobGraphUtils.MEGABYTE));
     headConfig.setBackChannelMemoryFraction(0.3f);
     headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
-    PactRecordComparatorFactory.writeComparatorSetupToConfig(headConfig.getConfigForOutputParameters(0), new int[] { 0 },
+    PactRecordComparatorFactory.writeComparatorSetupToConfig(headConfig.getConfigForOutputParameters(0), new int[]{ 0 },
         new Class[] { PactLong.class }, new boolean[] { true });
 
     headConfig.enableWorkset();
@@ -132,12 +144,11 @@ public class ConnectedComponents {
         intermediateSolutionSetUpdateConfig.getConfigForInputParameters(1), new int[] { 0 },
         new Class[] { PactLong.class }, new boolean[] { true });
 
-    JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Tail-NeighborComponentIDToWorkset",
+    JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Tail-NeighborsComponentIDToWorkset",
         jobGraph, degreeOfParallelism, numSubTasksPerInstance);
     TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
-//    tailConfig.setDriver(RepeatableHashJoinMatchDriver.class);
     tailConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
-    tailConfig.setStubClass(NeighborComponentIDToWorksetMatch.class);
+    tailConfig.setStubClass(NeighborsComponentIDToWorksetMatch.class);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     PactRecordComparatorFactory.writeComparatorSetupToConfig(tailConfig.getConfigForInputParameters(1),
@@ -158,7 +169,7 @@ public class ConnectedComponents {
     JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", degreeOfParallelism,
         numSubTasksPerInstance);
 
-    JobGraphUtils.connect(graph, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE,
+    JobGraphUtils.connect(initialWorkset, head, ChannelType.NETWORK, DistributionPattern.POINTWISE,
         ShipStrategyType.FORWARD);
 
     JobGraphUtils.connect(head, intermediateMinimumComponentID, ChannelType.NETWORK, DistributionPattern.BIPARTITE,
@@ -188,6 +199,7 @@ public class ConnectedComponents {
         ShipStrategyType.FORWARD);
 
     initialSolutionset.setVertexToShareInstancesWith(head);
+    initialWorkset.setVertexToShareInstancesWith(head);
     graph.setVertexToShareInstancesWith(head);
     intermediateMinimumComponentID.setVertexToShareInstancesWith(head);
     intermediateSolutionSetUpdate.setVertexToShareInstancesWith(head);

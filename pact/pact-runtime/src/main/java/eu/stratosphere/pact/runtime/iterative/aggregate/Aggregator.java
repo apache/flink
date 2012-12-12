@@ -19,10 +19,10 @@ import eu.stratosphere.pact.common.type.Value;
 
 public interface Aggregator<T extends Value> {
 
-  public T getAggregate();
+  T getAggregate();
 
-  public void aggregate(T element);
+  void aggregate(T element);
 
-  public void reset();
+  void reset();
 
 }
