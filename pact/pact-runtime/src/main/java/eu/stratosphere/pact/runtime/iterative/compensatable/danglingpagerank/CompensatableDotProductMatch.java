@@ -22,7 +22,6 @@ import eu.stratosphere.pact.common.type.PactRecord;
 import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
-import eu.stratosphere.pact.runtime.iterative.playing.scopedpagerank.SequentialAccessSparseRowVector;
 
 import java.util.Random;
 
@@ -57,23 +56,33 @@ public class CompensatableDotProductMatch extends MatchStub {
   }
 
   @Override
-  public void match(PactRecord pageWithRank, PactRecord transitionMatrixRow, Collector<PactRecord> collector)
+  public void match(PactRecord pageWithRank, PactRecord adjacencyList, Collector<PactRecord> collector)
       throws Exception {
 
     double rank = pageWithRank.getField(1, PactDouble.class).getValue();
+    long[] adjacentNeighbors = adjacencyList.getField(1, PactLongArray.class).values();
 
-    SequentialAccessSparseRowVector row = transitionMatrixRow.getField(1, SequentialAccessSparseRowVector.class);
-    long[] indexes = row.indexes();
-    double[] values = row.values();
+    double rankToDistribute = rank / (double) adjacentNeighbors.length;
 
-    for (int n = 0; n < indexes.length; n++) {
-      vertexID.setValue(indexes[n]);
-      partialRank.setValue(rank * values[n]);
+    partialRank.setValue(rankToDistribute);
+    record.setField(1, partialRank);
 
+    boolean isFailure = currentIteration == failingIteration && workerIndex == failingWorker;
+
+    for (int n = 0; n < adjacentNeighbors.length; n++) {
+      vertexID.setValue(adjacentNeighbors[n]);
       record.setField(0, vertexID);
-      record.setField(1, partialRank);
-      collector.collect(record);
+
+      if (isFailure) {
+        if (random.nextDouble() >= messageLoss) {
+          collector.collect(record);
+        }
+      } else {
+        collector.collect(record);
+      }
     }
+
   }
+
 
 }

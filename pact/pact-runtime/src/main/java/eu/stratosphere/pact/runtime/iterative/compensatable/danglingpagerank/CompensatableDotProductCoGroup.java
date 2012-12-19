@@ -65,9 +65,11 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
     }
     PactRecord currentPageRank = currentPageRankIterator.next();
 
+    long edges = 0;
     double summedRank = 0;
     while (partialRanks.hasNext()) {
       summedRank += partialRanks.next().getField(1, PactDouble.class).getValue();
+      edges++;
     }
 
     double rank = BETA * summedRank + dampingFactor + danglingRankFactor;
@@ -76,26 +78,24 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
     boolean isDangling = currentPageRank.getField(2, BooleanValue.class).get();
 
     double danglingRankToAggregate = isDangling ? rank : 0;
+    long danglingVerticesToAggregate = isDangling ? 1 : 0;
 
     double diff = Math.abs(currentRank - rank);
 
-    aggregator.aggregate(diff, rank, danglingRankToAggregate, 1);
+    aggregator.aggregate(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges, summedRank);
 
     accumulator.setField(0, currentPageRank.getField(0, PactLong.class));
     accumulator.setField(1, new PactDouble(rank));
     accumulator.setField(2, new BooleanValue(isDangling));
-
-    System.out.println(">>>" + currentPageRank.getField(0, PactLong.class).getValue() + " " + rank + " " + isDangling + " in iteration " + currentIteration);
-    System.out.println(">>>" + currentPageRank.getField(0, PactLong.class).getValue() + " " + BETA * summedRank + " " + dampingFactor + " " + danglingRankFactor + " in iteration " + currentIteration);
 
     collector.collect(accumulator);
   }
 
   @Override
   public void close() throws Exception {
-//    if (currentIteration == failingIteration && workerIndex == failingWorker) {
-//      aggregator.reset();
-//    }
+    if (currentIteration == failingIteration && workerIndex == failingWorker) {
+      aggregator.reset();
+    }
     IterationContext.instance().setAggregate(workerIndex, aggregator.getAggregate());
   }
 }
