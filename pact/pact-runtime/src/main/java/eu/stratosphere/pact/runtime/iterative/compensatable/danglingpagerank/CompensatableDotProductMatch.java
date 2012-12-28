@@ -24,6 +24,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
 
 import java.util.Random;
+import java.util.Set;
 
 public class CompensatableDotProductMatch extends MatchStub {
 
@@ -35,7 +36,7 @@ public class CompensatableDotProductMatch extends MatchStub {
   private int currentIteration;
   private int failingIteration;
 
-  private int failingWorker;
+  private Set<Integer> failingWorkers;
   private double messageLoss;
 
   private Random random;
@@ -49,7 +50,7 @@ public class CompensatableDotProductMatch extends MatchStub {
     workerIndex = ConfigUtils.asInteger("pact.parallel.task.id", parameters);
     currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
     failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
-    failingWorker = ConfigUtils.asInteger("compensation.failingWorker", parameters);
+    failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
     messageLoss = ConfigUtils.asDouble("compensation.messageLoss", parameters);
 
     random = new Random();
@@ -67,7 +68,7 @@ public class CompensatableDotProductMatch extends MatchStub {
     partialRank.setValue(rankToDistribute);
     record.setField(1, partialRank);
 
-    boolean isFailure = currentIteration == failingIteration && workerIndex == failingWorker;
+    boolean isFailure = currentIteration == failingIteration && failingWorkers.contains(workerIndex);
 
     for (int n = 0; n < adjacentNeighbors.length; n++) {
       vertexID.setValue(adjacentNeighbors[n]);

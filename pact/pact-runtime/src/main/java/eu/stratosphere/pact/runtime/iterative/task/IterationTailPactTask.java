@@ -115,7 +115,7 @@ public class IterationTailPactTask<S extends Stub, OT> extends AbstractIterative
 
     if (isJoinOnConstantDataPath()) {
 
-      ((AbstractRepeatableMatchDriver)driver).finalCleanup();
+      ((AbstractRepeatableMatchDriver) driver).finalCleanup();
       /*if (driver instanceof RepeatableHashJoinMatchDriver) {
         ((RepeatableHashJoinMatchDriver) driver).finalCleanup();
       } else {

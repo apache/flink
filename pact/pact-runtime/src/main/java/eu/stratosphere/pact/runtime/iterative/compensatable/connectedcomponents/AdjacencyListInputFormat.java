@@ -6,6 +6,7 @@ import eu.stratosphere.pact.common.type.base.PactLong;
 
 import java.util.regex.Pattern;
 
+@Deprecated
 public class AdjacencyListInputFormat extends TextInputFormat {
 
   private static final Pattern SEPARATOR = Pattern.compile("[, \t]");

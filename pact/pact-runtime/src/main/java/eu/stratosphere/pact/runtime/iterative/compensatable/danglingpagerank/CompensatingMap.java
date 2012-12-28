@@ -8,6 +8,8 @@ import eu.stratosphere.pact.common.type.base.PactDouble;
 import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
+import java.util.Set;
+
 public class CompensatingMap extends MapStub {
 
   private int workerIndex;
@@ -16,7 +18,7 @@ public class CompensatingMap extends MapStub {
   private long numVertices;
 
   private int failingIteration;
-  private int failingWorker;
+  private Set<Integer> failingWorkers;
 
   private double uniformRank;
   private double rescaleFactor;
@@ -27,7 +29,7 @@ public class CompensatingMap extends MapStub {
     workerIndex = ConfigUtils.asInteger("pact.parallel.task.id", parameters);
     currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
     failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
-    failingWorker = ConfigUtils.asInteger("compensation.failingWorker", parameters);
+    failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
     numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
 
     if (currentIteration > 1) {
@@ -46,7 +48,7 @@ public class CompensatingMap extends MapStub {
 
       double rank = pageWithRank.getField(1, PactDouble.class).getValue();
 
-      if (workerIndex == failingWorker) {
+      if (failingWorkers.contains(workerIndex)) {
          rank = uniformRank;
        } else {
         rank *= rescaleFactor;

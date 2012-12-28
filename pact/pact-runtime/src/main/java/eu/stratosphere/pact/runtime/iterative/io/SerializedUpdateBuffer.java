@@ -33,40 +33,23 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- *
- *
- * @author Stephan Ewen (stephan.ewen@tu-berlin.de)
- */
 public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
   private static final int HEADER_LENGTH = 4;
-
   private static final float SPILL_THRESHOLD = 0.9f;
 
   private final LinkedBlockingQueue<MemorySegment> emptyBuffers;
-
   private ArrayDeque<MemorySegment> fullBuffers;
-
   private BlockChannelWriter currentWriter;
-
   private final IOManager ioManager;
-
   private final Channel.Enumerator channelEnumerator;
-
   private final int numSegmentsSpillingThreshold;
 
   private int numBuffersSpilled;
-
   private final int minBuffersForWriteEnd;
-
   private final int minBuffersForSpilledReadEnd;
-
   private final List<ReadEnd> readEnds;
-
   private final int totalNumBuffers;
-
-
 
   public SerializedUpdateBuffer() {
     super(-1, HEADER_LENGTH);

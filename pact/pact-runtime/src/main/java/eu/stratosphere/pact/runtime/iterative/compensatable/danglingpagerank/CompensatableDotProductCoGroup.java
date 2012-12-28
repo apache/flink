@@ -10,6 +10,7 @@ import eu.stratosphere.pact.runtime.iterative.compensatable.ConfigUtils;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationContext;
 
 import java.util.Iterator;
+import java.util.Set;
 
 public class CompensatableDotProductCoGroup extends CoGroupStub {
 
@@ -19,7 +20,7 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
   private int currentIteration;
 
   private int failingIteration;
-  private int failingWorker;
+  private Set<Integer> failingWorkers;
 
   private PageRankStatsAggregator aggregator =
       (PageRankStatsAggregator) new DiffL1NormConvergenceCriterion().createAggregator();
@@ -39,7 +40,7 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
     workerIndex = ConfigUtils.asInteger("pact.parallel.task.id", parameters);
     currentIteration = ConfigUtils.asInteger("pact.iterations.currentIteration", parameters);
     failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
-    failingWorker = ConfigUtils.asInteger("compensation.failingWorker", parameters);
+    failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
     numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
     numDanglingVertices = ConfigUtils.asLong("pageRank.numDanglingVertices", parameters);
 
@@ -93,7 +94,7 @@ public class CompensatableDotProductCoGroup extends CoGroupStub {
 
   @Override
   public void close() throws Exception {
-    if (currentIteration == failingIteration && workerIndex == failingWorker) {
+    if (currentIteration == failingIteration && failingWorkers.contains(workerIndex)) {
       aggregator.reset();
     }
     IterationContext.instance().setAggregate(workerIndex, aggregator.getAggregate());

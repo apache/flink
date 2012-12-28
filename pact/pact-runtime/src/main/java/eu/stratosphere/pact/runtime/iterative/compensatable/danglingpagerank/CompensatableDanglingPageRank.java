@@ -59,7 +59,7 @@ public class CompensatableDanglingPageRank {
     long numVertices = 5;
     long numDanglingVertices = 1;
 
-    int failingWorker = 1;
+    String failingWorkers = "1";
     int failingIteration = 2;
     double messageLoss = 0.75;
 
@@ -75,7 +75,7 @@ public class CompensatableDanglingPageRank {
       numIterations = Integer.parseInt(args[8]);
       numVertices = Long.parseLong(args[9]);
       numDanglingVertices = Long.parseLong(args[10]);
-      failingWorker = Integer.parseInt(args[11]);
+      failingWorkers = args[11];
       failingIteration = Integer.parseInt(args[12]);
       messageLoss = Double.parseDouble(args[13]);
     }
@@ -115,12 +115,12 @@ public class CompensatableDanglingPageRank {
     headConfig.setDriver(MapDriver.class);
     headConfig.setStubClass(CompensatingMap.class);
     headConfig.setMemorySize(memoryPerTask * JobGraphUtils.MEGABYTE);
-    headConfig.setBackChannelMemoryFraction(0.8f);
+    headConfig.setBackChannelMemoryFraction(1f);
     headConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(headConfig.getConfigForOutputParameters(0),
-        new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     headConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
-    headConfig.setStubParameter("compensation.failingWorker", String.valueOf(failingWorker));
+    headConfig.setStubParameter("compensation.failingWorker", failingWorkers);
     headConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
     headConfig.setStubParameter("compensation.messageLoss", String.valueOf(messageLoss));
 
@@ -139,13 +139,13 @@ public class CompensatableDanglingPageRank {
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(0),
         new int[] { 0 }, new Class[] { PactLong.class }, new boolean[] { true });
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForInputParameters(1),
-        new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[]{true});
     intermediateConfig.setMemorySize(memoryForMatch * JobGraphUtils.MEGABYTE);
     intermediateConfig.setComparatorFactoryForOutput(PactRecordComparatorFactory.class, 0);
     PactRecordComparatorFactory.writeComparatorSetupToConfig(intermediateConfig.getConfigForOutputParameters(0),
-        new int[]{0}, new Class[]{PactLong.class}, new boolean[]{true});
+        new int[] { 0 }, new Class[] { PactLong.class }, new boolean[]{true});
     intermediateConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
-    intermediateConfig.setStubParameter("compensation.failingWorker", String.valueOf(failingWorker));
+    intermediateConfig.setStubParameter("compensation.failingWorker", failingWorkers);
     intermediateConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
     intermediateConfig.setStubParameter("compensation.messageLoss", String.valueOf(messageLoss));
 
@@ -164,7 +164,7 @@ public class CompensatableDanglingPageRank {
     tailConfig.setNumFilehandles(10);
     tailConfig.setStubParameter("pageRank.numVertices", String.valueOf(numVertices));
     tailConfig.setStubParameter("pageRank.numDanglingVertices", String.valueOf(numDanglingVertices));
-    tailConfig.setStubParameter("compensation.failingWorker", String.valueOf(failingWorker));
+    tailConfig.setStubParameter("compensation.failingWorker", failingWorkers);
     tailConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
     tailConfig.setStubParameter("compensation.messageLoss", String.valueOf(messageLoss));
 

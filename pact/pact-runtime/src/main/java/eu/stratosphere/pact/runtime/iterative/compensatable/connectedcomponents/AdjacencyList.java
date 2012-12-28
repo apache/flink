@@ -6,6 +6,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+@Deprecated
 public class AdjacencyList implements Value {
 
   private long[] neighbors;
