@@ -18,8 +18,8 @@ package eu.stratosphere.pact.compiler.plan;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesFactory;
-import eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle;
+import eu.stratosphere.pact.compiler.operators.MapDescriptor;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
 import eu.stratosphere.pact.generic.contract.GenericMapContract;
 
 /**
@@ -71,7 +71,7 @@ public class MapNode extends SingleInputNode
 	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#getPossibleProperties()
 	 */
 	@Override
-	protected List<DriverPropertiesSingle> getPossibleProperties() {
-		return Collections.singletonList((DriverPropertiesSingle) new DriverPropertiesFactory.MapProperties());
+	protected List<OperatorDescriptorSingle> getPossibleProperties() {
+		return Collections.<OperatorDescriptorSingle>singletonList(new MapDescriptor());
 	}
 }

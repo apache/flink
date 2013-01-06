@@ -34,6 +34,8 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.util.PactType;
@@ -847,59 +849,79 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected void prunePlanAlternatives(List<PlanNode> plans)
 	{
-//		if (plans.isEmpty()) {
-//			throw new CompilerException("No plan meeting the requirements could be created.");
-//		}
-//		// shortcut for the simple case
-//		if (plans.size() == 1) {
-//			return;
-//		}
-//		
-//		// for each interesting property, which plans are cheapest
-//		final PlanNode[] toKeep = new PlanNode[this.intProps.size()]; 
-//		PlanNode cheapest = null; // the overall cheapest plan
-//
-//		// go over all plans from the list
-//		for (PlanNode candidate : plans) {
-//			// check if that plan is the overall cheapest
-//			if (cheapest == null || (cheapest.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0)) {
-//				cheapest = candidate;
-//			}
-//
-//			// find the interesting properties that this plan matches
-//			for (int i = 0; i < this.intProps.size(); i++) {
-//				if (this.intProps.get(i).isMetBy(candidate)) {
-//					final PlanNode previous = toKeep[i];
-//					// the candidate meets them. if it is the first one to meet the interesting properties,
-//					// or the previous one was more expensive, keep it
-//					if (previous == null || previous.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0) {
-//						toKeep[i] = candidate;
-//					}
-//				}
-//			}
-//		}
-//
-//		// all plans are set now
-//		plans.clear();
-//
-//		// add the cheapest plan
-//		if (cheapest != null) {
-//			plans.add(cheapest);
-//			cheapest.setPruningMarker(); // remember that that plan is in the set
-//		}
-//		final Costs cheapestCosts = cheapest.getCumulativeCosts();
-//
-//		// add all others, which are optimal for some interesting properties
-//		for (int i = 0; i < toKeep.length; i++) {
-//			final PlanNode n = toKeep[i];
-//			if (n != null && !n.isPruneMarkerSet()) {
-//				final Costs maxDelta = this.intProps.get(i).getMaximalCosts();
-//				if (!cheapestCosts.isOtherMoreThanDeltaAbove(n.getCumulativeCosts(), maxDelta)) {
-//					n.setPruningMarker();
-//					plans.add(n);
-//				}
-//			}
-//		}
+		if (plans.isEmpty()) {
+			throw new CompilerException("No plan meeting the requirements could be created.");
+		}
+		// shortcut for the simple case
+		if (plans.size() == 1) {
+			return;
+		}
+		
+		// for each interesting property, which plans are cheapest
+		final RequestedGlobalProperties[] gps = (RequestedGlobalProperties[]) this.intProps.getGlobalProperties().toArray(new RequestedGlobalProperties[plans.size()]);
+		final RequestedLocalProperties[] lps = (RequestedLocalProperties[]) this.intProps.getLocalProperties().toArray(new RequestedLocalProperties[plans.size()]);
+		
+		final PlanNode[][] toKeep = new PlanNode[gps.length][];
+		
+		PlanNode cheapest = null; // the overall cheapest plan
+
+		// go over all plans from the list
+		for (PlanNode candidate : plans) {
+			// check if that plan is the overall cheapest
+			if (cheapest == null || (cheapest.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0)) {
+				cheapest = candidate;
+			}
+
+			// find the interesting global properties that this plan matches
+			for (int i = 0; i < gps.length; i++) {
+				if (gps[i].isMetBy(candidate.getGlobalProperties())) {
+					// the candidate meets the global property requirements. That means
+					// it has a chance that its local properties are re-used (they would be
+					// destroyed if global properties need to be established)
+					final PlanNode[] localMatches;
+					if (toKeep[i] == null) {
+						localMatches = new PlanNode[lps.length];
+						toKeep[i] = localMatches;
+					} else {
+						localMatches = toKeep[i];
+					}
+					
+					for (int k = 0; k < lps.length; k++) {
+						if (lps[k].isMetBy(candidate.getLocalProperties())) {
+							final PlanNode previous = localMatches[k];
+							if (previous == null || previous.getCumulativeCosts().compareTo(candidate.getCumulativeCosts()) > 0) {
+								// this one is cheaper!
+								localMatches[k] = candidate;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// all plans are set now
+		plans.clear();
+
+		// add the cheapest plan
+		if (cheapest != null) {
+			plans.add(cheapest);
+			cheapest.setPruningMarker(); // remember that that plan is in the set
+		}
+		
+		// skip the top down delta cost check for now (TODO: implement this)
+		// add all others, which are optimal for some interesting properties
+		for (int i = 0; i < toKeep.length; i++) {
+			if (toKeep[i] != null) {
+				final PlanNode[] localMatches = toKeep[i];
+				for (int k = 0; k < localMatches.length; k++) {
+					final PlanNode n = localMatches[k];
+					if (n != null && !n.isPruneMarkerSet()) {
+						n.setPruningMarker();
+						plans.add(n);
+					}
+				}
+			}
+		}
 	}
 	
 	

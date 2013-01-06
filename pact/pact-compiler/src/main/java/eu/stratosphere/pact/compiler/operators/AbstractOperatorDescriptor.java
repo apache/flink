@@ -13,14 +13,14 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.postpass;
+package eu.stratosphere.pact.compiler.operators;
 
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 
  */
-public interface OptimizerPostPass
+public interface AbstractOperatorDescriptor
 {
-	void postPass(OptimizedPlan plan);
+	DriverStrategy getStrategy();
 }

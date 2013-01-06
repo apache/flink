@@ -13,11 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.dataproperties;
+package eu.stratosphere.pact.compiler.operators;
 
 import java.util.List;
 
 import eu.stratosphere.pact.common.util.FieldList;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
@@ -25,14 +27,40 @@ import eu.stratosphere.pact.compiler.plan.candidate.DualInputPlanNode;
 /**
  * 
  */
-public interface DriverPropertiesDual extends DriverProperties
+public abstract class OperatorDescriptorDual implements AbstractOperatorDescriptor
 {
-	DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node, FieldList keys1, FieldList keys2);
+	protected final FieldList keys1;
+	protected final FieldList keys2;
 	
-	void createPossibleGlobalProperties(List<GlobalPropertiesPair> globalProps);
+	private final List<GlobalPropertiesPair> globalProps;
+	private final List<LocalPropertiesPair> localProps;
 	
-	void createPossibleLocalProperties(List<LocalPropertiesPair> localProps);
+	protected OperatorDescriptorDual() {
+		this(null, null);
+	}
 	
+	protected OperatorDescriptorDual(FieldList keys1, FieldList keys2) {
+		this.keys1 = keys1;
+		this.keys2 = keys2;
+		this.globalProps = createPossibleGlobalProperties();
+		this.localProps = createPossibleLocalProperties();
+	}
+	
+	public List<GlobalPropertiesPair> getPossibleGlobalProperties() {
+		return this.globalProps;
+	}
+	
+	public List<LocalPropertiesPair> getPossibleLocalProperties() {
+		return this.localProps;
+	}
+	
+	protected abstract List<GlobalPropertiesPair> createPossibleGlobalProperties();
+	
+	protected abstract List<LocalPropertiesPair> createPossibleLocalProperties();
+	
+	public abstract DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node);
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public static final class GlobalPropertiesPair
 	{

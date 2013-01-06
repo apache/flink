@@ -31,8 +31,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
- *
- * @author Stephan Ewen
+ * 
  */
 public class Channel implements EstimateProvider
 {
@@ -73,9 +72,13 @@ public class Channel implements EstimateProvider
 	
 	private TypeComparatorFactory<?> localStrategyComparator;
 	
-	private TempMode tempMode;
+	private TempMode tempMode = TempMode.NONE;
 	
 	private long tempMemory;
+	
+	private long memoryGlobalStrategy;
+	
+	private long memoryLocalStrategy;
 	
 	private int replicationFactor = 1;
 	
@@ -388,5 +391,34 @@ public class Channel implements EstimateProvider
 	 */
 	public void setLocalStrategyComparator(TypeComparatorFactory<?> localStrategyComparator) {
 		this.localStrategyComparator = localStrategyComparator;
+	}
+	
+	public long getMemoryGlobalStrategy() {
+		return memoryGlobalStrategy;
+	}
+	
+	public void setMemoryGlobalStrategy(long memoryGlobalStrategy) {
+		this.memoryGlobalStrategy = memoryGlobalStrategy;
+	}
+	
+	public long getMemoryLocalStrategy() {
+		return memoryLocalStrategy;
+	}
+	
+	public void setMemoryLocalStrategy(long memoryLocalStrategy) {
+		this.memoryLocalStrategy = memoryLocalStrategy;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	public String toString() {
+		return "Channel (" + this.source + 
+				(this.target == null ? ')' :
+					") -> (" + this.target + ')') +
+				'[' + this.shipStrategy + "] [" + this.localStrategy + ']' +
+				(this.tempMode == null || this.tempMode == TempMode.NONE ? "{NO-TEMP}" : this.tempMode);
 	}
 }

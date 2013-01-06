@@ -28,14 +28,11 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.TwoInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
 import eu.stratosphere.pact.generic.types.TypePairComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  *
- *
- * @author Stephan Ewen
  */
 public class DualInputPlanNode extends PlanNode
 {
@@ -46,9 +43,6 @@ public class DualInputPlanNode extends PlanNode
 	protected final FieldList keys2;
 	
 	protected final boolean[] sortOrders;
-	
-	private TypeSerializerFactory<?> serializer1;
-	private TypeSerializerFactory<?> serializer2;
 	
 	private TypeComparatorFactory<?> comparator1;
 	private TypeComparatorFactory<?> comparator2;
@@ -182,22 +176,6 @@ public class DualInputPlanNode extends PlanNode
 	
 	public boolean[] getSortOrders() {
 		return this.sortOrders;
-	}
-	
-	public TypeSerializerFactory<?> getSerializer1() {
-		return this.serializer1;
-	}
-	
-	public TypeSerializerFactory<?> getSerializer2() {
-		return this.serializer2;
-	}
-	
-	public void setSerializer1(TypeSerializerFactory<?> serializer) {
-		this.serializer1 = serializer;
-	}
-	
-	public void setSerializer2(TypeSerializerFactory<?> serializer) {
-		this.serializer2 = serializer;
 	}
 	
 	public TypeComparatorFactory<?> getComparator1() {

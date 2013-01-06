@@ -20,11 +20,9 @@ import java.util.NoSuchElementException;
 
 import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.common.util.FieldList;
-import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.generic.types.TypeComparatorFactory;
-import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
@@ -39,7 +37,7 @@ public class SingleInputPlanNode extends PlanNode
 	
 	protected final boolean[] sortOrders;
 	
-	private TypeSerializerFactory<?> serializer;
+//	private TypeSerializerFactory<?> serializer;
 	
 	private TypeComparatorFactory<?> comparator;
 	
@@ -70,30 +68,8 @@ public class SingleInputPlanNode extends PlanNode
 			this.input.setReplicationFactor(getDegreeOfParallelism());
 		}
 		
-		// adjust the global properties
 		this.globalProps = input.getGlobalProperties().clone();
-		this.globalProps.clearUniqueFieldSets();
-		
-		// adjust the local properties by driver strategy
 		this.localProps = input.getLocalProperties().clone();
-		this.localProps.clearUniqueFieldSets();
-		switch (driverStrategy) {
-			case NONE:
-			case MAP:
-				break;
-			case PARTIAL_GROUP:
-			case GROUP:
-				break;
-			default:
-				throw new CompilerException("Unrecognized diver strategy impacting local properties.");
-		}
-		
-		// apply user code modifications
-		this.globalProps.filterByNodesConstantSet(template, 0);
-		this.localProps.filterByNodesConstantSet(template, 0);
-		
-		// add the new unique information
-		updatePropertiesWithUniqueSets(template.getUniqueFields());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -121,24 +97,6 @@ public class SingleInputPlanNode extends PlanNode
 	
 	public boolean[] getSortOrders() {
 		return sortOrders;
-	}
-	
-	/**
-	 * Gets the serializer from this PlanNode.
-	 *
-	 * @return The serializer.
-	 */
-	public TypeSerializerFactory<?> getSerializer() {
-		return serializer;
-	}
-	
-	/**
-	 * Sets the serializer for this PlanNode.
-	 *
-	 * @param serializer The serializer to set.
-	 */
-	public void setSerializer(TypeSerializerFactory<?> serializer) {
-		this.serializer = serializer;
 	}
 	
 	/**

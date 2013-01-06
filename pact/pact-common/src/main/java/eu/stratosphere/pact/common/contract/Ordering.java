@@ -230,7 +230,7 @@ public class Ordering
 		
 		
 		for (int i = 0; i < indexes.size(); i++) {
-			if (buf.length() != 0) {
+			if (i != 0) {
 				buf.append(",");
 			}
 			buf.append(this.indexes.get(i));

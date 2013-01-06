@@ -59,7 +59,6 @@ public class PactRecordPostPass implements OptimizerPostPass
 			// sinks can derive type schema from partitioning and local ordering,
 			// if that is set. otherwise they don't have and need schema information
 			final SinkPlanNode sn = (SinkPlanNode) node;
-			sn.setSerializer(PactRecordSerializerFactory.get());
 			
 			final Channel inchannel = sn.getInput();
 			final KeySchema schema = new KeySchema();
@@ -142,7 +141,6 @@ public class PactRecordPostPass implements OptimizerPostPass
 			}
 			
 			// parameterize the node's driver strategy
-			sn.setSerializer(PactRecordSerializerFactory.get());
 			if (sn.getDriverStrategy().requiresComparator()) {
 				try {
 					sn.setComparator(createComparator(sn.getKeys(), sn.getSortOrders(), schema));
@@ -162,7 +160,8 @@ public class PactRecordPostPass implements OptimizerPostPass
 
 		}
 		else if (node instanceof SourcePlanNode) {
-			// nothing to be done here. the source has no input and no strategy itself
+			((SourcePlanNode) node).setSerializer(PactRecordSerializerFactory.get());
+			// nothing else to be done here. the source has no input and no strategy itself
 		}
 		else {
 			throw new CompilerPostPassException("Unknown node type encountered: " + node.getClass().getName());

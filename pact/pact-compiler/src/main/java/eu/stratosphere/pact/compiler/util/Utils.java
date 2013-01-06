@@ -25,9 +25,7 @@ import eu.stratosphere.pact.compiler.CompilerException;
 
 
 /**
- *
- *
- * @author Stephan Ewen
+ * 
  */
 public class Utils
 {

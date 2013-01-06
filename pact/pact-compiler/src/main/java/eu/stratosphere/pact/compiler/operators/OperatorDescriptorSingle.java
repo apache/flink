@@ -13,12 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.dataproperties;
+package eu.stratosphere.pact.compiler.operators;
 
 import java.util.List;
 
 import eu.stratosphere.pact.common.util.FieldList;
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
@@ -26,19 +30,19 @@ import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 /**
  * 
  */
-public abstract class DriverPropertiesSingle implements DriverProperties
+public abstract class OperatorDescriptorSingle implements AbstractOperatorDescriptor
 {
 	protected final FieldSet keys;
-	protected  final FieldList keyList;
+	protected final FieldList keyList;
 	
 	private final List<RequestedGlobalProperties> globalProps;
 	private final List<RequestedLocalProperties> localProps;
 	
-	protected DriverPropertiesSingle() {
+	protected OperatorDescriptorSingle() {
 		this(null);
 	}
 	
-	protected DriverPropertiesSingle(FieldSet keys) {
+	protected OperatorDescriptorSingle(FieldSet keys) {
 		this.keys = keys;
 		this.keyList = keys == null ? null : keys.toFieldList();
 		this.globalProps = createPossibleGlobalProperties();
@@ -59,5 +63,5 @@ public abstract class DriverPropertiesSingle implements DriverProperties
 	
 	public abstract SingleInputPlanNode instantiate(Channel in, SingleInputNode node);
 	
-	
+	public abstract void processPropertiesByStrategy(GlobalProperties gProps, LocalProperties lProps);
 }

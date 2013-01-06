@@ -22,15 +22,16 @@ import eu.stratosphere.pact.common.plan.Visitor;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.compiler.plan.OptimizerNode;
+import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * Plan candidate node for data flow sources that have no input and no special strategies.
- *
- * @author Stephan Ewen
  */
 public class SourcePlanNode extends PlanNode
 {
+	private TypeSerializerFactory<?> serializer;
+	
 	/**
 	 * Constructs a new source candidate node that uses <i>NONE</i> as its local strategy.
 	 * 
@@ -42,6 +43,26 @@ public class SourcePlanNode extends PlanNode
 		this.globalProps = new GlobalProperties();
 		this.localProps = new LocalProperties();
 		updatePropertiesWithUniqueSets(template.getUniqueFields());
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the serializer from this PlanNode.
+	 *
+	 * @return The serializer.
+	 */
+	public TypeSerializerFactory<?> getSerializer() {
+		return serializer;
+	}
+	
+	/**
+	 * Sets the serializer for this PlanNode.
+	 *
+	 * @param serializer The serializer to set.
+	 */
+	public void setSerializer(TypeSerializerFactory<?> serializer) {
+		this.serializer = serializer;
 	}
 
 	// --------------------------------------------------------------------------------------------

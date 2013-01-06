@@ -65,7 +65,7 @@ public abstract class TaskTestBase
 		this.mockEnv.addOutput(output);
 		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		conf.addOutputShipStrategy(ShipStrategyType.FORWARD);
-		conf.setOutputSerializert(PactRecordSerializerFactory.get());
+		conf.setOutputSerializer(PactRecordSerializerFactory.get());
 	}
 
 	public TaskConfig getTaskConfig() {

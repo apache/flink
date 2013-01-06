@@ -41,10 +41,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
  * {@link InputFormat} to create records from the input.
  * 
  * @see eu.stratosphere.pact.generic.io.InputFormat
- * 
- * @author Stephan Ewen
- * @author Fabian Hueske
- * @author Moritz Kaufmann
  */
 public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 {
@@ -289,10 +285,6 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		Class<InputFormat<OT, InputSplit>> superClass = (Class<InputFormat<OT, InputSplit>>) (Class<?>) InputFormat.class;
 		this.format = RegularPactTask.instantiateUserCode(this.config, cl, superClass);
 		
-		// get the factory for the type serializer
-		final TypeSerializerFactory<OT> serializerFactory = this.config.getOutputSerializer(cl);
-		this.serializer = serializerFactory.getSerializer();
-		
 		// configure the stub. catch exceptions here extra, to report them as originating from the user code 
 		try {
 			this.format.configure(this.config.getStubParameters());
@@ -300,6 +292,10 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		catch (Throwable t) {
 			throw new RuntimeException("The user defined 'configure()' method caused an error: " + t.getMessage(), t);
 		}
+		
+		// get the factory for the type serializer
+		final TypeSerializerFactory<OT> serializerFactory = this.config.getOutputSerializer(cl);
+		this.serializer = serializerFactory.getSerializer();
 	}
 
 	/**

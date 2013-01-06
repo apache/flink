@@ -233,7 +233,7 @@ public class CoGroupITCase extends TestBase
 
 		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE};
 
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION, };
+		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH, };
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

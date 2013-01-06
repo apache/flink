@@ -28,8 +28,8 @@ import eu.stratosphere.pact.generic.types.TypeSerializer;
 import eu.stratosphere.pact.generic.types.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorterCollector;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger.InputDataCollector;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 
@@ -99,23 +99,23 @@ public class ChainedCombineDriver<T> implements ChainedDriver<T, T>
 		
 		// ----------------- Set up the asynchronous sorter -------------------------
 		
-		final long availableMemory = this.config.getMemoryInput(0);
-		final LocalStrategy ls = this.config.getInputLocalStrategy(0);
+		final long availableMemory = this.config.getMemoryDriver();
+		final DriverStrategy ds = this.config.getDriverStrategy();
 		
 		final MemoryManager memoryManager = this.parent.getEnvironment().getMemoryManager();
 		
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
-		final TypeComparatorFactory<T> comparatorFactory = this.config.getInputComparator(0, this.userCodeClassLoader);
+		final TypeComparatorFactory<T> comparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader);
 		final TypeSerializer<T> serializer = serializerFactory.getSerializer();
 		final TypeComparator<T> comparator = comparatorFactory.createComparator();
 
-		switch (ls) {
+		switch (ds) {
 			// local strategy is COMBININGSORT
 			// The Input is combined using a sort-merge strategy. Before spilling on disk, the data volume is reduced using
 			// the combine() method of the ReduceStub.
 			// An iterator on the sorted, grouped, and combined pairs is created and returned
-			case COMBININGSORT:
+			case PARTIAL_GROUP:
 				this.sorter = new AsynchronousPartialSorterCollector<T>(memoryManager, this.parent,
 						serializer, comparator.duplicate(), availableMemory);
 				this.inputCollector = this.sorter.getInputCollector();

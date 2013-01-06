@@ -19,39 +19,39 @@ import eu.stratosphere.pact.runtime.task.chaining.ChainedCombineDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 
+import static eu.stratosphere.pact.runtime.task.DamBehavior.*;
+
 /**
- * Enumeration of all available local processing strategies tasks. 
+ * Enumeration of all available operator strategies. 
  */
 public enum DriverStrategy
 {
 	// no local strategy, as for sources and sinks
-	NONE(null, null, false, false),
+	NONE(null, null, PIPELINED, false),
 	// no special local strategy is applied
-	MAP(MapDriver.class, ChainedMapDriver.class, false, false),
+	MAP(MapDriver.class, ChainedMapDriver.class, PIPELINED, false),
 	// grouping the inputs
-	GROUP(ReduceDriver.class, null, false, true),
-	// grouping the inputs
-	GROUP_WITH_PARTIAL_GROUP(ReduceDriver.class, null, false, true),
+	GROUP_OVER_ORDERED(ReduceDriver.class, null, PIPELINED, true),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
-	PARTIAL_GROUP(CombineDriver.class, ChainedCombineDriver.class, false, true),
+	PARTIAL_GROUP(CombineDriver.class, ChainedCombineDriver.class, MATERIALIZING, true),
 	// already grouped input, within a key values are crossed in a nested loop fashion
-	GROUP_SELF_NESTEDLOOP(null, null, false, true),	// Note: Self-Match currently inactive
+	GROUP_SELF_NESTEDLOOP(null, null, PIPELINED, true),	// Note: Self-Match currently inactive
 	// both inputs are merged
-	MERGE(MatchDriver.class, null, false, false, true),
+	MERGE(MatchDriver.class, null, PIPELINED, PIPELINED, true),
 	// co-grouping inputs
-	CO_GROUP(CoGroupDriver.class, null, false, false, true),
+	CO_GROUP(CoGroupDriver.class, null, PIPELINED, PIPELINED, true),
 	// the first input is build side, the second side is probe side of a hybrid hash table
-	HYBRIDHASH_BUILD_FIRST(MatchDriver.class, null, true, false, true),
+	HYBRIDHASH_BUILD_FIRST(MatchDriver.class, null, FULL_DAM, MATERIALIZING, true),
 	// the second input is build side, the first side is probe side of a hybrid hash table
-	HYBRIDHASH_BUILD_SECOND(MatchDriver.class, null, false, true, true),
+	HYBRIDHASH_BUILD_SECOND(MatchDriver.class, null, MATERIALIZING, FULL_DAM, true),
 	// the second input is inner loop, the first input is outer loop and block-wise processed
-	NESTEDLOOP_BLOCKED_OUTER_FIRST(CrossDriver.class, null, false, true, false),
+	NESTEDLOOP_BLOCKED_OUTER_FIRST(CrossDriver.class, null, MATERIALIZING, MATERIALIZING, false),
 	// the first input is inner loop, the second input is outer loop and block-wise processed
-	NESTEDLOOP_BLOCKED_OUTER_SECOND(CrossDriver.class, null, true, false, false),
+	NESTEDLOOP_BLOCKED_OUTER_SECOND(CrossDriver.class, null, MATERIALIZING, MATERIALIZING, false),
 	// the second input is inner loop, the first input is outer loop and stream-processed
-	NESTEDLOOP_STREAMED_OUTER_FIRST(CrossDriver.class, null, false, true, false),
+	NESTEDLOOP_STREAMED_OUTER_FIRST(CrossDriver.class, null, PIPELINED, MATERIALIZING, false),
 	// the first input is inner loop, the second input is outer loop and stream-processed
-	NESTEDLOOP_STREAMED_OUTER_SECOND(CrossDriver.class, null, true, false, false);
+	NESTEDLOOP_STREAMED_OUTER_SECOND(CrossDriver.class, null, MATERIALIZING, PIPELINED, false);
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -59,10 +59,10 @@ public enum DriverStrategy
 	
 	private final Class<? extends ChainedDriver<?, ?>> pushChainDriver;
 	
-	private final int numInputs;
+	private final DamBehavior dam1;
+	private final DamBehavior dam2;
 	
-	private final boolean dam1;
-	private final boolean dam2;
+	private final int numInputs;
 	
 	private final boolean requiresComparator;
 	
@@ -71,13 +71,13 @@ public enum DriverStrategy
 	private DriverStrategy(
 			@SuppressWarnings("rawtypes") Class<? extends PactDriver> driverClass, 
 			@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> pushChainDriverClass, 
-			boolean dams, boolean comparator)
+			DamBehavior dam, boolean comparator)
 	{
 		this.driverClass = (Class<? extends PactDriver<?, ?>>) driverClass;
 		this.pushChainDriver = (Class<? extends ChainedDriver<?, ?>>) pushChainDriverClass;
 		this.numInputs = 1;
-		this.dam1 = dams;
-		this.dam2 = false;
+		this.dam1 = dam;
+		this.dam2 = null;
 		this.requiresComparator = comparator;
 	}
 	
@@ -85,13 +85,13 @@ public enum DriverStrategy
 	private DriverStrategy(
 			@SuppressWarnings("rawtypes") Class<? extends PactDriver> driverClass, 
 			@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> pushChainDriverClass, 
-			boolean damsFirst, boolean damsSecond, boolean comparator)
+			DamBehavior firstDam, DamBehavior secondDam, boolean comparator)
 	{
 		this.driverClass = (Class<? extends PactDriver<?, ?>>) driverClass;
 		this.pushChainDriver = (Class<? extends ChainedDriver<?, ?>>) pushChainDriverClass;
 		this.numInputs = 2;
-		this.dam1 = damsFirst;
-		this.dam2 = damsSecond;
+		this.dam1 = firstDam;
+		this.dam2 = secondDam;
 		this.requiresComparator = comparator;
 	}
 	
@@ -109,11 +109,11 @@ public enum DriverStrategy
 		return this.numInputs;
 	}
 	
-	public boolean damsFirst() {
+	public DamBehavior firstDam() {
 		return this.dam1;
 	}
 	
-	public boolean damsSecond() {
+	public DamBehavior secondDam() {
 		if (this.numInputs == 2) {
 			return this.dam2;
 		} else {
@@ -121,7 +121,7 @@ public enum DriverStrategy
 		}
 	}
 	
-	public boolean damsInput(int num) {
+	public DamBehavior damOnInput(int num) {
 		if (num < this.numInputs) {
 			if (num == 0) {
 				return this.dam1;
@@ -132,8 +132,8 @@ public enum DriverStrategy
 		throw new IllegalArgumentException();
 	}
 	
-	public int getNumberOfDams() {
-		return (this.dam1 ? 1 : 0) + (this.dam2 ? 1 : 0);
+	public boolean isMaterializing() {
+		return this.dam1.isMaterializing() || (this.dam2 != null && this.dam2.isMaterializing());
 	}
 	
 	public boolean requiresComparator() {

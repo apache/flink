@@ -87,13 +87,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	}
 	
 	public int getMemoryConsumerWeight() {
-		int weight = this.driverStrategy.getNumberOfDams(); 
-
-		for (Iterator<Channel> channels = getInputs(); channels.hasNext();) {
-			final Channel c = channels.next();
-			weight += c.getLocalStrategy().dams() ? 1 : 0;
-		}
-		return weight;
+		return this.driverStrategy.isMaterializing() ? 1 : 0;
 	}
 	
 	/**
@@ -287,7 +281,7 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	//                                Miscellaneous
 	// --------------------------------------------------------------------------------------------
 	
-	protected void updatePropertiesWithUniqueSets(Set<FieldSet> uniqueFieldCombinations) {
+	public void updatePropertiesWithUniqueSets(Set<FieldSet> uniqueFieldCombinations) {
 		if (uniqueFieldCombinations == null || uniqueFieldCombinations.isEmpty()) {
 			return;
 		}
@@ -315,5 +309,12 @@ public abstract class PlanNode implements Visitable<PlanNode>
 	 */
 	public boolean isPruneMarkerSet() {
 		return this.pFlag;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public String toString() {
+		return this.template.getName() + '"' + getPactContract().getName() + "\" : " + this.driverStrategy;
 	}
 }

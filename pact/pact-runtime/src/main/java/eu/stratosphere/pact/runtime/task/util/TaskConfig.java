@@ -138,7 +138,7 @@ public class TaskConfig
 	
 	// ---------------------------------- Miscellaneous -------------------------------------------
 	
-	private static final char SEPERATOR = '.';
+	private static final char SEPARATOR = '.';
 
 	// --------------------------------------------------------------------------------------------
 	//                         Members, Constructors, and Accessors
@@ -240,12 +240,12 @@ public class TaskConfig
 	
 	public void setDriverComparator(TypeComparatorFactory<?> factory, int inputNum) {
 		setTypeComparatorFactory(factory, DRIVER_COMPARATOR_FACTORY_PREFIX + inputNum,
-			DRIVER_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPERATOR);
+			DRIVER_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPARATOR);
 	}
 	
 	public <T> TypeComparatorFactory<T> getDriverComparator(int inputNum, ClassLoader cl) {
 		return getTypeComparatorFactory(DRIVER_COMPARATOR_FACTORY_PREFIX + inputNum,
-			DRIVER_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPERATOR, cl);
+			DRIVER_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPARATOR, cl);
 	}
 	
 	public void setDriverPairComparator(TypePairComparatorFactory<?, ?> factory) {
@@ -297,22 +297,22 @@ public class TaskConfig
 	
 	public void setInputSerializer(TypeSerializerFactory<?> factory, int inputNum) {
 		setTypeSerializerFactory(factory, INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum,
-			INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPERATOR);
+			INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPARATOR);
 	}
 	
 	public <T> TypeSerializerFactory<T> getInputSerializer(int inputNum, ClassLoader cl) {
 		return getTypeSerializerFactory(INPUT_TYPE_SERIALIZER_FACTORY_PREFIX + inputNum,
-			INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPERATOR, cl);
+			INPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX + inputNum + SEPARATOR, cl);
 	}
 	
 	public void setInputComparator(TypeComparatorFactory<?> factory, int inputNum) {
 		setTypeComparatorFactory(factory, INPUT_STRATEGY_COMPARATOR_FACTORY_PREFIX + inputNum,
-			INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPERATOR);
+			INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPARATOR);
 	}
 	
 	public <T> TypeComparatorFactory<T> getInputComparator(int inputNum, ClassLoader cl) {
 		return getTypeComparatorFactory(INPUT_STRATEGY_COMPARATOR_FACTORY_PREFIX + inputNum,
-			INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPERATOR, cl);
+			INPUT_STRATEGY_COMPARATOR_PARAMETERS_PREFIX + inputNum + SEPARATOR, cl);
 	}
 	
 	public int getNumInputs() {
@@ -390,7 +390,7 @@ public class TaskConfig
 		}
 	}
 	
-	public void setOutputSerializert(TypeSerializerFactory<?> factory) {
+	public void setOutputSerializer(TypeSerializerFactory<?> factory) {
 		setTypeSerializerFactory(factory, OUTPUT_TYPE_SERIALIZER_FACTORY, OUTPUT_TYPE_SERIALIZER_PARAMETERS_PREFIX);
 	}
 	
@@ -400,12 +400,12 @@ public class TaskConfig
 	
 	public void setOutputComparator(TypeComparatorFactory<?> factory, int outputNum) {
 		setTypeComparatorFactory(factory, OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX + outputNum,
-			OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX + outputNum + SEPERATOR);
+			OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX + outputNum + SEPARATOR);
 	}
 	
 	public <T> TypeComparatorFactory<T> getOutputComparator(int outputNum, ClassLoader cl) {
 		return getTypeComparatorFactory(OUTPUT_TYPE_COMPARATOR_FACTORY_PREFIX + outputNum,
-			OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX + outputNum + SEPERATOR, cl);
+			OUTPUT_TYPE_COMPARATOR_PARAMETERS_PREFIX + outputNum + SEPARATOR, cl);
 	}
 	
 	public void setOutputDataDistribution(DataDistribution distribution) {
@@ -537,14 +537,14 @@ public class TaskConfig
 		int numChainedYet = this.config.getInteger(CHAINING_NUM_STUBS, 0);
 		
 		this.config.setString(CHAINING_TASK_PREFIX + numChainedYet, chainedTaskClass.getName());
-		this.config.addAll(conf.config, CHAINING_TASKCONFIG_PREFIX + numChainedYet + SEPERATOR);
+		this.config.addAll(conf.config, CHAINING_TASKCONFIG_PREFIX + numChainedYet + SEPARATOR);
 		this.config.setString(CHAINING_TASKNAME_PREFIX + numChainedYet, taskName);
 		
 		this.config.setInteger(CHAINING_NUM_STUBS, ++numChainedYet);
 	}
 	
 	public TaskConfig getChainedStubConfig(int chainPos) {
-		return new TaskConfig(new DelegatingConfiguration(this.config, CHAINING_TASKCONFIG_PREFIX + chainPos + SEPERATOR));
+		return new TaskConfig(new DelegatingConfiguration(this.config, CHAINING_TASKCONFIG_PREFIX + chainPos + SEPARATOR));
 	}
 
 	public Class<? extends ChainedDriver<?, ?>> getChainedTask(int chainPos) {

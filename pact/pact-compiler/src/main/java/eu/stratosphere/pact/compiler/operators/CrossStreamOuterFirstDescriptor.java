@@ -13,14 +13,20 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.postpass;
+package eu.stratosphere.pact.compiler.operators;
 
-import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 
  */
-public interface OptimizerPostPass
+public class CrossStreamOuterFirstDescriptor extends CartesianProductDescriptor
 {
-	void postPass(OptimizedPlan plan);
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.operators.AbstractOperatorDescriptor#getStrategy()
+	 */
+	@Override
+	public DriverStrategy getStrategy() {
+		return DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST;
+	}
 }

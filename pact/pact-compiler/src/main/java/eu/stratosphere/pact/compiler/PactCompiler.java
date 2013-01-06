@@ -54,6 +54,7 @@ import eu.stratosphere.pact.compiler.plan.OptimizerNode;
 import eu.stratosphere.pact.compiler.plan.ReduceNode;
 import eu.stratosphere.pact.compiler.plan.SinkJoiner;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
+import eu.stratosphere.pact.compiler.plan.candidate.Channel.TempMode;
 import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.compiler.plan.candidate.SinkPlanNode;
@@ -280,11 +281,6 @@ public class PactCompiler {
 	 * The log handle that is used by the compiler to log messages.
 	 */
 	public static final Log LOG = LogFactory.getLog(PactCompiler.class);
-	
-	/**
-	 * the amount of memory for TempTasks in MiBytes.
-	 */
-	public static final int DEFAULT_TEMP_TASK_MEMORY = 4;
 
 	// ------------------------------------------------------------------------
 	// Members
@@ -967,7 +963,7 @@ public class PactCompiler {
 		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, long memPerInstance)
 		{
 			if (LOG.isDebugEnabled())
-				LOG.debug("Available memory per instance: " + memoryPerInstance);
+				LOG.debug("Available memory per instance: " + this.memoryPerInstance);
 			
 			this.memoryPerInstance = memPerInstance;
 			this.memoryConsumerWeights = 0;
@@ -979,20 +975,45 @@ public class PactCompiler {
 
 			// assign the memory to each node
 			if (this.memoryConsumerWeights > 0) {
-				final long memoryPerSubTask = this.memoryPerInstance / this.memoryConsumerWeights;
+				final long memoryPerInstanceAndWeight = this.memoryPerInstance / this.memoryConsumerWeights;
 				
 				if (LOG.isDebugEnabled())
-					LOG.debug("Memory per consumer: " + memoryPerSubTask);
+					LOG.debug("Memory per consumer weight: " + memoryPerInstanceAndWeight);
 				
 				for (PlanNode node : this.allNodes) {
+					// assign memory to the driver strategy of the node
 					final int consumerWeight = node.getMemoryConsumerWeight();
 					if (consumerWeight > 0) {
-						node.setMemoryPerSubTask(memoryPerSubTask * consumerWeight);
+						final long mem = memoryPerInstanceAndWeight * consumerWeight / node.getSubtasksPerInstance();
+						node.setMemoryPerSubTask(mem);
 						if (LOG.isDebugEnabled()) {
-							final long mib = (memoryPerSubTask * consumerWeight) >> 20;
+							final long mib = mem >> 20;
 							LOG.debug("Assigned " + mib + " MiBytes memory to each subtask of " + 
 								node.getPactContract().getName() + " (" + mib * node.getDegreeOfParallelism() +
-								" MiBytes total."); 
+								" MiBytes total.)"); 
+						}
+					}
+					
+					// assign memory to the local and global strategies of the channels
+					for (Iterator<Channel> channels = node.getInputs(); channels.hasNext();) {
+						final Channel c = channels.next();
+						if (c.getLocalStrategy().dams()) {
+							final long mem = memoryPerInstanceAndWeight / node.getSubtasksPerInstance();
+							c.setMemoryLocalStrategy(mem);
+							if (LOG.isDebugEnabled()) {
+								final long mib = mem >> 20;
+								LOG.debug("Assigned " + mib + " MiBytes memory to each local strategy instance of " + 
+									c + " (" + mib * node.getDegreeOfParallelism() + " MiBytes total.)"); 
+							}
+						}
+						if (c.getTempMode() != TempMode.NONE) {
+							final long mem = memoryPerInstanceAndWeight / node.getSubtasksPerInstance();
+							c.setTempMemory(mem);
+							if (LOG.isDebugEnabled()) {
+								final long mib = mem >> 20;
+								LOG.debug("Assigned " + mib + " MiBytes memory to each instance of the temp table for " + 
+									c + " (" + mib * node.getDegreeOfParallelism() + " MiBytes total.)"); 
+							}
 						}
 					}
 				}
@@ -1026,6 +1047,15 @@ public class PactCompiler {
 
 			// count the memory consumption
 			this.memoryConsumerWeights += visitable.getMemoryConsumerWeight();
+			for (Iterator<Channel> channels = visitable.getInputs(); channels.hasNext();) {
+				final Channel c = channels.next();
+				if (c.getLocalStrategy().dams()) {
+					this.memoryConsumerWeights++;
+				}
+				if (c.getTempMode() != TempMode.NONE) {
+					this.memoryConsumerWeights++;
+				}
+			}
 			return true;
 		}
 

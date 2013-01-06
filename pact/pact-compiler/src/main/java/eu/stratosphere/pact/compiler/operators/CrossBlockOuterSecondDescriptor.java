@@ -13,14 +13,20 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.dataproperties;
+package eu.stratosphere.pact.compiler.operators;
 
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 
  */
-public interface DriverProperties
+public class CrossBlockOuterSecondDescriptor extends CartesianProductDescriptor
 {
-	DriverStrategy getStrategy();
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.operators.AbstractOperatorDescriptor#getStrategy()
+	 */
+	@Override
+	public DriverStrategy getStrategy() {
+		return DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND;
+	}
 }

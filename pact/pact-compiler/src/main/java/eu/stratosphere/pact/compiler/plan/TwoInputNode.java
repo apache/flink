@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2012 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,8 +16,10 @@
 package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import eu.stratosphere.nephele.configuration.Configuration;
 import eu.stratosphere.pact.common.contract.CompilerHints;
@@ -31,7 +33,15 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
+import eu.stratosphere.pact.compiler.costs.Costs;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual.GlobalPropertiesPair;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual.LocalPropertiesPair;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
@@ -42,20 +52,18 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  * A node in the optimizer plan that represents a PACT with a two different inputs, such as MATCH or CROSS.
  * The two inputs are not substitutable in their sides.
- * 
- * @author Stephan Ewen
  */
 public abstract class TwoInputNode extends OptimizerNode
 {
-	private List<PlanNode> cachedPlans; // a cache for the computed alternative plans
-
+	protected final FieldList keys1; // The set of key fields for the first input
+	
+	protected final FieldList keys2; // The set of key fields for the second input
+	
+	private final List<OperatorDescriptorDual> possibleProperties;
+	
 	protected PactConnection input1; // The first input edge
 
 	protected PactConnection input2; // The second input edge
-
-	protected final FieldList keySet1; // The set of key fields for the first input
-	
-	protected final FieldList keySet2; // The set of key fields for the second input
 	
 	// ------------- Stub Annotations
 	
@@ -69,6 +77,8 @@ public abstract class TwoInputNode extends OptimizerNode
 	
 	// --------------------------------------------------------------------------------------------
 	
+	private List<PlanNode> cachedPlans; // a cache for the computed alternative plans
+	
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
 	 * 
@@ -78,12 +88,14 @@ public abstract class TwoInputNode extends OptimizerNode
 	public TwoInputNode(DualInputContract<?> pactContract) {
 		super(pactContract);
 
-		this.keySet1 = new FieldList(pactContract.getKeyColumns(0));
-		this.keySet2 = new FieldList(pactContract.getKeyColumns(1));
+		this.keys1 = new FieldList(pactContract.getKeyColumns(0));
+		this.keys2 = new FieldList(pactContract.getKeyColumns(1));
 		
-		if (this.keySet1.size() != this.keySet2.size()) {
+		if (this.keys1.size() != this.keys2.size()) {
 			throw new CompilerException("Unequal number of key fields on the two inputs.");
 		}
+		
+		this.possibleProperties = getPossibleProperties();
 	}
 
 	// ------------------------------------------------------------------------
@@ -187,9 +199,12 @@ public abstract class TwoInputNode extends OptimizerNode
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
 				this.input1.setShipStrategy(ShipStrategyType.BROADCAST);
 				this.input2.setShipStrategy(ShipStrategyType.BROADCAST);
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
 				this.input1.setShipStrategy(ShipStrategyType.PARTITION_HASH);
 				this.input2.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
+				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
+				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy: " + shipStrategy);
 			}
@@ -202,8 +217,10 @@ public abstract class TwoInputNode extends OptimizerNode
 				this.input1.setShipStrategy(ShipStrategyType.FORWARD);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
 				this.input1.setShipStrategy(ShipStrategyType.BROADCAST);
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
 				this.input1.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
+				this.input1.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input one: " + shipStrategy);
 			}
@@ -216,12 +233,76 @@ public abstract class TwoInputNode extends OptimizerNode
 				this.input2.setShipStrategy(ShipStrategyType.FORWARD);
 			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
 				this.input2.setShipStrategy(ShipStrategyType.BROADCAST);
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION.equals(shipStrategy)) {
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
 				this.input2.setShipStrategy(ShipStrategyType.PARTITION_HASH);
+			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
+				this.input2.setShipStrategy(ShipStrategyType.PARTITION_RANGE);
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input two: " + shipStrategy);
 			}
 		}
+	}
+	
+	protected abstract List<OperatorDescriptorDual> getPossibleProperties();
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
+	 */
+	@Override
+	public boolean isMemoryConsumer() {
+		for (OperatorDescriptorDual dpd : this.possibleProperties) {
+			if (dpd.getStrategy().firstDam().isMaterializing() ||
+				dpd.getStrategy().secondDam().isMaterializing()) {
+				return true;
+			}
+			for (LocalPropertiesPair prp : dpd.getPossibleLocalProperties()) {
+				if (!(prp.getProperties1().isTrivial() && prp.getProperties2().isTrivial())) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#computeInterestingPropertiesForInputs(eu.stratosphere.pact.compiler.costs.CostEstimator)
+	 */
+	@Override
+	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+		// get what we inherit and what is preserved by our user code 
+		final InterestingProperties props1 = getInterestingProperties().filterByCodeAnnotations(this, 0);
+		final InterestingProperties props2 = getInterestingProperties().filterByCodeAnnotations(this, 1);
+
+		final OptimizerNode pred1 = getFirstPredecessorNode();
+		final OptimizerNode pred2 = getSecondPredecessorNode();
+		
+		// add all properties relevant to this node
+		for (OperatorDescriptorDual dpd : this.possibleProperties) {
+			for (GlobalPropertiesPair gp : dpd.getPossibleGlobalProperties()) {
+				// input 1
+				Costs max1 = new Costs();
+				gp.getProperties1().addMinimalRequiredCosts(max1, estimator, pred1, this);
+				props1.addGlobalProperties(gp.getProperties1(), max1);
+				
+				// input 2
+				Costs max2 = new Costs();
+				gp.getProperties2().addMinimalRequiredCosts(max2, estimator, pred2, this);
+				props2.addGlobalProperties(gp.getProperties2(), max2);
+			}
+			for (LocalPropertiesPair lp : dpd.getPossibleLocalProperties()) {
+				// input 1
+				Costs max1 = new Costs();
+				lp.getProperties1().addMinimalRequiredCosts(max1, estimator, pred1, getMinimalMemoryAcrossAllSubTasks());
+				props1.addLocalProperties(lp.getProperties1(), max1);
+				
+				// input 2
+				Costs max2 = new Costs();
+				lp.getProperties2().addMinimalRequiredCosts(max2, estimator, pred2, getMinimalMemoryAcrossAllSubTasks());
+				props2.addLocalProperties(lp.getProperties2(), max2);
+			}
+		}
+		this.input1.setInterestingProperties(props1);
+		this.input2.setInterestingProperties(props2);
 	}
 
 	/*
@@ -238,61 +319,154 @@ public abstract class TwoInputNode extends OptimizerNode
 		// step down to all producer nodes and calculate alternative plans
 		final List<? extends PlanNode> subPlans1 = getFirstPredecessorNode().getAlternativePlans(estimator);
 		final List<? extends PlanNode> subPlans2 = getSecondPredecessorNode().getAlternativePlans(estimator);
-		final List<Channel> candidates1 = new ArrayList<Channel>(subPlans1.size());
-		final List<Channel> candidates2 = new ArrayList<Channel>(subPlans2.size());
+
+		// calculate alternative sub-plans for predecessor
+		final Set<RequestedGlobalProperties> intGlobal1 = this.input1.getInterestingProperties().getGlobalProperties();
+		final Set<RequestedGlobalProperties> intGlobal2 = this.input2.getInterestingProperties().getGlobalProperties();
 		
-		List<InterestingProperties> ips = this.input1.getInterestingProperties();
-		for (PlanNode p : subPlans1) {
-			if (ips.isEmpty()) {
-				// create a simple forwarding channel
-				Channel c = new Channel(p);
-				c.setShipStrategy(ShipStrategyType.FORWARD);
-				c.setLocalStrategy(LocalStrategy.NONE);
-				candidates1.add(c);
-			} else {
-				for (InterestingProperties ip : ips) {
-					// create a channel that realizes the properties
-					candidates1.add(ip.createChannelRealizingProperties(p));
-				}
+		final GlobalPropertiesPair[] allGlobalPairs;
+		final LocalPropertiesPair[] allLocalPairs;
+		{
+			Set<GlobalPropertiesPair> pairsGlob = new HashSet<GlobalPropertiesPair>();
+			Set<LocalPropertiesPair> pairsLoc = new HashSet<LocalPropertiesPair>();
+			for (OperatorDescriptorDual ods : this.possibleProperties) {
+				pairsGlob.addAll(ods.getPossibleGlobalProperties());
+				pairsLoc.addAll(ods.getPossibleLocalProperties());
 			}
+			allGlobalPairs = (GlobalPropertiesPair[]) pairsGlob.toArray(new GlobalPropertiesPair[pairsGlob.size()]);
+			allLocalPairs = (LocalPropertiesPair[]) pairsLoc.toArray(new LocalPropertiesPair[pairsLoc.size()]);
 		}
 		
-		ips = this.input2.getInterestingProperties();
-		for (PlanNode p : subPlans2) {
-			if (ips.isEmpty()) {
-				// create a simple forwarding channel
-				Channel c = new Channel(p);
-				c.setShipStrategy(ShipStrategyType.FORWARD);
-				c.setLocalStrategy(LocalStrategy.NONE);
-				candidates2.add(c);
-			} else {
-				for (InterestingProperties ip : ips) {
-					// create a channel that realizes the properties
-					candidates2.add(ip.createChannelRealizingProperties(p));
-				}
-			}
-		}
+		final List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
+		// enumerate all pairwise combination of the children's plans together with
+		// all possible operator strategy combination
 		
-		final List<PlanNode> outputPlans = new ArrayList<PlanNode>(subPlans1.size() + subPlans2.size());
-		for (Channel first : candidates1) {
-			for (Channel second : candidates2) {
-				if (areBranchCompatible(first, second)) {
-					createPlanAlternative(first, second, outputPlans);
+		// create all candidates
+		for (PlanNode child1 : subPlans1) {
+			for (PlanNode child2 : subPlans2) {
+				// pick the strategy ourselves
+				final GlobalProperties gp1 = child1.getGlobalProperties();
+				final GlobalProperties gp2 = child2.getGlobalProperties();
+					
+				// check if the child meets the global properties
+				for (RequestedGlobalProperties igps1: intGlobal1) {
+					final Channel c1 = new Channel(child1);
+					if (this.input1.getShipStrategy() == null) {
+						// free to choose the ship strategy
+						if (igps1.isMetBy(gp1)) {
+							// take the current properties
+							c1.setShipStrategy(ShipStrategyType.FORWARD);
+						} else {
+							// create an instantiation of the global properties
+							igps1.parameterizeChannel(c1);
+						}
+					} else {
+						// ship strategy fixed by compiler hint
+						if (this.keys1 != null) {
+							c1.setShipStrategy(this.input1.getShipStrategy(), this.keys1.toFieldList());
+						} else {
+							c1.setShipStrategy(this.input1.getShipStrategy());
+						}
+					}
+					
+					for (RequestedGlobalProperties igps2: intGlobal2) {
+						final Channel c2 = new Channel(child2);
+						if (this.input2.getShipStrategy() == null) {
+							// free to choose the ship strategy
+							if (igps2.isMetBy(gp2)) {
+								// take the current properties
+								c2.setShipStrategy(ShipStrategyType.FORWARD);
+							} else {
+								// create an instantiation of the global properties
+								igps2.parameterizeChannel(c2);
+							}
+						} else {
+							// ship strategy fixed by compiler hint
+							if (this.keys2 != null) {
+								c2.setShipStrategy(this.input2.getShipStrategy(), this.keys2.toFieldList());
+							} else {
+								c2.setShipStrategy(this.input2.getShipStrategy());
+							}
+						}
+						
+						/* ********************************************************************
+						 * NOTE: Depending on how we proceed with different partitionings,
+						 *       we might at some point need a compatibility check between
+						 *       the pairs of global properties.
+						 * *******************************************************************/
+						
+						for (GlobalPropertiesPair gpp : allGlobalPairs) {
+							if (gpp.getProperties1().isMetBy(c1.getGlobalProperties()) && 
+								gpp.getProperties2().isMetBy(c2.getGlobalProperties()) )
+							{
+								// we form a valid combination, so create the local candidates
+								// for this
+								addLocalCandidates(c1, c2, outputPlans, allLocalPairs);
+								break;
+							}
+						}
+						
+						// break the loop over input2's possible global properties, if the property
+						// is fixed via a hint. All the properties are overridden by the hint anyways,
+						// so we can stop after the first
+						if (this.input2.getShipStrategy() != null) {
+							break;
+						}
+					}
+					
+					// break the loop over input1's possible global properties, if the property
+					// is fixed via a hint. All the properties are overridden by the hint anyways,
+					// so we can stop after the first
+					if (this.input1.getShipStrategy() != null) {
+						break;
+					}
 				}
 			}
 		}
 
-		// prune the plans
+		// cost and prune the plans
+		for (PlanNode node : outputPlans) {
+			estimator.costOperator(node);
+		}
 		prunePlanAlternatives(outputPlans);
 
 		this.cachedPlans = outputPlans;
 		return outputPlans;
 	}
 	
-
-	protected abstract void createPlanAlternative(Channel candidate1, Channel candidate2, List<PlanNode> outputPlans);
+	private void addLocalCandidates(Channel in1, Channel in2, List<PlanNode> target, LocalPropertiesPair[] validLocalCombinations) {
+		final LocalProperties lp1 = in1.getLocalPropertiesAfterShippingOnly();
+		final LocalProperties lp2 = in2.getLocalPropertiesAfterShippingOnly();
 		
+		for (RequestedLocalProperties ilp1 : this.input1.getInterestingProperties().getLocalProperties()) {
+			if (ilp1.isMetBy(lp1)) {
+				in1.setLocalStrategy(LocalStrategy.NONE);
+			} else {
+				ilp1.parameterizeChannel(in1);
+			}
+			
+			for (RequestedLocalProperties ilp2 : this.input2.getInterestingProperties().getLocalProperties()) {
+				if (ilp2.isMetBy(lp2)) {
+					in2.setLocalStrategy(LocalStrategy.NONE);
+				} else {
+					ilp2.parameterizeChannel(in2);
+				}
+				
+				for (LocalPropertiesPair lpp : validLocalCombinations) {
+					if (lpp.getProperties1().isMetBy(in1.getLocalProperties()) &&
+						lpp.getProperties2().isMetBy(in2.getLocalProperties()) )
+					{
+						// valid combination
+						// --- Compatibility Check !!! ---
+						
+						// add a candidate
+					}
+				}
+			}
+		}
+	}
+	
 	/**
 	 * Checks if the subPlan has a valid outputSize estimation.
 	 * 
@@ -430,8 +604,8 @@ public abstract class TwoInputNode extends OptimizerNode
 	 */
 	public FieldList getInputKeySet(int input) {
 		switch(input) {
-			case 0: return keySet1;
-			case 1: return keySet2;
+			case 0: return keys1;
+			case 1: return keys2;
 			default: throw new IndexOutOfBoundsException();
 		}
 	}
@@ -480,11 +654,10 @@ public abstract class TwoInputNode extends OptimizerNode
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {
-			if (this.input1 == null || this.input2 == null) {
+			if (this.input1 == null || this.input2 == null)
 				throw new CompilerException();
-			}
-			this.getFirstPredecessorNode().accept(visitor);
-			this.getSecondPredecessorNode().accept(visitor);
+			getFirstPredecessorNode().accept(visitor);
+			getSecondPredecessorNode().accept(visitor);
 			visitor.postVisit(this);
 		}
 	}

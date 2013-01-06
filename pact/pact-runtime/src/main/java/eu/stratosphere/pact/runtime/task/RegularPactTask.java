@@ -73,8 +73,6 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 /**
  * The abstract base class for all Pact tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
- *
- * @author Stephan Ewen
  */
 public class RegularPactTask<S extends Stub, OT> extends AbstractTask implements PactTaskContext<S, OT>
 {

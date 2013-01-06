@@ -266,7 +266,7 @@ public final class RequestedGlobalProperties implements Cloneable
 	 */
 	@Override
 	public String toString() {
-		return "GlobalProperties [partitioning=" + partitioning + 
+		return "Requested Global Properties [partitioning=" + partitioning + 
 			(this.partitioningFields == null ? "" : ", on fields " + this.partitioningFields) + 
 			(this.ordering == null ? "" : ", with ordering " + this.ordering) + "]";
 	}

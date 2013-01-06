@@ -56,7 +56,6 @@ import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
@@ -190,17 +189,17 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 		// the vertex to be created for the current node
 		final AbstractJobVertex vertex;
 		try {
-			if (node instanceof SingleInputPlanNode) {
-				vertex = createSingleInputVertex((SingleInputPlanNode) node);
-			}
-			else if (node instanceof DualInputPlanNode) {
-				vertex = createDualInputVertex((DualInputPlanNode) node);
+			if (node instanceof SinkPlanNode) {
+				vertex = createDataSinkVertex((SinkPlanNode) node);
 			}
 			else if (node instanceof SourcePlanNode) {
 				vertex = createDataSourceVertex((SourcePlanNode) node);
 			}
-			else if (node instanceof SinkPlanNode) {
-				vertex = createDataSinkVertex((SinkPlanNode) node);
+			else if (node instanceof SingleInputPlanNode) {
+				vertex = createSingleInputVertex((SingleInputPlanNode) node);
+			}
+			else if (node instanceof DualInputPlanNode) {
+				vertex = createDualInputVertex((DualInputPlanNode) node);
 			}
 			else if (node instanceof UnionPlanNode) {
 				// skip the union for now
@@ -269,9 +268,15 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 				// node's task is chained in another task
 				final Channel inConn = inConns.next();
 				
-				//sanity check
+				//sanity checks
 				if (inConns.hasNext()) {
 					throw new IllegalStateException("Bug: Found a chained task with more than one input!");
+				}
+				if (inConn.getLocalStrategy() != null && inConn.getLocalStrategy() != LocalStrategy.NONE) {
+					throw new IllegalStateException("Bug: Found a chained task with an input local strategy.");
+				}
+				if (inConn.getShipStrategy() != null && inConn.getShipStrategy() != ShipStrategyType.FORWARD) {
+					throw new IllegalStateException("Bug: Found a chained task with an input ship strategy other than FORWARD.");
 				}
 
 				final TaskInChain chainedTask = this.chainedTasks.get(node);
@@ -291,6 +296,10 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 					}
 					chainedTask.setContainingVertex(container);
 				}
+				
+				// add info about the input serializer type
+				chainedTask.getTaskConfig().setInputSerializer(inConn.getSerializer(), 0);
+				
 				this.chainedTasksInSequence.add(chainedTask);
 				return;
 			}
@@ -371,7 +380,8 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 			PlanNode pred = inConn.getSource();
 			chaining = ds.getPushChainDriverClass() != null &&
 					!(pred instanceof UnionPlanNode) &&
-					inConn.getShipStrategy() == ShipStrategyType.FORWARD && 
+					inConn.getShipStrategy() == ShipStrategyType.FORWARD &&
+					inConn.getLocalStrategy() == LocalStrategy.NONE &&
 					pred.getOutgoingChannels().size() == 1 &&
 					node.getDegreeOfParallelism() == pred.getDegreeOfParallelism() && 
 					node.getSubtasksPerInstance() == pred.getSubtasksPerInstance();
@@ -383,7 +393,7 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 		if (chaining) {
 			vertex = null;
 			config = new TaskConfig(new Configuration());
-			this.chainedTasks.put(node, new TaskInChain(ChainedMapDriver.class, config, taskName));
+			this.chainedTasks.put(node, new TaskInChain(ds.getPushChainDriverClass(), config, taskName));
 		} else {
 			// create task vertex
 			vertex = new JobTaskVertex(taskName, this.jobGraph);
@@ -448,6 +458,8 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 		// set user code
 		config.setStubClass(node.getPactContract().getUserCodeClass());
 		config.setStubParameters(node.getPactContract().getParameters());
+		
+		config.setOutputSerializer(node.getSerializer());
 		return vertex;
 	}
 
@@ -469,9 +481,17 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 		final long mem = node.getMemoryPerSubTask();
 		if (mem > 0) {
 			config.setMemoryDriver(mem);
+			config.setFilehandlesDriver(this.defaultMaxFan);
+			config.setSpillingThresholdDriver(this.defaultSortSpillingThreshold);
 		}
-		config.setFilehandlesDriver(this.defaultMaxFan);
-		config.setSpillingThresholdDriver(this.defaultSortSpillingThreshold);
+	}
+	
+	private void assignLocalStrategyResources(Channel c, TaskConfig config, int inputNum) {
+		if (c.getMemoryLocalStrategy() > 0) {
+			config.setMemoryInput(inputNum, c.getMemoryLocalStrategy());
+			config.setFilehandlesInput(inputNum, this.defaultMaxFan);
+			config.setSpillingThresholdInput(inputNum, this.defaultSortSpillingThreshold);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -505,13 +525,12 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 		}
 		
 		sourceVertex.connectTo(targetVertex, channelType, CompressionLevel.NO_COMPRESSION, distributionPattern);
-		sourceConfig.addInputToGroup(inputNumber);
 
 		// -------------- configure the source task's ship strategy strategies in task config --------------
 		final int outputIndex = sourceConfig.getNumOutputs();
 		sourceConfig.addOutputShipStrategy(connection.getShipStrategy());
 		if (outputIndex == 0) {
-			sourceConfig.setOutputSerializert(connection.getSerializer());
+			sourceConfig.setOutputSerializer(connection.getSerializer());
 		}
 		if (connection.getShipStrategyComparator() != null) {
 			sourceConfig.setOutputComparator(connection.getShipStrategyComparator(), outputIndex);
@@ -541,8 +560,10 @@ public class JobGraphGenerator implements Visitor<PlanNode>
 			}
 		}
 		
+		assignLocalStrategyResources(channel, config, inputNum);
+		
 		// temping / caching
-		if (channel.getTempMode() != TempMode.NONE) {
+		if (channel.getTempMode() != null && channel.getTempMode() != TempMode.NONE) {
 			config.setInputDammed(inputNum, true);
 			config.setInputDamMemory(inputNum, channel.getTempMemory());
 			if (channel.getTempMode() == TempMode.MATERIALIZE_REPLAYABLE) {

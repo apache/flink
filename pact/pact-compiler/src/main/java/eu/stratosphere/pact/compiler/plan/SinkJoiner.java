@@ -15,29 +15,26 @@
 
 package eu.stratosphere.pact.compiler.plan;
 
+import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
-import eu.stratosphere.pact.compiler.plan.candidate.Channel;
-import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorDual;
+import eu.stratosphere.pact.compiler.operators.UtilSinkJoinOpDescriptor;
 import eu.stratosphere.pact.generic.contract.DualInputContract;
 import eu.stratosphere.pact.generic.stub.AbstractStub;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * This class represents a utility node that is not part of the actual plan. It is used for plans with multiple data sinks to
  * transform it into a plan with a single root node. That way, the code that makes sure no costs are double-counted and that 
  * candidate selection works correctly with nodes that have multiple outputs is transparently reused.
- *
- * @author Stephan Ewen
  */
 public class SinkJoiner extends TwoInputNode
 {
 	public SinkJoiner(OptimizerNode input1, OptimizerNode input2) {
 		super(new NoContract());
-		setDriverStrategy(DriverStrategy.NONE);
 		
 		PactConnection conn1 = new PactConnection(input1, this);
 		PactConnection conn2 = new PactConnection(input2, this);
@@ -56,13 +53,10 @@ public class SinkJoiner extends TwoInputNode
 	public String getName() {
 		return "Internal Utility Node";
 	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
-	 */
+
 	@Override
-	public boolean isMemoryConsumer() {
-		return false;
+	protected List<OperatorDescriptorDual> getPossibleProperties() {
+		return Collections.<OperatorDescriptorDual>singletonList(new UtilSinkJoinOpDescriptor());
 	}
 
 	/* (non-Javadoc)
@@ -88,14 +82,6 @@ public class SinkJoiner extends TwoInputNode
 	protected List<UnclosedBranchDescriptor> getBranchesForParent(OptimizerNode parent) {
 		// return our own stack of open branches, because nothing is added
 		return this.openBranches;
-	}
-	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.compiler.plan.TwoInputNode#createPlanAlternative(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.candidate.Channel, java.util.List)
-	 */
-	@Override
-	protected void createPlanAlternative(Channel candidate1, Channel candidate2, List<PlanNode> outputPlans) {
-
 	}
 
 	// ------------------------------------------------------------------------

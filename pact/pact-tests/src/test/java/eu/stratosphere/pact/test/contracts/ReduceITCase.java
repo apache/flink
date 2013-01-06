@@ -176,7 +176,7 @@ public class ReduceITCase extends TestBase
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
 		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT };
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION };
+		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH };
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

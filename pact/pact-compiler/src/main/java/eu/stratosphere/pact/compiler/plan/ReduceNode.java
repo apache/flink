@@ -24,8 +24,8 @@ import eu.stratosphere.pact.common.util.FieldSet;
 import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.DataStatistics;
 import eu.stratosphere.pact.compiler.PactCompiler;
-import eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesFactory;
-import eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle;
+import eu.stratosphere.pact.compiler.operators.OperatorPropertiesFactory;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
 import eu.stratosphere.pact.generic.contract.GenericReduceContract;
 
 /**
@@ -80,7 +80,7 @@ public class ReduceNode extends SingleInputNode
 	 * @see eu.stratosphere.pact.compiler.plan.SingleInputNode#getPossibleProperties()
 	 */
 	@Override
-	protected List<DriverPropertiesSingle> getPossibleProperties() {
+	protected List<OperatorDescriptorSingle> getPossibleProperties() {
 		// see if an internal hint dictates the strategy to use
 		final Configuration conf = getPactContract().getParameters();
 		final String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
@@ -102,9 +102,9 @@ public class ReduceNode extends SingleInputNode
 			useCombiner = isCombineable();
 		}
 		
-		DriverPropertiesSingle props = useCombiner ?
-			new DriverPropertiesFactory.GroupWithPartialPreGroupProperties(this.keys) :
-			new DriverPropertiesFactory.GroupProperties(this.keys);
+		OperatorDescriptorSingle props = useCombiner ?
+			new OperatorPropertiesFactory.GroupWithPartialPreGroupProperties(this.keys) :
+			new OperatorPropertiesFactory.GroupProperties(this.keys);
 				
 		return Collections.singletonList(props);
 	}

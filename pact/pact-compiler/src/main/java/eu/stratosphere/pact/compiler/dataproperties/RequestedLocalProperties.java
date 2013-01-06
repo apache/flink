@@ -239,7 +239,7 @@ public final class RequestedLocalProperties implements Cloneable
 	 */
 	@Override
 	public String toString() {
-		return "LocalProperties [ordering=" + this.ordering + ", grouped=" + this.groupedFields + "]";
+		return "Requested Local Properties [ordering=" + this.ordering + ", grouped=" + this.groupedFields + "]";
 	}
 
 	/*

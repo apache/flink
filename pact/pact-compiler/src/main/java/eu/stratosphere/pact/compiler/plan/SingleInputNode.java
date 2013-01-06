@@ -17,6 +17,7 @@ package eu.stratosphere.pact.compiler.plan;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,14 +32,15 @@ import eu.stratosphere.pact.compiler.CompilerException;
 import eu.stratosphere.pact.compiler.PactCompiler;
 import eu.stratosphere.pact.compiler.costs.CostEstimator;
 import eu.stratosphere.pact.compiler.costs.Costs;
-import eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle;
 import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.dataproperties.InterestingProperties;
 import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.compiler.operators.OperatorDescriptorSingle;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.PlanNode;
+import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
 import eu.stratosphere.pact.generic.contract.Contract;
 import eu.stratosphere.pact.generic.contract.SingleInputContract;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -55,7 +57,7 @@ public abstract class SingleInputNode extends OptimizerNode
 {
 	protected final FieldSet keys; 			// The set of key fields
 	
-	private final List<DriverPropertiesSingle> possibleProperties;
+	private final List<OperatorDescriptorSingle> possibleProperties;
 	
 	protected PactConnection inConn; 		// the input of the node
 	
@@ -147,15 +149,6 @@ public abstract class SingleInputNode extends OptimizerNode
 			return this.constantSet.contains(fieldNumber);
 		}
 	}
-		
-	/**
-	 * Gets the set of key fields for this optimizer node.
-	 * 
-	 * @return The key fields of this optimizer node.
-	 */
-	public FieldSet getKeySet() {
-		return this.keys;
-	}
 	
 	/*
 	 * (non-Javadoc)
@@ -205,12 +198,15 @@ public abstract class SingleInputNode extends OptimizerNode
 	
 	
 	
-	protected abstract List<DriverPropertiesSingle> getPossibleProperties();
+	protected abstract List<OperatorDescriptorSingle> getPossibleProperties();
 	
+	/* (non-Javadoc)
+	 * @see eu.stratosphere.pact.compiler.plan.OptimizerNode#isMemoryConsumer()
+	 */
 	@Override
 	public boolean isMemoryConsumer() {
-		for (DriverPropertiesSingle dps : this.possibleProperties) {
-			if (dps.getStrategy().damsInput(0)) {
+		for (OperatorDescriptorSingle dps : this.possibleProperties) {
+			if (dps.getStrategy().firstDam().isMaterializing()) {
 				return true;
 			}
 			for (RequestedLocalProperties rlp : dps.getPossibleLocalProperties()) {
@@ -219,7 +215,6 @@ public abstract class SingleInputNode extends OptimizerNode
 				}
 			}
 		}
-		
 		return false;
 	}
 
@@ -233,7 +228,7 @@ public abstract class SingleInputNode extends OptimizerNode
 		final OptimizerNode pred = getPredecessorNode();
 		
 		// add all properties relevant to this node
-		for (DriverPropertiesSingle dps : this.possibleProperties) {
+		for (OperatorDescriptorSingle dps : this.possibleProperties) {
 			for (RequestedGlobalProperties gp : dps.getPossibleGlobalProperties()) {
 				Costs max = new Costs();
 				gp.addMinimalRequiredCosts(max, estimator, pred, this);
@@ -261,6 +256,15 @@ public abstract class SingleInputNode extends OptimizerNode
 		// calculate alternative sub-plans for predecessor
 		final List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
 		final Set<RequestedGlobalProperties> intGlobal = this.inConn.getInterestingProperties().getGlobalProperties();
+		
+		final RequestedGlobalProperties[] allValidGlobals;
+		{
+			Set<RequestedGlobalProperties> pairs = new HashSet<RequestedGlobalProperties>();
+			for (OperatorDescriptorSingle ods : this.possibleProperties) {
+				pairs.addAll(ods.getPossibleGlobalProperties());
+			}
+			allValidGlobals = (RequestedGlobalProperties[]) pairs.toArray(new RequestedGlobalProperties[pairs.size()]);
+		}
 		final List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
 		// create all candidates
@@ -278,7 +282,15 @@ public abstract class SingleInputNode extends OptimizerNode
 						// create an instantiation of the global properties
 						igps.parameterizeChannel(c);
 					}
-					addLocalCandidates(c, outputPlans);
+					
+					// check whether this meets any accepted global property
+					// check whether we meet any of the accepted properties
+					for (RequestedGlobalProperties rgps: allValidGlobals) {
+						if (rgps.isMetBy(c.getGlobalProperties())) {
+							addLocalCandidates(c, outputPlans);
+							break;
+						}
+					}
 				}
 			} else {
 				// hint fixed the strategy
@@ -288,9 +300,10 @@ public abstract class SingleInputNode extends OptimizerNode
 				} else {
 					c.setShipStrategy(this.inConn.getShipStrategy());
 				}
-				// check whether we meet any properties
-				for (RequestedGlobalProperties igps: intGlobal) {
-					if (igps.isMetBy(c.getGlobalProperties())) {
+				
+				// check whether we meet any of the accepted properties
+				for (RequestedGlobalProperties rgps: allValidGlobals) {
+					if (rgps.isMetBy(c.getGlobalProperties())) {
 						addLocalCandidates(c, outputPlans);
 						break;
 					}
@@ -317,11 +330,18 @@ public abstract class SingleInputNode extends OptimizerNode
 			} else {
 				ilp.parameterizeChannel(in);
 			}
-		
-			for (DriverPropertiesSingle dps: this.possibleProperties) {
+			
+			for (OperatorDescriptorSingle dps: this.possibleProperties) {
 				for (RequestedLocalProperties ilps : dps.getPossibleLocalProperties()) {
 					if (ilps.isMetBy(in.getLocalProperties())) {
-						target.add(dps.instantiate(in, this));
+						final SingleInputPlanNode node = dps.instantiate(in, this);
+						final GlobalProperties gProps = node.getGlobalProperties();
+						final LocalProperties lProps = node.getLocalProperties();
+						dps.processPropertiesByStrategy(gProps, lProps);
+						gProps.filterByNodesConstantSet(this, 0);
+						lProps.filterByNodesConstantSet(this, 0);
+						node.updatePropertiesWithUniqueSets(getUniqueFields());
+						target.add(node);
 						break;
 					}
 				}

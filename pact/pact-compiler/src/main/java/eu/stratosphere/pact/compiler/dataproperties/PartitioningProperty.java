@@ -17,13 +17,11 @@ package eu.stratosphere.pact.compiler.dataproperties;
 
 /**
  * An enumeration tracking the different types of sharding strategies.
- * 
- * @author Stephan Ewen
  */
 public enum PartitioningProperty {
 	
 	/**
-	 * Constant indicating no particular partitioning (i.e. random)
+	 * Constant indicating no particular partitioning (i.e. random) data distribution.
 	 */
 	RANDOM,
 
@@ -38,12 +36,12 @@ public enum PartitioningProperty {
 	RANGE_PARTITIONED,
 
 	/**
-	 * Constant indicating any not further specified partitioning.
+	 * Constant indicating any not further specified disjunct partitioning.
 	 */
 	ANY_PARTITIONING,
 	
 	/**
-	 * Constant indicating full replication of the data.
+	 * Constant indicating full replication of the data to each parallel instance.
 	 */
 	FULL_REPLICATION;
 

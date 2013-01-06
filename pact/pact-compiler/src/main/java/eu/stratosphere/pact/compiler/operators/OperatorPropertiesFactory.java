@@ -13,12 +13,17 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.compiler.dataproperties;
+package eu.stratosphere.pact.compiler.operators;
 
 import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.pact.common.util.FieldSet;
+import eu.stratosphere.pact.compiler.costs.Costs;
+import eu.stratosphere.pact.compiler.dataproperties.GlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.pact.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.pact.compiler.plan.SingleInputNode;
 import eu.stratosphere.pact.compiler.plan.candidate.Channel;
 import eu.stratosphere.pact.compiler.plan.candidate.SingleInputPlanNode;
@@ -29,56 +34,20 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 /**
  * 
  */
-public class DriverPropertiesFactory
+public class OperatorPropertiesFactory
 {
 	/**
-	 * Prevent external instantiation. Initialize all built-in strategy handlers.
+	 * Prevent external instantiation.
 	 */
-	private DriverPropertiesFactory() {}
+	private OperatorPropertiesFactory() {}
 	
 	
 	// ============================================================================================
 	// Implementations for Built-In Strategies
 	// ============================================================================================
 
-	public static final class MapProperties extends DriverPropertiesSingle
+	public static final class GroupProperties extends OperatorDescriptorSingle
 	{
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandler#getStrategy()
-		 */
-		@Override
-		public DriverStrategy getStrategy() {
-			return DriverStrategy.MAP;
-		}
-
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesHandlerSingle#instantiate(eu.stratosphere.pact.compiler.plan.candidate.Channel, eu.stratosphere.pact.compiler.plan.SingleInputNode, eu.stratosphere.pact.common.util.FieldList)
-		 */
-		@Override
-		public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-			return new SingleInputPlanNode(node, in, DriverStrategy.MAP);
-		}
-
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#getPossibleGlobalProperties()
-		 */
-		@Override
-		protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
-			return Collections.singletonList(new RequestedGlobalProperties());
-		}
-
-		/* (non-Javadoc)
-		 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#getPossibleLocalProperties()
-		 */
-		@Override
-		protected List<RequestedLocalProperties> createPossibleLocalProperties() {
-			return Collections.singletonList(new RequestedLocalProperties());
-		}
-	}
-	
-	public static final class GroupProperties extends DriverPropertiesSingle
-	{
-
 		
 		public GroupProperties(FieldSet keys) {
 			super(keys);
@@ -89,7 +58,7 @@ public class DriverPropertiesFactory
 		 */
 		@Override
 		public DriverStrategy getStrategy() {
-			return DriverStrategy.GROUP;
+			return DriverStrategy.GROUP_OVER_ORDERED;
 		}
 
 		/* (non-Javadoc)
@@ -97,7 +66,7 @@ public class DriverPropertiesFactory
 		 */
 		@Override
 		public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-			return new SingleInputPlanNode(node, in, DriverStrategy.GROUP, this.keyList);
+			return new SingleInputPlanNode(node, in, DriverStrategy.GROUP_OVER_ORDERED, this.keyList);
 		}
 
 		/* (non-Javadoc)
@@ -119,9 +88,18 @@ public class DriverPropertiesFactory
 			props.setGroupedFields(this.keys);
 			return Collections.singletonList(props);
 		}
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#processPropertiesByStrategy(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
+		 */
+		@Override
+		public void processPropertiesByStrategy(GlobalProperties gProps, LocalProperties lProps) {
+			gProps.clearUniqueFieldSets();
+			lProps.clearUniqueFieldSets();
+		}
 	}
 	
-	public static final class PartialGroupProperties extends DriverPropertiesSingle
+	public static final class PartialGroupProperties extends OperatorDescriptorSingle
 	{
 		public PartialGroupProperties(FieldSet keys) {
 			super(keys);
@@ -160,9 +138,18 @@ public class DriverPropertiesFactory
 			props.setGroupedFields(this.keys);
 			return Collections.singletonList(props);
 		}
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#processPropertiesByStrategy(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
+		 */
+		@Override
+		public void processPropertiesByStrategy(GlobalProperties gProps, LocalProperties lProps) {
+			gProps.clearUniqueFieldSets();
+			lProps.clearUniqueFieldSets();
+		}
 	}
 	
-	public static final class GroupWithPartialPreGroupProperties extends DriverPropertiesSingle
+	public static final class GroupWithPartialPreGroupProperties extends OperatorDescriptorSingle
 	{
 		public GroupWithPartialPreGroupProperties(FieldSet keys) {
 			super(keys);
@@ -173,7 +160,7 @@ public class DriverPropertiesFactory
 		 */
 		@Override
 		public DriverStrategy getStrategy() {
-			return DriverStrategy.GROUP_WITH_PARTIAL_GROUP;
+			return DriverStrategy.GROUP_OVER_ORDERED;
 		}
 
 		/* (non-Javadoc)
@@ -189,17 +176,18 @@ public class DriverPropertiesFactory
 					}
 					in.setLocalStrategy(LocalStrategy.COMBININGSORT);
 				}
-				return new SingleInputPlanNode(node, in, DriverStrategy.GROUP_WITH_PARTIAL_GROUP, this.keyList);
+				return new SingleInputPlanNode(node, in, DriverStrategy.GROUP_OVER_ORDERED, this.keyList);
 			} else {
 				// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 				Channel toCombiner = new Channel(in.getSource());
 				toCombiner.setShipStrategy(ShipStrategyType.FORWARD);
-				toCombiner.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
 				SingleInputPlanNode combiner = new SingleInputPlanNode(node, toCombiner, DriverStrategy.PARTIAL_GROUP, this.keyList);
+				combiner.setCosts(new Costs(0, 0));
+				
 				Channel toReducer = new Channel(combiner);
 				toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
 				toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-				return new SingleInputPlanNode(node, toReducer, DriverStrategy.GROUP_WITH_PARTIAL_GROUP, this.keyList);
+				return new SingleInputPlanNode(node, toReducer, DriverStrategy.GROUP_OVER_ORDERED, this.keyList);
 			}
 		}
 
@@ -221,6 +209,15 @@ public class DriverPropertiesFactory
 			RequestedLocalProperties props = new RequestedLocalProperties();
 			props.setGroupedFields(this.keys);
 			return Collections.singletonList(props);
+		}
+		
+		/* (non-Javadoc)
+		 * @see eu.stratosphere.pact.compiler.dataproperties.DriverPropertiesSingle#processPropertiesByStrategy(eu.stratosphere.pact.compiler.dataproperties.GlobalProperties, eu.stratosphere.pact.compiler.dataproperties.LocalProperties)
+		 */
+		@Override
+		public void processPropertiesByStrategy(GlobalProperties gProps, LocalProperties lProps) {
+			gProps.clearUniqueFieldSets();
+			lProps.clearUniqueFieldSets();
 		}
 	}
 }
